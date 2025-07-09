@@ -4,6 +4,7 @@
 # Starlink API Documentation Generator
 #
 # Version: 1.0 (Public Edition)
+# Source: https://github.com/markus-lassfolk/rutos-starlink-victron/ 
 #
 # This script is a utility for developers and enthusiasts who want to explore
 # the Starlink gRPC API. It systematically calls a list of known "get" methods,
