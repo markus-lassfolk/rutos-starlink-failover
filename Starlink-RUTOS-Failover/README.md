@@ -1,12 +1,11 @@
-
 # Advanced Starlink Failover & Monitoring for RUTOS/OpenWrt
 
-This repository contains a collection of scripts designed to create a highly robust, proactive, and intelligent multi-WAN failover system on a Teltonika RUTOS or other OpenWrt-based router. It uses the Starlink gRPC API to make real-time decisions about connection quality, providing a much more seamless experience than standard ping-based checks alone.
+This directory contains a collection of scripts designed to create a highly robust, proactive, and intelligent multi-WAN failover system on a Teltonika RUTOS or other OpenWrt-based router. It uses the Starlink gRPC API to make real-time decisions about connection quality, providing a much more seamless experience than standard ping-based checks alone.
 
 Standard failover systems typically rely on simple ping tests to determine if a connection is "down." This approach is inadequate for satellite internet like Starlink, which can suffer from unique issues such as temporary obstructions, micro-outages, or periods of high latency even while the basic connection remains active. This project transforms a simple reactive system into a proactive one that can anticipate problems and gracefully switch to a backup connection before the user's experience is significantly impacted.
 
-## Features
 
+## Features
 This solution offers a suite of advanced features to create a truly resilient mobile internet setup.
 
 * **Proactive Quality Monitoring:** Instead of waiting for a total failure, the system actively queries Starlink's internal API for key performance indicators:
@@ -28,7 +27,7 @@ This solution offers a suite of advanced features to create a truly resilient mo
 
 Before setting up these scripts, ensure your router meets the following requirements:
 
-1.  **Hardware:** A Teltonika RUTX50 or a similar OpenWrt-based router with sufficient processing power and an **ARMv7** architecture. While developed on a RUTX50, the principles are adaptable.
+1.  **Hardware:** A Teltonika RUTX50 or a similar OpenWrt-based router with sufficient processing power and an **ARMv7** architecture. While developed on a RUTX50, the principles are adaptable. 
 
 2.  **Starlink:** A Starlink dish running in **Bypass Mode**. This is essential as it allows the router to receive the WAN IP address directly from Starlink and manage the connection.
 
@@ -62,10 +61,15 @@ This solution follows a "Brain" and "Messenger" architecture for a clean separat
 
 Proper configuration of the router's networking is critical for this system to work. These settings are applied via the `uci` utility.
 
+
 ### 1. mwan3 Configuration
+The following uci commands will configure mwan3 for a responsive failover. This assumes your Starlink is wan (member1), your primary SIM is mob1s1a1 (member3), and your roaming SIM is mob1s2a1 (member4).
+
+Set Member Metrics
+The metric determines the priority of the interface (lower is better). This setup prioritizes Starlink, then the primary SIM, and finally the roaming SIM.
 
 ```sh
-# Set priority metrics
+# Set member metrics (lower is higher priority)
 uci set mwan3.member1.metric='1'
 uci set mwan3.member3.metric='2'
 uci set mwan3.member4.metric='4'
@@ -73,8 +77,60 @@ uci set mwan3.member4.metric='4'
 
 Configure tracking for interfaces similarly, commit and restart the service afterward.
 
-### 2. Static Route
+### 2. Configure Starlink (WAN) Health Checks
+These settings configure the traditional ping-based health check for Starlink, which serves as a vital backup to our proactive API monitoring script.
 
+```sh
+# Configure Starlink (wan) tracking for aggressive but stable recovery
+uci set mwan3.@condition[1].interface='wan'
+uci set mwan3.@condition[1].track_method='ping'
+uci set mwan3.@condition[1].track_ip='1.0.0.1' '8.8.8.8'
+uci set mwan3.@condition[1].reliability='1'
+uci set mwan3.@condition[1].timeout='1'
+uci set mwan3.@condition[1].interval='1'
+uci set mwan3.@condition[1].count='1'
+uci set mwan3.@condition[1].down='2' # Mark as down after 2 failed ping cycles
+uci set mwan3.@condition[1].up='3'   # Mark as up after 3 successful ping cycles
+uci set mwan3.wan.recovery_wait='10' # Wait 10s after recovery before use
+```
+
+### 3. Configure Mobile Interface Health Checks (Crucial)
+This ensures your cellular connections are also checked for actual internet connectivity by pinging reliable external hosts, not just relying on the modem's signal status.
+
+```sh
+# Configure Primary SIM (mob1s1a1)
+uci set mwan3.@condition[0].interface='mob1s1a1'
+uci set mwan3.@condition[0].track_method='ping'
+uci set mwan3.@condition[0].track_ip='1.1.1.1' '8.8.8.8'
+uci set mwan3.@condition[0].reliability='1'
+uci set mwan3.@condition[0].timeout='2'
+uci set mwan3.@condition[0].interval='3'
+uci set mwan3.@condition[0].count='2'
+uci set mwan3.@condition[0].down='4'
+uci set mwan3.@condition[0].up='4'
+
+# Configure Roaming SIM (mob1s2a1)
+uci add mwan3 condition
+uci set mwan3.@condition[-1].interface='mob1s2a1'
+uci set mwan3.@condition[-1].track_method='ping'
+uci set mwan3.@condition[-1].track_ip='1.1.1.1' '8.8.4.4'
+uci set mwan3.@condition[-1].reliability='1'
+uci set mwan3.@condition[-1].count='2'
+uci set mwan3.@condition[-1].timeout='3'
+uci set mwan3.@condition[-1].interval='10' # Check less frequently
+uci set mwan3.@condition[-1].down='3'
+uci set mwan3.@condition[-1].up='3'
+```
+
+### 4. Commit and Restart
+```sh
+# Apply all mwan3 changes and restart the service
+uci commit mwan3
+mwan3 restart
+```
+
+### 5. Static Route for Starlink
+This step is non-negotiable. You must add a static route to tell the router that the dish's management IP (192.168.100.1) is accessible through the wan interface. Without this, the monitoring scripts cannot communicate with the dish.
 ```sh
 uci add network route
 uci set network.@route[-1].interface='wan'
@@ -83,31 +139,63 @@ uci commit network
 /etc/init.d/network restart
 ```
 
-### 3. SSH & WebUI Timeouts
-
+### 6. SSH & WebUI Timeouts (Optional)
+For convenience during setup and monitoring, you can extend the default session timeouts. Be aware of the security implications of leaving sessions logged in indefinitely.
 ```sh
+# SSH Timeout (infinite)
 uci set dropbear.@dropbear[0].IdleTimeout='0'
 uci commit dropbear
 /etc/init.d/dropbear restart
 
+# WebUI Timeout (1 year)
 uci set uhttpd.main.session_timeout='31536000'
 uci commit uhttpd
 /etc/init.d/uhttpd restart
 ```
 
+### 7. Script Configuration
+All scripts have a Configuration section at the top. You must edit the `99-pushover_notify` script to set your Pushover API Token and User Key. It is highly recommended to start with the default thresholds in `starlink_monitor.sh` and use the data from `starlink_logger.sh` to fine-tune them over a few days of usage.
+
+
 ## Installation & Setup
 
-1. Install tools
+1. Install Prerequisites: Run the commands in the Prerequisites section above to download and install `grpcurl` and `jq`. 
 2. Place scripts
+   Place `starlink_monitor.sh`, `starlink_logger.sh`, `check_starlink_api.sh`, and `generate_api_docs.sh` in the `/root/` directory.
+   Place `99-pushover_notify` in the `/etc/hotplug.d/iface/` directory. This is the correct location for scripts that need to be triggered by interface events.
 3. Make scripts executable
-4. Set up cron jobs:
-    ```cron
-    * * * * * /root/starlink_monitor.sh
-    * * * * * /root/starlink_logger.sh
-    30 3 * * * /root/check_starlink_api.sh
-    ```
+```sh
+chmod +x /root/starlink_monitor.sh
+chmod +x /etc/hotplug.d/iface/99-pushover_notify
+chmod +x /root/starlink_logger.sh
+chmod +x /root/check_starlink_api.sh
+chmod +x /root/generate_api_docs.sh
+```
+4. Apply UCI Changes: Run the commands in the Configuration section above to set up mwan3 and the necessary static route.
+5. Set up Cron Jobs: Run `crontab -e` to open the cron editor and add the following lines to schedule the scripts.
+   ```cron
+   # Run the main quality monitor every minute
+   * * * * * /root/starlink_monitor.sh
+   
+   # Run the performance logger every minute (optional) 
+   * * * * * /root/starlink_logger.sh   
+   
+   # Check for an API version change once a day at 5:30 AM  (optional) 
+   30 5 * * * /root/check_starlink_api.sh  
+   ```
 
 ## Usage & Testing
 
 Use `logread | grep StarlinkMonitor` to verify, and simulate events manually for testing failover behaviors.
+
+After setup, it's important to verify that the system is working as expected.
+* Initial Verification: After one or two minutes, check the system log with `logread | grep StarlinkMonitor`. You should see entries from the monitor script confirming it is running and checking the connection quality.
+* Test Soft Failover: To test the proactive monitoring, temporarily set a very low threshold in `starlink_monitor.sh` (e.g., LATENCY_THRESHOLD_MS=1). Run the script manually: `/root/starlink_monitor.sh`. You should see the script detect the "bad" quality, change the metric, and receive a "Quality Failover" notification from Pushover. Remember to change the threshold back afterwards. 
+* Test Hard Failover: To test the failsafe notifier, manually trigger a hotplug event by setting the required environment variables from the command line. This simulates what the system does when mwan3's own ping checks fail.
+```sh
+ACTION=ifdown INTERFACE=wan /etc/hotplug.d/iface/99-pushover_notify
+```
+   This should trigger the "Starlink Offline (Hard)" notification.
+
+
 
