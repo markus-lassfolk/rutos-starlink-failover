@@ -156,7 +156,7 @@ uci commit uhttpd
 /etc/init.d/uhttpd restart
 ```
 
-### 7. Script Configuration
+### 7. Script Configuration (Important) 
 All scripts have a Configuration section at the top. You must edit the `99-pushover_notify` script to set your Pushover API Token and User Key. It is highly recommended to start with the default thresholds in `starlink_monitor.sh` and use the data from `starlink_logger.sh` to fine-tune them over a few days of usage.
 
 
