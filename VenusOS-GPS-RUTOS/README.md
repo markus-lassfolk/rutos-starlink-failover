@@ -19,6 +19,9 @@ The entire logic is contained within a single Node-RED flow running on the Cerbo
 - **MQTT Injection:** The formatted GPS data is published to the Cerbo's local MQTT broker. The Victron system listens to these specific MQTT topics and updates the system's official location accordingly.
 - **Movement Detection & Obstruction Map Reset:** The flow includes a powerful secondary function: it calculates the distance moved since the last successful GPS update. If the vehicle has moved more than 500 meters, it automatically triggers a command to reset the Starlink dish's obstruction map. This is crucial for mobile users, as it ensures Starlink immediately begins scanning for a clear view of the sky at each new location, optimizing performance.
 
+![image](https://github.com/user-attachments/assets/b883022b-914e-468d-8f7f-7b9fa44cc08c)
+
+
 ## Prerequisites
 
 ### 1. Hardware
