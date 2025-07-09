@@ -1,134 +1,113 @@
-Advanced Starlink Failover & Monitoring for RUTOS/OpenWrt 
+
+# Advanced Starlink Failover & Monitoring for RUTOS/OpenWrt
+
 This repository contains a collection of scripts designed to create a highly robust, proactive, and intelligent multi-WAN failover system on a Teltonika RUTOS or other OpenWrt-based router. It uses the Starlink gRPC API to make real-time decisions about connection quality, providing a much more seamless experience than standard ping-based checks alone.
 
+Standard failover systems typically rely on simple ping tests to determine if a connection is "down." This approach is inadequate for satellite internet like Starlink, which can suffer from unique issues such as temporary obstructions, micro-outages, or periods of high latency even while the basic connection remains active. This project transforms a simple reactive system into a proactive one that can anticipate problems and gracefully switch to a backup connection before the user's experience is significantly impacted.
 
-Features
-Proactive Quality Monitoring: Uses Starlink's internal API to monitor real-time Latency, Packet Loss, and Obstruction data.
+## Features
 
-"Soft" Failover: Instead of dropping all connections, the system intelligently changes the routing metrics (uci set mwan3...) to reroute traffic without interrupting existing sessions like VPNs or SSH.
+This solution offers a suite of advanced features to create a truly resilient mobile internet setup.
 
-Intelligent Notifications: A centralized notifier script sends detailed Pushover alerts for different failure scenarios (e.g., "Quality Failover due to High Latency" vs. "Hard Failover due to Link Loss").
+* **Proactive Quality Monitoring:** Instead of waiting for a total failure, the system actively queries Starlink's internal API for key performance indicators:
+    * **Latency:** Detects when the connection becomes congested or unresponsive, which is a primary indicator of a poor user experience for real-time applications like video calls.
+    * **Packet Loss:** Monitors the rate of data packets that fail to reach the Starlink ground station, providing a direct measure of connection instability.
+    * **Obstruction:** Uses the real-time sky obstruction data to preemptively fail over if a physical blockage is likely to cause intermittent signal loss.
 
-Stability-Aware Failback: Prevents a "flapping" connection by requiring Starlink to be stable for a configurable period before failing back.
+* **"Soft" Failover:** This is a key feature for maintaining a seamless user experience. Instead of a "hard" failover (`ifdown`), which terminates all active connections, this system intelligently changes the routing metrics (`uci set mwan3...`). This makes the Starlink connection less desirable than the cellular backup, causing the router to send all *new* traffic to the backup link. Crucially, long-lived connections like VPNs, SSH sessions, large file downloads, or remote work sessions are not immediately killed, preventing disruptive interruptions.
 
-Data Logging & Analysis: Includes a script to log Starlink's performance over time to a CSV file, perfect for analysis in Excel to fine-tune thresholds.
+* **Intelligent Notifications:** A centralized notifier script sends detailed Pushover alerts for different failure scenarios. This provides valuable context, allowing you to distinguish between a "soft" quality-based failover (e.g., `Reason: [High Latency]`) and a "hard" physical link failure (e.g., `Link is down`). This insight helps in diagnosing connection issues remotely.
 
-API Change Detection: A daily script monitors for changes in the Starlink API version and sends an alert, ensuring the scripts don't break silently after a firmware update.
+* **Stability-Aware Failback:** A common problem with automated failover is "flapping," where the system rapidly switches back and forth between connections. This script solves that by implementing a stability timer. It requires the Starlink connection to demonstrate consistently good quality for a configurable period (e.g., 5 minutes) before it will automatically fail back, ensuring the primary connection is genuinely reliable.
 
-Prerequisites
+* **Data Logging & Analysis:** A dedicated logger script captures Starlink's performance metrics (latency, packet loss, obstruction) over time and saves them to a standard CSV file. This data can be easily imported into Excel or other tools to analyze trends, identify recurring issues (like obstructions at certain times of day), and make data-driven decisions to fine-tune the failover thresholds for your specific environment.
+
+* **API Change Detection:** The Starlink gRPC API is unofficial and can change with firmware updates. This solution includes a utility script that runs once a day to check if the API version has changed. If it has, it sends a notification, alerting you that the monitoring scripts may need updates, thus preventing silent failures.
+
+## Prerequisites
+
 Before setting up these scripts, ensure your router meets the following requirements:
 
-Hardware: A Teltonika RUTX50 or similar OpenWrt-based router with an ARMv7 architecture.
+1.  **Hardware:** A Teltonika RUTX50 or a similar OpenWrt-based router with sufficient processing power and an **ARMv7** architecture. While developed on a RUTX50, the principles are adaptable.
 
-Starlink: A Starlink dish running in Bypass Mode.
+2.  **Starlink:** A Starlink dish running in **Bypass Mode**. This is essential as it allows the router to receive the WAN IP address directly from Starlink and manage the connection.
 
-Packages & Binaries: You will need to install several tools on the router via SSH.
+3.  **Packages & Binaries:** You will need to install several command-line tools on the router via SSH, as they are not included in the default RUTOS firmware.
 
-# 1. Install grpcurl (32-bit ARMv7 version for RUTX50)
-# This is the correct binary for the RUTX50's armv7l architecture.
-curl -fL https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz -o /tmp/grpcurl.tar.gz
-tar -zxvf /tmp/grpcurl.tar.gz -C /root/ grpcurl
-chmod +x /root/grpcurl
-rm /tmp/grpcurl.tar.gz
+    ```sh
+    # 1. Install grpcurl (32-bit ARMv7 version for RUTX50)
+    curl -fL https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz -o /tmp/grpcurl.tar.gz
+    tar -zxvf /tmp/grpcurl.tar.gz -C /root/ grpcurl
+    chmod +x /root/grpcurl
+    rm /tmp/grpcurl.tar.gz
 
-# 2. Install jq (32-bit ARMv7/armhf version for RUTX50)
-# The 'armhf' version is correct for this hardware.
-curl -fL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf -o /root/jq
-chmod +x /root/jq
+    # 2. Install jq (32-bit ARMv7/armhf version for RUTX50)
+    curl -fL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf -o /root/jq
+    chmod +x /root/jq
 
-# 3. The scripts use 'awk' and 'logger', which are included in BusyBox by default.
+    # 3. The scripts use 'awk' and 'logger', which are included in the default BusyBox suite on RUTOS.
+    ```
 
-Core Components (The Scripts)
-This solution is comprised of several scripts that work together.
+## Core Components (The Scripts)
 
-starlink_monitor.sh: The Brain. Runs every minute via cron to check Starlink quality, performs the soft failover by changing mwan3 metrics, and calls the notifier script.
+This solution follows a "Brain" and "Messenger" architecture for a clean separation of concerns.
 
-99-pushover_notify: The Messenger. A centralized script that sends Pushover notifications. It's triggered by the monitor script for soft failovers and by the system's hotplug events for hard failovers.
+* `starlink_monitor.sh`: **The Brain.** This is the main logic engine.
+* `99-pushover_notify`: **The Messenger.** Sends Pushover alerts.
+* `starlink_logger.sh`: Captures metrics to CSV.
+* `check_starlink_api.sh`: Checks if the Starlink API has changed.
+* `generate_api_docs.sh`: Dumps current API response.
 
-starlink_logger.sh: A data logger that runs every minute to capture performance metrics to a CSV file.
+## Configuration
 
-check_starlink_api.sh: A utility script that runs once a day to alert you if the Starlink API version changes.
+Proper configuration of the router's networking is critical for this system to work. These settings are applied via the `uci` utility.
 
-generate_api_docs.sh: A utility script to generate a full dump of the Starlink API data for future reference.
+### 1. mwan3 Configuration
 
-Configuration
-Proper configuration of the router's networking is critical for this system to work.
-
-1. mwan3 Configuration
-The following uci commands will configure mwan3 for a responsive failover. This assumes your Starlink is wan (member1), your primary SIM is mob1s1a1 (member3), and your roaming SIM is mob1s2a1 (member4).
-
-# Set member metrics (lower is higher priority)
+```sh
+# Set priority metrics
 uci set mwan3.member1.metric='1'
 uci set mwan3.member3.metric='2'
 uci set mwan3.member4.metric='4'
+```
 
-# Configure Starlink (wan) tracking for aggressive but stable recovery
-# These settings are for the standard mwan3 ping check, which acts as a backup
-# to our proactive script.
-uci set mwan3.@condition[1].interface='wan'
-uci set mwan3.@condition[1].down='2'
-uci set mwan3.@condition[1].up='3'
-uci set mwan3.wan.recovery_wait='10' # Wait 10s after recovery before use
+Configure tracking for interfaces similarly, commit and restart the service afterward.
 
-uci commit mwan3
-mwan3 restart
+### 2. Static Route
 
-2. Static Route for Starlink
-You must add a static route so the router can access the dish's API at 192.168.100.1.
-
+```sh
 uci add network route
 uci set network.@route[-1].interface='wan'
 uci set network.@route[-1].target='192.168.100.0/24'
 uci commit network
 /etc/init.d/network restart
+```
 
-3. SSH & WebUI Timeouts (Optional)
-To prevent sessions from timing out during configuration:
+### 3. SSH & WebUI Timeouts
 
-# SSH Timeout (infinite)
+```sh
 uci set dropbear.@dropbear[0].IdleTimeout='0'
 uci commit dropbear
 /etc/init.d/dropbear restart
 
-# WebUI Timeout (1 year)
 uci set uhttpd.main.session_timeout='31536000'
 uci commit uhttpd
 /etc/init.d/uhttpd restart
+```
 
-4. Script Configuration
-All scripts have a Configuration section at the top. You must edit the 99-pushover_notify script to set your Pushover credentials. You can also tune all thresholds in the monitor script.
+## Installation & Setup
 
-Installation & Setup
-Install Prerequisites: Run the commands in the Prerequisites section above.
+1. Install tools
+2. Place scripts
+3. Make scripts executable
+4. Set up cron jobs:
+    ```cron
+    * * * * * /root/starlink_monitor.sh
+    * * * * * /root/starlink_logger.sh
+    30 3 * * * /root/check_starlink_api.sh
+    ```
 
-Place Scripts:
+## Usage & Testing
 
-Place starlink_monitor.sh, starlink_logger.sh, check_starlink_api.sh, and generate_api_docs.sh in the /root/ directory.
+Use `logread | grep StarlinkMonitor` to verify, and simulate events manually for testing failover behaviors.
 
-Place 99-pushover_notify in the /etc/hotplug.d/iface/ directory.
-
-Make Executable: Run chmod +x on all scripts.
-
-chmod +x /root/starlink_monitor.sh
-chmod +x /etc/hotplug.d/iface/99-pushover_notify
-# ... and so on for the other scripts
-
-Apply UCI Changes: Run the commands in the Configuration section above.
-
-Set up Cron Jobs: Run crontab -e and add the following lines:
-
-# Run the main quality monitor every minute
-* * * * * /root/starlink_monitor.sh
-
-# Run the performance logger every minute
-* * * * * /root/starlink_logger.sh
-
-# Check for an API version change once a day at 3:30 AM
-30 3 * * * /root/check_starlink_api.sh
-
-Usage & Testing
-You can test the different parts of the system manually:
-
-Test Soft Failover: Temporarily set a very low threshold in starlink_monitor.sh (e.g., LATENCY_THRESHOLD_MS=1) and run it manually: /root/starlink_monitor.sh.
-
-Test Hard Failover: Manually trigger the hotplug script by setting environment variables: ACTION=ifdown INTERFACE=wan /etc/hotplug.d/iface/99-pushover_notify.
