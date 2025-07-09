@@ -58,7 +58,8 @@ This solution follows a "Brain" and "Messenger" architecture for a clean separat
 * `99-pushover_notify`: **The Messenger.** Sends Pushover alerts.
 * `starlink_logger.sh`: Captures metrics to CSV.
 * `check_starlink_api.sh`: Checks if the Starlink API has changed.
-* `generate_api_docs.sh`: Dumps current API response.
+* `generate_api_docs.sh`: Dumps current API response (Linux).
+* `generate_api_docs.ps1`: Dumps current API response (Powershell).
 
 ## Configuration
 
