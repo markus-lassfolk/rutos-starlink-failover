@@ -1,0 +1,113 @@
+#!/bin/sh
+
+# ==============================================================================
+# Centralized Pushover Notifier for mwan3
+#
+# Version: 1.0 (Public Edition)
+#
+# This script is the central "messenger" for the Starlink monitoring system.
+# Its sole purpose is to send detailed notifications via Pushover.
+#
+# It is designed to be triggered in two distinct ways:
+#
+# 1. By the `starlink_monitor.sh` script:
+#    The monitor script calls this notifier directly with arguments to report
+#    on "soft" failovers based on quality degradation.
+#    - Example call: /path/to/script.sh soft_failover "[High Latency]"
+#
+# 2. By the system's hotplug service:
+#    When mwan3's own ping checks fail or a physical link goes down, the system
+#    runs this script automatically. The script detects this by checking for
+#    environment variables ($ACTION, $INTERFACE) to report on "hard" failovers.
+#
+# This script should be placed in `/etc/hotplug.d/iface/` and be made executable.
+#
+# ==============================================================================
+
+# Exit on first error, undefined variable, or pipe failure for script robustness.
+set -euo pipefail
+
+# --- User Configuration ---
+# Replace the placeholder values below with your actual Pushover credentials.
+# You can get these from your Pushover account dashboard.
+
+# Your Pushover Application API Token/Key
+PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"
+# Your Pushover User Key
+PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"
+
+# --- System Configuration ---
+# The tag used for logging messages to the system log (syslog/logread).
+LOG_TAG="PushoverNotifier"
+
+# --- Helper Functions ---
+
+# log() - Writes a message to the system log.
+log() {
+    # Use -- to prevent messages starting with - from being treated as options
+    logger -t "$LOG_TAG" -- "$1"
+}
+
+# send_notification() - Formats and sends the message via the Pushover API.
+send_notification() {
+    # Takes two arguments: title and message
+    local title="$1"
+    local message="$2"
+    
+    log "Sending Pushover -> Title: '$title', Message: '$message'"
+    
+    # Use curl to send the API request to Pushover.
+    # -s for silent mode, --max-time to prevent it from hanging.
+    curl -s --max-time 15 \
+        -F "token=$PUSHOVER_TOKEN" \
+        -F "user=$PUSHOVER_USER" \
+        -F "title=$title" \
+        -F "message=$message" \
+        https://api.pushover.net/1/messages.json > /dev/null
+}
+
+# --- Main Logic ---
+
+# The script's behavior depends on how it was called.
+# We check the first command-line argument ($1) to decide what to do.
+# If $1 is not set (i.e., called by hotplug), it defaults to "hotplug".
+case "${1:-hotplug}" in
+    soft_failover)
+        # This block is executed when called by the monitor script with "soft_failover".
+        # The second argument ($2) contains the detailed failure reason.
+        log "Triggered by Monitor: Soft Failover. Reason: $2"
+        send_notification "Starlink Quality Failover" "Starlink quality degraded. Reason: $2. Performing soft failover to mobile."
+        ;;
+
+    soft_recovery)
+        # This block is executed when called by the monitor script with "soft_recovery".
+        log "Triggered by Monitor: Soft Recovery."
+        send_notification "Starlink Recovered" "Starlink connection is stable. Performing soft failback."
+        ;;
+
+    hotplug)
+        # --- This block is executed when called by the system's hotplug service ---
+        # The ACTION and INTERFACE variables are automatically set by the system.
+        # We provide empty defaults (e.g., ${ACTION:-}) for safety when testing manually.
+        log "Triggered by Hotplug: ACTION=${ACTION:-}, INTERFACE=${INTERFACE:-}."
+        
+        case "${ACTION:-}" in
+            ifdown)
+                # A "hard" failure event occurred.
+                if [ "${INTERFACE:-}" = "wan" ]; then
+                    send_notification "Starlink Offline (Hard)" "Starlink ($INTERFACE) link is down or failed mwan3 ping test."
+                fi
+                ;;
+            connected)
+                # An interface has come fully online and is passing traffic.
+                if [ "${INTERFACE:-}" = "wan" ]; then
+                    send_notification "Starlink Recovered (Hard)" "Failback complete via mwan3. Traffic is now flowing over Starlink ($INTERFACE)."
+                elif [ "${INTERFACE:-}" = "mob1s1a1" ] || [ "${INTERFACE:-}" = "mob1s2a1" ]; then
+                    send_notification "Failover Active" "Failover complete. Traffic is now flowing over Mobile Interface ($INTERFACE)."
+                fi
+                ;;
+        esac
+        ;;
+esac
+
+exit 0
