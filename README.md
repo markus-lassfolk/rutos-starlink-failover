@@ -1,5 +1,5 @@
 # Advanced RUTOS, Starlink, and Victron Integration for Mobile Setups
-This repository contains a collection of projects designed to create a highly integrated and resilient connectivity and power management system for mobile environments like RVs and boats. These solutions leverage the power of Teltonika's RUTOS, Starlink, and Victron's Venus OS to solve common challenges faced by mobile users.
+This repository contains a collection of projects designed to create a highly integrated and resilient connectivity and power management system for mobile environments like RVs (motorhomes) and boats. These solutions leverage the power of Teltonika's RUTOS, Starlink, and Victron's Venus OS to solve common challenges faced by mobile users.
 
 Projects in this Repository
 ## 1. Proactive Starlink & Cellular Failover for RUTOS
