@@ -4,6 +4,7 @@
 # Centralized Pushover Notifier for mwan3
 #
 # Version: 1.0 (Public Edition)
+# Source: https://github.com/markus-lassfolk/rutos-starlink-victron/ 
 #
 # This script is the central "messenger" for the Starlink monitoring system.
 # Its sole purpose is to send detailed notifications via Pushover.
