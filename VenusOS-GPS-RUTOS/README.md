@@ -32,7 +32,7 @@ The entire logic is contained within a single Node-RED flow running on the Cerbo
 
 ### 2. Victron Cerbo GX / Venus OS
 
-- You must be running a **Venus OS Large** image.
+- You must be running a **Venus OS Large** image. (Instructions: https://www.victronenergy.com/live/venus-os:large) 
 - Enable MQTT on LAN (SSL and plain text) in `Settings -> Services`.
 
 ### 3. Node-RED
