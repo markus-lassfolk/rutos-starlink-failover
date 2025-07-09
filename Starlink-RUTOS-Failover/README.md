@@ -47,6 +47,9 @@ Before setting up these scripts, ensure your router meets the following requirem
     # 3. The scripts use 'awk' and 'logger', which are included in the default BusyBox suite on RUTOS.
     ```
 
+4.  **Pushover:** Register a free account at https://pushover.net/ and create an application so you get both a User and Application API-Key. Then install the Pushover application on your mobile device and login with your account.
+
+
 ## Core Components (The Scripts)
 
 This solution follows a "Brain" and "Messenger" architecture for a clean separation of concerns.
