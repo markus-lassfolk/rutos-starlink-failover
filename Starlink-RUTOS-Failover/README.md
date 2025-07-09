@@ -1,6 +1,5 @@
-Advanced Starlink Failover & Monitoring for RUTOS/OpenWrt 
+Advanced Starlink Failover & Monitoring for RUTOS/OpenWrt
 This repository contains a collection of scripts designed to create a highly robust, proactive, and intelligent multi-WAN failover system on a Teltonika RUTOS or other OpenWrt-based router. It uses the Starlink gRPC API to make real-time decisions about connection quality, providing a much more seamless experience than standard ping-based checks alone.
-
 
 Features
 Proactive Quality Monitoring: Uses Starlink's internal API to monitor real-time Latency, Packet Loss, and Obstruction data.
@@ -57,19 +56,45 @@ Proper configuration of the router's networking is critical for this system to w
 1. mwan3 Configuration
 The following uci commands will configure mwan3 for a responsive failover. This assumes your Starlink is wan (member1), your primary SIM is mob1s1a1 (member3), and your roaming SIM is mob1s2a1 (member4).
 
+Set Member Metrics
 # Set member metrics (lower is higher priority)
 uci set mwan3.member1.metric='1'
 uci set mwan3.member3.metric='2'
 uci set mwan3.member4.metric='4'
 
+Configure Starlink (WAN) Health Checks
+These settings are for the standard mwan3 ping check, which acts as a backup to our proactive script.
+
 # Configure Starlink (wan) tracking for aggressive but stable recovery
-# These settings are for the standard mwan3 ping check, which acts as a backup
-# to our proactive script.
 uci set mwan3.@condition[1].interface='wan'
 uci set mwan3.@condition[1].down='2'
 uci set mwan3.@condition[1].up='3'
 uci set mwan3.wan.recovery_wait='10' # Wait 10s after recovery before use
 
+Configure Mobile Interface Health Checks (Crucial)
+This ensures your mobile connections are also checked for internet connectivity, not just a modem signal.
+
+# Configure Primary SIM (mob1s1a1)
+uci set mwan3.@condition[0].interface='mob1s1a1'
+uci set mwan3.@condition[0].track_method='ping'
+uci set mwan3.@condition[0].track_ip='1.1.1.1' '8.8.8.8'
+uci set mwan3.@condition[0].reliability='1'
+uci set mwan3.@condition[0].count='2'
+uci set mwan3.@condition[0].down='4'
+uci set mwan3.@condition[0].up='4'
+
+# Configure Roaming SIM (mob1s2a1)
+uci set mwan3.@condition[2].interface='mob1s2a1'
+uci set mwan3.@condition[2].track_method='ping'
+uci set mwan3.@condition[2].track_ip='1.1.1.1' '8.8.4.4'
+uci set mwan3.@condition[2].reliability='1'
+uci set mwan3.@condition[2].count='2'
+uci set mwan3.@condition[2].down='3'
+uci set mwan3.@condition[2].up='3'
+uci set mwan3.@condition[2].interval='10' # Check less frequently
+
+Commit and Restart
+# Apply all mwan3 changes and restart the service
 uci commit mwan3
 mwan3 restart
 
