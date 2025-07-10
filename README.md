@@ -1,3 +1,6 @@
+# Introduction
+This project provides a reliable internet failover for Starlink using Teltonika RUTOS, and a redundant GPS feed for Victron systems. It’s intended for tech-savvy RV and boat owners who want uninterrupted connectivity and accurate solar forecasting. 
+
 # Advanced RUTOS, Starlink, and Victron Integration for Mobile Setups
 This repository contains a collection of projects designed to create a highly integrated and resilient connectivity and power management system for mobile environments like RVs (motorhomes) and boats. These solutions leverage the power of Teltonika's RUTOS, Starlink, and Victron's Venus OS to solve common challenges faced by mobile users.
 
