@@ -16,9 +16,8 @@ Proactive Failover: Detects degrading connection quality before a full outage oc
 Intelligent Notifications: Sends detailed Pushover alerts that distinguish between different types of failures (e.g., quality-based vs. link loss).
 Stability-Aware Recovery: Prevents a "flapping" connection by waiting for a configurable period of stability before failing back to Starlink.
 
-## 2. Redundant GPS for Victron Cerbo GX/CX
+## 2. [Redundant GPS for Victron Cerbo GX/CX](VenusOS-GPS-RUTOS/README.md)
 Directory: `VenusOS-GPS-RUTOS`
-
 
 This project features a Node-RED flow designed to run on a Victron Cerbo GX/CX, ensuring your system always has an accurate GPS location for features like Solar Forecasting. It intelligently polls for GPS data from both a Teltonika RUTOS router (Primary) and a Starlink dish (Secondary), selecting the best source to publish to the Victron D-Bus.
 
