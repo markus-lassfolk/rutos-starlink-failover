@@ -5,8 +5,8 @@ This project provides a reliable internet failover for Starlink using Teltonika 
 This repository contains a collection of projects designed to create a highly integrated and resilient connectivity and power management system for mobile environments like RVs (motorhomes) and boats. These solutions leverage the power of Teltonika's RUTOS, Starlink, and Victron's Venus OS to solve common challenges faced by mobile users.
 
 Projects in this Repository
-## 1. Proactive Starlink & Cellular Failover for RUTOS
-Directory: `Starlink-RUTOS-Failover`
+## 1. [Proactive Starlink & Cellular Failover for RUTOS](Starlink-RUTOS-Failover/README.md)
+Directory: `Starlink-RUTOS-Failover` 
 
 This project provides a suite of scripts to create a truly intelligent multi-WAN failover system on a Teltonika RUTOS device. Instead of relying on simple ping tests, this solution uses Starlink's internal gRPC API to monitor real-time quality metrics like latency, packet loss, and physical obstruction.
 
@@ -18,6 +18,7 @@ Stability-Aware Recovery: Prevents a "flapping" connection by waiting for a conf
 
 ## 2. Redundant GPS for Victron Cerbo GX/CX
 Directory: `VenusOS-GPS-RUTOS`
+
 
 This project features a Node-RED flow designed to run on a Victron Cerbo GX/CX, ensuring your system always has an accurate GPS location for features like Solar Forecasting. It intelligently polls for GPS data from both a Teltonika RUTOS router (Primary) and a Starlink dish (Secondary), selecting the best source to publish to the Victron D-Bus.
 
