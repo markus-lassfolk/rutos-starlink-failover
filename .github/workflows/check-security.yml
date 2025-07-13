@@ -1,0 +1,21 @@
+name: Security & Secret Checks
+
+on:
+  push:
+    branches: [ main, develop, improvements/actionlist-2025-07 ]
+  pull_request:
+    branches: [ main, develop, improvements/actionlist-2025-07 ]
+
+jobs:
+  check-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run file permission and secret checks
+        run: |
+          bash scripts/check-security.sh
+      - name: Run gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .gitleaks.toml
+        continue-on-error: true
