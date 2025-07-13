@@ -147,6 +147,7 @@ else
     # Parse the JSON to extract the required metrics.
     obstruction=$(echo "$status_data" | $JQ_CMD -r '.obstructionStats.fractionObstructed // 0' 2>/dev/null)
     latency=$(echo "$status_data" | $JQ_CMD -r '.popPingLatencyMs // 0' 2>/dev/null)
+    # shellcheck disable=SC1087  # This is a jq JSON path, not a shell array
     loss=$(echo "$history_data" | $JQ_CMD -r '.popPingDropRate[-1] // 0' 2>/dev/null)
     
     # Validate extracted data
@@ -155,33 +156,32 @@ else
         quality_is_bad=true
         FAIL_REASON="[Data Parse Error]"
     else
+        # --- Quality Analysis ---
+        latency_int=$(echo "$latency" | cut -d'.' -f1)
+        is_loss_high=$(awk -v val="$loss" -v threshold="$PACKET_LOSS_THRESHOLD" 'BEGIN { print (val > threshold) }')
+        is_obstructed=$(awk -v val="$obstruction" -v threshold="$OBSTRUCTION_THRESHOLD" 'BEGIN { print (val > threshold) }')
+        is_latency_high=0
+        
+        # Validate latency is numeric before comparison
+        if [ "$latency_int" -eq "$latency_int" ] 2>/dev/null && [ "$latency_int" -gt "$LATENCY_THRESHOLD_MS" ]; then
+            is_latency_high=1
+        fi
 
-    # --- Quality Analysis ---
-    latency_int=$(echo "$latency" | cut -d'.' -f1)
-    is_loss_high=$(awk -v val="$loss" -v threshold="$PACKET_LOSS_THRESHOLD" 'BEGIN { print (val > threshold) }')
-    is_obstructed=$(awk -v val="$obstruction" -v threshold="$OBSTRUCTION_THRESHOLD" 'BEGIN { print (val > threshold) }')
-    is_latency_high=0
-    
-    # Validate latency is numeric before comparison
-    if [ "$latency_int" -eq "$latency_int" ] 2>/dev/null && [ "$latency_int" -gt "$LATENCY_THRESHOLD_MS" ]; then
-        is_latency_high=1
-    fi
-
-    log "DEBUG INFO:
-    - Loss Check:      value=${loss}, threshold=${PACKET_LOSS_THRESHOLD}, triggered=${is_loss_high}
-    - Obstruction Check: value=${obstruction}, threshold=${OBSTRUCTION_THRESHOLD}, triggered=${is_obstructed}
-    - Latency Check:     value=${latency_int}ms, threshold=${LATENCY_THRESHOLD_MS}ms, triggered=${is_latency_high}"
-    
-    if [ "$is_loss_high" -eq 1 ] || [ "$is_obstructed" -eq 1 ] || [ "$is_latency_high" -eq 1 ]; then
-        quality_is_bad=true
-        # Construct a detailed reason string for the notification.
-        FAIL_REASON=""
-        [ "$is_loss_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Loss] "
-        [ "$is_obstructed" -eq 1 ] && FAIL_REASON="$FAIL_REASON[Obstructed] "
-        [ "$is_latency_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Latency] "
-    else
-        quality_is_bad=false
-    fi
+        log "DEBUG INFO:
+        - Loss Check:      value=${loss}, threshold=${PACKET_LOSS_THRESHOLD}, triggered=${is_loss_high}
+        - Obstruction Check: value=${obstruction}, threshold=${OBSTRUCTION_THRESHOLD}, triggered=${is_obstructed}
+        - Latency Check:     value=${latency_int}ms, threshold=${LATENCY_THRESHOLD_MS}ms, triggered=${is_latency_high}"
+        
+        if [ "$is_loss_high" -eq 1 ] || [ "$is_obstructed" -eq 1 ] || [ "$is_latency_high" -eq 1 ]; then
+            quality_is_bad=true
+            # Construct a detailed reason string for the notification.
+            FAIL_REASON=""
+            [ "$is_loss_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Loss] "
+            [ "$is_obstructed" -eq 1 ] && FAIL_REASON="$FAIL_REASON[Obstructed] "
+            [ "$is_latency_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Latency] "
+        else
+            quality_is_bad=false
+        fi
     fi
 fi
 
@@ -191,7 +191,8 @@ if [ "$quality_is_bad" = true ]; then
     # Reset the stability counter and record the failure time.
     echo "0" > "$STABILITY_FILE"
     
-    # Only take action if the metric isn't already set to bad.        if [ "$current_metric" -ne "$METRIC_BAD" ]; then
+    # Only take action if the metric isn't already set to bad.
+    if [ "$current_metric" -ne "$METRIC_BAD" ]; then
             log "STATE CHANGE: Quality is BELOW threshold. Setting metric to $METRIC_BAD."
             # Use uci to perform the "soft failover".
             if uci set mwan3."$MWAN_MEMBER".metric="$METRIC_BAD" && uci commit mwan3; then

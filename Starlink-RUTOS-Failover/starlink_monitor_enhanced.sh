@@ -166,6 +166,7 @@ main() {
     # --- Data Processing ---
     obstruction=$(echo "$status_data" | "$JQ_CMD" -r '.obstructionStats.fractionObstructed // 0' 2>/dev/null)
     latency=$(echo "$status_data" | "$JQ_CMD" -r '.popPingLatencyMs // 0' 2>/dev/null)
+    # shellcheck disable=SC1087  # This is a jq JSON path, not a shell array
     loss=$(echo "$history_data" | "$JQ_CMD" -r '.popPingDropRate[-1] // 0' 2>/dev/null)
     
     # Validate extracted data
