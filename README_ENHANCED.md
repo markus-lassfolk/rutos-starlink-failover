@@ -4,6 +4,8 @@
 [![Documentation Check](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml)
 [![Security Scan](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/security-scan.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/security-scan.yml)
 
+> **📢 Update:** Enhanced versions are now the default! The enhanced features have been promoted to become the primary scripts. Original versions are available as `*_old` backups.
+
 A comprehensive solution for **RV and boat owners** seeking robust internet connectivity and accurate solar forecasting. This repository provides intelligent failover systems and redundant GPS solutions for mobile environments.
 
 ## 🌟 Features
@@ -64,12 +66,14 @@ nano /root/starlink-monitor/config/config.sh
    nano config/config.sh
    ```
 
-4. **Deploy scripts**
+4. **Deploy scripts** (Enhanced versions are now the defaults)
    ```bash
-   cp Starlink-RUTOS-Failover/starlink_monitor_enhanced.sh /root/
-   cp Starlink-RUTOS-Failover/99-pushover_notify_enhanced /etc/hotplug.d/iface/99-pushover_notify
-   chmod +x /root/starlink_monitor_enhanced.sh /etc/hotplug.d/iface/99-pushover_notify
+   cp Starlink-RUTOS-Failover/starlink_monitor.sh /root/
+   cp Starlink-RUTOS-Failover/99-pushover_notify /etc/hotplug.d/iface/99-pushover_notify
+   chmod +x /root/starlink_monitor.sh /etc/hotplug.d/iface/99-pushover_notify
    ```
+
+   *Note: The enhanced versions are now the default scripts. Original versions are available as `*_old` for rollback if needed.*
 
 ## 📋 Prerequisites
 
@@ -224,8 +228,10 @@ cat /root/starlink_performance_log.csv
 
 | Script | Purpose |
 |--------|---------|
-| `starlink_monitor_enhanced.sh` | Enhanced monitoring with better error handling |
-| `99-pushover_notify_enhanced` | Improved notification system |
+| `starlink_monitor.sh` | Enhanced monitoring with better error handling (default) |
+| `99-pushover_notify` | Improved notification system (default) |
+| `starlink_monitor_old.sh` | Original monitoring script (backup) |
+| `99-pushover_notify_old` | Original notification script (backup) |
 | `install.sh` | Automated installation script |
 | `validate-config.sh` | Configuration validation |
 

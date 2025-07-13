@@ -127,26 +127,24 @@ install_scripts() {
     # Copy scripts to installation directory
     local script_dir="$(dirname "$0")"
     
-    # Enhanced scripts
-    if [ -f "$script_dir/starlink_monitor_enhanced.sh" ]; then
-        cp "$script_dir/starlink_monitor_enhanced.sh" "$INSTALL_DIR/scripts/starlink_monitor.sh"
-        chmod +x "$INSTALL_DIR/scripts/starlink_monitor.sh"
-        print_status "$GREEN" "✓ Enhanced monitor script installed"
-    else
-        print_status "$YELLOW" "Warning: Enhanced monitor script not found, using original"
+    # Main monitoring script (enhanced version is now default)
+    if [ -f "$script_dir/starlink_monitor.sh" ]; then
         cp "$script_dir/starlink_monitor.sh" "$INSTALL_DIR/scripts/starlink_monitor.sh"
         chmod +x "$INSTALL_DIR/scripts/starlink_monitor.sh"
+        print_status "$GREEN" "✓ Monitor script installed"
+    else
+        print_status "$RED" "Error: Monitor script not found"
+        return 1
     fi
     
-    # Enhanced notification script
-    if [ -f "$script_dir/99-pushover_notify_enhanced" ]; then
-        cp "$script_dir/99-pushover_notify_enhanced" "$HOTPLUG_DIR/99-pushover_notify"
-        chmod +x "$HOTPLUG_DIR/99-pushover_notify"
-        print_status "$GREEN" "✓ Enhanced notification script installed"
-    else
-        print_status "$YELLOW" "Warning: Enhanced notification script not found, using original"
+    # Notification script (enhanced version is now default)
+    if [ -f "$script_dir/99-pushover_notify" ]; then
         cp "$script_dir/99-pushover_notify" "$HOTPLUG_DIR/99-pushover_notify"
         chmod +x "$HOTPLUG_DIR/99-pushover_notify"
+        print_status "$GREEN" "✓ Notification script installed"
+    else
+        print_status "$RED" "Error: Notification script not found"
+        return 1
     fi
     
     # Other scripts
