@@ -165,12 +165,14 @@ test_threshold_validation() {
     
     # Test packet loss threshold
     local loss_value="0.10"
-    local is_loss_high=$(awk -v val="$loss_value" -v threshold="$PACKET_LOSS_THRESHOLD" 'BEGIN { print (val > threshold) }')
+    local is_loss_high
+    is_loss_high=$(awk -v val="$loss_value" -v threshold="$PACKET_LOSS_THRESHOLD" 'BEGIN { print (val > threshold) }')
     assert_equals "1" "$is_loss_high" "threshold_packet_loss_high"
     
     # Test obstruction threshold
     local obstruction_value="0.002"
-    local is_obstructed=$(awk -v val="$obstruction_value" -v threshold="$OBSTRUCTION_THRESHOLD" 'BEGIN { print (val > threshold) }')
+    local is_obstructed
+    is_obstructed=$(awk -v val="$obstruction_value" -v threshold="$OBSTRUCTION_THRESHOLD" 'BEGIN { print (val > threshold) }')
     assert_equals "1" "$is_obstructed" "threshold_obstruction_high"
     
     # Test latency threshold
@@ -190,14 +192,16 @@ test_state_management() {
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
     
-    local state_file="$STATE_DIR/test.state"
+    local state_file
+    state_file="$STATE_DIR/test.state"
     
     # Test state file creation
     echo "up" > "$state_file"
     assert_file_exists "$state_file" "state_file_creation"
     
     # Test state reading
-    local state=$(cat "$state_file")
+    local state
+    state=$(cat "$state_file")
     assert_equals "up" "$state" "state_reading"
     
     # Test state update
@@ -229,7 +233,8 @@ test_logging() {
     
     # Check log file
     if [ -f "$LOG_DIR/test.log" ]; then
-        local log_content=$(cat "$LOG_DIR/test.log")
+        local log_content
+        log_content=$(cat "$LOG_DIR/test.log")
         if echo "$log_content" | grep -q "Test message"; then
             log_test "PASS" "logging_basic" "Log message written correctly"
         else
@@ -252,11 +257,13 @@ test_json_parsing() {
     
     # Test JSON parsing
     local test_json='{"dishGetStatus":{"obstructionStats":{"fractionObstructed":0.01},"popPingLatencyMs":100}}'
-    
-    local obstruction=$(echo "$test_json" | jq -r '.dishGetStatus.obstructionStats.fractionObstructed')
+
+    local obstruction
+    obstruction=$(echo "$test_json" | jq -r '.dishGetStatus.obstructionStats.fractionObstructed')
     assert_equals "0.01" "$obstruction" "json_parsing_obstruction"
-    
-    local latency=$(echo "$test_json" | jq -r '.dishGetStatus.popPingLatencyMs')
+
+    local latency
+    latency=$(echo "$test_json" | jq -r '.dishGetStatus.popPingLatencyMs')
     assert_equals "100" "$latency" "json_parsing_latency"
 }
 
@@ -268,8 +275,10 @@ test_rate_limiting() {
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
     
-    local rate_file="$STATE_DIR/rate_limit"
-    local current_time=$(date '+%s')
+    local rate_file
+    rate_file="$STATE_DIR/rate_limit"
+    local current_time
+    current_time=$(date '+%s')
     
     # Create rate limit entry
     echo "soft_failover=$current_time" > "$rate_file"
@@ -305,7 +314,8 @@ test_arithmetic() {
     print_status "$BLUE" "Testing arithmetic operations..."
     
     # Test awk arithmetic
-    local result=$(awk 'BEGIN { print (0.1 > 0.05) }')
+    local result
+    result=$(awk 'BEGIN { print (0.1 > 0.05) }')
     assert_equals "1" "$result" "arithmetic_awk_comparison"
     
     # Test shell arithmetic
@@ -326,19 +336,22 @@ test_file_operations() {
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
     
-    local test_file="$STATE_DIR/test_file"
+    local test_file
+    test_file="$STATE_DIR/test_file"
     
     # Test file creation
     echo "test content" > "$test_file"
     assert_file_exists "$test_file" "file_creation"
     
     # Test file reading
-    local content=$(cat "$test_file")
+    local content
+    content=$(cat "$test_file")
     assert_equals "test content" "$content" "file_reading"
     
     # Test file permissions
     chmod 600 "$test_file"
-    local perms=$(stat -c "%a" "$test_file" 2>/dev/null || echo "unknown")
+    local perms
+    perms=$(stat -c "%a" "$test_file" 2>/dev/null || echo "unknown")
     if [ "$perms" = "600" ]; then
         log_test "PASS" "file_permissions" "File permissions set correctly"
     else
@@ -367,7 +380,8 @@ test_error_handling() {
     
     # Test undefined variable handling
     set +u  # Temporarily disable undefined variable check
-    local undefined_var="$undefined_variable"
+    local undefined_var
+    undefined_var="$undefined_variable"
     set -u
     
     if [ -z "$undefined_var" ]; then
