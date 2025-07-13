@@ -142,8 +142,11 @@ else
         quality_is_bad=true
         # Construct a detailed reason string for the notification.
         FAIL_REASON=""
+        # shellcheck disable=SC1087
         [ "$is_loss_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Loss] "
+        # shellcheck disable=SC1087
         [ "$is_obstructed" -eq 1 ] && FAIL_REASON="$FAIL_REASON[Obstructed] "
+        # shellcheck disable=SC1087
         [ "$is_latency_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Latency] "
     else
         quality_is_bad=false
