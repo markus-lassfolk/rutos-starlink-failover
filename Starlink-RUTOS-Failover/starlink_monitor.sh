@@ -23,6 +23,17 @@
 # Exit on first error, undefined variable, or pipe failure for script robustness.
 set -euo pipefail
 
+# Configuration validation
+if [ -z "${STARLINK_IP:-}" ] || [ -z "${MWAN_IFACE:-}" ] || [ -z "${MWAN_MEMBER:-}" ]; then
+    echo "Error: Critical configuration variables not set"
+    exit 1
+fi
+
+# Create required directories
+mkdir -p "$(dirname "$STATE_FILE")"
+mkdir -p "$(dirname "$STABILITY_FILE")"
+mkdir -p "$LOG_DIR"
+
 # --- User Configuration ---
 
 # The IP address and port for the Starlink gRPC API. This is standard.
@@ -112,6 +123,18 @@ log "INFO: Current state: $last_state, Stability count: $stability_count, Metric
 # We make two API calls to get the best of all available data:
 # 1. get_status: Provides real-time Latency and Obstruction.
 # 2. get_history: Provides a real-time array of Packet Loss.
+
+# Check if required binaries exist
+if [ ! -x "$GRPCURL_CMD" ] && ! command -v grpcurl >/dev/null 2>&1; then
+    log "ERROR: grpcurl not found. Please install it first."
+    exit 1
+fi
+
+if [ ! -x "$JQ_CMD" ] && ! command -v jq >/dev/null 2>&1; then
+    log "ERROR: jq not found. Please install it first."
+    exit 1
+fi
+
 status_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetStatus')
 history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory')
 
@@ -122,16 +145,27 @@ if [ -z "$status_data" ] || [ -z "$history_data" ]; then
     FAIL_REASON="[API Unreachable]"
 else
     # Parse the JSON to extract the required metrics.
-    obstruction=$(echo "$status_data" | $JQ_CMD -r '.obstructionStats.fractionObstructed // 0')
-    latency=$(echo "$status_data" | $JQ_CMD -r '.popPingLatencyMs // 0')
-    loss=$(echo "$history_data" | $JQ_CMD -r '.popPingDropRate[-1] // 0')
+    obstruction=$(echo "$status_data" | $JQ_CMD -r '.obstructionStats.fractionObstructed // 0' 2>/dev/null)
+    latency=$(echo "$status_data" | $JQ_CMD -r '.popPingLatencyMs // 0' 2>/dev/null)
+    loss=$(echo "$history_data" | $JQ_CMD -r '.popPingDropRate[-1] // 0' 2>/dev/null)
+    
+    # Validate extracted data
+    if [ -z "$obstruction" ] || [ -z "$latency" ] || [ -z "$loss" ]; then
+        log "ERROR: Failed to parse API response data"
+        quality_is_bad=true
+        FAIL_REASON="[Data Parse Error]"
+    else
 
     # --- Quality Analysis ---
     latency_int=$(echo "$latency" | cut -d'.' -f1)
     is_loss_high=$(awk -v val="$loss" -v threshold="$PACKET_LOSS_THRESHOLD" 'BEGIN { print (val > threshold) }')
     is_obstructed=$(awk -v val="$obstruction" -v threshold="$OBSTRUCTION_THRESHOLD" 'BEGIN { print (val > threshold) }')
     is_latency_high=0
-    [ "$latency_int" -gt "$LATENCY_THRESHOLD_MS" ] && is_latency_high=1
+    
+    # Validate latency is numeric before comparison
+    if [ "$latency_int" -eq "$latency_int" ] 2>/dev/null && [ "$latency_int" -gt "$LATENCY_THRESHOLD_MS" ]; then
+        is_latency_high=1
+    fi
 
     log "DEBUG INFO:
     - Loss Check:      value=${loss}, threshold=${PACKET_LOSS_THRESHOLD}, triggered=${is_loss_high}
@@ -148,6 +182,7 @@ else
     else
         quality_is_bad=false
     fi
+    fi
 fi
 
 # --- Decision Logic ---
@@ -156,17 +191,23 @@ if [ "$quality_is_bad" = true ]; then
     # Reset the stability counter and record the failure time.
     echo "0" > "$STABILITY_FILE"
     
-    # Only take action if the metric isn't already set to bad.
-    if [ "$current_metric" -ne "$METRIC_BAD" ]; then
-        log "STATE CHANGE: Quality is BELOW threshold. Setting metric to $METRIC_BAD."
-        # Use uci to perform the "soft failover".
-        uci set mwan3."$MWAN_MEMBER".metric="$METRIC_BAD"
-        uci commit mwan3
-        mwan3 restart
-        echo "down" > "$STATE_FILE"
-        # Call the external notifier script with the failure reason.
-        "$NOTIFIER_SCRIPT" "soft_failover" "$FAIL_REASON"
-    fi
+    # Only take action if the metric isn't already set to bad.        if [ "$current_metric" -ne "$METRIC_BAD" ]; then
+            log "STATE CHANGE: Quality is BELOW threshold. Setting metric to $METRIC_BAD."
+            # Use uci to perform the "soft failover".
+            if uci set mwan3."$MWAN_MEMBER".metric="$METRIC_BAD" && uci commit mwan3; then
+                if mwan3 restart; then
+                    echo "down" > "$STATE_FILE"
+                    # Call the external notifier script with the failure reason.
+                    if [ -x "$NOTIFIER_SCRIPT" ]; then
+                        "$NOTIFIER_SCRIPT" "soft_failover" "$FAIL_REASON" || log "WARNING: Notification failed"
+                    fi
+                else
+                    log "ERROR: Failed to restart mwan3 service"
+                fi
+            else
+                log "ERROR: Failed to update UCI configuration"
+            fi
+        fi
 else
     # --- QUALITY IS GOOD ---
     # If the last known state was 'down', start the recovery process.
@@ -179,12 +220,19 @@ else
         if [ "$stability_count" -ge "$STABILITY_CHECKS_REQUIRED" ]; then
             log "STATE CHANGE: Stability threshold met. Restoring metric to $METRIC_GOOD."
             # Use uci to perform the "soft failback".
-            uci set mwan3."$MWAN_MEMBER".metric="$METRIC_GOOD"
-            uci commit mwan3
-            mwan3 restart
-            echo "up" > "$STATE_FILE"
-            # Call the external notifier script.
-            "$NOTIFIER_SCRIPT" "soft_recovery"
+            if uci set mwan3."$MWAN_MEMBER".metric="$METRIC_GOOD" && uci commit mwan3; then
+                if mwan3 restart; then
+                    echo "up" > "$STATE_FILE"
+                    # Call the external notifier script.
+                    if [ -x "$NOTIFIER_SCRIPT" ]; then
+                        "$NOTIFIER_SCRIPT" "soft_recovery" || log "WARNING: Notification failed"
+                    fi
+                else
+                    log "ERROR: Failed to restart mwan3 service during recovery"
+                fi
+            else
+                log "ERROR: Failed to update UCI configuration during recovery"
+            fi
         fi
     else
         # Quality is good and we are already in the 'up' state. Reset stability counter.
