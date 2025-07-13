@@ -1,16 +1,18 @@
 # 0. Set file permissions (for CI or Linux environments)
-set_permissions() {
-  echo "Setting file permissions for scripts and config template..."
-  chmod 600 config/config.template.sh 2>/dev/null || true
-  chmod 755 scripts/*.sh Starlink-RUTOS-Failover/*.sh 2>/dev/null || true
-}
+
+# Call all checks at the very end
 set_permissions
 check_permissions
 check_secrets
 check_config_values
-#!/bin/bash
-# check-security.sh: Checks file permissions, hardcoded secrets, and config values
-# Usage: ./scripts/check-security.sh
+
+if [ $failures -eq 0 ]; then
+  echo "${GREEN}Security checks passed!${NC}"
+  exit 0
+else
+  echo "${RED}Security checks failed: $failures issue(s) found.${NC}"
+  exit 1
+fi
 
 set -e
 
