@@ -126,12 +126,12 @@ log "INFO: Current state: $last_state, Stability count: $stability_count, Metric
 
 # Check if required binaries exist
 if [ ! -x "$GRPCURL_CMD" ] && ! command -v grpcurl >/dev/null 2>&1; then
-    log "ERROR: grpcurl not found. Please install it first."
+    log ERROR "grpcurl not found. Please install it first."
     exit 1
 fi
 
 if [ ! -x "$JQ_CMD" ] && ! command -v jq >/dev/null 2>&1; then
-    log "ERROR: jq not found. Please install it first."
+    log ERROR "jq not found. Please install it first."
     exit 1
 fi
 
