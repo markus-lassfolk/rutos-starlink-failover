@@ -52,14 +52,23 @@ Before setting up these scripts, ensure your router meets the following requirem
 
 ## Core Components (The Scripts)
 
+> **📢 Update:** Enhanced versions are now the default! All references below to script names reflect the current default versions. Original scripts are preserved as `*_old` for rollback if needed.
+
 This solution follows a "Brain" and "Messenger" architecture for a clean separation of concerns.
 
-* `starlink_monitor.sh`: **The Brain.** This is the main logic engine.
-* `99-pushover_notify`: **The Messenger.** Sends Pushover alerts.
+* `starlink_monitor.sh`: **The Brain.** This is the main logic engine with enhanced error handling, centralized configuration, and improved logging.
+* `99-pushover_notify`: **The Messenger.** Sends Pushover alerts with enhanced formatting and configuration management.
 * `starlink_logger.sh`: Captures metrics to CSV.
 * `check_starlink_api.sh`: Checks if the Starlink API has changed.
 * `generate_api_docs.sh`: Dumps current API response (Linux).
 * `generate_api_docs.ps1`: Dumps current API response (Powershell).
+
+**Enhanced Features in Default Scripts:**
+- Centralized configuration management
+- Improved error handling and logging
+- Better state management and health checks
+- Enhanced notification formatting
+- Graceful degradation on errors
 
 ## Configuration
 
@@ -158,7 +167,18 @@ uci commit uhttpd
 ```
 
 ### 7. Script Configuration (Important) 
-All scripts have a Configuration section at the top. You must edit the `99-pushover_notify` script to set your Pushover API Token and User Key. It is highly recommended to start with the default thresholds in `starlink_monitor.sh` and use the data from `starlink_logger.sh` to fine-tune them over a few days of usage.
+
+**Enhanced Configuration Management:** The default scripts now support centralized configuration through a config file system. You have two options:
+
+**Option 1: Centralized Configuration (Recommended)**
+1. Copy `config/config.template.sh` to `/root/config.sh`
+2. Edit `/root/config.sh` with your settings (Pushover API keys, thresholds, etc.)
+3. The scripts will automatically load configuration from this file
+
+**Option 2: Legacy Configuration**
+All scripts still have a Configuration section at the top for direct editing. You must edit the `99-pushover_notify` script to set your Pushover API Token and User Key.
+
+**Threshold Tuning:** It is highly recommended to start with the default thresholds in `starlink_monitor.sh` and use the data from `starlink_logger.sh` to fine-tune them over a few days of usage.
 
 
 ## Installation & Setup

@@ -1,45 +1,264 @@
-# Introduction
-This project provides a reliable internet failover for Starlink using Teltonika RUTOS, and a redundant GPS feed for Victron systems. It’s intended for tech-savvy RV and boat owners who want uninterrupted connectivity and accurate solar forecasting. 
+# 🚀 Starlink & Victron Integration Suite
 
-# Advanced RUTOS, Starlink, and Victron Integration for Mobile Setups
-This repository contains a collection of projects designed to create a highly integrated and resilient connectivity and power management system for mobile environments like RVs (motorhomes) and boats. These solutions leverage the power of Teltonika's RUTOS, Starlink, and Victron's Venus OS to solve common challenges faced by mobile users.
+[![Shell Script Quality](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/shell-check.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/shell-check.yml)
+[![Documentation Check](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml)
+[![Security Scan](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/security-scan.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/security-scan.yml)
 
-Projects in this Repository
-## 1. [Proactive Starlink & Cellular Failover for RUTOS](Starlink-RUTOS-Failover/README.md)
-Directory: `Starlink-RUTOS-Failover` 
+A comprehensive solution for **RV and boat owners** seeking robust internet connectivity and accurate solar forecasting. This repository provides intelligent failover systems and redundant GPS solutions for mobile environments.
 
-This project provides a suite of scripts to create a truly intelligent multi-WAN failover system on a Teltonika RUTOS device. Instead of relying on simple ping tests, this solution uses Starlink's internal gRPC API to monitor real-time quality metrics like latency, packet loss, and physical obstruction.
+## 🌟 Features
 
-### Key Features:
-Proactive Failover: Detects degrading connection quality before a full outage occurs.
-"Soft" Failover Logic: Avoids dropping existing connections (like VPNs or video calls) by adjusting routing metrics rather than taking an interface completely offline.
-Intelligent Notifications: Sends detailed Pushover alerts that distinguish between different types of failures (e.g., quality-based vs. link loss).
-Stability-Aware Recovery: Prevents a "flapping" connection by waiting for a configurable period of stability before failing back to Starlink.
+### 🔄 Proactive Starlink Failover
+- **Real-time quality monitoring** using Starlink's internal API
+- **Soft failover** preserving existing connections
+- **Intelligent recovery** with stability checks
+- **Comprehensive notifications** via Pushover
+- **Data logging** for threshold optimization
 
-## 2. [Redundant GPS for Victron Cerbo GX/CX](VenusOS-GPS-RUTOS/README.md)
-Directory: `VenusOS-GPS-RUTOS`
+### 📍 Redundant GPS System
+- **Dual GPS sources** (RUTOS router + Starlink)
+- **Automatic failover** between GPS sources
+- **Solar forecast optimization** for Victron systems
+- **Movement detection** with obstruction map reset
 
-This project features a Node-RED flow designed to run on a Victron Cerbo GX/CX, ensuring your system always has an accurate GPS location for features like Solar Forecasting. It intelligently polls for GPS data from both a Teltonika RUTOS router (Primary) and a Starlink dish (Secondary), selecting the best source to publish to the Victron D-Bus.
+## 🚀 Quick Start
 
-This is essential for any mobile Victron installation, guaranteeing that your solar production forecasts are always based on your current location. The flow also includes a feature to automatically reset the Starlink obstruction map if it detects the vehicle has moved more than 500 meters, optimizing performance at each new location.
+### Option 1: Automated Installation (Recommended)
 
-## Quick Start
-**Starlink Failover (Teltonika RUTOS):**  
-1. **Prerequisites:** Teltonika RUTX50 (or similar) with RUTOS, Starlink dish in Bypass Mode, and internet failover configured (mwan3). Install `grpcurl` and `jq` on the router:contentReference[oaicite:6]{index=6}.  
-2. **Deploy Scripts:** Copy the failover scripts (`starlink_monitor.sh`, `starlink_logger.sh`, etc.) to the router’s `/root/` directory, and place the `99-pushover_notify` script in `/etc/hotplug.d/iface/`. Make them executable with `chmod +x`.  
-3. **Configure Router:** Apply the provided `uci` settings for multi-WAN failover and add a static route to Starlink’s management IP. Insert your Pushover API keys into the `99-pushover_notify` script.  
-4. **Schedule Cron Jobs:** Set up cron entries (via `crontab -e`) to run the monitor and logger every minute, and the API-check daily.  
-5. **Test:** Reboot or run the scripts manually. Use `logread | grep StarlinkMonitor` to verify it's working. You should receive Pushover alerts on failover events.
+```bash
+# Download and run the installer
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-victron/main/scripts/install.sh | sh
 
-**Victron GPS (Node-RED on Cerbo GX/CX):**  
-1. **Prerequisites:** Victron Cerbo GX running **Venus OS Large** (for Node-RED) and a Teltonika RUT router with GPS enabled. Ensure the Cerbo is network-connected to the router and Starlink (Starlink must be in Bypass Mode with a static route set on the router to `192.168.100.1`).  
-2. **Install Tools:** On the Cerbo, enable the local MQTT service (in Settings → Services) and install `grpcurl` on the Cerbo (as shown in the docs).  
-3. **Import Node-RED Flow:** Copy the contents of `venusos-gps-rutos/victron-gps-flow.json` and import it into Node-RED on the Cerbo GX (Node-RED UI → Import → paste JSON).  
-4. **Configure Credentials:** In the Node-RED flow, open the “Trigger Branches” function and insert your router’s *API URL* (if different) and credentials (username/password) for the RUTOS API. Ensure the HTTP request nodes point to the correct IPs for the router (default `192.168.80.1`) and Starlink (`192.168.100.1:9200`).  
-5. **Deploy and Verify:** Click **Deploy** in Node-RED. The flow will run every 30 minutes. Check the Node-RED debug console for messages showing GPS data retrieved and published. On the Victron VRM portal, confirm that the location is updating with the combined GPS feed.
+# Configure the system
+nano /root/starlink-monitor/config/config.sh
 
+# Validate configuration
+/root/starlink-monitor/scripts/validate-config.sh
 
-# Disclaimer
-These projects were developed and tested on my personal setup, which includes a Teltonika RUTX50 and a Victron Cerbo GX. I have made every effort to provide comprehensive documentation and include all necessary prerequisites.
+# Configure mwan3 (see documentation)
+```
 
-While these scripts work reliably on my system, they are provided as-is. I do not have a formal development or testing environment, so I cannot guarantee they are entirely bug-free or that the documentation covers every possible scenario. Please use these scripts at your own discretion and be prepared to adapt them to your specific hardware and software versions. 
+### Option 2: Manual Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/markus-lassfolk/rutos-starlink-victron.git
+   cd rutos-starlink-victron
+   ```
+
+2. **Install dependencies**
+   ```bash
+   # Install grpcurl (ARMv7)
+   curl -fL https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz -o /tmp/grpcurl.tar.gz
+   tar -zxf /tmp/grpcurl.tar.gz -C /root/ grpcurl
+   chmod +x /root/grpcurl
+   
+   # Install jq (ARMv7)
+   curl -fL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf -o /root/jq
+   chmod +x /root/jq
+   ```
+
+3. **Configure the system**
+   ```bash
+   cp config/config.template.sh config/config.sh
+   nano config/config.sh
+   ```
+
+4. **Deploy scripts**
+   ```bash
+   cp Starlink-RUTOS-Failover/starlink_monitor.sh /root/
+   cp Starlink-RUTOS-Failover/99-pushover_notify /etc/hotplug.d/iface/99-pushover_notify
+   chmod +x /root/starlink_monitor.sh /etc/hotplug.d/iface/99-pushover_notify
+   ```
+
+## 📋 Prerequisites
+
+### Hardware Requirements
+- **Teltonika RUTX50** or similar OpenWrt/RUTOS router
+- **Starlink dish** in Bypass Mode
+- **Victron Cerbo GX/CX** (for GPS features)
+- **Cellular backup** connection
+
+### Software Requirements
+- **RUTOS firmware** (latest stable)
+- **mwan3 package** configured
+- **Pushover account** for notifications
+- **Node-RED** (for Victron GPS features)
+
+## 🛠️ Configuration
+
+### 1. Basic Configuration
+
+Edit `/root/starlink-monitor/config/config.sh`:
+
+```bash
+# Network settings
+STARLINK_IP="192.168.100.1:9200"
+MWAN_IFACE="wan"
+MWAN_MEMBER="member1"
+
+# Pushover notifications
+PUSHOVER_TOKEN="your_pushover_token"
+PUSHOVER_USER="your_pushover_user_key"
+
+# Failover thresholds
+PACKET_LOSS_THRESHOLD=0.05    # 5%
+OBSTRUCTION_THRESHOLD=0.001   # 0.1%
+LATENCY_THRESHOLD_MS=150      # 150ms
+```
+
+### 2. mwan3 Configuration
+
+```bash
+# Set interface priorities
+uci set mwan3.member1.metric='1'     # Starlink (highest priority)
+uci set mwan3.member3.metric='2'     # Primary SIM
+uci set mwan3.member4.metric='4'     # Backup SIM
+
+# Configure health checks
+uci set mwan3.wan.track_ip='1.0.0.1' '8.8.8.8'
+uci set mwan3.wan.reliability='1'
+uci set mwan3.wan.timeout='1'
+uci set mwan3.wan.interval='1'
+uci set mwan3.wan.down='2'
+uci set mwan3.wan.up='3'
+
+# Commit changes
+uci commit mwan3
+mwan3 restart
+```
+
+### 3. Static Route for Starlink
+
+```bash
+# Add static route to Starlink management interface
+uci add network route
+uci set network.@route[-1].interface='wan'
+uci set network.@route[-1].target='192.168.100.1'
+uci set network.@route[-1].netmask='255.255.255.255'
+uci commit network
+/etc/init.d/network reload
+```
+
+## 🔧 Advanced Features
+
+### Enhanced Monitoring
+
+The enhanced monitoring system includes:
+
+- **Centralized configuration** management
+- **Rate limiting** for notifications
+- **Health checks** and diagnostics
+- **Graceful error handling**
+- **Comprehensive logging**
+
+### Security Features
+
+- **No hardcoded credentials**
+- **Configuration validation**
+- **Secure defaults**
+- **Rate limiting** protection
+
+### Observability
+
+- **Structured logging** with rotation
+- **Health status** tracking
+- **Performance metrics** collection
+- **Notification history**
+
+## 📊 Monitoring and Troubleshooting
+
+### View System Status
+
+```bash
+# Check monitor status
+logread | grep StarlinkMonitor
+
+# View health status
+cat /tmp/run/starlink_monitor.health
+
+# Check recent notifications
+tail -f /var/log/notifications.log
+```
+
+### Test Notifications
+
+```bash
+# Test notification system
+/etc/hotplug.d/iface/99-pushover_notify test
+
+# Test Starlink API
+grpcurl -plaintext -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle
+```
+
+### Performance Analysis
+
+```bash
+# View performance data
+cat /root/starlink_performance_log.csv
+
+# Generate API documentation
+/root/starlink-monitor/scripts/generate_api_docs.sh
+```
+
+## 🔒 Security Considerations
+
+- **Never commit** real credentials to version control
+- **Use secure connections** where possible
+- **Regularly update** dependencies
+- **Monitor logs** for security events
+- **Limit API access** to necessary services
+
+## 📚 Documentation
+
+### Project Structure
+```
+├── .github/workflows/     # CI/CD workflows
+├── config/               # Configuration templates
+├── scripts/              # Installation and utility scripts
+├── Starlink-RUTOS-Failover/  # Failover system
+└── VenusOS-GPS-RUTOS/    # GPS redundancy system
+```
+
+### Key Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `starlink_monitor.sh` | Advanced monitoring with centralized configuration |
+| `99-pushover_notify` | Intelligent notification system |
+| `starlink_logger.sh` | Data collection for threshold optimization |
+| `install.sh` | Automated installation script |
+| `validate-config.sh` | Configuration validation |
+
+## 🤝 Contributing
+
+1. **Fork** the repository
+2. **Create** a feature branch
+3. **Test** your changes thoroughly
+4. **Submit** a pull request
+
+### Development Guidelines
+
+- **Follow shell script best practices**
+- **Add comprehensive error handling**
+- **Include documentation** for new features
+- **Test on actual hardware** when possible
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## ⚠️ Disclaimer
+
+This software is provided "as-is" without warranty. Test thoroughly in your environment before production use. The author is not responsible for any damage or service interruption.
+
+## 🙏 Acknowledgments
+
+- **Starlink** for the unofficial API
+- **Teltonika** for excellent hardware
+- **Victron** for comprehensive energy systems
+- **Community contributors** for testing and feedback
+
+---
+
+**Need help?** Check the [documentation](docs/) or open an [issue](https://github.com/markus-lassfolk/rutos-starlink-victron/issues).
