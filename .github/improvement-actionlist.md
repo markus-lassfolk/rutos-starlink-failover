@@ -18,8 +18,8 @@ This document tracks ongoing improvements for the July 2025 enhancement cycle. E
     - ✅ Add tool/script to diff Starlink API schema and alert on changes (daily pushover notification)
 - [x] **API Change Response Process**
     - ✅ Document process for quickly updating scripts when Starlink API changes
-- [ ] **ShellCheck & Formatting Enforcement**
-    - Enforce ShellCheck and formatting checks for all shell scripts in CI
+- [x] **ShellCheck & Formatting Enforcement**
+    - ✅ Enforce ShellCheck and formatting checks for all shell scripts in CI
 - [x] **Code Comments & Maintainability**
     - ✅ Add comments to all functions and complex logic for maintainability (main scripts complete for July 2025 cycle)
 
