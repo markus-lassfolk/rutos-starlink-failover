@@ -84,8 +84,8 @@ assert_file_exists() {
     fi
 }
 
+# shellcheck disable=SC2317
 assert_command_success() {
-    # shellcheck disable=SC2317
     local command="$1"
     local test_name="$2"
     
@@ -387,6 +387,7 @@ test_error_handling() {
     
     # Test undefined variable handling
     set +u  # Temporarily disable undefined variable check
+    # shellcheck disable=SC2154
     local undefined_var
     undefined_var="$undefined_variable"
     set -u
