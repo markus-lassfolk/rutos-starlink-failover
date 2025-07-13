@@ -21,7 +21,7 @@ check_secrets() {
     grep -v "Replace this placeholder" | grep -v "actual token" | grep -v "actual key" | \
     grep -vE "placeholder|dummy|not.*a.*real.*secret" ; then
     echo -e "${RED}FAIL:${NC} Potential hardcoded secrets found above."
-    failures=$((failures+1))
+    failures=$((failures + 1))
   else
     echo -e "${GREEN}OK:${NC} No hardcoded secrets detected."
   fi
@@ -58,7 +58,7 @@ check_permissions() {
     perms=$(stat -c "%a" "$f")
     if [ "$perms" != "600" ]; then
       echo "${RED}FAIL:${NC} $f has permissions $perms (expected 600)"
-      failures=$((failures+1))
+      failures=$((failures + 1))
     else
       echo "${GREEN}OK:${NC} $f permissions are 600"
     fi
@@ -69,7 +69,7 @@ check_permissions() {
     perms=$(stat -c "%a" "$f")
     if [ "$perms" != "755" ]; then
       echo "${RED}FAIL:${NC} $f has permissions $perms (expected 755)"
-      failures=$((failures+1))
+      failures=$((failures + 1))
     else
       echo "${GREEN}OK:${NC} $f permissions are 755"
     fi
