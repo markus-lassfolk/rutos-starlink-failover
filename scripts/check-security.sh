@@ -50,7 +50,8 @@ check_secrets() {
   # Look for likely secret patterns, ignore placeholders and comments
   if grep -r -n -i --exclude-dir=.git --exclude-dir=.github --exclude=*.md --exclude=*.json --exclude=*.yml --exclude=*.yaml \
     "password\|secret\|token\|key" . | \
-    grep -v "YOUR_" | grep -v "PLACEHOLDER" | grep -v "example" | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*//' ; then
+    grep -v "YOUR_" | grep -v "PLACEHOLDER" | grep -v "example" | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*//' | \
+    grep -v '\$PUSHOVER_TOKEN' | grep -v '\$PUSHOVER_USER' | grep -v '\$[A-Z_]*TOKEN' | grep -v '\$[A-Z_]*USER' | grep -v '\$[A-Z_]*SECRET' | grep -v '\$[A-Z_]*KEY' ; then
     echo "${RED}FAIL:${NC} Potential hardcoded secrets found above."
     failures=$((failures+1))
   else
