@@ -11,6 +11,7 @@ check_secrets() {
   # Look for likely secret patterns, ignore placeholders and comments
   if grep -r -n -i --exclude-dir=.git --exclude-dir=.github --exclude=*.md --exclude=*.json --exclude=*.yml --exclude=*.yaml --exclude=*.toml --exclude=*_test.sh --exclude=*test* \
     "password|secret|token|key" . | \
+    grep -v "scripts/check-security.sh" | \
     grep -v "^[[:space:]]*#" | grep -v "^[[:space:]]*//" | \
     grep -v "YOUR_PUSHOVER_API_TOKEN" | grep -v "YOUR_PUSHOVER_USER_KEY" | \
     grep -v 'PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"' | grep -v 'PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"' | \
