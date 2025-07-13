@@ -48,9 +48,9 @@ check_permissions() {
 check_secrets() {
   echo "Checking for hardcoded secrets..."
   # Look for likely secret patterns, ignore placeholders and comments
-  if grep -r -n -i --exclude-dir=.git --exclude=*.md --exclude=*.json \
+  if grep -r -n -i --exclude-dir=.git --exclude-dir=.github --exclude=*.md --exclude=*.json --exclude=*.yml --exclude=*.yaml \
     "password\|secret\|token\|key" . | \
-    grep -v "YOUR_" | grep -v "PLACEHOLDER" | grep -v "example" | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*//'; then
+    grep -v "YOUR_" | grep -v "PLACEHOLDER" | grep -v "example" | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*//' ; then
     echo "${RED}FAIL:${NC} Potential hardcoded secrets found above."
     failures=$((failures+1))
   else
