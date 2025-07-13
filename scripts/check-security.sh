@@ -1,28 +1,4 @@
-# 0. Set file permissions (for CI or Linux environments)
-set_permissions() {
-  echo "Setting file permissions for scripts and config template..."
-  chmod 600 config/config.template.sh 2>/dev/null || true
-  chmod 755 scripts/*.sh Starlink-RUTOS-Failover/*.sh 2>/dev/null || true
-}
 
-# 2. Check for hardcoded secrets
-check_secrets() {
-  echo "Checking for hardcoded secrets..."
-  # Look for likely secret patterns, ignore placeholders and comments
-  if grep -r -n -i --exclude-dir=.git --exclude-dir=.github --exclude=*.md --exclude=*.json --exclude=*.yml --exclude=*.yaml --exclude=*.toml --exclude=*_test.sh --exclude=*test* \
-    "password\|secret\|token\|key" . | \
-    grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*//' | \
-    grep -v 'YOUR_PUSHOVER_API_TOKEN' | grep -v 'YOUR_PUSHOVER_USER_KEY' | \
-    grep -v 'PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"' | grep -v 'PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"' | \
-    grep -v 'YOUR_' | grep -v 'PLACEHOLDER' | grep -v 'example' | \
-    grep -v '\$PUSHOVER_TOKEN' | grep -v '\$PUSHOVER_USER' | grep -v '\$[A-Z_]*TOKEN' | grep -v '\$[A-Z_]*USER' | grep -v '\$[A-Z_]*SECRET' | grep -v '\$[A-Z_]*KEY' | \
-    grep -v 'test_token' | grep -v 'test_user' | grep -v 'Application API Token' | grep -v 'User Key' | grep -v 'apiVersion' ; then
-    echo "${RED}FAIL:${NC} Potential hardcoded secrets found above."
-    failures=$((failures+1))
-  else
-    echo "${GREEN}OK:${NC} No hardcoded secrets detected."
-  fi
-}
 #!/bin/bash
 # check-security.sh: Checks file permissions, hardcoded secrets, and config values
 
