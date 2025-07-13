@@ -15,7 +15,7 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 backup_file() {
   src="$1"
-  dest="$BACKUP_DIR${src#$INSTALL_DIR}"
+  dest="$BACKUP_DIR${src#"$INSTALL_DIR"}"
   mkdir -p "$(dirname "$dest")"
   cp -a "$src" "$dest"
 }

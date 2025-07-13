@@ -72,7 +72,7 @@ echo "Full output will be saved to: $FILENAME"
 echo "================================================="
 
 # Clear the output file to start fresh.
-> "$FILENAME"
+true > "$FILENAME"
 
 # Loop through each method in the list.
 for method in $METHODS_TO_CALL
@@ -85,16 +85,12 @@ do
     json_data="{\"${method}\":{}}"
 
     # Add a Markdown header for this section to the output file.
-    echo "" >> "$FILENAME"
-    echo "## Command: ${method}" >> "$FILENAME"
-    echo '```json' >> "$FILENAME"
+    { echo ""; echo "## Command: ${method}"; echo '```json'; } >> "$FILENAME"
 
     # Execute the grpcurl command.
     # The output is piped to jq to be pretty-printed, then appended to our file.
-    $GRPCURL_CMD -plaintext -max-time 10 -d "$json_data" "$STARLINK_IP" SpaceX.API.Device.Device/Handle | $JQ_CMD '.' >> "$FILENAME"
 
-    # Check if the command failed.
-    if [ $? -ne 0 ]; then
+    if ! $GRPCURL_CMD -plaintext -max-time 10 -d "$json_data" "$STARLINK_IP" SpaceX.API.Device.Device/Handle | $JQ_CMD '.' >> "$FILENAME"; then
         echo "ERROR: grpcurl command failed for method: $method"
         echo "ERROR: grpcurl command failed for method: $method" >> "$FILENAME"
     fi

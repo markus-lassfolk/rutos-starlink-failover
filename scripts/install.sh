@@ -45,7 +45,8 @@ check_root() {
 check_system() {
     print_status "$BLUE" "Checking system compatibility..."
     
-    local arch=$(uname -m)
+    local arch
+    arch=$(uname -m)
     if [ "$arch" != "armv7l" ]; then
         print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
         print_status "$YELLOW" "Your architecture: $arch"
@@ -125,7 +126,8 @@ install_scripts() {
     print_status "$BLUE" "Installing monitoring scripts..."
     
     # Copy scripts to installation directory
-    local script_dir="$(dirname "$0")"
+    local script_dir
+    script_dir="$(dirname "$0")"
     
     # Main monitoring script (enhanced version is now default)
     if [ -f "$script_dir/starlink_monitor.sh" ]; then
@@ -168,7 +170,8 @@ install_scripts() {
 install_config() {
     print_status "$BLUE" "Installing configuration..."
     
-    local config_dir="$(dirname "$0")/../config"
+    local config_dir
+    config_dir="$(dirname "$0")/../config"
     
     if [ -f "$config_dir/config.template.sh" ]; then
         cp "$config_dir/config.template.sh" "$INSTALL_DIR/config/"

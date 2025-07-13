@@ -46,13 +46,15 @@ LOCK_FILE="${STATE_DIR}/starlink_monitor.lock"
 log() {
     local level="$1"
     local message="$2"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
     # Log to syslog
     logger -t "$LOG_TAG" -p "daemon.$level" -- "$message"
     
     # Log to file with rotation
-    local log_file="${LOG_DIR}/starlink_monitor_$(date '+%Y-%m-%d').log"
+    local log_file
+    log_file="${LOG_DIR}/starlink_monitor_$(date '+%Y-%m-%d').log"
     echo "$timestamp [$level] $message" >> "$log_file"
     
     # Console output for manual runs
@@ -65,7 +67,7 @@ log() {
 # rotate_logs()
 # Rotates log files, deleting logs older than retention period.
 rotate_logs() {
-    find "$LOG_DIR" -name 'starlink_monitor_*.log' -mtime +$LOG_RETENTION_DAYS -exec rm {} \; 2>/dev/null || true
+    find "$LOG_DIR" -name 'starlink_monitor_*.log' -mtime +"$LOG_RETENTION_DAYS" -exec rm {} \; 2>/dev/null || true
 }
 
 ##
@@ -73,7 +75,8 @@ rotate_logs() {
 # Ensures only one instance runs at a time using a lock file. Removes stale lock if needed.
 acquire_lock() {
     if [ -f "$LOCK_FILE" ]; then
-        local lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+        local lock_pid
+        lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
         if [ -n "$lock_pid" ] && kill -0 "$lock_pid" 2>/dev/null; then
             log "warn" "Another instance is already running (PID: $lock_pid)"
             exit 1
@@ -98,7 +101,8 @@ release_lock() {
 update_health_status() {
     local status="$1"
     local message="$2"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
     cat > "$HEALTH_FILE" << EOF
 status=$status
@@ -220,8 +224,8 @@ main() {
         quality_is_bad=true
 
         # Build detailed reason string for notification/logging (use literal brackets, not arrays)
-        [ "$is_loss_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Loss: $loss] "
-        [ "$is_obstructed" -eq 1 ] && FAIL_REASON="$FAIL_REASON[Obstructed: $obstruction] "
+        [ "$is_loss_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Loss: ${loss}] "
+        [ "$is_obstructed" -eq 1 ] && FAIL_REASON="$FAIL_REASON[Obstructed: ${obstruction}] "
         [ "$is_latency_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Latency: ${latency_int}ms] "
     fi
     
