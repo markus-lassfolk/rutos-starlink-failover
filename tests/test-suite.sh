@@ -32,7 +32,7 @@ TESTS_FAILED=0
 print_status() {
     local color="$1"
     local message="$2"
-    echo -e "${color}${message}${NC}"
+    printf '%b%s%b\n' "$color" "$message" "$NC"
 }
 
 log_test() {
