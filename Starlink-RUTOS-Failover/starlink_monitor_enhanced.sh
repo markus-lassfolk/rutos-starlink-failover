@@ -197,8 +197,11 @@ main() {
         quality_is_bad=true
         
         # Build detailed reason string
+        # shellcheck disable=SC1087  # Square brackets are literal text, not arrays
         [ "$is_loss_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Loss: ${loss}] "
+        # shellcheck disable=SC1087  # Square brackets are literal text, not arrays
         [ "$is_obstructed" -eq 1 ] && FAIL_REASON="$FAIL_REASON[Obstructed: ${obstruction}] "
+        # shellcheck disable=SC1087  # Square brackets are literal text, not arrays
         [ "$is_latency_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Latency: ${latency_int}ms] "
     fi
     

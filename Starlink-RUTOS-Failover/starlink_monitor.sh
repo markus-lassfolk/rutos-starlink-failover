@@ -155,14 +155,6 @@ else
         log "ERROR: Failed to parse API response data"
         quality_is_bad=true
         FAIL_REASON="[Data Parse Error]"
-        # Construct a detailed reason string for the notification.
-        FAIL_REASON=""
-        # shellcheck disable=SC1087
-        [ "$is_loss_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Loss] "
-        # shellcheck disable=SC1087
-        [ "$is_obstructed" -eq 1 ] && FAIL_REASON="$FAIL_REASON[Obstructed] "
-        # shellcheck disable=SC1087
-        [ "$is_latency_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Latency] "
     else
         # --- Quality Analysis ---
         latency_int=$(echo "$latency" | cut -d'.' -f1)
@@ -184,8 +176,11 @@ else
             quality_is_bad=true
             # Construct a detailed reason string for the notification.
             FAIL_REASON=""
+            # shellcheck disable=SC1087  # Square brackets are literal text, not arrays
             [ "$is_loss_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Loss] "
+            # shellcheck disable=SC1087  # Square brackets are literal text, not arrays
             [ "$is_obstructed" -eq 1 ] && FAIL_REASON="$FAIL_REASON[Obstructed] "
+            # shellcheck disable=SC1087  # Square brackets are literal text, not arrays
             [ "$is_latency_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Latency] "
         else
             quality_is_bad=false
