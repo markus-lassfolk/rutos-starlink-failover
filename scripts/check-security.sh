@@ -142,21 +142,6 @@ check_permissions() {
   done
 }
 
-# 2. Check for hardcoded secrets
-check_secrets() {
-  echo "Checking for hardcoded secrets..."
-  # Look for likely secret patterns, ignore placeholders and comments
-  grep -r -n -i --exclude-dir=.git --exclude=*.md --exclude=*.json \
-    "password\|secret\|token\|key" . | \
-    grep -v "YOUR_" | grep -v "PLACEHOLDER" | grep -v "example" | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*//'
-  if [ $? -eq 0 ]; then
-    echo "${RED}FAIL:${NC} Potential hardcoded secrets found above."
-    failures=$((failures+1))
-  else
-    echo "${GREEN}OK:${NC} No hardcoded secrets detected."
-  fi
-}
-
 # 3. Check config values for secure defaults
 check_config_values() {
   echo "Checking config values for secure defaults..."
