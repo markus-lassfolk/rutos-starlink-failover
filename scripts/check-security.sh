@@ -78,7 +78,7 @@ check_permissions
 check_secrets
 check_config_values
 
-if [ $failures -eq 0 ]; then
+if [ "$failures" -eq 0 ]; then
   echo "${GREEN}Security checks passed!${NC}"
   exit 0
 else
