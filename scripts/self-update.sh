@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # self-update.sh: Checks for new version and updates scripts if needed
 # Usage: ./scripts/self-update.sh
 

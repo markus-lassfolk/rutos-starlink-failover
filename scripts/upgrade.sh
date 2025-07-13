@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # upgrade.sh: Safely upgrade scripts/configs without overwriting user changes
 # Usage: ./scripts/upgrade.sh
 

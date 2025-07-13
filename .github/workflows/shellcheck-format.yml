@@ -17,6 +17,15 @@ jobs:
           sudo apt-get install -y shellcheck
           curl -sSLo /usr/local/bin/shfmt https://github.com/mvdan/sh/releases/download/v3.7.0/shfmt_v3.7.0_linux_amd64
           chmod +x /usr/local/bin/shfmt
+      - name: Enforce script and config file permissions
+        run: |
+          # Config files should be 600
+          find config -type f -name '*.sh' -exec chmod 600 {} +
+          # Scripts should be 755
+          find scripts -type f -name '*.sh' -exec chmod 755 {} +
+          find Starlink-RUTOS-Failover -type f -name '*.sh' -exec chmod 755 {} +
+          # Legacy/compatibility: notify script
+          if [ -f Starlink-RUTOS-Failover/99-pushover_notify ]; then chmod 755 Starlink-RUTOS-Failover/99-pushover_notify; fi
       - name: Run ShellCheck on all shell scripts
         run: |
           find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shellcheck {} +

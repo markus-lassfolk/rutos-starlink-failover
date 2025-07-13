@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # ==============================================================================
 # Starlink Proactive Quality Monitor for OpenWrt/RUTOS

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # check_starlink_api_change.sh: Detects Starlink API schema changes and notifies via Pushover
 # Intended for daily cron use
 

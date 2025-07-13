@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # ==============================================================================
 # Configuration Template for Starlink RUTOS Failover

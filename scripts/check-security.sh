@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # check-security.sh: Checks file permissions, hardcoded secrets, and config values
 # Usage: ./scripts/check-security.sh
 

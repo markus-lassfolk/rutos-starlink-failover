@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # ==============================================================================
 # Starlink Performance Data Logger for OpenWrt/RUTOS

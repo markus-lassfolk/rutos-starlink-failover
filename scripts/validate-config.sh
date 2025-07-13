@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # ==============================================================================
 # Configuration Validation Script
@@ -22,7 +22,7 @@ CONFIG_FILE="${1:-./config.sh}"
 # Check if running as root
 check_root() {
     if [ "$(id -u)" -ne 0 ]; then
-        echo -e "${RED}Error: This script must be run as root${NC}"
+    printf "%b\n" "${RED}Error: This script must be run as root${NC}"
         exit 1
     fi
 }
@@ -30,22 +30,22 @@ check_root() {
 # Check if config file exists
 check_config_file() {
     if [ ! -f "$CONFIG_FILE" ]; then
-        echo -e "${RED}Error: Configuration file not found: $CONFIG_FILE${NC}"
-        echo -e "${YELLOW}Please copy config.template.sh to config.sh and customize it${NC}"
+    printf "%b\n" "${RED}Error: Configuration file not found: $CONFIG_FILE${NC}"
+    printf "%b\n" "${YELLOW}Please copy config.template.sh to config.sh and customize it${NC}"
         exit 1
     fi
 }
 
 # Load configuration
 load_config() {
-    echo -e "${GREEN}Loading configuration from: $CONFIG_FILE${NC}"
+    printf "%b\n" "${GREEN}Loading configuration from: $CONFIG_FILE${NC}"
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
 }
 
 # Check required binaries
 check_binaries() {
-    echo -e "${GREEN}Checking required binaries...${NC}"
+    printf "%b\n" "${GREEN}Checking required binaries...${NC}"
     
     local missing_binaries=""
     

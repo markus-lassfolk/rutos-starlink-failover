@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # ==============================================================================
 # Starlink Monitoring System Installation Script
@@ -30,7 +30,7 @@ JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
 print_status() {
     local color="$1"
     local message="$2"
-    echo -e "${color}${message}${NC}"
+    printf "%b%s%b\n" "$color" "$message" "$NC"
 }
 
 # Check if running as root
@@ -50,7 +50,7 @@ check_system() {
         print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
         print_status "$YELLOW" "Your architecture: $arch"
         print_status "$YELLOW" "You may need to adjust binary URLs"
-        echo -n "Continue anyway? (y/N): "
+        printf "%s" "Continue anyway? (y/N): "
         read -r answer
         if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
             exit 1
