@@ -224,9 +224,9 @@ main() {
         quality_is_bad=true
 
         # Build detailed reason string for notification/logging (use literal brackets, not arrays)
-        [ "$is_loss_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Loss: ${loss}] "
-        [ "$is_obstructed" -eq 1 ] && FAIL_REASON="$FAIL_REASON[Obstructed: ${obstruction}] "
-        [ "$is_latency_high" -eq 1 ] && FAIL_REASON="$FAIL_REASON[High Latency: ${latency_int}ms] "
+        [ "$is_loss_high" -eq 1 ] && FAIL_REASON="${FAIL_REASON}[High Loss: ${loss}] "
+        [ "$is_obstructed" -eq 1 ] && FAIL_REASON="${FAIL_REASON}[Obstructed: ${obstruction}] "
+        [ "$is_latency_high" -eq 1 ] && FAIL_REASON="${FAIL_REASON}[High Latency: ${latency_int}ms] "
     fi
     
     # --- Decision Logic ---
