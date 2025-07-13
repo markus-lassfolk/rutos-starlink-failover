@@ -389,6 +389,7 @@ test_error_handling() {
     set +u  # Temporarily disable undefined variable check
     # shellcheck disable=SC2154
     local undefined_var
+    # shellcheck disable=SC2154
     undefined_var="$undefined_variable"
     set -u
     
