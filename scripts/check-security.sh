@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 set_permissions() {
@@ -16,7 +15,7 @@ check_secrets() {
     grep -v "YOUR_PUSHOVER_API_TOKEN" | grep -v "YOUR_PUSHOVER_USER_KEY" | \
     grep -v 'PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"' | grep -v 'PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"' | \
     grep -v "YOUR_" | grep -v "PLACEHOLDER" | grep -v "example" | \
-    grep -v "$PUSHOVER_TOKEN" | grep -v "$PUSHOVER_USER" | grep -v "$[A-Z_]*TOKEN" | grep -v "$[A-Z_]*USER" | grep -v "$[A-Z_]*SECRET" | grep -v "$[A-Z_]*KEY" | \
+    grep -vE '\$[A-Z_]+(TOKEN|USER|SECRET|KEY)' | \
     grep -v "test_token" | grep -v "test_user" | grep -v "Application API Token" | grep -v "User Key" | grep -v "apiVersion" | \
     grep -v "Replace this placeholder" | grep -v "actual token" | grep -v "actual key" | \
     grep -vE "placeholder|dummy|not.*a.*real.*secret" ; then
