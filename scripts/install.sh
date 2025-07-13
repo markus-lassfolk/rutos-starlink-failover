@@ -234,9 +234,9 @@ print_status() {
 print_status "\033[0;31m" "Uninstalling Starlink monitoring system..."
 
 # Remove cron entries
-if [ -f /etc/crontabs/root ]; then
-    grep -v "starlink" /etc/crontabs/root > /tmp/crontab.tmp || true
-    mv /tmp/crontab.tmp /etc/crontabs/root
+if [ -f "$CRON_FILE" ]; then
+    grep -v "starlink" "$CRON_FILE" > /tmp/crontab.tmp || true
+    mv /tmp/crontab.tmp "$CRON_FILE"
     /etc/init.d/cron restart
 fi
 
