@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+# shellcheck shell=bash
 
 # ==============================================================================
 # Enhanced Pushover Notifier for Starlink Monitoring System
