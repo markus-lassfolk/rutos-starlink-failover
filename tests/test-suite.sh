@@ -11,10 +11,16 @@
 set -euo pipefail
 
 # Colors for output
+
+# shellcheck disable=SC2034
 RED='\033[0;31m'
+# shellcheck disable=SC2034
 GREEN='\033[0;32m'
+# shellcheck disable=SC2034
 YELLOW='\033[1;33m'
+# shellcheck disable=SC2034
 BLUE='\033[0;34m'
+# shellcheck disable=SC2034
 NC='\033[0m' # No Color
 
 # Test configuration
@@ -79,6 +85,7 @@ assert_file_exists() {
 }
 
 assert_command_success() {
+    # shellcheck disable=SC2317
     local command="$1"
     local test_name="$2"
     

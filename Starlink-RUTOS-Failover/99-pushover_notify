@@ -108,6 +108,7 @@ send_notification() {
         local http_code
         http_code="${response##*]}"
         local response_body
+        # shellcheck disable=SC2034
         response_body="${response%"$http_code"}"
         
         if [ "$http_code" = "200" ]; then

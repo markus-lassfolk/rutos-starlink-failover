@@ -97,6 +97,7 @@ JQ_CMD="jq"
 
 # --- Log Rotation ---
 LOG_DIR="/var/log"
+# shellcheck disable=SC2034
 LOG_FILE="${LOG_DIR}/starlink_monitor_$(date '+%Y-%m-%d').log"
 find "$LOG_DIR" -name 'starlink_monitor_*.log' -mtime +6 -exec rm {} \;
 

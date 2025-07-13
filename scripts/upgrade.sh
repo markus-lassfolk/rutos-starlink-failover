@@ -4,13 +4,21 @@
 
 set -euo pipefail
 
+
+# shellcheck disable=SC2034
 RED='\033[0;31m'
+# shellcheck disable=SC2034
 GREEN='\033[0;32m'
+# shellcheck disable=SC2034
 YELLOW='\033[1;33m'
+# shellcheck disable=SC2034
 NC='\033[0m'
 
+# shellcheck disable=SC2034
 BACKUP_DIR="/root/starlink-upgrade-backup-$(date +%Y%m%d_%H%M%S)"
+# shellcheck disable=SC2034
 INSTALL_DIR="/root/starlink-monitor"
+# shellcheck disable=SC2034
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 backup_file() {

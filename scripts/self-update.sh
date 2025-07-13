@@ -4,15 +4,25 @@
 
 set -euo pipefail
 
+
+# shellcheck disable=SC2034
 REPO_URL="https://github.com/markus-lassfolk/rutos-starlink-victron"
+# shellcheck disable=SC2034
 RAW_URL="https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-victron/main"
+# shellcheck disable=SC2034
 INSTALL_DIR="/root/starlink-monitor"
+# shellcheck disable=SC2034
 VERSION_FILE="$INSTALL_DIR/VERSION"
+# shellcheck disable=SC2034
 TMP_VERSION="/tmp/starlink-latest-version.txt"
 
+# shellcheck disable=SC2034
 RED='\033[0;31m'
+# shellcheck disable=SC2034
 GREEN='\033[0;32m'
+# shellcheck disable=SC2034
 YELLOW='\033[1;33m'
+# shellcheck disable=SC2034
 NC='\033[0m'
 
 get_local_version() {
