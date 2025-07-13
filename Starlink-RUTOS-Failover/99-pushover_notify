@@ -140,70 +140,90 @@ main() {
     
     case "$action" in
         soft_failover)
-            if check_rate_limit "soft_failover"; then
-                local title="🔄 Starlink Quality Failover"
-                local message="Starlink quality degraded.\\nReason: $detail\\nPerforming soft failover to mobile backup.\\n\\n$(get_system_info)"
+            if [ "${NOTIFY_ON_SOFT_FAIL:-1}" = "1" ]; then
+                if check_rate_limit "soft_failover"; then
+                    local title="🔄 Starlink Quality Failover"
+                    local message="Starlink quality degraded.\nReason: $detail\nPerforming soft failover to mobile backup.\n\n$(get_system_info)"
+                    send_notification "$title" "$message" 1
+                fi
+            fi
+            ;;
+        soft_recovery)
+            if [ "${NOTIFY_ON_RECOVERY:-1}" = "1" ]; then
+                if check_rate_limit "soft_recovery"; then
+                    local title="✅ Starlink Recovered"
+                    local message="Starlink connection is stable.\nPerforming soft failback to primary.\n\n$(get_system_info)"
+                    send_notification "$title" "$message" 0
+                fi
+            fi
+            ;;
+        api_version_change)
+            if [ "${NOTIFY_ON_CRITICAL:-1}" = "1" ]; then
+                local title="⚠️ Starlink API Changed"
+                local message="Starlink API version changed.\nPrevious: $detail\nPlease check monitoring scripts.\n\n$(get_system_info)"
                 send_notification "$title" "$message" 1
             fi
             ;;
-            
-        soft_recovery)
-            if check_rate_limit "soft_recovery"; then
-                local title="✅ Starlink Recovered"
-                local message="Starlink connection is stable.\\nPerforming soft failback to primary.\\n\\n$(get_system_info)"
-                send_notification "$title" "$message" 0
+        system_error)
+            if [ "${NOTIFY_ON_CRITICAL:-1}" = "1" ]; then
+                local title="❌ Starlink Monitor Error"
+                local message="System error occurred.\nDetails: $detail\n\n$(get_system_info)"
+                send_notification "$title" "$message" 2
             fi
             ;;
-            
-        api_version_change)
-            local title="⚠️ Starlink API Changed"
-            local message="Starlink API version changed.\\nPrevious: $detail\\nPlease check monitoring scripts.\\n\\n$(get_system_info)"
-            send_notification "$title" "$message" 1
-            ;;
-            
-        system_error)
-            local title="❌ Starlink Monitor Error"
-            local message="System error occurred.\\nDetails: $detail\\n\\n$(get_system_info)"
-            send_notification "$title" "$message" 2
-            ;;
-            
         hotplug)
             # Handle hotplug events
             case "${ACTION:-}" in
                 ifdown)
                     if [ "${INTERFACE:-}" = "$MWAN_IFACE" ]; then
-                        if check_rate_limit "ifdown_$INTERFACE"; then
-                            local title="🔴 Starlink Offline (Hard)"
-                            local message="Starlink ($INTERFACE) link is down or failed ping test.\\nThis is a hard failure event.\\n\\n$(get_system_info)"
-                            send_notification "$title" "$message" 2
+                        if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
+                            if check_rate_limit "ifdown_$INTERFACE"; then
+                                local title="🔴 Starlink Offline (Hard)"
+                                local message="Starlink ($INTERFACE) link is down or failed ping test.\nThis is a hard failure event.\n\n$(get_system_info)"
+                                send_notification "$title" "$message" 2
+                            fi
                         fi
                     fi
                     ;;
-                    
                 connected)
                     if [ "${INTERFACE:-}" = "$MWAN_IFACE" ]; then
-                        if check_rate_limit "connected_$INTERFACE"; then
-                            local title="🟢 Starlink Recovered (Hard)"
-                            local message="Starlink ($INTERFACE) is back online.\\nFailback complete via mwan3.\\n\\n$(get_system_info)"
-                            send_notification "$title" "$message" 0
+                        if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
+                            if check_rate_limit "connected_$INTERFACE"; then
+                                local title="🟢 Starlink Recovered (Hard)"
+                                local message="Starlink ($INTERFACE) is back online.\nFailback complete via mwan3.\n\n$(get_system_info)"
+                                send_notification "$title" "$message" 0
+                            fi
                         fi
                     elif [ "${INTERFACE:-}" = "mob1s1a1" ] || [ "${INTERFACE:-}" = "mob1s2a1" ]; then
-                        if check_rate_limit "connected_$INTERFACE"; then
-                            local title="📱 Mobile Failover Active"
-                            local message="Failover complete.\\nTraffic is now flowing over mobile interface ($INTERFACE).\\n\\n$(get_system_info)"
-                            send_notification "$title" "$message" 1
+                        if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
+                            if check_rate_limit "connected_$INTERFACE"; then
+                                local title="📱 Mobile Failover Active"
+                                local message="Failover complete.\nTraffic is now flowing over mobile interface ($INTERFACE).\n\n$(get_system_info)"
+                                send_notification "$title" "$message" 1
+                            fi
                         fi
                     fi
                     ;;
             esac
             ;;
-            
         test)
-            local title="🧪 Starlink Monitor Test"
-            local message="Test notification from Starlink monitoring system.\\nAll systems operational.\\n\\n$(get_system_info)"
-            send_notification "$title" "$message" -1
+            # Test all notification types
+            if [ "${NOTIFY_ON_CRITICAL:-1}" = "1" ]; then
+                send_notification "[TEST] Critical Error" "This is a test critical error notification.\n$(get_system_info)" 2
+            fi
+            if [ "${NOTIFY_ON_SOFT_FAIL:-1}" = "1" ]; then
+                send_notification "[TEST] Soft Failover" "This is a test soft failover notification.\n$(get_system_info)" 1
+            fi
+            if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
+                send_notification "[TEST] Hard Failover" "This is a test hard failover notification.\n$(get_system_info)" 2
+            fi
+            if [ "${NOTIFY_ON_RECOVERY:-1}" = "1" ]; then
+                send_notification "[TEST] Recovery" "This is a test recovery notification.\n$(get_system_info)" 0
+            fi
+            if [ "${NOTIFY_ON_INFO:-0}" = "1" ]; then
+                send_notification "[TEST] Info/Status" "This is a test info/status notification.\n$(get_system_info)" -1
+            fi
             ;;
-            
         *)
             log "warn" "Unknown notification action: $action"
             ;;

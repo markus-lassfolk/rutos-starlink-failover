@@ -19,11 +19,19 @@ MWAN_IFACE="wan"
 # mwan3 member name for Starlink interface
 MWAN_MEMBER="member1"
 
+
 # --- Notification Settings ---
 
 # Pushover API credentials (get from https://pushover.net)
 PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"
 PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"
+
+# Notification controls (1=enabled, 0=disabled)
+NOTIFY_ON_CRITICAL=1      # Always notify on critical errors
+NOTIFY_ON_SOFT_FAIL=1     # Notify on soft failover events
+NOTIFY_ON_HARD_FAIL=1     # Notify on hard failover events
+NOTIFY_ON_RECOVERY=1      # Notify when system recovers/failback
+NOTIFY_ON_INFO=0          # Notify on info/status (set to 1 for verbose)
 
 # --- Failover Thresholds ---
 
