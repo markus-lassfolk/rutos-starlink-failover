@@ -1,3 +1,13 @@
+# 0. Set file permissions (for CI or Linux environments)
+set_permissions() {
+  echo "Setting file permissions for scripts and config template..."
+  chmod 600 config/config.template.sh 2>/dev/null || true
+  chmod 755 scripts/*.sh Starlink-RUTOS-Failover/*.sh 2>/dev/null || true
+}
+set_permissions
+check_permissions
+check_secrets
+check_config_values
 #!/bin/bash
 # check-security.sh: Checks file permissions, hardcoded secrets, and config values
 # Usage: ./scripts/check-security.sh
@@ -41,15 +51,16 @@ check_permissions() {
 # 2. Check for hardcoded secrets
 check_secrets() {
   echo "Checking for hardcoded secrets..."
-  # Look for likely secret patterns, ignore placeholders
+  # Look for likely secret patterns, ignore placeholders and comments
   grep -r -n -i --exclude-dir=.git --exclude=*.md --exclude=*.json \
     "password\|secret\|token\|key" . | \
-    grep -v "YOUR_" | grep -v "PLACEHOLDER" | grep -v "example" && {
-      echo "${RED}FAIL:${NC} Potential hardcoded secrets found above."
-      failures=$((failures+1))
-    } || {
-      echo "${GREEN}OK:${NC} No hardcoded secrets detected."
-    }
+    grep -v "YOUR_" | grep -v "PLACEHOLDER" | grep -v "example" | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*//'
+  if [ $? -eq 0 ]; then
+    echo "${RED}FAIL:${NC} Potential hardcoded secrets found above."
+    failures=$((failures+1))
+  else
+    echo "${GREEN}OK:${NC} No hardcoded secrets detected."
+  fi
 }
 
 # 3. Check config values for secure defaults
