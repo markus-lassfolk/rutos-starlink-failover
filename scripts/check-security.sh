@@ -10,15 +10,15 @@ check_secrets() {
     echo "Checking for hardcoded secrets..."
     # Look for likely secret patterns, ignore placeholders and comments
     if grep -r -n -i --exclude-dir=.git --exclude-dir=.github --exclude=*.md --exclude=*.json --exclude=*.yml --exclude=*.yaml --exclude=*.toml --exclude=*_test.sh --exclude=*test* \
-        "password|secret|token|key" . | \
-        grep -v "scripts/check-security.sh" | \
-        grep -v "^[[:space:]]*#" | grep -v "^[[:space:]]*//" | \
-        grep -v "YOUR_PUSHOVER_API_TOKEN" | grep -v "YOUR_PUSHOVER_USER_KEY" | \
-        grep -v 'PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"' | grep -v 'PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"' | \
-        grep -v "YOUR_" | grep -v "PLACEHOLDER" | grep -v "example" | \
-        grep -vE '\$[A-Z_]+(TOKEN|USER|SECRET|KEY)' | \
-        grep -v "test_token" | grep -v "test_user" | grep -v "Application API Token" | grep -v "User Key" | grep -v "apiVersion" | \
-        grep -v "Replace this placeholder" | grep -v "actual token" | grep -v "actual key" | \
+        "password|secret|token|key" . |
+        grep -v "scripts/check-security.sh" |
+        grep -v "^[[:space:]]*#" | grep -v "^[[:space:]]*//" |
+        grep -v "YOUR_PUSHOVER_API_TOKEN" | grep -v "YOUR_PUSHOVER_USER_KEY" |
+        grep -v 'PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"' | grep -v 'PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"' |
+        grep -v "YOUR_" | grep -v "PLACEHOLDER" | grep -v "example" |
+        grep -vE '\$[A-Z_]+(TOKEN|USER|SECRET|KEY)' |
+        grep -v "test_token" | grep -v "test_user" | grep -v "Application API Token" | grep -v "User Key" | grep -v "apiVersion" |
+        grep -v "Replace this placeholder" | grep -v "actual token" | grep -v "actual key" |
         grep -vE "placeholder|dummy|not.*a.*real.*secret"; then
         echo -e "${RED}FAIL:${NC} Potential hardcoded secrets found above."
         failures=$((failures + 1))
@@ -37,7 +37,6 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 failures=0
-
 
 # 1. Check file permissions
 check_permissions() {
@@ -66,7 +65,6 @@ check_permissions() {
     done
 }
 
-
 # 3. Check config values for secure defaults
 check_config_values() {
     echo "Checking config values for secure defaults..."
@@ -80,8 +78,6 @@ check_config_values() {
         fi
     done
 }
-
-
 
 # Call all checks at the very end
 set_permissions

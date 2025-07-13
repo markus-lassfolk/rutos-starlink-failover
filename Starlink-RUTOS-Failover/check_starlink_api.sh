@@ -4,7 +4,7 @@
 # Starlink API Version Monitor
 #
 # Version: 1.0 (Public Edition)
-# Source: https://github.com/markus-lassfolk/rutos-starlink-victron/ 
+# Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 #
 # This script runs periodically (ideally once per day via cron) to check if the
 # Starlink dish's gRPC API version has changed.
@@ -64,7 +64,7 @@ send_notification() {
         -F "user=$PUSHOVER_USER" \
         -F "title=$title" \
         -F "message=$message" \
-        https://api.pushover.net/1/messages.json > /dev/null
+        https://api.pushover.net/1/messages.json >/dev/null
 }
 
 # --- Main Script ---
@@ -89,14 +89,14 @@ log "INFO: Known version: $known_version, Current version: $current_version"
 if [ "$current_version" != "$known_version" ]; then
     # --- API VERSION HAS CHANGED ---
     log "WARN: API version has changed from $known_version to $current_version. Sending notification."
-    
+
     MESSAGE="Starlink API version has changed from $known_version to $current_version. Please check if monitoring scripts need updates."
     TITLE="Starlink API Alert"
 
     send_notification "$TITLE" "$MESSAGE"
 
     # Update the known version file with the new version for the next check.
-    echo "$current_version" > "$KNOWN_API_VERSION_FILE"
+    echo "$current_version" >"$KNOWN_API_VERSION_FILE"
     log "INFO: Updated known version file to $current_version."
 else
     log "INFO: API version is unchanged. No action needed."

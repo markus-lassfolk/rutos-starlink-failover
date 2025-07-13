@@ -37,10 +37,10 @@ log() {
     local message="$2"
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     logger -t "PushoverNotifier" -p "daemon.$level" -- "$message"
-    echo "$timestamp [$level] $message" >> "$NOTIFICATION_LOG"
-    
+    echo "$timestamp [$level] $message" >>"$NOTIFICATION_LOG"
+
     if [ -t 1 ]; then
         echo "[$level] $message"
     fi
@@ -51,8 +51,8 @@ check_rate_limit() {
     local message_type="$1"
     local current_time
     current_time=$(date '+%s')
-    local rate_limit_seconds=300  # 5 minutes
-    
+    local rate_limit_seconds=300 # 5 minutes
+
     if [ -f "$RATE_LIMIT_FILE" ]; then
         while IFS='=' read -r type last_time; do
             if [ "$type" = "$message_type" ]; then
@@ -62,18 +62,18 @@ check_rate_limit() {
                     return 1
                 fi
             fi
-        done < "$RATE_LIMIT_FILE"
+        done <"$RATE_LIMIT_FILE"
     fi
-    
+
     # Update rate limit file
     local temp_file
     temp_file=$(mktemp)
     if [ -f "$RATE_LIMIT_FILE" ]; then
-        grep -v "^$message_type=" "$RATE_LIMIT_FILE" > "$temp_file" 2>/dev/null || true
+        grep -v "^$message_type=" "$RATE_LIMIT_FILE" >"$temp_file" 2>/dev/null || true
     fi
-    echo "$message_type=$current_time" >> "$temp_file"
+    echo "$message_type=$current_time" >>"$temp_file"
     mv "$temp_file" "$RATE_LIMIT_FILE"
-    
+
     return 0
 }
 
@@ -85,15 +85,15 @@ send_notification() {
     local retry_count=0
     local max_retries=3
     local delay=2
-    
+
     # Check for configuration
     if [ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] || [ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ]; then
         log "warn" "Pushover not configured, skipping notification"
         return 0
     fi
-    
+
     log "info" "Sending notification: $title - $message"
-    
+
     while [ $retry_count -lt $max_retries ]; do
         local response
         response=$(curl -s --max-time "$HTTP_TIMEOUT" -w "%{http_code}" \
@@ -104,13 +104,13 @@ send_notification() {
             -F "priority=$priority" \
             -F "device=" \
             https://api.pushover.net/1/messages.json 2>/dev/null)
-        
+
         local http_code
         http_code="${response##*]}"
         local response_body
         # shellcheck disable=SC2034
         response_body="${response%"$http_code"}"
-        
+
         if [ "$http_code" = "200" ]; then
             log "info" "Notification sent successfully"
             return 0
@@ -126,7 +126,7 @@ send_notification() {
             fi
         fi
     done
-    
+
     return 1
 }
 
@@ -145,9 +145,9 @@ get_system_info() {
 main() {
     local action="${1:-hotplug}"
     local detail="${2:-}"
-    
+
     log "info" "Notification triggered: action=$action, detail=$detail"
-    
+
     case "$action" in
         soft_failover)
             if [ "${NOTIFY_ON_SOFT_FAIL:-1}" = "1" ]; then
@@ -252,7 +252,7 @@ main() {
             log "warn" "Unknown notification action: $action"
             ;;
     esac
-    
+
     log "info" "Notification processing completed"
 }
 
@@ -263,14 +263,14 @@ cleanup_rate_limits() {
         current_time=$(date '+%s')
         local temp_file
         temp_file=$(mktemp)
-        
+
         while IFS='=' read -r type last_time; do
             local time_diff=$((current_time - last_time))
-            if [ $time_diff -lt 3600 ]; then  # Keep entries for 1 hour
-                echo "$type=$last_time" >> "$temp_file"
+            if [ $time_diff -lt 3600 ]; then # Keep entries for 1 hour
+                echo "$type=$last_time" >>"$temp_file"
             fi
-        done < "$RATE_LIMIT_FILE"
-        
+        done <"$RATE_LIMIT_FILE"
+
         mv "$temp_file" "$RATE_LIMIT_FILE"
     fi
 }
@@ -280,7 +280,7 @@ rotate_logs() {
     if [ -f "$NOTIFICATION_LOG" ]; then
         local log_size
         log_size=$(stat -c%s "$NOTIFICATION_LOG" 2>/dev/null || echo 0)
-        if [ "$log_size" -gt 1048576 ]; then  # 1MB
+        if [ "$log_size" -gt 1048576 ]; then # 1MB
             mv "$NOTIFICATION_LOG" "${NOTIFICATION_LOG}.old"
             touch "$NOTIFICATION_LOG"
         fi

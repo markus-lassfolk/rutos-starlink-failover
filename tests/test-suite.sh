@@ -45,9 +45,9 @@ log_test() {
     local status="$1"
     local test_name="$2"
     local message="$3"
-    
+
     TESTS_RUN=$((TESTS_RUN + 1))
-    
+
     if [ "$status" = "PASS" ]; then
         TESTS_PASSED=$((TESTS_PASSED + 1))
         print_status "$GREEN" "✓ $test_name: $message"
@@ -61,7 +61,7 @@ assert_equals() {
     local expected="$1"
     local actual="$2"
     local test_name="$3"
-    
+
     if [ "$expected" = "$actual" ]; then
         log_test "PASS" "$test_name" "Expected '$expected', got '$actual'"
         return 0
@@ -74,7 +74,7 @@ assert_equals() {
 assert_file_exists() {
     local file="$1"
     local test_name="$2"
-    
+
     if [ -f "$file" ]; then
         log_test "PASS" "$test_name" "File exists: $file"
         return 0
@@ -88,7 +88,7 @@ assert_file_exists() {
 assert_command_success() {
     local command="$1"
     local test_name="$2"
-    
+
     if eval "$command" >/dev/null 2>&1; then
         log_test "PASS" "$test_name" "Command succeeded: $command"
         return 0
@@ -101,15 +101,15 @@ assert_command_success() {
 # Setup test environment
 setup_test_env() {
     print_status "$BLUE" "Setting up test environment..."
-    
+
     # Create test directories
     rm -rf "$TEST_DIR"
     mkdir -p "$TEST_DIR"
     mkdir -p "$MOCK_STATE_DIR"
     mkdir -p "$MOCK_LOG_DIR"
-    
+
     # Create mock configuration
-    cat > "$MOCK_CONFIG" << 'EOF'
+    cat >"$MOCK_CONFIG" <<'EOF'
 #!/bin/sh
 # Mock configuration for testing
 
@@ -134,14 +134,14 @@ LOG_RETENTION_DAYS=7
 API_TIMEOUT=10
 HTTP_TIMEOUT=15
 EOF
-    
+
     print_status "$GREEN" "✓ Test environment setup complete"
 }
 
 # Test configuration loading
 test_config_loading() {
     print_status "$BLUE" "Testing configuration loading..."
-    
+
     # Test valid configuration
     CONFIG_FILE="$MOCK_CONFIG"
     if [ -f "$CONFIG_FILE" ]; then
@@ -152,7 +152,7 @@ test_config_loading() {
     else
         log_test "FAIL" "config_loading_file" "Mock config file not found"
     fi
-    
+
     # Test missing configuration
     CONFIG_FILE="/nonexistent/config.sh"
     if [ ! -f "$CONFIG_FILE" ]; then
@@ -165,23 +165,23 @@ test_config_loading() {
 # Test threshold validation
 test_threshold_validation() {
     print_status "$BLUE" "Testing threshold validation..."
-    
+
     # Load config
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
-    
+
     # Test packet loss threshold
     local loss_value="0.10"
     local is_loss_high
     is_loss_high=$(awk -v val="$loss_value" -v threshold="$PACKET_LOSS_THRESHOLD" 'BEGIN { print (val > threshold) }')
     assert_equals "1" "$is_loss_high" "threshold_packet_loss_high"
-    
+
     # Test obstruction threshold
     local obstruction_value="0.002"
     local is_obstructed
     is_obstructed=$(awk -v val="$obstruction_value" -v threshold="$OBSTRUCTION_THRESHOLD" 'BEGIN { print (val > threshold) }')
     assert_equals "1" "$is_obstructed" "threshold_obstruction_high"
-    
+
     # Test latency threshold
     local latency_value="200"
     local is_latency_high=0
@@ -194,28 +194,28 @@ test_threshold_validation() {
 # Test state management
 test_state_management() {
     print_status "$BLUE" "Testing state management..."
-    
+
     # Load config
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
-    
+
     local state_file
     state_file="$STATE_DIR/test.state"
-    
+
     # Test state file creation
-    echo "up" > "$state_file"
+    echo "up" >"$state_file"
     assert_file_exists "$state_file" "state_file_creation"
-    
+
     # Test state reading
     local state
     state=$(cat "$state_file")
     assert_equals "up" "$state" "state_reading"
-    
+
     # Test state update
-    echo "down" > "$state_file"
+    echo "down" >"$state_file"
     state=$(cat "$state_file")
     assert_equals "down" "$state" "state_update"
-    
+
     # Cleanup
     rm -f "$state_file"
 }
@@ -223,21 +223,21 @@ test_state_management() {
 # Test logging functions
 test_logging() {
     print_status "$BLUE" "Testing logging functions..."
-    
+
     # Load config
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
-    
+
     # Mock log function
     log() {
         local level="$1"
         local message="$2"
-        echo "[$level] $message" >> "$LOG_DIR/test.log"
+        echo "[$level] $message" >>"$LOG_DIR/test.log"
     }
-    
+
     # Test logging
     log "info" "Test message"
-    
+
     # Check log file
     if [ -f "$LOG_DIR/test.log" ]; then
         local log_content
@@ -255,13 +255,13 @@ test_logging() {
 # Test JSON parsing
 test_json_parsing() {
     print_status "$BLUE" "Testing JSON parsing..."
-    
+
     # Check if jq is available
     if ! command -v jq >/dev/null 2>&1; then
         log_test "SKIP" "json_parsing" "jq not available"
         return 0
     fi
-    
+
     # Test JSON parsing
     local test_json='{"dishGetStatus":{"obstructionStats":{"fractionObstructed":0.01},"popPingLatencyMs":100}}'
 
@@ -277,24 +277,24 @@ test_json_parsing() {
 # Test notification rate limiting
 test_rate_limiting() {
     print_status "$BLUE" "Testing notification rate limiting..."
-    
+
     # Load config
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
-    
+
     local rate_file
     rate_file="$STATE_DIR/rate_limit"
     local current_time
     current_time=$(date '+%s')
-    
+
     # Create rate limit entry
-    echo "soft_failover=$current_time" > "$rate_file"
-    
+    echo "soft_failover=$current_time" >"$rate_file"
+
     # Test rate limiting function
     check_rate_limit() {
         local message_type="$1"
         local rate_limit_seconds=300
-        
+
         if [ -f "$rate_file" ]; then
             while IFS='=' read -r type last_time; do
                 if [ "$type" = "$message_type" ]; then
@@ -303,11 +303,11 @@ test_rate_limiting() {
                         return 1
                     fi
                 fi
-            done < "$rate_file"
+            done <"$rate_file"
         fi
         return 0
     }
-    
+
     # Test rate limiting
     if check_rate_limit "soft_failover"; then
         log_test "FAIL" "rate_limiting_active" "Rate limiting should be active"
@@ -319,12 +319,12 @@ test_rate_limiting() {
 # Test arithmetic operations
 test_arithmetic() {
     print_status "$BLUE" "Testing arithmetic operations..."
-    
+
     # Test awk arithmetic
     local result
     result=$(awk 'BEGIN { print (0.1 > 0.05) }')
     assert_equals "1" "$result" "arithmetic_awk_comparison"
-    
+
     # Test shell arithmetic
     local value=200
     local threshold=150
@@ -338,23 +338,23 @@ test_arithmetic() {
 # Test file operations
 test_file_operations() {
     print_status "$BLUE" "Testing file operations..."
-    
+
     # Load config
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
-    
+
     local test_file
     test_file="$STATE_DIR/test_file"
-    
+
     # Test file creation
-    echo "test content" > "$test_file"
+    echo "test content" >"$test_file"
     assert_file_exists "$test_file" "file_creation"
-    
+
     # Test file reading
     local content
     content=$(cat "$test_file")
     assert_equals "test content" "$content" "file_reading"
-    
+
     # Test file permissions
     chmod 600 "$test_file"
     local perms
@@ -364,7 +364,7 @@ test_file_operations() {
     else
         log_test "FAIL" "file_permissions" "File permissions incorrect: $perms"
     fi
-    
+
     # Test file deletion
     rm -f "$test_file"
     if [ ! -f "$test_file" ]; then
@@ -377,22 +377,22 @@ test_file_operations() {
 # Test error handling
 test_error_handling() {
     print_status "$BLUE" "Testing error handling..."
-    
+
     # Test command failure handling
     if ! false; then
         log_test "PASS" "error_handling_basic" "Command failure detected"
     else
         log_test "FAIL" "error_handling_basic" "Command failure not detected"
     fi
-    
+
     # Test undefined variable handling
-    set +u  # Temporarily disable undefined variable check
+    set +u # Temporarily disable undefined variable check
     # shellcheck disable=SC2154
     local undefined_var
     # shellcheck disable=SC2154
     undefined_var="$undefined_variable"
     set -u
-    
+
     if [ -z "$undefined_var" ]; then
         log_test "PASS" "error_handling_undefined" "Undefined variable handled"
     else
@@ -403,7 +403,7 @@ test_error_handling() {
 # Test installation validation
 test_installation() {
     print_status "$BLUE" "Testing installation validation..."
-    
+
     # Test required commands
     local required_commands="uci logger curl awk"
     for cmd in $required_commands; do
@@ -413,7 +413,7 @@ test_installation() {
             log_test "FAIL" "installation_$cmd" "Command missing: $cmd"
         fi
     done
-    
+
     # Test directory structure
     local required_dirs="/tmp /var/log /etc"
     for dir in $required_dirs; do
@@ -437,16 +437,16 @@ generate_report() {
     print_status "$BLUE" "=== Test Report ==="
     print_status "$GREEN" "Tests run: $TESTS_RUN"
     print_status "$GREEN" "Tests passed: $TESTS_PASSED"
-    
+
     if [ $TESTS_FAILED -gt 0 ]; then
         print_status "$RED" "Tests failed: $TESTS_FAILED"
     else
         print_status "$GREEN" "Tests failed: $TESTS_FAILED"
     fi
-    
+
     local success_rate=$((TESTS_PASSED * 100 / TESTS_RUN))
     print_status "$BLUE" "Success rate: $success_rate%"
-    
+
     if [ $TESTS_FAILED -eq 0 ]; then
         print_status "$GREEN" "All tests passed! 🎉"
         return 0
@@ -460,9 +460,9 @@ generate_report() {
 main() {
     print_status "$GREEN" "=== Starlink Monitoring System Test Suite ==="
     echo ""
-    
+
     setup_test_env
-    
+
     # Run all tests
     test_config_loading
     test_threshold_validation
@@ -474,12 +474,12 @@ main() {
     test_file_operations
     test_error_handling
     test_installation
-    
+
     echo ""
     generate_report
-    
+
     cleanup_test_env
-    
+
     # Exit with appropriate code
     if [ $TESTS_FAILED -eq 0 ]; then
         exit 0

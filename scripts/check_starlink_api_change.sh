@@ -18,7 +18,7 @@ CUR_SCHEMA_FILE="/tmp/starlink_api_schema_current.json"
 NOTIFIER_SCRIPT="/etc/hotplug.d/iface/99-pushover_notify"
 
 # Dump current API schema (get_device_info is a good proxy for version/fields)
-if ! "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | "$JQ_CMD" '.' > "$CUR_SCHEMA_FILE"; then
+if ! "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | "$JQ_CMD" '.' >"$CUR_SCHEMA_FILE"; then
     echo "Warning: Could not fetch Starlink API schema."
     exit 0
 fi
