@@ -442,6 +442,33 @@ sh: download_file: not found
 
 **Next Test**: Re-test with complete download functionality
 
+### 🔧 Line Ending Issues - **FIXED**
+
+**Issue Found**: Windows line endings (CRLF) were causing shell compatibility errors:
+- `sh: : not found` errors
+- `sh: set: line 11: illegal option -` errors
+- Script failing early in execution
+
+**Root Cause**: Git on Windows was introducing CRLF line endings which are incompatible with RUTOS busybox shell
+
+**Fixes Applied**:
+1. **Line Ending Conversion**: Converted all CRLF to LF in install.sh
+2. **Git Attributes**: Added `.gitattributes` to prevent future issues
+3. **Shell Script Enforcement**: All `.sh` files now forced to use LF endings
+
+**Prevention**:
+- ✅ `.gitattributes` file ensures consistent line endings
+- ✅ Shell scripts always use LF line endings regardless of OS
+- ✅ Cross-platform compatibility maintained
+
+**Testing Command Updated**:
+```bash
+# Should now work without line ending issues
+DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" \
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
+sh -s --
+```
+
 ---
 **Branch**: `feature/testing-improvements`  
 **Started**: July 14, 2025
