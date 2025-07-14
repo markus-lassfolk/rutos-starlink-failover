@@ -210,8 +210,7 @@ install_config() {
     if [ ! -f "$INSTALL_DIR/config/config.sh" ]; then
         cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
         print_status "$YELLOW" "Configuration file created from template"
-            print_status "$YELLOW" "Please edit $INSTALL_DIR/config/config.sh before using"
-        fi
+        print_status "$YELLOW" "Please edit $INSTALL_DIR/config/config.sh before using"
     fi
 
     # Create convenience symlink

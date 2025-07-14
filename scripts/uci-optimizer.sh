@@ -9,7 +9,7 @@ set -euo pipefail
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="$SCRIPT_DIR/../config/config.sh"
+# CONFIG_FILE="$SCRIPT_DIR/../config/config.sh"  # Currently unused
 BACKUP_DIR="/tmp/uci_backup_$(date +%Y%m%d_%H%M%S)"
 
 # Colors for output
@@ -204,7 +204,7 @@ optimize_firewall() {
     log_info "Optimizing firewall for Starlink monitoring..."
 
     # Allow gRPC traffic to Starlink (if not already allowed)
-    local starlink_rule=""
+    # local starlink_rule=""  # Currently unused
     local rules
     rules=$(uci show firewall | grep -E "name='.*[Ss]tarlink.*'" || true)
 
@@ -294,7 +294,8 @@ apply_optimizations() {
 generate_report() {
     log_info "Generating configuration report..."
 
-    local report_file="/tmp/starlink_config_report_$(date +%Y%m%d_%H%M%S).txt"
+    local report_file
+    report_file="/tmp/starlink_config_report_$(date +%Y%m%d_%H%M%S).txt"
 
     {
         echo "Starlink Failover Configuration Report"

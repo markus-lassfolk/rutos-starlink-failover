@@ -118,6 +118,26 @@ sh: syntax error: unexpected "fi" (expecting "}")
 
 **Next Test**: Re-test with portable shell commands
 
+### 🔧 CI/CD Issues Found & Fixed
+**Date**: July 14, 2025  
+**GitHub Actions Status**: ❌ Multiple workflow failures
+
+#### Issues Found:
+1. **Security Check Failure**: 
+   - `config/config.advanced.template.sh` had wrong permissions (644 instead of 600)
+   
+2. **ShellCheck Syntax Errors**:
+   - `scripts/install.sh`: Extra `fi` statement in `install_config()` function
+   - `scripts/uci-optimizer.sh`: Unused variables causing warnings
+
+#### Fixes Applied:
+- 🔧 Fixed file permissions for config.advanced.template.sh
+- 🔧 Corrected shell syntax in install_config() function  
+- 🔧 Commented out unused variables in uci-optimizer.sh
+- 🔧 Fixed variable declaration patterns for ShellCheck compliance
+
+**Status**: Ready for Round 3 testing after CI/CD fixes
+
 ---
 **Branch**: `feature/testing-improvements`  
 **Started**: July 14, 2025
