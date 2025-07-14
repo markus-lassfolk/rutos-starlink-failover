@@ -33,6 +33,22 @@ print_status() {
     printf "%b%s%b\n" "$color" "$message" "$NC"
 }
 
+# Function to download files with fallback
+download_file() {
+    local url="$1"
+    local output="$2"
+    
+    # Try wget first, then curl
+    if command -v wget >/dev/null 2>&1; then
+        wget -q -O "$output" "$url" 2>/dev/null
+    elif command -v curl >/dev/null 2>&1; then
+        curl -fsSL -o "$output" "$url" 2>/dev/null
+    else
+        print_status "$RED" "Error: Neither wget nor curl available for downloads"
+        return 1
+    fi
+}
+
 # Check if running as root
 check_root() {
     if [ "$(id -u)" -ne 0 ]; then
@@ -158,7 +174,7 @@ install_scripts() {
         else
             # Download from repository
             print_status "$BLUE" "Downloading $script..."
-            if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/Starlink-RUTOS-Failover/$script" "$INSTALL_DIR/scripts/$script"; then
+            if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/Starlink-RUTOS-Failover/$script" "$INSTALL_DIR/scripts/$script"; then
                 chmod +x "$INSTALL_DIR/scripts/$script"
                 print_status "$GREEN" "✓ $script installed"
             else
@@ -175,7 +191,7 @@ install_scripts() {
     else
         # Download from repository
         print_status "$BLUE" "Downloading validate-config.sh..."
-        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/validate-config.sh" "$INSTALL_DIR/scripts/validate-config.sh"; then
+        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/validate-config.sh" "$INSTALL_DIR/scripts/validate-config.sh"; then
             chmod +x "$INSTALL_DIR/scripts/validate-config.sh"
             print_status "$GREEN" "✓ Configuration validation script installed"
         else
@@ -198,7 +214,7 @@ install_config() {
     else
         # Download from repository
         print_status "$BLUE" "Downloading configuration template..."
-        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/config/config.template.sh" "$INSTALL_DIR/config/config.template.sh"; then
+        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/config/config.template.sh" "$INSTALL_DIR/config/config.template.sh"; then
             print_status "$GREEN" "✓ Configuration template installed"
         else
             print_status "$RED" "✗ Failed to download configuration template"

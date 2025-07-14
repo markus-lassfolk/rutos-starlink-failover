@@ -138,21 +138,58 @@ sh: syntax error: unexpected "fi" (expecting "}")
 
 **Status**: Ready for Round 3 testing after CI/CD fixes
 
-### 🔧 File Permissions Issue (Windows Development)
+### ✅ Git File Mode Enabled (Windows Development)
 **Date**: July 14, 2025  
-**Issue**: Git file mode tracking disabled on Windows
+**Status**: ✅ Configured for better Linux compatibility
 
-#### Problem:
-- Windows git has `core.filemode=false` so file permissions aren't tracked locally
-- CI/CD runs on Linux and expects config files to have 600 permissions
-- Security script wasn't setting permissions for `config.advanced.template.sh`
+#### Changes Made:
+- ✅ Enabled `git config core.filemode true` - Git now tracks executable permissions
+- ✅ Disabled `git config core.autocrlf false` - Prevents Windows CRLF line ending issues  
+- ✅ Config files properly set to 644 (non-executable) in git index
+- ✅ Script files remain 755 (executable) in git index
 
-#### Fix Applied:
-- 🔧 Updated security script to set permissions for both config templates
-- 🔧 Git will properly track executable bit changes for Linux deployment
-- ✅ CI/CD system will handle actual file permissions correctly
+#### Benefits:
+- 🔧 Better cross-platform compatibility  
+- 🔧 File permissions properly tracked for Linux deployment
+- 🔧 CI/CD security checks will work correctly
+- 🔧 Consistent behavior between Windows development and Linux production
+
+#### Note:
+- Windows Git can only track executable bit (755 vs 644)
+- Actual 600/644 permissions are set by security script on Linux
+- This ensures proper permissions in production while allowing Windows development
 
 **Status**: All CI/CD fixes applied - Ready for Round 3 testing
+
+### ❌ Live RUTX50 Testing - Round 3
+**Date**: July 14, 2025  
+**System**: RUTX50 running RUTOS  
+**Test Method**: Remote installation via curl from testing branch
+
+#### Installation Script (`scripts/install.sh`) - Round 3
+**Status**: ❌ Missing Function Definition
+
+**Command Used**:
+```bash
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | sh
+```
+
+**Error Found**:
+```
+sh: download_file: not found
+```
+
+**Root Cause**: Missing `download_file` function definition
+- Script calls `download_file` function but function was never defined
+- Added remote download logic but forgot to add the actual function
+- URLs were pointing to main branch instead of testing branch
+
+**Fix Applied**: 
+- 🔧 Added `download_file()` function with wget/curl fallback
+- 🔧 Updated all download URLs to use testing branch instead of main
+- 🔧 Function includes proper error handling and tool detection
+
+**Next Test**: Re-test with complete download functionality
 
 ---
 **Branch**: `feature/testing-improvements`  
