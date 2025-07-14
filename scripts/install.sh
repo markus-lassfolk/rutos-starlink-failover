@@ -62,12 +62,12 @@ debug_msg() {
 
 # Function to execute commands with debug output
 debug_exec() {
-        if [ "${DEBUG:-0}" = "1" ]; then
-            print_status "$BLUE" "DEBUG: Executing: $*"
-            "$@"
-        else
-            "$@" 2>/dev/null
-        fi
+    if [ "${DEBUG:-0}" = "1" ]; then
+        print_status "$BLUE" "DEBUG: Executing: $*"
+        "$@"
+    else
+        "$@" 2>/dev/null
+    fi
 }
 
 # Early debug detection - show immediately if DEBUG is set
@@ -85,186 +85,188 @@ fi
 
 # Function to show version information
 show_version() {
-        print_status "$GREEN" "==========================================="
-        print_status "$GREEN" "Starlink Monitor Installation Script"
-        print_status "$GREEN" "Script: $SCRIPT_NAME"
-        print_status "$GREEN" "Version: $SCRIPT_VERSION"
-        print_status "$GREEN" "Branch: $GITHUB_BRANCH"
-        print_status "$GREEN" "Repository: $GITHUB_REPO"
-        print_status "$GREEN" "==========================================="
-    }
+    print_status "$GREEN" "==========================================="
+    print_status "$GREEN" "Starlink Monitor Installation Script"
+    print_status "$GREEN" "Script: $SCRIPT_NAME"
+    print_status "$GREEN" "Version: $SCRIPT_VERSION"
+    print_status "$GREEN" "Branch: $GITHUB_BRANCH"
+    print_status "$GREEN" "Repository: $GITHUB_REPO"
+    print_status "$GREEN" "==========================================="
+}
 
-    # Function to detect remote version
-    detect_remote_version() {
-        remote_version=""
-        debug_msg "Fetching remote version from $VERSION_URL"
-        if command -v wget >/dev/null 2>&1; then
-            remote_version=$(wget -q -O - "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
-        elif command -v curl >/dev/null 2>&1; then
-            remote_version=$(curl -fsSL "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
-        else
-            debug_msg "Cannot detect remote version - no wget or curl available"
-            return 1
-        fi
-        if [ -n "$remote_version" ]; then
-            debug_msg "Remote version detected: $remote_version"
-            printf "%s\n" "$remote_version"
-        else
-            debug_msg "Failed to detect remote version"
-            return 1
-        fi
-    }
+# Function to detect remote version
+detect_remote_version() {
+    remote_version=""
+    debug_msg "Fetching remote version from $VERSION_URL"
+    if command -v wget >/dev/null 2>&1; then
+        remote_version=$(wget -q -O - "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
+    elif command -v curl >/dev/null 2>&1; then
+        remote_version=$(curl -fsSL "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
+    else
+        debug_msg "Cannot detect remote version - no wget or curl available"
+        return 1
+    fi
+    if [ -n "$remote_version" ]; then
+        debug_msg "Remote version detected: $remote_version"
+        printf "%s\n" "$remote_version"
+    else
+        debug_msg "Failed to detect remote version"
+        return 1
+    fi
+}
 
-    # Function to compare versions (simplified)
-    version_compare() {
-        version1="$1"
-        version2="$2"
+# Function to compare versions (simplified)
+version_compare() {
+    version1="$1"
+    version2="$2"
 
-        # Simple version comparison (assumes semantic versioning)
-        # Returns 0 if versions are equal, 1 if v1 > v2, 2 if v1 < v2
-        if [ "$version1" = "$version2" ]; then
-            return 0
-        fi
-
-        # For now, just return equal (can be enhanced later)
+    # Simple version comparison (assumes semantic versioning)
+    # Returns 0 if versions are equal, 1 if v1 > v2, 2 if v1 < v2
+    if [ "$version1" = "$version2" ]; then
         return 0
-    }
+    fi
 
-    # Function to download files with fallback
-    download_file() {
-        url="$1"
-        output="$2"
+    # For now, just return equal (can be enhanced later)
+    return 0
+}
 
-        debug_msg "Downloading $url to $output"
+# Function to download files with fallback
+download_file() {
+    url="$1"
+    output="$2"
 
-        # Try wget first, then curl
-        if command -v wget >/dev/null 2>&1; then
-            if [ "${DEBUG:-0}" = "1" ]; then
-                debug_exec wget -O "$output" "$url"
-            else
-                wget -q -O "$output" "$url" 2>/dev/null
-            fi
-        elif command -v curl >/dev/null 2>&1; then
-            if [ "${DEBUG:-0}" = "1" ]; then
-                debug_exec curl -fL -o "$output" "$url"
-            else
-                curl -fsSL -o "$output" "$url" 2>/dev/null
-            fi
+    debug_msg "Downloading $url to $output"
+
+    # Try wget first, then curl
+    if command -v wget >/dev/null 2>&1; then
+        if [ "${DEBUG:-0}" = "1" ]; then
+            debug_exec wget -O "$output" "$url"
         else
-            print_status "$RED" "Error: Neither wget nor curl available for downloads"
-            return 1
+            wget -q -O "$output" "$url" 2>/dev/null
         fi
-    }
+    elif command -v curl >/dev/null 2>&1; then
+        if [ "${DEBUG:-0}" = "1" ]; then
+            debug_exec curl -fL -o "$output" "$url"
+        else
+            curl -fsSL -o "$output" "$url" 2>/dev/null
+        fi
+    else
+        print_status "$RED" "Error: Neither wget nor curl available for downloads"
+        return 1
+    fi
+}
 
-    # Check if running as root
-    check_root() {
-        if [ "$(id -u)" -ne 0 ]; then
-            print_status "$RED" "Error: This script must be run as root"
+# Check if running as root
+check_root() {
+    if [ "$(id -u)" -ne 0 ]; then
+        print_status "$RED" "Error: This script must be run as root"
+        exit 1
+    fi
+}
+
+# Check system compatibility
+check_system() {
+    print_status "$BLUE" "Checking system compatibility..."
+    arch=""
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "Executing: uname -m"
+        arch=$(uname -m)
+        debug_msg "System architecture: $arch"
+    else
+        arch=$(uname -m)
+    fi
+    if [ "$arch" != "armv7l" ]; then
+        print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
+        print_status "$YELLOW" "Your architecture: $arch"
+        print_status "$YELLOW" "You may need to adjust binary URLs"
+        printf "Continue anyway? (y/N): "
+        read -r answer
+        if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
             exit 1
         fi
-    }
+    else
+        debug_msg "Architecture check passed: $arch matches expected armv7l"
+    fi
+    debug_msg "Checking for OpenWrt/RUTOS system files"
+    if [ ! -f "/etc/openwrt_version" ] && [ ! -f "/etc/rutos_version" ]; then
+        print_status "$YELLOW" "Warning: This doesn't appear to be OpenWrt/RUTOS"
+        printf "Continue anyway? (y/N): "
+        read -r answer
+        if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
+            exit 1
+        fi
+    else
+        if [ -f "/etc/openwrt_version" ]; then
+            openwrt_version=$(cat /etc/openwrt_version 2>/dev/null)
+            debug_msg "OpenWrt version: $openwrt_version"
+        fi
+        if [ -f "/etc/rutos_version" ]; then
+            rutos_version=$(cat /etc/rutos_version 2>/dev/null)
+            debug_msg "RUTOS version: $rutos_version"
+        fi
+    fi
+    print_status "$GREEN" "✓ System compatibility checked"
+}
 
-    # Check system compatibility
-    check_system() {
-        print_status "$BLUE" "Checking system compatibility..."
-        arch=""
-        if [ "${DEBUG:-0}" = "1" ]; then
-            debug_msg "Executing: uname -m"
-            arch=$(uname -m)
-            debug_msg "System architecture: $arch"
+# Create directory structure
+create_directories() {
+    print_status "$BLUE" "Creating directory structure..."
+
+    debug_msg "Creating main installation directory: $INSTALL_DIR"
+    debug_exec mkdir -p "$INSTALL_DIR"
+    debug_exec mkdir -p "$INSTALL_DIR/config"
+    debug_exec mkdir -p "$INSTALL_DIR/scripts"
+    debug_exec mkdir -p "$INSTALL_DIR/logs"
+    debug_exec mkdir -p "/tmp/run"
+    debug_exec mkdir -p "/var/log"
+    debug_exec mkdir -p "$HOTPLUG_DIR"
+
+    # Verify directories were created
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "Verifying directory structure:"
+        debug_exec ls -la "$INSTALL_DIR"
+    fi
+
+    print_status "$GREEN" "✓ Directory structure created"
+}
+
+# Download and install binaries
+install_binaries() {
+    print_status "$BLUE" "Installing required binaries..."
+
+    # Install grpcurl
+    if [ ! -f "$INSTALL_DIR/grpcurl" ]; then
+        print_status "$YELLOW" "Downloading grpcurl..."
+        if curl -fL "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz; then
+            tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl
+            chmod +x "$INSTALL_DIR/grpcurl"
+            rm /tmp/grpcurl.tar.gz
+            print_status "$GREEN" "✓ grpcurl installed"
         else
-            arch=$(uname -m)
+            print_status "$RED" "Error: Failed to download grpcurl"
+            exit 1
         fi
-        if [ "$arch" != "armv7l" ]; then
-            print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
-            print_status "$YELLOW" "Your architecture: $arch"
-            print_status "$YELLOW" "You may need to adjust binary URLs"
-            printf "Continue anyway? (y/N): "
-            read -r answer
-            if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
-                exit 1
-            fi
+    else
+        print_status "$GREEN" "✓ grpcurl already installed"
+    fi
+
+    # Install jq
+    if [ ! -f "$INSTALL_DIR/jq" ]; then
+        print_status "$YELLOW" "Downloading jq..."
+        if curl -fL "$JQ_URL" -o "$INSTALL_DIR/jq"; then
+            chmod +x "$INSTALL_DIR/jq"
+            print_status "$GREEN" "✓ jq installed"
         else
-            debug_msg "Architecture check passed: $arch matches expected armv7l"
+            print_status "$RED" "Error: Failed to download jq"
+            exit 1
         fi
-        debug_msg "Checking for OpenWrt/RUTOS system files"
-        if [ ! -f "/etc/openwrt_version" ] && [ ! -f "/etc/rutos_version" ]; then
-            print_status "$YELLOW" "Warning: This doesn't appear to be OpenWrt/RUTOS"
-            printf "Continue anyway? (y/N): "
-            read -r answer
-            if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
-                exit 1
-            fi
-        else
-            if [ -f "/etc/openwrt_version" ]; then
-                openwrt_version=$(cat /etc/openwrt_version 2>/dev/null)
-                debug_msg "OpenWrt version: $openwrt_version"
-            fi
-            if [ -f "/etc/rutos_version" ]; then
-                rutos_version=$(cat /etc/rutos_version 2>/dev/null)
-                debug_msg "RUTOS version: $rutos_version"
-            fi
-        fi
-        print_status "$GREEN" "✓ System compatibility checked"
-    }
-    # Create directory structure
-    create_directories() {
-        print_status "$BLUE" "Creating directory structure..."
+    else
+        print_status "$GREEN" "✓ jq already installed"
+    fi
+}
 
-        debug_msg "Creating main installation directory: $INSTALL_DIR"
-        debug_exec mkdir -p "$INSTALL_DIR"
-        debug_exec mkdir -p "$INSTALL_DIR/config"
-        debug_exec mkdir -p "$INSTALL_DIR/scripts"
-        debug_exec mkdir -p "$INSTALL_DIR/logs"
-        debug_exec mkdir -p "/tmp/run"
-        debug_exec mkdir -p "/var/log"
-        debug_exec mkdir -p "$HOTPLUG_DIR"
-
-        # Verify directories were created
-        if [ "${DEBUG:-0}" = "1" ]; then
-            debug_msg "Verifying directory structure:"
-            debug_exec ls -la "$INSTALL_DIR"
-        fi
-
-        print_status "$GREEN" "✓ Directory structure created"
-    }
-
-    # Download and install binaries
-    install_binaries() {
-        print_status "$BLUE" "Installing required binaries..."
-
-        # Install grpcurl
-        if [ ! -f "$INSTALL_DIR/grpcurl" ]; then
-            print_status "$YELLOW" "Downloading grpcurl..."
-            if curl -fL "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz; then
-                tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl
-                chmod +x "$INSTALL_DIR/grpcurl"
-                rm /tmp/grpcurl.tar.gz
-                print_status "$GREEN" "✓ grpcurl installed"
-            else
-                print_status "$RED" "Error: Failed to download grpcurl"
-                exit 1
-            fi
-        else
-            print_status "$GREEN" "✓ grpcurl already installed"
-        fi
-
-        # Install jq
-        if [ ! -f "$INSTALL_DIR/jq" ]; then
-            print_status "$YELLOW" "Downloading jq..."
-            if curl -fL "$JQ_URL" -o "$INSTALL_DIR/jq"; then
-                chmod +x "$INSTALL_DIR/jq"
-                print_status "$GREEN" "✓ jq installed"
-            else
-                print_status "$RED" "Error: Failed to download jq"
-                exit 1
-            fi
-        else
-            print_status "$GREEN" "✓ jq already installed"
-        fi
-    }
-
-    # Install scripts
+# Install scripts
+install_scripts() {
     print_status "$BLUE" "Installing monitoring scripts..."
     script_dir="$(dirname "$0")"
 
