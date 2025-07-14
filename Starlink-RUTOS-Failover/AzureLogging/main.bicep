@@ -44,8 +44,24 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   }
 }
 
-// RESOURCE: Blob container for storing logs
-resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+// RESOURCE: Blob container for storing system logs
+resource systemLogsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  name: '${storageAccount.name}/default/system-logs'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// RESOURCE: Blob container for storing performance data
+resource performanceContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  name: '${storageAccount.name}/default/starlink-performance'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// RESOURCE: Blob container for legacy compatibility (logs)
+resource logsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   name: '${storageAccount.name}/default/logs'
   properties: {
     publicAccess: 'None'
@@ -134,4 +150,6 @@ resource storageAccountContributorRole 'Microsoft.Authorization/roleAssignments@
 output functionAppName string = functionApp.name
 output functionAppUrl string = 'https://' + functionApp.properties.defaultHostName
 output storageAccountName string = storageAccount.name
-output containerName string = 'logs'
+output systemLogsContainer string = 'system-logs'
+output performanceContainer string = 'starlink-performance'
+output legacyContainer string = 'logs'

@@ -30,9 +30,10 @@ if [ -z "$AZURE_FUNCTION_URL" ]; then
     exit 1
 fi
 
-# Validate URL format
-if ! echo "$AZURE_FUNCTION_URL" | grep -q "^https://.*\.azurewebsites\.net/api/HttpLogIngestor"; then
-    echo "Error: Invalid Azure Function URL format."
+# Validate URL format (basic HTTPS check, allow custom domains)
+if ! echo "$AZURE_FUNCTION_URL" | grep -q "^https://"; then
+    echo "Error: Azure Function URL must use HTTPS protocol."
+    echo "Provided URL: $AZURE_FUNCTION_URL"
     exit 1
 fi
 
