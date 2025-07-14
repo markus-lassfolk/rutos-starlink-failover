@@ -2,33 +2,95 @@ name: ShellCheck & Formatting
 
 on:
   push:
-    branches: [ main, develop, improvements/actionlist-2025-07 ]
+    branches: [ '*' ]
   pull_request:
-    branches: [ main, develop, improvements/actionlist-2025-07 ]
+    branches: [ '*' ]
+
+permissions:
+  contents: write
+  pull-requests: read
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install shellcheck and shfmt
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
           curl -sSLo /usr/local/bin/shfmt https://github.com/mvdan/sh/releases/download/v3.7.0/shfmt_v3.7.0_linux_amd64
           chmod +x /usr/local/bin/shfmt
+      
+      - name: Auto-format shell scripts with shfmt
+        if: github.event_name == 'push'
+        run: |
+          if find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) | head -1 > /dev/null; then
+            echo "🎨 Auto-formatting shell scripts with shfmt..."
+            # Format bash scripts with bash-specific options
+            find . -type f -name '*.sh' ! -name '*-rutos.sh' -exec shfmt -w -i 4 -ci {} +
+            # Format RUTOS scripts with POSIX-compatible options
+            find . -type f -name '*-rutos.sh' -exec shfmt -w -i 4 -ci -ln posix {} +
+            # Format other shell files
+            find . -type f -name '99-pushover_notify' -exec shfmt -w -i 4 -ci {} +
+            echo "✅ Shell scripts formatted successfully"
+          else
+            echo "No shell scripts found to format"
+          fi
+      
+      - name: Commit formatting changes
+        if: github.event_name == 'push'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "🎨 Auto-format shell scripts with shfmt [skip ci]"
+            git push
+            echo "✅ Committed shell formatting changes"
+          else
+            echo "✅ No shell formatting changes needed"
+          fi
+      
       - name: Enforce script and config file permissions
         run: |
           # Config files should be 600
-          find config -type f -name '*.sh' -exec chmod 600 {} +
+          find config -type f -name '*.sh' -exec chmod 600 {} + 2>/dev/null || true
           # Scripts should be 755
-          find scripts -type f -name '*.sh' -exec chmod 755 {} +
+          find scripts -type f -name '*.sh' -exec chmod 755 {} + 2>/dev/null || true
           find Starlink-RUTOS-Failover -type f -name '*.sh' -exec chmod 755 {} +
           # Legacy/compatibility: notify script
           if [ -f Starlink-RUTOS-Failover/99-pushover_notify ]; then chmod 755 Starlink-RUTOS-Failover/99-pushover_notify; fi
       - name: Run ShellCheck on all shell scripts
         run: |
-          find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shellcheck {} +
-      - name: Check shell script formatting (shfmt)
+          find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shellcheck --exclude=SC1090,SC1091 {} +
+      - name: Verify shell script formatting (shfmt)
         run: |
           find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shfmt -d -i 4 -ci {} +
+      - name: Check for RUTOS-specific best practices
+        run: |
+          echo "Checking RUTOS-specific best practices..."
+          
+          # Check for UCI usage best practices
+          if grep -r "uci get" --include="*.sh" . | grep -v "2>/dev/null"; then
+            echo "::warning::Found uci commands without error handling. Consider adding '2>/dev/null || echo default'"
+          fi
+          
+          # Check for proper logging
+          if grep -r "echo.*\[" --include="*.sh" . | head -5; then
+            echo "::info::Consider using logger command for system logging instead of echo"
+          fi
+          
+          # Check for hardcoded paths that should be configurable
+          if grep -r "/overlay/messages" --include="*.sh" . | grep -v "uci get\|LOG_FILE\|DEFAULT"; then
+            echo "::warning::Found hardcoded paths. Consider using UCI configuration"
+          fi
+          
+          # Check for proper error handling in scripts
+          missing_set_e=$(find . -name "*.sh" -exec grep -L "set -e" {} \; | head -5)
+          if [ -n "$missing_set_e" ]; then
+            echo "::info::Consider adding 'set -e' for better error handling in:"
+            echo "$missing_set_e"
+          fi

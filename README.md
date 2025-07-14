@@ -1,8 +1,20 @@
 # 🚀 Starlink & Victron Integration Suite
 
 [![Shell Script Quality](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/shellcheck-format.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/shellcheck-format.yml)
-[![Documentation Check](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml)
 [![Security Scan](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/security-scan.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/security-scan.yml)
+[![Python Code Quality](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/python-quality.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/python-quality.yml)
+[![PowerShell Validation](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/powershell-validation.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/powershell-validation.yml)
+
+[![Documentation Check](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml)
+[![Configuration Validation](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/config-validation.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/config-validation.yml)
+[![Infrastructure Tests](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/infrastructure-validation.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/infrastructure-validation.yml)
+[![Integration Tests](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/integration-tests.yml)
+
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Azure](https://img.shields.io/badge/Azure-Ready-0078d4.svg)](Starlink-RUTOS-Failover/AzureLogging/)
+[![RUTOS](https://img.shields.io/badge/RUTOS-Compatible-orange.svg)](https://teltonika-networks.com/)
+[![Starlink](https://img.shields.io/badge/Starlink-Integrated-brightgreen.svg)](https://starlink.com/)
+[![Victron](https://img.shields.io/badge/Victron-Compatible-blue.svg)](https://www.victronenergy.com/)
 
 A comprehensive solution for **RV and boat owners** seeking robust internet connectivity and accurate solar forecasting. This repository provides intelligent failover systems and redundant GPS solutions for mobile environments.
 

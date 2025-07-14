@@ -1,0 +1,30 @@
+{
+  "bindings": [
+    {
+      "authLevel": "function",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "Request",
+      "methods": ["post"]
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "Response"
+    },
+    {
+      "type": "blob",
+      "direction": "out",
+      "name": "outputBlob",
+      "path": "logs/router-{DateTime:yyyy-MM-dd}.log",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "type": "blob",
+      "direction": "out",
+      "name": "performanceBlob",
+      "path": "performance/starlink-performance-{DateTime:yyyy-MM-dd}.csv",
+      "connection": "AzureWebJobsStorage"
+    }
+  ]
+}
