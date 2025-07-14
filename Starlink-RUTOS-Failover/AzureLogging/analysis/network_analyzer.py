@@ -50,7 +50,9 @@ class NetworkAnalyzer:
             print("❌ No data found for the specified period")
             return {}
 
-        print(f"✅ Downloaded {len(self.downloader.system_logs)} system log files and {len(self.downloader.performance_data)} performance data files")
+        print(
+            f"✅ Downloaded {len(self.downloader.system_logs)} system log files and {len(self.downloader.performance_data)} performance data files"
+        )
 
         # Step 2: Parse data
         print("🔍 Parsing log data...")
@@ -85,7 +87,8 @@ class NetworkAnalyzer:
             "data_summary": {
                 "log_entries": len(parsed_data),
                 "performance_entries": len(performance_data),
-                "log_files_processed": len(self.downloader.system_logs) + len(self.downloader.performance_data),
+                "log_files_processed": len(self.downloader.system_logs)
+                + len(self.downloader.performance_data),
             },
             "statistics": stats,
             "patterns": patterns,
