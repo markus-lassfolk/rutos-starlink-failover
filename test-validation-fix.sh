@@ -5,20 +5,20 @@
 # Improved IP validation function
 validate_ip() {
     local ip="$1"
-    
+
     # Check basic format
     if [[ ! $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
         return 1
     fi
-    
+
     # Check each octet is <= 255
-    IFS='.' read -ra ADDR <<< "$ip"
+    IFS='.' read -ra ADDR <<<"$ip"
     for i in "${ADDR[@]}"; do
         if [[ $i -gt 255 ]]; then
             return 1
         fi
     done
-    
+
     return 0
 }
 
