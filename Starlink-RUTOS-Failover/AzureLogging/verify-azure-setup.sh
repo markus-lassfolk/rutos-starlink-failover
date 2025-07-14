@@ -18,6 +18,7 @@ set -euo pipefail
 
 # --- SCRIPT CONFIGURATION ---
 # shellcheck disable=SC2034  # Variables may be used by external functions
+# shellcheck disable=SC2155  # Declare and assign separately - acceptable for simple cases
 SCRIPT_NAME="verify-azure-setup"
 # shellcheck disable=SC2034  # LOG_TAG may be used by external logging functions
 LOG_TAG="AzureVerification"
