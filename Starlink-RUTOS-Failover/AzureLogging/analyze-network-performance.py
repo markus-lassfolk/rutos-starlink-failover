@@ -39,11 +39,15 @@ try:
     from collections import defaultdict, Counter
 except ImportError as e:
     print(f"Missing required package: {e}")
-    print("Install with: pip install azure-storage-blob pandas matplotlib seaborn azure-identity")
+    print(
+        "Install with: pip install azure-storage-blob pandas matplotlib seaborn azure-identity"
+    )
     sys.exit(1)
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 class NetworkAnalyzer:
