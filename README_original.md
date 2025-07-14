@@ -27,12 +27,14 @@ Proactive Failover: Detects degrading connection quality before a full outage oc
 Intelligent Notifications: Sends detailed Pushover alerts that distinguish between different types of failures (e.g., quality-based vs. link loss).
 Stability-Aware Recovery: Prevents a "flapping" connection by waiting for a configurable period of stability before failing back to Starlink.
 
-## 2. [Redundant GPS for Victron Cerbo GX/CX](VenusOS-GPS-RUTOS/README.md)
-Directory: `VenusOS-GPS-RUTOS`
+## 2. ~~Redundant GPS for Victron Cerbo GX/CX~~ **[MOVED]**
+~~Directory: `VenusOS-GPS-RUTOS`~~ → **New location: [rutos-victron-gps](https://github.com/markus-lassfolk/rutos-victron-gps)**
 
-This project features a Node-RED flow designed to run on a Victron Cerbo GX/CX, ensuring your system always has an accurate GPS location for features like Solar Forecasting. It intelligently polls for GPS data from both a Teltonika RUTOS router (Primary) and a Starlink dish (Secondary), selecting the best source to publish to the Victron D-Bus.
+~~This project features a Node-RED flow designed to run on a Victron Cerbo GX/CX, ensuring your system always has an accurate GPS location for features like Solar Forecasting. It intelligently polls for GPS data from both a Teltonika RUTOS router (Primary) and a Starlink dish (Secondary), selecting the best source to publish to the Victron D-Bus.~~
 
-This is essential for any mobile Victron installation, guaranteeing that your solar production forecasts are always based on your current location. The flow also includes a feature to automatically reset the Starlink obstruction map if it detects the vehicle has moved more than 500 meters, optimizing performance at each new location.
+~~This is essential for any mobile Victron installation, guaranteeing that your solar production forecasts are always based on your current location. The flow also includes a feature to automatically reset the Starlink obstruction map if it detects the vehicle has moved more than 500 meters, optimizing performance at each new location.~~
+
+**This functionality has been moved to a dedicated repository for better maintainability.**
 
 ## Quick Start
 **Starlink Failover (Teltonika RUTOS):**  
