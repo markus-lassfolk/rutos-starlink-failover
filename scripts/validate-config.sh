@@ -11,16 +11,33 @@
 set -eu
 
 # Script version information
-SCRIPT_VERSION="1.0.0"
+SCRIP    if [ "$placeholders_found" -eq 0 ]; then
+        printf "%b\n" "${GREEN}✓ No placeholder values found${NC}"
+    else
+        printf "%b\n" "${RED}Found $placeholders_found placeholder/empty values${NC}"
+        printf "%b\n" "${YELLOW}Please update these values before deploying${NC}"
+    fi
+    
+    return "$placeholders_found"N="1.0.0"
 SCRIPT_NAME="validate-config.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"
 
 # Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;36m'
-NC='\033[0m' # No Color
+# Check if terminal supports colors
+if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;36m'
+    NC='\033[0m' # No Color
+else
+    # Fallback to no colors if terminal doesn't support them
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    NC=''
+fi
 
 # Show usage information
 show_usage() {
@@ -317,12 +334,12 @@ check_config_completeness() {
     rm -f "$temp_template" "$temp_config"
     
     # Report results
-    if [ $total_missing -eq 0 ] && [ $total_extra -eq 0 ]; then
+    if [ "$total_missing" -eq 0 ] && [ "$total_extra" -eq 0 ]; then
         printf "%b\n" "${GREEN}✓ Configuration is complete and matches template${NC}"
         return 0
     fi
     
-    if [ $total_missing -gt 0 ]; then
+    if [ "$total_missing" -gt 0 ]; then
         printf "%b\n" "${YELLOW}⚠ Missing configuration variables (${total_missing} found):${NC}"
         for var in $missing_vars; do
             printf "%b\n" "${YELLOW}  - $var${NC}"
@@ -330,7 +347,7 @@ check_config_completeness() {
         printf "%b\n" "${YELLOW}Suggestion: Run update-config.sh to add missing variables${NC}"
     fi
     
-    if [ $total_extra -gt 0 ]; then
+    if [ "$total_extra" -gt 0 ]; then
         printf "%b\n" "${YELLOW}⚠ Extra configuration variables (${total_extra} found):${NC}"
         for var in $extra_vars; do
             printf "%b\n" "${YELLOW}  - $var${NC}"
@@ -438,13 +455,13 @@ validate_config_values() {
         fi
     done
     
-    if [ $validation_errors -eq 0 ]; then
+    if [ "$validation_errors" -eq 0 ]; then
         printf "%b\n" "${GREEN}✓ Configuration values are valid${NC}"
     else
         printf "%b\n" "${RED}Found $validation_errors validation errors${NC}"
     fi
     
-    return $validation_errors
+    return "$validation_errors"
 }
 
 # Template migration function
@@ -518,7 +535,7 @@ offer_template_migration() {
     printf "%b\n" "${BLUE}  • Removes technical ShellCheck comments${NC}"
     printf "%b\n" "${BLUE}  • Creates backup of current config${NC}"
     printf "%b\n" ""
-    printf "%s" "${YELLOW}Migrate configuration to current template? (y/N): ${NC}"
+    printf "%b" "${YELLOW}Migrate configuration to current template? (y/N): ${NC}"
     read -r answer
     
     if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
@@ -553,7 +570,7 @@ check_outdated_template() {
     done < "$CONFIG_FILE"
     
     # If more than 50% of comments are very short, likely outdated
-    if [ $total_vars -gt 0 ] && [ $short_comments -gt $((total_vars / 2)) ]; then
+    if [ "$total_vars" -gt 0 ] && [ "$short_comments" -gt $((total_vars / 2)) ]; then
         return 0  # Likely outdated
     fi
     
