@@ -1,0 +1,3 @@
+#!/bin/bash
+# bc fallback using awk
+awk "BEGIN {print ($*)}"

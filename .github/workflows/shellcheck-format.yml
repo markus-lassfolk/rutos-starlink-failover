@@ -29,7 +29,12 @@ jobs:
         run: |
           if find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) | head -1 > /dev/null; then
             echo "🎨 Auto-formatting shell scripts with shfmt..."
-            find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shfmt -w -i 4 -ci {} +
+            # Format bash scripts with bash-specific options
+            find . -type f -name '*.sh' ! -name '*-rutos.sh' -exec shfmt -w -i 4 -ci {} +
+            # Format RUTOS scripts with POSIX-compatible options
+            find . -type f -name '*-rutos.sh' -exec shfmt -w -i 4 -ci -ln posix {} +
+            # Format other shell files
+            find . -type f -name '99-pushover_notify' -exec shfmt -w -i 4 -ci {} +
             echo "✅ Shell scripts formatted successfully"
           else
             echo "No shell scripts found to format"
