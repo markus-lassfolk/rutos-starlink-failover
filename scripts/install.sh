@@ -10,6 +10,11 @@
 
 set -eu
 
+# Configuration - can be overridden by environment variables
+GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
+GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
+BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -38,11 +43,24 @@ download_file() {
     local url="$1"
     local output="$2"
     
+    # Debug output if DEBUG=1
+    if [ "${DEBUG:-0}" = "1" ]; then
+        print_status "$YELLOW" "DEBUG: Downloading $url to $output"
+    fi
+    
     # Try wget first, then curl
     if command -v wget >/dev/null 2>&1; then
-        wget -q -O "$output" "$url" 2>/dev/null
+        if [ "${DEBUG:-0}" = "1" ]; then
+            wget -O "$output" "$url"
+        else
+            wget -q -O "$output" "$url" 2>/dev/null
+        fi
     elif command -v curl >/dev/null 2>&1; then
-        curl -fsSL -o "$output" "$url" 2>/dev/null
+        if [ "${DEBUG:-0}" = "1" ]; then
+            curl -fL -o "$output" "$url"
+        else
+            curl -fsSL -o "$output" "$url" 2>/dev/null
+        fi
     else
         print_status "$RED" "Error: Neither wget nor curl available for downloads"
         return 1
@@ -174,7 +192,7 @@ install_scripts() {
         else
             # Download from repository
             print_status "$BLUE" "Downloading $script..."
-            if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/Starlink-RUTOS-Failover/$script" "$INSTALL_DIR/scripts/$script"; then
+            if download_file "$BASE_URL/Starlink-RUTOS-Failover/$script" "$INSTALL_DIR/scripts/$script"; then
                 chmod +x "$INSTALL_DIR/scripts/$script"
                 print_status "$GREEN" "✓ $script installed"
             else
@@ -191,7 +209,7 @@ install_scripts() {
     else
         # Download from repository
         print_status "$BLUE" "Downloading validate-config.sh..."
-        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/validate-config.sh" "$INSTALL_DIR/scripts/validate-config.sh"; then
+        if download_file "$BASE_URL/scripts/validate-config.sh" "$INSTALL_DIR/scripts/validate-config.sh"; then
             chmod +x "$INSTALL_DIR/scripts/validate-config.sh"
             print_status "$GREEN" "✓ Configuration validation script installed"
         else
@@ -207,13 +225,31 @@ install_scripts() {
     else
         # Download from repository
         print_status "$BLUE" "Downloading update-config.sh..."
-        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/update-config.sh" "$INSTALL_DIR/scripts/update-config.sh"; then
+        if download_file "$BASE_URL/scripts/update-config.sh" "$INSTALL_DIR/scripts/update-config.sh"; then
             chmod +x "$INSTALL_DIR/scripts/update-config.sh"
             print_status "$GREEN" "✓ Configuration update script installed"
         else
             print_status "$RED" "✗ Error: Could not download update-config.sh"
             print_status "$YELLOW" "  You can manually download it later from:"
-            print_status "$YELLOW" "  https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/update-config.sh"
+            print_status "$YELLOW" "  $BASE_URL/scripts/update-config.sh"
+        fi
+    fi
+
+    # Configuration upgrade script - handle both local and remote installation
+    if [ -f "$script_dir/../scripts/upgrade-to-advanced.sh" ]; then
+        cp "$script_dir/../scripts/upgrade-to-advanced.sh" "$INSTALL_DIR/scripts/"
+        chmod +x "$INSTALL_DIR/scripts/upgrade-to-advanced.sh"
+        print_status "$GREEN" "✓ Configuration upgrade script installed"
+    else
+        # Download from repository
+        print_status "$BLUE" "Downloading upgrade-to-advanced.sh..."
+        if download_file "$BASE_URL/scripts/upgrade-to-advanced.sh" "$INSTALL_DIR/scripts/upgrade-to-advanced.sh"; then
+            chmod +x "$INSTALL_DIR/scripts/upgrade-to-advanced.sh"
+            print_status "$GREEN" "✓ Configuration upgrade script installed"
+        else
+            print_status "$RED" "✗ Error: Could not download upgrade-to-advanced.sh"
+            print_status "$YELLOW" "  You can manually download it later from:"
+            print_status "$YELLOW" "  $BASE_URL/scripts/upgrade-to-advanced.sh"
         fi
     fi
 }
@@ -232,7 +268,7 @@ install_config() {
     else
         # Download from repository
         print_status "$BLUE" "Downloading configuration template..."
-        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/config/config.template.sh" "$INSTALL_DIR/config/config.template.sh"; then
+        if download_file "$BASE_URL/config/config.template.sh" "$INSTALL_DIR/config/config.template.sh"; then
             print_status "$GREEN" "✓ Configuration template installed"
         else
             print_status "$RED" "✗ Failed to download configuration template"
@@ -410,8 +446,14 @@ main() {
     print_status "$BLUE" "Installation directory: $INSTALL_DIR"
     print_status "$BLUE" "Configuration file: $INSTALL_DIR/config/config.sh"
     print_status "$BLUE" "Uninstall script: $INSTALL_DIR/uninstall.sh"
+    print_status "$BLUE" "Scripts downloaded from: $BASE_URL"
     echo ""
     print_status "$GREEN" "System will start monitoring automatically after configuration"
+    echo ""
+    if [ "$GITHUB_BRANCH" != "main" ]; then
+        print_status "$YELLOW" "⚠ Development Mode: Using branch '$GITHUB_BRANCH'"
+        print_status "$YELLOW" "  This is a testing/development installation"
+    fi
 }
 
 # Run main function

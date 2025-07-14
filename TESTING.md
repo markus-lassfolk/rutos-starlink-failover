@@ -144,6 +144,40 @@ The `validate-config.sh` script now includes comprehensive template comparison:
 - Points to `upgrade-to-advanced.sh` for feature upgrades
 - Provides specific validation errors with fix suggestions
 
+### 🔧 Branch Testing Support - **NEW**
+
+The install script now supports dynamic branch configuration for testing:
+
+**New Features Added**:
+1. **Dynamic Branch URLs** - Uses `GITHUB_BRANCH` environment variable to download from correct branch
+2. **Debug Mode** - `DEBUG=1` shows detailed download information
+3. **Development Mode Warning** - Shows warning when using non-main branch
+4. **All Scripts Included** - Downloads validate-config.sh, update-config.sh, upgrade-to-advanced.sh
+
+**Usage for Branch Testing**:
+```bash
+# Test from development branch
+GITHUB_BRANCH="feature/testing-improvements" \
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
+sh -s --
+
+# Test with debug mode
+DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" \
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
+sh -s --
+```
+
+**What It Fixes**:
+- ✅ **Branch Consistency**: Downloads all scripts from the same branch you're testing
+- ✅ **Debug Support**: Shows download URLs and progress when DEBUG=1
+- ✅ **Development Warning**: Clearly indicates when using non-main branch
+- ✅ **Complete Testing**: All new configuration management scripts included
+
+**Integration**:
+- Environment variables: `GITHUB_BRANCH`, `GITHUB_REPO`, `DEBUG`
+- Dynamic URL construction: `BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"`
+- Post-install verification: Shows which branch/URL was used
+
 ## Improvements Needed
 
 ### 🔧 Install Script Fixes
