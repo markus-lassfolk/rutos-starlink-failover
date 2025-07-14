@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # ==============================================================================
 # Starlink Monitoring System Installation Script
@@ -30,7 +30,7 @@ JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
 print_status() {
     local color="$1"
     local message="$2"
-    echo -e "${color}${message}${NC}"
+    printf "%b%s%b\n" "$color" "$message" "$NC"
 }
 
 # Check if running as root
@@ -44,19 +44,20 @@ check_root() {
 # Check system compatibility
 check_system() {
     print_status "$BLUE" "Checking system compatibility..."
-    
-    local arch=$(uname -m)
+
+    local arch
+    arch=$(uname -m)
     if [ "$arch" != "armv7l" ]; then
         print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
         print_status "$YELLOW" "Your architecture: $arch"
         print_status "$YELLOW" "You may need to adjust binary URLs"
-        echo -n "Continue anyway? (y/N): "
+        printf "%s" "Continue anyway? (y/N): "
         read -r answer
         if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
             exit 1
         fi
     fi
-    
+
     # Check OpenWrt/RUTOS
     if [ ! -f "/etc/openwrt_version" ] && [ ! -f "/etc/rutos_version" ]; then
         print_status "$YELLOW" "Warning: This doesn't appear to be OpenWrt/RUTOS"
@@ -66,14 +67,14 @@ check_system() {
             exit 1
         fi
     fi
-    
+
     print_status "$GREEN" "✓ System compatibility checked"
 }
 
 # Create directory structure
 create_directories() {
     print_status "$BLUE" "Creating directory structure..."
-    
+
     mkdir -p "$INSTALL_DIR"
     mkdir -p "$INSTALL_DIR/config"
     mkdir -p "$INSTALL_DIR/scripts"
@@ -81,14 +82,14 @@ create_directories() {
     mkdir -p "/tmp/run"
     mkdir -p "/var/log"
     mkdir -p "$HOTPLUG_DIR"
-    
+
     print_status "$GREEN" "✓ Directory structure created"
 }
 
 # Download and install binaries
 install_binaries() {
     print_status "$BLUE" "Installing required binaries..."
-    
+
     # Install grpcurl
     if [ ! -f "$INSTALL_DIR/grpcurl" ]; then
         print_status "$YELLOW" "Downloading grpcurl..."
@@ -104,7 +105,7 @@ install_binaries() {
     else
         print_status "$GREEN" "✓ grpcurl already installed"
     fi
-    
+
     # Install jq
     if [ ! -f "$INSTALL_DIR/jq" ]; then
         print_status "$YELLOW" "Downloading jq..."
@@ -123,10 +124,11 @@ install_binaries() {
 # Install scripts
 install_scripts() {
     print_status "$BLUE" "Installing monitoring scripts..."
-    
+
     # Copy scripts to installation directory
-    local script_dir="$(dirname "$0")"
-    
+    local script_dir
+    script_dir="$(dirname "$0")"
+
     # Main monitoring script (enhanced version is now default)
     if [ -f "$script_dir/starlink_monitor.sh" ]; then
         cp "$script_dir/starlink_monitor.sh" "$INSTALL_DIR/scripts/starlink_monitor.sh"
@@ -136,7 +138,7 @@ install_scripts() {
         print_status "$RED" "Error: Monitor script not found"
         return 1
     fi
-    
+
     # Notification script (enhanced version is now default)
     if [ -f "$script_dir/99-pushover_notify" ]; then
         cp "$script_dir/99-pushover_notify" "$HOTPLUG_DIR/99-pushover_notify"
@@ -146,7 +148,7 @@ install_scripts() {
         print_status "$RED" "Error: Notification script not found"
         return 1
     fi
-    
+
     # Other scripts
     for script in starlink_logger.sh check_starlink_api.sh; do
         if [ -f "$script_dir/$script" ]; then
@@ -155,7 +157,7 @@ install_scripts() {
             print_status "$GREEN" "✓ $script installed"
         fi
     done
-    
+
     # Validation script
     if [ -f "$script_dir/../scripts/validate-config.sh" ]; then
         cp "$script_dir/../scripts/validate-config.sh" "$INSTALL_DIR/scripts/"
@@ -167,20 +169,21 @@ install_scripts() {
 # Install configuration
 install_config() {
     print_status "$BLUE" "Installing configuration..."
-    
-    local config_dir="$(dirname "$0")/../config"
-    
+
+    local config_dir
+    config_dir="$(dirname "$0")/../config"
+
     if [ -f "$config_dir/config.template.sh" ]; then
         cp "$config_dir/config.template.sh" "$INSTALL_DIR/config/"
         print_status "$GREEN" "✓ Configuration template installed"
-        
+
         if [ ! -f "$INSTALL_DIR/config/config.sh" ]; then
             cp "$config_dir/config.template.sh" "$INSTALL_DIR/config/config.sh"
             print_status "$YELLOW" "Configuration file created from template"
             print_status "$YELLOW" "Please edit $INSTALL_DIR/config/config.sh before using"
         fi
     fi
-    
+
     # Create convenience symlink
     ln -sf "$INSTALL_DIR/config/config.sh" "/root/config.sh"
 }
@@ -188,38 +191,38 @@ install_config() {
 # Configure cron jobs
 configure_cron() {
     print_status "$BLUE" "Configuring cron jobs..."
-    
+
     # Backup existing crontab
     if [ -f "$CRON_FILE" ]; then
         cp "$CRON_FILE" "$CRON_FILE.backup.$(date +%Y%m%d_%H%M%S)"
     fi
-    
+
     # Remove existing starlink cron entries
     if [ -f "$CRON_FILE" ]; then
-        grep -v "starlink" "$CRON_FILE" > "$CRON_FILE.tmp" || true
+        grep -v "starlink" "$CRON_FILE" >"$CRON_FILE.tmp" || true
         mv "$CRON_FILE.tmp" "$CRON_FILE"
     fi
-    
+
     # Add new cron entries
-    cat >> "$CRON_FILE" << EOF
+    cat >>"$CRON_FILE" <<EOF
 
 # Starlink monitoring system
 * * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_monitor.sh
 * * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_logger.sh
 0 6 * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/check_starlink_api.sh
 EOF
-    
+
     # Restart cron service
     /etc/init.d/cron restart
-    
+
     print_status "$GREEN" "✓ Cron jobs configured"
 }
 
 # Create uninstall script
 create_uninstall() {
     print_status "$BLUE" "Creating uninstall script..."
-    
-    cat > "$INSTALL_DIR/uninstall.sh" << 'EOF'
+
+    cat >"$INSTALL_DIR/uninstall.sh" <<'EOF'
 #!/bin/sh
 set -euo pipefail
 
@@ -249,7 +252,7 @@ rm -f /root/config.sh
 
 print_status "\033[0;32m" "✓ Uninstall completed"
 EOF
-    
+
     chmod +x "$INSTALL_DIR/uninstall.sh"
     print_status "$GREEN" "✓ Uninstall script created"
 }
@@ -258,7 +261,7 @@ EOF
 main() {
     print_status "$GREEN" "=== Starlink Monitoring System Installer ==="
     echo ""
-    
+
     check_root
     check_system
     create_directories
@@ -267,7 +270,7 @@ main() {
     install_config
     configure_cron
     create_uninstall
-    
+
     print_status "$GREEN" "=== Installation Complete ==="
     echo ""
     print_status "$YELLOW" "Next steps:"

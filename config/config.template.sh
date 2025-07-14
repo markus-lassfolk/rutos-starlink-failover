@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # ==============================================================================
 # Configuration Template for Starlink RUTOS Failover
@@ -10,91 +10,101 @@
 
 # --- Network Configuration ---
 
-# Starlink gRPC API endpoint (standard configuration)
+# shellcheck disable=SC2034
 STARLINK_IP="192.168.100.1:9200"
 
-# OpenWrt/RUTOS interface name for Starlink
+# shellcheck disable=SC2034
 MWAN_IFACE="wan"
 
-# mwan3 member name for Starlink interface
+# shellcheck disable=SC2034
 MWAN_MEMBER="member1"
 
 # --- Notification Settings ---
 
-# Pushover API credentials (get from https://pushover.net)
+# shellcheck disable=SC2034
 PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"
+# shellcheck disable=SC2034
 PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"
+
+# shellcheck disable=SC2034
+NOTIFY_ON_CRITICAL=1 # Always notify on critical errors
+# shellcheck disable=SC2034
+NOTIFY_ON_SOFT_FAIL=1 # Notify on soft failover events
+# shellcheck disable=SC2034
+NOTIFY_ON_HARD_FAIL=1 # Notify on hard failover events
+# shellcheck disable=SC2034
+NOTIFY_ON_RECOVERY=1 # Notify when system recovers/failback
+# shellcheck disable=SC2034
+NOTIFY_ON_INFO=0 # Notify on info/status (set to 1 for verbose)
 
 # --- Failover Thresholds ---
 
-# Packet loss threshold (0.0-1.0, e.g., 0.05 = 5%)
+# shellcheck disable=SC2034
 PACKET_LOSS_THRESHOLD=0.05
 
-# Obstruction threshold (0.0-1.0, e.g., 0.001 = 0.1%)
+# shellcheck disable=SC2034
 OBSTRUCTION_THRESHOLD=0.001
 
-# Latency threshold in milliseconds
+# shellcheck disable=SC2034
 LATENCY_THRESHOLD_MS=150
 
 # --- Recovery Settings ---
 
-# Number of consecutive good checks before failback
+# shellcheck disable=SC2034
 STABILITY_CHECKS_REQUIRED=5
 
 # --- mwan3 Metrics ---
 
-# Metric when connection is good (lower = higher priority)
+# shellcheck disable=SC2034
 METRIC_GOOD=1
 
-# Metric when connection is bad (higher = lower priority)
+# shellcheck disable=SC2034
 METRIC_BAD=10
 
 # --- File Paths ---
 
-# Directory for state files (tmpfs recommended)
+# shellcheck disable=SC2034
 STATE_DIR="/tmp/run"
 
-# Directory for log files
+# shellcheck disable=SC2034
 LOG_DIR="/var/log"
 
-# Directory for persistent data
+# shellcheck disable=SC2034
 DATA_DIR="/root"
 
 # --- Binary Paths ---
 
-# Location of grpcurl binary
+# shellcheck disable=SC2034
 GRPCURL_CMD="/root/grpcurl"
 
-# Location of jq binary
+# shellcheck disable=SC2034
 JQ_CMD="/root/jq"
 
 # --- RUTOS API Configuration (for GPS) ---
 
-# RUTOS router IP address
+# shellcheck disable=SC2034
 RUTOS_IP="192.168.80.1"
 
-# RUTOS API credentials
+# shellcheck disable=SC2034
 RUTOS_USERNAME="YOUR_RUTOS_USERNAME"
+# shellcheck disable=SC2034
 RUTOS_PASSWORD="YOUR_RUTOS_PASSWORD"
 
 # --- Logging Configuration ---
 
-# Log tag for system logs
+# shellcheck disable=SC2034
 LOG_TAG="StarlinkSystem"
 
-# Log retention days
+# shellcheck disable=SC2034
 LOG_RETENTION_DAYS=7
 
 # --- Advanced Settings ---
 
-# API timeout in seconds
+# shellcheck disable=SC2034
 API_TIMEOUT=10
-
-# HTTP timeout for notifications
+# shellcheck disable=SC2034
 HTTP_TIMEOUT=15
-
-# GPS accuracy threshold for failover (meters)
+# shellcheck disable=SC2034
 GPS_ACCURACY_THRESHOLD=100
-
-# Movement threshold for Starlink obstruction reset (meters)
+# shellcheck disable=SC2034
 MOVEMENT_THRESHOLD=500

@@ -140,6 +140,16 @@ uci commit network
 /etc/init.d/network reload
 ```
 
+## 🚨 Starlink API Change Response
+
+If you receive a daily notification about a Starlink API schema change:
+
+1. Run `scripts/check_starlink_api_change.sh` to confirm and view the new schema.
+2. Compare `/root/starlink_api_schema_last.json` and `/tmp/starlink_api_schema_current.json` for differences.
+3. Update `starlink_monitor.sh` and related scripts to match any new/renamed fields.
+4. Validate with `scripts/validate-config.sh` and `tests/test-suite.sh`.
+5. See `docs/API_CHANGE_RESPONSE.md` for a full step-by-step process.
+
 ## 🔧 Advanced Features
 
 ### Enhanced Monitoring

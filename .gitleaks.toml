@@ -1,0 +1,17 @@
+# Gitleaks config for secret scanning
+[[rules]]
+description = "Generic Secret"
+regex = '''(?i)(password|secret|token|key)[^\n]{0,20}['\"]?[=:]['\"]?[^\n]{8,}'''
+
+[[rules]]
+description = "Pushover Token"
+regex = '''pushover(_token|_user)?["'=:\s]+[a-z0-9]{30,}'''
+
+[allowlist]
+# Allow common placeholders
+regexes = [
+  'YOUR_PUSHOVER_API_TOKEN',
+  'YOUR_PUSHOVER_USER_KEY',
+  'PLACEHOLDER',
+  'example',
+]

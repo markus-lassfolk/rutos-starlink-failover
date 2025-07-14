@@ -1,10 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 
 # ==============================================================================
 # Starlink API Documentation Generator
 #
 # Version: 1.0 (Public Edition)
-# Source: https://github.com/markus-lassfolk/rutos-starlink-victron/ 
+# Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 #
 # This script is a utility for developers and enthusiasts who want to explore
 # the Starlink gRPC API. It systematically calls a list of known "get" methods,
@@ -59,12 +59,10 @@ if [ "$api_version" = "UNKNOWN" ]; then
 fi
 echo "API version found: $api_version"
 
-
 # --- 2. Define Output File ---
 # The filename includes the API version and current date for easy tracking.
 # The .md extension allows for nice formatting on GitHub.
 FILENAME="${OUTPUT_DIR}/starlink_api_dump_v${api_version}_$(date '+%Y-%m-%d').md"
-
 
 # --- 3. Generate Documentation ---
 echo "================================================="
@@ -72,11 +70,10 @@ echo "Full output will be saved to: $FILENAME"
 echo "================================================="
 
 # Clear the output file to start fresh.
-> "$FILENAME"
+true >"$FILENAME"
 
 # Loop through each method in the list.
-for method in $METHODS_TO_CALL
-do
+for method in $METHODS_TO_CALL; do
     # Print status to the console.
     echo ""
     echo "--- Executing: $method ---"
@@ -85,25 +82,24 @@ do
     json_data="{\"${method}\":{}}"
 
     # Add a Markdown header for this section to the output file.
-    echo "" >> "$FILENAME"
-    echo "## Command: ${method}" >> "$FILENAME"
-    echo '```json' >> "$FILENAME"
+    {
+        echo ""
+        echo "## Command: ${method}"
+        echo '```json'
+    } >>"$FILENAME"
 
     # Execute the grpcurl command.
     # The output is piped to jq to be pretty-printed, then appended to our file.
-    $GRPCURL_CMD -plaintext -max-time 10 -d "$json_data" "$STARLINK_IP" SpaceX.API.Device.Device/Handle | $JQ_CMD '.' >> "$FILENAME"
 
-    # Check if the command failed.
-    if [ $? -ne 0 ]; then
+    if ! $GRPCURL_CMD -plaintext -max-time 10 -d "$json_data" "$STARLINK_IP" SpaceX.API.Device.Device/Handle | $JQ_CMD '.' >>"$FILENAME"; then
         echo "ERROR: grpcurl command failed for method: $method"
-        echo "ERROR: grpcurl command failed for method: $method" >> "$FILENAME"
+        echo "ERROR: grpcurl command failed for method: $method" >>"$FILENAME"
     fi
 
     # Close the Markdown code block.
-    echo '```' >> "$FILENAME"
+    echo '```' >>"$FILENAME"
 done
 
 echo ""
 echo "================================================="
 echo "Done. API documentation saved to $FILENAME"
-
