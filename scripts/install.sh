@@ -237,18 +237,15 @@ configure_cron() {
     # Remove existing starlink monitoring entries (comment them out instead of deleting)
     if [ -f "$CRON_FILE" ]; then
         # Create temp file with old starlink entries commented out
-        awk '
-        /starlink_monitor\.sh|starlink_logger\.sh|check_starlink_api\.sh/ {
-            if ($0 !~ /^#/) {
-                print "# COMMENTED BY INSTALL SCRIPT " strftime("%Y-%m-%d") ": " $0
-            } else {
-                print $0
-            }
-            next
-        }
-        { print $0 }
-        ' "$CRON_FILE" >"$CRON_FILE.tmp" 2>/dev/null || {
-            # If awk fails, preserve existing content
+        local date_stamp
+        date_stamp=$(date +%Y-%m-%d)
+        
+        # Use basic sed to comment out matching lines (more portable)
+        sed "s|^\([^#].*starlink_monitor\.sh.*\)|# COMMENTED BY INSTALL SCRIPT $date_stamp: \1|g; \
+             s|^\([^#].*starlink_logger\.sh.*\)|# COMMENTED BY INSTALL SCRIPT $date_stamp: \1|g; \
+             s|^\([^#].*check_starlink_api\.sh.*\)|# COMMENTED BY INSTALL SCRIPT $date_stamp: \1|g" \
+            "$CRON_FILE" >"$CRON_FILE.tmp" 2>/dev/null || {
+            # If sed fails, preserve existing content
             cat "$CRON_FILE" >"$CRON_FILE.tmp" 2>/dev/null || touch "$CRON_FILE.tmp"
         }
         
@@ -301,18 +298,16 @@ fi
 
 # Remove cron entries (comment them out instead of deleting)
 if [ -f "$CRON_FILE" ]; then
-    awk '
-    /starlink_monitor\.sh|starlink_logger\.sh|check_starlink_api\.sh|Starlink monitoring system/ {
-        if ($0 !~ /^#/) {
-            print "# COMMENTED BY UNINSTALL " strftime("%Y-%m-%d") ": " $0
-        } else {
-            print $0
-        }
-        next
-    }
-    { print $0 }
-    ' "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || {
-        # If awk fails, preserve the file
+    # Create temp file with starlink entries commented out
+    date_stamp=$(date +%Y-%m-%d)
+    
+    # Use basic sed to comment out matching lines (more portable)
+    sed "s|^\([^#].*starlink_monitor\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
+         s|^\([^#].*starlink_logger\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
+         s|^\([^#].*check_starlink_api\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
+         s|^\([^#].*Starlink monitoring system.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g" \
+        "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || {
+        # If sed fails, preserve the file
         cat "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || touch /tmp/crontab.tmp
     }
     mv /tmp/crontab.tmp "$CRON_FILE"

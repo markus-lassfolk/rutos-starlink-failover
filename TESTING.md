@@ -89,6 +89,35 @@ This document tracks testing progress and improvements for the RUTOS Starlink fa
 
 **Next Test**: Re-test installation after fixes
 
+### ❌ Live RUTX50 Testing - Round 2 
+**Date**: July 14, 2025  
+**System**: RUTX50 running RUTOS  
+**Test Method**: Remote installation via curl from testing branch
+
+#### Installation Script (`scripts/install.sh`) - Round 2
+**Status**: ❌ Syntax Error
+
+**Command Used**:
+```bash
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | sh
+```
+
+**Error Found**:
+```
+sh: syntax error: unexpected "fi" (expecting "}")
+```
+
+**Root Cause**: AWK script with `strftime()` function not compatible with RUTOS shell
+- Used advanced AWK features not available in busybox/RUTOS
+- Extended regex syntax `-E` in sed may not be supported
+
+**Fix Applied**: 
+- 🔧 Replaced AWK script with basic sed commands
+- 🔧 Changed from `sed -E` to basic `sed` with POSIX regex
+- 🔧 Simplified pattern matching for better compatibility
+
+**Next Test**: Re-test with portable shell commands
+
 ---
 **Branch**: `feature/testing-improvements`  
 **Started**: July 14, 2025
