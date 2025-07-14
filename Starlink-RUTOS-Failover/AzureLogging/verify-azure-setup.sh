@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Global shellcheck disables for this file
+# shellcheck disable=SC2155
+
 # ===========================================================================================
 # Azure Logging Verification Script
 # 

@@ -28,8 +28,9 @@ DEFAULT_ENABLE_GPS="true"
 DEFAULT_ENABLE_STARLINK_MONITORING="true"
 
 # --- GLOBAL VARIABLES ---
-# shellcheck disable=SC2034  # These variables are used in the setup process
+# shellcheck disable=SC2034  # ENABLE_STARLINK_MONITORING is used in the setup process
 ENABLE_STARLINK_MONITORING=""
+# shellcheck disable=SC2034  # AZURE_FUNCTION_URL is used for configuration
 AZURE_FUNCTION_URL=""
 
 # --- COLORS FOR OUTPUT ---
