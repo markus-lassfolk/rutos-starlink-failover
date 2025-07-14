@@ -199,14 +199,16 @@ class LogParser:
 
         return "OTHER"
 
-    def parse_log_content(self, content: str, log_date: datetime.date) -> List[Dict[str, Any]]:
+    def parse_log_content(
+        self, content: str, log_date: datetime.date
+    ) -> List[Dict[str, Any]]:
         """
         Parse log content and return structured data
-        
+
         Args:
             content: Raw log content
             log_date: Date of the log file
-            
+
         Returns:
             List of parsed log entries
         """

@@ -120,9 +120,8 @@ class NetworkAnalyzer:
         self.download_data(days_back)
 
         # Get analyzed data
-        if (
-            hasattr(self.downloader, "system_logs")
-            and hasattr(self.downloader, "performance_data")
+        if hasattr(self.downloader, "system_logs") and hasattr(
+            self.downloader, "performance_data"
         ):
             system_logs = self.downloader.system_logs
             performance_data = self.downloader.performance_data
@@ -186,7 +185,9 @@ class NetworkAnalyzer:
             period = results["analysis_period"]
             print(f"📅 Analysis Period: {period.get('days_analyzed', 'Unknown')} days")
             print(f"📝 System Logs: {period.get('total_system_logs', 0):,}")
-            print(f"📈 Performance Data Points: {period.get('total_performance_data', 0):,}")
+            print(
+                f"📈 Performance Data Points: {period.get('total_performance_data', 0):,}"
+            )
 
         if "statistics" in results and results["statistics"]:
             print(f"\n📊 Performance Statistics:")
@@ -207,6 +208,7 @@ class NetworkAnalyzer:
                 print(f"   {i}. {insight}")
 
         print("\n" + "=" * 60)
+
 
 def main():
     """Main entry point for command-line usage"""
