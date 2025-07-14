@@ -6,17 +6,49 @@ on:
   pull_request:
     branches: [ '*' ]
 
+permissions:
+  contents: write
+  pull-requests: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install shellcheck and shfmt
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
           curl -sSLo /usr/local/bin/shfmt https://github.com/mvdan/sh/releases/download/v3.7.0/shfmt_v3.7.0_linux_amd64
           chmod +x /usr/local/bin/shfmt
+      
+      - name: Auto-format shell scripts with shfmt
+        if: github.event_name == 'push'
+        run: |
+          if find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) | head -1 > /dev/null; then
+            echo "🎨 Auto-formatting shell scripts with shfmt..."
+            find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shfmt -w -i 4 -ci {} +
+            echo "✅ Shell scripts formatted successfully"
+          else
+            echo "No shell scripts found to format"
+          fi
+      
+      - name: Commit formatting changes
+        if: github.event_name == 'push'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "🎨 Auto-format shell scripts with shfmt [skip ci]"
+            git push
+            echo "✅ Committed shell formatting changes"
+          else
+            echo "✅ No shell formatting changes needed"
+          fi
+      
       - name: Enforce script and config file permissions
         run: |
           # Config files should be 600
@@ -29,7 +61,7 @@ jobs:
       - name: Run ShellCheck on all shell scripts
         run: |
           find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shellcheck {} +
-      - name: Check shell script formatting (shfmt)
+      - name: Verify shell script formatting (shfmt)
         run: |
           find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shfmt -d -i 4 -ci {} +
       - name: Check for RUTOS-specific best practices

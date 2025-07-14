@@ -12,12 +12,18 @@ on:
       - '**/*.py'
       - '**/requirements.txt'
 
+permissions:
+  contents: write
+  pull-requests: read
+
 jobs:
   python-quality:
     runs-on: ubuntu-latest
     name: Python Code Quality Check
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -31,7 +37,32 @@ jobs:
           # Install project dependencies if requirements.txt exists
           find . -name "requirements.txt" -exec pip install -r {} \;
       
-      - name: Run Black (code formatter check)
+      - name: Auto-format Python code with Black
+        if: github.event_name == 'push'
+        run: |
+          if find . -name "*.py" | head -1 > /dev/null; then
+            echo "🎨 Auto-formatting Python files with Black..."
+            black --line-length 88 .
+            echo "✅ Python files formatted successfully"
+          else
+            echo "No Python files found to format"
+          fi
+      
+      - name: Commit formatting changes
+        if: github.event_name == 'push'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "🎨 Auto-format Python code with Black [skip ci]"
+            git push
+            echo "✅ Committed Python formatting changes"
+          else
+            echo "✅ No Python formatting changes needed"
+          fi
+      
+      - name: Run Black (code formatter verification)
         run: |
           if find . -name "*.py" | head -1 > /dev/null; then
             black --check --diff .
