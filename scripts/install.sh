@@ -166,8 +166,6 @@ check_root() {
 # Check system compatibility
 check_system() {
     print_status "$BLUE" "Checking system compatibility..."
-
-check_system() {
     arch=""
     if [ "${DEBUG:-0}" = "1" ]; then
         debug_msg "Executing: uname -m"
@@ -361,6 +359,7 @@ install_binaries() {
 }
 
 # Install configuration
+install_config() {
     print_status "$BLUE" "Installing configuration..."
     config_dir="$(dirname "$0")/../config"
 
