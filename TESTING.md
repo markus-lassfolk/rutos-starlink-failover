@@ -788,3 +788,77 @@ DEBUG: Architecture check passed: armv7l matches expected armv7l
 2. Document migration process for users
 3. Add migration to upgrade scripts
 4. Test edge cases and error handling
+
+### ✅ Critical Function Scope Issue - **RESOLVED**
+
+**Date**: July 15, 2025  
+**Issue**: `show_version: command not found` when running `DEBUG=1 bash install.sh --version`  
+**Status**: ✅ **FIXED**
+
+#### Root Cause Found and Fixed:
+- **Missing Closing Brace**: The `debug_msg()` function was missing its closing brace
+- **Function Nesting**: This caused `show_version()` and other functions to be defined inside `debug_msg()` scope
+- **Runtime Error**: Functions were not available at global scope when called from `main()`
+
+#### Fix Applied:
+```bash
+# Before (broken):
+debug_msg() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        print_status "$BLUE" "DEBUG: $1"
+    fi
+    # Missing closing brace here!
+    
+    debug_exec() {
+        # This function was inside debug_msg
+    }
+    
+    show_version() {
+        # This function was inside debug_msg - not accessible globally!
+    }
+
+# After (fixed):
+debug_msg() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        print_status "$BLUE" "DEBUG: $1"
+    fi
+} # Added missing closing brace
+
+debug_exec() {
+    # Now at global scope
+}
+
+show_version() {
+    # Now at global scope - accessible from main()
+}
+```
+
+#### Testing Results:
+```bash
+# ✅ This now works perfectly:
+DEBUG=1 bash scripts/install.sh --version
+
+# ✅ Output shows:
+==================== DEBUG MODE ENABLED ====================
+DEBUG: Script starting with DEBUG=1
+DEBUG: Environment variables:
+DEBUG:   DEBUG=1
+DEBUG:   GITHUB_BRANCH=main
+DEBUG:   GITHUB_REPO=markus-lassfolk/rutos-starlink-failover
+===========================================================
+```
+
+#### Tools Used:
+- **shfmt**: Shell script formatter (available via WSL)
+- **bash -n**: Syntax validation
+- **git**: Version control for safe iteration
+- **Manual debugging**: Systematic function scope analysis
+
+#### Status: ✅ **CRITICAL ISSUE RESOLVED**
+
+**Next Steps**: 
+1. Fix remaining nested function syntax errors (lower priority)
+2. Run full CI/CD pipeline validation
+3. Complete ShellCheck compliance
+
+---
