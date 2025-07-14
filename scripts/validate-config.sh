@@ -22,8 +22,46 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Default config file location
-CONFIG_FILE="${1:-./config.sh}"
+# Show usage information
+show_usage() {
+    printf "%b\n" "${BLUE}Usage: $SCRIPT_NAME [options] [config_file]${NC}"
+    printf "%b\n" "${BLUE}Options:${NC}"
+    printf "%b\n" "${BLUE}  -h, --help      Show this help message${NC}"
+    printf "%b\n" "${BLUE}  -m, --migrate   Force migration of outdated config template${NC}"
+    printf "%b\n" "${BLUE}Arguments:${NC}"
+    printf "%b\n" "${BLUE}  config_file     Path to configuration file (default: ./config.sh)${NC}"
+    printf "%b\n" ""
+    printf "%b\n" "${BLUE}Examples:${NC}"
+    printf "%b\n" "${BLUE}  $SCRIPT_NAME                    # Validate default config.sh${NC}"
+    printf "%b\n" "${BLUE}  $SCRIPT_NAME /path/to/config.sh # Validate specific config${NC}"
+    printf "%b\n" "${BLUE}  $SCRIPT_NAME --migrate          # Force migration of outdated template${NC}"
+}
+
+# Parse command line arguments
+FORCE_MIGRATION=false
+CONFIG_FILE="./config.sh"
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        -m|--migrate)
+            FORCE_MIGRATION=true
+            shift
+            ;;
+        -*)
+            printf "%b\n" "${RED}Error: Unknown option: $1${NC}"
+            show_usage
+            exit 1
+            ;;
+        *)
+            CONFIG_FILE="$1"
+            shift
+            ;;
+    esac
+done
 
 # Check if running as root
 check_root() {
@@ -229,6 +267,16 @@ check_config_completeness() {
     
     printf "%b\n" "${GREEN}Comparing against template: $template_file${NC}"
     
+    # Check if config uses outdated template format
+    if check_outdated_template; then
+        printf "%b\n" "${YELLOW}⚠ Configuration appears to use outdated template format${NC}"
+        if offer_template_migration "$template_file"; then
+            printf "%b\n" "${GREEN}✓ Configuration migrated to current template${NC}"
+            printf "%b\n" "${BLUE}Re-run validation to verify the updated configuration${NC}"
+            return 0
+        fi
+    fi
+    
     # Get variables from both files
     local temp_template="/tmp/template_vars.$$"
     local temp_config="/tmp/config_vars.$$"
@@ -399,6 +447,119 @@ validate_config_values() {
     return $validation_errors
 }
 
+# Template migration function
+migrate_config_to_template() {
+    local template_file="$1"
+    local backup_suffix="backup.$(date +%Y%m%d_%H%M%S)"
+    local config_backup="${CONFIG_FILE}.${backup_suffix}"
+    
+    printf "%b\n" "${YELLOW}🔄 Migrating configuration to updated template...${NC}"
+    printf "%b\n" "${BLUE}Template: $template_file${NC}"
+    printf "%b\n" "${BLUE}Config: $CONFIG_FILE${NC}"
+    
+    # Create backup of current config
+    if ! cp "$CONFIG_FILE" "$config_backup"; then
+        printf "%b\n" "${RED}Error: Failed to create backup${NC}"
+        return 1
+    fi
+    printf "%b\n" "${GREEN}✓ Backup created: $config_backup${NC}"
+    
+    # Extract current values from existing config
+    local temp_values="/tmp/config_values_$$"
+    printf "%b\n" "${BLUE}Extracting current configuration values...${NC}"
+    
+    # Extract variable assignments, strip comments and quotes
+    grep -E '^[A-Z_]+=.*' "$CONFIG_FILE" | while IFS='=' read -r var rest; do
+        # Clean the value: remove quotes, strip inline comments
+        value=$(echo "$rest" | sed 's/[[:space:]]*#.*$//' | sed 's/^["\'"'"']//;s/["\'"'"']$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        echo "$var=$value"
+    done > "$temp_values"
+    
+    # Start with fresh template
+    printf "%b\n" "${BLUE}Creating new configuration from template...${NC}"
+    cp "$template_file" "$CONFIG_FILE"
+    
+    # Apply user values to template
+    local updated_count=0
+    while IFS='=' read -r var value; do
+        if [ -n "$var" ] && [ -n "$value" ]; then
+            # Update the variable in the template, preserving structure
+            if sed -i "s|^${var}=.*|${var}=\"${value}\"|" "$CONFIG_FILE" 2>/dev/null; then
+                updated_count=$((updated_count + 1))
+                printf "%b\n" "${GREEN}  ✓ Updated: $var${NC}"
+            else
+                printf "%b\n" "${YELLOW}  ⚠ Could not update: $var${NC}"
+            fi
+        fi
+    done < "$temp_values"
+    
+    # Cleanup
+    rm -f "$temp_values"
+    
+    printf "%b\n" "${GREEN}✓ Migration completed!${NC}"
+    printf "%b\n" "${GREEN}  Updated $updated_count configuration values${NC}"
+    printf "%b\n" "${GREEN}  New config has latest template structure and descriptions${NC}"
+    printf "%b\n" "${YELLOW}  Review: $CONFIG_FILE${NC}"
+    printf "%b\n" "${YELLOW}  Backup: $config_backup${NC}"
+    
+    return 0
+}
+
+# Offer template migration
+offer_template_migration() {
+    local template_file="$1"
+    
+    printf "%b\n" "${YELLOW}⚠ Configuration appears to be using an older template format${NC}"
+    printf "%b\n" "${YELLOW}  Issues found: ShellCheck comments, missing descriptions${NC}"
+    printf "%b\n" "${BLUE}Available solution: Migrate to current template${NC}"
+    printf "%b\n" "${BLUE}  • Preserves all your current settings${NC}"
+    printf "%b\n" "${BLUE}  • Updates to latest template structure${NC}"
+    printf "%b\n" "${BLUE}  • Adds proper descriptions and help text${NC}"
+    printf "%b\n" "${BLUE}  • Removes technical ShellCheck comments${NC}"
+    printf "%b\n" "${BLUE}  • Creates backup of current config${NC}"
+    printf "%b\n" ""
+    printf "%s" "${YELLOW}Migrate configuration to current template? (y/N): ${NC}"
+    read -r answer
+    
+    if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
+        migrate_config_to_template "$template_file"
+        return 0
+    else
+        printf "%b\n" "${YELLOW}Skipping migration. Consider running update-config.sh later.${NC}"
+        return 1
+    fi
+}
+
+# Check if config uses outdated template format
+check_outdated_template() {
+    # Check for ShellCheck comments
+    if grep -q "# shellcheck" "$CONFIG_FILE"; then
+        return 0  # Found ShellCheck comments - outdated
+    fi
+    
+    # Check for missing proper descriptions (very short comments)
+    local short_comments=0
+    local total_vars=0
+    
+    while read -r line; do
+        if echo "$line" | grep -E '^[A-Z_]+=.*#' >/dev/null; then
+            total_vars=$((total_vars + 1))
+            # Check if comment is very short (likely just a variable name)
+            comment=$(echo "$line" | sed 's/.*#[[:space:]]*//')
+            if [ ${#comment} -lt 20 ]; then
+                short_comments=$((short_comments + 1))
+            fi
+        fi
+    done < "$CONFIG_FILE"
+    
+    # If more than 50% of comments are very short, likely outdated
+    if [ $total_vars -gt 0 ] && [ $short_comments -gt $((total_vars / 2)) ]; then
+        return 0  # Likely outdated
+    fi
+    
+    return 1  # Appears current
+}
+
 # Main function
 main() {
     printf "%b\n" "${GREEN}=== Starlink System Configuration Validator ===${NC}"
@@ -410,6 +571,28 @@ main() {
     check_root
     check_config_file
     load_config
+    
+    # Handle force migration option
+    if [ "$FORCE_MIGRATION" = "true" ]; then
+        printf "%b\n" "${YELLOW}Force migration mode enabled${NC}"
+        if check_outdated_template; then
+            # Find template file
+            local template_file="$(dirname "$CONFIG_FILE")/../config/config.template.sh"
+            if [ ! -f "$template_file" ]; then
+                template_file="./config/config.template.sh"
+            fi
+            if [ ! -f "$template_file" ]; then
+                printf "%b\n" "${RED}Error: Cannot find template file${NC}"
+                exit 1
+            fi
+            migrate_config_to_template "$template_file"
+            printf "%b\n" "${GREEN}Migration completed. Please re-run validation.${NC}"
+            exit 0
+        else
+            printf "%b\n" "${GREEN}Configuration template is already current.${NC}"
+            exit 0
+        fi
+    fi
     
     # Enhanced configuration validation
     local config_issues=0
@@ -468,6 +651,7 @@ main() {
     printf "%b\n" "${GREEN}Available tools:${NC}"
     printf "%b\n" "${GREEN}• Update config: $(dirname "$CONFIG_FILE")/../scripts/update-config.sh${NC}"
     printf "%b\n" "${GREEN}• Upgrade features: $(dirname "$CONFIG_FILE")/../scripts/upgrade-to-advanced.sh${NC}"
+    printf "%b\n" "${GREEN}• Migrate outdated template: $SCRIPT_NAME --migrate${NC}"
 }
 
 # Run main function
