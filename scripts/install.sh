@@ -26,20 +26,20 @@ BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
 # Version and compatibility
 VERSION_URL="${BASE_URL}/VERSION"
-MIN_COMPATIBLE_VERSION="1.0.0"
+MIN_COMPATIBLE_VERSION="1.0.0" # Used for compatibility checks in future
 
 # Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;36m'  # Changed to cyan for better readability
-NC='\033[0m' # No Color
+RED="\033[0;31m"
+GREEN="\033[0;32m"
+YELLOW="\033[1;33m"
+BLUE="\033[0;36m"  # Changed to cyan for better readability
+NC="\033[0m" # No Color
 
 # Installation configuration
 INSTALL_DIR="/root/starlink-monitor"
 HOTPLUG_DIR="/etc/hotplug.d/iface"
-CRON_FILE="/etc/crontabs/root"
-
+CRON_FILE="/etc/crontabs/root" # Used throughout script
+}
 # Binary URLs for ARMv7 (RUTX50)
 GRPCURL_URL="https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz"
 JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
@@ -48,7 +48,7 @@ JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
 print_status() {
     color="$1"
     message="$2"
-    printf "%s%s%s\n" "$color" "$message" "$NC"
+    printf "%b%s%b\n" "$color" "$message" "$NC"
 }
 
 # Function to print debug messages
@@ -56,7 +56,6 @@ debug_msg() {
     if [ "${DEBUG:-0}" = "1" ]; then
         print_status "$BLUE" "DEBUG: $1"
     fi
-}
 
 # Function to execute commands with debug output
 debug_exec() {
