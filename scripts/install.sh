@@ -10,10 +10,18 @@
 
 set -eu
 
+# Script version - automatically updated from VERSION file
+SCRIPT_VERSION="1.0.0"
+SCRIPT_NAME="install.sh"
+
 # Configuration - can be overridden by environment variables
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
 BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
+
+# Version and compatibility
+VERSION_URL="${BASE_URL}/VERSION"
+MIN_COMPATIBLE_VERSION="1.0.0"
 
 # Colors for output
 RED='\033[0;31m'
@@ -38,26 +46,89 @@ print_status() {
     printf "%b%s%b\n" "$color" "$message" "$NC"
 }
 
+# Function to print debug messages
+debug_msg() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        print_status "$BLUE" "DEBUG: $1"
+    fi
+}
+
+# Function to execute commands with debug output
+debug_exec() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        print_status "$BLUE" "DEBUG: Executing: $*"
+        "$@"
+    else
+        "$@" 2>/dev/null
+    fi
+}
+
+# Function to show version information
+show_version() {
+    print_status "$GREEN" "===========================================" 
+    print_status "$GREEN" "Starlink Monitor Installation Script"
+    print_status "$GREEN" "Script: $SCRIPT_NAME"
+    print_status "$GREEN" "Version: $SCRIPT_VERSION"
+    print_status "$GREEN" "Branch: $GITHUB_BRANCH"
+    print_status "$GREEN" "Repository: $GITHUB_REPO"
+    print_status "$GREEN" "==========================================="
+}
+
+# Function to detect remote version
+detect_remote_version() {
+    local remote_version
+    debug_msg "Fetching remote version from $VERSION_URL"
+    
+    if command -v wget >/dev/null 2>&1; then
+        remote_version=$(wget -q -O - "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
+    elif command -v curl >/dev/null 2>&1; then
+        remote_version=$(curl -fsSL "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
+    else
+        debug_msg "Cannot detect remote version - no wget or curl available"
+        return 1
+    fi
+    
+    if [ -n "$remote_version" ]; then
+        debug_msg "Remote version detected: $remote_version"
+        echo "$remote_version"
+    else
+        debug_msg "Failed to detect remote version"
+        return 1
+    fi
+}
+
+# Function to compare versions (simplified)
+version_compare() {
+    local version1="$1"
+    local version2="$2"
+    
+    # Simple version comparison (assumes semantic versioning)
+    # Returns 0 if versions are equal, 1 if v1 > v2, 2 if v1 < v2
+    if [ "$version1" = "$version2" ]; then
+        return 0
+    fi
+    
+    # For now, just return equal (can be enhanced later)
+    return 0
+}
+
 # Function to download files with fallback
 download_file() {
     local url="$1"
     local output="$2"
     
-    # Debug output if DEBUG=1
-    if [ "${DEBUG:-0}" = "1" ]; then
-        print_status "$YELLOW" "DEBUG: Downloading $url to $output"
-    fi
+    debug_msg "Downloading $url to $output"
     
     # Try wget first, then curl
     if command -v wget >/dev/null 2>&1; then
         if [ "${DEBUG:-0}" = "1" ]; then
-            wget -O "$output" "$url"
+            debug_exec wget -O "$output" "$url"
         else
             wget -q -O "$output" "$url" 2>/dev/null
         fi
     elif command -v curl >/dev/null 2>&1; then
         if [ "${DEBUG:-0}" = "1" ]; then
-            curl -fL -o "$output" "$url"
+            debug_exec curl -fL -o "$output" "$url"
         else
             curl -fsSL -o "$output" "$url" 2>/dev/null
         fi
@@ -80,7 +151,9 @@ check_system() {
     print_status "$BLUE" "Checking system compatibility..."
 
     local arch
-    arch=$(uname -m)
+    arch=$(debug_exec uname -m)
+    debug_msg "System architecture: $arch"
+    
     if [ "$arch" != "armv7l" ]; then
         print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
         print_status "$YELLOW" "Your architecture: $arch"
@@ -93,12 +166,22 @@ check_system() {
     fi
 
     # Check OpenWrt/RUTOS
+    debug_msg "Checking for OpenWrt/RUTOS system files"
     if [ ! -f "/etc/openwrt_version" ] && [ ! -f "/etc/rutos_version" ]; then
         print_status "$YELLOW" "Warning: This doesn't appear to be OpenWrt/RUTOS"
         echo -n "Continue anyway? (y/N): "
         read -r answer
         if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
             exit 1
+        fi
+    else
+        if [ -f "/etc/openwrt_version" ]; then
+            local openwrt_version=$(cat /etc/openwrt_version 2>/dev/null)
+            debug_msg "OpenWrt version: $openwrt_version"
+        fi
+        if [ -f "/etc/rutos_version" ]; then
+            local rutos_version=$(cat /etc/rutos_version 2>/dev/null)
+            debug_msg "RUTOS version: $rutos_version"
         fi
     fi
 
@@ -109,13 +192,20 @@ check_system() {
 create_directories() {
     print_status "$BLUE" "Creating directory structure..."
 
-    mkdir -p "$INSTALL_DIR"
-    mkdir -p "$INSTALL_DIR/config"
-    mkdir -p "$INSTALL_DIR/scripts"
-    mkdir -p "$INSTALL_DIR/logs"
-    mkdir -p "/tmp/run"
-    mkdir -p "/var/log"
-    mkdir -p "$HOTPLUG_DIR"
+    debug_msg "Creating main installation directory: $INSTALL_DIR"
+    debug_exec mkdir -p "$INSTALL_DIR"
+    debug_exec mkdir -p "$INSTALL_DIR/config"
+    debug_exec mkdir -p "$INSTALL_DIR/scripts"
+    debug_exec mkdir -p "$INSTALL_DIR/logs"
+    debug_exec mkdir -p "/tmp/run"
+    debug_exec mkdir -p "/var/log"
+    debug_exec mkdir -p "$HOTPLUG_DIR"
+
+    # Verify directories were created
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "Verifying directory structure:"
+        debug_exec ls -la "$INSTALL_DIR"
+    fi
 
     print_status "$GREEN" "✓ Directory structure created"
 }
@@ -404,9 +494,26 @@ EOF
 
 # Main installation function
 main() {
+    # Show version information first (always shown in debug mode)
+    if [ "${DEBUG:-0}" = "1" ]; then
+        show_version
+        echo ""
+        
+        # Try to detect remote version for comparison
+        if remote_version=$(detect_remote_version); then
+            if [ "$remote_version" != "$SCRIPT_VERSION" ]; then
+                print_status "$YELLOW" "WARNING: Remote version ($remote_version) differs from script version ($SCRIPT_VERSION)"
+            else
+                debug_msg "Script version matches remote version: $SCRIPT_VERSION"
+            fi
+        fi
+        echo ""
+    fi
+    
     print_status "$GREEN" "=== Starlink Monitoring System Installer ==="
     echo ""
 
+    debug_msg "Starting installation process"
     check_root
     check_system
     create_directories

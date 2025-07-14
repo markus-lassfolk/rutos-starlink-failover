@@ -10,10 +10,16 @@
 
 set -eu
 
+# Script version information
+SCRIPT_VERSION="1.0.0"
+SCRIPT_NAME="validate-config.sh"
+COMPATIBLE_INSTALL_VERSION="1.0.0"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Default config file location
@@ -390,6 +396,9 @@ validate_config_values() {
 # Main function
 main() {
     printf "%b\n" "${GREEN}=== Starlink System Configuration Validator ===${NC}"
+    printf "%b\n" "${BLUE}Script: $SCRIPT_NAME${NC}"
+    printf "%b\n" "${BLUE}Version: $SCRIPT_VERSION${NC}"
+    printf "%b\n" "${BLUE}Compatible with install.sh: $COMPATIBLE_INSTALL_VERSION${NC}"
     echo ""
 
     check_root

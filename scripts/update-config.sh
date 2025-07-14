@@ -11,6 +11,11 @@
 
 set -eu
 
+# Script version information
+SCRIPT_VERSION="1.0.0"
+SCRIPT_NAME="update-config.sh"
+COMPATIBLE_INSTALL_VERSION="1.0.0"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -249,6 +254,10 @@ merge_configs() {
 main() {
     print_info "Configuration Update Tool"
     print_info "========================="
+    print_info "Script: $SCRIPT_NAME"
+    print_info "Version: $SCRIPT_VERSION"
+    print_info "Compatible with install.sh: $COMPATIBLE_INSTALL_VERSION"
+    echo ""
     
     # Check if current config exists
     if [ ! -f "$CURRENT_CONFIG" ]; then

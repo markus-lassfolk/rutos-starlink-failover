@@ -11,6 +11,11 @@
 
 set -eu
 
+# Script version information
+SCRIPT_VERSION="1.0.0"
+SCRIPT_NAME="upgrade-to-advanced.sh"
+COMPATIBLE_INSTALL_VERSION="1.0.0"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -200,6 +205,9 @@ EOF
 # Main execution
 main() {
     print_status "$BLUE" "=== Upgrade to Advanced Configuration ==="
+    print_status "$BLUE" "Script: $SCRIPT_NAME"
+    print_status "$BLUE" "Version: $SCRIPT_VERSION"
+    print_status "$BLUE" "Compatible with install.sh: $COMPATIBLE_INSTALL_VERSION"
     echo
     
     # Check if basic configuration exists

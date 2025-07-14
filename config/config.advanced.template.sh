@@ -6,6 +6,9 @@
 #
 # This template includes settings derived from actual deployment configurations
 # Copy this file to config.sh and customize the values for your setup.
+#
+# Template Version: 1.0.0
+# Compatible with install.sh: 1.0.0
 # ==============================================================================
 
 # --- Network Configuration ---
