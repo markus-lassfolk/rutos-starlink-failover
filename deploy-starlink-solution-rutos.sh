@@ -21,7 +21,7 @@
 # Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 # ==============================================================================
 
-set -euo pipefail
+set -eu
 
 # === COLORS AND FORMATTING ===
 RED='\033[0;31m'
@@ -42,7 +42,7 @@ DEFAULT_RUTOS_IP="192.168.80.1"
 DEFAULT_STARLINK_IP="192.168.100.1"
 
 # === PATHS AND DIRECTORIES ===
-INSTALL_DIR="/root/starlink-solution"
+# INSTALL_DIR="/root/starlink-solution"  # Reserved for future use
 BACKUP_DIR="/root/backup-$(date +%Y%m%d-%H%M%S)"
 CONFIG_DIR="/root"
 SCRIPTS_DIR="/root"
@@ -54,38 +54,38 @@ JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
 
 # === LOGGING FUNCTIONS ===
 log() {
-    echo -e "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+    printf "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} %s\n" "$1"
     logger -t "starlink-deploy" "$1"
 }
 
 log_success() {
-    echo -e "${GREEN}✓${NC} $1"
+    printf "${GREEN}✓${NC} %s\n" "$1"
     logger -t "starlink-deploy" "SUCCESS: $1"
 }
 
 log_warn() {
-    echo -e "${YELLOW}⚠${NC} $1"
+    printf "${YELLOW}⚠${NC} %s\n" "$1"
     logger -t "starlink-deploy" "WARNING: $1"
 }
 
 log_error() {
-    echo -e "${RED}✗${NC} $1"
+    printf "${RED}✗${NC} %s\n" "$1"
     logger -t "starlink-deploy" "ERROR: $1"
 }
 
 log_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
+    printf "${BLUE}ℹ${NC} %s\n" "$1"
 }
 
 log_header() {
-    echo
-    echo -e "${PURPLE}=== $1 ===${NC}"
-    echo
+    printf "\n"
+    printf "${PURPLE}=== %s ===${NC}\n" "$1"
+    printf "\n"
 }
 
 # === INPUT VALIDATION ===
 validate_ip() {
-    local ip="$1"
+    ip="$1"
     
     # Check basic format using case statement (ash/dash compatible)
     case "$ip" in
@@ -103,7 +103,7 @@ validate_ip() {
     # Check each octet is <= 255 (ash/dash compatible)
     oldIFS="$IFS"
     IFS='.'
-    set -- $ip
+    set -- "$ip"
     IFS="$oldIFS"
     
     for octet in "$1" "$2" "$3" "$4"; do
@@ -116,7 +116,7 @@ validate_ip() {
 }
 
 validate_url() {
-    local url="$1"
+    url="$1"
     case "$url" in
         http://*|https://*)
             return 0
@@ -128,24 +128,28 @@ validate_url() {
 }
 
 prompt_user() {
-    local prompt="$1"
-    local default="$2"
-    local value
+    prompt="$1"
+    default="$2"
+    value=""
     
     if [ -n "$default" ]; then
-        read -r -p "$prompt [$default]: " value
+        printf "%s [%s]: " "$prompt" "$default"
+        read -r value
         echo "${value:-$default}"
     else
-        read -r -p "$prompt: " value
+        printf "%s: " "$prompt"
+        read -r value
         echo "$value"
     fi
 }
 
 prompt_password() {
-    local prompt="$1"
-    local value
-    read -r -s -p "$prompt: " value
-    echo
+    prompt="$1"
+    printf "%s: " "$prompt"
+    stty -echo
+    read -r value
+    stty echo
+    printf "\n"
     echo "$value"
 }
 
@@ -160,7 +164,7 @@ check_prerequisites() {
     fi
     
     # Check device architecture - RUTOS compatibility
-    local arch
+    arch=$(uname -m)
     arch=$(uname -m 2>/dev/null || echo "unknown")
     case "$arch" in
         "armv7l"|"aarch64"|"arm")
@@ -168,7 +172,8 @@ check_prerequisites() {
             ;;
         *)
             log_warn "Device architecture ($arch) may not be compatible with ARM binaries"
-            read -r -p "Continue anyway? (y/N): " confirm
+            printf "Continue anyway? (y/N): "
+            read -r confirm
             if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
                 exit 1
             fi
@@ -182,11 +187,12 @@ check_prerequisites() {
     fi
     
     # Check available space
-    local available_space
+    available_space=""
     available_space=$(df /overlay 2>/dev/null | awk 'NR==2 {print $4}' || df / | awk 'NR==2 {print $4}')
     if [ "$available_space" -lt 10240 ]; then # Less than 10MB
         log_warn "Low disk space available ($available_space KB)"
-        read -r -p "Continue anyway? (y/N): " confirm
+        printf "Continue anyway? (y/N): "
+        read -r confirm
         if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
             exit 1
         fi
@@ -204,10 +210,10 @@ collect_configuration() {
     echo
     
     # Azure configuration
-    local enable_azure
+    enable_azure=""
     enable_azure=$(prompt_user "Enable Azure cloud logging integration? (true/false)" "$DEFAULT_ENABLE_AZURE")
     
-    local azure_endpoint=""
+    azure_endpoint=""
     if [ "$enable_azure" = "true" ]; then
         azure_endpoint=$(prompt_user "Azure Function endpoint URL" "$DEFAULT_AZURE_ENDPOINT")
         if [ -z "$azure_endpoint" ]; then
@@ -221,14 +227,16 @@ collect_configuration() {
     fi
     
     # Starlink monitoring
-    local enable_starlink_monitoring
+    enable_starlink_monitoring=""
     enable_starlink_monitoring=$(prompt_user "Enable Starlink performance monitoring? (true/false)" "$DEFAULT_ENABLE_STARLINK_MONITORING")
     
     # GPS configuration
-    local enable_gps
+    enable_gps=""
     enable_gps=$(prompt_user "Enable GPS integration? (true/false)" "$DEFAULT_ENABLE_GPS")
     
-    local rutos_ip="" rutos_username="" rutos_password=""
+    rutos_ip="" 
+    rutos_username="" 
+    rutos_password=""
     if [ "$enable_gps" = "true" ]; then
         rutos_ip=$(prompt_user "RUTOS device IP address" "$DEFAULT_RUTOS_IP")
         if ! validate_ip "$rutos_ip"; then
@@ -243,10 +251,11 @@ collect_configuration() {
     fi
     
     # Pushover configuration
-    local enable_pushover
+    enable_pushover=""
     enable_pushover=$(prompt_user "Enable Pushover notifications? (true/false)" "$DEFAULT_ENABLE_PUSHOVER")
     
-    local pushover_token="" pushover_user=""
+    pushover_token="" 
+    pushover_user=""
     if [ "$enable_pushover" = "true" ]; then
         pushover_token=$(prompt_user "Pushover Application Token" "")
         pushover_user=$(prompt_user "Pushover User Key" "")
@@ -258,7 +267,7 @@ collect_configuration() {
     fi
     
     # Network configuration
-    local starlink_ip
+    starlink_ip=""
     starlink_ip=$(prompt_user "Starlink dish IP address" "$DEFAULT_STARLINK_IP")
     if ! validate_ip "$starlink_ip"; then
         log_error "Invalid Starlink IP address format"
@@ -290,7 +299,8 @@ collect_configuration() {
     log_info "  Starlink IP: $starlink_ip"
     echo
     
-    read -r -p "Proceed with installation? (y/N): " confirm
+    printf "Proceed with installation? (y/N): "
+    read -r confirm
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
         log "Installation cancelled by user"
         exit 0
@@ -532,9 +542,9 @@ setup_network_routes() {
     # Add static route to Starlink
     if ! ip route show | grep -q "$STARLINK_IP"; then
         # Check if route already exists in UCI
-        local route_exists=false
+        route_exists=false
         for i in $(seq 0 10); do
-            if uci get network.@route[$i].target 2>/dev/null | grep -q "$STARLINK_IP"; then
+            if uci get network.@route["$i"].target 2>/dev/null | grep -q "$STARLINK_IP"; then
                 route_exists=true
                 break
             fi
@@ -548,7 +558,7 @@ setup_network_routes() {
             uci commit network
             
             # Apply immediately
-            ip route add "$STARLINK_IP" dev $(uci get network.wan.ifname 2>/dev/null || echo "eth1") 2>/dev/null || true
+            ip route add "$STARLINK_IP" dev "$(uci get network.wan.ifname 2>/dev/null || echo "eth1")" 2>/dev/null || true
         fi
     fi
     
@@ -956,9 +966,9 @@ fi
 
 # Notification function
 send_notification() {
-    local title="\$1"
-    local message="\$2"
-    local priority="\${3:-0}"
+    title="\$1"
+    message="\$2"
+    priority="\${3:-0}"
     
     curl -s \\
         --form-string "token=\$PUSHOVER_TOKEN" \\
@@ -1187,26 +1197,26 @@ TESTS_WARNED=0
 
 # Logging functions
 log_test() {
-    echo -e "${BLUE}[TEST]${NC} $1"
+    printf "%s[TEST]%s %s\n" "$BLUE" "$NC" "$1"
 }
 
 log_pass() {
-    echo -e "${GREEN}[PASS]${NC} $1"
+    printf "%s[PASS]%s %s\n" "$GREEN" "$NC" "$1"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 }
 
 log_fail() {
-    echo -e "${RED}[FAIL]${NC} $1"
+    printf "%s[FAIL]%s %s\n" "$RED" "$NC" "$1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    printf "%s[WARN]%s %s\n" "$YELLOW" "$NC" "$1"
     TESTS_WARNED=$((TESTS_WARNED + 1))
 }
 
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    printf "%s[INFO]%s %s\n" "$BLUE" "$NC" "$1"
 }
 
 # Test functions
@@ -1214,7 +1224,7 @@ test_binaries() {
     log_test "Testing required binaries..."
     
     if [ -x "/root/grpcurl" ]; then
-        local version
+        version=""
         version=$(/root/grpcurl --version 2>&1 | head -1)
         log_pass "grpcurl available: $version"
     else
@@ -1222,7 +1232,7 @@ test_binaries() {
     fi
     
     if [ -x "/root/jq" ]; then
-        local version
+        version=""
         version=$(/root/jq --version 2>&1)
         log_pass "jq available: $version"
     else
@@ -1239,7 +1249,7 @@ test_binaries() {
 test_scripts() {
     log_test "Testing deployed scripts..."
     
-    local scripts=(
+    scripts=(
         "/root/starlink_monitor.sh"
         "/root/starlink_logger.sh"
         "/root/check_starlink_api.sh"
@@ -1287,7 +1297,7 @@ test_configuration() {
     # Test network routes
     if ip route show | grep -q "192.168.100.1"; then
         log_pass "Starlink route configured"
-        local route_info
+        route_info=""
         route_info=$(ip route show | grep "192.168.100.1" | head -1)
         log_info "Route: $route_info"
     else
@@ -1321,7 +1331,7 @@ test_connectivity() {
     
     # Test Starlink API
     if [ -x "/root/grpcurl" ]; then
-        local api_response
+        api_response=""
         api_response=$(timeout 10 /root/grpcurl -plaintext --max-time 5 \
             -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
         
@@ -1336,7 +1346,7 @@ test_connectivity() {
 test_cron_jobs() {
     log_test "Testing scheduled jobs..."
     
-    local cron_jobs
+    cron_jobs=""
     cron_jobs=$(crontab -l 2>/dev/null || echo "")
     
     if echo "$cron_jobs" | grep -q "starlink_monitor.sh"; then
@@ -1371,7 +1381,7 @@ test_logs() {
     # Test log files
     if [ -f "/overlay/messages" ]; then
         log_pass "System log file exists"
-        local log_size
+        log_size=""
         log_size=$(wc -c < "/overlay/messages" 2>/dev/null || echo "0")
         log_info "Log file size: $log_size bytes"
     else

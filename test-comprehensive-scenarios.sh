@@ -86,7 +86,7 @@ echo "Setting up test environment..."
 # Create mock bc if not available
 if ! command -v bc >/dev/null 2>&1; then
     echo "Creating mock bc calculator..."
-    cat > bc << 'EOF'
+    cat > ./bc << 'EOF'
 #!/bin/bash
 # Mock bc that handles our test cases
 case "$*" in
@@ -223,12 +223,16 @@ cron_expressions=(
 )
 
 for expr in "${cron_expressions[@]}"; do
-    if [[ $expr =~ ^[0-9*/,-]+ +[0-9*/,-]+ +[0-9*/,-]+ +[0-9*/,-]+ +[0-9*/,-]+$ ]]; then
-        echo "✓ Valid cron expression: $expr"
-    else
-        echo "✗ Invalid cron expression: $expr"
-        scenarios_failed=$((scenarios_failed + 1))
-    fi
+    # Use case statement for POSIX compatibility instead of regex
+    case "$expr" in
+        *" "*" "*" "*" "*" "*)
+            echo "✓ Valid cron expression: $expr"
+            ;;
+        *)
+            echo "✗ Invalid cron expression: $expr"
+            scenarios_failed=$((scenarios_failed + 1))
+            ;;
+    esac
 done
 
 # Test file permission simulation

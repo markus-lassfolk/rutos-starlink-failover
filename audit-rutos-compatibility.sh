@@ -22,8 +22,10 @@ ISSUES_FOUND=0
 echo "Scanning all shell scripts in the repository..."
 echo ""
 
-# Find all shell scripts
-find . -type f -name "*.sh" | while read -r script; do
+# Find all shell scripts and process them without subshell
+script_list=$(find . -type f -name "*.sh")
+
+for script in $script_list; do
     TOTAL_SCRIPTS=$((TOTAL_SCRIPTS + 1))
     
     echo "=== Checking: $script ==="
@@ -37,36 +39,36 @@ find . -type f -name "*.sh" | while read -r script; do
             
             # Check for bash-specific syntax
             if grep -q "\[\[" "$script"; then
-                echo -e "${YELLOW}[WARN]${NC} Uses double brackets (bash-specific)"
+                printf "%s[WARN]%s Uses double brackets (bash-specific)\n" "$YELLOW" "$NC"
             fi
             
             if grep -q "==" "$script"; then
-                echo -e "${YELLOW}[INFO]${NC} Uses == comparison (bash preference)"
+                printf "%s[INFO]%s Uses == comparison (bash preference)\n" "$YELLOW" "$NC"
             fi
             
             if grep -q "\${.*\[@\].*}" "$script"; then
-                echo -e "${YELLOW}[WARN]${NC} Uses bash array syntax"
+                printf "%s[WARN]%s Uses bash array syntax\n" "$YELLOW" "$NC"
                 ISSUES_FOUND=$((ISSUES_FOUND + 1))
             fi
             ;;
             
         "#!/bin/sh")
-            echo -e "${GREEN}[POSIX]${NC} Uses POSIX shell shebang"
+            printf "%s[POSIX]%s Uses POSIX shell shebang\n" "$GREEN" "$NC"
             POSIX_SCRIPTS=$((POSIX_SCRIPTS + 1))
             
             # Check for problematic syntax in POSIX scripts
             if grep -q "\[\[" "$script"; then
-                echo -e "${RED}[ERROR]${NC} POSIX script uses double brackets"
+                printf "%s[ERROR]%s POSIX script uses double brackets\n" "$RED" "$NC"
                 ISSUES_FOUND=$((ISSUES_FOUND + 1))
             fi
             
             if grep -q "==" "$script"; then
-                echo -e "${YELLOW}[WARN]${NC} POSIX script uses == (should use =)"
+                printf "%s[WARN]%s POSIX script uses == (should use =)\n" "$YELLOW" "$NC"
             fi
             ;;
             
         *)
-            echo -e "${YELLOW}[UNKNOWN]${NC} Unknown or missing shebang: $shebang"
+            printf "%s[UNKNOWN]%s Unknown or missing shebang: %s\n" "$YELLOW" "$NC" "$shebang"
             ;;
     esac
     
@@ -76,35 +78,35 @@ find . -type f -name "*.sh" | while read -r script; do
     # Check for bc usage
     if grep -q " bc " "$script"; then
         if grep -q "bc.*2>/dev/null.*echo" "$script"; then
-            echo -e "    ${GREEN}✓${NC} bc usage has fallbacks"
+            printf "    %s✓%s bc usage has fallbacks\n" "$GREEN" "$NC"
         else
-            echo -e "    ${YELLOW}⚠${NC} bc usage without fallbacks"
+            printf "    %s⚠%s bc usage without fallbacks\n" "$YELLOW" "$NC"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
         fi
     fi
     
     # Check for stat usage
     if grep -q "stat -[cf]" "$script"; then
-        echo -e "    ${RED}✗${NC} Uses stat with -c/-f flags (RUTOS incompatible)"
+        printf "    %s✗%s Uses stat with -c/-f flags (RUTOS incompatible)\n" "$RED" "$NC"
         ISSUES_FOUND=$((ISSUES_FOUND + 1))
     elif grep -q "wc -c" "$script"; then
-        echo -e "    ${GREEN}✓${NC} Uses wc -c for file sizes (RUTOS compatible)"
+        printf "    %s✓%s Uses wc -c for file sizes (RUTOS compatible)\n" "$GREEN" "$NC"
     fi
     
     # Check for curl flags
     if grep -q "curl.*-L" "$script"; then
-        echo -e "    ${YELLOW}⚠${NC} Uses curl -L flag (not supported on RUTOS)"
+        printf "    %s⚠%s Uses curl -L flag (not supported on RUTOS)\n" "$YELLOW" "$NC"
         ISSUES_FOUND=$((ISSUES_FOUND + 1))
     fi
     
     if grep -q "curl.*--max-time" "$script"; then
-        echo -e "    ${GREEN}✓${NC} Uses curl --max-time (RUTOS compatible)"
+        printf "    %s✓%s Uses curl --max-time (RUTOS compatible)\n" "$GREEN" "$NC"
     fi
     
     # Check for timeout usage
     timeout_count=$(grep -c "timeout.*grpcurl" "$script" 2>/dev/null || echo "0")
     if [ "$timeout_count" -gt 0 ]; then
-        echo -e "    ${GREEN}✓${NC} Uses timeout with grpcurl ($timeout_count instances)"
+        echo "    [✓] Uses timeout with grpcurl ($timeout_count instances)"
     fi
     
     echo ""
@@ -119,9 +121,9 @@ echo "POSIX scripts: $POSIX_SCRIPTS"
 echo "Compatibility issues found: $ISSUES_FOUND"
 
 if [ $ISSUES_FOUND -eq 0 ]; then
-    echo -e "${GREEN}✅ No critical compatibility issues found${NC}"
+    printf "%s✅ No critical compatibility issues found%s\n" "$GREEN" "$NC"
 else
-    echo -e "${YELLOW}⚠ $ISSUES_FOUND compatibility issues need attention${NC}"
+    printf "%s⚠ %d compatibility issues need attention%s\n" "$YELLOW" "$ISSUES_FOUND" "$NC"
 fi
 
 echo ""

@@ -39,7 +39,7 @@ DEFAULT_RUTOS_IP="192.168.80.1"
 DEFAULT_STARLINK_IP="192.168.100.1"
 
 # === PATHS AND DIRECTORIES ===
-INSTALL_DIR="/root/starlink-solution"
+# INSTALL_DIR="/root/starlink-solution"  # Reserved for future use
 BACKUP_DIR="/root/backup-$(date +%Y%m%d-%H%M%S)"
 CONFIG_DIR="/root"
 SCRIPTS_DIR="/root"
@@ -100,7 +100,7 @@ validate_ip() {
     # Check each octet is <= 255 (ash/dash compatible)
     oldIFS="$IFS"
     IFS='.'
-    set -- $ip
+    set -- "$ip"
     IFS="$oldIFS"
     
     for octet in "$1" "$2" "$3" "$4"; do
@@ -531,7 +531,7 @@ setup_network_routes() {
         # Check if route already exists in UCI
         local route_exists=false
         for i in $(seq 0 10); do
-            if uci get network.@route[$i].target 2>/dev/null | grep -q "$STARLINK_IP"; then
+            if uci get network.@route["$i"].target 2>/dev/null | grep -q "$STARLINK_IP"; then
                 route_exists=true
                 break
             fi
@@ -545,7 +545,7 @@ setup_network_routes() {
             uci commit network
             
             # Apply immediately
-            ip route add "$STARLINK_IP" dev $(uci get network.wan.ifname 2>/dev/null || echo "eth1") 2>/dev/null || true
+            ip route add "$STARLINK_IP" dev "$(uci get network.wan.ifname 2>/dev/null || echo "eth1")" 2>/dev/null || true
         fi
     fi
     

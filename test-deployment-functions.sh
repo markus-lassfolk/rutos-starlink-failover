@@ -238,7 +238,6 @@ test_validation_functions() {
     # Test IP validation
     log "Testing IP address validation..."
     
-    local test_ips=("192.168.1.1" "10.0.0.1" "172.16.0.1" "999.999.999.999" "192.168.1" "not.an.ip")
     local valid_ips=("192.168.1.1" "10.0.0.1" "172.16.0.1")
     local invalid_ips=("999.999.999.999" "192.168.1" "not.an.ip")
     
