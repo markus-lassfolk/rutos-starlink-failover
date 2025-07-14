@@ -5,15 +5,15 @@ Network Performance and Failover Analysis Tool
 
 ⚠️  DEPRECATION NOTICE: This file is over 1300 lines and will be refactored.
     For new development, please use the modular version: network-analyzer.py
-    
+
     The new modular structure provides:
     - Better maintainability (split into analysis/ modules)
-    - Improved testability 
+    - Improved testability
     - Enhanced readability
     - Easier extensibility
 
 This script analyzes Azure Storage logs and CSV performance data to provide insights into:
-- Failover frequency and patterns  
+- Failover frequency and patterns
 - Threshold effectiveness
 - Network stability trends
 - System reliability metrics
@@ -26,7 +26,7 @@ Requirements:
 
 Usage:
     python analyze-network-performance.py --storage-account myaccount --days 30
-    
+
 Recommended (new modular version):
     python network-analyzer.py --storage-account myaccount --days 30 --visualizations
 """

@@ -22,8 +22,8 @@ from .network_analyzer import NetworkAnalyzer
 
 __all__ = [
     "DataDownloader",
-    "LogParser", 
+    "LogParser",
     "PerformanceAnalyzer",
     "Visualizer",
-    "NetworkAnalyzer"
+    "NetworkAnalyzer",
 ]
