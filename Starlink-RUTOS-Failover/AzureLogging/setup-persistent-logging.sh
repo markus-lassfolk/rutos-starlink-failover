@@ -64,7 +64,7 @@ check_current_config() {
         NEEDS_UPDATE=1
     fi
     
-    if [ $NEEDS_UPDATE -eq 0 ]; then
+    if [ "$NEEDS_UPDATE" -eq 0 ]; then
         echo "✅ Logging configuration is already optimal!"
         return 0
     else

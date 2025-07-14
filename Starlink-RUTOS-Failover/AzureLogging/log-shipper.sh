@@ -54,7 +54,7 @@ HTTP_STATUS=$(curl -sS -w '%{http_code}' -o /dev/null --max-time 30 --data-binar
 CURL_EXIT_CODE=$?
 
 # Check curl command exit status first
-if [ $CURL_EXIT_CODE -ne 0 ]; then
+if [ "$CURL_EXIT_CODE" -ne 0 ]; then
     logger -t "azure-log-shipper" "curl failed with exit code $CURL_EXIT_CODE"
     exit 1
 fi
