@@ -2,9 +2,9 @@ name: ShellCheck & Formatting
 
 on:
   push:
-    branches: [ main, develop, improvements/actionlist-2025-07 ]
+    branches: [ '*' ]
   pull_request:
-    branches: [ main, develop, improvements/actionlist-2025-07 ]
+    branches: [ '*' ]
 
 jobs:
   lint:
