@@ -19,6 +19,11 @@ GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
 BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
+# Debug mode can be enabled by:
+# 1. Setting DEBUG=1 environment variable
+# 2. Uncommenting the line below
+# DEBUG=1
+
 # Version and compatibility
 VERSION_URL="${BASE_URL}/VERSION"
 MIN_COMPATIBLE_VERSION="1.0.0"
@@ -62,6 +67,19 @@ debug_exec() {
         "$@" 2>/dev/null
     fi
 }
+
+# Early debug detection - show immediately if DEBUG is set
+if [ "${DEBUG:-0}" = "1" ]; then
+    echo ""
+    print_status "$BLUE" "==================== DEBUG MODE ENABLED ===================="
+    print_status "$BLUE" "DEBUG: Script starting with DEBUG=1"
+    print_status "$BLUE" "DEBUG: Environment variables:"
+    print_status "$BLUE" "DEBUG:   DEBUG=${DEBUG:-0}"
+    print_status "$BLUE" "DEBUG:   GITHUB_BRANCH=${GITHUB_BRANCH:-main}"
+    print_status "$BLUE" "DEBUG:   GITHUB_REPO=${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
+    print_status "$BLUE" "==========================================================="
+    echo ""
+fi
 
 # Function to show version information
 show_version() {
@@ -557,6 +575,16 @@ main() {
     echo ""
     print_status "$GREEN" "System will start monitoring automatically after configuration"
     echo ""
+    
+    # Show debug information if not in debug mode
+    if [ "${DEBUG:-0}" != "1" ]; then
+        print_status "$BLUE" "💡 Troubleshooting:"
+        print_status "$BLUE" "   For detailed debug output, run with DEBUG=1:"
+        print_status "$BLUE" "   DEBUG=1 GITHUB_BRANCH=\"$GITHUB_BRANCH\" \\"
+        print_status "$BLUE" "   curl -fL https://raw.githubusercontent.com/..../install.sh | sh -s --"
+        echo ""
+    fi
+    
     if [ "$GITHUB_BRANCH" != "main" ]; then
         print_status "$YELLOW" "⚠ Development Mode: Using branch '$GITHUB_BRANCH'"
         print_status "$YELLOW" "  This is a testing/development installation"
