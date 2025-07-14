@@ -581,119 +581,59 @@ DEBUG: System architecture: armv7l
 - 🔧 **Issue Resolution**: Debug problems with detailed command output
 - 🔧 **Troubleshooting Guide**: Built-in help for enabling debug mode
 
----
-**Branch**: `feature/testing-improvements`  
-**Started**: July 14, 2025
-
-### 🔧 Live RUTX50 Testing - Round 8 - **DEBUG MODE ISSUE IDENTIFIED**
+### 🔧 Architecture Detection Bug Fix - **CRITICAL**
 **Date**: July 14, 2025  
-**System**: RUTX50 running RUTOS  
-**Test Method**: Remote installation via curl with DEBUG=1
+**Issue**: Architecture detection logic was working but output was confusing
 
-#### Issue Found: DEBUG Mode Not Working with Pipe
-**Status**: 🔍 **DEBUGGING**
+#### Bug Found: Mixed Debug Output in Variable Assignment
+**Status**: 🔧 **FIXED**
 
-**Command Used**:
+**Original Problem**: 
 ```bash
-DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" \
-curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
-sh -s --
+arch=$(debug_exec uname -m)
 ```
 
-**Expected vs Actual**:
-- ❌ **Expected**: Version banner and detailed debug output
-- ❌ **Actual**: Normal installation output without debug information
+**Caused This Output**:
+```
+DEBUG: System architecture: DEBUG: Executing: uname -m
+armv7l
+Warning: This script is designed for ARMv7 (RUTX50)
+Your architecture: DEBUG: Executing: uname -m
+armv7l
+```
 
-**Root Cause Analysis**:
-- **Environment Variable Scope**: `DEBUG=1` is set for the `curl` command, not the `sh` process
-- **Pipe Execution**: Variables don't automatically pass through the pipe to the shell
-- **Script Download**: The script itself doesn't receive the DEBUG environment variable
+**Root Cause**: The `debug_exec` function prints debug output AND executes the command, but when used in variable assignment `arch=$(debug_exec uname -m)`, the debug output gets mixed with the command output.
 
-**Solutions Implemented**:
-1. **Early Debug Detection**: Added immediate debug banner when DEBUG=1 is detected
-2. **Enhanced Debug Output**: More prominent debug messages throughout execution
-3. **Alternative Testing Methods**: Download-first approach for reliable debug testing
-4. **Troubleshooting Guide**: Built-in help explaining how to enable debug mode
+**Logic Analysis**:
+- ✅ The comparison logic was actually **correct**: `if [ "$arch" != "armv7l" ]`
+- ✅ On RUTX50, `uname -m` returns `armv7l` 
+- ✅ Since `armv7l != armv7l` is false, the warning should **NOT** appear
+- ❌ **BUT**: The debug output was polluting the architecture detection
 
-**Fixed Color Issue**:
-- ✅ Changed BLUE color from dark blue (`\033[0;34m`) to cyan (`\033[0;36m`)
-- ✅ Better readability for debug messages
-
-**Testing Methods**:
+**Fixed Implementation**:
 ```bash
-# Method 1: Download first, then run with DEBUG
-curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh -o install.sh
-chmod +x install.sh
-DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" ./install.sh
+local arch
+if [ "${DEBUG:-0}" = "1" ]; then
+    debug_msg "Executing: uname -m"
+    arch=$(uname -m)
+    debug_msg "System architecture: $arch"
+else
+    arch=$(uname -m)
+fi
 
-# Method 2: Edit script to enable DEBUG mode
-# Download script and uncomment DEBUG=1 line in the script
+if [ "$arch" != "armv7l" ]; then
+    # Warning only for non-ARMv7 architectures
+    print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
+    print_status "$YELLOW" "Your architecture: $arch"
+    # ... continue with warning logic
+else
+    debug_msg "Architecture check passed: $arch matches expected armv7l"
+fi
 ```
 
-**Status**: 🔧 **DEBUG MODE ENHANCED** - Ready for re-testing with proper method
+**Expected Behavior After Fix**:
+- ✅ **On RUTX50** (armv7l): No warning, continues installation
+- ✅ **On other architectures**: Shows warning and prompts user
+- ✅ **Clean debug output**: No mixed command/debug output
 
-### ✅ Live RUTX50 Testing - Round 8b - **DEBUG MODE SUCCESS!**
-**Date**: July 14, 2025  
-**System**: RUTX50 running RUTOS  
-**Test Method**: Download-first approach with DEBUG=1
-
-#### DEBUG Mode Working Perfectly! 
-**Status**: ✅ **SUCCESS!**
-
-**Command Used**:
-```bash
-curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh -o install.sh
-chmod +x install.sh
-DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" ./install.sh
-```
-
-**Results**: 🎉 **DEBUG MODE FULLY FUNCTIONAL!**
-
-**What Worked**:
-- ✅ **Early Debug Detection**: Shows "DEBUG MODE ENABLED" banner immediately
-- ✅ **Environment Variables**: Displays all debug-related environment variables
-- ✅ **Version Information**: Shows script version, branch, and repository
-- ✅ **Remote Version Check**: Fetches and compares remote vs local versions
-- ✅ **Command Tracking**: All commands shown with `debug_exec()` function
-- ✅ **System Information**: Displays architecture and system details
-- ✅ **Color Fix**: Cyan color much more readable than dark blue
-
-**Debug Output Confirmed**:
-```
-==================== DEBUG MODE ENABLED ====================
-DEBUG: Script starting with DEBUG=1
-DEBUG: Environment variables:
-DEBUG:   DEBUG=1
-DEBUG:   GITHUB_BRANCH=feature/testing-improvements
-DEBUG:   GITHUB_REPO=markus-lassfolk/rutos-starlink-failover
-===========================================================
-
-===========================================
-Starlink Monitor Installation Script
-Script: install.sh
-Version: 1.0.0
-Branch: feature/testing-improvements
-Repository: markus-lassfolk/rutos-starlink-failover
-===========================================
-
-DEBUG: Remote version detected: 1.0.0
-DEBUG: System architecture: armv7l
-DEBUG: Executing: uname -m
-```
-
-**Key Insights**:
-- **Environment Variable Scope**: Download-first method ensures DEBUG=1 is properly passed to the shell
-- **Version Detection**: Remote version check working correctly
-- **Architecture Detection**: System properly identifies ARMv7 (RUTX50)
-- **User Experience**: Clear debug output makes troubleshooting much easier
-
-**Architecture Warning**: The script correctly shows an architecture warning for ARMv7, which is expected behavior for RUTX50.
-
-**Status**: 🚀 **DEBUG MODE FULLY OPERATIONAL!**
-
-**User Response**: User answered "n" to architecture warning, which is expected behavior for testing.
-
-**Next Steps**: 
-1. Continue with installation by answering "y" to architecture warning
-2. Test full installation with DEBUG mode active
-3. Verify all enhanced debug features work during complete installation
+**Status**: 🚀 **ARCHITECTURE DETECTION FIXED**

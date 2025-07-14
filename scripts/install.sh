@@ -169,8 +169,13 @@ check_system() {
     print_status "$BLUE" "Checking system compatibility..."
 
     local arch
-    arch=$(debug_exec uname -m)
-    debug_msg "System architecture: $arch"
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "Executing: uname -m"
+        arch=$(uname -m)
+        debug_msg "System architecture: $arch"
+    else
+        arch=$(uname -m)
+    fi
     
     if [ "$arch" != "armv7l" ]; then
         print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
@@ -181,6 +186,8 @@ check_system() {
         if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
             exit 1
         fi
+    else
+        debug_msg "Architecture check passed: $arch matches expected armv7l"
     fi
 
     # Check OpenWrt/RUTOS
