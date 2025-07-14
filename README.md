@@ -1,6 +1,6 @@
 # 🚀 Starlink & Victron Integration Suite
 
-[![Shell Script Quality](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/shell-check.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/shell-check.yml)
+[![Shell Script Quality](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/shellcheck-format.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/shellcheck-format.yml)
 [![Documentation Check](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml)
 [![Security Scan](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/security-scan.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/security-scan.yml)
 
