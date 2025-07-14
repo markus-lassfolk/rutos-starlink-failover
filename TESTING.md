@@ -649,3 +649,68 @@ DEBUG: Architecture check passed: armv7l matches expected armv7l
 4. Test the system manually
 
 **All Systems Go**: Ready for production deployment! 🎯
+
+### ✅ Live RUTX50 Testing - Round 10 - **CONFIGURATION VALIDATION TESTING**
+**Date**: July 14, 2025  
+**System**: RUTX50 running RUTOS  
+**Test Method**: Testing validate-config.sh script after successful installation
+
+#### Configuration Validation Issues Found
+**Status**: 🔧 **VALIDATION LOGIC NEEDS FIXING**
+
+**Command Used**:
+```bash
+/root/starlink-monitor/scripts/validate-config.sh
+```
+
+**Issues Identified**:
+
+1. **Numeric Validation Logic Error**:
+   ```
+   ✗ Invalid numeric value for PACKET_LOSS_THRESHOLD: 0.05
+   ✗ Invalid numeric value for OBSTRUCTION_THRESHOLD: 0.001
+   ```
+   - Values like `0.05` and `0.001` are valid decimals but failing validation
+   - Validation logic appears to be too restrictive for decimal values
+
+2. **Boolean Validation Logic Error**:
+   ```
+   ✗ Invalid boolean value for NOTIFY_ON_CRITICAL: 1 # Always notify on critical errors (should be 0 or 1)
+   ✗ Invalid boolean value for NOTIFY_ON_SOFT_FAIL: 1 # Notify on soft failover events (should be 0 or 1)
+   ```
+   - Value `1` is valid boolean but failing validation
+   - Validation logic incorrectly parsing comments as part of the value
+
+3. **Template File Missing**:
+   ```
+   Warning: Could not find template file for comparison
+   ```
+   - Template comparison feature not working due to missing template file path
+
+**What's Working**:
+- ✅ **Script Execution**: validate-config.sh runs successfully
+- ✅ **Configuration Loading**: Loads config.sh from correct location
+- ✅ **Version Information**: Shows version and compatibility info
+- ✅ **Binary Checks**: All required binaries found
+- ✅ **Directory Checks**: All directories accessible
+- ✅ **Network Tests**: Starlink API test successful
+- ✅ **UCI Checks**: mwan3 and network interface checks pass
+
+**Root Cause Analysis**:
+- **Numeric Validation**: Regex pattern likely not handling decimal numbers correctly
+- **Boolean Validation**: Comment parsing interfering with value extraction
+- **Template Path**: Script not finding template file for comparison
+
+**Priority Fixes Needed**:
+1. Fix numeric validation to accept decimal values (0.05, 0.001)
+2. Fix boolean validation to ignore inline comments
+3. Fix template file path detection
+4. Improve error reporting to show actual vs expected values
+
+**Status**: 🔧 **VALIDATION SCRIPT NEEDS LOGIC FIXES**
+
+**Next Actions**:
+1. Fix validation logic in validate-config.sh
+2. Test with various configuration values
+3. Ensure template comparison works correctly
+4. Re-test validation after fixes

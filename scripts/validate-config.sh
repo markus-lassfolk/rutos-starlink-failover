@@ -216,8 +216,14 @@ check_config_completeness() {
         template_file="$config_dir/../config/config.template.sh"
     elif [ -f "$config_dir/../config/config.advanced.template.sh" ]; then
         template_file="$config_dir/../config/config.advanced.template.sh"
+    # Look in installation directory structure
+    elif [ -f "/root/starlink-monitor/config/config.template.sh" ]; then
+        template_file="/root/starlink-monitor/config/config.template.sh"
+    elif [ -f "/root/starlink-monitor/config/config.advanced.template.sh" ]; then
+        template_file="/root/starlink-monitor/config/config.advanced.template.sh"
     else
         printf "%b\n" "${YELLOW}Warning: Could not find template file for comparison${NC}"
+        printf "%b\n" "${YELLOW}Searched in: $config_dir/, $config_dir/../config/, /root/starlink-monitor/config/${NC}"
         return 0
     fi
     
@@ -340,11 +346,11 @@ validate_config_values() {
     
     local validation_errors=0
     
-    # Validate numeric thresholds
+    # Validate numeric thresholds (including decimal values)
     local numeric_vars="PACKET_LOSS_THRESHOLD OBSTRUCTION_THRESHOLD LATENCY_THRESHOLD CHECK_INTERVAL API_TIMEOUT"
     for var in $numeric_vars; do
-        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-        if [ -n "$value" ] && ! echo "$value" | grep -E '^[0-9]+$' >/dev/null; then
+        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
+        if [ -n "$value" ] && ! echo "$value" | grep -E '^[0-9]+(\.[0-9]+)?$' >/dev/null; then
             printf "%b\n" "${RED}✗ Invalid numeric value for $var: $value${NC}"
             validation_errors=$((validation_errors + 1))
         fi
@@ -353,7 +359,7 @@ validate_config_values() {
     # Validate boolean values (0 or 1)
     local boolean_vars="NOTIFY_ON_CRITICAL NOTIFY_ON_SOFT_FAIL NOTIFY_ON_HARD_FAIL NOTIFY_ON_RECOVERY NOTIFY_ON_INFO"
     for var in $boolean_vars; do
-        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
         if [ -n "$value" ] && [ "$value" != "0" ] && [ "$value" != "1" ]; then
             printf "%b\n" "${RED}✗ Invalid boolean value for $var: $value (should be 0 or 1)${NC}"
             validation_errors=$((validation_errors + 1))
@@ -363,7 +369,7 @@ validate_config_values() {
     # Validate IP addresses
     local ip_vars="STARLINK_IP RUTOS_IP"
     for var in $ip_vars; do
-        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
         if [ -n "$value" ] && [ "$value" != "YOUR_IP_HERE" ]; then
             # Extract IP part (remove port if present)
             local ip_part=$(echo "$value" | cut -d':' -f1)
@@ -377,7 +383,7 @@ validate_config_values() {
     # Validate file paths exist
     local path_vars="LOG_DIR STATE_DIR DATA_DIR"
     for var in $path_vars; do
-        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
         if [ -n "$value" ] && [ ! -d "$value" ]; then
             printf "%b\n" "${YELLOW}⚠ Directory does not exist for $var: $value${NC}"
             printf "%b\n" "${YELLOW}  (Will be created automatically)${NC}"
