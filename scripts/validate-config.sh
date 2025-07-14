@@ -229,7 +229,7 @@ test_starlink_api() {
 
 # Extract variable names from template
 extract_template_variables() {
-    local template_file="$1"
+    template_file="$1"
     if [ ! -f "$template_file" ]; then
         return 1
     fi
@@ -240,7 +240,7 @@ extract_template_variables() {
 
 # Get current config variables
 extract_config_variables() {
-    local config_file="$1"
+    config_file="$1"
     if [ ! -f "$config_file" ]; then
         return 1
     fi
@@ -476,9 +476,9 @@ validate_config_values() {
 
 # Template migration function
 migrate_config_to_template() {
-    local template_file="$1"
-    local backup_suffix="backup.$(date +%Y%m%d_%H%M%S)"
-    local config_backup="${CONFIG_FILE}.${backup_suffix}"
+    template_file="$1"
+    backup_suffix="backup.$(date +%Y%m%d_%H%M%S)"
+    config_backup="${CONFIG_FILE}.${backup_suffix}"
     
     printf "%b\n" "${YELLOW}🔄 Migrating configuration to updated template...${NC}"
     printf "%b\n" "${BLUE}Template: $template_file${NC}"
@@ -498,7 +498,7 @@ migrate_config_to_template() {
     # Extract variable assignments, strip comments and quotes
     grep -E '^[A-Z_]+=.*' "$CONFIG_FILE" | while IFS='=' read -r var rest; do
         # Clean the value: remove quotes, strip inline comments
-        value=$(echo "$rest" | sed 's/[[:space:]]*#.*$//' | sed 's/^["\'"'"']//;s/["\'"'"']$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        value=$(echo "$rest" | sed 's/[[:space:]]*#.*$//' | sed 's/^["'"'"']//;s/["'"'"']$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         echo "$var=$value"
     done > "$temp_values"
     
@@ -606,7 +606,7 @@ main() {
         printf "%b\n" "${YELLOW}Force migration mode enabled${NC}"
         if check_outdated_template; then
             # Find template file
-            local template_file="$(dirname "$CONFIG_FILE")/../config/config.template.sh"
+            template_file="$(dirname "$CONFIG_FILE")/../config/config.template.sh"
             if [ ! -f "$template_file" ]; then
                 template_file="./config/config.template.sh"
             fi
@@ -624,7 +624,7 @@ main() {
     fi
     
     # Enhanced configuration validation
-    local config_issues=0
+    config_issues=0
     
     # Check configuration completeness against template
     if ! check_config_completeness; then

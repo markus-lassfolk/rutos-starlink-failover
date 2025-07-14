@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/bin/sh
+# shellcheck disable=SC2034  # Variables are used when sourced by other scripts
 
 # ==============================================================================
-# Advanced Configuration Template for Starlink RUTOS Failover
-# Based on real-world RUTX50 production configuration analysis
-#
-# This template includes settings derived from actual deployment configurations
-# Copy this file to config.sh and customize the values for your setup.
+# STARLINK MONITOR ADVANCED CONFIGURATION TEMPLATE
+# ==============================================================================
+# This is an advanced template file for the Starlink monitoring system.
+# Copy this file to config.sh and edit the values below.
 #
 # Template Version: 1.0.0
 # Compatible with install.sh: 1.0.0

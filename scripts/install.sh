@@ -26,6 +26,7 @@ BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
 # Version and compatibility
 VERSION_URL="${BASE_URL}/VERSION"
+# shellcheck disable=SC2034  # Used for compatibility checks in future
 MIN_COMPATIBLE_VERSION="1.0.0" # Used for compatibility checks in future
 
 # Colors for output
@@ -36,10 +37,11 @@ BLUE="\033[0;36m"  # Changed to cyan for better readability
 NC="\033[0m" # No Color
 
 # Installation configuration
+# shellcheck disable=SC2034  # Variables are used throughout the script
 INSTALL_DIR="/root/starlink-monitor"
 HOTPLUG_DIR="/etc/hotplug.d/iface"
 CRON_FILE="/etc/crontabs/root" # Used throughout script
-}
+
 # Binary URLs for ARMv7 (RUTX50)
 GRPCURL_URL="https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz"
 JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
@@ -389,6 +391,7 @@ install_binaries() {
 }
 
 # Configure cron jobs
+configure_cron() {
     print_status "$BLUE" "Configuring cron jobs..."
     if [ -f "$CRON_FILE" ]; then
         backup_file="$CRON_FILE.backup.$(date +%Y%m%d_%H%M%S)"
@@ -435,7 +438,7 @@ EOF
 
     print_status "$GREEN" "✓ Cron jobs configured"
     print_status "$BLUE" "ℹ Previous crontab backed up before modification"
-    print_status "$YELLOW" "ℹ To restore commented entries: sed -i 's/^# COMMENTED BY INSTALL SCRIPT [0-9-]*: //' $CRON_FILE"
+    print_status "$YELLOW" "ℹ To restore commented entries: sed -i 's/^# COMMENTED BY INSTALL SCRIPT [0-9-]*: //' \"$CRON_FILE\""
 }
 
 # Create uninstall script

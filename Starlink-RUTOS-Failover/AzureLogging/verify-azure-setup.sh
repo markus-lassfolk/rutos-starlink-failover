@@ -569,12 +569,12 @@ run_verification() {
     # Calculate success rate
     local success_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))
 
-    if [ $FAILED_TESTS -eq 0 ]; then
+    if [ "$FAILED_TESTS" -eq 0 ]; then
         echo -e "${GREEN}✓ All critical tests passed!${NC}"
-        if [ $WARNING_TESTS -gt 0 ]; then
+        if [ "$WARNING_TESTS" -gt 0 ]; then
             echo -e "${YELLOW}⚠ Some optional features have warnings${NC}"
         fi
-    elif [ $success_rate -ge 80 ]; then
+    elif [ "$success_rate" -ge 80 ]; then
         echo -e "${YELLOW}⚠ Setup is mostly working but has some issues${NC}"
     else
         echo -e "${RED}✗ Setup has significant problems that need to be addressed${NC}"
@@ -613,7 +613,7 @@ run_verification() {
     fi
 
     # Final recommendation
-    if [ $FAILED_TESTS -eq 0 ]; then
+    if [ "$FAILED_TESTS" -eq 0 ]; then
         echo -e "${GREEN}🎉 Your Azure logging setup is working correctly!${NC}"
         echo "You can now monitor your logs in Azure storage."
     else
