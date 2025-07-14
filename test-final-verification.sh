@@ -13,19 +13,19 @@ test_comparison_logic() {
     local packet_loss="$3"
     local obstruction="$4"
     local expected="$5"
-    
+
     echo
     echo "Testing: $test_name"
     echo "Values: Latency=${latency}ms, PacketLoss=${packet_loss}, Obstruction=${obstruction}"
-    
+
     # Use the exact same thresholds as the deployment script
     LATENCY_THRESHOLD_MS="150"
     PACKET_LOSS_THRESHOLD="0.05"
-    
+
     # Test the exact logic from the deployment script
     quality_good=true
     issues=()
-    
+
     # Exact comparison logic from deploy script:
     # if [ "$(echo "$latency > $LATENCY_THRESHOLD_MS" | bc 2>/dev/null || echo 0)" -eq 1 ]; then
     latency_check=$(echo "$latency > $LATENCY_THRESHOLD_MS" | bc 2>/dev/null || echo 0)
@@ -33,25 +33,25 @@ test_comparison_logic() {
         quality_good=false
         issues+=("High latency ($latency ms > $LATENCY_THRESHOLD_MS ms)")
     fi
-    
+
     # if [ "$(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc 2>/dev/null || echo 0)" -eq 1 ]; then
     packet_loss_check=$(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc 2>/dev/null || echo 0)
     if [ "$packet_loss_check" -eq 1 ]; then
         quality_good=false
         issues+=("High packet loss ($packet_loss > $PACKET_LOSS_THRESHOLD)")
     fi
-    
+
     # if [ "$obstruction" = "true" ]; then
     if [ "$obstruction" = "true" ]; then
         quality_good=false
         issues+=("Dish obstructed")
     fi
-    
+
     # Show intermediate results
     echo "  Latency check: $latency > $LATENCY_THRESHOLD_MS = $latency_check"
     echo "  Packet loss check: $packet_loss > $PACKET_LOSS_THRESHOLD = $packet_loss_check"
     echo "  Obstruction check: $obstruction"
-    
+
     # Determine result
     if [ "$quality_good" = "true" ]; then
         result="good"
@@ -63,7 +63,7 @@ test_comparison_logic() {
             echo "    - $issue"
         done
     fi
-    
+
     # Check expectation
     if [ "$result" = "$expected" ]; then
         echo "  ✓ PASS: Expected $expected, got $result"
@@ -77,9 +77,9 @@ test_comparison_logic() {
 # Check if bc is available
 if ! command -v bc >/dev/null 2>&1; then
     echo "⚠ bc not available, installing or using awk fallback"
-    
+
     # Create bc fallback using awk
-    cat > bc_fallback << 'EOF'
+    cat >bc_fallback <<'EOF'
 #!/bin/bash
 # bc fallback using awk
 awk "BEGIN {print ($*)}"
@@ -177,20 +177,20 @@ fi
 echo "Testing improved IP validation..."
 validate_ip_test() {
     local ip="$1"
-    
+
     # Check basic format
     if [[ ! $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
         return 1
     fi
-    
+
     # Check each octet is <= 255
-    IFS='.' read -ra ADDR <<< "$ip"
+    IFS='.' read -ra ADDR <<<"$ip"
     for i in "${ADDR[@]}"; do
         if [[ $i -gt 255 ]]; then
             return 1
         fi
     done
-    
+
     return 0
 }
 
@@ -241,7 +241,7 @@ fi
 # Test configuration file generation
 echo "Testing configuration file generation..."
 TEMP_CONFIG="/tmp/test_config_$$"
-cat > "$TEMP_CONFIG" << 'EOF'
+cat >"$TEMP_CONFIG" <<'EOF'
 #!/bin/bash
 STARLINK_IP="192.168.100.1"
 LATENCY_THRESHOLD_MS="150"

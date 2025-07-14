@@ -12,7 +12,7 @@ mkdir -p "$TEST_DIR"
 cd "$TEST_DIR"
 
 # Create configuration
-cat > config.sh << 'EOF'
+cat >config.sh <<'EOF'
 STARLINK_IP="192.168.100.1:9200"
 LATENCY_THRESHOLD_MS="150"
 PACKET_LOSS_THRESHOLD="0.05"
@@ -28,36 +28,36 @@ test_scenario() {
     local packet_loss="$3"
     local obstruction="$4"
     local expected_result="$5"
-    
+
     echo
     echo "--- Testing Scenario: $scenario_name ---"
     echo "Latency: ${latency}ms, Packet Loss: $packet_loss, Obstruction: $obstruction"
-    
+
     # Load config
     source config.sh
-    
+
     # Evaluate quality
     quality_good=true
     issues=()
-    
+
     # Check latency
-    if (( $(echo "$latency > $LATENCY_THRESHOLD_MS" | bc -l) )); then
+    if (($(echo "$latency > $LATENCY_THRESHOLD_MS" | bc -l))); then
         quality_good=false
         issues+=("High latency (${latency}ms > ${LATENCY_THRESHOLD_MS}ms)")
     fi
-    
+
     # Check packet loss
-    if (( $(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc -l) )); then
+    if (($(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc -l))); then
         quality_good=false
         issues+=("High packet loss ($packet_loss > $PACKET_LOSS_THRESHOLD)")
     fi
-    
+
     # Check obstruction
     if [ "$obstruction" = "true" ]; then
         quality_good=false
         issues+=("Dish obstructed")
     fi
-    
+
     # Display results
     if [ "$quality_good" = "true" ]; then
         echo "✓ Quality: GOOD - Connection should remain active"
@@ -69,7 +69,7 @@ test_scenario() {
         done
         result="bad"
     fi
-    
+
     # Check if result matches expectation
     if [ "$result" = "$expected_result" ]; then
         echo "✓ Scenario result matches expectation"
@@ -86,7 +86,7 @@ echo "Setting up test environment..."
 # Create mock bc if not available
 if ! command -v bc >/dev/null 2>&1; then
     echo "Creating mock bc calculator..."
-    cat > ./bc << 'EOF'
+    cat >./bc <<'EOF'
 #!/bin/bash
 # Mock bc that handles our test cases
 case "$*" in
@@ -185,28 +185,28 @@ STABILITY_FILE="/tmp/run/starlink_monitor.stability"
 
 # Test state transitions
 echo "Testing failover state transition..."
-echo "up" > "$STATE_FILE"
-echo "0" > "$STABILITY_FILE"
+echo "up" >"$STATE_FILE"
+echo "0" >"$STABILITY_FILE"
 
 # Simulate quality degradation
 echo "✓ Initial state: up, stability: 0"
 echo "✓ Simulating quality degradation -> should transition to down"
 
 # New state after degradation
-echo "down" > "$STATE_FILE"
-echo "0" > "$STABILITY_FILE"
+echo "down" >"$STATE_FILE"
+echo "0" >"$STABILITY_FILE"
 echo "✓ State after failover: down, stability: 0"
 
 # Test failback with stability checking
 echo "Testing failback with stability checking..."
 for i in {1..5}; do
     echo "✓ Stability check $i/5"
-    echo "$i" > "$STABILITY_FILE"
+    echo "$i" >"$STABILITY_FILE"
 done
 
 echo "✓ Stability checks complete -> should transition back to up"
-echo "up" > "$STATE_FILE"
-echo "0" > "$STABILITY_FILE"
+echo "up" >"$STATE_FILE"
+echo "0" >"$STABILITY_FILE"
 
 echo "✓ State machine logic tests completed"
 
@@ -216,10 +216,10 @@ echo "=== Testing Cron Schedule Validation ==="
 
 # Test cron expressions
 cron_expressions=(
-    "* * * * *"      # Every minute
-    "*/5 * * * *"    # Every 5 minutes  
-    "30 5 * * *"     # Daily at 5:30 AM
-    "0 */6 * * *"    # Every 6 hours
+    "* * * * *"   # Every minute
+    "*/5 * * * *" # Every 5 minutes
+    "30 5 * * *"  # Daily at 5:30 AM
+    "0 */6 * * *" # Every 6 hours
 )
 
 for expr in "${cron_expressions[@]}"; do
@@ -243,10 +243,10 @@ echo "=== Testing File Permissions ==="
 test_scripts=("starlink_monitor.sh" "starlink_logger.sh" "verify-setup.sh")
 
 for script in "${test_scripts[@]}"; do
-    echo "#!/bin/bash" > "$script"
-    echo "echo 'Test script'" >> "$script"
+    echo "#!/bin/bash" >"$script"
+    echo "echo 'Test script'" >>"$script"
     chmod +x "$script"
-    
+
     if [ -x "$script" ]; then
         echo "✓ Script executable: $script"
     else
@@ -259,7 +259,7 @@ done
 echo
 echo "=== Testing Configuration Generation ==="
 
-cat > test_config.sh << 'EOF'
+cat >test_config.sh <<'EOF'
 #!/bin/bash
 # Test configuration
 STARLINK_IP="192.168.100.1"
@@ -271,7 +271,7 @@ EOF
 
 if bash -n test_config.sh; then
     echo "✓ Configuration file syntax valid"
-    
+
     if source test_config.sh; then
         echo "✓ Configuration file sources correctly"
         echo "✓ Test value: STARLINK_IP=$STARLINK_IP"
@@ -298,7 +298,7 @@ if [ "$scenarios_failed" -eq 0 ]; then
     echo "🎉 ALL TESTS PASSED! 🎉"
     echo
     echo "✅ Quality evaluation logic works correctly"
-    echo "✅ State machine transitions function properly"  
+    echo "✅ State machine transitions function properly"
     echo "✅ Threshold comparisons are accurate"
     echo "✅ Configuration generation is valid"
     echo "✅ File permissions are set correctly"

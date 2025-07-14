@@ -12,7 +12,7 @@ cd "$TEST_DIR"
 echo "=== Testing Starlink Monitor Logic ==="
 
 # Create a mock configuration
-cat > config.sh << 'EOF'
+cat >config.sh <<'EOF'
 #!/bin/bash
 STARLINK_IP="192.168.100.1:9200"
 MWAN_IFACE="wan"
@@ -29,7 +29,7 @@ EOF
 mkdir -p /tmp/run
 
 # Create a test monitoring script with mock data
-cat > test_monitor.sh << 'EOF'
+cat >test_monitor.sh <<'EOF'
 #!/bin/bash
 set -euo pipefail
 
@@ -220,7 +220,7 @@ echo
 echo "=== Testing Performance Logger Logic ==="
 
 # Test the performance logger
-cat > test_logger.sh << 'EOF'
+cat >test_logger.sh <<'EOF'
 #!/bin/bash
 set -euo pipefail
 
@@ -283,7 +283,7 @@ echo
 echo "=== Testing Azure Log Shipper Logic ==="
 
 # Test the Azure log shipper logic
-cat > test_azure.sh << 'EOF'
+cat >test_azure.sh <<'EOF'
 #!/bin/bash
 set -euo pipefail
 
