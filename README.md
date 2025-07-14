@@ -96,7 +96,7 @@ nano /root/starlink-monitor/config/config.sh
 
 ### 1. Basic Configuration
 
-Edit `/root/starlink-monitor/config/config.sh`:
+For standard setups, edit `/root/starlink-monitor/config/config.sh`:
 
 ```bash
 # Network settings
@@ -113,6 +113,29 @@ PACKET_LOSS_THRESHOLD=0.05    # 5%
 OBSTRUCTION_THRESHOLD=0.001   # 0.1%
 LATENCY_THRESHOLD_MS=150      # 150ms
 ```
+
+### 1.1 Advanced Configuration (RUTX50 Production)
+
+For RUTX50 routers with dual SIM and GPS, use the advanced template:
+
+```bash
+# Use advanced configuration template
+cp config/config.advanced.template.sh config/config.sh
+nano config/config.sh
+
+# Run UCI optimizer for your existing setup
+scripts/uci-optimizer.sh analyze           # Analyze current config
+scripts/uci-optimizer.sh optimize          # Apply optimizations
+```
+
+**Advanced features include:**
+- **GPS-enhanced failover** with movement detection
+- **Dual SIM integration** with automatic switching
+- **MQTT logging** for integration with existing systems
+- **Intelligent reboot scheduling** based on system health
+- **Enhanced cellular optimization** for mobile environments
+
+📖 **See [RUTX50 Production Guide](docs/RUTX50-PRODUCTION-GUIDE.md) for detailed setup**
 
 ### 2. mwan3 Configuration
 
@@ -230,10 +253,22 @@ cat /root/starlink_performance_log.csv
 
 ### Project Structure
 ```
-├── .github/workflows/     # CI/CD workflows
-├── config/               # Configuration templates
-├── scripts/              # Installation and utility scripts
-└── Starlink-RUTOS-Failover/  # Failover system
+├── .github/workflows/          # CI/CD workflows
+├── config/                     # Configuration templates
+│   ├── config.template.sh      # Basic configuration template
+│   └── config.advanced.template.sh  # Advanced RUTX50 template
+├── scripts/                    # Installation and utility scripts
+│   ├── install.sh             # Automated installation
+│   ├── validate-config.sh     # Configuration validation
+│   └── uci-optimizer.sh       # UCI configuration optimizer
+├── docs/                       # Documentation
+│   ├── RUTX50-PRODUCTION-GUIDE.md  # RUTX50 specific guide
+│   ├── TROUBLESHOOTING.md      # Troubleshooting guide
+│   └── API_REFERENCE.md        # API documentation
+└── Starlink-RUTOS-Failover/    # Failover system
+    ├── starlink_monitor.sh     # Main monitoring script
+    ├── 99-pushover_notify      # Notification system
+    └── AzureLogging/           # Azure integration
 ```
 
 ### Key Scripts
