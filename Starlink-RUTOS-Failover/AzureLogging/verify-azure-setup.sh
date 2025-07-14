@@ -5,7 +5,7 @@
 
 # ===========================================================================================
 # Azure Logging Verification Script
-# 
+#
 # This script verifies that all components of the Azure logging solution are working:
 # - Dependencies are installed correctly
 # - RUTOS persistent logging is configured
@@ -82,11 +82,11 @@ add_suggestion() {
 # --- DEPENDENCY TESTS ---
 test_dependencies() {
     log_test "Checking required dependencies..."
-    
+
     # Check essential commands
     local deps=("curl" "jq" "timeout" "bc" "crontab")
     local missing_deps=()
-    
+
     for dep in "${deps[@]}"; do
         if command -v "$dep" >/dev/null 2>&1; then
             log_pass "$dep is available"
@@ -95,7 +95,7 @@ test_dependencies() {
             missing_deps+=("$dep")
         fi
     done
-    
+
     # Check grpcurl
     if [ -f "/root/grpcurl" ] && [ -x "/root/grpcurl" ]; then
         local grpcurl_version
@@ -105,7 +105,7 @@ test_dependencies() {
         log_fail "grpcurl is not installed or not executable"
         add_suggestion "Install grpcurl: curl -L https://github.com/fullstorydev/grpcurl/releases/download/v1.9.1/grpcurl_1.9.1_linux_arm.tar.gz | tar -xz && mv grpcurl /root/ && chmod +x /root/grpcurl"
     fi
-    
+
     # Check jq binary
     if [ -f "/root/jq" ] && [ -x "/root/jq" ]; then
         local jq_version
@@ -120,7 +120,7 @@ test_dependencies() {
             add_suggestion "Install jq binary: curl -L https://github.com/jqlang/jq/releases/download/jq-1.7/jq-linux-arm -o /root/jq && chmod +x /root/jq"
         fi
     fi
-    
+
     if [ ${#missing_deps[@]} -gt 0 ]; then
         add_suggestion "Install missing packages: opkg update && opkg install ${missing_deps[*]}"
     fi
@@ -129,7 +129,7 @@ test_dependencies() {
 # --- LOGGING CONFIGURATION TESTS ---
 test_logging_config() {
     log_test "Checking RUTOS logging configuration..."
-    
+
     # Check log type
     local log_type
     log_type=$(uci get system.@system[0].log_type 2>/dev/null || echo "")
@@ -139,7 +139,7 @@ test_logging_config() {
         log_fail "Logging type is '$log_type', should be 'file'"
         add_suggestion "Fix logging type: uci set system.@system[0].log_type='file' && uci commit system"
     fi
-    
+
     # Check log size
     local log_size
     log_size=$(uci get system.@system[0].log_size 2>/dev/null || echo "0")
@@ -149,7 +149,7 @@ test_logging_config() {
         log_fail "Log size is ${log_size}KB, should be ≥5120KB"
         add_suggestion "Fix log size: uci set system.@system[0].log_size='5120' && uci commit system"
     fi
-    
+
     # Check log file
     local log_file
     log_file=$(uci get system.@system[0].log_file 2>/dev/null || echo "")
@@ -159,17 +159,17 @@ test_logging_config() {
         log_fail "Log file is '$log_file', should be '/overlay/messages'"
         add_suggestion "Fix log file: uci set system.@system[0].log_file='/overlay/messages' && uci commit system"
     fi
-    
+
     # Check if log file exists and is writable
     if [ -f "/overlay/messages" ]; then
         log_pass "Log file /overlay/messages exists"
-        
+
         if [ -w "/overlay/messages" ]; then
             log_pass "Log file is writable"
-            
+
             # Test writing to log file
             local test_message="Azure logging verification test: $(date)"
-            if echo "$test_message" >> /overlay/messages 2>/dev/null; then
+            if echo "$test_message" >>/overlay/messages 2>/dev/null; then
                 log_pass "Successfully wrote test message to log file"
             else
                 log_fail "Cannot write to log file"
@@ -186,15 +186,15 @@ test_logging_config() {
 # --- UCI CONFIGURATION TESTS ---
 test_uci_config() {
     log_test "Checking UCI Azure configuration..."
-    
+
     # Check if Azure UCI section exists
     if uci show azure >/dev/null 2>&1; then
         log_pass "Azure UCI configuration section exists"
-        
+
         # Check system config
         local system_endpoint=$(uci get azure.system.endpoint 2>/dev/null || echo "")
         local system_enabled=$(uci get azure.system.enabled 2>/dev/null || echo "0")
-        
+
         if [ -n "$system_endpoint" ]; then
             log_pass "System logging endpoint is configured"
             log_info "Endpoint: $system_endpoint"
@@ -202,18 +202,18 @@ test_uci_config() {
             log_fail "System logging endpoint is not configured"
             add_suggestion "Set Azure endpoint: uci set azure.system.endpoint='YOUR_AZURE_FUNCTION_URL' && uci commit azure"
         fi
-        
+
         if [ "$system_enabled" = "1" ]; then
             log_pass "System logging is enabled"
         else
             log_warn "System logging is disabled"
         fi
-        
+
         # Check Starlink config
         local starlink_enabled=$(uci get azure.starlink.enabled 2>/dev/null || echo "0")
         if [ "$starlink_enabled" = "1" ]; then
             log_pass "Starlink monitoring is enabled"
-            
+
             local starlink_endpoint=$(uci get azure.starlink.endpoint 2>/dev/null || echo "")
             if [ -n "$starlink_endpoint" ]; then
                 log_pass "Starlink monitoring endpoint is configured"
@@ -223,12 +223,12 @@ test_uci_config() {
         else
             log_info "Starlink monitoring is disabled (optional)"
         fi
-        
+
         # Check GPS config
         local gps_enabled=$(uci get azure.gps.enabled 2>/dev/null || echo "0")
         if [ "$gps_enabled" = "1" ]; then
             log_pass "GPS integration is enabled"
-            
+
             local rutos_ip=$(uci get azure.gps.rutos_ip 2>/dev/null || echo "")
             if [ -n "$rutos_ip" ]; then
                 log_pass "RUTOS IP is configured: $rutos_ip"
@@ -238,7 +238,7 @@ test_uci_config() {
         else
             log_info "GPS integration is disabled (optional)"
         fi
-        
+
     else
         log_fail "Azure UCI configuration section does not exist"
         add_suggestion "Create Azure UCI config and run setup script again"
@@ -248,14 +248,14 @@ test_uci_config() {
 # --- SCRIPT INSTALLATION TESTS ---
 test_scripts() {
     log_test "Checking installed scripts..."
-    
+
     local scripts=(
         "/usr/bin/log-shipper.sh"
         "/usr/bin/starlink-azure-monitor.sh"
         "/usr/bin/setup-persistent-logging.sh"
         "/usr/bin/test-azure-logging.sh"
     )
-    
+
     for script in "${scripts[@]}"; do
         if [ -f "$script" ]; then
             if [ -x "$script" ]; then
@@ -273,10 +273,10 @@ test_scripts() {
 # --- CRON JOB TESTS ---
 test_cron_jobs() {
     log_test "Checking cron job configuration..."
-    
+
     if crontab -l >/dev/null 2>&1; then
         local cron_content=$(crontab -l 2>/dev/null)
-        
+
         # Check for system log shipping
         if echo "$cron_content" | grep -q "log-shipper.sh"; then
             log_pass "System log shipping cron job is configured"
@@ -286,7 +286,7 @@ test_cron_jobs() {
             log_fail "System log shipping cron job is missing"
             add_suggestion "Add log shipping cron job: (crontab -l; echo '*/5 * * * * /usr/bin/log-shipper.sh') | crontab -"
         fi
-        
+
         # Check for Starlink monitoring
         if echo "$cron_content" | grep -q "starlink-azure-monitor.sh"; then
             log_pass "Starlink monitoring cron job is configured"
@@ -295,7 +295,7 @@ test_cron_jobs() {
         else
             log_info "Starlink monitoring cron job is not configured (optional)"
         fi
-        
+
         # Check if cron service is running
         if pgrep -f "crond\|cron" >/dev/null 2>&1; then
             log_pass "Cron service is running"
@@ -303,7 +303,7 @@ test_cron_jobs() {
             log_fail "Cron service is not running"
             add_suggestion "Start cron service: /etc/init.d/cron start && /etc/init.d/cron enable"
         fi
-        
+
     else
         log_fail "No crontab is configured"
         add_suggestion "Configure crontab and run setup script again"
@@ -313,7 +313,7 @@ test_cron_jobs() {
 # --- NETWORK CONNECTIVITY TESTS ---
 test_network() {
     log_test "Checking network connectivity..."
-    
+
     # Test internet connectivity
     if curl -s --max-time 10 --head "https://www.google.com" >/dev/null 2>&1; then
         log_pass "Internet connectivity is working"
@@ -321,7 +321,7 @@ test_network() {
         log_fail "No internet connectivity"
         add_suggestion "Check network configuration and internet connection"
     fi
-    
+
     # Test Starlink management interface
     if ping -c 1 -W 3 192.168.100.1 >/dev/null 2>&1; then
         log_pass "Starlink management interface (192.168.100.1) is reachable"
@@ -329,7 +329,7 @@ test_network() {
         log_warn "Starlink management interface is not reachable"
         add_suggestion "Check Starlink connection and routing: ip route show | grep 192.168.100.1"
     fi
-    
+
     # Check static route to Starlink
     if ip route show | grep -q "192.168.100.1"; then
         log_pass "Static route to Starlink exists"
@@ -344,16 +344,16 @@ test_network() {
 # --- STARLINK API TESTS ---
 test_starlink_api() {
     log_test "Testing Starlink API connectivity..."
-    
+
     if [ -f "/root/grpcurl" ] && [ -x "/root/grpcurl" ]; then
         # Test get_status call
         local status_response
         status_response=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
             -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
-        
+
         if [ -n "$status_response" ]; then
             log_pass "Starlink get_status API call successful"
-            
+
             # Check for basic status fields
             if echo "$status_response" | /root/jq -e '.dishGetStatus.popPingLatencyMs' >/dev/null 2>&1; then
                 local latency=$(echo "$status_response" | /root/jq -r '.dishGetStatus.popPingLatencyMs // "N/A"')
@@ -365,15 +365,15 @@ test_starlink_api() {
             log_fail "Starlink API call failed"
             add_suggestion "Check Starlink connection and ensure dish is in Bypass Mode"
         fi
-        
+
         # Test get_diagnostics for GPS
         local diag_response
         diag_response=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
             -d '{"get_diagnostics":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
-        
+
         if [ -n "$diag_response" ]; then
             log_pass "Starlink get_diagnostics API call successful"
-            
+
             # Check for GPS data
             if echo "$diag_response" | /root/jq -e '.dishGetDiagnostics.location.latitude' >/dev/null 2>&1; then
                 log_pass "Starlink GPS data is available"
@@ -383,7 +383,7 @@ test_starlink_api() {
         else
             log_warn "Starlink diagnostics API call failed"
         fi
-        
+
     else
         log_fail "grpcurl not available for Starlink API testing"
     fi
@@ -392,7 +392,7 @@ test_starlink_api() {
 # --- RUTOS GPS TESTS ---
 test_rutos_gps() {
     log_test "Testing RUTOS GPS functionality..."
-    
+
     # Check if GPS UCI config exists
     if uci show gps >/dev/null 2>&1; then
         local gps_enabled=$(uci get gps.gps.enabled 2>/dev/null || echo "0")
@@ -405,11 +405,11 @@ test_rutos_gps() {
     else
         log_info "RUTOS GPS UCI configuration not available (device may not have GPS)"
     fi
-    
+
     # Check for gpsd
     if command -v gpspipe >/dev/null 2>&1; then
         log_pass "gpspipe command is available"
-        
+
         # Test GPS data
         local gps_data
         gps_data=$(timeout 5 gpspipe -w -n 5 2>/dev/null | head -n1 || echo "")
@@ -421,11 +421,11 @@ test_rutos_gps() {
     else
         log_info "gpspipe not available (GPS may use different interface)"
     fi
-    
+
     # Check RUTOS API if credentials are configured
     local rutos_ip=$(uci get azure.gps.rutos_ip 2>/dev/null || echo "")
     local rutos_username=$(uci get azure.gps.rutos_username 2>/dev/null || echo "")
-    
+
     if [ -n "$rutos_ip" ] && [ -n "$rutos_username" ]; then
         log_info "Testing RUTOS GPS API access..."
         # Note: We won't test with actual credentials for security reasons
@@ -438,15 +438,15 @@ test_rutos_gps() {
 # --- AZURE CONNECTIVITY TESTS ---
 test_azure_connectivity() {
     log_test "Testing Azure endpoint connectivity..."
-    
+
     local azure_endpoint=$(uci get azure.system.endpoint 2>/dev/null || echo "")
-    
+
     if [ -n "$azure_endpoint" ]; then
         log_pass "Azure endpoint is configured"
-        
+
         # Extract host from URL for connectivity test
         local host=$(echo "$azure_endpoint" | sed -n 's|https\?://\([^/]*\).*|\1|p')
-        
+
         if [ -n "$host" ]; then
             # Test DNS resolution
             if nslookup "$host" >/dev/null 2>&1; then
@@ -455,7 +455,7 @@ test_azure_connectivity() {
                 log_fail "Azure endpoint DNS resolution failed"
                 add_suggestion "Check DNS configuration and internet connectivity"
             fi
-            
+
             # Test HTTPS connectivity
             if curl -s --max-time 10 --head "$azure_endpoint" >/dev/null 2>&1; then
                 log_pass "Azure endpoint is reachable"
@@ -473,17 +473,17 @@ test_azure_connectivity() {
 # --- LIVE DATA TESTS ---
 test_data_collection() {
     log_test "Testing data collection functionality..."
-    
+
     # Test log file has recent data
     if [ -f "/overlay/messages" ]; then
         local log_size=$(stat -c%s "/overlay/messages" 2>/dev/null || echo "0")
         if [ "$log_size" -gt "0" ]; then
             log_pass "Log file contains data (${log_size} bytes)"
-            
+
             # Check for recent entries (last 10 minutes)
             local recent_entries
             recent_entries=$(tail -n 50 "/overlay/messages" | grep -c "$(date '+%Y-%m-%d %H:%M')\|$(date -d '1 minute ago' '+%Y-%m-%d %H:%M')" 2>/dev/null || echo "0")
-            
+
             if [ "$recent_entries" -gt "0" ]; then
                 log_pass "Log file has recent entries"
             else
@@ -493,7 +493,7 @@ test_data_collection() {
             log_warn "Log file is empty"
         fi
     fi
-    
+
     # Test Starlink CSV file if monitoring is enabled
     local starlink_enabled=$(uci get azure.starlink.enabled 2>/dev/null || echo "0")
     if [ "$starlink_enabled" = "1" ]; then
@@ -502,7 +502,7 @@ test_data_collection() {
             local csv_size=$(stat -c%s "$csv_file" 2>/dev/null || echo "0")
             if [ "$csv_size" -gt "0" ]; then
                 log_pass "Starlink CSV file contains data (${csv_size} bytes)"
-                
+
                 # Check CSV header
                 local header=$(head -n1 "$csv_file" 2>/dev/null || echo "")
                 if echo "$header" | grep -q "timestamp.*latitude.*longitude"; then
@@ -527,10 +527,10 @@ run_verification() {
     echo "=========================================="
     echo -e "${NC}"
     echo
-    
+
     log "Starting comprehensive verification of Azure logging setup..."
     echo
-    
+
     # Run all tests
     test_dependencies
     echo
@@ -552,23 +552,23 @@ run_verification() {
     echo
     test_data_collection
     echo
-    
+
     # Print summary
     echo -e "${BLUE}"
     echo "=========================================="
     echo "           VERIFICATION SUMMARY"
     echo "=========================================="
     echo -e "${NC}"
-    
+
     echo -e "Total Tests: ${TOTAL_TESTS}"
     echo -e "${GREEN}Passed: ${PASSED_TESTS}${NC}"
     echo -e "${YELLOW}Warnings: ${WARNING_TESTS}${NC}"
     echo -e "${RED}Failed: ${FAILED_TESTS}${NC}"
     echo
-    
+
     # Calculate success rate
     local success_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))
-    
+
     if [ $FAILED_TESTS -eq 0 ]; then
         echo -e "${GREEN}✓ All critical tests passed!${NC}"
         if [ $WARNING_TESTS -gt 0 ]; then
@@ -579,10 +579,10 @@ run_verification() {
     else
         echo -e "${RED}✗ Setup has significant problems that need to be addressed${NC}"
     fi
-    
+
     echo -e "Overall Success Rate: ${success_rate}%"
     echo
-    
+
     # Print failures
     if [ ${#FAILURES[@]} -gt 0 ]; then
         echo -e "${RED}CRITICAL ISSUES:${NC}"
@@ -591,7 +591,7 @@ run_verification() {
         done
         echo
     fi
-    
+
     # Print warnings
     if [ ${#WARNINGS[@]} -gt 0 ]; then
         echo -e "${YELLOW}WARNINGS:${NC}"
@@ -600,7 +600,7 @@ run_verification() {
         done
         echo
     fi
-    
+
     # Print suggestions
     if [ ${#SUGGESTIONS[@]} -gt 0 ]; then
         echo -e "${CYAN}SUGGESTED FIXES:${NC}"
@@ -611,7 +611,7 @@ run_verification() {
         done
         echo
     fi
-    
+
     # Final recommendation
     if [ $FAILED_TESTS -eq 0 ]; then
         echo -e "${GREEN}🎉 Your Azure logging setup is working correctly!${NC}"
@@ -620,7 +620,7 @@ run_verification() {
         echo -e "${YELLOW}📋 Please address the issues above and run this script again.${NC}"
         echo "If you need help, check the documentation or run the setup script again."
     fi
-    
+
     echo
     log "Verification completed."
 }

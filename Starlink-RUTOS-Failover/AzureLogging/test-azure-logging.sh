@@ -40,7 +40,7 @@ fi
 
 # Test 1: Create test log data
 log_info "Creating test log data..."
-cat > "$TEST_LOG_FILE" << EOF
+cat >"$TEST_LOG_FILE" <<EOF
 $(date): Test log entry from Azure logging integration test
 $(date): Sample application startup
 $(date): Network interface configured
@@ -68,7 +68,7 @@ fi
 # Test 3: Verify log file handling
 log_info "Testing log file operations..."
 if [ -f "$TEST_LOG_FILE" ]; then
-    true > "$TEST_LOG_FILE"  # Truncate like the real script does
+    true >"$TEST_LOG_FILE" # Truncate like the real script does
     log_info "✓ Log file truncation successful"
 else
     log_error "✗ Test log file not found"

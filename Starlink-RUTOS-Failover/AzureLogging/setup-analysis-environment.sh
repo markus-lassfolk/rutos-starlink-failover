@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}Setting up Network Performance Analysis Environment${NC}"
 
 # Check if Python 3 is installed
-if ! command -v python3 &> /dev/null; then
+if ! command -v python3 &>/dev/null; then
     echo "Python 3 is required but not installed. Please install Python 3.8 or later."
     exit 1
 fi

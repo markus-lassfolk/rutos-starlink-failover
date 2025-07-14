@@ -13,7 +13,7 @@
 AZURE_FUNCTION_URL=$(uci get azure.system.endpoint 2>/dev/null || echo "")
 LOG_FILE=$(uci get azure.system.log_file 2>/dev/null || echo "/overlay/messages")
 # shellcheck disable=SC2034  # MAX_SIZE may be used for future file rotation
-MAX_SIZE=$(uci get azure.system.max_size 2>/dev/null || echo "1048576")  # 1MB default
+MAX_SIZE=$(uci get azure.system.max_size 2>/dev/null || echo "1048576") # 1MB default
 ENABLED=$(uci get azure.system.enabled 2>/dev/null || echo "1")
 
 # --- VALIDATION ---
@@ -64,7 +64,7 @@ fi
 if [ "$HTTP_STATUS" -eq 200 ]; then
     # Success! Clear the local log file by truncating it to zero size.
     # This is safer than 'rm' as it preserves file permissions.
-    true > "$LOG_FILE"
+    true >"$LOG_FILE"
     logger -t "azure-log-shipper" "Successfully sent logs to Azure. Local log file cleared."
 else
     # Failure. Do not clear the local file. It will be retried on the next run.

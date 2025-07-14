@@ -21,7 +21,7 @@ check_rutos() {
         echo "❌ This script must be run on a RUTOS device with UCI configuration"
         exit 1
     fi
-    
+
     if [ "$(id -u)" -ne 0 ]; then
         echo "❌ This script must be run as root"
         exit 1
@@ -31,15 +31,15 @@ check_rutos() {
 # Function to setup persistent logging
 setup_logging() {
     echo "Step 1: Setting up persistent logging..."
-    
+
     if [ ! -f "$SETUP_SCRIPT" ]; then
         echo "❌ Setup script not found: $SETUP_SCRIPT"
         exit 1
     fi
-    
+
     chmod +x "$SETUP_SCRIPT"
     "$SETUP_SCRIPT"
-    
+
     echo "✅ Persistent logging setup completed"
 }
 
@@ -47,25 +47,25 @@ setup_logging() {
 verify_logging() {
     echo ""
     echo "Step 2: Verifying persistent logging..."
-    
+
     # Check if log file exists and is writable
     if [ ! -f "$LOG_FILE" ]; then
         echo "❌ Log file $LOG_FILE does not exist"
         return 1
     fi
-    
+
     # Check log file size and permissions
     LOG_SIZE=$(stat -c%s "$LOG_FILE" 2>/dev/null || echo "0")
     LOG_PERMS=$(stat -c%a "$LOG_FILE" 2>/dev/null || echo "000")
-    
+
     echo "Log file: $LOG_FILE"
     echo "Size: $LOG_SIZE bytes"
     echo "Permissions: $LOG_PERMS"
-    
+
     # Test writing to log
     logger -t "azure-setup-verify" "Setup verification test - $(date)"
     sleep 2
-    
+
     if grep -q "azure-setup-verify" "$LOG_FILE"; then
         echo "✅ Logging verification successful"
         return 0
@@ -79,18 +79,18 @@ verify_logging() {
 setup_shipper() {
     echo ""
     echo "Step 3: Installing log shipper..."
-    
+
     if [ ! -f "$SHIPPER_SCRIPT" ]; then
         echo "❌ Log shipper script not found: $SHIPPER_SCRIPT"
         exit 1
     fi
-    
+
     # Copy to overlay (persistent storage)
     cp "$SHIPPER_SCRIPT" "/overlay/log-shipper.sh"
     chmod 755 "/overlay/log-shipper.sh"
-    
+
     echo "✅ Log shipper installed to /overlay/log-shipper.sh"
-    
+
     # Check if Azure URL is configured
     if grep -q "PASTE_YOUR_AZURE_FUNCTION_URL_HERE" "/overlay/log-shipper.sh"; then
         echo ""
@@ -131,16 +131,16 @@ show_next_steps() {
 show_status() {
     echo ""
     echo "=== Current System Status ==="
-    
+
     # UCI configuration
     echo "Logging configuration:"
     uci show system.@system[0] | grep -E "(log_type|log_size|log_file)" || echo "No logging config found"
-    
+
     # Storage space
     echo ""
     echo "Overlay storage:"
     df -h /overlay
-    
+
     # Log file status
     if [ -f "$LOG_FILE" ]; then
         echo ""
@@ -149,7 +149,7 @@ show_status() {
         echo "Last 3 lines:"
         tail -3 "$LOG_FILE"
     fi
-    
+
     # Cron status
     echo ""
     echo "Cron jobs for log shipping:"
@@ -159,22 +159,22 @@ show_status() {
 # Main execution
 main() {
     check_rutos
-    
+
     echo "This script will:"
     echo "1. Configure persistent logging (5MB file storage)"
     echo "2. Verify logging is working correctly"
     echo "3. Install the log shipper script"
     echo "4. Show next steps for Azure deployment"
     echo ""
-    
+
     read -p "Continue with setup? [y/N]: " -r
     if [ "$REPLY" != "y" ] && [ "$REPLY" != "Y" ]; then
         echo "Setup cancelled."
         exit 0
     fi
-    
+
     setup_logging
-    
+
     if verify_logging; then
         setup_shipper
         show_next_steps
@@ -183,9 +183,9 @@ main() {
         echo "❌ Logging verification failed. Please check the system configuration."
         exit 1
     fi
-    
+
     show_status
-    
+
     echo ""
     echo "✅ RUTOS Azure logging setup completed successfully!"
     echo ""
