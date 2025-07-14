@@ -83,7 +83,7 @@ print_warning() {
 
 # Function to extract all configuration variables from a file
 extract_config_vars() {
-    local file="$1"
+    file="$1"
     
     if [ -f "$file" ]; then
         # Extract all lines that look like variable assignments
@@ -93,8 +93,8 @@ extract_config_vars() {
 
 # Function to get configuration value
 get_config_value() {
-    local file="$1"
-    local key="$2"
+    file="$1"
+    key="$2"
     
     if [ -f "$file" ]; then
         # Extract value after = sign, remove quotes and comments
@@ -104,15 +104,15 @@ get_config_value() {
 
 # Function to get the comment/documentation for a setting
 get_config_comment() {
-    local file="$1"
-    local key="$2"
+    file="$1"
+    key="$2"
     
     if [ -f "$file" ]; then
         # Get the comment lines before the setting
-        local line_num=$(grep -n "^${key}=" "$file" | head -1 | cut -d: -f1)
+        line_num=$(grep -n "^${key}=" "$file" | head -1 | cut -d: -f1)
         if [ -n "$line_num" ]; then
             # Get previous lines that are comments
-            local start_line=$((line_num - 10))
+            start_line=$((line_num - 10))
             [ $start_line -lt 1 ] && start_line=1
             
             sed -n "${start_line},$((line_num - 1))p" "$file" | tac | sed '/^[[:space:]]*$/q' | tac | grep '^[[:space:]]*#'
@@ -123,7 +123,7 @@ get_config_comment() {
 # Function to backup current config
 backup_config() {
     if [ "$CREATE_BACKUP" = true ] && [ -f "$CURRENT_CONFIG" ]; then
-        local backup_file="$CURRENT_CONFIG.backup.$(date +%Y%m%d_%H%M%S)"
+        backup_file="$CURRENT_CONFIG.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$CURRENT_CONFIG" "$backup_file"
         print_success "Backup created: $backup_file"
     fi
@@ -131,7 +131,7 @@ backup_config() {
 
 # Function to determine which template to use
 determine_template() {
-    local template_file="$TEMPLATE_CONFIG"
+    template_file="$TEMPLATE_CONFIG"
     
     # Check if user has advanced features enabled
     if [ -f "$CURRENT_CONFIG" ] && grep -q "ENABLE_ADVANCED_FEATURES.*1" "$CURRENT_CONFIG" 2>/dev/null; then
@@ -150,18 +150,18 @@ determine_template() {
 
 # Function to merge configurations
 merge_configs() {
-    local current_config="$1"
-    local template_config="$2"
-    local output_file="$3"
+    current_config="$1"
+    template_config="$2"
+    output_file="$3"
     
     print_info "Merging configuration updates..."
     
     # Get all variables from both files
-    local current_vars=$(extract_config_vars "$current_config")
-    local template_vars=$(extract_config_vars "$template_config")
+    current_vars=$(extract_config_vars "$current_config")
+    template_vars=$(extract_config_vars "$template_config")
     
     # Find new variables in template
-    local new_vars=""
+    new_vars=""
     for var in $template_vars; do
         if ! echo "$current_vars" | grep -q "^$var$"; then
             new_vars="$new_vars $var"
@@ -169,7 +169,7 @@ merge_configs() {
     done
     
     # Find obsolete variables in current config
-    local obsolete_vars=""
+    obsolete_vars=""
     for var in $current_vars; do
         if ! echo "$template_vars" | grep -q "^$var$"; then
             obsolete_vars="$obsolete_vars $var"
@@ -182,7 +182,7 @@ merge_configs() {
         if [ -n "$new_vars" ]; then
             print_info "New configuration options to add:"
             for var in $new_vars; do
-                local value=$(get_config_value "$template_config" "$var")
+                value=$(get_config_value "$template_config" "$var")
                 print_info "  + $var=\"$value\""
             done
         fi
@@ -190,7 +190,7 @@ merge_configs() {
         if [ -n "$obsolete_vars" ]; then
             print_warning "Obsolete configuration options (will be commented out):"
             for var in $obsolete_vars; do
-                local value=$(get_config_value "$current_config" "$var")
+                value=$(get_config_value "$current_config" "$var")
                 print_warning "  # $var=\"$value\""
             done
         fi
@@ -203,14 +203,14 @@ merge_configs() {
     fi
     
     # Create the merged configuration
-    local temp_file=$(mktemp)
+    temp_file=$(mktemp)
     
     # Start with template structure
     cp "$template_config" "$temp_file"
     
     # Preserve all existing user values
     for var in $current_vars; do
-        local current_value=$(get_config_value "$current_config" "$var")
+        current_value=$(get_config_value "$current_config" "$var")
         
         if [ -n "$current_value" ]; then
             if grep -q "^${var}=" "$temp_file"; then
@@ -219,16 +219,18 @@ merge_configs() {
                 print_success "Preserved $var: $current_value"
             else
                 # Variable no longer exists in template, comment it out at the end
-                echo "" >> "$temp_file"
-                echo "# Obsolete setting (kept for reference):" >> "$temp_file"
-                echo "# ${var}=\"${current_value}\"" >> "$temp_file"
+                {
+                  printf "\n"
+                  printf "# Obsolete setting (kept for reference):\n"
+                  printf "# %s=\"%s\"\n" "$var" "$current_value"
+                } >> "$temp_file"
                 print_warning "Obsolete setting commented out: $var"
             fi
         fi
     done
     
     # Add header comment about the merge
-    local header="# Configuration merged on $(date) by update-config.sh"
+    header="# Configuration merged on $(date) by update-config.sh"
     sed -i "2i\\$header" "$temp_file"
     
     # Move temp file to output
@@ -238,7 +240,7 @@ merge_configs() {
     if [ -n "$new_vars" ]; then
         print_info "New configuration options added:"
         for var in $new_vars; do
-            local value=$(get_config_value "$output_file" "$var")
+            value=$(get_config_value "$output_file" "$var")
             print_info "  + $var=\"$value\""
         done
         

@@ -93,9 +93,9 @@ check_advanced_template() {
 
 # Function to migrate configuration
 migrate_config() {
-    local basic_config="$1"
-    local advanced_template="$2"
-    local output_file="$3"
+    basic_config="$1"
+    advanced_template="$2"
+    output_file="$3"
     
     print_info "Migrating configuration from basic to advanced..."
     
@@ -103,7 +103,7 @@ migrate_config() {
     cp "$advanced_template" "$output_file"
     
     # List of settings to migrate from basic to advanced
-    local settings="
+    settings="
     STARLINK_IP
     MWAN_IFACE
     MWAN_MEMBER
@@ -138,7 +138,7 @@ migrate_config() {
     
     # Migrate each setting
     for setting in $settings; do
-        local value=$(get_config_value "$basic_config" "$setting")
+        value=$(get_config_value "$basic_config" "$setting")
         
         if [ -n "$value" ]; then
             # Replace the setting in the advanced config
