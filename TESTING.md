@@ -631,3 +631,69 @@ DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" ./install.sh
 ```
 
 **Status**: 🔧 **DEBUG MODE ENHANCED** - Ready for re-testing with proper method
+
+### ✅ Live RUTX50 Testing - Round 8b - **DEBUG MODE SUCCESS!**
+**Date**: July 14, 2025  
+**System**: RUTX50 running RUTOS  
+**Test Method**: Download-first approach with DEBUG=1
+
+#### DEBUG Mode Working Perfectly! 
+**Status**: ✅ **SUCCESS!**
+
+**Command Used**:
+```bash
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh -o install.sh
+chmod +x install.sh
+DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" ./install.sh
+```
+
+**Results**: 🎉 **DEBUG MODE FULLY FUNCTIONAL!**
+
+**What Worked**:
+- ✅ **Early Debug Detection**: Shows "DEBUG MODE ENABLED" banner immediately
+- ✅ **Environment Variables**: Displays all debug-related environment variables
+- ✅ **Version Information**: Shows script version, branch, and repository
+- ✅ **Remote Version Check**: Fetches and compares remote vs local versions
+- ✅ **Command Tracking**: All commands shown with `debug_exec()` function
+- ✅ **System Information**: Displays architecture and system details
+- ✅ **Color Fix**: Cyan color much more readable than dark blue
+
+**Debug Output Confirmed**:
+```
+==================== DEBUG MODE ENABLED ====================
+DEBUG: Script starting with DEBUG=1
+DEBUG: Environment variables:
+DEBUG:   DEBUG=1
+DEBUG:   GITHUB_BRANCH=feature/testing-improvements
+DEBUG:   GITHUB_REPO=markus-lassfolk/rutos-starlink-failover
+===========================================================
+
+===========================================
+Starlink Monitor Installation Script
+Script: install.sh
+Version: 1.0.0
+Branch: feature/testing-improvements
+Repository: markus-lassfolk/rutos-starlink-failover
+===========================================
+
+DEBUG: Remote version detected: 1.0.0
+DEBUG: System architecture: armv7l
+DEBUG: Executing: uname -m
+```
+
+**Key Insights**:
+- **Environment Variable Scope**: Download-first method ensures DEBUG=1 is properly passed to the shell
+- **Version Detection**: Remote version check working correctly
+- **Architecture Detection**: System properly identifies ARMv7 (RUTX50)
+- **User Experience**: Clear debug output makes troubleshooting much easier
+
+**Architecture Warning**: The script correctly shows an architecture warning for ARMv7, which is expected behavior for RUTX50.
+
+**Status**: 🚀 **DEBUG MODE FULLY OPERATIONAL!**
+
+**User Response**: User answered "n" to architecture warning, which is expected behavior for testing.
+
+**Next Steps**: 
+1. Continue with installation by answering "y" to architecture warning
+2. Test full installation with DEBUG mode active
+3. Verify all enhanced debug features work during complete installation
