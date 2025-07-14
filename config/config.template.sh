@@ -6,7 +6,7 @@
 # ==============================================================================
 # This is a template file for the Starlink monitoring system.
 # Copy this file to config.sh and edit the values below.
-# 
+#
 # Template version: 1.0.0
 # Compatible with install.sh: 1.0.0
 # ==============================================================================
@@ -34,19 +34,19 @@ PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"
 PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"
 
 # Notification triggers (1=enabled, 0=disabled)
-# 
+#
 # CRITICAL: System failures, API errors, connection lost
 NOTIFY_ON_CRITICAL=1 # Always notify on critical errors (recommended: 1)
-# 
+#
 # SOFT_FAIL: Starlink degraded but still usable (high latency, packet loss)
 NOTIFY_ON_SOFT_FAIL=1 # Notify on soft failover events (recommended: 1)
-# 
+#
 # HARD_FAIL: Starlink completely down, switched to cellular backup
 NOTIFY_ON_HARD_FAIL=1 # Notify on hard failover events (recommended: 1)
-# 
+#
 # RECOVERY: Starlink recovered, switched back from cellular
 NOTIFY_ON_RECOVERY=1 # Notify when system recovers/failback (recommended: 1)
-# 
+#
 # INFO: Status updates, monitoring health, debug information
 NOTIFY_ON_INFO=0 # Notify on info/status (0=quiet, 1=verbose)
 
@@ -75,21 +75,21 @@ STABILITY_CHECKS_REQUIRED=5
 
 # MWAN3 metric values for interface prioritization
 # Lower values = higher priority (1 = highest priority)
-METRIC_GOOD=1  # Metric when Starlink is working well
-METRIC_BAD=10  # Metric when Starlink is degraded (forces cellular usage)
+METRIC_GOOD=1 # Metric when Starlink is working well
+METRIC_BAD=10 # Metric when Starlink is degraded (forces cellular usage)
 
 # --- File Paths ---
 
 # System directories for persistent storage
 # NOTE: /var/log is wiped on reboot in OpenWrt/RUTOS - use /overlay/ for persistence
-STATE_DIR="/tmp/run"             # Runtime state files (temporary)
-LOG_DIR="/overlay/starlink-logs" # Log files directory (persistent across reboots)
+STATE_DIR="/tmp/run"              # Runtime state files (temporary)
+LOG_DIR="/overlay/starlink-logs"  # Log files directory (persistent across reboots)
 DATA_DIR="/overlay/starlink-data" # Data storage directory (persistent across reboots)
 
 # --- Binary Paths ---
 
 # Installed binary locations (set by install script)
-GRPCURL_CMD="/root/grpcurl"  # gRPC client for Starlink API
+GRPCURL_CMD="/root/grpcurl" # gRPC client for Starlink API
 JQ_CMD="/root/jq"           # JSON processor
 
 # --- RUTOS API Configuration (for GPS) ---
@@ -106,13 +106,13 @@ RUTOS_PASSWORD="YOUR_RUTOS_PASSWORD"
 # --- Logging Configuration ---
 
 # System logging settings
-LOG_TAG="StarlinkSystem"    # Syslog tag for filtering logs
-LOG_RETENTION_DAYS=7        # How long to keep log files
+LOG_TAG="StarlinkSystem" # Syslog tag for filtering logs
+LOG_RETENTION_DAYS=7     # How long to keep log files
 
 # --- Advanced Settings ---
 
 # Timeout values in seconds
-API_TIMEOUT=10         # Starlink API request timeout
-HTTP_TIMEOUT=15        # HTTP request timeout (for RUTOS API)
-GPS_ACCURACY_THRESHOLD=100   # GPS accuracy threshold in meters
-MOVEMENT_THRESHOLD=500       # Movement detection threshold in meters
+API_TIMEOUT=10             # Starlink API request timeout
+HTTP_TIMEOUT=15            # HTTP request timeout (for RUTOS API)
+GPS_ACCURACY_THRESHOLD=100 # GPS accuracy threshold in meters
+MOVEMENT_THRESHOLD=500     # Movement detection threshold in meters

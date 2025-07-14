@@ -67,7 +67,7 @@ check_advanced_template() {
     if [ ! -f "$ADVANCED_TEMPLATE" ]; then
         print_error "Advanced template not found: $ADVANCED_TEMPLATE"
         print_info "Downloading advanced template..."
-        
+
         # Try to download from GitHub
         if command -v wget >/dev/null 2>&1; then
             if wget -q -O "$ADVANCED_TEMPLATE" "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/config/config.advanced.template.sh"; then
@@ -96,12 +96,12 @@ migrate_config() {
     basic_config="$1"
     advanced_template="$2"
     output_file="$3"
-    
+
     print_info "Migrating configuration from basic to advanced..."
-    
+
     # Start with the advanced template
     cp "$advanced_template" "$output_file"
-    
+
     # List of settings to migrate from basic to advanced
     settings="
     STARLINK_IP
@@ -135,11 +135,11 @@ migrate_config() {
     GPS_ACCURACY_THRESHOLD
     MOVEMENT_THRESHOLD
     "
-    
+
     # Migrate each setting
     for setting in $settings; do
         value=$(get_config_value "$basic_config" "$setting")
-        
+
         if [ -n "$value" ]; then
             # Replace the setting in the advanced config
             if grep -q "^${setting}=" "$output_file"; then
@@ -158,8 +158,8 @@ migrate_config() {
 # Function to show differences
 show_new_features() {
     print_info "New features available in advanced configuration:"
-    
-    cat << 'EOF'
+
+    cat <<'EOF'
 
 🚀 Advanced Features Now Available:
 
@@ -207,33 +207,33 @@ main() {
     print_status "$BLUE" "Version: $SCRIPT_VERSION"
     print_status "$BLUE" "Compatible with install.sh: $COMPATIBLE_INSTALL_VERSION"
     echo
-    
+
     # Check if basic configuration exists
     if [ ! -f "$BASIC_CONFIG" ]; then
         print_error "Basic configuration not found: $BASIC_CONFIG"
         print_info "Please run the installation script first"
         exit 1
     fi
-    
+
     # Check if advanced template exists
     if ! check_advanced_template; then
         exit 1
     fi
-    
+
     # Create backup of current config
     print_info "Creating backup of current configuration..."
     cp "$BASIC_CONFIG" "$BACKUP_CONFIG"
     print_success "Backup created: $BACKUP_CONFIG"
-    
+
     # Migrate configuration
     migrate_config "$BASIC_CONFIG" "$ADVANCED_TEMPLATE" "$BASIC_CONFIG"
-    
+
     print_success "Configuration successfully upgraded to advanced!"
     print_info "Backup of original config: $BACKUP_CONFIG"
-    
+
     # Show new features
     show_new_features
-    
+
     # Final instructions
     echo
     print_status "$GREEN" "🎉 Upgrade Complete!"
@@ -242,7 +242,7 @@ main() {
     print_info "2. Validate configuration: $INSTALL_DIR/scripts/validate-config.sh"
     print_info "3. Restart monitoring: systemctl restart starlink-monitor (if running)"
     print_info "4. Test the system manually"
-    
+
     echo
     print_info "To revert to basic config: cp $BACKUP_CONFIG $BASIC_CONFIG"
 }

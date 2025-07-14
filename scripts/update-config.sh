@@ -84,7 +84,7 @@ print_warning() {
 # Function to extract all configuration variables from a file
 extract_config_vars() {
     file="$1"
-    
+
     if [ -f "$file" ]; then
         # Extract all lines that look like variable assignments
         grep '^[A-Z_][A-Z0-9_]*=' "$file" | cut -d'=' -f1 | sort -u
@@ -95,7 +95,7 @@ extract_config_vars() {
 get_config_value() {
     file="$1"
     key="$2"
-    
+
     if [ -f "$file" ]; then
         # Extract value after = sign, remove quotes and comments
         grep "^${key}=" "$file" 2>/dev/null | head -1 | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*#.*$//;s/^"//;s/"$//;s/^'\''//;s/'\''$//'
@@ -106,7 +106,7 @@ get_config_value() {
 get_config_comment() {
     file="$1"
     key="$2"
-    
+
     if [ -f "$file" ]; then
         # Get the comment lines before the setting
         line_num=$(grep -n "^${key}=" "$file" | head -1 | cut -d: -f1)
@@ -114,7 +114,7 @@ get_config_comment() {
             # Get previous lines that are comments
             start_line=$((line_num - 10))
             [ $start_line -lt 1 ] && start_line=1
-            
+
             sed -n "${start_line},$((line_num - 1))p" "$file" | tac | sed '/^[[:space:]]*$/q' | tac | grep '^[[:space:]]*#'
         fi
     fi
@@ -132,7 +132,7 @@ backup_config() {
 # Function to determine which template to use
 determine_template() {
     template_file="$TEMPLATE_CONFIG"
-    
+
     # Check if user has advanced features enabled
     if [ -f "$CURRENT_CONFIG" ] && grep -q "ENABLE_ADVANCED_FEATURES.*1" "$CURRENT_CONFIG" 2>/dev/null; then
         if [ -f "$ADVANCED_TEMPLATE" ]; then
@@ -144,7 +144,7 @@ determine_template() {
     else
         print_info "Using basic template"
     fi
-    
+
     echo "$template_file"
 }
 
@@ -153,13 +153,13 @@ merge_configs() {
     current_config="$1"
     template_config="$2"
     output_file="$3"
-    
+
     print_info "Merging configuration updates..."
-    
+
     # Get all variables from both files
     current_vars=$(extract_config_vars "$current_config")
     template_vars=$(extract_config_vars "$template_config")
-    
+
     # Find new variables in template
     new_vars=""
     for var in $template_vars; do
@@ -167,7 +167,7 @@ merge_configs() {
             new_vars="$new_vars $var"
         fi
     done
-    
+
     # Find obsolete variables in current config
     obsolete_vars=""
     for var in $current_vars; do
@@ -175,10 +175,10 @@ merge_configs() {
             obsolete_vars="$obsolete_vars $var"
         fi
     done
-    
+
     if [ "$DRY_RUN" = true ]; then
         print_info "DRY RUN - Changes that would be made:"
-        
+
         if [ -n "$new_vars" ]; then
             print_info "New configuration options to add:"
             for var in $new_vars; do
@@ -186,7 +186,7 @@ merge_configs() {
                 print_info "  + $var=\"$value\""
             done
         fi
-        
+
         if [ -n "$obsolete_vars" ]; then
             print_warning "Obsolete configuration options (will be commented out):"
             for var in $obsolete_vars; do
@@ -194,24 +194,24 @@ merge_configs() {
                 print_warning "  # $var=\"$value\""
             done
         fi
-        
+
         if [ -z "$new_vars" ] && [ -z "$obsolete_vars" ]; then
             print_success "No configuration changes needed"
         fi
-        
+
         return 0
     fi
-    
+
     # Create the merged configuration
     temp_file=$(mktemp)
-    
+
     # Start with template structure
     cp "$template_config" "$temp_file"
-    
+
     # Preserve all existing user values
     for var in $current_vars; do
         current_value=$(get_config_value "$current_config" "$var")
-        
+
         if [ -n "$current_value" ]; then
             if grep -q "^${var}=" "$temp_file"; then
                 # Update existing variable with user's value
@@ -220,22 +220,22 @@ merge_configs() {
             else
                 # Variable no longer exists in template, comment it out at the end
                 {
-                  printf "\n"
-                  printf "# Obsolete setting (kept for reference):\n"
-                  printf "# %s=\"%s\"\n" "$var" "$current_value"
-                } >> "$temp_file"
+                    printf "\n"
+                    printf "# Obsolete setting (kept for reference):\n"
+                    printf "# %s=\"%s\"\n" "$var" "$current_value"
+                } >>"$temp_file"
                 print_warning "Obsolete setting commented out: $var"
             fi
         fi
     done
-    
+
     # Add header comment about the merge
     header="# Configuration merged on $(date) by update-config.sh"
     sed -i "2i\\$header" "$temp_file"
-    
+
     # Move temp file to output
     mv "$temp_file" "$output_file"
-    
+
     # Report new settings
     if [ -n "$new_vars" ]; then
         print_info "New configuration options added:"
@@ -243,10 +243,10 @@ merge_configs() {
             value=$(get_config_value "$output_file" "$var")
             print_info "  + $var=\"$value\""
         done
-        
+
         print_warning "Please review and customize the new settings in $output_file"
     fi
-    
+
     if [ -z "$new_vars" ] && [ -z "$obsolete_vars" ]; then
         print_success "No configuration changes needed"
     fi
@@ -260,31 +260,31 @@ main() {
     print_info "Version: $SCRIPT_VERSION"
     print_info "Compatible with install.sh: $COMPATIBLE_INSTALL_VERSION"
     echo ""
-    
+
     # Check if current config exists
     if [ ! -f "$CURRENT_CONFIG" ]; then
         print_error "Current configuration not found: $CURRENT_CONFIG"
         print_info "Please run the install script first"
         exit 1
     fi
-    
+
     # Determine which template to use
     template_file=$(determine_template)
-    
+
     if [ ! -f "$template_file" ]; then
         print_error "Template not found: $template_file"
         print_info "Please run the install script to update templates"
         exit 1
     fi
-    
+
     # Create backup if requested
     backup_config
-    
+
     # Merge configurations
     merge_configs "$CURRENT_CONFIG" "$template_file" "$CURRENT_CONFIG"
-    
+
     print_success "Configuration update complete!"
-    
+
     if [ "$DRY_RUN" = false ]; then
         print_info "Next steps:"
         print_info "1. Review your configuration: vi $CURRENT_CONFIG"

@@ -8,7 +8,6 @@
 #
 # ==============================================================================
 
-
 set -eu
 
 # Script version information
@@ -54,11 +53,11 @@ CONFIG_FILE="./config.sh"
 
 while [ $# -gt 0 ]; do
     case $1 in
-        -h|--help)
+        -h | --help)
             show_usage
             exit 0
             ;;
-        -m|--migrate)
+        -m | --migrate)
             FORCE_MIGRATION=true
             shift
             ;;
@@ -101,7 +100,6 @@ load_config() {
 # Check required binaries
 check_binaries() {
     printf "%b\n" "${GREEN}Checking required binaries...${NC}"
-
 
     missing_binaries=""
 
@@ -233,7 +231,7 @@ extract_template_variables() {
     if [ ! -f "$template_file" ]; then
         return 1
     fi
-    
+
     # Extract variables (exclude comments and empty lines)
     grep -E '^[A-Z_]+=.*' "$template_file" | cut -d'=' -f1 | sort
 }
@@ -244,7 +242,7 @@ extract_config_variables() {
     if [ ! -f "$config_file" ]; then
         return 1
     fi
-    
+
     # Extract variables from config file
     grep -E '^[A-Z_]+=.*' "$config_file" | cut -d'=' -f1 | sort
 }
@@ -252,12 +250,12 @@ extract_config_variables() {
 # Compare configuration completeness
 check_config_completeness() {
     printf "%b\n" "${GREEN}Checking configuration completeness...${NC}"
-    
+
     # Try to find template file
 
     template_file=""
     config_dir="$(dirname "$CONFIG_FILE")"
-    
+
     # Look for template in same directory as config file
     if [ -f "$config_dir/config.template.sh" ]; then
         template_file="$config_dir/config.template.sh"
@@ -278,9 +276,9 @@ check_config_completeness() {
         printf "%b\n" "${YELLOW}Searched in: $config_dir/, $config_dir/../config/, /root/starlink-monitor/config/${NC}"
         return 0
     fi
-    
+
     printf "%b\n" "${GREEN}Comparing against template: $template_file${NC}"
-    
+
     # Check if config uses outdated template format
     if check_outdated_template; then
         printf "%b\n" "${YELLOW}⚠ Configuration appears to use outdated template format${NC}"
@@ -290,54 +288,54 @@ check_config_completeness() {
             return 0
         fi
     fi
-    
+
     # Get variables from both files
 
     temp_template="/tmp/template_vars.$$"
     temp_config="/tmp/config_vars.$$"
-    
-    if ! extract_template_variables "$template_file" > "$temp_template"; then
+
+    if ! extract_template_variables "$template_file" >"$temp_template"; then
         printf "%b\n" "${RED}Error: Could not extract template variables${NC}"
         return 1
     fi
-    
-    if ! extract_config_variables "$CONFIG_FILE" > "$temp_config"; then
+
+    if ! extract_config_variables "$CONFIG_FILE" >"$temp_config"; then
         printf "%b\n" "${RED}Error: Could not extract config variables${NC}"
         return 1
     fi
-    
+
     # Find missing variables
 
     missing_vars=""
     extra_vars=""
     total_missing=0
     total_extra=0
-    
+
     # Check for missing variables (in template but not in config)
     while IFS= read -r var; do
         if ! grep -q "^$var$" "$temp_config"; then
             missing_vars="$missing_vars $var"
             total_missing=$((total_missing + 1))
         fi
-    done < "$temp_template"
-    
+    done <"$temp_template"
+
     # Check for extra variables (in config but not in template)
     while IFS= read -r var; do
         if ! grep -q "^$var$" "$temp_template"; then
             extra_vars="$extra_vars $var"
             total_extra=$((total_extra + 1))
         fi
-    done < "$temp_config"
-    
+    done <"$temp_config"
+
     # Cleanup temp files
     rm -f "$temp_template" "$temp_config"
-    
+
     # Report results
     if [ "$total_missing" -eq 0 ] && [ "$total_extra" -eq 0 ]; then
         printf "%b\n" "${GREEN}✓ Configuration is complete and matches template${NC}"
         return 0
     fi
-    
+
     if [ "$total_missing" -gt 0 ]; then
         printf "%b\n" "${YELLOW}⚠ Missing configuration variables (${total_missing} found):${NC}"
         for var in $missing_vars; do
@@ -345,7 +343,7 @@ check_config_completeness() {
         done
         printf "%b\n" "${YELLOW}Suggestion: Run update-config.sh to add missing variables${NC}"
     fi
-    
+
     if [ "$total_extra" -gt 0 ]; then
         printf "%b\n" "${YELLOW}⚠ Extra configuration variables (${total_extra} found):${NC}"
         for var in $extra_vars; do
@@ -353,17 +351,16 @@ check_config_completeness() {
         done
         printf "%b\n" "${YELLOW}Note: These may be custom variables or from an older version${NC}"
     fi
-    
+
     return 1
 }
 
 # Check for placeholder values and provide recommendations
 check_placeholder_values() {
     printf "%b\n" "${GREEN}Checking for placeholder values...${NC}"
-    
 
     placeholders_found=0
-    
+
     # Common placeholder patterns
 
     placeholder_patterns="
@@ -376,7 +373,7 @@ check_placeholder_values() {
         EXAMPLE
         PLACEHOLDER
     "
-    
+
     # Check for placeholder values in config
 
     for pattern in $placeholder_patterns; do
@@ -386,7 +383,7 @@ check_placeholder_values() {
             placeholders_found=$((placeholders_found + 1))
         fi
     done
-    
+
     # Check for empty critical variables
 
     critical_vars="PUSHOVER_TOKEN PUSHOVER_USER STARLINK_IP MWAN_IFACE MWAN_MEMBER"
@@ -397,7 +394,6 @@ check_placeholder_values() {
             placeholders_found=$((placeholders_found + 1))
         fi
     done
-    
 
     if [ "$placeholders_found" -eq 0 ]; then
         printf "%b\n" "${GREEN}✓ No placeholder values found${NC}"
@@ -411,10 +407,9 @@ check_placeholder_values() {
 # Validate configuration value ranges and formats
 validate_config_values() {
     printf "%b\n" "${GREEN}Validating configuration values...${NC}"
-    
 
     validation_errors=0
-    
+
     # Validate numeric thresholds (including decimal values)
 
     numeric_vars="PACKET_LOSS_THRESHOLD OBSTRUCTION_THRESHOLD LATENCY_THRESHOLD CHECK_INTERVAL API_TIMEOUT"
@@ -426,7 +421,7 @@ validate_config_values() {
             validation_errors=$((validation_errors + 1))
         fi
     done
-    
+
     # Validate boolean values (0 or 1)
 
     boolean_vars="NOTIFY_ON_CRITICAL NOTIFY_ON_SOFT_FAIL NOTIFY_ON_HARD_FAIL NOTIFY_ON_RECOVERY NOTIFY_ON_INFO"
@@ -438,7 +433,7 @@ validate_config_values() {
             validation_errors=$((validation_errors + 1))
         fi
     done
-    
+
     # Validate IP addresses
 
     ip_vars="STARLINK_IP RUTOS_IP"
@@ -453,7 +448,7 @@ validate_config_values() {
             fi
         fi
     done
-    
+
     # Validate file paths exist
 
     path_vars="LOG_DIR STATE_DIR DATA_DIR"
@@ -464,7 +459,6 @@ validate_config_values() {
             printf "%b\n" "${YELLOW}  (Will be created automatically)${NC}"
         fi
     done
-    
 
     if [ "$validation_errors" -eq 0 ]; then
         printf "%b\n" "${GREEN}✓ Configuration values are valid${NC}"
@@ -479,33 +473,33 @@ migrate_config_to_template() {
     template_file="$1"
     backup_suffix="backup.$(date +%Y%m%d_%H%M%S)"
     config_backup="${CONFIG_FILE}.${backup_suffix}"
-    
+
     printf "%b\n" "${YELLOW}🔄 Migrating configuration to updated template...${NC}"
     printf "%b\n" "${BLUE}Template: $template_file${NC}"
     printf "%b\n" "${BLUE}Config: $CONFIG_FILE${NC}"
-    
+
     # Create backup of current config
     if ! cp "$CONFIG_FILE" "$config_backup"; then
         printf "%b\n" "${RED}Error: Failed to create backup${NC}"
         return 1
     fi
     printf "%b\n" "${GREEN}✓ Backup created: $config_backup${NC}"
-    
+
     # Extract current values from existing config
     temp_values="/tmp/config_values_$$"
     printf "%b\n" "${BLUE}Extracting current configuration values...${NC}"
-    
+
     # Extract variable assignments, strip comments and quotes
     grep -E '^[A-Z_]+=.*' "$CONFIG_FILE" | while IFS='=' read -r var rest; do
         # Clean the value: remove quotes, strip inline comments
         value=$(echo "$rest" | sed 's/[[:space:]]*#.*$//' | sed 's/^["'"'"']//;s/["'"'"']$//' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         echo "$var=$value"
-    done > "$temp_values"
-    
+    done >"$temp_values"
+
     # Start with fresh template
     printf "%b\n" "${BLUE}Creating new configuration from template...${NC}"
     cp "$template_file" "$CONFIG_FILE"
-    
+
     # Apply user values to template
     updated_count=0
     while IFS='=' read -r var value; do
@@ -518,24 +512,24 @@ migrate_config_to_template() {
                 printf "%b\n" "${YELLOW}  ⚠ Could not update: $var${NC}"
             fi
         fi
-    done < "$temp_values"
-    
+    done <"$temp_values"
+
     # Cleanup
     rm -f "$temp_values"
-    
+
     printf "%b\n" "${GREEN}✓ Migration completed!${NC}"
     printf "%b\n" "${GREEN}  Updated $updated_count configuration values${NC}"
     printf "%b\n" "${GREEN}  New config has latest template structure and descriptions${NC}"
     printf "%b\n" "${YELLOW}  Review: $CONFIG_FILE${NC}"
     printf "%b\n" "${YELLOW}  Backup: $config_backup${NC}"
-    
+
     return 0
 }
 
 # Offer template migration
 offer_template_migration() {
     template_file="$1"
-    
+
     printf "%b\n" "${YELLOW}⚠ Configuration appears to be using an older template format${NC}"
     printf "%b\n" "${YELLOW}  Issues found: ShellCheck comments, missing descriptions${NC}"
     printf "%b\n" "${BLUE}Available solution: Migrate to current template${NC}"
@@ -547,7 +541,7 @@ offer_template_migration() {
     printf "%b\n" ""
     printf "%b" "${YELLOW}Migrate configuration to current template? (y/N): ${NC}"
     read -r answer
-    
+
     if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
         migrate_config_to_template "$template_file"
         return 0
@@ -561,14 +555,13 @@ offer_template_migration() {
 check_outdated_template() {
     # Check for ShellCheck comments
     if grep -q "# shellcheck" "$CONFIG_FILE"; then
-        return 0  # Found ShellCheck comments - outdated
+        return 0 # Found ShellCheck comments - outdated
     fi
-    
+
     # Check for missing proper descriptions (very short comments)
 
     short_comments=0
     total_vars=0
-    
 
     while read -r line; do
         if printf "%s" "$line" | grep -E '^[A-Z_]+=.*#' >/dev/null; then
@@ -579,14 +572,14 @@ check_outdated_template() {
                 short_comments=$((short_comments + 1))
             fi
         fi
-    done < "$CONFIG_FILE"
-    
+    done <"$CONFIG_FILE"
+
     # If more than 50% of comments are very short, likely outdated
     if [ "$total_vars" -gt 0 ] && [ "$short_comments" -gt $((total_vars / 2)) ]; then
-        return 0  # Likely outdated
+        return 0 # Likely outdated
     fi
-    
-    return 1  # Appears current
+
+    return 1 # Appears current
 }
 
 # Main function
@@ -600,7 +593,7 @@ main() {
     check_root
     check_config_file
     load_config
-    
+
     # Handle force migration option
     if [ "$FORCE_MIGRATION" = "true" ]; then
         printf "%b\n" "${YELLOW}Force migration mode enabled${NC}"
@@ -622,34 +615,34 @@ main() {
             exit 0
         fi
     fi
-    
+
     # Enhanced configuration validation
     config_issues=0
-    
+
     # Check configuration completeness against template
     if ! check_config_completeness; then
         config_issues=$((config_issues + 1))
     fi
     echo ""
-    
+
     # Check for placeholder values
     if ! check_placeholder_values; then
         config_issues=$((config_issues + 1))
     fi
     echo ""
-    
+
     # Validate configuration values
     if ! validate_config_values; then
         config_issues=$((config_issues + 1))
     fi
     echo ""
-    
+
     # Original validation checks
     check_binaries
     check_network
     check_uci
     check_directories
-    check_config_values  # Keep original for backward compatibility
+    check_config_values # Keep original for backward compatibility
     test_starlink_api
 
     echo ""
@@ -660,11 +653,11 @@ main() {
         printf "%b\n" "${YELLOW}=== Validation Complete - Configuration Issues Found ===${NC}"
         printf "%b\n" "${YELLOW}⚠ Found $config_issues configuration issue(s) that should be addressed${NC}"
     fi
-    
+
     printf "%b\n" "${GREEN}System appears ready for deployment${NC}"
     echo ""
     printf "%b\n" "${YELLOW}Next steps:${NC}"
-    
+
     if [ $config_issues -gt 0 ]; then
         printf "%b\n" "${YELLOW}1. Fix configuration issues listed above${NC}"
         printf "%b\n" "${YELLOW}2. Run update-config.sh to add missing variables${NC}"
@@ -675,7 +668,7 @@ main() {
         printf "%b\n" "${YELLOW}1. Configure cron jobs as described in the documentation${NC}"
         printf "%b\n" "${YELLOW}2. Test the system manually before relying on it${NC}"
     fi
-    
+
     echo ""
     printf "%b\n" "${GREEN}Available tools:${NC}"
     printf "%b\n" "${GREEN}• Update config: $(dirname "$CONFIG_FILE")/../scripts/update-config.sh${NC}"
