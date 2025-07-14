@@ -2,7 +2,7 @@
 
 set_permissions() {
     echo "Setting file permissions for scripts and config template..."
-    chmod 600 config/config.template.sh 2>/dev/null || true
+    chmod 600 config/config.template.sh config/config.advanced.template.sh 2>/dev/null || true
     chmod 755 scripts/*.sh Starlink-RUTOS-Failover/*.sh 2>/dev/null || true
 }
 

@@ -138,6 +138,22 @@ sh: syntax error: unexpected "fi" (expecting "}")
 
 **Status**: Ready for Round 3 testing after CI/CD fixes
 
+### 🔧 File Permissions Issue (Windows Development)
+**Date**: July 14, 2025  
+**Issue**: Git file mode tracking disabled on Windows
+
+#### Problem:
+- Windows git has `core.filemode=false` so file permissions aren't tracked locally
+- CI/CD runs on Linux and expects config files to have 600 permissions
+- Security script wasn't setting permissions for `config.advanced.template.sh`
+
+#### Fix Applied:
+- 🔧 Updated security script to set permissions for both config templates
+- 🔧 Git will properly track executable bit changes for Linux deployment
+- ✅ CI/CD system will handle actual file permissions correctly
+
+**Status**: All CI/CD fixes applied - Ready for Round 3 testing
+
 ---
 **Branch**: `feature/testing-improvements`  
 **Started**: July 14, 2025
