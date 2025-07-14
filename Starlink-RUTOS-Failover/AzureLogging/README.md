@@ -384,7 +384,7 @@ Bash
 
 
 
-az deployment group create --resource-group YOUR\_RESOURCE\_GROUP\_NAME --template-file main.bicep --parameters prefix=rutos location=westeurope
+az deployment group create --resource-group YOUR_RESOURCE_GROUP_NAME --template-file main.bicep --parameters prefix=rutos location=westeurope
 
 Deploy the Function Code:
 
