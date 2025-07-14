@@ -12,7 +12,7 @@ import argparse
 import sys
 from datetime import datetime, timedelta
 
-from .data_downloader import AzureDataDownloader
+from .data_downloader import DataDownloader
 from .log_parser import LogParser
 from .performance_analyzer import PerformanceAnalyzer
 from .visualizer import Visualizer
@@ -26,7 +26,7 @@ class NetworkAnalyzer:
         self.container_name = container_name
 
         # Initialize components
-        self.downloader = AzureDataDownloader(storage_account, container_name)
+        self.downloader = DataDownloader(storage_account)
         self.parser = LogParser()
         self.analyzer = PerformanceAnalyzer()
         self.visualizer = Visualizer()
@@ -105,69 +105,108 @@ class NetworkAnalyzer:
         print("🎉 Analysis completed successfully!")
         return results
 
-    def print_summary(self, results: Dict[str, Any]):
-        """Print a human-readable summary of analysis results"""
-        if not results:
-            print("❌ No results to display")
+    def download_data(self, days_back: int = 7) -> None:
+        """Download data from Azure Storage for the specified number of days"""
+        print(f"📥 Downloading data for the last {days_back} days...")
+        self.downloader.download_data(days_back)
+
+    def generate_report(
+        self, days_back: int = 7, include_summary: bool = True
+    ) -> Dict[str, Any]:
+        """Generate analysis report"""
+        print("📊 Generating analysis report...")
+
+        # First download data if needed
+        self.download_data(days_back)
+
+        # Get analyzed data
+        if (
+            hasattr(self.downloader, "system_logs")
+            and hasattr(self.downloader, "performance_data")
+        ):
+            system_logs = self.downloader.system_logs
+            performance_data = self.downloader.performance_data
+        else:
+            system_logs = []
+            performance_data = []
+
+        # Analyze the data
+        if performance_data:
+            stats = self.analyzer.calculate_statistics(performance_data)
+            patterns = self.analyzer.detect_patterns(performance_data)
+            insights = self.analyzer.generate_insights(performance_data)
+        else:
+            stats = {}
+            patterns = []
+            insights = []
+
+        report = {
+            "analysis_period": {
+                "days_analyzed": days_back,
+                "total_system_logs": len(system_logs),
+                "total_performance_data": len(performance_data),
+            },
+            "statistics": stats,
+            "patterns": patterns,
+            "insights": insights,
+            "generated_at": datetime.now().isoformat(),
+        }
+
+        return report
+
+    def create_visualizations(self, output_dir: str = "./charts") -> None:
+        """Create visualization charts"""
+        print(f"📈 Creating visualizations in {output_dir}...")
+
+        # Get performance data
+        if hasattr(self.downloader, "performance_data"):
+            performance_data = self.downloader.performance_data
+        else:
+            print("⚠️ No performance data available for visualizations")
             return
 
+        if not performance_data:
+            print("⚠️ No performance data to visualize")
+            return
+
+        # Create various charts
+        self.visualizer.create_latency_charts(performance_data, output_dir)
+        self.visualizer.create_throughput_charts(performance_data, output_dir)
+        self.visualizer.create_packet_loss_charts(performance_data, output_dir)
+
+        print(f"✅ Visualizations saved to {output_dir}")
+
+    def print_summary(self, results: Dict[str, Any]) -> None:
+        """Print a summary of analysis results"""
         print("\n" + "=" * 60)
-        print("📋 NETWORK ANALYSIS SUMMARY")
+        print("📊 NETWORK ANALYSIS SUMMARY")
         print("=" * 60)
 
-        # Analysis period
-        period = results.get("analysis_period", {})
-        print(f"📅 Analysis Period: {period.get('days_analyzed')} days")
-        print(f"   From: {period.get('start_date', 'N/A')}")
-        print(f"   To: {period.get('end_date', 'N/A')}")
+        if "analysis_period" in results:
+            period = results["analysis_period"]
+            print(f"📅 Analysis Period: {period.get('days_analyzed', 'Unknown')} days")
+            print(f"📝 System Logs: {period.get('total_system_logs', 0):,}")
+            print(f"📈 Performance Data Points: {period.get('total_performance_data', 0):,}")
 
-        # Data summary
-        data_summary = results.get("data_summary", {})
-        print(f"\n📊 Data Processed:")
-        print(f"   Log entries: {data_summary.get('log_entries', 0):,}")
-        print(f"   Performance entries: {data_summary.get('performance_entries', 0):,}")
-        print(f"   Log files: {data_summary.get('log_files_processed', 0):,}")
+        if "statistics" in results and results["statistics"]:
+            print(f"\n📊 Performance Statistics:")
+            stats = results["statistics"]
+            if "latency" in stats:
+                lat = stats["latency"]
+                print(
+                    f"   • Latency: avg={lat.get('mean', 0):.1f}ms, "
+                    f"min={lat.get('min', 0):.1f}ms, max={lat.get('max', 0):.1f}ms"
+                )
+            if "throughput" in stats:
+                tput = stats["throughput"]
+                print(f"   • Throughput: avg={tput.get('mean', 0):.1f} Mbps")
 
-        # Key statistics
-        stats = results.get("statistics", {})
-        if "ping_stats" in stats:
-            ping = stats["ping_stats"]
-            print(f"\n🏓 Ping Latency:")
-            print(f"   Average: {ping.get('mean', 0):.1f} ms")
-            print(f"   Median: {ping.get('median', 0):.1f} ms")
-            print(f"   Range: {ping.get('min', 0):.1f} - {ping.get('max', 0):.1f} ms")
-
-        if "packet_loss_stats" in stats:
-            loss = stats["packet_loss_stats"]
-            print(f"\n📉 Packet Loss:")
-            print(f"   Average: {loss.get('mean', 0):.2f}%")
-            print(f"   Maximum: {loss.get('max', 0):.2f}%")
-
-        if "throughput_stats" in stats:
-            throughput = stats["throughput_stats"]
-            print(f"\n🌐 Throughput:")
-            dl_mbps = throughput.get("downlink_mean_mbps", 0)
-            ul_mbps = throughput.get("uplink_mean_mbps", 0)
-            print(f"   Downlink: {dl_mbps:.1f} Mbps")
-            print(f"   Uplink: {ul_mbps:.1f} Mbps")
-
-        # Insights
-        insights = results.get("insights", [])
-        if insights:
-            print(f"\n💡 Key Insights:")
-            for insight in insights:
-                print(f"   • {insight}")
-
-        # Charts
-        charts = results.get("charts", {})
-        if charts:
-            print(f"\n📈 Generated Charts:")
-            for chart_type, path in charts.items():
-                if path:
-                    print(f"   • {chart_type}: {path}")
+        if "insights" in results and results["insights"]:
+            print(f"\n🔍 Key Insights ({len(results['insights'])} found):")
+            for i, insight in enumerate(results["insights"][:3], 1):  # Show top 3
+                print(f"   {i}. {insight}")
 
         print("\n" + "=" * 60)
-
 
 def main():
     """Main entry point for command-line usage"""

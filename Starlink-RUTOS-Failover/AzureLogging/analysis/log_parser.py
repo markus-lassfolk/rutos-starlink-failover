@@ -198,3 +198,22 @@ class LogParser:
             return "SYSTEM"
 
         return "OTHER"
+
+    def parse_log_content(self, content: str, log_date: datetime.date) -> List[Dict[str, Any]]:
+        """
+        Parse log content and return structured data
+        
+        Args:
+            content: Raw log content
+            log_date: Date of the log file
+            
+        Returns:
+            List of parsed log entries
+        """
+        # Determine content type and delegate to appropriate parser
+        if content.strip().startswith("timestamp,") or "," in content:
+            # Looks like CSV performance data
+            return self.parse_performance_data(content, log_date)
+        else:
+            # Assume system log format
+            return self.parse_system_logs(content, log_date)
