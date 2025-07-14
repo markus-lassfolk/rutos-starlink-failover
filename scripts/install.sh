@@ -239,7 +239,7 @@ configure_cron() {
         # Create temp file with old starlink entries commented out
         local date_stamp
         date_stamp=$(date +%Y-%m-%d)
-        
+
         # Use basic sed to comment out matching lines (more portable)
         sed "s|^\([^#].*starlink_monitor\.sh.*\)|# COMMENTED BY INSTALL SCRIPT $date_stamp: \1|g; \
              s|^\([^#].*starlink_logger\.sh.*\)|# COMMENTED BY INSTALL SCRIPT $date_stamp: \1|g; \
@@ -248,7 +248,7 @@ configure_cron() {
             # If sed fails, preserve existing content
             cat "$CRON_FILE" >"$CRON_FILE.tmp" 2>/dev/null || touch "$CRON_FILE.tmp"
         }
-        
+
         mv "$CRON_FILE.tmp" "$CRON_FILE"
         print_status "$BLUE" "ℹ Old Starlink cron entries commented out (not deleted)"
     fi
@@ -348,7 +348,7 @@ main() {
 
     print_status "$GREEN" "=== Installation Complete ==="
     echo ""
-    
+
     # Check for available editors and provide guidance
     local available_editor=""
     for editor in nano vi vim; do
@@ -357,7 +357,7 @@ main() {
             break
         fi
     done
-    
+
     print_status "$YELLOW" "Next steps:"
     if [ -n "$available_editor" ]; then
         print_status "$YELLOW" "1. Edit configuration: $available_editor $INSTALL_DIR/config/config.sh"
