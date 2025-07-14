@@ -8,7 +8,7 @@
 set -euo pipefail
 
 # Configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"  # Currently unused
 # CONFIG_FILE="$SCRIPT_DIR/../config/config.sh"  # Currently unused
 BACKUP_DIR="/tmp/uci_backup_$(date +%Y%m%d_%H%M%S)"
 

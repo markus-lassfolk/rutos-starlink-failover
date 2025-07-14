@@ -223,7 +223,8 @@ configure_cron() {
 
     # Backup existing crontab with timestamp
     if [ -f "$CRON_FILE" ]; then
-        local backup_file="$CRON_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+        local backup_file
+        backup_file="$CRON_FILE.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$CRON_FILE" "$backup_file"
         print_status "$GREEN" "✓ Existing crontab backed up to: $backup_file"
     fi
