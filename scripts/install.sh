@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
 # Starlink Monitoring System Installation Script
@@ -8,7 +8,7 @@
 #
 # ==============================================================================
 
-set -euo pipefail
+set -eu
 
 # Colors for output
 RED='\033[0;31m'

@@ -161,6 +161,39 @@ sh: syntax error: unexpected "fi" (expecting "}")
 
 **Status**: All CI/CD fixes applied - Ready for Round 3 testing
 
+### ❌ Live RUTX50 Testing - Round 4
+**Date**: July 14, 2025  
+**System**: RUTX50 running RUTOS  
+**Test Method**: Remote installation via curl from testing branch
+
+#### Installation Script (`scripts/install.sh`) - Round 4
+**Status**: ❌ Shell Compatibility Issues
+
+**Command Used**:
+```bash
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | sh
+```
+
+**Errors Found**:
+```
+sh: : not found
+sh: set: line 11: illegal option -o pipefail
+curl: (23) Failure writing output to destination, passed 1422 returned 0
+```
+
+**Root Causes**: 
+1. **Line ending issues**: Windows CRLF line endings causing `: not found` errors
+2. **Shell incompatibility**: `set -o pipefail` not supported in busybox shell
+3. **Bash vs sh**: Script declared as `#!/bin/bash` but running with `sh`
+
+**Fix Applied**: 
+- 🔧 Changed shebang from `#!/bin/bash` to `#!/bin/sh`
+- 🔧 Removed `-o pipefail` option (busybox doesn't support it)
+- 🔧 Converted line endings from CRLF to LF
+- 🔧 Ensured full POSIX shell compatibility
+
+**Next Test**: Re-test with busybox-compatible shell script
+
 ### ❌ Live RUTX50 Testing - Round 3
 **Date**: July 14, 2025  
 **System**: RUTX50 running RUTOS  
