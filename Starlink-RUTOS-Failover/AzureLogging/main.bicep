@@ -36,6 +36,19 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   properties: {
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
+    allowBlobPublicAccess: false // Disable public blob access for security
+    allowSharedKeyAccess: false // Disable shared key access, force managed identity
+    networkAcls: {
+      defaultAction: 'Allow' // Allow access from Function App
+    }
+  }
+}
+
+// RESOURCE: Blob container for storing logs
+resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  name: '${storageAccount.name}/default/logs'
+  properties: {
+    publicAccess: 'None'
   }
 }
 
@@ -63,8 +76,12 @@ resource functionApp 'Microsoft.Web/sites@2022-09-01' = {
     siteConfig: {
       appSettings: [
         {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https,AccountName=${storageAccountName},EndpointSuffix=${environment().suffixes.storage},AccountKey=${storageAccount.listKeys().keys[0].value}'
+          name: 'AzureWebJobsStorage__accountName'
+          value: storageAccountName
+        }
+        {
+          name: 'AzureWebJobsStorage__credential'
+          value: 'managedidentity'
         }
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE'
@@ -102,6 +119,19 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+// Grant the Function App's identity the "Storage Account Contributor" role for runtime access
+resource storageAccountContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: storageAccount
+  name: guid(resourceGroup().id, functionApp.id, 'StorageAccountContributor')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '17d1049b-9a84-46fb-8f53-869881c3d3ab') // Storage Account Contributor
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // OUTPUTS: Information you will need after deployment
 output functionAppName string = functionApp.name
 output functionAppUrl string = 'https://' + functionApp.properties.defaultHostName
+output storageAccountName string = storageAccount.name
+output containerName string = 'logs'

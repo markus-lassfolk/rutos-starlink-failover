@@ -18,6 +18,13 @@
       "name": "outputBlob",
       "path": "logs/router-{DateTime:yyyy-MM-dd}.log",
       "connection": "AzureWebJobsStorage"
+    },
+    {
+      "type": "blob",
+      "direction": "out",
+      "name": "performanceBlob",
+      "path": "performance/starlink-performance-{DateTime:yyyy-MM-dd}.csv",
+      "connection": "AzureWebJobsStorage"
     }
   ]
 }

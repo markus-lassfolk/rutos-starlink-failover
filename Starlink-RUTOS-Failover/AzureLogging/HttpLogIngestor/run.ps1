@@ -1,6 +1,6 @@
 # This script is triggered by an HTTP POST request.
-# It takes the entire request body (the log data from the router)
-# and writes it to an append blob in Azure Storage.
+# It takes the request body (log data from the router) and writes it to 
+# appropriate blob storage based on the log type.
 
 using namespace System.Net
 
@@ -18,14 +18,30 @@ if ($null -eq $logData -or $logData.Length -eq 0) {
     $body = "Request body cannot be empty."
 }
 else {
-    Write-Host "Received $($logData.Length) bytes of log data. Pushing to output blob."
-    # Set the output binding variable. The Azure Functions runtime will handle
-    # creating the blob and appending the data.
-    Push-OutputBinding -Name outputBlob -Value $logData
-
+    # Determine log type from headers
+    $logType = $Request.Headers['X-Log-Type']
+    if ($null -eq $logType) {
+        $logType = "system-logs"  # Default to system logs
+    }
+    
+    Write-Host "Received $($logData.Length) bytes of $logType data. Processing..."
+    
+    # Route to appropriate blob output based on log type
+    if ($logType -eq "starlink-performance") {
+        # For CSV performance data, write as-is to performance blob
+        Push-OutputBinding -Name performanceBlob -Value $logData
+        Write-Host "Wrote performance data to starlink-performance CSV"
+    } else {
+        # For system logs, add timestamp and write to system log blob
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $formattedLogData = "[$timestamp] " + $logData + "`n"
+        Push-OutputBinding -Name outputBlob -Value $formattedLogData
+        Write-Host "Wrote system log data with timestamp"
+    }
+    
     # Return a success response.
     $statusCode = [HttpStatusCode]::OK
-    $body = "Log data accepted."
+    $body = "Log data accepted and stored as $logType."
 }
 
 # Construct the HTTP response to send back to the RUTOS device.
