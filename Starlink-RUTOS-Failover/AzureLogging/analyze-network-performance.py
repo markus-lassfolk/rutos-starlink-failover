@@ -35,7 +35,7 @@ import argparse
 import logging
 import sys
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 import re
 import json
 from pathlib import Path
