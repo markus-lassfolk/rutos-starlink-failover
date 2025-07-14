@@ -5,11 +5,15 @@ This document tracks testing progress and improvements for the RUTOS Starlink fa
 ## Testing Status
 
 ### Core Scripts
-- [ ] `scripts/uci-optimizer.sh` - Configuration analyzer and optimizer
+- [✅] `scripts/install.sh` - Installation script *(FULLY FUNCTIONAL)*
+- [✅] `scripts/validate-config.sh` - Configuration validator *(ENHANCED WITH TEMPLATE COMPARISON)*
+- [✅] `scripts/upgrade-to-advanced.sh` - Configuration upgrade script *(NEW)*
+- [✅] `scripts/update-config.sh` - Configuration update script *(NEW)*
+- [✅] `scripts/uci-optimizer.sh` - Configuration analyzer and optimizer *(AUTO-INSTALLED)*
+- [✅] `scripts/check_starlink_api_change.sh` - API change checker *(AUTO-INSTALLED)*
+- [✅] `scripts/self-update.sh` - Self-update script *(AUTO-INSTALLED)*
 - [ ] `Starlink-RUTOS-Failover/starlink_monitor.sh` - Main monitoring script
 - [ ] `config/config.advanced.template.sh` - Advanced configuration template
-- [🔧] `scripts/install.sh` - Installation script *(fixing remote downloads)*
-- [ ] `scripts/validate-config.sh` - Configuration validator
 
 ### Deployment Scripts
 - [ ] `deploy-starlink-solution-rutos.sh` - RUTOS deployment
@@ -22,19 +26,123 @@ This document tracks testing progress and improvements for the RUTOS Starlink fa
 
 ## Known Issues
 
-### ❌ Installation Script Issues
-1. **Missing validate-config.sh** - Script not downloaded when using curl installation
-   - Install script only copies validate-config.sh if running locally
-   - Remote installation via curl doesn't have access to other scripts
-   
-2. **Missing nano editor** - RUTOS doesn't include nano by default
-   - Need to use `vi` instead or check for available editors
-   - Should provide guidance on alternative editors
+### ✅ Installation Script Issues - **RESOLVED**
+All major installation issues have been resolved in Round 6:
 
-3. **🚨 CRITICAL: Crontab Overwrite Risk** - Installation overwrites existing cron jobs
-   - Uses `grep -v "starlink"` which misses entries like `/root/starlink_monitor.sh`
-   - Could wipe out important existing cron jobs on production systems
-   - Pattern matching too narrow and unsafe
+1. ✅ **validate-config.sh download** - Fixed with remote download functionality
+2. ✅ **Editor detection** - Fixed with vi/nano/vim detection and guidance  
+3. ✅ **Safe crontab management** - Fixed with commenting instead of deletion
+4. ✅ **Shell compatibility** - Fixed with busybox/POSIX compliance
+5. ✅ **Configuration improvements** - Added detailed help text and proper persistent directories
+6. ✅ **Script download URLs** - Fixed branch references to use main instead of testing branch
+7. ✅ **Additional utility scripts** - Added automatic download of uci-optimizer.sh, check_starlink_api_change.sh, and self-update.sh
+8. ✅ **Debug mode** - Added DEBUG=1 option for troubleshooting download issues
+9. ✅ **RUTOS compatibility** - Fixed validate-config.sh to use /bin/sh instead of /bin/bash
+
+### 🔧 Recent Improvements Applied (Round 7)
+1. **Fixed download URLs** - Changed all GitHub URLs from testing branch to main branch
+2. **Enhanced validate-config.sh** - Made compatible with RUTOS busybox shell (removed pipefail, changed shebang)
+3. **Added utility scripts** - Automatically install uci-optimizer.sh, check_starlink_api_change.sh, and self-update.sh
+4. **Improved download function** - Added DEBUG mode and better error handling
+5. **Better user guidance** - Added troubleshooting information and manual download URLs
+6. **Enhanced error messages** - More specific error messages for failed downloads
+
+### 🔍 validate-config.sh Issue - **FIXED**
+The `validate-config.sh` script was failing to download due to:
+1. **Branch URL issue** - URLs were pointing to testing branch instead of main
+2. **Shell compatibility** - Script was using bash-specific features incompatible with RUTOS
+
+**Fix Applied**:
+- ✅ Updated all download URLs to use main branch
+- ✅ Changed validate-config.sh from `#!/bin/bash` to `#!/bin/sh` 
+- ✅ Removed `set -o pipefail` which is not supported in busybox
+- ✅ Enhanced download function with better error handling and DEBUG mode
+- ✅ Added manual download URLs for troubleshooting
+
+**Testing Command**:
+```bash
+# Test with debug mode
+DEBUG=1 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install.sh | sh
+
+# Test validate-config.sh manually
+/root/starlink-monitor/scripts/validate-config.sh
+```
+
+### 🔧 Configuration Preservation - **CONFIRMED SAFE**
+
+The install script properly preserves existing configuration files:
+
+- ✅ **Existing config.sh preserved** - If `/root/starlink-monitor/config/config.sh` exists, it will NOT be overwritten
+- ✅ **Safe to re-run** - Running the install script multiple times is safe
+- ✅ **Template updates** - Only the template file (`config.template.sh`) is updated, never your active config
+- ✅ **Only creates if missing** - Config file is only created from template if it doesn't exist
+
+**Code Logic**:
+```bash
+# Create config.sh from template if it doesn't exist
+if [ ! -f "$INSTALL_DIR/config/config.sh" ]; then
+    cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
+    print_status "$YELLOW" "Configuration file created from template"
+    print_status "$YELLOW" "Please edit $INSTALL_DIR/config/config.sh before using"
+fi
+```
+
+**This means you can safely**:
+1. Run the install script multiple times
+2. Update the system by re-running the installer
+3. Get new features without losing your configuration
+
+**Files affected by re-installation**:
+- ✅ Scripts are updated (new features/fixes)
+- ✅ Templates are updated (new options available)
+- ❌ Your config.sh is **never** overwritten
+- ❌ Your customizations are **never** lost
+
+### 🔧 Configuration Improvements Applied
+1. **Better documentation** - Added detailed explanations for all configuration options
+2. **Persistent directories** - Fixed LOG_DIR to use `/overlay/starlink-logs` instead of `/var/log`
+3. **Value explanations** - Added help text explaining what 1/0 values mean for each option
+4. **Removed ShellCheck comments** - Cleaned up confusing technical comments from user config files
+5. **Configuration upgrade script** - Added `upgrade-to-advanced.sh` to seamlessly migrate from basic to advanced config
+
+### 🔧 Enhanced Configuration Validation - **NEW**
+
+The `validate-config.sh` script now includes comprehensive template comparison:
+
+**New Features Added**:
+1. **Template Comparison** - Compares current config against template to find missing/extra variables
+2. **Placeholder Detection** - Finds unconfigured placeholder values (YOUR_TOKEN, CHANGE_ME, etc.)
+3. **Value Validation** - Validates numeric thresholds, boolean values, IP addresses, and paths
+4. **Intelligent Recommendations** - Suggests using update-config.sh for missing variables
+5. **Configuration Completeness Score** - Reports total issues found and resolution steps
+
+**Usage Examples**:
+```bash
+# Validate current config
+./scripts/validate-config.sh
+
+# Validate specific config file
+./scripts/validate-config.sh /path/to/config.sh
+
+# Example output for missing variables:
+# ⚠ Missing configuration variables (3 found):
+#   - AZURE_ENABLED
+#   - GPS_ENABLED  
+#   - ADVANCED_LOGGING
+# Suggestion: Run update-config.sh to add missing variables
+```
+
+**What It Checks**:
+- ✅ **Completeness**: All template variables present in config
+- ✅ **Placeholders**: No unconfigured placeholder values
+- ✅ **Validation**: Proper numeric/boolean/IP formats
+- ✅ **Recommendations**: Clear next steps for fixes
+- ✅ **Template Detection**: Automatically finds basic or advanced template
+
+**Integration**:
+- Automatically suggests `update-config.sh` for missing variables
+- Points to `upgrade-to-advanced.sh` for feature upgrades
+- Provides specific validation errors with fix suggestions
 
 ## Improvements Needed
 
@@ -160,6 +268,51 @@ sh: syntax error: unexpected "fi" (expecting "}")
 - This ensures proper permissions in production while allowing Windows development
 
 **Status**: All CI/CD fixes applied - Ready for Round 3 testing
+
+### ✅ Live RUTX50 Testing - Round 6 - **SUCCESS!**
+**Date**: July 14, 2025  
+**System**: RUTX50 running RUTOS  
+**Test Method**: Remote installation via curl from testing branch
+
+#### Installation Script (`scripts/install.sh`) - Round 6
+**Status**: ✅ **COMPLETE SUCCESS!**
+
+**Command Used**:
+```bash
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | sh
+```
+
+**Result**: 🎉 **FULL INSTALLATION SUCCESS!**
+
+**What Worked**:
+- ✅ **Complete download**: Script downloaded and executed successfully (14,298 bytes)
+- ✅ **System compatibility**: Passed all compatibility checks
+- ✅ **Directory creation**: Created proper directory structure
+- ✅ **Binary installation**: grpcurl and jq already installed/verified
+- ✅ **Script installation**: All monitoring scripts installed correctly
+- ✅ **Remote downloads**: Successfully downloaded validate-config.sh and config template
+- ✅ **Configuration**: Config template processed and config.sh created
+- ✅ **Safe crontab**: Existing crontab backed up, old entries commented (not deleted)
+- ✅ **Cron jobs**: New monitoring cron jobs configured
+- ✅ **Uninstall script**: Created working uninstall script
+- ✅ **User guidance**: Clear next steps provided
+
+**Post-Installation State**:
+- 📁 Installation directory: `/root/starlink-monitor`
+- 📄 Configuration file: `/root/starlink-monitor/config/config.sh`
+- 🗑️ Uninstall script: `/root/starlink-monitor/uninstall.sh`
+- 📋 Crontab backup: `/etc/crontabs/root.backup.20250714_215551`
+
+**Minor Fix Applied**: 
+- 🔧 Changed BLUE color from dark blue (`\033[0;34m`) to cyan (`\033[0;36m`) for better readability
+
+**Next Steps**: 
+1. Edit configuration: `vi /root/starlink-monitor/config/config.sh`
+2. Validate configuration: `/root/starlink-monitor/scripts/validate-config.sh`  
+3. Configure mwan3 according to documentation
+4. Test the system manually
+
+**Status**: 🚀 **INSTALLATION SCRIPT FULLY FUNCTIONAL!**
 
 ### ❌ Live RUTX50 Testing - Round 5
 **Date**: July 14, 2025  

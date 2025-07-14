@@ -10,101 +10,106 @@
 
 # --- Network Configuration ---
 
-# shellcheck disable=SC2034
+# Starlink gRPC endpoint IP and port
+# Default: 192.168.100.1:9200 (standard Starlink configuration)
 STARLINK_IP="192.168.100.1:9200"
 
-# shellcheck disable=SC2034
+# MWAN3 interface name for Starlink connection
+# Check your MWAN3 config: uci show mwan3 | grep interface
 MWAN_IFACE="wan"
 
-# shellcheck disable=SC2034
+# MWAN3 member name for Starlink connection
+# Check your MWAN3 config: uci show mwan3 | grep member
 MWAN_MEMBER="member1"
 
 # --- Notification Settings ---
 
-# shellcheck disable=SC2034
+# Pushover API credentials for notifications
+# Get your token from: https://pushover.net/apps/build
+# Get your user key from: https://pushover.net/
 PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"
-# shellcheck disable=SC2034
 PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"
 
-# shellcheck disable=SC2034
-NOTIFY_ON_CRITICAL=1 # Always notify on critical errors
-# shellcheck disable=SC2034
-NOTIFY_ON_SOFT_FAIL=1 # Notify on soft failover events
-# shellcheck disable=SC2034
-NOTIFY_ON_HARD_FAIL=1 # Notify on hard failover events
-# shellcheck disable=SC2034
-NOTIFY_ON_RECOVERY=1 # Notify when system recovers/failback
-# shellcheck disable=SC2034
-NOTIFY_ON_INFO=0 # Notify on info/status (set to 1 for verbose)
+# Notification triggers (1=enabled, 0=disabled)
+# 
+# CRITICAL: System failures, API errors, connection lost
+NOTIFY_ON_CRITICAL=1 # Always notify on critical errors (recommended: 1)
+# 
+# SOFT_FAIL: Starlink degraded but still usable (high latency, packet loss)
+NOTIFY_ON_SOFT_FAIL=1 # Notify on soft failover events (recommended: 1)
+# 
+# HARD_FAIL: Starlink completely down, switched to cellular backup
+NOTIFY_ON_HARD_FAIL=1 # Notify on hard failover events (recommended: 1)
+# 
+# RECOVERY: Starlink recovered, switched back from cellular
+NOTIFY_ON_RECOVERY=1 # Notify when system recovers/failback (recommended: 1)
+# 
+# INFO: Status updates, monitoring health, debug information
+NOTIFY_ON_INFO=0 # Notify on info/status (0=quiet, 1=verbose)
 
 # --- Failover Thresholds ---
 
-# shellcheck disable=SC2034
+# Packet loss threshold (0.0-1.0, where 0.05 = 5%)
+# Triggers failover when packet loss exceeds this value
 PACKET_LOSS_THRESHOLD=0.05
 
-# shellcheck disable=SC2034
+# Obstruction threshold (0.0-1.0, where 0.001 = 0.1%)
+# Triggers failover when obstruction fraction exceeds this value
 OBSTRUCTION_THRESHOLD=0.001
 
-# shellcheck disable=SC2034
+# Latency threshold in milliseconds
+# Triggers failover when latency exceeds this value
 LATENCY_THRESHOLD_MS=150
 
 # --- Recovery Settings ---
 
-# shellcheck disable=SC2034
+# Number of consecutive successful checks required before switching back to Starlink
+# Higher values = more conservative (slower to switch back)
+# Lower values = more aggressive (faster to switch back)
 STABILITY_CHECKS_REQUIRED=5
 
 # --- mwan3 Metrics ---
 
-# shellcheck disable=SC2034
-METRIC_GOOD=1
-
-# shellcheck disable=SC2034
-METRIC_BAD=10
+# MWAN3 metric values for interface prioritization
+# Lower values = higher priority (1 = highest priority)
+METRIC_GOOD=1  # Metric when Starlink is working well
+METRIC_BAD=10  # Metric when Starlink is degraded (forces cellular usage)
 
 # --- File Paths ---
 
-# shellcheck disable=SC2034
-STATE_DIR="/tmp/run"
-
-# shellcheck disable=SC2034
-LOG_DIR="/var/log"
-
-# shellcheck disable=SC2034
-DATA_DIR="/root"
+# System directories for persistent storage
+# NOTE: /var/log is wiped on reboot in OpenWrt/RUTOS - use /overlay/ for persistence
+STATE_DIR="/tmp/run"             # Runtime state files (temporary)
+LOG_DIR="/overlay/starlink-logs" # Log files directory (persistent across reboots)
+DATA_DIR="/overlay/starlink-data" # Data storage directory (persistent across reboots)
 
 # --- Binary Paths ---
 
-# shellcheck disable=SC2034
-GRPCURL_CMD="/root/grpcurl"
-
-# shellcheck disable=SC2034
-JQ_CMD="/root/jq"
+# Installed binary locations (set by install script)
+GRPCURL_CMD="/root/grpcurl"  # gRPC client for Starlink API
+JQ_CMD="/root/jq"           # JSON processor
 
 # --- RUTOS API Configuration (for GPS) ---
 
-# shellcheck disable=SC2034
+# RUTX50 router management interface
+# Default: 192.168.80.1 (standard RUTX50 LAN IP)
 RUTOS_IP="192.168.80.1"
 
-# shellcheck disable=SC2034
+# RUTX50 login credentials
+# Set these to your router's admin credentials
 RUTOS_USERNAME="YOUR_RUTOS_USERNAME"
-# shellcheck disable=SC2034
 RUTOS_PASSWORD="YOUR_RUTOS_PASSWORD"
 
 # --- Logging Configuration ---
 
-# shellcheck disable=SC2034
-LOG_TAG="StarlinkSystem"
-
-# shellcheck disable=SC2034
-LOG_RETENTION_DAYS=7
+# System logging settings
+LOG_TAG="StarlinkSystem"    # Syslog tag for filtering logs
+LOG_RETENTION_DAYS=7        # How long to keep log files
 
 # --- Advanced Settings ---
 
-# shellcheck disable=SC2034
-API_TIMEOUT=10
-# shellcheck disable=SC2034
-HTTP_TIMEOUT=15
-# shellcheck disable=SC2034
-GPS_ACCURACY_THRESHOLD=100
-# shellcheck disable=SC2034
-MOVEMENT_THRESHOLD=500
+# Timeout values in seconds
+API_TIMEOUT=10         # Starlink API request timeout
+HTTP_TIMEOUT=15        # HTTP request timeout (for RUTOS API)
+GPS_ACCURACY_THRESHOLD=100   # GPS accuracy threshold in meters
+MOVEMENT_THRESHOLD=500       # Movement detection threshold in meters

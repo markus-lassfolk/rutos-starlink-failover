@@ -174,7 +174,7 @@ install_scripts() {
         else
             # Download from repository
             print_status "$BLUE" "Downloading $script..."
-            if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/Starlink-RUTOS-Failover/$script" "$INSTALL_DIR/scripts/$script"; then
+            if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/Starlink-RUTOS-Failover/$script" "$INSTALL_DIR/scripts/$script"; then
                 chmod +x "$INSTALL_DIR/scripts/$script"
                 print_status "$GREEN" "✓ $script installed"
             else
@@ -191,11 +191,29 @@ install_scripts() {
     else
         # Download from repository
         print_status "$BLUE" "Downloading validate-config.sh..."
-        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/validate-config.sh" "$INSTALL_DIR/scripts/validate-config.sh"; then
+        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/validate-config.sh" "$INSTALL_DIR/scripts/validate-config.sh"; then
             chmod +x "$INSTALL_DIR/scripts/validate-config.sh"
             print_status "$GREEN" "✓ Configuration validation script installed"
         else
             print_status "$YELLOW" "⚠ Warning: Could not download validate-config.sh"
+        fi
+    fi
+
+    # Configuration update script - handle both local and remote installation
+    if [ -f "$script_dir/../scripts/update-config.sh" ]; then
+        cp "$script_dir/../scripts/update-config.sh" "$INSTALL_DIR/scripts/"
+        chmod +x "$INSTALL_DIR/scripts/update-config.sh"
+        print_status "$GREEN" "✓ Configuration update script installed"
+    else
+        # Download from repository
+        print_status "$BLUE" "Downloading update-config.sh..."
+        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/update-config.sh" "$INSTALL_DIR/scripts/update-config.sh"; then
+            chmod +x "$INSTALL_DIR/scripts/update-config.sh"
+            print_status "$GREEN" "✓ Configuration update script installed"
+        else
+            print_status "$RED" "✗ Error: Could not download update-config.sh"
+            print_status "$YELLOW" "  You can manually download it later from:"
+            print_status "$YELLOW" "  https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/update-config.sh"
         fi
     fi
 }
@@ -214,7 +232,7 @@ install_config() {
     else
         # Download from repository
         print_status "$BLUE" "Downloading configuration template..."
-        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/config/config.template.sh" "$INSTALL_DIR/config/config.template.sh"; then
+        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/config/config.template.sh" "$INSTALL_DIR/config/config.template.sh"; then
             print_status "$GREEN" "✓ Configuration template installed"
         else
             print_status "$RED" "✗ Failed to download configuration template"
@@ -384,6 +402,10 @@ main() {
     print_status "$YELLOW" "2. Validate configuration: $INSTALL_DIR/scripts/validate-config.sh"
     print_status "$YELLOW" "3. Configure mwan3 according to documentation"
     print_status "$YELLOW" "4. Test the system manually"
+    echo ""
+    print_status "$BLUE" "Available tools:"
+    print_status "$BLUE" "• Update config with new options: $INSTALL_DIR/scripts/update-config.sh"
+    print_status "$BLUE" "• Upgrade to advanced features: $INSTALL_DIR/scripts/upgrade-to-advanced.sh"
     echo ""
     print_status "$BLUE" "Installation directory: $INSTALL_DIR"
     print_status "$BLUE" "Configuration file: $INSTALL_DIR/config/config.sh"
