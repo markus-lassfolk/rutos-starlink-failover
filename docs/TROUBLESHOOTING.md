@@ -314,7 +314,7 @@ logread | grep -E "(StarlinkMonitor|PushoverNotifier)" | tail -20
 ```
 
 #### Support Channels
-1. Check [GitHub Issues](https://github.com/markus-lassfolk/rutos-starlink-victron/issues)
+1. Check [GitHub Issues](https://github.com/markus-lassfolk/rutos-starlink-failover/issues)
 2. Create new issue with debug information
 3. Include system specifications and error logs
 

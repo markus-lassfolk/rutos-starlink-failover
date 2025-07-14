@@ -39,7 +39,7 @@ This guide provides both automated and manual installation methods for deploying
 ssh root@<RUTOS_IP>
 
 # Download the installation script
-curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-victron/main/deploy-starlink-solution.sh -o deploy-starlink-solution.sh
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/deploy-starlink-solution.sh -o deploy-starlink-solution.sh
 
 # Make it executable
 chmod +x deploy-starlink-solution.sh

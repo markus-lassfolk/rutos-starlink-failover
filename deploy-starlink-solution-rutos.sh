@@ -18,7 +18,7 @@
 # - Complete verification and health checks
 #
 # Version: 1.0-RUTOS
-# Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
+# Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 # ==============================================================================
 
 set -eu
@@ -1525,7 +1525,7 @@ main() {
     log_info "  4. Monitor performance data: tail -f /root/starlink_performance_log.csv"
     echo
     log_info "For support and documentation, visit:"
-    log_info "  https://github.com/markus-lassfolk/rutos-starlink-victron"
+    log_info "  https://github.com/markus-lassfolk/rutos-starlink-failover"
     echo
 }
 

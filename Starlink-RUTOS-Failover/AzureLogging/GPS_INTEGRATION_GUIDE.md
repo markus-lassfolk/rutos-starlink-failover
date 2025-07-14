@@ -2,19 +2,19 @@
 
 ## Overview
 
-The Azure logging solution integrates with the existing repository GPS infrastructure to provide location-aware network performance analysis. This enhancement leverages the same GPS patterns used in the VenusOS integration to ensure consistency and reliability.
+The Azure logging solution integrates with the existing repository GPS infrastructure to provide location-aware network performance analysis. This enhancement leverages GPS patterns for consistent and reliable location tracking.
 
-## GPS Data Sources (Following Repository Patterns)
+## GPS Data Sources
 
-### Primary: RUTOS GPS (Consistent with VenusOS GPS Flow)
-The system uses the same GPS collection methods as the existing VenusOS integration:
+### Primary: RUTOS GPS
+The system uses GPS collection methods for reliable positioning:
 
-- **RUTOS API**: `/api/gps/position/status` endpoint (matching VenusOS flow)
-- **Authentication**: Bearer token authentication (following existing patterns)
-- **Data Structure**: Same field mapping as VenusOS GPS flow:
+- **RUTOS API**: `/api/gps/position/status` endpoint
+- **Authentication**: Bearer token authentication
+- **Data Structure**: Standard GPS field mapping:
   - `latitude`, `longitude`, `altitude`
   - `fix_status`, `satellites`, `accuracy`
-  - `speed` (in km/h, consistent with existing code)
+  - `speed` (in km/h)
 - **Fallback Methods**: 
   - gpsd/gpspipe interface
   - UCI GPS configuration
@@ -23,12 +23,12 @@ The system uses the same GPS collection methods as the existing VenusOS integrat
 ### Fallback: Starlink GPS (Using get_diagnostics)
 Following the repository's API patterns:
 
-- **API Call**: `get_diagnostics` (consistent with VenusOS GPS flow)
+- **API Call**: `get_diagnostics`
 - **Location Structure**: `dishGetDiagnostics.location`
   - `latitude`, `longitude`, `altitudeMeters`
   - `uncertaintyMeters`, `uncertaintyMetersValid`
 - **GPS Stats**: `dishGetDiagnostics.gpsStats.gpsSats`
-- **Quality Thresholds**: Same accuracy standards as VenusOS flow
+- **Quality Thresholds**: Standard accuracy requirements
 
 ## Configuration (Using Repository Standards)
 
@@ -43,12 +43,12 @@ RUTOS_PASSWORD="your_password"
 GPS_ACCURACY_THRESHOLD=100                 # Accuracy threshold in meters
 ```
 
-### Quality Thresholds (Matching VenusOS Flow)
-The system uses the same GPS quality checks as the existing VenusOS GPS flow:
+### Quality Thresholds
+The system uses GPS quality checks for reliable positioning:
 
 - **RUTOS GPS Good**: `fix_status > 0` AND `accuracy < 2m`
 - **Starlink GPS Good**: `uncertaintyMetersValid = true` AND `uncertaintyMeters < 10m`
-- **Selection Logic**: Same as VenusOS flow - prefer RUTOS if both good, otherwise use best available
+- **Selection Logic**: Standard GPS selection - prefer RUTOS if both good, otherwise use best available
 
 ## Enhanced Analysis Capabilities
 

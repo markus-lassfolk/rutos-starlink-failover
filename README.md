@@ -1,22 +1,25 @@
-# 🚀 Starlink & Victron Integration Suite
+# 🚀 RUTOS Starlink Failover
 
-[![Shell Script Quality](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/shellcheck-format.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/shellcheck-format.yml)
-[![Security Scan](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/security-scan.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/security-scan.yml)
-[![Python Code Quality](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/python-quality.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/python-quality.yml)
-[![PowerShell Validation](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/powershell-validation.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/powershell-validation.yml)
+> **📍 Victron GPS Integration Moved!**  
+> The Victron GPS failover functionality has been split into its own repository for better maintainability.  
+> **New location:** [rutos-victron-gps](https://github.com/markus-lassfolk/rutos-victron-gps)
 
-[![Documentation Check](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/docs-check.yml)
-[![Configuration Validation](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/config-validation.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/config-validation.yml)
-[![Infrastructure Tests](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/infrastructure-validation.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/infrastructure-validation.yml)
-[![Integration Tests](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-victron/actions/workflows/integration-tests.yml)
+[![Shell Script Quality](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/shellcheck-format.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/shellcheck-format.yml)
+[![Security Scan](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/security-scan.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/security-scan.yml)
+[![Python Code Quality](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/python-quality.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/python-quality.yml)
+[![PowerShell Validation](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/powershell-validation.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/powershell-validation.yml)
+
+[![Documentation Check](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/docs-check.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/docs-check.yml)
+[![Configuration Validation](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/config-validation.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/config-validation.yml)
+[![Infrastructure Tests](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/infrastructure-validation.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/infrastructure-validation.yml)
+[![Integration Tests](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/markus-lassfolk/rutos-starlink-failover/actions/workflows/integration-tests.yml)
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Azure](https://img.shields.io/badge/Azure-Ready-0078d4.svg)](Starlink-RUTOS-Failover/AzureLogging/)
 [![RUTOS](https://img.shields.io/badge/RUTOS-Compatible-orange.svg)](https://teltonika-networks.com/)
 [![Starlink](https://img.shields.io/badge/Starlink-Integrated-brightgreen.svg)](https://starlink.com/)
-[![Victron](https://img.shields.io/badge/Victron-Compatible-blue.svg)](https://www.victronenergy.com/)
 
-A comprehensive solution for **RV and boat owners** seeking robust internet connectivity and accurate solar forecasting. This repository provides intelligent failover systems and redundant GPS solutions for mobile environments.
+A comprehensive solution for **RV and boat owners** seeking robust internet connectivity. This repository provides intelligent failover systems for Starlink connections on RUTOS routers.
 
 ## 🌟 Features
 
@@ -27,19 +30,13 @@ A comprehensive solution for **RV and boat owners** seeking robust internet conn
 - **Comprehensive notifications** via Pushover
 - **Data logging** for threshold optimization
 
-### 📍 Redundant GPS System
-- **Dual GPS sources** (RUTOS router + Starlink)
-- **Automatic failover** between GPS sources
-- **Solar forecast optimization** for Victron systems
-- **Movement detection** with obstruction map reset
-
 ## 🚀 Quick Start
 
 ### Option 1: Automated Installation (Recommended)
 
 ```bash
 # Download and run the installer
-curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-victron/main/scripts/install.sh | sh
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install.sh | sh
 
 # Configure the system
 nano /root/starlink-monitor/config/config.sh
@@ -54,8 +51,8 @@ nano /root/starlink-monitor/config/config.sh
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/markus-lassfolk/rutos-starlink-victron.git
-   cd rutos-starlink-victron
+   git clone https://github.com/markus-lassfolk/rutos-starlink-failover.git
+   cd rutos-starlink-failover
    ```
 
 2. **Install dependencies**
@@ -88,14 +85,12 @@ nano /root/starlink-monitor/config/config.sh
 ### Hardware Requirements
 - **Teltonika RUTX50** or similar OpenWrt/RUTOS router
 - **Starlink dish** in Bypass Mode
-- **Victron Cerbo GX/CX** (for GPS features)
 - **Cellular backup** connection
 
 ### Software Requirements
 - **RUTOS firmware** (latest stable)
 - **mwan3 package** configured
 - **Pushover account** for notifications
-- **Node-RED** (for Victron GPS features)
 
 ## 🛠️ Configuration
 
@@ -238,8 +233,7 @@ cat /root/starlink_performance_log.csv
 ├── .github/workflows/     # CI/CD workflows
 ├── config/               # Configuration templates
 ├── scripts/              # Installation and utility scripts
-├── Starlink-RUTOS-Failover/  # Failover system
-└── VenusOS-GPS-RUTOS/    # GPS redundancy system
+└── Starlink-RUTOS-Failover/  # Failover system
 ```
 
 ### Key Scripts
@@ -278,9 +272,8 @@ This software is provided "as-is" without warranty. Test thoroughly in your envi
 
 - **Starlink** for the unofficial API
 - **Teltonika** for excellent hardware
-- **Victron** for comprehensive energy systems
 - **Community contributors** for testing and feedback
 
 ---
 
-**Need help?** Check the [documentation](docs/) or open an [issue](https://github.com/markus-lassfolk/rutos-starlink-victron/issues).
+**Need help?** Check the [documentation](docs/) or open an [issue](https://github.com/markus-lassfolk/rutos-starlink-failover/issues).

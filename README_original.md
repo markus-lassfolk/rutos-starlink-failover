@@ -1,4 +1,15 @@
-# Introduction
+## ARCHIVED: Advanced RUTOS, Starlink, and Victron Integration for Mobile Setups
+
+> **⚠️ Repository Split Notice**  
+> This repository has been reorganized for better maintainability:
+> - **Starlink Failover**: Remains in this repository
+> - **Victron GPS Integration**: Moved to [rutos-victron-gps](https://github.com/markus-lassfolk/rutos-victron-gps)
+
+---
+
+*Original description preserved below for historical reference*
+
+This project provides a reliable internet failover for Starlink using Teltonika RUTOS, and a redundant GPS feed for Victron systems. It's intended for tech-savvy RV and boat owners who want uninterrupted connectivity and accurate solar forecasting.troduction
 This project provides a reliable internet failover for Starlink using Teltonika RUTOS, and a redundant GPS feed for Victron systems. It’s intended for tech-savvy RV and boat owners who want uninterrupted connectivity and accurate solar forecasting. 
 
 # Advanced RUTOS, Starlink, and Victron Integration for Mobile Setups

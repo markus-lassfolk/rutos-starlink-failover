@@ -35,8 +35,8 @@ Complete Starlink monitoring and Azure logging solution for RUTOS devices, now f
 ### For RUTOS Hardware:
 ```bash
 # 1. Clone to RUTOS device
-git clone https://github.com/markus-lassfolk/rutos-starlink-victron.git
-cd rutos-starlink-victron
+git clone https://github.com/markus-lassfolk/rutos-starlink-failover.git
+cd rutos-starlink-failover
 
 # 2. Verify compatibility
 chmod +x verify-deployment.sh

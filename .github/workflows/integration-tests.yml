@@ -5,12 +5,10 @@ on:
     branches: [ '*' ]
     paths:
       - 'Starlink-RUTOS-Failover/**'
-      - 'VenusOS-GPS-RUTOS/**'
   pull_request:
     branches: [ '*' ]
     paths:
       - 'Starlink-RUTOS-Failover/**'
-      - 'VenusOS-GPS-RUTOS/**'
 
 jobs:
   starlink-integration:
@@ -57,30 +55,6 @@ jobs:
           done
           
           echo "✅ All shell scripts have valid syntax"
-      
-      - name: Test VenusOS GPS flow validation
-        run: |
-          echo "Validating VenusOS GPS flow configuration..."
-          
-          if [ -f "VenusOS-GPS-RUTOS/victron-gps-flow.json" ]; then
-            echo "Checking VenusOS flow JSON structure..."
-            
-            # Validate JSON structure
-            jq empty VenusOS-GPS-RUTOS/victron-gps-flow.json
-            
-            # Check for required Node-RED flow elements
-            if jq -e '.[] | select(.type == "function")' VenusOS-GPS-RUTOS/victron-gps-flow.json >/dev/null; then
-              echo "✅ Found function nodes in GPS flow"
-            else
-              echo "::warning::No function nodes found in GPS flow"
-            fi
-            
-            if jq -e '.[] | select(.type == "http request")' VenusOS-GPS-RUTOS/victron-gps-flow.json >/dev/null; then
-              echo "✅ Found HTTP request nodes in GPS flow"
-            else
-              echo "::warning::No HTTP request nodes found in GPS flow"
-            fi
-          fi
       
       - name: Test Azure Function configuration
         run: |

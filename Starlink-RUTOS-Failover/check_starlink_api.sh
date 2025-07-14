@@ -4,7 +4,7 @@
 # Starlink API Version Monitor
 #
 # Version: 1.0 (Public Edition)
-# Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
+# Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script runs periodically (ideally once per day via cron) to check if the
 # Starlink dish's gRPC API version has changed.

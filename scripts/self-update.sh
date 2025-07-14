@@ -5,9 +5,9 @@
 set -euo pipefail
 
 # shellcheck disable=SC2034
-REPO_URL="https://github.com/markus-lassfolk/rutos-starlink-victron"
+REPO_URL="https://github.com/markus-lassfolk/rutos-starlink-failover"
 # shellcheck disable=SC2034
-RAW_URL="https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-victron/main"
+RAW_URL="https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main"
 # shellcheck disable=SC2034
 INSTALL_DIR="/root/starlink-monitor"
 # shellcheck disable=SC2034

@@ -14,7 +14,7 @@
     and discovering new data points for monitoring.
 
 .NOTES
-    Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
+    Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
     Author: Markus Lassfolk 
     Date:   2025-07-09
     Requires: PowerShell, grpcurl.exe
