@@ -294,7 +294,7 @@ create_uninstall() {
 
     cat >"$INSTALL_DIR/uninstall.sh" <<'EOF'
 #!/bin/sh
-set -euo pipefail
+set -eu
 
 CRON_FILE="/etc/crontabs/root"
 

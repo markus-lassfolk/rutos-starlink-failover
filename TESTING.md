@@ -161,6 +161,37 @@ sh: syntax error: unexpected "fi" (expecting "}")
 
 **Status**: All CI/CD fixes applied - Ready for Round 3 testing
 
+### ❌ Live RUTX50 Testing - Round 5
+**Date**: July 14, 2025  
+**System**: RUTX50 running RUTOS  
+**Test Method**: Remote installation via curl from testing branch
+
+#### Installation Script (`scripts/install.sh`) - Round 5
+**Status**: ❌ Hidden pipefail in uninstall script
+
+**Command Used**:
+```bash
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | sh
+```
+
+**Error Found**:
+```
+sh: set: line 11: illegal option -o pipefail
+```
+
+**Root Cause**: **Hidden second `set -euo pipefail` command**
+- Fixed main script header but missed line 297 in uninstall script creation
+- Script had TWO different `set` commands:
+  - Line 11: `set -eu` (correct)
+  - Line 297: `set -euo pipefail` (wrong - inside uninstall script)
+
+**Fix Applied**: 
+- 🔧 Fixed second `set -euo pipefail` to `set -eu` in uninstall script
+- 🔧 Verified no other pipefail instances exist in the script
+- 🔧 Full busybox compatibility now achieved
+
+**Next Test**: Re-test with both main and uninstall scripts compatible
+
 ### ❌ Live RUTX50 Testing - Round 4
 **Date**: July 14, 2025  
 **System**: RUTX50 running RUTOS  
