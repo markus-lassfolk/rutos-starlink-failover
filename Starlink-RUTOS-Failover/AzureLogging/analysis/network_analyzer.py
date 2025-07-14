@@ -45,26 +45,17 @@ class NetworkAnalyzer:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
 
-        raw_data = self.downloader.download_logs_for_period(start_date, end_date)
-        if not raw_data:
+        self.downloader.download_data(days)
+        if not self.downloader.system_logs and not self.downloader.performance_data:
             print("❌ No data found for the specified period")
             return {}
 
-        print(f"✅ Downloaded {len(raw_data)} log files")
+        print(f"✅ Downloaded {len(self.downloader.system_logs)} system log files and {len(self.downloader.performance_data)} performance data files")
 
         # Step 2: Parse data
         print("🔍 Parsing log data...")
-        parsed_data = []
-        performance_data = []
-
-        for date_str, content in raw_data.items():
-            # Parse system logs
-            log_entries = self.parser.parse_log_content(content, date_str)
-            parsed_data.extend(log_entries)
-
-            # Parse performance data if available
-            perf_entries = self.parser.parse_performance_data(content, date_str)
-            performance_data.extend(perf_entries)
+        parsed_data = self.downloader.system_logs
+        performance_data = self.downloader.performance_data
 
         print(f"✅ Parsed {len(parsed_data)} log entries")
         print(f"✅ Parsed {len(performance_data)} performance entries")
@@ -94,7 +85,7 @@ class NetworkAnalyzer:
             "data_summary": {
                 "log_entries": len(parsed_data),
                 "performance_entries": len(performance_data),
-                "log_files_processed": len(raw_data),
+                "log_files_processed": len(self.downloader.system_logs) + len(self.downloader.performance_data),
             },
             "statistics": stats,
             "patterns": patterns,
@@ -132,7 +123,7 @@ class NetworkAnalyzer:
         # Analyze the data
         if performance_data:
             stats = self.analyzer.calculate_statistics(performance_data)
-            patterns = self.analyzer.detect_patterns(performance_data)
+            patterns = self.analyzer.identify_patterns(performance_data)
             insights = self.analyzer.generate_insights(performance_data)
         else:
             stats = {}
@@ -169,9 +160,9 @@ class NetworkAnalyzer:
             return
 
         # Create various charts
-        self.visualizer.create_latency_charts(performance_data, output_dir)
-        self.visualizer.create_throughput_charts(performance_data, output_dir)
-        self.visualizer.create_packet_loss_charts(performance_data, output_dir)
+        self.visualizer.create_latency_chart(performance_data, output_dir)
+        self.visualizer.create_throughput_chart(performance_data, output_dir)
+        self.visualizer.create_packet_loss_chart(performance_data, output_dir)
 
         print(f"✅ Visualizations saved to {output_dir}")
 
