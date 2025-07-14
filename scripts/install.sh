@@ -149,20 +149,38 @@ install_scripts() {
         return 1
     fi
 
-    # Other scripts
+    # Other scripts - handle both local and remote installation
     for script in starlink_logger.sh check_starlink_api.sh; do
         if [ -f "$script_dir/$script" ]; then
             cp "$script_dir/$script" "$INSTALL_DIR/scripts/"
             chmod +x "$INSTALL_DIR/scripts/$script"
             print_status "$GREEN" "✓ $script installed"
+        else
+            # Download from repository
+            print_status "$BLUE" "Downloading $script..."
+            if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/Starlink-RUTOS-Failover/$script" "$INSTALL_DIR/scripts/$script"; then
+                chmod +x "$INSTALL_DIR/scripts/$script"
+                print_status "$GREEN" "✓ $script installed"
+            else
+                print_status "$YELLOW" "⚠ Warning: Could not download $script"
+            fi
         fi
     done
 
-    # Validation script
+    # Validation script - handle both local and remote installation
     if [ -f "$script_dir/../scripts/validate-config.sh" ]; then
         cp "$script_dir/../scripts/validate-config.sh" "$INSTALL_DIR/scripts/"
         chmod +x "$INSTALL_DIR/scripts/validate-config.sh"
         print_status "$GREEN" "✓ Configuration validation script installed"
+    else
+        # Download from repository
+        print_status "$BLUE" "Downloading validate-config.sh..."
+        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/validate-config.sh" "$INSTALL_DIR/scripts/validate-config.sh"; then
+            chmod +x "$INSTALL_DIR/scripts/validate-config.sh"
+            print_status "$GREEN" "✓ Configuration validation script installed"
+        else
+            print_status "$YELLOW" "⚠ Warning: Could not download validate-config.sh"
+        fi
     fi
 }
 
@@ -173,13 +191,25 @@ install_config() {
     local config_dir
     config_dir="$(dirname "$0")/../config"
 
+    # Handle both local and remote installation
     if [ -f "$config_dir/config.template.sh" ]; then
         cp "$config_dir/config.template.sh" "$INSTALL_DIR/config/"
         print_status "$GREEN" "✓ Configuration template installed"
+    else
+        # Download from repository
+        print_status "$BLUE" "Downloading configuration template..."
+        if download_file "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/config/config.template.sh" "$INSTALL_DIR/config/config.template.sh"; then
+            print_status "$GREEN" "✓ Configuration template installed"
+        else
+            print_status "$RED" "✗ Failed to download configuration template"
+            exit 1
+        fi
+    fi
 
-        if [ ! -f "$INSTALL_DIR/config/config.sh" ]; then
-            cp "$config_dir/config.template.sh" "$INSTALL_DIR/config/config.sh"
-            print_status "$YELLOW" "Configuration file created from template"
+    # Create config.sh from template if it doesn't exist
+    if [ ! -f "$INSTALL_DIR/config/config.sh" ]; then
+        cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
+        print_status "$YELLOW" "Configuration file created from template"
             print_status "$YELLOW" "Please edit $INSTALL_DIR/config/config.sh before using"
         fi
     fi
@@ -192,30 +222,57 @@ install_config() {
 configure_cron() {
     print_status "$BLUE" "Configuring cron jobs..."
 
-    # Backup existing crontab
+    # Backup existing crontab with timestamp
     if [ -f "$CRON_FILE" ]; then
-        cp "$CRON_FILE" "$CRON_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+        local backup_file="$CRON_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+        cp "$CRON_FILE" "$backup_file"
+        print_status "$GREEN" "✓ Existing crontab backed up to: $backup_file"
     fi
 
-    # Remove existing starlink cron entries
+    # Create the cron file if it doesn't exist
+    if [ ! -f "$CRON_FILE" ]; then
+        touch "$CRON_FILE"
+    fi
+
+    # Remove existing starlink monitoring entries (comment them out instead of deleting)
     if [ -f "$CRON_FILE" ]; then
-        grep -v "starlink" "$CRON_FILE" >"$CRON_FILE.tmp" || true
+        # Create temp file with old starlink entries commented out
+        awk '
+        /starlink_monitor\.sh|starlink_logger\.sh|check_starlink_api\.sh/ {
+            if ($0 !~ /^#/) {
+                print "# COMMENTED BY INSTALL SCRIPT " strftime("%Y-%m-%d") ": " $0
+            } else {
+                print $0
+            }
+            next
+        }
+        { print $0 }
+        ' "$CRON_FILE" >"$CRON_FILE.tmp" 2>/dev/null || {
+            # If awk fails, preserve existing content
+            cat "$CRON_FILE" >"$CRON_FILE.tmp" 2>/dev/null || touch "$CRON_FILE.tmp"
+        }
+        
         mv "$CRON_FILE.tmp" "$CRON_FILE"
+        print_status "$BLUE" "ℹ Old Starlink cron entries commented out (not deleted)"
     fi
 
-    # Add new cron entries
+    # Add new cron entries with proper spacing
     cat >>"$CRON_FILE" <<EOF
 
-# Starlink monitoring system
+# Starlink monitoring system - Added by install script $(date +%Y-%m-%d)
 * * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_monitor.sh
 * * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_logger.sh
 0 6 * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/check_starlink_api.sh
 EOF
 
     # Restart cron service
-    /etc/init.d/cron restart
+    /etc/init.d/cron restart >/dev/null 2>&1 || {
+        print_status "$YELLOW" "⚠ Warning: Could not restart cron service"
+    }
 
     print_status "$GREEN" "✓ Cron jobs configured"
+    print_status "$BLUE" "ℹ Previous crontab backed up before modification"
+    print_status "$YELLOW" "ℹ To restore commented entries: sed -i 's/^# COMMENTED BY INSTALL SCRIPT [0-9-]*: //' $CRON_FILE"
 }
 
 # Create uninstall script
@@ -226,6 +283,8 @@ create_uninstall() {
 #!/bin/sh
 set -euo pipefail
 
+CRON_FILE="/etc/crontabs/root"
+
 print_status() {
     local color="$1"
     local message="$2"
@@ -234,11 +293,32 @@ print_status() {
 
 print_status "\033[0;31m" "Uninstalling Starlink monitoring system..."
 
-# Remove cron entries
+# Backup crontab before modification
 if [ -f "$CRON_FILE" ]; then
-    grep -v "starlink" "$CRON_FILE" > /tmp/crontab.tmp || true
+    cp "$CRON_FILE" "${CRON_FILE}.backup.uninstall.$(date +%Y%m%d_%H%M%S)"
+    print_status "\033[0;33m" "Crontab backed up before removal"
+fi
+
+# Remove cron entries (comment them out instead of deleting)
+if [ -f "$CRON_FILE" ]; then
+    awk '
+    /starlink_monitor\.sh|starlink_logger\.sh|check_starlink_api\.sh|Starlink monitoring system/ {
+        if ($0 !~ /^#/) {
+            print "# COMMENTED BY UNINSTALL " strftime("%Y-%m-%d") ": " $0
+        } else {
+            print $0
+        }
+        next
+    }
+    { print $0 }
+    ' "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || {
+        # If awk fails, preserve the file
+        cat "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || touch /tmp/crontab.tmp
+    }
     mv /tmp/crontab.tmp "$CRON_FILE"
-    /etc/init.d/cron restart
+    /etc/init.d/cron restart >/dev/null 2>&1 || true
+    print_status "\033[0;32m" "✓ Starlink cron entries commented out (not deleted)"
+    print_status "\033[0;33m" "ℹ To restore: sed -i 's/^# COMMENTED BY UNINSTALL [0-9-]*: //' $CRON_FILE"
 fi
 
 # Remove hotplug script
@@ -273,8 +353,23 @@ main() {
 
     print_status "$GREEN" "=== Installation Complete ==="
     echo ""
+    
+    # Check for available editors and provide guidance
+    local available_editor=""
+    for editor in nano vi vim; do
+        if command -v "$editor" >/dev/null 2>&1; then
+            available_editor="$editor"
+            break
+        fi
+    done
+    
     print_status "$YELLOW" "Next steps:"
-    print_status "$YELLOW" "1. Edit configuration: $INSTALL_DIR/config/config.sh"
+    if [ -n "$available_editor" ]; then
+        print_status "$YELLOW" "1. Edit configuration: $available_editor $INSTALL_DIR/config/config.sh"
+    else
+        print_status "$YELLOW" "1. Edit configuration: $INSTALL_DIR/config/config.sh"
+        print_status "$YELLOW" "   Note: No standard editor found. You may need to install nano or use vi"
+    fi
     print_status "$YELLOW" "2. Validate configuration: $INSTALL_DIR/scripts/validate-config.sh"
     print_status "$YELLOW" "3. Configure mwan3 according to documentation"
     print_status "$YELLOW" "4. Test the system manually"
