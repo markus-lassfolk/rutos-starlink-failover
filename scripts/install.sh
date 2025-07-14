@@ -46,9 +46,9 @@ JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
 
 # Function to print colored output
 print_status() {
-    local color="$1"
-    local message="$2"
-    printf "%b%s%b\n" "$color" "$message" "$NC"
+    color="$1"
+    message="$2"
+    printf "%s%s%s\n" "$color" "$message" "$NC"
 }
 
 # Function to print debug messages
@@ -70,7 +70,7 @@ debug_exec() {
 
 # Early debug detection - show immediately if DEBUG is set
 if [ "${DEBUG:-0}" = "1" ]; then
-    echo ""
+    printf "\n"
     print_status "$BLUE" "==================== DEBUG MODE ENABLED ===================="
     print_status "$BLUE" "DEBUG: Script starting with DEBUG=1"
     print_status "$BLUE" "DEBUG: Environment variables:"
@@ -83,7 +83,7 @@ fi
 
 # Function to show version information
 show_version() {
-    print_status "$GREEN" "===========================================" 
+    print_status "$GREEN" "==========================================="
     print_status "$GREEN" "Starlink Monitor Installation Script"
     print_status "$GREEN" "Script: $SCRIPT_NAME"
     print_status "$GREEN" "Version: $SCRIPT_VERSION"
@@ -94,9 +94,8 @@ show_version() {
 
 # Function to detect remote version
 detect_remote_version() {
-    local remote_version
+    remote_version=""
     debug_msg "Fetching remote version from $VERSION_URL"
-    
     if command -v wget >/dev/null 2>&1; then
         remote_version=$(wget -q -O - "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
     elif command -v curl >/dev/null 2>&1; then
@@ -105,10 +104,9 @@ detect_remote_version() {
         debug_msg "Cannot detect remote version - no wget or curl available"
         return 1
     fi
-    
     if [ -n "$remote_version" ]; then
         debug_msg "Remote version detected: $remote_version"
-        echo "$remote_version"
+        printf "%s\n" "$remote_version"
     else
         debug_msg "Failed to detect remote version"
         return 1
@@ -117,8 +115,8 @@ detect_remote_version() {
 
 # Function to compare versions (simplified)
 version_compare() {
-    local version1="$1"
-    local version2="$2"
+    version1="$1"
+    version2="$2"
     
     # Simple version comparison (assumes semantic versioning)
     # Returns 0 if versions are equal, 1 if v1 > v2, 2 if v1 < v2
@@ -132,8 +130,8 @@ version_compare() {
 
 # Function to download files with fallback
 download_file() {
-    local url="$1"
-    local output="$2"
+    url="$1"
+    output="$2"
     
     debug_msg "Downloading $url to $output"
     
@@ -168,7 +166,8 @@ check_root() {
 check_system() {
     print_status "$BLUE" "Checking system compatibility..."
 
-    local arch
+check_system() {
+    arch=""
     if [ "${DEBUG:-0}" = "1" ]; then
         debug_msg "Executing: uname -m"
         arch=$(uname -m)
@@ -176,12 +175,11 @@ check_system() {
     else
         arch=$(uname -m)
     fi
-    
     if [ "$arch" != "armv7l" ]; then
         print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
         print_status "$YELLOW" "Your architecture: $arch"
         print_status "$YELLOW" "You may need to adjust binary URLs"
-        printf "%s" "Continue anyway? (y/N): "
+        printf "Continue anyway? (y/N): "
         read -r answer
         if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
             exit 1
@@ -189,30 +187,26 @@ check_system() {
     else
         debug_msg "Architecture check passed: $arch matches expected armv7l"
     fi
-
-    # Check OpenWrt/RUTOS
     debug_msg "Checking for OpenWrt/RUTOS system files"
     if [ ! -f "/etc/openwrt_version" ] && [ ! -f "/etc/rutos_version" ]; then
         print_status "$YELLOW" "Warning: This doesn't appear to be OpenWrt/RUTOS"
-        echo -n "Continue anyway? (y/N): "
+        printf "Continue anyway? (y/N): "
         read -r answer
         if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
             exit 1
         fi
     else
         if [ -f "/etc/openwrt_version" ]; then
-            local openwrt_version=$(cat /etc/openwrt_version 2>/dev/null)
+            openwrt_version=$(cat /etc/openwrt_version 2>/dev/null)
             debug_msg "OpenWrt version: $openwrt_version"
         fi
         if [ -f "/etc/rutos_version" ]; then
-            local rutos_version=$(cat /etc/rutos_version 2>/dev/null)
+            rutos_version=$(cat /etc/rutos_version 2>/dev/null)
             debug_msg "RUTOS version: $rutos_version"
         fi
     fi
-
     print_status "$GREEN" "✓ System compatibility checked"
 }
-
 # Create directory structure
 create_directories() {
     print_status "$BLUE" "Creating directory structure..."
@@ -271,11 +265,7 @@ install_binaries() {
 }
 
 # Install scripts
-install_scripts() {
     print_status "$BLUE" "Installing monitoring scripts..."
-
-    # Copy scripts to installation directory
-    local script_dir
     script_dir="$(dirname "$0")"
 
     # Main monitoring script (enhanced version is now default)
@@ -370,10 +360,7 @@ install_scripts() {
 }
 
 # Install configuration
-install_config() {
     print_status "$BLUE" "Installing configuration..."
-
-    local config_dir
     config_dir="$(dirname "$0")/../config"
 
     # Handle both local and remote installation
@@ -403,12 +390,8 @@ install_config() {
 }
 
 # Configure cron jobs
-configure_cron() {
     print_status "$BLUE" "Configuring cron jobs..."
-
-    # Backup existing crontab with timestamp
     if [ -f "$CRON_FILE" ]; then
-        local backup_file
         backup_file="$CRON_FILE.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$CRON_FILE" "$backup_file"
         print_status "$GREEN" "✓ Existing crontab backed up to: $backup_file"
@@ -422,7 +405,6 @@ configure_cron() {
     # Remove existing starlink monitoring entries (comment them out instead of deleting)
     if [ -f "$CRON_FILE" ]; then
         # Create temp file with old starlink entries commented out
-        local date_stamp
         date_stamp=$(date +%Y-%m-%d)
 
         # Use basic sed to comment out matching lines (more portable)
@@ -519,12 +501,9 @@ EOF
 
 # Main installation function
 main() {
-    # Show version information first (always shown in debug mode)
     if [ "${DEBUG:-0}" = "1" ]; then
         show_version
-        echo ""
-        
-        # Try to detect remote version for comparison
+        printf "\n"
         if remote_version=$(detect_remote_version); then
             if [ "$remote_version" != "$SCRIPT_VERSION" ]; then
                 print_status "$YELLOW" "WARNING: Remote version ($remote_version) differs from script version ($SCRIPT_VERSION)"
@@ -532,12 +511,10 @@ main() {
                 debug_msg "Script version matches remote version: $SCRIPT_VERSION"
             fi
         fi
-        echo ""
+        printf "\n"
     fi
-    
     print_status "$GREEN" "=== Starlink Monitoring System Installer ==="
-    echo ""
-
+    printf "\n"
     debug_msg "Starting installation process"
     check_root
     check_system
@@ -547,19 +524,15 @@ main() {
     install_config
     configure_cron
     create_uninstall
-
     print_status "$GREEN" "=== Installation Complete ==="
-    echo ""
-
-    # Check for available editors and provide guidance
-    local available_editor=""
+    printf "\n"
+    available_editor=""
     for editor in nano vi vim; do
         if command -v "$editor" >/dev/null 2>&1; then
             available_editor="$editor"
             break
         fi
     done
-
     print_status "$YELLOW" "Next steps:"
     if [ -n "$available_editor" ]; then
         print_status "$YELLOW" "1. Edit configuration: $available_editor $INSTALL_DIR/config/config.sh"
@@ -570,28 +543,25 @@ main() {
     print_status "$YELLOW" "2. Validate configuration: $INSTALL_DIR/scripts/validate-config.sh"
     print_status "$YELLOW" "3. Configure mwan3 according to documentation"
     print_status "$YELLOW" "4. Test the system manually"
-    echo ""
+    printf "\n"
     print_status "$BLUE" "Available tools:"
     print_status "$BLUE" "• Update config with new options: $INSTALL_DIR/scripts/update-config.sh"
     print_status "$BLUE" "• Upgrade to advanced features: $INSTALL_DIR/scripts/upgrade-to-advanced.sh"
-    echo ""
+    printf "\n"
     print_status "$BLUE" "Installation directory: $INSTALL_DIR"
     print_status "$BLUE" "Configuration file: $INSTALL_DIR/config/config.sh"
     print_status "$BLUE" "Uninstall script: $INSTALL_DIR/uninstall.sh"
     print_status "$BLUE" "Scripts downloaded from: $BASE_URL"
-    echo ""
+    printf "\n"
     print_status "$GREEN" "System will start monitoring automatically after configuration"
-    echo ""
-    
-    # Show debug information if not in debug mode
+    printf "\n"
     if [ "${DEBUG:-0}" != "1" ]; then
         print_status "$BLUE" "💡 Troubleshooting:"
         print_status "$BLUE" "   For detailed debug output, run with DEBUG=1:"
         print_status "$BLUE" "   DEBUG=1 GITHUB_BRANCH=\"$GITHUB_BRANCH\" \\"
         print_status "$BLUE" "   curl -fL https://raw.githubusercontent.com/..../install.sh | sh -s --"
-        echo ""
+        printf "\n"
     fi
-    
     if [ "$GITHUB_BRANCH" != "main" ]; then
         print_status "$YELLOW" "⚠ Development Mode: Using branch '$GITHUB_BRANCH'"
         print_status "$YELLOW" "  This is a testing/development installation"

@@ -60,9 +60,9 @@ done
 
 # Function to print colored output
 print_status() {
-    local color="$1"
-    local message="$2"
-    printf "${color}${message}${NC}\n"
+    color="$1"
+    message="$2"
+    printf "%s%s%s\n" "$color" "$message" "$NC"
 }
 
 print_error() {

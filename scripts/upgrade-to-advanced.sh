@@ -32,9 +32,9 @@ BACKUP_CONFIG="$CONFIG_DIR/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
 
 # Function to print colored output
 print_status() {
-    local color="$1"
-    local message="$2"
-    printf "${color}${message}${NC}\n"
+    color="$1"
+    message="$2"
+    printf "%s%s%s\n" "$color" "$message" "$NC"
 }
 
 print_error() {
@@ -55,11 +55,9 @@ print_warning() {
 
 # Function to extract value from config file
 get_config_value() {
-    local file="$1"
-    local key="$2"
-    
+    file="$1"
+    key="$2"
     if [ -f "$file" ]; then
-        # Extract value after = sign, remove quotes and comments
         grep "^${key}=" "$file" 2>/dev/null | head -1 | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*#.*$//;s/^"//;s/"$//'
     fi
 }
