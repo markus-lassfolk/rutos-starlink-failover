@@ -348,6 +348,53 @@ curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failov
 
 **Status**: 🚀 **INSTALLATION SCRIPT FULLY FUNCTIONAL!**
 
+### 🔧 Live RUTX50 Testing - Round 8 - **DEBUG MODE ISSUE IDENTIFIED**
+**Date**: July 14, 2025  
+**System**: RUTX50 running RUTOS  
+**Test Method**: Remote installation via curl with DEBUG=1
+
+#### Issue Found: DEBUG Mode Not Working with Pipe
+**Status**: 🔍 **DEBUGGING**
+
+**Command Used**:
+```bash
+DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" \
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
+sh -s --
+```
+
+**Expected vs Actual**:
+- ❌ **Expected**: Version banner and detailed debug output
+- ❌ **Actual**: Normal installation output without debug information
+
+**Root Cause Analysis**:
+- **Environment Variable Scope**: `DEBUG=1` is set for the `curl` command, not the `sh` process
+- **Pipe Execution**: Variables don't automatically pass through the pipe to the shell
+- **Script Download**: The script itself doesn't receive the DEBUG environment variable
+
+**Solutions Implemented**:
+1. **Early Debug Detection**: Added immediate debug banner when DEBUG=1 is detected
+2. **Enhanced Debug Output**: More prominent debug messages throughout execution
+3. **Alternative Testing Methods**: Download-first approach for reliable debug testing
+4. **Troubleshooting Guide**: Built-in help explaining how to enable debug mode
+
+**Fixed Color Issue**:
+- ✅ Changed BLUE color from dark blue (`\033[0;34m`) to cyan (`\033[0;36m`)
+- ✅ Better readability for debug messages
+
+**Testing Methods**:
+```bash
+# Method 1: Download first, then run with DEBUG
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh -o install.sh
+chmod +x install.sh
+DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" ./install.sh
+
+# Method 2: Edit script to enable DEBUG mode
+# Download script and uncomment DEBUG=1 line in the script
+```
+
+**Status**: 🔧 **DEBUG MODE ENHANCED** - Ready for re-testing with proper method
+
 ### ❌ Live RUTX50 Testing - Round 5
 **Date**: July 14, 2025  
 **System**: RUTX50 running RUTOS  
@@ -461,7 +508,7 @@ sh: download_file: not found
 - ✅ Shell scripts always use LF line endings regardless of OS
 - ✅ Cross-platform compatibility maintained
 
-### 🔧 Versioning System - **NEW**
+### 🔧 Versioning System and Enhanced Debug Mode - **NEW**
 
 **New Features Added**:
 1. **Script Versioning** - All scripts now include version information
@@ -477,27 +524,41 @@ sh: download_file: not found
 - ✅ **Templates**: Include version headers for tracking compatibility
 
 **Enhanced Debug Output**:
+- ✅ **Early Debug Detection**: Shows "DEBUG MODE ENABLED" banner immediately
+- ✅ **Environment Variables**: Displays all debug-related environment variables
 - ✅ **Version Detection**: Automatically detects and compares remote vs local versions
 - ✅ **Command Tracking**: All commands shown with `debug_exec()` function
 - ✅ **System Information**: Displays architecture, OS version, and system details
 - ✅ **Download Progress**: Shows detailed download information for all files
 
-**Benefits**:
-- 🔧 **Easy Debugging**: Instantly see which version is running
-- 🔧 **Compatibility Assurance**: Verify all scripts work together
-- 🔧 **Update Tracking**: Know when scripts need updates
-- 🔧 **Issue Resolution**: Debug problems with detailed command output
+**Debug Mode Usage**:
 
-**Testing Command Updated**:
+⚠️ **Important**: When using `curl | sh`, environment variables need to be passed differently:
+
 ```bash
-# Now shows version information and detailed debug output
+# ❌ This may not work (environment variables for curl, not sh):
 DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" \
-curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
-sh -s --
+curl -fL https://raw.githubusercontent.com/.../install.sh | sh -s --
+
+# ✅ Better approach - download first, then run:
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh -o install.sh
+chmod +x install.sh
+DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" ./install.sh
+
+# ✅ Alternative - edit script to enable DEBUG:
+# Download the script and uncomment the DEBUG=1 line in the script itself
 ```
 
 **Expected Debug Output**:
 ```
+==================== DEBUG MODE ENABLED ====================
+DEBUG: Script starting with DEBUG=1
+DEBUG: Environment variables:
+DEBUG:   DEBUG=1
+DEBUG:   GITHUB_BRANCH=feature/testing-improvements
+DEBUG:   GITHUB_REPO=markus-lassfolk/rutos-starlink-failover
+===========================================================
+
 ===========================================
 Starlink Monitor Installation Script
 Script: install.sh
@@ -508,8 +569,65 @@ Repository: markus-lassfolk/rutos-starlink-failover
 
 DEBUG: Remote version detected: 1.0.0
 DEBUG: Script version matches remote version: 1.0.0
+DEBUG: Starting installation process
+DEBUG: Executing: uname -m
+DEBUG: System architecture: armv7l
 ```
+
+**Benefits**:
+- 🔧 **Easy Debugging**: Instantly see which version is running
+- 🔧 **Compatibility Assurance**: Verify all scripts work together
+- 🔧 **Update Tracking**: Know when scripts need updates
+- 🔧 **Issue Resolution**: Debug problems with detailed command output
+- 🔧 **Troubleshooting Guide**: Built-in help for enabling debug mode
 
 ---
 **Branch**: `feature/testing-improvements`  
 **Started**: July 14, 2025
+
+### 🔧 Live RUTX50 Testing - Round 8 - **DEBUG MODE ISSUE IDENTIFIED**
+**Date**: July 14, 2025  
+**System**: RUTX50 running RUTOS  
+**Test Method**: Remote installation via curl with DEBUG=1
+
+#### Issue Found: DEBUG Mode Not Working with Pipe
+**Status**: 🔍 **DEBUGGING**
+
+**Command Used**:
+```bash
+DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" \
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
+sh -s --
+```
+
+**Expected vs Actual**:
+- ❌ **Expected**: Version banner and detailed debug output
+- ❌ **Actual**: Normal installation output without debug information
+
+**Root Cause Analysis**:
+- **Environment Variable Scope**: `DEBUG=1` is set for the `curl` command, not the `sh` process
+- **Pipe Execution**: Variables don't automatically pass through the pipe to the shell
+- **Script Download**: The script itself doesn't receive the DEBUG environment variable
+
+**Solutions Implemented**:
+1. **Early Debug Detection**: Added immediate debug banner when DEBUG=1 is detected
+2. **Enhanced Debug Output**: More prominent debug messages throughout execution
+3. **Alternative Testing Methods**: Download-first approach for reliable debug testing
+4. **Troubleshooting Guide**: Built-in help explaining how to enable debug mode
+
+**Fixed Color Issue**:
+- ✅ Changed BLUE color from dark blue (`\033[0;34m`) to cyan (`\033[0;36m`)
+- ✅ Better readability for debug messages
+
+**Testing Methods**:
+```bash
+# Method 1: Download first, then run with DEBUG
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh -o install.sh
+chmod +x install.sh
+DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" ./install.sh
+
+# Method 2: Edit script to enable DEBUG mode
+# Download script and uncomment DEBUG=1 line in the script
+```
+
+**Status**: 🔧 **DEBUG MODE ENHANCED** - Ready for re-testing with proper method
