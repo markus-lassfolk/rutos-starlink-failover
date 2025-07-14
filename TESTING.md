@@ -581,59 +581,71 @@ DEBUG: System architecture: armv7l
 - 🔧 **Issue Resolution**: Debug problems with detailed command output
 - 🔧 **Troubleshooting Guide**: Built-in help for enabling debug mode
 
-### 🔧 Architecture Detection Bug Fix - **CRITICAL**
+### ✅ Live RUTX50 Testing - Round 9 - **ARCHITECTURE FIX SUCCESS!**
 **Date**: July 14, 2025  
-**Issue**: Architecture detection logic was working but output was confusing
+**System**: RUTX50 running RUTOS  
+**Test Method**: Download-first approach with DEBUG=1 and architecture fix
 
-#### Bug Found: Mixed Debug Output in Variable Assignment
-**Status**: 🔧 **FIXED**
+#### Architecture Detection Fix Working Perfectly! 
+**Status**: ✅ **SUCCESS!**
 
-**Original Problem**: 
+**Command Used**:
 ```bash
-arch=$(debug_exec uname -m)
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh -o install.sh
+chmod +x install.sh
+DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" ./install.sh
 ```
 
-**Caused This Output**:
+**Results**: 🎯 **ARCHITECTURE DETECTION FIXED!**
+
+**What's Working Now**:
+- ✅ **Clean Architecture Detection**: `DEBUG: System architecture: armv7l`
+- ✅ **Correct Logic**: `DEBUG: Architecture check passed: armv7l matches expected armv7l`
+- ✅ **No False Warnings**: RUTX50 proceeds without architecture warnings
+- ✅ **Complete Installation**: Full installation completed successfully
+- ✅ **All Features Working**: Debug mode, versioning, configuration management
+
+**Key Success Indicators**:
 ```
-DEBUG: System architecture: DEBUG: Executing: uname -m
-armv7l
-Warning: This script is designed for ARMv7 (RUTX50)
-Your architecture: DEBUG: Executing: uname -m
-armv7l
-```
-
-**Root Cause**: The `debug_exec` function prints debug output AND executes the command, but when used in variable assignment `arch=$(debug_exec uname -m)`, the debug output gets mixed with the command output.
-
-**Logic Analysis**:
-- ✅ The comparison logic was actually **correct**: `if [ "$arch" != "armv7l" ]`
-- ✅ On RUTX50, `uname -m` returns `armv7l` 
-- ✅ Since `armv7l != armv7l` is false, the warning should **NOT** appear
-- ❌ **BUT**: The debug output was polluting the architecture detection
-
-**Fixed Implementation**:
-```bash
-local arch
-if [ "${DEBUG:-0}" = "1" ]; then
-    debug_msg "Executing: uname -m"
-    arch=$(uname -m)
-    debug_msg "System architecture: $arch"
-else
-    arch=$(uname -m)
-fi
-
-if [ "$arch" != "armv7l" ]; then
-    # Warning only for non-ARMv7 architectures
-    print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
-    print_status "$YELLOW" "Your architecture: $arch"
-    # ... continue with warning logic
-else
-    debug_msg "Architecture check passed: $arch matches expected armv7l"
-fi
+DEBUG: Executing: uname -m
+DEBUG: System architecture: armv7l
+DEBUG: Architecture check passed: armv7l matches expected armv7l
 ```
 
-**Expected Behavior After Fix**:
-- ✅ **On RUTX50** (armv7l): No warning, continues installation
-- ✅ **On other architectures**: Shows warning and prompts user
-- ✅ **Clean debug output**: No mixed command/debug output
+**Installation Results**:
+- ✅ **System Compatibility**: Passed all checks without warnings
+- ✅ **Directory Structure**: Created successfully 
+- ✅ **Binary Installation**: grpcurl and jq verified
+- ✅ **Script Downloads**: All configuration management scripts downloaded
+- ✅ **Configuration**: Template and config.sh properly installed
+- ✅ **Cron Jobs**: Configured with safe backup approach
+- ✅ **Uninstall Script**: Created successfully
 
-**Status**: 🚀 **ARCHITECTURE DETECTION FIXED**
+**Post-Installation State**:
+- 📁 Installation directory: `/root/starlink-monitor`
+- 📄 Configuration file: `/root/starlink-monitor/config/config.sh`
+- 🔧 Configuration tools: validate-config.sh, update-config.sh, upgrade-to-advanced.sh
+- 🗑️ Uninstall script: `/root/starlink-monitor/uninstall.sh`
+- 📋 Crontab backup: `/etc/crontabs/root.backup.20250714_233532`
+
+**Debug Output Quality**:
+- ✅ **Clear Command Tracking**: Each command execution properly logged
+- ✅ **Clean Variable Assignment**: No mixed debug/command output
+- ✅ **Informative Messages**: Detailed progress tracking
+- ✅ **User-Friendly**: Easy to follow installation process
+
+**Architecture Fix Validation**:
+- ✅ **RUTX50 Detection**: Correctly identifies armv7l architecture
+- ✅ **No False Positives**: No warnings for matching architecture
+- ✅ **Clean Debug Output**: Separated command execution from debug messages
+- ✅ **Logic Verification**: Explicit confirmation of architecture match
+
+**Status**: 🚀 **ARCHITECTURE DETECTION FULLY OPERATIONAL!**
+
+**Next Steps Ready**:
+1. Edit configuration: `vi /root/starlink-monitor/config/config.sh`
+2. Validate configuration: `/root/starlink-monitor/scripts/validate-config.sh`
+3. Configure mwan3 according to documentation
+4. Test the system manually
+
+**All Systems Go**: Ready for production deployment! 🎯
