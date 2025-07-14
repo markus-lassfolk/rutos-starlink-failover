@@ -161,9 +161,10 @@ setup_persistent_logging() {
     cp /etc/config/system "$BACKUP_DIR/system.config.backup" 2>/dev/null || true
     
     # Get current logging configuration
-    local current_log_type=$(uci get system.@system[0].log_type 2>/dev/null || echo "circular")
-    local current_log_size=$(uci get system.@system[0].log_size 2>/dev/null || echo "200")
-    local current_log_file=$(uci get system.@system[0].log_file 2>/dev/null || echo "")
+    local current_log_type current_log_size current_log_file
+    current_log_type=$(uci get system.@system[0].log_type 2>/dev/null || echo "circular")
+    current_log_size=$(uci get system.@system[0].log_size 2>/dev/null || echo "200")
+    current_log_file=$(uci get system.@system[0].log_file 2>/dev/null || echo "")
     
     log "Current logging configuration:"
     log "  Type: $current_log_type"
@@ -458,31 +459,17 @@ main() {
     echo
 }
 
-# Run main function if script is executed directly
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    main "$@"
-fi
+    log_info "Installation completed successfully!"
+    log_info ""
+    log_info "Next steps:"
+    log_info "1. The system will automatically start logging to Azure"
+    log_info "2. Check the verification script: /root/verify-azure-setup.sh"
+    log_info "3. Test the setup: /root/test-azure-logging.sh"
+    log_info ""
+
+    cleanup_temp_files
     
-    # Validate URL format
-    if ! echo "$AZURE_FUNCTION_URL" | grep -q "^https://.*\.azurewebsites\.net/api/HttpLogIngestor"; then
-        log_warn "URL format doesn't match expected pattern. Continuing anyway..."
-    fi
-    
-    echo ""
-    echo "Do you want to enable Starlink performance monitoring? (y/N)"
-    echo -n "Enable Starlink monitoring: "
-    read -r enable_starlink
-    
-    case "$enable_starlink" in
-        [Yy]|[Yy][Ee][Ss])
-            ENABLE_STARLINK_MONITORING="true"
-            log_info "Starlink monitoring will be enabled"
-            ;;
-        *)
-            ENABLE_STARLINK_MONITORING="false"
-            log_info "Starlink monitoring will be disabled"
-            ;;
-    esac
+    log_success "🎉 Azure logging setup complete!"
 }
 
 # --- PERSISTENT LOGGING SETUP ---

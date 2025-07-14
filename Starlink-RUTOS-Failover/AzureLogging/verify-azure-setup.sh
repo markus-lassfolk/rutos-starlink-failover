@@ -19,6 +19,7 @@ set -euo pipefail
 # --- SCRIPT CONFIGURATION ---
 # shellcheck disable=SC2034  # Variables may be used by external functions
 SCRIPT_NAME="verify-azure-setup"
+# shellcheck disable=SC2034  # LOG_TAG may be used by external logging functions
 LOG_TAG="AzureVerification"
 
 # --- COLORS FOR OUTPUT ---
@@ -126,7 +127,8 @@ test_logging_config() {
     log_test "Checking RUTOS logging configuration..."
     
     # Check log type
-    local log_type=$(uci get system.@system[0].log_type 2>/dev/null || echo "")
+    local log_type
+    log_type=$(uci get system.@system[0].log_type 2>/dev/null || echo "")
     if [ "$log_type" = "file" ]; then
         log_pass "Logging type is set to 'file'"
     else
@@ -135,7 +137,8 @@ test_logging_config() {
     fi
     
     # Check log size
-    local log_size=$(uci get system.@system[0].log_size 2>/dev/null || echo "0")
+    local log_size
+    log_size=$(uci get system.@system[0].log_size 2>/dev/null || echo "0")
     if [ "$log_size" -ge "5120" ]; then
         log_pass "Log size is ${log_size}KB (≥5MB)"
     else
@@ -144,7 +147,8 @@ test_logging_config() {
     fi
     
     # Check log file
-    local log_file=$(uci get system.@system[0].log_file 2>/dev/null || echo "")
+    local log_file
+    log_file=$(uci get system.@system[0].log_file 2>/dev/null || echo "")
     if [ "$log_file" = "/overlay/messages" ]; then
         log_pass "Log file is set to '/overlay/messages'"
     else

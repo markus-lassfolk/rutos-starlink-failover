@@ -1,0 +1,86 @@
+name: Configuration Validation
+
+on:
+  push:
+    branches: [ '*' ]
+    paths:
+      - '**/*.json'
+      - '**/*.yaml'
+      - '**/*.yml'
+  pull_request:
+    branches: [ '*' ]
+    paths:
+      - '**/*.json'
+      - '**/*.yaml'
+      - '**/*.yml'
+
+jobs:
+  config-validation:
+    runs-on: ubuntu-latest
+    name: Validate Configuration Files
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq yamllint
+          npm install -g jsonlint
+      
+      - name: Validate JSON files
+        run: |
+          echo "Validating JSON files..."
+          find . -name "*.json" -type f | while read -r file; do
+            echo "Checking: $file"
+            if ! jq empty "$file" 2>/dev/null; then
+              echo "::error file=$file::Invalid JSON syntax"
+              exit 1
+            else
+              echo "✅ $file is valid JSON"
+            fi
+          done
+      
+      - name: Validate YAML files
+        run: |
+          echo "Validating YAML files..."
+          find . -name "*.yml" -o -name "*.yaml" -type f | while read -r file; do
+            echo "Checking: $file"
+            if ! yamllint "$file"; then
+              echo "::warning file=$file::YAML linting issues found"
+            else
+              echo "✅ $file is valid YAML"
+            fi
+          done
+      
+      - name: Validate Azure Function configuration
+        run: |
+          echo "Validating Azure Function configurations..."
+          find . -name "function.json" -type f | while read -r file; do
+            echo "Checking Azure Function config: $file"
+            
+            # Check required fields
+            if ! jq -e '.bindings' "$file" >/dev/null; then
+              echo "::error file=$file::Missing 'bindings' field in function.json"
+              exit 1
+            fi
+            
+            # Check for HTTP trigger
+            if jq -e '.bindings[] | select(.type == "httpTrigger")' "$file" >/dev/null; then
+              echo "✅ HTTP trigger found in $file"
+            fi
+            
+            # Check for output bindings
+            output_count=$(jq '[.bindings[] | select(.direction == "out")] | length' "$file")
+            if [ "$output_count" -gt 0 ]; then
+              echo "✅ Found $output_count output binding(s) in $file"
+            fi
+          done
+      
+      - name: Check for sensitive data in JSON files
+        run: |
+          echo "Checking for potential sensitive data..."
+          if grep -r -i -n "password\|secret\|key\|token" --include="*.json" .; then
+            echo "::warning::Found potential sensitive data in JSON files. Please review."
+          else
+            echo "✅ No obvious sensitive data found in JSON files"
+          fi

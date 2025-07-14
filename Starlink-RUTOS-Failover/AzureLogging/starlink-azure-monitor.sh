@@ -6,6 +6,7 @@
 
 # Source the main config if it exists
 if [ -f "/root/starlink-monitor/config/config.sh" ]; then
+    # shellcheck disable=SC1091  # Config file path is dynamic and may not exist
     . "/root/starlink-monitor/config/config.sh"
 fi
 
@@ -28,6 +29,7 @@ JQ_PATH="${JQ_PATH:-/root/jq}"
 RUTOS_IP=$(uci get azure.gps.rutos_ip 2>/dev/null || echo "192.168.80.1")
 RUTOS_USERNAME=$(uci get azure.gps.rutos_username 2>/dev/null || echo "")
 RUTOS_PASSWORD=$(uci get azure.gps.rutos_password 2>/dev/null || echo "")
+# shellcheck disable=SC2034  # GPS_ACCURACY_THRESHOLD may be used for future GPS filtering
 GPS_ACCURACY_THRESHOLD=$(uci get azure.gps.accuracy_threshold 2>/dev/null || echo "100")
 
 # Exit if Starlink monitoring is disabled
@@ -318,7 +320,8 @@ convert_nmea_to_decimal() {
 
 # --- STARLINK DATA COLLECTION ---
 collect_starlink_data() {
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
     # Query Starlink API for status data
     if ! command -v "$GRPCURL_PATH" >/dev/null 2>&1; then
@@ -335,7 +338,7 @@ collect_starlink_data() {
     local status_json
     status_json=$("$GRPCURL_PATH" -plaintext -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null)
     
-    if [ $? -ne 0 ] || [ -z "$status_json" ]; then
+    if ! "$GRPCURL_PATH" -plaintext -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle >/dev/null 2>&1 || [ -z "$status_json" ]; then
         log_error "Failed to get Starlink status data"
         return 1
     fi
@@ -391,7 +394,8 @@ rotate_csv_if_needed() {
     file_size=$(stat -c%s "$CSV_LOG_FILE" 2>/dev/null || echo "0")
     
     if [ "$file_size" -gt "$CSV_MAX_SIZE" ]; then
-        local backup_file="${CSV_LOG_FILE}.$(date +%Y%m%d-%H%M%S)"
+        local backup_file
+        backup_file="${CSV_LOG_FILE}.$(date +%Y%m%d-%H%M%S)"
         mv "$CSV_LOG_FILE" "$backup_file"
         log_info "Rotated CSV log file to $backup_file"
         initialize_csv
@@ -409,7 +413,8 @@ ship_csv_to_azure() {
     fi
     
     # Create a temporary file with CSV data for Azure
-    local temp_csv="/tmp/starlink_csv_$(date +%s).csv"
+    local temp_csv
+    temp_csv="/tmp/starlink_csv_$(date +%s).csv"
     cp "$CSV_LOG_FILE" "$temp_csv"
     
     # Send CSV data to Azure with a special header to identify it as CSV data

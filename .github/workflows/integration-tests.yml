@@ -1,0 +1,146 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ '*' ]
+    paths:
+      - 'Starlink-RUTOS-Failover/**'
+      - 'VenusOS-GPS-RUTOS/**'
+  pull_request:
+    branches: [ '*' ]
+    paths:
+      - 'Starlink-RUTOS-Failover/**'
+      - 'VenusOS-GPS-RUTOS/**'
+
+jobs:
+  starlink-integration:
+    runs-on: ubuntu-latest
+    name: Starlink Integration Tests
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq bc netcat-openbsd
+      
+      - name: Test script dependencies
+        run: |
+          echo "Checking if all required tools are available for scripts..."
+          
+          # Check for required commands in scripts
+          echo "Testing grpcurl availability..."
+          if ! command -v grpcurl >/dev/null 2>&1; then
+            echo "Installing grpcurl for testing..."
+            curl -sSL "https://github.com/fullstorydev/grpcurl/releases/download/v1.8.8/grpcurl_1.8.8_linux_x86_64.tar.gz" | tar -xz -C /tmp
+            sudo mv /tmp/grpcurl /usr/local/bin/
+            chmod +x /usr/local/bin/grpcurl
+          fi
+          
+          echo "✅ grpcurl available"
+          echo "✅ jq available: $(jq --version)"
+          echo "✅ curl available: $(curl --version | head -1)"
+          echo "✅ bc available: $(echo "scale=2; 1+1" | bc)"
+      
+      - name: Validate Azure logging scripts
+        run: |
+          echo "Testing Azure logging script configurations..."
+          
+          cd Starlink-RUTOS-Failover/AzureLogging
+          
+          # Test script syntax without execution
+          for script in *.sh; do
+            if [ -f "$script" ]; then
+              echo "Syntax checking: $script"
+              bash -n "$script" || exit 1
+            fi
+          done
+          
+          echo "✅ All shell scripts have valid syntax"
+      
+      - name: Test VenusOS GPS flow validation
+        run: |
+          echo "Validating VenusOS GPS flow configuration..."
+          
+          if [ -f "VenusOS-GPS-RUTOS/victron-gps-flow.json" ]; then
+            echo "Checking VenusOS flow JSON structure..."
+            
+            # Validate JSON structure
+            jq empty VenusOS-GPS-RUTOS/victron-gps-flow.json
+            
+            # Check for required Node-RED flow elements
+            if jq -e '.[] | select(.type == "function")' VenusOS-GPS-RUTOS/victron-gps-flow.json >/dev/null; then
+              echo "✅ Found function nodes in GPS flow"
+            else
+              echo "::warning::No function nodes found in GPS flow"
+            fi
+            
+            if jq -e '.[] | select(.type == "http request")' VenusOS-GPS-RUTOS/victron-gps-flow.json >/dev/null; then
+              echo "✅ Found HTTP request nodes in GPS flow"
+            else
+              echo "::warning::No HTTP request nodes found in GPS flow"
+            fi
+          fi
+      
+      - name: Test Azure Function configuration
+        run: |
+          echo "Testing Azure Function setup..."
+          
+          if [ -f "Starlink-RUTOS-Failover/AzureLogging/HttpLogIngestor/function.json" ]; then
+            echo "Validating Azure Function binding configuration..."
+            
+            # Check for HTTP trigger
+            if jq -e '.bindings[] | select(.type == "httpTrigger" and .direction == "in")' \
+               Starlink-RUTOS-Failover/AzureLogging/HttpLogIngestor/function.json >/dev/null; then
+              echo "✅ HTTP trigger configured correctly"
+            else
+              echo "::error::HTTP trigger not found or misconfigured"
+              exit 1
+            fi
+            
+            # Check for blob output bindings
+            blob_outputs=$(jq '[.bindings[] | select(.type == "blob" and .direction == "out")] | length' \
+                          Starlink-RUTOS-Failover/AzureLogging/HttpLogIngestor/function.json)
+            
+            if [ "$blob_outputs" -ge 1 ]; then
+              echo "✅ Found $blob_outputs blob output binding(s)"
+            else
+              echo "::warning::No blob output bindings found"
+            fi
+          fi
+      
+      - name: Test Bicep template structure
+        run: |
+          echo "Testing Bicep template structure..."
+          
+          if [ -f "Starlink-RUTOS-Failover/AzureLogging/main.bicep" ]; then
+            bicep_file="Starlink-RUTOS-Failover/AzureLogging/main.bicep"
+            
+            # Check for required resource types
+            if grep -q "Microsoft.Storage/storageAccounts" "$bicep_file"; then
+              echo "✅ Storage account resource found"
+            else
+              echo "::error::Storage account resource not found in Bicep template"
+              exit 1
+            fi
+            
+            if grep -q "Microsoft.Web/serverfarms" "$bicep_file"; then
+              echo "✅ App Service Plan resource found"
+            else
+              echo "::warning::App Service Plan resource not found"
+            fi
+            
+            if grep -q "Microsoft.Web/sites" "$bicep_file"; then
+              echo "✅ Function App resource found"
+            else
+              echo "::error::Function App resource not found in Bicep template"
+              exit 1
+            fi
+            
+            # Check for outputs
+            if grep -q "^output" "$bicep_file"; then
+              echo "✅ Outputs defined in Bicep template"
+            else
+              echo "::warning::No outputs found in Bicep template"
+            fi
+          fi

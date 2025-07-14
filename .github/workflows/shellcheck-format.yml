@@ -20,9 +20,9 @@ jobs:
       - name: Enforce script and config file permissions
         run: |
           # Config files should be 600
-          find config -type f -name '*.sh' -exec chmod 600 {} +
+          find config -type f -name '*.sh' -exec chmod 600 {} + 2>/dev/null || true
           # Scripts should be 755
-          find scripts -type f -name '*.sh' -exec chmod 755 {} +
+          find scripts -type f -name '*.sh' -exec chmod 755 {} + 2>/dev/null || true
           find Starlink-RUTOS-Failover -type f -name '*.sh' -exec chmod 755 {} +
           # Legacy/compatibility: notify script
           if [ -f Starlink-RUTOS-Failover/99-pushover_notify ]; then chmod 755 Starlink-RUTOS-Failover/99-pushover_notify; fi
@@ -32,3 +32,28 @@ jobs:
       - name: Check shell script formatting (shfmt)
         run: |
           find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shfmt -d -i 4 -ci {} +
+      - name: Check for RUTOS-specific best practices
+        run: |
+          echo "Checking RUTOS-specific best practices..."
+          
+          # Check for UCI usage best practices
+          if grep -r "uci get" --include="*.sh" . | grep -v "2>/dev/null"; then
+            echo "::warning::Found uci commands without error handling. Consider adding '2>/dev/null || echo default'"
+          fi
+          
+          # Check for proper logging
+          if grep -r "echo.*\[" --include="*.sh" . | head -5; then
+            echo "::info::Consider using logger command for system logging instead of echo"
+          fi
+          
+          # Check for hardcoded paths that should be configurable
+          if grep -r "/overlay/messages" --include="*.sh" . | grep -v "uci get\|LOG_FILE\|DEFAULT"; then
+            echo "::warning::Found hardcoded paths. Consider using UCI configuration"
+          fi
+          
+          # Check for proper error handling in scripts
+          missing_set_e=$(find . -name "*.sh" -exec grep -L "set -e" {} \; | head -5)
+          if [ -n "$missing_set_e" ]; then
+            echo "::info::Consider adding 'set -e' for better error handling in:"
+            echo "$missing_set_e"
+          fi
