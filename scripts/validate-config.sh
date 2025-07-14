@@ -8,17 +8,11 @@
 #
 # ==============================================================================
 
+
 set -eu
 
 # Script version information
-SCRIP    if [ "$placeholders_found" -eq 0 ]; then
-        printf "%b\n" "${GREEN}✓ No placeholder values found${NC}"
-    else
-        printf "%b\n" "${RED}Found $placeholders_found placeholder/empty values${NC}"
-        printf "%b\n" "${YELLOW}Please update these values before deploying${NC}"
-    fi
-    
-    return "$placeholders_found"N="1.0.0"
+SCRIPT_VERSION="1.0.0"
 SCRIPT_NAME="validate-config.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"
 
@@ -108,7 +102,8 @@ load_config() {
 check_binaries() {
     printf "%b\n" "${GREEN}Checking required binaries...${NC}"
 
-    local missing_binaries=""
+
+    missing_binaries=""
 
     # Check grpcurl
     if [ ! -f "$GRPCURL_CMD" ] && ! command -v grpcurl >/dev/null 2>&1; then
@@ -121,8 +116,9 @@ check_binaries() {
     fi
 
     # Check system commands
+
     for cmd in uci logger curl awk; do
-        if ! command -v $cmd >/dev/null 2>&1; then
+        if ! command -v "$cmd" >/dev/null 2>&1; then
             missing_binaries="$missing_binaries $cmd"
         fi
     done
@@ -258,8 +254,9 @@ check_config_completeness() {
     printf "%b\n" "${GREEN}Checking configuration completeness...${NC}"
     
     # Try to find template file
-    local template_file=""
-    local config_dir="$(dirname "$CONFIG_FILE")"
+
+    template_file=""
+    config_dir="$(dirname "$CONFIG_FILE")"
     
     # Look for template in same directory as config file
     if [ -f "$config_dir/config.template.sh" ]; then
@@ -295,8 +292,9 @@ check_config_completeness() {
     fi
     
     # Get variables from both files
-    local temp_template="/tmp/template_vars.$$"
-    local temp_config="/tmp/config_vars.$$"
+
+    temp_template="/tmp/template_vars.$$"
+    temp_config="/tmp/config_vars.$$"
     
     if ! extract_template_variables "$template_file" > "$temp_template"; then
         printf "%b\n" "${RED}Error: Could not extract template variables${NC}"
@@ -309,10 +307,11 @@ check_config_completeness() {
     fi
     
     # Find missing variables
-    local missing_vars=""
-    local extra_vars=""
-    local total_missing=0
-    local total_extra=0
+
+    missing_vars=""
+    extra_vars=""
+    total_missing=0
+    total_extra=0
     
     # Check for missing variables (in template but not in config)
     while IFS= read -r var; do
@@ -362,10 +361,12 @@ check_config_completeness() {
 check_placeholder_values() {
     printf "%b\n" "${GREEN}Checking for placeholder values...${NC}"
     
-    local placeholders_found=0
+
+    placeholders_found=0
     
     # Common placeholder patterns
-    local placeholder_patterns="
+
+    placeholder_patterns="
         YOUR_PUSHOVER_API_TOKEN
         YOUR_PUSHOVER_USER_KEY
         CHANGE_ME
@@ -377,54 +378,61 @@ check_placeholder_values() {
     "
     
     # Check for placeholder values in config
+
     for pattern in $placeholder_patterns; do
         if grep -q "$pattern" "$CONFIG_FILE" 2>/dev/null; then
-            local var_name=$(grep "$pattern" "$CONFIG_FILE" | cut -d'=' -f1)
+            var_name=$(grep "$pattern" "$CONFIG_FILE" | cut -d'=' -f1)
             printf "%b\n" "${YELLOW}⚠ Placeholder value found: $var_name${NC}"
             placeholders_found=$((placeholders_found + 1))
         fi
     done
     
     # Check for empty critical variables
-    local critical_vars="PUSHOVER_TOKEN PUSHOVER_USER STARLINK_IP MWAN_IFACE MWAN_MEMBER"
+
+    critical_vars="PUSHOVER_TOKEN PUSHOVER_USER STARLINK_IP MWAN_IFACE MWAN_MEMBER"
     for var in $critical_vars; do
-        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+        value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
         if [ -z "$value" ] || [ "$value" = '""' ] || [ "$value" = "''" ]; then
             printf "%b\n" "${RED}✗ Critical variable is empty: $var${NC}"
             placeholders_found=$((placeholders_found + 1))
         fi
     done
     
-    if [ $placeholders_found -eq 0 ]; then
+
+    if [ "$placeholders_found" -eq 0 ]; then
         printf "%b\n" "${GREEN}✓ No placeholder values found${NC}"
     else
         printf "%b\n" "${YELLOW}Found $placeholders_found placeholder/empty values${NC}"
         printf "%b\n" "${YELLOW}Please update these values before deploying${NC}"
     fi
-    
-    return $placeholders_found
+    return "$placeholders_found"
 }
 
 # Validate configuration value ranges and formats
 validate_config_values() {
     printf "%b\n" "${GREEN}Validating configuration values...${NC}"
     
-    local validation_errors=0
+
+    validation_errors=0
     
     # Validate numeric thresholds (including decimal values)
-    local numeric_vars="PACKET_LOSS_THRESHOLD OBSTRUCTION_THRESHOLD LATENCY_THRESHOLD CHECK_INTERVAL API_TIMEOUT"
+
+    numeric_vars="PACKET_LOSS_THRESHOLD OBSTRUCTION_THRESHOLD LATENCY_THRESHOLD CHECK_INTERVAL API_TIMEOUT"
     for var in $numeric_vars; do
-        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
-        if [ -n "$value" ] && ! echo "$value" | grep -E '^[0-9]+(\.[0-9]+)?$' >/dev/null; then
+        value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
+        # Accept decimal, integer, and scientific notation
+        if [ -n "$value" ] && ! printf "%s" "$value" | grep -Eq '^[0-9]+([.][0-9]+)?([eE][-+]?[0-9]+)?$'; then
             printf "%b\n" "${RED}✗ Invalid numeric value for $var: $value${NC}"
             validation_errors=$((validation_errors + 1))
         fi
     done
     
     # Validate boolean values (0 or 1)
-    local boolean_vars="NOTIFY_ON_CRITICAL NOTIFY_ON_SOFT_FAIL NOTIFY_ON_HARD_FAIL NOTIFY_ON_RECOVERY NOTIFY_ON_INFO"
+
+    boolean_vars="NOTIFY_ON_CRITICAL NOTIFY_ON_SOFT_FAIL NOTIFY_ON_HARD_FAIL NOTIFY_ON_RECOVERY NOTIFY_ON_INFO"
     for var in $boolean_vars; do
-        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
+        value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
+        # Only accept 0 or 1
         if [ -n "$value" ] && [ "$value" != "0" ] && [ "$value" != "1" ]; then
             printf "%b\n" "${RED}✗ Invalid boolean value for $var: $value (should be 0 or 1)${NC}"
             validation_errors=$((validation_errors + 1))
@@ -432,13 +440,14 @@ validate_config_values() {
     done
     
     # Validate IP addresses
-    local ip_vars="STARLINK_IP RUTOS_IP"
+
+    ip_vars="STARLINK_IP RUTOS_IP"
     for var in $ip_vars; do
-        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
+        value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
         if [ -n "$value" ] && [ "$value" != "YOUR_IP_HERE" ]; then
             # Extract IP part (remove port if present)
-            local ip_part=$(echo "$value" | cut -d':' -f1)
-            if ! echo "$ip_part" | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$' >/dev/null; then
+            ip_part=$(printf "%s" "$value" | cut -d':' -f1)
+            if ! printf "%s" "$ip_part" | grep -Eq '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
                 printf "%b\n" "${RED}✗ Invalid IP address format for $var: $value${NC}"
                 validation_errors=$((validation_errors + 1))
             fi
@@ -446,21 +455,22 @@ validate_config_values() {
     done
     
     # Validate file paths exist
-    local path_vars="LOG_DIR STATE_DIR DATA_DIR"
+
+    path_vars="LOG_DIR STATE_DIR DATA_DIR"
     for var in $path_vars; do
-        local value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
+        value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
         if [ -n "$value" ] && [ ! -d "$value" ]; then
             printf "%b\n" "${YELLOW}⚠ Directory does not exist for $var: $value${NC}"
             printf "%b\n" "${YELLOW}  (Will be created automatically)${NC}"
         fi
     done
     
+
     if [ "$validation_errors" -eq 0 ]; then
         printf "%b\n" "${GREEN}✓ Configuration values are valid${NC}"
     else
         printf "%b\n" "${RED}Found $validation_errors validation errors${NC}"
     fi
-    
     return "$validation_errors"
 }
 
@@ -482,7 +492,7 @@ migrate_config_to_template() {
     printf "%b\n" "${GREEN}✓ Backup created: $config_backup${NC}"
     
     # Extract current values from existing config
-    local temp_values="/tmp/config_values_$$"
+    temp_values="/tmp/config_values_$$"
     printf "%b\n" "${BLUE}Extracting current configuration values...${NC}"
     
     # Extract variable assignments, strip comments and quotes
@@ -497,7 +507,7 @@ migrate_config_to_template() {
     cp "$template_file" "$CONFIG_FILE"
     
     # Apply user values to template
-    local updated_count=0
+    updated_count=0
     while IFS='=' read -r var value; do
         if [ -n "$var" ] && [ -n "$value" ]; then
             # Update the variable in the template, preserving structure
@@ -524,7 +534,7 @@ migrate_config_to_template() {
 
 # Offer template migration
 offer_template_migration() {
-    local template_file="$1"
+    template_file="$1"
     
     printf "%b\n" "${YELLOW}⚠ Configuration appears to be using an older template format${NC}"
     printf "%b\n" "${YELLOW}  Issues found: ShellCheck comments, missing descriptions${NC}"
@@ -555,15 +565,17 @@ check_outdated_template() {
     fi
     
     # Check for missing proper descriptions (very short comments)
-    local short_comments=0
-    local total_vars=0
+
+    short_comments=0
+    total_vars=0
     
+
     while read -r line; do
-        if echo "$line" | grep -E '^[A-Z_]+=.*#' >/dev/null; then
+        if printf "%s" "$line" | grep -E '^[A-Z_]+=.*#' >/dev/null; then
             total_vars=$((total_vars + 1))
             # Check if comment is very short (likely just a variable name)
-            comment=$(echo "$line" | sed 's/.*#[[:space:]]*//')
-            if [ ${#comment} -lt 20 ]; then
+            comment=$(printf "%s" "$line" | sed 's/.*#[[:space:]]*//')
+            if [ "${#comment}" -lt 20 ]; then
                 short_comments=$((short_comments + 1))
             fi
         fi
