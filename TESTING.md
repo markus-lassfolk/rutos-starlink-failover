@@ -461,12 +461,53 @@ sh: download_file: not found
 - ✅ Shell scripts always use LF line endings regardless of OS
 - ✅ Cross-platform compatibility maintained
 
+### 🔧 Versioning System - **NEW**
+
+**New Features Added**:
+1. **Script Versioning** - All scripts now include version information
+2. **Template Versioning** - Configuration templates include version headers
+3. **Compatibility Checking** - Scripts show compatible version requirements
+4. **Enhanced Debug Mode** - Version display and command execution tracking
+
+**Version Information Display**:
+- ✅ **install.sh**: Shows script version, branch, and repository in DEBUG mode
+- ✅ **validate-config.sh**: Displays script version and compatibility information
+- ✅ **update-config.sh**: Shows version and compatibility with install.sh
+- ✅ **upgrade-to-advanced.sh**: Displays version and compatibility requirements
+- ✅ **Templates**: Include version headers for tracking compatibility
+
+**Enhanced Debug Output**:
+- ✅ **Version Detection**: Automatically detects and compares remote vs local versions
+- ✅ **Command Tracking**: All commands shown with `debug_exec()` function
+- ✅ **System Information**: Displays architecture, OS version, and system details
+- ✅ **Download Progress**: Shows detailed download information for all files
+
+**Benefits**:
+- 🔧 **Easy Debugging**: Instantly see which version is running
+- 🔧 **Compatibility Assurance**: Verify all scripts work together
+- 🔧 **Update Tracking**: Know when scripts need updates
+- 🔧 **Issue Resolution**: Debug problems with detailed command output
+
 **Testing Command Updated**:
 ```bash
-# Should now work without line ending issues
+# Now shows version information and detailed debug output
 DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" \
 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
 sh -s --
+```
+
+**Expected Debug Output**:
+```
+===========================================
+Starlink Monitor Installation Script
+Script: install.sh
+Version: 1.0.0
+Branch: feature/testing-improvements
+Repository: markus-lassfolk/rutos-starlink-failover
+===========================================
+
+DEBUG: Remote version detected: 1.0.0
+DEBUG: Script version matches remote version: 1.0.0
 ```
 
 ---
