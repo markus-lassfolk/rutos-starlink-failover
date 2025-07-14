@@ -17,6 +17,7 @@
 set -euo pipefail
 
 # --- SCRIPT CONFIGURATION ---
+# shellcheck disable=SC2034  # Variables may be used by external functions
 SCRIPT_NAME="verify-azure-setup"
 LOG_TAG="AzureVerification"
 
@@ -92,7 +93,8 @@ test_dependencies() {
     
     # Check grpcurl
     if [ -f "/root/grpcurl" ] && [ -x "/root/grpcurl" ]; then
-        local grpcurl_version=$(/root/grpcurl --version 2>&1 | head -n1 || echo "unknown")
+        local grpcurl_version
+        grpcurl_version=$(/root/grpcurl --version 2>&1 | head -n1 || echo "unknown")
         log_pass "grpcurl is installed ($grpcurl_version)"
     else
         log_fail "grpcurl is not installed or not executable"
@@ -101,7 +103,8 @@ test_dependencies() {
     
     # Check jq binary
     if [ -f "/root/jq" ] && [ -x "/root/jq" ]; then
-        local jq_version=$(/root/jq --version 2>&1 || echo "unknown")
+        local jq_version
+        jq_version=$(/root/jq --version 2>&1 || echo "unknown")
         log_pass "jq binary is installed ($jq_version)"
     else
         log_warn "jq binary not found, using system jq"

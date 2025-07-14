@@ -14,6 +14,7 @@
 set -euo pipefail
 
 # --- SCRIPT CONFIGURATION ---
+# shellcheck disable=SC2034  # SCRIPT_NAME may be used by external functions
 SCRIPT_NAME="unified-azure-setup"
 LOG_TAG="UnifiedAzureSetup"
 WORK_DIR="/tmp/azure-setup"
@@ -25,6 +26,10 @@ DEFAULT_RUTOS_IP="192.168.80.1"
 DEFAULT_STARLINK_IP="192.168.100.1:9200"
 DEFAULT_ENABLE_GPS="true"
 DEFAULT_ENABLE_STARLINK_MONITORING="true"
+
+# --- GLOBAL VARIABLES ---
+ENABLE_STARLINK_MONITORING=""
+AZURE_FUNCTION_URL=""
 
 # --- COLORS FOR OUTPUT ---
 RED='\033[0;31m'
@@ -60,10 +65,10 @@ prompt_user() {
     local response
     
     if [ -n "$default" ]; then
-        read -p "$prompt [$default]: " response
+        read -r -p "$prompt [$default]: " response
         echo "${response:-$default}"
     else
-        read -p "$prompt: " response
+        read -r -p "$prompt: " response
         echo "$response"
     fi
 }
@@ -191,8 +196,7 @@ setup_persistent_logging() {
         log_success "Log file /overlay/messages exists"
         
         # Test writing to log file
-        echo "$(date): Azure logging setup test" >> /overlay/messages
-        if [ $? -eq 0 ]; then
+        if echo "$(date): Azure logging setup test" >> /overlay/messages; then
             log_success "Log file is writable"
         else
             log_error "Log file is not writable"
@@ -394,7 +398,7 @@ main() {
         rutos_username=$(prompt_user "RUTOS username (optional)" "")
         
         if [ -n "$rutos_username" ]; then
-            read -s -p "RUTOS password: " rutos_password
+            read -r -s -p "RUTOS password: " rutos_password
             echo
         fi
     fi
@@ -411,7 +415,7 @@ main() {
     echo
     
     # Confirm before proceeding
-    read -p "Proceed with installation? (y/N): " confirm
+    read -r -p "Proceed with installation? (y/N): " confirm
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
         log "Installation cancelled by user"
         exit 0

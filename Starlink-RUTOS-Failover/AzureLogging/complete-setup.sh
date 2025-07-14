@@ -9,6 +9,7 @@ SCRIPT_DIR="$(dirname "$0")"
 LOG_FILE="/overlay/messages"
 SETUP_SCRIPT="$SCRIPT_DIR/setup-persistent-logging.sh"
 SHIPPER_SCRIPT="$SCRIPT_DIR/log-shipper.sh"
+# shellcheck disable=SC2034  # TEST_SCRIPT may be used for debugging
 TEST_SCRIPT="$SCRIPT_DIR/test-azure-logging.sh"
 
 echo "=== Azure Logging Complete Setup and Verification ==="

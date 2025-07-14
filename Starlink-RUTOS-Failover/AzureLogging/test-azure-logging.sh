@@ -68,7 +68,7 @@ fi
 # Test 3: Verify log file handling
 log_info "Testing log file operations..."
 if [ -f "$TEST_LOG_FILE" ]; then
-    > "$TEST_LOG_FILE"  # Truncate like the real script does
+    true > "$TEST_LOG_FILE"  # Truncate like the real script does
     log_info "✓ Log file truncation successful"
 else
     log_error "✗ Test log file not found"

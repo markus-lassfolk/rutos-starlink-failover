@@ -28,6 +28,7 @@ fi
 
 # Activate virtual environment
 echo -e "${YELLOW}Activating virtual environment...${NC}"
+# shellcheck disable=SC1091  # Virtual environment path is created dynamically
 source venv/bin/activate
 
 # Upgrade pip

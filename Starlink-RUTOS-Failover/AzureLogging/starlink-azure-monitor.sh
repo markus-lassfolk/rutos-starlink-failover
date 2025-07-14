@@ -170,8 +170,6 @@ collect_rutos_gps() {
             fi
         fi
     fi
-        fi
-    fi
     
     # Method 2: Try RUTOS UCI GPS configuration
     if [ -z "$latitude" ] && command -v uci >/dev/null 2>&1; then
