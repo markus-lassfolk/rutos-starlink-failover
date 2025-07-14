@@ -78,7 +78,7 @@ fi
 # Check shebang
 shebang=$(head -1 "$SCRIPT_FILE")
 case "$shebang" in
-    "#!/bin/sh"*|"#!/bin/dash"*|"#!/bin/ash"*)
+    "#!/bin/sh"* | "#!/bin/dash"* | "#!/bin/ash"*)
         log_success "POSIX shell shebang: $shebang"
         ;;
     "#!/bin/bash"*)

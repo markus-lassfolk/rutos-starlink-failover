@@ -44,15 +44,14 @@ else
         "/root/deploy-starlink-solution-rutos.sh" \
         "/root/deploy-starlink-solution.sh" \
         "/tmp/deploy-starlink-solution-rutos.sh" \
-        "/tmp/deploy-starlink-solution.sh"
-    do
+        "/tmp/deploy-starlink-solution.sh"; do
         if [ -f "$location" ]; then
             SCRIPT_FILE="$location"
             echo "Found script: $SCRIPT_FILE"
             break
         fi
     done
-    
+
     if [ -z "$SCRIPT_FILE" ]; then
         echo "❌ No deployment script found!"
         echo ""
@@ -109,7 +108,7 @@ fi
 if [ -n "$SCRIPT_FILE" ]; then
     shebang=$(head -1 "$SCRIPT_FILE" 2>/dev/null)
     case "$shebang" in
-        "#!/bin/sh"*|"#!/bin/dash"*|"#!/bin/ash"*)
+        "#!/bin/sh"* | "#!/bin/dash"* | "#!/bin/ash"*)
             log_success "POSIX shell shebang: $shebang"
             ;;
         "#!/bin/bash"*)
