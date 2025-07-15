@@ -54,600 +54,600 @@ JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
 
 # === LOGGING FUNCTIONS ===
 log() {
-    printf "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} %s\n" "$1"
-    logger -t "starlink-deploy" "$1"
+	printf "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} %s\n" "$1"
+	logger -t "starlink-deploy" "$1"
 }
 
 log_success() {
-    printf "${GREEN}✓${NC} %s\n" "$1"
-    logger -t "starlink-deploy" "SUCCESS: $1"
+	printf "${GREEN}✓${NC} %s\n" "$1"
+	logger -t "starlink-deploy" "SUCCESS: $1"
 }
 
 log_warn() {
-    printf "${YELLOW}⚠${NC} %s\n" "$1"
-    logger -t "starlink-deploy" "WARNING: $1"
+	printf "${YELLOW}⚠${NC} %s\n" "$1"
+	logger -t "starlink-deploy" "WARNING: $1"
 }
 
 log_error() {
-    printf "${RED}✗${NC} %s\n" "$1"
-    logger -t "starlink-deploy" "ERROR: $1"
+	printf "${RED}✗${NC} %s\n" "$1"
+	logger -t "starlink-deploy" "ERROR: $1"
 }
 
 log_info() {
-    printf "${BLUE}ℹ${NC} %s\n" "$1"
+	printf "${BLUE}ℹ${NC} %s\n" "$1"
 }
 
 log_header() {
-    printf "\n"
-    printf "${PURPLE}=== %s ===${NC}\n" "$1"
-    printf "\n"
+	printf "\n"
+	printf "${PURPLE}=== %s ===${NC}\n" "$1"
+	printf "\n"
 }
 
 # === INPUT VALIDATION ===
 validate_ip() {
-    ip="$1"
+	ip="$1"
 
-    # Check basic format using case statement (ash/dash compatible)
-    case "$ip" in
-        *[!0-9.]*) return 1 ;; # Contains non-numeric/non-dot chars
-        *..*) return 1 ;;      # Contains consecutive dots
-        .* | *.) return 1 ;;   # Starts or ends with dot
-    esac
+	# Check basic format using case statement (ash/dash compatible)
+	case "$ip" in
+	*[!0-9.]*) return 1 ;; # Contains non-numeric/non-dot chars
+	*..*) return 1 ;;      # Contains consecutive dots
+	.* | *.) return 1 ;;   # Starts or ends with dot
+	esac
 
-    # Count dots
-    dot_count=$(echo "$ip" | tr -cd '.' | wc -c)
-    if [ "$dot_count" -ne 3 ]; then
-        return 1
-    fi
+	# Count dots
+	dot_count=$(echo "$ip" | tr -cd '.' | wc -c)
+	if [ "$dot_count" -ne 3 ]; then
+		return 1
+	fi
 
-    # Check each octet is <= 255 (ash/dash compatible)
-    oldIFS="$IFS"
-    IFS='.'
-    set -- "$ip"
-    IFS="$oldIFS"
+	# Check each octet is <= 255 (ash/dash compatible)
+	oldIFS="$IFS"
+	IFS='.'
+	set -- "$ip"
+	IFS="$oldIFS"
 
-    for octet in "$1" "$2" "$3" "$4"; do
-        if [ -z "$octet" ] || [ "$octet" -gt 255 ] 2>/dev/null; then
-            return 1
-        fi
-    done
+	for octet in "$1" "$2" "$3" "$4"; do
+		if [ -z "$octet" ] || [ "$octet" -gt 255 ] 2>/dev/null; then
+			return 1
+		fi
+	done
 
-    return 0
+	return 0
 }
 
 validate_url() {
-    url="$1"
-    case "$url" in
-        http://* | https://*)
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+	url="$1"
+	case "$url" in
+	http://* | https://*)
+		return 0
+		;;
+	*)
+		return 1
+		;;
+	esac
 }
 
 prompt_user() {
-    prompt="$1"
-    default="$2"
-    value=""
+	prompt="$1"
+	default="$2"
+	value=""
 
-    if [ -n "$default" ]; then
-        printf "%s [%s]: " "$prompt" "$default"
-        read -r value
-        echo "${value:-$default}"
-    else
-        printf "%s: " "$prompt"
-        read -r value
-        echo "$value"
-    fi
+	if [ -n "$default" ]; then
+		printf "%s [%s]: " "$prompt" "$default"
+		read -r value
+		echo "${value:-$default}"
+	else
+		printf "%s: " "$prompt"
+		read -r value
+		echo "$value"
+	fi
 }
 
 prompt_password() {
-    prompt="$1"
-    printf "%s: " "$prompt"
-    stty -echo
-    read -r value
-    stty echo
-    printf "\n"
-    echo "$value"
+	prompt="$1"
+	printf "%s: " "$prompt"
+	stty -echo
+	read -r value
+	stty echo
+	printf "\n"
+	echo "$value"
 }
 
 # === PREREQUISITE CHECKS ===
 check_prerequisites() {
-    log_header "Checking Prerequisites"
+	log_header "Checking Prerequisites"
 
-    # Check if running as root
-    if [ "$(id -u)" -ne 0 ]; then
-        log_error "This script must be run as root"
-        exit 1
-    fi
+	# Check if running as root
+	if [ "$(id -u)" -ne 0 ]; then
+		log_error "This script must be run as root"
+		exit 1
+	fi
 
-    # Check device architecture - RUTOS compatibility
-    arch=$(uname -m)
-    arch=$(uname -m 2>/dev/null || echo "unknown")
-    case "$arch" in
-        "armv7l" | "aarch64" | "arm")
-            log_success "Compatible ARM architecture detected: $arch"
-            ;;
-        *)
-            log_warn "Device architecture ($arch) may not be compatible with ARM binaries"
-            printf "Continue anyway? (y/N): "
-            read -r confirm
-            if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
-                exit 1
-            fi
-            ;;
-    esac
+	# Check device architecture - RUTOS compatibility
+	arch=$(uname -m)
+	arch=$(uname -m 2>/dev/null || echo "unknown")
+	case "$arch" in
+	"armv7l" | "aarch64" | "arm")
+		log_success "Compatible ARM architecture detected: $arch"
+		;;
+	*)
+		log_warn "Device architecture ($arch) may not be compatible with ARM binaries"
+		printf "Continue anyway? (y/N): "
+		read -r confirm
+		if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+			exit 1
+		fi
+		;;
+	esac
 
-    # Check internet connectivity
-    if ! ping -c 1 8.8.8.8 >/dev/null 2>&1; then
-        log_error "No internet connectivity detected"
-        exit 1
-    fi
+	# Check internet connectivity
+	if ! ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+		log_error "No internet connectivity detected"
+		exit 1
+	fi
 
-    # Check available space
-    available_space=""
-    available_space=$(df /overlay 2>/dev/null | awk 'NR==2 {print $4}' || df / | awk 'NR==2 {print $4}')
-    if [ "$available_space" -lt 10240 ]; then # Less than 10MB
-        log_warn "Low disk space available ($available_space KB)"
-        printf "Continue anyway? (y/N): "
-        read -r confirm
-        if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
-            exit 1
-        fi
-    fi
+	# Check available space
+	available_space=""
+	available_space=$(df /overlay 2>/dev/null | awk 'NR==2 {print $4}' || df / | awk 'NR==2 {print $4}')
+	if [ "$available_space" -lt 10240 ]; then # Less than 10MB
+		log_warn "Low disk space available ($available_space KB)"
+		printf "Continue anyway? (y/N): "
+		read -r confirm
+		if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+			exit 1
+		fi
+	fi
 
-    log_success "Prerequisites check completed"
+	log_success "Prerequisites check completed"
 }
 
 # === CONFIGURATION COLLECTION ===
 collect_configuration() {
-    log_header "Configuration Setup"
+	log_header "Configuration Setup"
 
-    echo "This script will set up a complete Starlink monitoring solution."
-    echo "Please provide the following configuration details:"
-    echo
+	echo "This script will set up a complete Starlink monitoring solution."
+	echo "Please provide the following configuration details:"
+	echo
 
-    # Azure configuration
-    enable_azure=""
-    enable_azure=$(prompt_user "Enable Azure cloud logging integration? (true/false)" "$DEFAULT_ENABLE_AZURE")
+	# Azure configuration
+	enable_azure=""
+	enable_azure=$(prompt_user "Enable Azure cloud logging integration? (true/false)" "$DEFAULT_ENABLE_AZURE")
 
-    azure_endpoint=""
-    if [ "$enable_azure" = "true" ]; then
-        azure_endpoint=$(prompt_user "Azure Function endpoint URL" "$DEFAULT_AZURE_ENDPOINT")
-        if [ -z "$azure_endpoint" ]; then
-            log_error "Azure endpoint URL is required when Azure logging is enabled"
-            exit 1
-        fi
-        if ! validate_url "$azure_endpoint"; then
-            log_error "Invalid Azure endpoint URL format"
-            exit 1
-        fi
-    fi
+	azure_endpoint=""
+	if [ "$enable_azure" = "true" ]; then
+		azure_endpoint=$(prompt_user "Azure Function endpoint URL" "$DEFAULT_AZURE_ENDPOINT")
+		if [ -z "$azure_endpoint" ]; then
+			log_error "Azure endpoint URL is required when Azure logging is enabled"
+			exit 1
+		fi
+		if ! validate_url "$azure_endpoint"; then
+			log_error "Invalid Azure endpoint URL format"
+			exit 1
+		fi
+	fi
 
-    # Starlink monitoring
-    enable_starlink_monitoring=""
-    enable_starlink_monitoring=$(prompt_user "Enable Starlink performance monitoring? (true/false)" "$DEFAULT_ENABLE_STARLINK_MONITORING")
+	# Starlink monitoring
+	enable_starlink_monitoring=""
+	enable_starlink_monitoring=$(prompt_user "Enable Starlink performance monitoring? (true/false)" "$DEFAULT_ENABLE_STARLINK_MONITORING")
 
-    # GPS configuration
-    enable_gps=""
-    enable_gps=$(prompt_user "Enable GPS integration? (true/false)" "$DEFAULT_ENABLE_GPS")
+	# GPS configuration
+	enable_gps=""
+	enable_gps=$(prompt_user "Enable GPS integration? (true/false)" "$DEFAULT_ENABLE_GPS")
 
-    rutos_ip=""
-    rutos_username=""
-    rutos_password=""
-    if [ "$enable_gps" = "true" ]; then
-        rutos_ip=$(prompt_user "RUTOS device IP address" "$DEFAULT_RUTOS_IP")
-        if ! validate_ip "$rutos_ip"; then
-            log_error "Invalid RUTOS IP address format"
-            exit 1
-        fi
+	rutos_ip=""
+	rutos_username=""
+	rutos_password=""
+	if [ "$enable_gps" = "true" ]; then
+		rutos_ip=$(prompt_user "RUTOS device IP address" "$DEFAULT_RUTOS_IP")
+		if ! validate_ip "$rutos_ip"; then
+			log_error "Invalid RUTOS IP address format"
+			exit 1
+		fi
 
-        rutos_username=$(prompt_user "RUTOS username (optional)" "")
-        if [ -n "$rutos_username" ]; then
-            rutos_password=$(prompt_password "RUTOS password")
-        fi
-    fi
+		rutos_username=$(prompt_user "RUTOS username (optional)" "")
+		if [ -n "$rutos_username" ]; then
+			rutos_password=$(prompt_password "RUTOS password")
+		fi
+	fi
 
-    # Pushover configuration
-    enable_pushover=""
-    enable_pushover=$(prompt_user "Enable Pushover notifications? (true/false)" "$DEFAULT_ENABLE_PUSHOVER")
+	# Pushover configuration
+	enable_pushover=""
+	enable_pushover=$(prompt_user "Enable Pushover notifications? (true/false)" "$DEFAULT_ENABLE_PUSHOVER")
 
-    pushover_token=""
-    pushover_user=""
-    if [ "$enable_pushover" = "true" ]; then
-        pushover_token=$(prompt_user "Pushover Application Token" "")
-        pushover_user=$(prompt_user "Pushover User Key" "")
+	pushover_token=""
+	pushover_user=""
+	if [ "$enable_pushover" = "true" ]; then
+		pushover_token=$(prompt_user "Pushover Application Token" "")
+		pushover_user=$(prompt_user "Pushover User Key" "")
 
-        if [ -z "$pushover_token" ] || [ -z "$pushover_user" ]; then
-            log_error "Pushover token and user key are required when notifications are enabled"
-            exit 1
-        fi
-    fi
+		if [ -z "$pushover_token" ] || [ -z "$pushover_user" ]; then
+			log_error "Pushover token and user key are required when notifications are enabled"
+			exit 1
+		fi
+	fi
 
-    # Network configuration
-    starlink_ip=""
-    starlink_ip=$(prompt_user "Starlink dish IP address" "$DEFAULT_STARLINK_IP")
-    if ! validate_ip "$starlink_ip"; then
-        log_error "Invalid Starlink IP address format"
-        exit 1
-    fi
+	# Network configuration
+	starlink_ip=""
+	starlink_ip=$(prompt_user "Starlink dish IP address" "$DEFAULT_STARLINK_IP")
+	if ! validate_ip "$starlink_ip"; then
+		log_error "Invalid Starlink IP address format"
+		exit 1
+	fi
 
-    # Export configuration for use by other functions
-    export ENABLE_AZURE="$enable_azure"
-    export AZURE_ENDPOINT="$azure_endpoint"
-    export ENABLE_STARLINK_MONITORING="$enable_starlink_monitoring"
-    export ENABLE_GPS="$enable_gps"
-    export RUTOS_IP="$rutos_ip"
-    export RUTOS_USERNAME="$rutos_username"
-    export RUTOS_PASSWORD="$rutos_password"
-    export ENABLE_PUSHOVER="$enable_pushover"
-    export PUSHOVER_TOKEN="$pushover_token"
-    export PUSHOVER_USER="$pushover_user"
-    export STARLINK_IP="$starlink_ip"
+	# Export configuration for use by other functions
+	export ENABLE_AZURE="$enable_azure"
+	export AZURE_ENDPOINT="$azure_endpoint"
+	export ENABLE_STARLINK_MONITORING="$enable_starlink_monitoring"
+	export ENABLE_GPS="$enable_gps"
+	export RUTOS_IP="$rutos_ip"
+	export RUTOS_USERNAME="$rutos_username"
+	export RUTOS_PASSWORD="$rutos_password"
+	export ENABLE_PUSHOVER="$enable_pushover"
+	export PUSHOVER_TOKEN="$pushover_token"
+	export PUSHOVER_USER="$pushover_user"
+	export STARLINK_IP="$starlink_ip"
 
-    # Display configuration summary
-    echo
-    log_info "Configuration Summary:"
-    log_info "  Azure Logging: $enable_azure"
-    [ "$enable_azure" = "true" ] && log_info "  Azure Endpoint: $azure_endpoint"
-    log_info "  Starlink Monitoring: $enable_starlink_monitoring"
-    log_info "  GPS Integration: $enable_gps"
-    [ "$enable_gps" = "true" ] && log_info "  RUTOS IP: $rutos_ip"
-    log_info "  Pushover Notifications: $enable_pushover"
-    log_info "  Starlink IP: $starlink_ip"
-    echo
+	# Display configuration summary
+	echo
+	log_info "Configuration Summary:"
+	log_info "  Azure Logging: $enable_azure"
+	[ "$enable_azure" = "true" ] && log_info "  Azure Endpoint: $azure_endpoint"
+	log_info "  Starlink Monitoring: $enable_starlink_monitoring"
+	log_info "  GPS Integration: $enable_gps"
+	[ "$enable_gps" = "true" ] && log_info "  RUTOS IP: $rutos_ip"
+	log_info "  Pushover Notifications: $enable_pushover"
+	log_info "  Starlink IP: $starlink_ip"
+	echo
 
-    printf "Proceed with installation? (y/N): "
-    read -r confirm
-    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
-        log "Installation cancelled by user"
-        exit 0
-    fi
+	printf "Proceed with installation? (y/N): "
+	read -r confirm
+	if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+		log "Installation cancelled by user"
+		exit 0
+	fi
 }
 
 # === BACKUP EXISTING CONFIGURATION ===
 create_backup() {
-    log_header "Creating Backup"
+	log_header "Creating Backup"
 
-    mkdir -p "$BACKUP_DIR"
+	mkdir -p "$BACKUP_DIR"
 
-    # Backup UCI configuration
-    uci export >"$BACKUP_DIR/uci-backup.conf" 2>/dev/null || true
+	# Backup UCI configuration
+	uci export >"$BACKUP_DIR/uci-backup.conf" 2>/dev/null || true
 
-    # Backup crontab
-    crontab -l >"$BACKUP_DIR/crontab-backup" 2>/dev/null || true
+	# Backup crontab
+	crontab -l >"$BACKUP_DIR/crontab-backup" 2>/dev/null || true
 
-    # Backup existing scripts
-    if [ -d "$SCRIPTS_DIR" ]; then
-        cp -r "$SCRIPTS_DIR"/*.sh "$BACKUP_DIR/" 2>/dev/null || true
-    fi
+	# Backup existing scripts
+	if [ -d "$SCRIPTS_DIR" ]; then
+		cp -r "$SCRIPTS_DIR"/*.sh "$BACKUP_DIR/" 2>/dev/null || true
+	fi
 
-    # Backup hotplug scripts
-    if [ -d "$HOTPLUG_DIR" ]; then
-        cp -r "$HOTPLUG_DIR"/* "$BACKUP_DIR/" 2>/dev/null || true
-    fi
+	# Backup hotplug scripts
+	if [ -d "$HOTPLUG_DIR" ]; then
+		cp -r "$HOTPLUG_DIR"/* "$BACKUP_DIR/" 2>/dev/null || true
+	fi
 
-    log_success "Backup created in: $BACKUP_DIR"
+	log_success "Backup created in: $BACKUP_DIR"
 }
 
 # === PACKAGE INSTALLATION ===
 install_packages() {
-    log_header "Installing Required Packages"
+	log_header "Installing Required Packages"
 
-    # Update package list (optional for Teltonika's limited repository)
-    log "Updating package list..."
-    opkg update >/dev/null 2>&1 || {
-        log_warn "Failed to update package list (Teltonika repository may be limited)"
-    }
+	# Update package list (optional for Teltonika's limited repository)
+	log "Updating package list..."
+	opkg update >/dev/null 2>&1 || {
+		log_warn "Failed to update package list (Teltonika repository may be limited)"
+	}
 
-    # Check basic dependencies (most should be pre-installed on RUTOS)
-    log "Checking basic dependencies..."
+	# Check basic dependencies (most should be pre-installed on RUTOS)
+	log "Checking basic dependencies..."
 
-    # curl is usually pre-installed on RUTOS, but check anyway
-    if ! command -v curl >/dev/null 2>&1; then
-        log "Attempting to install curl..."
-        if ! opkg install curl >/dev/null 2>&1; then
-            log_error "curl not available and cannot be installed from Teltonika repository"
-            log_error "curl is required for binary downloads and Azure integration"
-            exit 1
-        fi
-    else
-        log_success "curl already available"
-    fi
+	# curl is usually pre-installed on RUTOS, but check anyway
+	if ! command -v curl >/dev/null 2>&1; then
+		log "Attempting to install curl..."
+		if ! opkg install curl >/dev/null 2>&1; then
+			log_error "curl not available and cannot be installed from Teltonika repository"
+			log_error "curl is required for binary downloads and Azure integration"
+			exit 1
+		fi
+	else
+		log_success "curl already available"
+	fi
 
-    # bc calculator - try to install but don't fail (Teltonika may not have it)
-    if ! command -v bc >/dev/null 2>&1; then
-        log "Attempting to install bc calculator (optional)..."
-        if opkg install bc >/dev/null 2>&1; then
-            log_success "bc calculator installed from Teltonika repository"
-        else
-            log_warn "bc calculator not available in Teltonika repository - using fallbacks"
-        fi
-    else
-        log_success "bc calculator already available"
-    fi
+	# bc calculator - try to install but don't fail (Teltonika may not have it)
+	if ! command -v bc >/dev/null 2>&1; then
+		log "Attempting to install bc calculator (optional)..."
+		if opkg install bc >/dev/null 2>&1; then
+			log_success "bc calculator installed from Teltonika repository"
+		else
+			log_warn "bc calculator not available in Teltonika repository - using fallbacks"
+		fi
+	else
+		log_success "bc calculator already available"
+	fi
 }
 
 # === BINARY INSTALLATION ===
 install_binaries() {
-    log_header "Installing Required Binaries"
+	log_header "Installing Required Binaries"
 
-    # Install grpcurl
-    if [ ! -f "/root/grpcurl" ]; then
-        log "Installing grpcurl..."
+	# Install grpcurl
+	if [ ! -f "/root/grpcurl" ]; then
+		log "Installing grpcurl..."
 
-        # RUTOS-specific curl: no -L flag, but --max-time works
-        if curl --max-time 30 "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz 2>/dev/null; then
-            if tar -zxf /tmp/grpcurl.tar.gz -C /root/ grpcurl 2>/dev/null; then
-                chmod +x /root/grpcurl
-                rm -f /tmp/grpcurl.tar.gz
-                log_success "grpcurl installed"
-            else
-                log_error "Failed to extract grpcurl"
-                exit 1
-            fi
-        else
-            log_error "Failed to download grpcurl"
-            exit 1
-        fi
-    else
-        log_success "grpcurl already installed"
-    fi
+		# RUTOS-specific curl: no -L flag, but --max-time works
+		if curl --max-time 30 "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz 2>/dev/null; then
+			if tar -zxf /tmp/grpcurl.tar.gz -C /root/ grpcurl 2>/dev/null; then
+				chmod +x /root/grpcurl
+				rm -f /tmp/grpcurl.tar.gz
+				log_success "grpcurl installed"
+			else
+				log_error "Failed to extract grpcurl"
+				exit 1
+			fi
+		else
+			log_error "Failed to download grpcurl"
+			exit 1
+		fi
+	else
+		log_success "grpcurl already installed"
+	fi
 
-    # Install jq
-    if [ ! -f "/root/jq" ]; then
-        log "Installing jq..."
+	# Install jq
+	if [ ! -f "/root/jq" ]; then
+		log "Installing jq..."
 
-        # RUTOS-specific curl: no -L flag, but --max-time works
-        if curl --max-time 30 "$JQ_URL" -o /root/jq 2>/dev/null; then
-            chmod +x /root/jq
-            log_success "jq installed"
-        else
-            log_error "Failed to download jq"
-            exit 1
-        fi
-    else
-        log_success "jq already installed"
-    fi
+		# RUTOS-specific curl: no -L flag, but --max-time works
+		if curl --max-time 30 "$JQ_URL" -o /root/jq 2>/dev/null; then
+			chmod +x /root/jq
+			log_success "jq installed"
+		else
+			log_error "Failed to download jq"
+			exit 1
+		fi
+	else
+		log_success "jq already installed"
+	fi
 
-    # Verify installations
-    if /root/grpcurl --version >/dev/null 2>&1; then
-        log_success "grpcurl verification passed"
-    else
-        log_error "grpcurl installation failed"
-        exit 1
-    fi
+	# Verify installations
+	if /root/grpcurl --version >/dev/null 2>&1; then
+		log_success "grpcurl verification passed"
+	else
+		log_error "grpcurl installation failed"
+		exit 1
+	fi
 
-    if /root/jq --version >/dev/null 2>&1; then
-        log_success "jq verification passed"
-    else
-        log_error "jq installation failed"
-        exit 1
-    fi
+	if /root/jq --version >/dev/null 2>&1; then
+		log_success "jq verification passed"
+	else
+		log_error "jq installation failed"
+		exit 1
+	fi
 }
 
 # === SCRIPT DEPLOYMENT ===
 deploy_scripts() {
-    log_header "Deploying Monitoring Scripts"
+	log_header "Deploying Monitoring Scripts"
 
-    # Create scripts directory
-    mkdir -p "$SCRIPTS_DIR"
-    mkdir -p "$HOTPLUG_DIR"
+	# Create scripts directory
+	mkdir -p "$SCRIPTS_DIR"
+	mkdir -p "$HOTPLUG_DIR"
 
-    # Generate main monitoring script
-    create_starlink_monitor_script
+	# Generate main monitoring script
+	create_starlink_monitor_script
 
-    # Generate performance logger
-    create_starlink_logger_script
+	# Generate performance logger
+	create_starlink_logger_script
 
-    # Generate API checker
-    create_api_checker_script
+	# Generate API checker
+	create_api_checker_script
 
-    # Generate Pushover notifier
-    if [ "$ENABLE_PUSHOVER" = "true" ]; then
-        create_pushover_notifier_script
-    fi
+	# Generate Pushover notifier
+	if [ "$ENABLE_PUSHOVER" = "true" ]; then
+		create_pushover_notifier_script
+	fi
 
-    # Generate Azure logging scripts
-    if [ "$ENABLE_AZURE" = "true" ]; then
-        create_azure_scripts
-    fi
+	# Generate Azure logging scripts
+	if [ "$ENABLE_AZURE" = "true" ]; then
+		create_azure_scripts
+	fi
 
-    # Generate configuration file
-    create_configuration_file
+	# Generate configuration file
+	create_configuration_file
 
-    log_success "All scripts deployed successfully"
+	log_success "All scripts deployed successfully"
 }
 
 # === CONFIGURATION SETUP ===
 setup_system_configuration() {
-    log_header "Configuring System Settings"
+	log_header "Configuring System Settings"
 
-    # Setup persistent logging
-    setup_persistent_logging
+	# Setup persistent logging
+	setup_persistent_logging
 
-    # Setup UCI configuration
-    setup_uci_configuration
+	# Setup UCI configuration
+	setup_uci_configuration
 
-    # Setup network routes
-    setup_network_routes
+	# Setup network routes
+	setup_network_routes
 
-    # Setup mwan3 configuration
-    setup_mwan3_configuration
+	# Setup mwan3 configuration
+	setup_mwan3_configuration
 
-    log_success "System configuration completed"
+	log_success "System configuration completed"
 }
 
 setup_persistent_logging() {
-    log "Setting up persistent logging..."
+	log "Setting up persistent logging..."
 
-    # Configure system logging
-    uci set system.@system[0].log_type='file'
-    uci set system.@system[0].log_file='/overlay/messages'
-    uci set system.@system[0].log_size='5120'
-    uci commit system
+	# Configure system logging
+	uci set system.@system[0].log_type='file'
+	uci set system.@system[0].log_file='/overlay/messages'
+	uci set system.@system[0].log_size='5120'
+	uci commit system
 
-    # Restart syslog
-    /etc/init.d/log restart >/dev/null 2>&1
+	# Restart syslog
+	/etc/init.d/log restart >/dev/null 2>&1
 
-    log_success "Persistent logging configured"
+	log_success "Persistent logging configured"
 }
 
 setup_uci_configuration() {
-    log "Setting up UCI configuration..."
+	log "Setting up UCI configuration..."
 
-    # Create Azure UCI section if Azure is enabled
-    if [ "$ENABLE_AZURE" = "true" ]; then
-        if ! uci show azure >/dev/null 2>&1; then
-            touch /etc/config/azure
-        fi
+	# Create Azure UCI section if Azure is enabled
+	if [ "$ENABLE_AZURE" = "true" ]; then
+		if ! uci show azure >/dev/null 2>&1; then
+			touch /etc/config/azure
+		fi
 
-        # System logs configuration
-        uci set azure.system=azure_config
-        uci set azure.system.endpoint="$AZURE_ENDPOINT"
-        uci set azure.system.enabled='1'
-        uci set azure.system.log_file='/overlay/messages'
-        uci set azure.system.max_size='1048576'
+		# System logs configuration
+		uci set azure.system=azure_config
+		uci set azure.system.endpoint="$AZURE_ENDPOINT"
+		uci set azure.system.enabled='1'
+		uci set azure.system.log_file='/overlay/messages'
+		uci set azure.system.max_size='1048576'
 
-        # Starlink monitoring configuration
-        if [ "$ENABLE_STARLINK_MONITORING" = "true" ]; then
-            uci set azure.starlink=starlink_config
-            uci set azure.starlink.endpoint="$AZURE_ENDPOINT"
-            uci set azure.starlink.enabled='1'
-            uci set azure.starlink.csv_file='/overlay/starlink_performance.csv'
-            uci set azure.starlink.max_size='1048576'
-            uci set azure.starlink.starlink_ip="$STARLINK_IP:9200"
-        fi
+		# Starlink monitoring configuration
+		if [ "$ENABLE_STARLINK_MONITORING" = "true" ]; then
+			uci set azure.starlink=starlink_config
+			uci set azure.starlink.endpoint="$AZURE_ENDPOINT"
+			uci set azure.starlink.enabled='1'
+			uci set azure.starlink.csv_file='/overlay/starlink_performance.csv'
+			uci set azure.starlink.max_size='1048576'
+			uci set azure.starlink.starlink_ip="$STARLINK_IP:9200"
+		fi
 
-        # GPS configuration
-        if [ "$ENABLE_GPS" = "true" ]; then
-            uci set azure.gps=gps_config
-            uci set azure.gps.enabled='1'
-            uci set azure.gps.rutos_ip="$RUTOS_IP"
-            uci set azure.gps.rutos_username="$RUTOS_USERNAME"
-            uci set azure.gps.rutos_password="$RUTOS_PASSWORD"
-        fi
+		# GPS configuration
+		if [ "$ENABLE_GPS" = "true" ]; then
+			uci set azure.gps=gps_config
+			uci set azure.gps.enabled='1'
+			uci set azure.gps.rutos_ip="$RUTOS_IP"
+			uci set azure.gps.rutos_username="$RUTOS_USERNAME"
+			uci set azure.gps.rutos_password="$RUTOS_PASSWORD"
+		fi
 
-        uci commit azure
-    fi
+		uci commit azure
+	fi
 
-    log_success "UCI configuration setup completed"
+	log_success "UCI configuration setup completed"
 }
 
 setup_network_routes() {
-    log "Setting up network routes..."
+	log "Setting up network routes..."
 
-    # Add static route to Starlink
-    if ! ip route show | grep -q "$STARLINK_IP"; then
-        # Check if route already exists in UCI
-        route_exists=false
-        for i in $(seq 0 10); do
-            if uci get network.@route["$i"].target 2>/dev/null | grep -q "$STARLINK_IP"; then
-                route_exists=true
-                break
-            fi
-        done
+	# Add static route to Starlink
+	if ! ip route show | grep -q "$STARLINK_IP"; then
+		# Check if route already exists in UCI
+		route_exists=false
+		for i in $(seq 0 10); do
+			if uci get network.@route["$i"].target 2>/dev/null | grep -q "$STARLINK_IP"; then
+				route_exists=true
+				break
+			fi
+		done
 
-        if [ "$route_exists" = "false" ]; then
-            uci add network route
-            uci set network.@route[-1].interface='wan'
-            uci set network.@route[-1].target="$STARLINK_IP"
-            uci set network.@route[-1].netmask='255.255.255.255'
-            uci commit network
+		if [ "$route_exists" = "false" ]; then
+			uci add network route
+			uci set network.@route[-1].interface='wan'
+			uci set network.@route[-1].target="$STARLINK_IP"
+			uci set network.@route[-1].netmask='255.255.255.255'
+			uci commit network
 
-            # Apply immediately
-            ip route add "$STARLINK_IP" dev "$(uci get network.wan.ifname 2>/dev/null || echo "eth1")" 2>/dev/null || true
-        fi
-    fi
+			# Apply immediately
+			ip route add "$STARLINK_IP" dev "$(uci get network.wan.ifname 2>/dev/null || echo "eth1")" 2>/dev/null || true
+		fi
+	fi
 
-    log_success "Network routes configured"
+	log_success "Network routes configured"
 }
 
 setup_mwan3_configuration() {
-    log "Setting up mwan3 multi-WAN configuration..."
+	log "Setting up mwan3 multi-WAN configuration..."
 
-    # Set member metrics (Starlink priority)
-    uci set mwan3.member1.metric='1' 2>/dev/null || true
-    uci set mwan3.member3.metric='2' 2>/dev/null || true
-    uci set mwan3.member4.metric='4' 2>/dev/null || true
+	# Set member metrics (Starlink priority)
+	uci set mwan3.member1.metric='1' 2>/dev/null || true
+	uci set mwan3.member3.metric='2' 2>/dev/null || true
+	uci set mwan3.member4.metric='4' 2>/dev/null || true
 
-    # Configure Starlink tracking
-    uci set mwan3.@condition[1].interface='wan' 2>/dev/null || {
-        uci add mwan3 condition
-        uci set mwan3.@condition[-1].interface='wan'
-    }
-    uci set mwan3.@condition[1].track_method='ping'
-    uci set mwan3.@condition[1].track_ip='1.0.0.1' '8.8.8.8'
-    uci set mwan3.@condition[1].reliability='1'
-    uci set mwan3.@condition[1].timeout='1'
-    uci set mwan3.@condition[1].interval='1'
-    uci set mwan3.@condition[1].count='1'
-    uci set mwan3.@condition[1].down='2'
-    uci set mwan3.@condition[1].up='3'
+	# Configure Starlink tracking
+	uci set mwan3.@condition[1].interface='wan' 2>/dev/null || {
+		uci add mwan3 condition
+		uci set mwan3.@condition[-1].interface='wan'
+	}
+	uci set mwan3.@condition[1].track_method='ping'
+	uci set mwan3.@condition[1].track_ip='1.0.0.1' '8.8.8.8'
+	uci set mwan3.@condition[1].reliability='1'
+	uci set mwan3.@condition[1].timeout='1'
+	uci set mwan3.@condition[1].interval='1'
+	uci set mwan3.@condition[1].count='1'
+	uci set mwan3.@condition[1].down='2'
+	uci set mwan3.@condition[1].up='3'
 
-    uci commit mwan3
+	uci commit mwan3
 
-    log_success "mwan3 configuration completed"
+	log_success "mwan3 configuration completed"
 }
 
 # === CRON JOBS SETUP ===
 setup_cron_jobs() {
-    log_header "Setting up Automated Monitoring"
+	log_header "Setting up Automated Monitoring"
 
-    # Remove existing starlink-related cron jobs
-    (crontab -l 2>/dev/null | grep -v "starlink" || true) | crontab -
+	# Remove existing starlink-related cron jobs
+	(crontab -l 2>/dev/null | grep -v "starlink" || true) | crontab -
 
-    # Add main monitoring script (every minute)
-    (
-        crontab -l 2>/dev/null
-        echo "* * * * * $SCRIPTS_DIR/starlink_monitor.sh"
-    ) | crontab -
-    log_success "Starlink quality monitoring scheduled (every minute)"
+	# Add main monitoring script (every minute)
+	(
+		crontab -l 2>/dev/null
+		echo "* * * * * $SCRIPTS_DIR/starlink_monitor.sh"
+	) | crontab -
+	log_success "Starlink quality monitoring scheduled (every minute)"
 
-    # Add performance logger (every minute)
-    if [ "$ENABLE_STARLINK_MONITORING" = "true" ]; then
-        (
-            crontab -l 2>/dev/null
-            echo "* * * * * $SCRIPTS_DIR/starlink_logger.sh"
-        ) | crontab -
-        log_success "Performance logging scheduled (every minute)"
-    fi
+	# Add performance logger (every minute)
+	if [ "$ENABLE_STARLINK_MONITORING" = "true" ]; then
+		(
+			crontab -l 2>/dev/null
+			echo "* * * * * $SCRIPTS_DIR/starlink_logger.sh"
+		) | crontab -
+		log_success "Performance logging scheduled (every minute)"
+	fi
 
-    # Add API checker (daily)
-    (
-        crontab -l 2>/dev/null
-        echo "30 5 * * * $SCRIPTS_DIR/check_starlink_api.sh"
-    ) | crontab -
-    log_success "API change detection scheduled (daily at 5:30 AM)"
+	# Add API checker (daily)
+	(
+		crontab -l 2>/dev/null
+		echo "30 5 * * * $SCRIPTS_DIR/check_starlink_api.sh"
+	) | crontab -
+	log_success "API change detection scheduled (daily at 5:30 AM)"
 
-    # Add Azure log shipping (every 5 minutes)
-    if [ "$ENABLE_AZURE" = "true" ]; then
-        (
-            crontab -l 2>/dev/null
-            echo "*/5 * * * * $SCRIPTS_DIR/log-shipper.sh"
-        ) | crontab -
-        log_success "Azure log shipping scheduled (every 5 minutes)"
+	# Add Azure log shipping (every 5 minutes)
+	if [ "$ENABLE_AZURE" = "true" ]; then
+		(
+			crontab -l 2>/dev/null
+			echo "*/5 * * * * $SCRIPTS_DIR/log-shipper.sh"
+		) | crontab -
+		log_success "Azure log shipping scheduled (every 5 minutes)"
 
-        # Add Azure Starlink monitoring (every 2 minutes)
-        if [ "$ENABLE_STARLINK_MONITORING" = "true" ]; then
-            (
-                crontab -l 2>/dev/null
-                echo "*/2 * * * * $SCRIPTS_DIR/starlink-azure-monitor.sh"
-            ) | crontab -
-            log_success "Azure Starlink monitoring scheduled (every 2 minutes)"
-        fi
-    fi
+		# Add Azure Starlink monitoring (every 2 minutes)
+		if [ "$ENABLE_STARLINK_MONITORING" = "true" ]; then
+			(
+				crontab -l 2>/dev/null
+				echo "*/2 * * * * $SCRIPTS_DIR/starlink-azure-monitor.sh"
+			) | crontab -
+			log_success "Azure Starlink monitoring scheduled (every 2 minutes)"
+		fi
+	fi
 
-    # Restart cron service
-    /etc/init.d/cron restart >/dev/null 2>&1
-    log_success "Cron service restarted"
+	# Restart cron service
+	/etc/init.d/cron restart >/dev/null 2>&1
+	log_success "Cron service restarted"
 }
 
 # === SCRIPT GENERATORS ===
 create_starlink_monitor_script() {
-    cat >"$SCRIPTS_DIR/starlink_monitor.sh" <<'EOF'
+	cat >"$SCRIPTS_DIR/starlink_monitor.sh" <<'EOF'
 #!/bin/sh
 # Starlink Quality Monitor - Generated by deployment script
 set -eu
@@ -783,12 +783,12 @@ main() {
 main
 EOF
 
-    chmod +x "$SCRIPTS_DIR/starlink_monitor.sh"
-    log_success "Starlink monitor script created"
+	chmod +x "$SCRIPTS_DIR/starlink_monitor.sh"
+	log_success "Starlink monitor script created"
 }
 
 create_starlink_logger_script() {
-    cat >"$SCRIPTS_DIR/starlink_logger.sh" <<'EOF'
+	cat >"$SCRIPTS_DIR/starlink_logger.sh" <<'EOF'
 #!/bin/sh
 # Starlink Performance Logger - Generated by deployment script
 set -eu
@@ -878,12 +878,12 @@ main() {
 main
 EOF
 
-    chmod +x "$SCRIPTS_DIR/starlink_logger.sh"
-    log_success "Starlink logger script created"
+	chmod +x "$SCRIPTS_DIR/starlink_logger.sh"
+	log_success "Starlink logger script created"
 }
 
 create_api_checker_script() {
-    cat >"$SCRIPTS_DIR/check_starlink_api.sh" <<'EOF'
+	cat >"$SCRIPTS_DIR/check_starlink_api.sh" <<'EOF'
 #!/bin/sh
 # Starlink API Change Detector - Generated by deployment script
 set -eu
@@ -940,12 +940,12 @@ main() {
 main
 EOF
 
-    chmod +x "$SCRIPTS_DIR/check_starlink_api.sh"
-    log_success "API checker script created"
+	chmod +x "$SCRIPTS_DIR/check_starlink_api.sh"
+	log_success "API checker script created"
 }
 
 create_pushover_notifier_script() {
-    cat >"$HOTPLUG_DIR/99-pushover_notify" <<EOF
+	cat >"$HOTPLUG_DIR/99-pushover_notify" <<EOF
 #!/bin/sh
 # Pushover Notification Script - Generated by deployment script
 
@@ -989,13 +989,13 @@ elif grep -q "API.*changed" /var/log/messages | tail -1; then
 fi
 EOF
 
-    chmod +x "$HOTPLUG_DIR/99-pushover_notify"
-    log_success "Pushover notifier script created"
+	chmod +x "$HOTPLUG_DIR/99-pushover_notify"
+	log_success "Pushover notifier script created"
 }
 
 create_azure_scripts() {
-    # Create log shipper script
-    cat >"$SCRIPTS_DIR/log-shipper.sh" <<EOF
+	# Create log shipper script
+	cat >"$SCRIPTS_DIR/log-shipper.sh" <<EOF
 #!/bin/sh
 # Azure Log Shipper - Generated by deployment script
 set -eu
@@ -1038,12 +1038,12 @@ if [ -f "\$LOG_FILE" ] && [ -s "\$LOG_FILE" ]; then
 fi
 EOF
 
-    chmod +x "$SCRIPTS_DIR/log-shipper.sh"
-    log_success "Azure log shipper script created"
+	chmod +x "$SCRIPTS_DIR/log-shipper.sh"
+	log_success "Azure log shipper script created"
 
-    # Create Azure Starlink monitor if enabled
-    if [ "$ENABLE_STARLINK_MONITORING" = "true" ]; then
-        cat >"$SCRIPTS_DIR/starlink-azure-monitor.sh" <<'EOF'
+	# Create Azure Starlink monitor if enabled
+	if [ "$ENABLE_STARLINK_MONITORING" = "true" ]; then
+		cat >"$SCRIPTS_DIR/starlink-azure-monitor.sh" <<'EOF'
 #!/bin/sh
 # Azure Starlink Monitor - Generated by deployment script
 set -eu
@@ -1120,13 +1120,13 @@ main() {
 main
 EOF
 
-        chmod +x "$SCRIPTS_DIR/starlink-azure-monitor.sh"
-        log_success "Azure Starlink monitor script created"
-    fi
+		chmod +x "$SCRIPTS_DIR/starlink-azure-monitor.sh"
+		log_success "Azure Starlink monitor script created"
+	fi
 }
 
 create_configuration_file() {
-    cat >"$CONFIG_DIR/config.sh" <<EOF
+	cat >"$CONFIG_DIR/config.sh" <<EOF
 #!/bin/sh
 # Starlink Solution Configuration - Generated by deployment script
 
@@ -1170,15 +1170,15 @@ STABILITY_FILE="/tmp/run/starlink_monitor.stability"
 OUTPUT_CSV="/root/starlink_performance_log.csv"
 EOF
 
-    chmod 600 "$CONFIG_DIR/config.sh"
-    log_success "Configuration file created"
+	chmod 600 "$CONFIG_DIR/config.sh"
+	log_success "Configuration file created"
 }
 
 # === VERIFICATION SCRIPT ===
 create_verification_script() {
-    log_header "Creating Verification Script"
+	log_header "Creating Verification Script"
 
-    cat >"$SCRIPTS_DIR/verify-starlink-setup.sh" <<'EOF'
+	cat >"$SCRIPTS_DIR/verify-starlink-setup.sh" <<'EOF'
 #!/bin/sh
 # Starlink Solution Verification Script
 set -eu
@@ -1453,80 +1453,80 @@ main() {
 main
 EOF
 
-    chmod +x "$SCRIPTS_DIR/verify-starlink-setup.sh"
-    log_success "Verification script created"
+	chmod +x "$SCRIPTS_DIR/verify-starlink-setup.sh"
+	log_success "Verification script created"
 }
 
 # === FINAL DEPLOYMENT ===
 finalize_deployment() {
-    log_header "Finalizing Deployment"
+	log_header "Finalizing Deployment"
 
-    # Create verification script
-    create_verification_script
+	# Create verification script
+	create_verification_script
 
-    # Final system configuration commit
-    uci commit
+	# Final system configuration commit
+	uci commit
 
-    # Restart services
-    /etc/init.d/network reload >/dev/null 2>&1
-    /etc/init.d/cron restart >/dev/null 2>&1
+	# Restart services
+	/etc/init.d/network reload >/dev/null 2>&1
+	/etc/init.d/cron restart >/dev/null 2>&1
 
-    # Set permissions
-    chmod -R 755 "$SCRIPTS_DIR"/*.sh 2>/dev/null || true
-    chmod 755 "$HOTPLUG_DIR"/99-pushover_notify 2>/dev/null || true
+	# Set permissions
+	chmod -R 755 "$SCRIPTS_DIR"/*.sh 2>/dev/null || true
+	chmod 755 "$HOTPLUG_DIR"/99-pushover_notify 2>/dev/null || true
 
-    log_success "Deployment finalized"
+	log_success "Deployment finalized"
 }
 
 # === MAIN DEPLOYMENT FUNCTION ===
 main() {
-    echo
-    echo "========================================="
-    echo "Starlink Solution Deployment for RUTOS"
-    echo "========================================="
-    echo
-    echo "This script will deploy a complete Starlink monitoring and"
-    echo "failover solution with the following features:"
-    echo
-    echo "• Proactive quality monitoring with automatic failover"
-    echo "• Performance data logging and analysis"
-    echo "• Optional Azure cloud logging integration"
-    echo "• Optional GPS integration for location tracking"
-    echo "• Optional Pushover notifications for alerts"
-    echo "• Complete verification and health checking"
-    echo
-    echo "========================================="
+	echo
+	echo "========================================="
+	echo "Starlink Solution Deployment for RUTOS"
+	echo "========================================="
+	echo
+	echo "This script will deploy a complete Starlink monitoring and"
+	echo "failover solution with the following features:"
+	echo
+	echo "• Proactive quality monitoring with automatic failover"
+	echo "• Performance data logging and analysis"
+	echo "• Optional Azure cloud logging integration"
+	echo "• Optional GPS integration for location tracking"
+	echo "• Optional Pushover notifications for alerts"
+	echo "• Complete verification and health checking"
+	echo
+	echo "========================================="
 
-    # Run deployment steps
-    check_prerequisites
-    collect_configuration
-    create_backup
-    install_packages
-    install_binaries
-    deploy_scripts
-    setup_system_configuration
-    setup_cron_jobs
-    finalize_deployment
+	# Run deployment steps
+	check_prerequisites
+	collect_configuration
+	create_backup
+	install_packages
+	install_binaries
+	deploy_scripts
+	setup_system_configuration
+	setup_cron_jobs
+	finalize_deployment
 
-    # Final success message
-    echo
-    log_success "🎉 Starlink Solution Deployment Completed Successfully! 🎉"
-    echo
-    log_info "Installation Summary:"
-    log_info "  • Backup created: $BACKUP_DIR"
-    log_info "  • Scripts installed: $SCRIPTS_DIR"
-    log_info "  • Configuration file: $CONFIG_DIR/config.sh"
-    log_info "  • Verification script: $SCRIPTS_DIR/verify-starlink-setup.sh"
-    echo
-    log_info "Next Steps:"
-    log_info "  1. Run verification: $SCRIPTS_DIR/verify-starlink-setup.sh"
-    log_info "  2. Wait 5-10 minutes for initial monitoring to start"
-    log_info "  3. Check logs: logread | grep Starlink"
-    log_info "  4. Monitor performance data: tail -f /root/starlink_performance_log.csv"
-    echo
-    log_info "For support and documentation, visit:"
-    log_info "  https://github.com/markus-lassfolk/rutos-starlink-failover"
-    echo
+	# Final success message
+	echo
+	log_success "🎉 Starlink Solution Deployment Completed Successfully! 🎉"
+	echo
+	log_info "Installation Summary:"
+	log_info "  • Backup created: $BACKUP_DIR"
+	log_info "  • Scripts installed: $SCRIPTS_DIR"
+	log_info "  • Configuration file: $CONFIG_DIR/config.sh"
+	log_info "  • Verification script: $SCRIPTS_DIR/verify-starlink-setup.sh"
+	echo
+	log_info "Next Steps:"
+	log_info "  1. Run verification: $SCRIPTS_DIR/verify-starlink-setup.sh"
+	log_info "  2. Wait 5-10 minutes for initial monitoring to start"
+	log_info "  3. Check logs: logread | grep Starlink"
+	log_info "  4. Monitor performance data: tail -f /root/starlink_performance_log.csv"
+	echo
+	log_info "For support and documentation, visit:"
+	log_info "  https://github.com/markus-lassfolk/rutos-starlink-failover"
+	echo
 }
 
 # Execute main function

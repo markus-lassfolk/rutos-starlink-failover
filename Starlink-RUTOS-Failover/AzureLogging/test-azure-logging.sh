@@ -8,9 +8,9 @@ set -eu
 # Configuration - Use UCI if available, otherwise use command line parameter
 TEST_LOG_FILE="/tmp/test-azure-logging.log"
 if [ -n "${1:-}" ]; then
-    AZURE_FUNCTION_URL="$1"
+	AZURE_FUNCTION_URL="$1"
 else
-    AZURE_FUNCTION_URL=$(uci get azure.system.endpoint 2>/dev/null || echo "")
+	AZURE_FUNCTION_URL=$(uci get azure.system.endpoint 2>/dev/null || echo "")
 fi
 
 # Colors for output
@@ -20,22 +20,22 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 log_info() {
-    printf "%b[INFO]%b %s\n" "${GREEN}" "${NC}" "$1"
+	printf "%b[INFO]%b %s\n" "${GREEN}" "${NC}" "$1"
 }
 
 log_warn() {
-    printf "%b[WARN]%b %s\n" "${YELLOW}" "${NC}" "$1"
+	printf "%b[WARN]%b %s\n" "${YELLOW}" "${NC}" "$1"
 }
 
 log_error() {
-    printf "%b[ERROR]%b %s\n" "${RED}" "${NC}" "$1"
+	printf "%b[ERROR]%b %s\n" "${RED}" "${NC}" "$1"
 }
 
 # Validate input
 if [ -z "$AZURE_FUNCTION_URL" ]; then
-    log_error "Usage: $0 <azure-function-url>"
-    log_error "Example: $0 'https://your-app.azurewebsites.net/api/HttpLogIngestor?code=...'"
-    exit 1
+	log_error "Usage: $0 <azure-function-url>"
+	log_error "Example: $0 'https://your-app.azurewebsites.net/api/HttpLogIngestor?code=...'"
+	exit 1
 fi
 
 # Test 1: Create test log data
@@ -54,25 +54,25 @@ HTTP_STATUS=$(curl -sS -w '%{http_code}' -o /dev/null --max-time 30 --data-binar
 CURL_EXIT_CODE=$?
 
 if [ $CURL_EXIT_CODE -ne 0 ]; then
-    log_error "curl failed with exit code $CURL_EXIT_CODE"
-    exit 1
+	log_error "curl failed with exit code $CURL_EXIT_CODE"
+	exit 1
 fi
 
 if [ "$HTTP_STATUS" -eq 200 ]; then
-    log_info "✓ Successfully sent test data to Azure (HTTP $HTTP_STATUS)"
+	log_info "✓ Successfully sent test data to Azure (HTTP $HTTP_STATUS)"
 else
-    log_error "✗ Failed to send test data to Azure (HTTP $HTTP_STATUS)"
-    exit 1
+	log_error "✗ Failed to send test data to Azure (HTTP $HTTP_STATUS)"
+	exit 1
 fi
 
 # Test 3: Verify log file handling
 log_info "Testing log file operations..."
 if [ -f "$TEST_LOG_FILE" ]; then
-    true >"$TEST_LOG_FILE" # Truncate like the real script does
-    log_info "✓ Log file truncation successful"
+	true >"$TEST_LOG_FILE" # Truncate like the real script does
+	log_info "✓ Log file truncation successful"
 else
-    log_error "✗ Test log file not found"
-    exit 1
+	log_error "✗ Test log file not found"
+	exit 1
 fi
 
 # Cleanup

@@ -6,11 +6,11 @@ set -eu
 
 CONFIG_FILE="${CONFIG_FILE:-/root/config.sh}"
 if [ -f "$CONFIG_FILE" ]; then
-    # shellcheck source=/dev/null
-    . "$CONFIG_FILE"
+	# shellcheck source=/dev/null
+	. "$CONFIG_FILE"
 else
-    echo "Error: Configuration file not found: $CONFIG_FILE"
-    exit 1
+	echo "Error: Configuration file not found: $CONFIG_FILE"
+	exit 1
 fi
 
 LAST_SCHEMA_FILE="/root/starlink_api_schema_last.json"
@@ -19,23 +19,23 @@ NOTIFIER_SCRIPT="/etc/hotplug.d/iface/99-pushover_notify"
 
 # Dump current API schema (get_device_info is a good proxy for version/fields)
 if ! "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | "$JQ_CMD" '.' >"$CUR_SCHEMA_FILE"; then
-    echo "Warning: Could not fetch Starlink API schema."
-    exit 0
+	echo "Warning: Could not fetch Starlink API schema."
+	exit 0
 fi
 
 # If no previous schema, save and exit
 if [ ! -f "$LAST_SCHEMA_FILE" ]; then
-    cp "$CUR_SCHEMA_FILE" "$LAST_SCHEMA_FILE"
-    exit 0
+	cp "$CUR_SCHEMA_FILE" "$LAST_SCHEMA_FILE"
+	exit 0
 fi
 
 # Compare schemas
 if ! diff -q "$CUR_SCHEMA_FILE" "$LAST_SCHEMA_FILE" >/dev/null; then
-    # Schema changed, notify
-    if [ -x "$NOTIFIER_SCRIPT" ]; then
-        "$NOTIFIER_SCRIPT" api_version_change "$(jq -r '.apiVersion // "UNKNOWN"' "$LAST_SCHEMA_FILE") -> $(jq -r '.apiVersion // "UNKNOWN"' "$CUR_SCHEMA_FILE")"
-    fi
-    cp "$CUR_SCHEMA_FILE" "$LAST_SCHEMA_FILE"
+	# Schema changed, notify
+	if [ -x "$NOTIFIER_SCRIPT" ]; then
+		"$NOTIFIER_SCRIPT" api_version_change "$(jq -r '.apiVersion // "UNKNOWN"' "$LAST_SCHEMA_FILE") -> $(jq -r '.apiVersion // "UNKNOWN"' "$CUR_SCHEMA_FILE")"
+	fi
+	cp "$CUR_SCHEMA_FILE" "$LAST_SCHEMA_FILE"
 fi
 
 exit 0

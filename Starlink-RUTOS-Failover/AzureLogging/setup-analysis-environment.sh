@@ -14,16 +14,16 @@ printf "%b\n" "${GREEN}Setting up Network Performance Analysis Environment${NC}"
 
 # Check if Python 3 is installed
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "Python 3 is required but not installed. Please install Python 3.8 or later."
-    exit 1
+	echo "Python 3 is required but not installed. Please install Python 3.8 or later."
+	exit 1
 fi
 
 echo "Python version: $(python3 --version)"
 
 # Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
-    printf "%b\n" "${YELLOW}Creating Python virtual environment...${NC}"
-    python3 -m venv venv
+	printf "%b\n" "${YELLOW}Creating Python virtual environment...${NC}"
+	python3 -m venv venv
 fi
 
 # Activate virtual environment
