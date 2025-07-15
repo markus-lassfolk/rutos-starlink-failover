@@ -648,9 +648,9 @@ check_outdated_template() {
 
 # Function to determine and display overall configuration status
 show_overall_status() {
-    local structure_ok="$1"
-    local placeholders_found="$2"
-    local validation_errors="$3"
+    structure_ok="$1"
+    placeholders_found="$2"
+    validation_errors="$3"
     
     echo ""
     if [ "$structure_ok" -eq 0 ] && [ "$placeholders_found" -eq 0 ] && [ "$validation_errors" -eq 0 ]; then

@@ -38,8 +38,8 @@ get_git_info() {
 
 # Function to increment version
 increment_version() {
-    local version="$1"
-    local level="$2"
+    version="$1"
+    level="$2"
     
     # Parse version (major.minor.patch)
     major=$(echo "$version" | cut -d. -f1)
@@ -71,8 +71,8 @@ increment_version() {
 
 # Function to update version in files
 update_version_in_files() {
-    local version="$1"
-    local build_info="$2"
+    version="$1"
+    build_info="$2"
     
     # Update VERSION file
     echo "$version" > "$VERSION_FILE"
@@ -103,8 +103,8 @@ update_version_in_files() {
 
 # Function to create version info file
 create_version_info() {
-    local version="$1"
-    local build_info="$2"
+    version="$1"
+    build_info="$2"
     
     cat > "$PROJECT_ROOT/VERSION_INFO" << EOF
 # Version Information
@@ -120,7 +120,7 @@ EOF
 
 # Main function
 main() {
-    local level="${1:-patch}"
+    level="${1:-patch}"
     
     # Validate level
     case "$level" in
