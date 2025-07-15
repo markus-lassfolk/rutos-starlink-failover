@@ -18,10 +18,22 @@ COMPATIBLE_INSTALL_VERSION="1.0.0"
 # Debug mode - set to 1 to enable debug output
 DEBUG="${DEBUG:-0}"
 
+# Function to get timestamp
+get_timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+# Function to print colored output with timestamp
+print_status() {
+    color="$1"
+    message="$2"
+    printf "%b[%s] %s%b\n" "$color" "$(get_timestamp)" "$message" "$NC"
+}
+
 # Debug output function
 debug_msg() {
     if [ "$DEBUG" = "1" ]; then
-        printf "%b\n" "${BLUE}DEBUG: $1${NC}"
+        print_status "$BLUE" "DEBUG: $1"
     fi
 }
 
@@ -44,10 +56,10 @@ fi
 
 # Show usage information
 show_usage() {
-    printf "%b\n" "${BLUE}Usage: $SCRIPT_NAME [options] [config_file]${NC}"
-    printf "%b\n" "${BLUE}Options:${NC}"
-    printf "%b\n" "${BLUE}  -h, --help      Show this help message${NC}"
-    printf "%b\n" "${BLUE}  -m, --migrate   Force migration of outdated config template${NC}"
+    print_status "$BLUE" "Usage: $SCRIPT_NAME [options] [config_file]"
+    print_status "$BLUE" "Options:"
+    print_status "$BLUE" "  -h, --help      Show this help message"
+    print_status "$BLUE" "  -m, --migrate   Force migration of outdated config template"
     printf "%b\n" "${BLUE}Arguments:${NC}"
     printf "%b\n" "${BLUE}  config_file     Path to configuration file (default: ./config.sh)${NC}"
     printf "%b\n" ""
@@ -348,24 +360,24 @@ check_config_completeness() {
 
     # Report results
     if [ "$total_missing" -eq 0 ] && [ "$total_extra" -eq 0 ]; then
-        printf "%b\n" "${GREEN}✓ Configuration is complete and matches template${NC}"
+        print_status "$GREEN" "✓ Configuration structure matches template"
         return 0
     fi
 
     if [ "$total_missing" -gt 0 ]; then
-        printf "%b\n" "${YELLOW}⚠ Missing configuration variables (${total_missing} found):${NC}"
+        print_status "$YELLOW" "⚠ Missing configuration variables (${total_missing} found):"
         for var in $missing_vars; do
-            printf "%b\n" "${YELLOW}  - $var${NC}"
+            print_status "$YELLOW" "  - $var"
         done
-        printf "%b\n" "${YELLOW}Suggestion: Run update-config.sh to add missing variables${NC}"
+        print_status "$YELLOW" "Suggestion: Run update-config.sh to add missing variables"
     fi
 
     if [ "$total_extra" -gt 0 ]; then
-        printf "%b\n" "${YELLOW}⚠ Extra configuration variables (${total_extra} found):${NC}"
+        print_status "$YELLOW" "⚠ Extra configuration variables (${total_extra} found):"
         for var in $extra_vars; do
-            printf "%b\n" "${YELLOW}  - $var${NC}"
+            print_status "$YELLOW" "  - $var"
         done
-        printf "%b\n" "${YELLOW}Note: These may be custom variables or from an older version${NC}"
+        print_status "$YELLOW" "Note: These may be custom variables or from an older version"
     fi
 
     return 1
@@ -373,7 +385,7 @@ check_config_completeness() {
 
 # Check for placeholder values and provide recommendations
 check_placeholder_values() {
-    printf "%b\n" "${GREEN}Checking for placeholder values...${NC}"
+    print_status "$GREEN" "Checking for placeholder values..."
 
     placeholders_found=0
 
@@ -395,7 +407,7 @@ check_placeholder_values() {
     for pattern in $placeholder_patterns; do
         if grep -q "$pattern" "$CONFIG_FILE" 2>/dev/null; then
             var_name=$(grep "$pattern" "$CONFIG_FILE" | cut -d'=' -f1)
-            printf "%b\n" "${YELLOW}⚠ Placeholder value found: $var_name${NC}"
+            print_status "$YELLOW" "⚠ Placeholder value found: $var_name"
             placeholders_found=$((placeholders_found + 1))
         fi
     done
@@ -406,16 +418,16 @@ check_placeholder_values() {
     for var in $critical_vars; do
         value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
         if [ -z "$value" ] || [ "$value" = '""' ] || [ "$value" = "''" ]; then
-            printf "%b\n" "${RED}✗ Critical variable is empty: $var${NC}"
+            print_status "$RED" "✗ Critical variable is empty: $var"
             placeholders_found=$((placeholders_found + 1))
         fi
     done
 
     if [ "$placeholders_found" -eq 0 ]; then
-        printf "%b\n" "${GREEN}✓ No placeholder values found${NC}"
+        print_status "$GREEN" "✓ No placeholder values found"
     else
-        printf "%b\n" "${YELLOW}Found $placeholders_found placeholder/empty values${NC}"
-        printf "%b\n" "${YELLOW}Please update these values before deploying${NC}"
+        print_status "$YELLOW" "Found $placeholders_found placeholder/empty values"
+        print_status "$YELLOW" "Please update these values before deploying"
     fi
     return "$placeholders_found"
 }
@@ -630,17 +642,50 @@ check_outdated_template() {
     return 1 # Appears current
 }
 
+# Function to determine and display overall configuration status
+show_overall_status() {
+    local structure_ok="$1"
+    local placeholders_found="$2"
+    local validation_errors="$3"
+    
+    echo ""
+    if [ "$structure_ok" -eq 0 ] && [ "$placeholders_found" -eq 0 ] && [ "$validation_errors" -eq 0 ]; then
+        print_status "$GREEN" "=== CONFIGURATION STATUS: READY FOR DEPLOYMENT ==="
+        print_status "$GREEN" "✓ All configuration variables are properly set"
+        print_status "$GREEN" "✓ No placeholder values detected"
+        print_status "$GREEN" "✓ All values are valid"
+        return 0
+    else
+        print_status "$RED" "=== CONFIGURATION STATUS: NEEDS ATTENTION ==="
+        
+        if [ "$structure_ok" -ne 0 ]; then
+            print_status "$RED" "✗ Configuration structure has issues"
+        fi
+        
+        if [ "$placeholders_found" -gt 0 ]; then
+            print_status "$RED" "✗ Configuration contains $placeholders_found placeholder/empty values"
+            print_status "$RED" "  This means the config file hasn't been properly customized!"
+        fi
+        
+        if [ "$validation_errors" -gt 0 ]; then
+            print_status "$RED" "✗ Configuration contains $validation_errors validation errors"
+        fi
+        
+        return 1
+    fi
+}
+
 # Main function
 main() {
-    printf "%b\n" "${GREEN}=== Starlink System Configuration Validator ===${NC}"
-    printf "%b\n" "${BLUE}Script: $SCRIPT_NAME${NC}"
-    printf "%b\n" "${BLUE}Version: $SCRIPT_VERSION${NC}"
-    printf "%b\n" "${BLUE}Compatible with install.sh: $COMPATIBLE_INSTALL_VERSION${NC}"
+    print_status "$GREEN" "=== Starlink System Configuration Validator ==="
+    print_status "$BLUE" "Script: $SCRIPT_NAME"
+    print_status "$BLUE" "Version: $SCRIPT_VERSION"
+    print_status "$BLUE" "Compatible with install.sh: $COMPATIBLE_INSTALL_VERSION"
     if [ "$DEBUG" = "1" ]; then
-        printf "%b\n" "${YELLOW}==================== DEBUG MODE ENABLED ====================${NC}"
-        printf "%b\n" "${YELLOW}DEBUG: Script starting with DEBUG=1${NC}"
-        printf "%b\n" "${YELLOW}DEBUG: Configuration file: $CONFIG_FILE${NC}"
-        printf "%b\n" "${YELLOW}==========================================================${NC}"
+        print_status "$YELLOW" "==================== DEBUG MODE ENABLED ===================="
+        print_status "$YELLOW" "DEBUG: Script starting with DEBUG=1"
+        print_status "$YELLOW" "DEBUG: Configuration file: $CONFIG_FILE"
+        print_status "$YELLOW" "=========================================================="
     fi
     echo ""
 
@@ -672,23 +717,33 @@ main() {
 
     # Enhanced configuration validation
     config_issues=0
+    structure_ok=0
+    placeholders_found=0
+    validation_errors=0
 
     # Check configuration completeness against template
     if ! check_config_completeness; then
+        structure_ok=1
         config_issues=$((config_issues + 1))
     fi
     echo ""
 
     # Check for placeholder values
     if ! check_placeholder_values; then
+        placeholders_found=$?
         config_issues=$((config_issues + 1))
     fi
     echo ""
 
     # Validate configuration values
     if ! validate_config_values; then
+        validation_errors=$?
         config_issues=$((config_issues + 1))
     fi
+    echo ""
+
+    # Show overall configuration status
+    show_overall_status "$structure_ok" "$placeholders_found" "$validation_errors"
     echo ""
 
     # Original validation checks
@@ -701,33 +756,33 @@ main() {
 
     echo ""
     if [ $config_issues -eq 0 ]; then
-        printf "%b\n" "${GREEN}=== Validation Complete - Configuration is Ready ===${NC}"
-        printf "%b\n" "${GREEN}✓ Configuration is complete and properly formatted${NC}"
+        print_status "$GREEN" "=== Validation Complete - System Ready ==="
+        print_status "$GREEN" "✓ All checks passed successfully"
     else
-        printf "%b\n" "${YELLOW}=== Validation Complete - Configuration Issues Found ===${NC}"
-        printf "%b\n" "${YELLOW}⚠ Found $config_issues configuration issue(s) that should be addressed${NC}"
+        print_status "$YELLOW" "=== Validation Complete - Issues Found ==="
+        print_status "$YELLOW" "⚠ Found $config_issues configuration issue(s) that should be addressed"
     fi
 
-    printf "%b\n" "${GREEN}System appears ready for deployment${NC}"
+    print_status "$GREEN" "System infrastructure appears ready for deployment"
     echo ""
-    printf "%b\n" "${YELLOW}Next steps:${NC}"
+    print_status "$YELLOW" "Next steps:"
 
     if [ $config_issues -gt 0 ]; then
-        printf "%b\n" "${YELLOW}1. Fix configuration issues listed above${NC}"
-        printf "%b\n" "${YELLOW}2. Run update-config.sh to add missing variables${NC}"
-        printf "%b\n" "${YELLOW}3. Re-run this validator to confirm fixes${NC}"
-        printf "%b\n" "${YELLOW}4. Configure cron jobs as described in the documentation${NC}"
-        printf "%b\n" "${YELLOW}5. Test the system manually before relying on it${NC}"
+        print_status "$YELLOW" "1. Fix configuration issues listed above"
+        print_status "$YELLOW" "2. Run update-config.sh to add missing variables"
+        print_status "$YELLOW" "3. Re-run this validator to confirm fixes"
+        print_status "$YELLOW" "4. Configure cron jobs as described in the documentation"
+        print_status "$YELLOW" "5. Test the system manually before relying on it"
     else
-        printf "%b\n" "${YELLOW}1. Configure cron jobs as described in the documentation${NC}"
-        printf "%b\n" "${YELLOW}2. Test the system manually before relying on it${NC}"
+        print_status "$YELLOW" "1. Configure cron jobs as described in the documentation"
+        print_status "$YELLOW" "2. Test the system manually before relying on it"
     fi
 
     echo ""
-    printf "%b\n" "${GREEN}Available tools:${NC}"
-    printf "%b\n" "${GREEN}• Update config: $(dirname "$CONFIG_FILE")/../scripts/update-config.sh${NC}"
-    printf "%b\n" "${GREEN}• Upgrade features: $(dirname "$CONFIG_FILE")/../scripts/upgrade-to-advanced.sh${NC}"
-    printf "%b\n" "${GREEN}• Migrate outdated template: $SCRIPT_NAME --migrate${NC}"
+    print_status "$GREEN" "Available tools:"
+    print_status "$GREEN" "• Update config: $(dirname "$CONFIG_FILE")/../scripts/update-config.sh"
+    print_status "$GREEN" "• Upgrade features: $(dirname "$CONFIG_FILE")/../scripts/upgrade-to-advanced.sh"
+    print_status "$GREEN" "• Migrate outdated template: $SCRIPT_NAME --migrate"
 }
 
 # Run main function

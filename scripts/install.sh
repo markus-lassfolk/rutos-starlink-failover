@@ -24,6 +24,54 @@ BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 # 2. Uncommenting the line below
 # DEBUG=1
 
+# Logging configuration
+LOG_FILE="${INSTALL_DIR:-/root/starlink-monitor}/installation.log"
+LOG_DIR="$(dirname "$LOG_FILE")"
+
+# Create log directory if it doesn't exist
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+# Function to get timestamp
+get_timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+# Function to log messages to file
+log_message() {
+    local level="$1"
+    local message="$2"
+    local timestamp
+    timestamp=$(get_timestamp)
+    
+    # Ensure log directory exists
+    mkdir -p "$LOG_DIR" 2>/dev/null || true
+    
+    # Log to file with timestamp
+    echo "[$timestamp] [$level] $message" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+# Function to print colored output with logging
+print_status() {
+    color="$1"
+    message="$2"
+    
+    # Print to console
+    printf "%b[%s] %s%b\n" "$color" "$(get_timestamp)" "$message" "$NC"
+    
+    # Log to file (without color codes)
+    log_message "INFO" "$message"
+}
+
+# Function to print debug messages with logging
+debug_msg() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        local timestamp
+        timestamp=$(get_timestamp)
+        printf "%b[%s] DEBUG: %s%b\n" "$BLUE" "$timestamp" "$1" "$NC"
+        log_message "DEBUG" "$1"
+    fi
+}
+
 # Version and compatibility
 VERSION_URL="${BASE_URL}/VERSION"
 # shellcheck disable=SC2034  # Used for compatibility checks in future
@@ -46,30 +94,6 @@ CRON_FILE="/etc/crontabs/root" # Used throughout script
 GRPCURL_URL="https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz"
 JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
 
-# Function to print colored output
-print_status() {
-    color="$1"
-    message="$2"
-    printf "%b%s%b\n" "$color" "$message" "$NC"
-}
-
-# Function to print debug messages
-debug_msg() {
-    if [ "${DEBUG:-0}" = "1" ]; then
-        print_status "$BLUE" "DEBUG: $1"
-    fi
-}
-
-# Function to execute commands with debug output
-debug_exec() {
-    if [ "${DEBUG:-0}" = "1" ]; then
-        print_status "$BLUE" "DEBUG: Executing: $*"
-        "$@"
-    else
-        "$@" 2>/dev/null
-    fi
-}
-
 # Early debug detection - show immediately if DEBUG is set
 if [ "${DEBUG:-0}" = "1" ]; then
     printf "\n"
@@ -79,9 +103,20 @@ if [ "${DEBUG:-0}" = "1" ]; then
     print_status "$BLUE" "DEBUG:   DEBUG=${DEBUG:-0}"
     print_status "$BLUE" "DEBUG:   GITHUB_BRANCH=${GITHUB_BRANCH:-main}"
     print_status "$BLUE" "DEBUG:   GITHUB_REPO=${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
+    print_status "$BLUE" "DEBUG:   LOG_FILE=$LOG_FILE"
     print_status "$BLUE" "==========================================================="
     echo ""
 fi
+
+# Log installation start
+log_message "INFO" "============================================="
+log_message "INFO" "Starlink Monitor Installation Script Started"
+log_message "INFO" "Script: $SCRIPT_NAME"
+log_message "INFO" "Version: $SCRIPT_VERSION"
+log_message "INFO" "Branch: $GITHUB_BRANCH"
+log_message "INFO" "Repository: $GITHUB_REPO"
+log_message "INFO" "DEBUG Mode: ${DEBUG:-0}"
+log_message "INFO" "============================================="
 
 # Function to show version information
 show_version() {
@@ -136,21 +171,35 @@ download_file() {
     output="$2"
 
     debug_msg "Downloading $url to $output"
+    log_message "INFO" "Starting download: $url -> $output"
 
     # Try wget first, then curl
     if command -v wget >/dev/null 2>&1; then
         if [ "${DEBUG:-0}" = "1" ]; then
             debug_exec wget -O "$output" "$url"
         else
-            wget -q -O "$output" "$url" 2>/dev/null
+            if wget -q -O "$output" "$url" 2>/dev/null; then
+                log_message "INFO" "Download successful: $output"
+                return 0
+            else
+                log_message "ERROR" "Download failed with wget: $url"
+                return 1
+            fi
         fi
     elif command -v curl >/dev/null 2>&1; then
         if [ "${DEBUG:-0}" = "1" ]; then
             debug_exec curl -fL -o "$output" "$url"
         else
-            curl -fsSL -o "$output" "$url" 2>/dev/null
+            if curl -fsSL -o "$output" "$url" 2>/dev/null; then
+                log_message "INFO" "Download successful: $output"
+                return 0
+            else
+                log_message "ERROR" "Download failed with curl: $url"
+                return 1
+            fi
         fi
     else
+        log_message "ERROR" "Neither wget nor curl available for downloads"
         print_status "$RED" "Error: Neither wget nor curl available for downloads"
         return 1
     fi
@@ -570,7 +619,29 @@ main() {
         print_status "$YELLOW" "⚠ Development Mode: Using branch '$GITHUB_BRANCH'"
         print_status "$YELLOW" "  This is a testing/development installation"
     fi
+    
+    # Log successful completion
+    log_message "INFO" "============================================="
+    log_message "INFO" "Installation completed successfully!"
+    log_message "INFO" "Installation directory: $INSTALL_DIR"
+    log_message "INFO" "Log file: $LOG_FILE"
+    log_message "INFO" "============================================="
+    
+    printf "\n"
+    print_status "$GREEN" "📋 Installation log saved to: $LOG_FILE"
 }
+
+# Error handling function
+handle_error() {
+    local exit_code=$?
+    log_message "ERROR" "Installation failed with exit code: $exit_code"
+    log_message "ERROR" "Check the log file for details: $LOG_FILE"
+    print_status "$RED" "❌ Installation failed! Check log: $LOG_FILE"
+    exit $exit_code
+}
+
+# Set up error handling
+trap handle_error ERR
 
 # Run main function
 main "$@"
