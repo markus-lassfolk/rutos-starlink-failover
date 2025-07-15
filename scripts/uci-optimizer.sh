@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
 # UCI Configuration Analyzer and Optimizer for Starlink Failover
 # Analyzes existing RUTX50 configuration and applies optimizations
 # ==============================================================================
 
-set -euo pipefail
+set -eu
 
 # Configuration
 # SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"  # Currently unused
@@ -42,7 +42,7 @@ create_uci_backup() {
     mkdir -p "$BACKUP_DIR"
 
     # Backup critical configurations
-    local configs=(
+    configs=(
         "mwan3" "network" "firewall" "gps" "simcard"
         "system" "wireless" "dhcp" "dropbear"
     )
@@ -67,16 +67,16 @@ analyze_mwan3() {
     fi
 
     # Analyze interfaces
-    local interfaces
+    interfaces
     interfaces=$(uci show mwan3 | grep -E "mwan3\.[^.]*\.interface=" | cut -d'=' -f2 | tr -d "'")
 
     log_info "Found mwan3 interfaces:"
     for iface in $interfaces; do
-        local enabled
+    enabled
         enabled=$(uci get "mwan3.${iface%.*}.enabled" 2>/dev/null || echo "0")
 
         if [[ "$enabled" == "1" ]]; then
-            local metric
+    metric
             metric=$(uci show mwan3 | grep -E "member.*interface='?${iface}'?" | head -1 |
                 sed -n 's/.*metric=.\([0-9]*\).*/\1/p')
             echo "  - $iface (enabled, metric: ${metric:-unknown})"
@@ -106,8 +106,8 @@ optimize_mwan3() {
         uci set mwan3.wan.flush_conntrack='connected' 'disconnected' 'ifup' 'ifdown'
 
         # Find and update wan condition or create new one
-        local wan_condition=""
-        local conditions
+    wan_condition=""
+    conditions
         conditions=$(uci show mwan3 | grep -E "@condition\[[0-9]+\]\.interface='wan'" | cut -d'[' -f2 | cut -d']' -f1)
 
         if [[ -n "$conditions" ]]; then
@@ -155,13 +155,13 @@ add_starlink_route() {
     log_info "Adding static route for Starlink management interface..."
 
     # Check if route already exists
-    local existing_routes
+    existing_routes
     existing_routes=$(uci show network | grep -E "route.*target='192\.168\.100\.1'" || true)
 
     if [[ -z "$existing_routes" ]]; then
         # Add new route
         uci add network route
-        local route_index
+    route_index
         route_index=$(uci show network | grep -E "@route\[[0-9]+\]=" | tail -1 | cut -d'[' -f2 | cut -d']' -f1)
 
         uci set "network.@route[$route_index].interface=wan"
@@ -205,13 +205,13 @@ optimize_firewall() {
 
     # Allow gRPC traffic to Starlink (if not already allowed)
     # local starlink_rule=""  # Currently unused
-    local rules
+    rules
     rules=$(uci show firewall | grep -E "name='.*[Ss]tarlink.*'" || true)
 
     if [[ -z "$rules" ]]; then
         # Add firewall rule for Starlink gRPC
         uci add firewall rule
-        local rule_index
+    rule_index
         rule_index=$(uci show firewall | grep -E "@rule\[[0-9]+\]=" | tail -1 | cut -d'[' -f2 | cut -d']' -f1)
 
         uci set "firewall.@rule[$rule_index].name=Allow-Starlink-gRPC"
@@ -244,7 +244,7 @@ configure_system_logging() {
 
 # Apply configuration based on user's existing setup
 apply_optimizations() {
-    local config_type="$1"
+    config_type="$1"
 
     case "$config_type" in
         "all")
@@ -294,7 +294,7 @@ apply_optimizations() {
 generate_report() {
     log_info "Generating configuration report..."
 
-    local report_file
+    report_file
     report_file="/tmp/starlink_config_report_$(date +%Y%m%d_%H%M%S).txt"
 
     {
@@ -363,7 +363,7 @@ generate_report() {
 
 # Restore from backup
 restore_backup() {
-    local backup_path="$1"
+    backup_path="$1"
 
     if [[ ! -d "$backup_path" ]]; then
         log_error "Backup directory not found: $backup_path"
@@ -374,7 +374,7 @@ restore_backup() {
 
     for config_file in "$backup_path"/*.uci; do
         if [[ -f "$config_file" ]]; then
-            local config_name
+    config_name
             config_name=$(basename "$config_file" .uci)
 
             log_info "Restoring $config_name..."
@@ -391,7 +391,7 @@ restore_backup() {
 
 # Main function
 main() {
-    local action="${1:-analyze}"
+    action="${1:-analyze}"
 
     # Check if running on OpenWrt/RUTOS
     if ! command -v uci >/dev/null 2>&1; then

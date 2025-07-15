@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
 # Test Suite for Starlink Monitoring System
@@ -8,7 +8,7 @@
 #
 # ==============================================================================
 
-set -euo pipefail
+set -eu
 
 # Colors for output
 
@@ -36,15 +36,15 @@ TESTS_FAILED=0
 
 # Helper functions
 print_status() {
-    local color="$1"
-    local message="$2"
+    color="$1"
+    message="$2"
     printf '%b%s%b\n' "$color" "$message" "$NC"
 }
 
 log_test() {
-    local status="$1"
-    local test_name="$2"
-    local message="$3"
+    status="$1"
+    test_name="$2"
+    message="$3"
 
     TESTS_RUN=$((TESTS_RUN + 1))
 
@@ -58,9 +58,9 @@ log_test() {
 }
 
 assert_equals() {
-    local expected="$1"
-    local actual="$2"
-    local test_name="$3"
+    expected="$1"
+    actual="$2"
+    test_name="$3"
 
     if [ "$expected" = "$actual" ]; then
         log_test "PASS" "$test_name" "Expected '$expected', got '$actual'"
@@ -72,8 +72,8 @@ assert_equals() {
 }
 
 assert_file_exists() {
-    local file="$1"
-    local test_name="$2"
+    file="$1"
+    test_name="$2"
 
     if [ -f "$file" ]; then
         log_test "PASS" "$test_name" "File exists: $file"
@@ -86,8 +86,8 @@ assert_file_exists() {
 
 # shellcheck disable=SC2317
 assert_command_success() {
-    local command="$1"
-    local test_name="$2"
+    command="$1"
+    test_name="$2"
 
     if eval "$command" >/dev/null 2>&1; then
         log_test "PASS" "$test_name" "Command succeeded: $command"
@@ -171,20 +171,20 @@ test_threshold_validation() {
     . "$MOCK_CONFIG"
 
     # Test packet loss threshold
-    local loss_value="0.10"
-    local is_loss_high
+    loss_value="0.10"
+    is_loss_high
     is_loss_high=$(awk -v val="$loss_value" -v threshold="$PACKET_LOSS_THRESHOLD" 'BEGIN { print (val > threshold) }')
     assert_equals "1" "$is_loss_high" "threshold_packet_loss_high"
 
     # Test obstruction threshold
-    local obstruction_value="0.002"
-    local is_obstructed
+    obstruction_value="0.002"
+    is_obstructed
     is_obstructed=$(awk -v val="$obstruction_value" -v threshold="$OBSTRUCTION_THRESHOLD" 'BEGIN { print (val > threshold) }')
     assert_equals "1" "$is_obstructed" "threshold_obstruction_high"
 
     # Test latency threshold
-    local latency_value="200"
-    local is_latency_high=0
+    latency_value="200"
+    is_latency_high=0
     if [ "$latency_value" -gt "$LATENCY_THRESHOLD_MS" ]; then
         is_latency_high=1
     fi
@@ -199,7 +199,7 @@ test_state_management() {
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
 
-    local state_file
+    state_file
     state_file="$STATE_DIR/test.state"
 
     # Test state file creation
@@ -207,7 +207,7 @@ test_state_management() {
     assert_file_exists "$state_file" "state_file_creation"
 
     # Test state reading
-    local state
+    state
     state=$(cat "$state_file")
     assert_equals "up" "$state" "state_reading"
 
@@ -230,8 +230,8 @@ test_logging() {
 
     # Mock log function
     log() {
-        local level="$1"
-        local message="$2"
+    level="$1"
+    message="$2"
         echo "[$level] $message" >>"$LOG_DIR/test.log"
     }
 
@@ -240,7 +240,7 @@ test_logging() {
 
     # Check log file
     if [ -f "$LOG_DIR/test.log" ]; then
-        local log_content
+    log_content
         log_content=$(cat "$LOG_DIR/test.log")
         if echo "$log_content" | grep -q "Test message"; then
             log_test "PASS" "logging_basic" "Log message written correctly"
@@ -263,13 +263,13 @@ test_json_parsing() {
     fi
 
     # Test JSON parsing
-    local test_json='{"dishGetStatus":{"obstructionStats":{"fractionObstructed":0.01},"popPingLatencyMs":100}}'
+    test_json='{"dishGetStatus":{"obstructionStats":{"fractionObstructed":0.01},"popPingLatencyMs":100}}'
 
-    local obstruction
+    obstruction
     obstruction=$(echo "$test_json" | jq -r '.dishGetStatus.obstructionStats.fractionObstructed')
     assert_equals "0.01" "$obstruction" "json_parsing_obstruction"
 
-    local latency
+    latency
     latency=$(echo "$test_json" | jq -r '.dishGetStatus.popPingLatencyMs')
     assert_equals "100" "$latency" "json_parsing_latency"
 }
@@ -282,9 +282,9 @@ test_rate_limiting() {
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
 
-    local rate_file
+    rate_file
     rate_file="$STATE_DIR/rate_limit"
-    local current_time
+    current_time
     current_time=$(date '+%s')
 
     # Create rate limit entry
@@ -292,13 +292,13 @@ test_rate_limiting() {
 
     # Test rate limiting function
     check_rate_limit() {
-        local message_type="$1"
-        local rate_limit_seconds=300
+    message_type="$1"
+    rate_limit_seconds=300
 
         if [ -f "$rate_file" ]; then
             while IFS='=' read -r type last_time; do
                 if [ "$type" = "$message_type" ]; then
-                    local time_diff=$((current_time - last_time))
+    time_diff=$((current_time - last_time))
                     if [ $time_diff -lt $rate_limit_seconds ]; then
                         return 1
                     fi
@@ -321,14 +321,14 @@ test_arithmetic() {
     print_status "$BLUE" "Testing arithmetic operations..."
 
     # Test awk arithmetic
-    local result
+    result
     result=$(awk 'BEGIN { print (0.1 > 0.05) }')
     assert_equals "1" "$result" "arithmetic_awk_comparison"
 
     # Test shell arithmetic
-    local value=200
-    local threshold=150
-    local is_high=0
+    value=200
+    threshold=150
+    is_high=0
     if [ "$value" -gt "$threshold" ]; then
         is_high=1
     fi
@@ -343,7 +343,7 @@ test_file_operations() {
     # shellcheck source=/dev/null
     . "$MOCK_CONFIG"
 
-    local test_file
+    test_file
     test_file="$STATE_DIR/test_file"
 
     # Test file creation
@@ -351,13 +351,13 @@ test_file_operations() {
     assert_file_exists "$test_file" "file_creation"
 
     # Test file reading
-    local content
+    content
     content=$(cat "$test_file")
     assert_equals "test content" "$content" "file_reading"
 
     # Test file permissions
     chmod 600 "$test_file"
-    local perms
+    perms
     perms=$(stat -c "%a" "$test_file" 2>/dev/null || echo "unknown")
     if [ "$perms" = "600" ]; then
         log_test "PASS" "file_permissions" "File permissions set correctly"
@@ -388,7 +388,7 @@ test_error_handling() {
     # Test undefined variable handling
     set +u # Temporarily disable undefined variable check
     # shellcheck disable=SC2154
-    local undefined_var
+    undefined_var
     # shellcheck disable=SC2154
     undefined_var="$undefined_variable"
     set -u
@@ -405,7 +405,7 @@ test_installation() {
     print_status "$BLUE" "Testing installation validation..."
 
     # Test required commands
-    local required_commands="uci logger curl awk"
+    required_commands="uci logger curl awk"
     for cmd in $required_commands; do
         if command -v "$cmd" >/dev/null 2>&1; then
             log_test "PASS" "installation_$cmd" "Command available: $cmd"
@@ -415,7 +415,7 @@ test_installation() {
     done
 
     # Test directory structure
-    local required_dirs="/tmp /var/log /etc"
+    required_dirs="/tmp /var/log /etc"
     for dir in $required_dirs; do
         if [ -d "$dir" ]; then
             log_test "PASS" "installation_dir_$dir" "Directory exists: $dir"
@@ -444,7 +444,7 @@ generate_report() {
         print_status "$GREEN" "Tests failed: $TESTS_FAILED"
     fi
 
-    local success_rate=$((TESTS_PASSED * 100 / TESTS_RUN))
+    success_rate=$((TESTS_PASSED * 100 / TESTS_RUN))
     print_status "$BLUE" "Success rate: $success_rate%"
 
     if [ $TESTS_FAILED -eq 0 ]; then

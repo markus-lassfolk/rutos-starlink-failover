@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
 # Starlink API Version Monitor
@@ -20,7 +20,7 @@
 # ==============================================================================
 
 # Exit on first error, undefined variable, or pipe failure for script robustness.
-set -euo pipefail
+set -eu
 
 # --- User Configuration ---
 
@@ -56,8 +56,8 @@ log() {
 }
 
 send_notification() {
-    local title="$1"
-    local message="$2"
+    title="$1"
+    message="$2"
     log "Sending Pushover -> Title: '$title', Message: '$message'"
     curl -s --max-time 15 \
         -F "token=$PUSHOVER_TOKEN" \

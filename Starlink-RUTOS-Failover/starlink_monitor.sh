@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
 # Starlink Proactive Quality Monitor for OpenWrt/RUTOS
@@ -20,7 +20,7 @@
 #
 # ==============================================================================
 
-set -euo pipefail
+set -eu
 
 # --- Configuration Loading ---
 CONFIG_FILE="${CONFIG_FILE:-/root/config.sh}"
@@ -44,16 +44,16 @@ LOCK_FILE="${STATE_DIR}/starlink_monitor.lock"
 # log(level, message)
 # Enhanced logging with severity levels. Logs to syslog, file, and optionally console.
 log() {
-    local level="$1"
-    local message="$2"
-    local timestamp
+    level="$1"
+    message="$2"
+    timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     # Log to syslog
     logger -t "$LOG_TAG" -p "daemon.$level" -- "$message"
 
     # Log to file with rotation
-    local log_file
+    log_file
     log_file="${LOG_DIR}/starlink_monitor_$(date '+%Y-%m-%d').log"
     echo "$timestamp [$level] $message" >>"$log_file"
 
@@ -75,7 +75,7 @@ rotate_logs() {
 # Ensures only one instance runs at a time using a lock file. Removes stale lock if needed.
 acquire_lock() {
     if [ -f "$LOCK_FILE" ]; then
-        local lock_pid
+    lock_pid
         lock_pid=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
         if [ -n "$lock_pid" ] && kill -0 "$lock_pid" 2>/dev/null; then
             log "warn" "Another instance is already running (PID: $lock_pid)"
@@ -99,9 +99,9 @@ release_lock() {
 # update_health_status(status, message)
 # Writes health status, message, and timestamp to health file for external monitoring.
 update_health_status() {
-    local status="$1"
-    local message="$2"
-    local timestamp
+    status="$1"
+    message="$2"
+    timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     cat >"$HEALTH_FILE" <<EOF
@@ -116,10 +116,10 @@ EOF
 # call_starlink_api(method)
 # Calls the Starlink gRPC API with retries and exponential backoff. Returns API response or fails after max retries.
 call_starlink_api() {
-    local method="$1"
-    local retry_count=0
-    local max_retries=3
-    local delay=2
+    method="$1"
+    retry_count=0
+    max_retries=3
+    delay=2
 
     while [ $retry_count -lt $max_retries ]; do
         if timeout "$API_TIMEOUT" "$GRPCURL_CMD" -plaintext -max-time "$API_TIMEOUT" -d "{\"$method\":{}}" "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null; then

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set_permissions() {
     echo "Setting file permissions for scripts and config template..."

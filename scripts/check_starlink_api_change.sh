@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 # check_starlink_api_change.sh: Detects Starlink API schema changes and notifies via Pushover
 # Intended for daily cron use
 
-set -euo pipefail
+set -eu
 
 CONFIG_FILE="${CONFIG_FILE:-/root/config.sh}"
 if [ -f "$CONFIG_FILE" ]; then

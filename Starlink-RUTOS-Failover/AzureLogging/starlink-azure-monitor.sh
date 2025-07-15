@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # === Enhanced Starlink Monitor with Azure Integration ===
 # This script extends the existing starlink_monitor.sh to include Azure logging
@@ -60,8 +60,8 @@ EOF
 
 # --- GPS DATA COLLECTION ---
 collect_gps_data() {
-    local gps_data=""
-    local gps_source="none"
+    gps_data=""
+    gps_source="none"
 
     # Try RUTOS GPS first (if available)
     if [ -f "/tmp/gps_data" ] || command -v gpspipe >/dev/null 2>&1; then
@@ -86,12 +86,12 @@ collect_gps_data() {
 }
 
 collect_rutos_gps() {
-    local latitude longitude altitude speed heading satellites accuracy
+    latitude longitude altitude speed heading satellites accuracy
 
     # Method 1: Try RUTOS API (consistent with VenusOS GPS flow)
     if [ -n "${RUTOS_IP:-}" ] && [ -n "${RUTOS_USERNAME:-}" ] && [ -n "${RUTOS_PASSWORD:-}" ]; then
         # Get session token
-        local session_token
+    session_token
         session_token=$(curl -s --max-time 5 -X POST \
             "https://${RUTOS_IP}/api/auth/login" \
             -H "Content-Type: application/json" \
@@ -100,14 +100,14 @@ collect_rutos_gps() {
 
         if [ -n "$session_token" ] && [ "$session_token" != "null" ]; then
             # Get GPS data using API
-            local gps_response
+    gps_response
             gps_response=$(curl -s --max-time 5 \
                 "https://${RUTOS_IP}/api/gps/position/status" \
                 -H "Authorization: Bearer $session_token" \
                 --insecure 2>/dev/null)
 
             if [ -n "$gps_response" ]; then
-                local gps_data
+    gps_data
                 gps_data=$(echo "$gps_response" | "$JQ_PATH" -r '.data // ""' 2>/dev/null)
 
                 if [ -n "$gps_data" ] && [ "$gps_data" != "null" ]; then
@@ -119,7 +119,7 @@ collect_rutos_gps() {
                     accuracy=$(echo "$gps_data" | "$JQ_PATH" -r '.accuracy // ""' 2>/dev/null)
 
                     # Check fix status (consistent with VenusOS flow)
-                    local fix_status
+    fix_status
                     fix_status=$(echo "$gps_data" | "$JQ_PATH" -r '.fix_status // "0"' 2>/dev/null)
 
                     if [ "$fix_status" != "0" ] && [ -n "$latitude" ] && [ -n "$longitude" ]; then
@@ -144,7 +144,7 @@ collect_rutos_gps() {
 
     # Method 2: Try gpsd/gpspipe if available
     if command -v gpspipe >/dev/null 2>&1; then
-        local gps_json
+    gps_json
         gps_json=$(timeout 5 gpspipe -w -n 10 2>/dev/null | head -n 1)
 
         if [ -n "$gps_json" ] && echo "$gps_json" | grep -q '"class":"TPV"'; then
@@ -160,7 +160,7 @@ collect_rutos_gps() {
             fi
 
             # Get satellite info
-            local sky_json
+    sky_json
             sky_json=$(timeout 3 gpspipe -w -n 5 2>/dev/null | grep '"class":"SKY"' | head -n 1)
             if [ -n "$sky_json" ]; then
                 satellites=$(echo "$sky_json" | "$JQ_PATH" -r '.satellites | length' 2>/dev/null)
@@ -176,13 +176,13 @@ collect_rutos_gps() {
     # Method 2: Try RUTOS UCI GPS configuration
     if [ -z "$latitude" ] && command -v uci >/dev/null 2>&1; then
         # Check if GPS is configured in UCI
-        local gps_enabled
+    gps_enabled
         gps_enabled=$(uci get gps.gps.enabled 2>/dev/null)
 
         if [ "$gps_enabled" = "1" ]; then
             # Try to read GPS data from RUTOS GPS interface
             if [ -f "/tmp/gps_data" ]; then
-                local gps_line
+    gps_line
                 gps_line=$(tail -n 1 /tmp/gps_data 2>/dev/null)
 
                 # Parse NMEA format if available
@@ -199,7 +199,7 @@ collect_rutos_gps() {
     if [ -z "$latitude" ]; then
         for gps_device in /dev/ttyUSB* /dev/ttyACM*; do
             if [ -c "$gps_device" ]; then
-                local nmea_data
+    nmea_data
                 nmea_data=$(timeout 3 cat "$gps_device" 2>/dev/null | head -n 5 | grep "GPGGA\|GPRMC" | head -n 1)
 
                 if [ -n "$nmea_data" ]; then
@@ -237,17 +237,17 @@ collect_rutos_gps() {
 }
 
 collect_starlink_gps() {
-    local latitude longitude altitude speed heading satellites accuracy
+    latitude longitude altitude speed heading satellites accuracy
 
     # Use get_diagnostics to get location data (consistent with VenusOS GPS flow)
-    local diagnostics_data
+    diagnostics_data
     diagnostics_data=$(timeout 10 "$GRPCURL_PATH" -plaintext -max-time 10 \
         -d '{"get_diagnostics":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null |
         "$JQ_PATH" -r '.dishGetDiagnostics // ""' 2>/dev/null)
 
     if [ -n "$diagnostics_data" ] && [ "$diagnostics_data" != "null" ]; then
         # Extract location data from diagnostics
-        local location_data
+    location_data
         location_data=$(echo "$diagnostics_data" | "$JQ_PATH" -r '.location // ""' 2>/dev/null)
 
         if [ -n "$location_data" ] && [ "$location_data" != "null" ]; then
@@ -258,7 +258,7 @@ collect_starlink_gps() {
             # Check if location data is valid
             if [ -n "$latitude" ] && [ -n "$longitude" ] && [ "$latitude" != "null" ] && [ "$longitude" != "null" ]; then
                 # Get accuracy from uncertainty meters (consistent with VenusOS flow)
-                local uncertainty_valid
+    uncertainty_valid
                 uncertainty_valid=$(echo "$location_data" | "$JQ_PATH" -r '.uncertaintyMetersValid // false' 2>/dev/null)
 
                 if [ "$uncertainty_valid" = "true" ]; then
@@ -269,7 +269,7 @@ collect_starlink_gps() {
                 fi
 
                 # Try to get GPS stats for satellite count from status
-                local status_data gps_stats
+    status_data gps_stats
                 status_data=$(timeout 5 "$GRPCURL_PATH" -plaintext -max-time 5 \
                     -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null |
                     "$JQ_PATH" -r '.dishGetStatus // ""' 2>/dev/null)
@@ -296,7 +296,7 @@ collect_starlink_gps() {
 }
 
 convert_nmea_to_decimal() {
-    local nmea_coord="$1"
+    nmea_coord="$1"
 
     # Check if already in decimal format
     if echo "$nmea_coord" | grep -q "^-\?[0-9]\+\.[0-9]\+$"; then
@@ -306,7 +306,7 @@ convert_nmea_to_decimal() {
 
     # Convert NMEA DDMM.MMMM format to decimal degrees
     if [ ${#nmea_coord} -ge 7 ]; then
-        local degrees minutes decimal
+    degrees minutes decimal
         degrees=$(echo "$nmea_coord" | cut -c1-2)
         minutes=$(echo "$nmea_coord" | cut -c3-)
 
@@ -320,7 +320,7 @@ convert_nmea_to_decimal() {
 
 # --- STARLINK DATA COLLECTION ---
 collect_starlink_data() {
-    local timestamp
+    timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     # Query Starlink API for status data
@@ -335,7 +335,7 @@ collect_starlink_data() {
     fi
 
     # Get status data from Starlink
-    local status_json
+    status_json
     status_json=$("$GRPCURL_PATH" -plaintext -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null)
 
     if ! "$GRPCURL_PATH" -plaintext -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle >/dev/null 2>&1 || [ -z "$status_json" ]; then
@@ -344,11 +344,11 @@ collect_starlink_data() {
     fi
 
     # Extract metrics using jq
-    local uptime_s downlink_throughput_bps uplink_throughput_bps ping_drop_rate ping_latency_ms
-    local obstruction_duration_s obstruction_fraction currently_obstructed snr
-    local alerts_thermal_throttle alerts_thermal_shutdown alerts_mast_not_near_vertical
-    local alerts_motors_stuck alerts_slow_ethernet_speeds alerts_software_install_pending
-    local dishy_state mobility_class
+    uptime_s downlink_throughput_bps uplink_throughput_bps ping_drop_rate ping_latency_ms
+    obstruction_duration_s obstruction_fraction currently_obstructed snr
+    alerts_thermal_throttle alerts_thermal_shutdown alerts_mast_not_near_vertical
+    alerts_motors_stuck alerts_slow_ethernet_speeds alerts_software_install_pending
+    dishy_state mobility_class
 
     uptime_s=$(echo "$status_json" | "$JQ_PATH" -r '.dishGetStatus.deviceInfo.uptimeS // "0"')
     downlink_throughput_bps=$(echo "$status_json" | "$JQ_PATH" -r '.dishGetStatus.downlinkThroughputBps // "0"')
@@ -372,7 +372,7 @@ collect_starlink_data() {
     mobility_class=$(echo "$status_json" | "$JQ_PATH" -r '.dishGetStatus.mobilityClass // "UNKNOWN"')
 
     # Collect GPS data (RUTOS GPS with Starlink fallback)
-    local gps_data
+    gps_data
     gps_data=$(collect_gps_data)
 
     # Append to CSV with GPS data
@@ -390,11 +390,11 @@ rotate_csv_if_needed() {
         return 0
     fi
 
-    local file_size
+    file_size
     file_size=$(stat -c%s "$CSV_LOG_FILE" 2>/dev/null || echo "0")
 
     if [ "$file_size" -gt "$CSV_MAX_SIZE" ]; then
-        local backup_file
+    backup_file
         backup_file="${CSV_LOG_FILE}.$(date +%Y%m%d-%H%M%S)"
         mv "$CSV_LOG_FILE" "$backup_file"
         log_info "Rotated CSV log file to $backup_file"
@@ -413,19 +413,19 @@ ship_csv_to_azure() {
     fi
 
     # Create a temporary file with CSV data for Azure
-    local temp_csv
+    temp_csv
     temp_csv="/tmp/starlink_csv_$(date +%s).csv"
     cp "$CSV_LOG_FILE" "$temp_csv"
 
     # Send CSV data to Azure with a special header to identify it as CSV data
-    local http_status
+    http_status
     http_status=$(curl -sS -w '%{http_code}' -o /dev/null --max-time 30 \
         -H "Content-Type: text/csv" \
         -H "X-Log-Type: starlink-performance" \
         --data-binary "@$temp_csv" \
         "$AZURE_FUNCTION_URL" 2>/dev/null)
 
-    local curl_exit_code=$?
+    curl_exit_code=$?
     rm -f "$temp_csv"
 
     if [ $curl_exit_code -eq 0 ] && [ "$http_status" -eq 200 ]; then

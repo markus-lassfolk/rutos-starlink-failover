@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # RUTOS Compatibility Test Script
 # This script tests all commands and options used in the Starlink deployment

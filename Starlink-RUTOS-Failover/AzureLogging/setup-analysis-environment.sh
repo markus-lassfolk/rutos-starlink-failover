@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # === Network Analysis Setup Script ===
 # Sets up Python environment and dependencies for network performance analysis
@@ -10,10 +10,10 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Setting up Network Performance Analysis Environment${NC}"
+printf "%b\n" "${GREEN}Setting up Network Performance Analysis Environment${NC}"
 
 # Check if Python 3 is installed
-if ! command -v python3 &>/dev/null; then
+if ! command -v python3 >/dev/null 2>&1; then
     echo "Python 3 is required but not installed. Please install Python 3.8 or later."
     exit 1
 fi
@@ -22,24 +22,24 @@ echo "Python version: $(python3 --version)"
 
 # Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
-    echo -e "${YELLOW}Creating Python virtual environment...${NC}"
+    printf "%b\n" "${YELLOW}Creating Python virtual environment...${NC}"
     python3 -m venv venv
 fi
 
 # Activate virtual environment
-echo -e "${YELLOW}Activating virtual environment...${NC}"
+printf "%b\n" "${YELLOW}Activating virtual environment...${NC}"
 # shellcheck disable=SC1091  # Virtual environment path is created dynamically
-source venv/bin/activate
+. venv/bin/activate
 
 # Upgrade pip
-echo -e "${YELLOW}Upgrading pip...${NC}"
+printf "%b\n" "${YELLOW}Upgrading pip...${NC}"
 pip install --upgrade pip
 
 # Install requirements
-echo -e "${YELLOW}Installing Python packages...${NC}"
+printf "%b\n" "${YELLOW}Installing Python packages...${NC}"
 pip install -r requirements.txt
 
-echo -e "${GREEN}Setup complete!${NC}"
+printf "%b\n" "${GREEN}Setup complete!${NC}"
 echo ""
 echo "To use the analysis tool:"
 echo "1. Activate the virtual environment: source venv/bin/activate"

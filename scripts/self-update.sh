@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 # self-update.sh: Checks for new version and updates scripts if needed
 # Usage: ./scripts/self-update.sh
 
-set -euo pipefail
+set -eu
 
 # shellcheck disable=SC2034
 REPO_URL="https://github.com/markus-lassfolk/rutos-starlink-failover"

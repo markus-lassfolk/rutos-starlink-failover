@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Global shellcheck disables for this file
 # shellcheck disable=SC2155
@@ -17,7 +17,7 @@
 # - UCI configuration is correct
 # ===========================================================================================
 
-set -euo pipefail
+set -eu
 
 # --- SCRIPT CONFIGURATION ---
 # shellcheck disable=SC2034  # Variables may be used by external functions
@@ -84,8 +84,8 @@ test_dependencies() {
     log_test "Checking required dependencies..."
 
     # Check essential commands
-    local deps=("curl" "jq" "timeout" "bc" "crontab")
-    local missing_deps=()
+    deps=("curl" "jq" "timeout" "bc" "crontab")
+    missing_deps=()
 
     for dep in "${deps[@]}"; do
         if command -v "$dep" >/dev/null 2>&1; then
@@ -98,7 +98,7 @@ test_dependencies() {
 
     # Check grpcurl
     if [ -f "/root/grpcurl" ] && [ -x "/root/grpcurl" ]; then
-        local grpcurl_version
+    grpcurl_version
         grpcurl_version=$(/root/grpcurl --version 2>&1 | head -n1 || echo "unknown")
         log_pass "grpcurl is installed ($grpcurl_version)"
     else
@@ -108,7 +108,7 @@ test_dependencies() {
 
     # Check jq binary
     if [ -f "/root/jq" ] && [ -x "/root/jq" ]; then
-        local jq_version
+    jq_version
         jq_version=$(/root/jq --version 2>&1 || echo "unknown")
         log_pass "jq binary is installed ($jq_version)"
     else
@@ -131,7 +131,7 @@ test_logging_config() {
     log_test "Checking RUTOS logging configuration..."
 
     # Check log type
-    local log_type
+    log_type
     log_type=$(uci get system.@system[0].log_type 2>/dev/null || echo "")
     if [ "$log_type" = "file" ]; then
         log_pass "Logging type is set to 'file'"
@@ -141,7 +141,7 @@ test_logging_config() {
     fi
 
     # Check log size
-    local log_size
+    log_size
     log_size=$(uci get system.@system[0].log_size 2>/dev/null || echo "0")
     if [ "$log_size" -ge "5120" ]; then
         log_pass "Log size is ${log_size}KB (≥5MB)"
@@ -151,7 +151,7 @@ test_logging_config() {
     fi
 
     # Check log file
-    local log_file
+    log_file
     log_file=$(uci get system.@system[0].log_file 2>/dev/null || echo "")
     if [ "$log_file" = "/overlay/messages" ]; then
         log_pass "Log file is set to '/overlay/messages'"
@@ -168,7 +168,7 @@ test_logging_config() {
             log_pass "Log file is writable"
 
             # Test writing to log file
-            local test_message="Azure logging verification test: $(date)"
+    test_message="Azure logging verification test: $(date)"
             if echo "$test_message" >>/overlay/messages 2>/dev/null; then
                 log_pass "Successfully wrote test message to log file"
             else
@@ -192,8 +192,8 @@ test_uci_config() {
         log_pass "Azure UCI configuration section exists"
 
         # Check system config
-        local system_endpoint=$(uci get azure.system.endpoint 2>/dev/null || echo "")
-        local system_enabled=$(uci get azure.system.enabled 2>/dev/null || echo "0")
+    system_endpoint=$(uci get azure.system.endpoint 2>/dev/null || echo "")
+    system_enabled=$(uci get azure.system.enabled 2>/dev/null || echo "0")
 
         if [ -n "$system_endpoint" ]; then
             log_pass "System logging endpoint is configured"
@@ -210,11 +210,11 @@ test_uci_config() {
         fi
 
         # Check Starlink config
-        local starlink_enabled=$(uci get azure.starlink.enabled 2>/dev/null || echo "0")
+    starlink_enabled=$(uci get azure.starlink.enabled 2>/dev/null || echo "0")
         if [ "$starlink_enabled" = "1" ]; then
             log_pass "Starlink monitoring is enabled"
 
-            local starlink_endpoint=$(uci get azure.starlink.endpoint 2>/dev/null || echo "")
+    starlink_endpoint=$(uci get azure.starlink.endpoint 2>/dev/null || echo "")
             if [ -n "$starlink_endpoint" ]; then
                 log_pass "Starlink monitoring endpoint is configured"
             else
@@ -225,11 +225,11 @@ test_uci_config() {
         fi
 
         # Check GPS config
-        local gps_enabled=$(uci get azure.gps.enabled 2>/dev/null || echo "0")
+    gps_enabled=$(uci get azure.gps.enabled 2>/dev/null || echo "0")
         if [ "$gps_enabled" = "1" ]; then
             log_pass "GPS integration is enabled"
 
-            local rutos_ip=$(uci get azure.gps.rutos_ip 2>/dev/null || echo "")
+    rutos_ip=$(uci get azure.gps.rutos_ip 2>/dev/null || echo "")
             if [ -n "$rutos_ip" ]; then
                 log_pass "RUTOS IP is configured: $rutos_ip"
             else
@@ -249,7 +249,7 @@ test_uci_config() {
 test_scripts() {
     log_test "Checking installed scripts..."
 
-    local scripts=(
+    scripts=(
         "/usr/bin/log-shipper.sh"
         "/usr/bin/starlink-azure-monitor.sh"
         "/usr/bin/setup-persistent-logging.sh"
@@ -275,12 +275,12 @@ test_cron_jobs() {
     log_test "Checking cron job configuration..."
 
     if crontab -l >/dev/null 2>&1; then
-        local cron_content=$(crontab -l 2>/dev/null)
+    cron_content=$(crontab -l 2>/dev/null)
 
         # Check for system log shipping
         if echo "$cron_content" | grep -q "log-shipper.sh"; then
             log_pass "System log shipping cron job is configured"
-            local log_schedule=$(echo "$cron_content" | grep "log-shipper.sh" | awk '{print $1, $2, $3, $4, $5}')
+    log_schedule=$(echo "$cron_content" | grep "log-shipper.sh" | awk '{print $1, $2, $3, $4, $5}')
             log_info "Schedule: $log_schedule"
         else
             log_fail "System log shipping cron job is missing"
@@ -290,7 +290,7 @@ test_cron_jobs() {
         # Check for Starlink monitoring
         if echo "$cron_content" | grep -q "starlink-azure-monitor.sh"; then
             log_pass "Starlink monitoring cron job is configured"
-            local starlink_schedule=$(echo "$cron_content" | grep "starlink-azure-monitor.sh" | awk '{print $1, $2, $3, $4, $5}')
+    starlink_schedule=$(echo "$cron_content" | grep "starlink-azure-monitor.sh" | awk '{print $1, $2, $3, $4, $5}')
             log_info "Schedule: $starlink_schedule"
         else
             log_info "Starlink monitoring cron job is not configured (optional)"
@@ -333,7 +333,7 @@ test_network() {
     # Check static route to Starlink
     if ip route show | grep -q "192.168.100.1"; then
         log_pass "Static route to Starlink exists"
-        local route_info=$(ip route show | grep "192.168.100.1")
+    route_info=$(ip route show | grep "192.168.100.1")
         log_info "Route: $route_info"
     else
         log_warn "No static route to Starlink found"
@@ -347,7 +347,7 @@ test_starlink_api() {
 
     if [ -f "/root/grpcurl" ] && [ -x "/root/grpcurl" ]; then
         # Test get_status call
-        local status_response
+    status_response
         status_response=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
             -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
 
@@ -356,7 +356,7 @@ test_starlink_api() {
 
             # Check for basic status fields
             if echo "$status_response" | /root/jq -e '.dishGetStatus.popPingLatencyMs' >/dev/null 2>&1; then
-                local latency=$(echo "$status_response" | /root/jq -r '.dishGetStatus.popPingLatencyMs // "N/A"')
+    latency=$(echo "$status_response" | /root/jq -r '.dishGetStatus.popPingLatencyMs // "N/A"')
                 log_pass "Latency data available: ${latency}ms"
             else
                 log_warn "Latency data not available in API response"
@@ -367,7 +367,7 @@ test_starlink_api() {
         fi
 
         # Test get_diagnostics for GPS
-        local diag_response
+    diag_response
         diag_response=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
             -d '{"get_diagnostics":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
 
@@ -395,7 +395,7 @@ test_rutos_gps() {
 
     # Check if GPS UCI config exists
     if uci show gps >/dev/null 2>&1; then
-        local gps_enabled=$(uci get gps.gps.enabled 2>/dev/null || echo "0")
+    gps_enabled=$(uci get gps.gps.enabled 2>/dev/null || echo "0")
         if [ "$gps_enabled" = "1" ]; then
             log_pass "RUTOS GPS is enabled in UCI"
         else
@@ -411,7 +411,7 @@ test_rutos_gps() {
         log_pass "gpspipe command is available"
 
         # Test GPS data
-        local gps_data
+    gps_data
         gps_data=$(timeout 5 gpspipe -w -n 5 2>/dev/null | head -n1 || echo "")
         if [ -n "$gps_data" ] && echo "$gps_data" | grep -q '"class":"TPV"'; then
             log_pass "GPS data is available via gpspipe"
@@ -423,8 +423,8 @@ test_rutos_gps() {
     fi
 
     # Check RUTOS API if credentials are configured
-    local rutos_ip=$(uci get azure.gps.rutos_ip 2>/dev/null || echo "")
-    local rutos_username=$(uci get azure.gps.rutos_username 2>/dev/null || echo "")
+    rutos_ip=$(uci get azure.gps.rutos_ip 2>/dev/null || echo "")
+    rutos_username=$(uci get azure.gps.rutos_username 2>/dev/null || echo "")
 
     if [ -n "$rutos_ip" ] && [ -n "$rutos_username" ]; then
         log_info "Testing RUTOS GPS API access..."
@@ -439,13 +439,13 @@ test_rutos_gps() {
 test_azure_connectivity() {
     log_test "Testing Azure endpoint connectivity..."
 
-    local azure_endpoint=$(uci get azure.system.endpoint 2>/dev/null || echo "")
+    azure_endpoint=$(uci get azure.system.endpoint 2>/dev/null || echo "")
 
     if [ -n "$azure_endpoint" ]; then
         log_pass "Azure endpoint is configured"
 
         # Extract host from URL for connectivity test
-        local host=$(echo "$azure_endpoint" | sed -n 's|https\?://\([^/]*\).*|\1|p')
+    host=$(echo "$azure_endpoint" | sed -n 's|https\?://\([^/]*\).*|\1|p')
 
         if [ -n "$host" ]; then
             # Test DNS resolution
@@ -476,12 +476,12 @@ test_data_collection() {
 
     # Test log file has recent data
     if [ -f "/overlay/messages" ]; then
-        local log_size=$(stat -c%s "/overlay/messages" 2>/dev/null || echo "0")
+    log_size=$(stat -c%s "/overlay/messages" 2>/dev/null || echo "0")
         if [ "$log_size" -gt "0" ]; then
             log_pass "Log file contains data (${log_size} bytes)"
 
             # Check for recent entries (last 10 minutes)
-            local recent_entries
+    recent_entries
             recent_entries=$(tail -n 50 "/overlay/messages" | grep -c "$(date '+%Y-%m-%d %H:%M')\|$(date -d '1 minute ago' '+%Y-%m-%d %H:%M')" 2>/dev/null || echo "0")
 
             if [ "$recent_entries" -gt "0" ]; then
@@ -495,16 +495,16 @@ test_data_collection() {
     fi
 
     # Test Starlink CSV file if monitoring is enabled
-    local starlink_enabled=$(uci get azure.starlink.enabled 2>/dev/null || echo "0")
+    starlink_enabled=$(uci get azure.starlink.enabled 2>/dev/null || echo "0")
     if [ "$starlink_enabled" = "1" ]; then
-        local csv_file="/overlay/starlink_performance.csv"
+    csv_file="/overlay/starlink_performance.csv"
         if [ -f "$csv_file" ]; then
-            local csv_size=$(stat -c%s "$csv_file" 2>/dev/null || echo "0")
+    csv_size=$(stat -c%s "$csv_file" 2>/dev/null || echo "0")
             if [ "$csv_size" -gt "0" ]; then
                 log_pass "Starlink CSV file contains data (${csv_size} bytes)"
 
                 # Check CSV header
-                local header=$(head -n1 "$csv_file" 2>/dev/null || echo "")
+    header=$(head -n1 "$csv_file" 2>/dev/null || echo "")
                 if echo "$header" | grep -q "timestamp.*latitude.*longitude"; then
                     log_pass "Starlink CSV has correct header with GPS fields"
                 else
@@ -567,7 +567,7 @@ run_verification() {
     echo
 
     # Calculate success rate
-    local success_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))
+    success_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))
 
     if [ "$FAILED_TESTS" -eq 0 ]; then
         echo -e "${GREEN}✓ All critical tests passed!${NC}"
@@ -604,7 +604,7 @@ run_verification() {
     # Print suggestions
     if [ ${#SUGGESTIONS[@]} -gt 0 ]; then
         echo -e "${CYAN}SUGGESTED FIXES:${NC}"
-        local i=1
+    i=1
         for suggestion in "${SUGGESTIONS[@]}"; do
             echo -e "${CYAN}$i. $suggestion${NC}"
             ((i++))

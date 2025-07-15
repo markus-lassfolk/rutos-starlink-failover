@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # ===========================================================================================
 # Unified Azure Logging Setup Script
@@ -11,7 +11,7 @@
 # - Dependency installation and validation
 # ===========================================================================================
 
-set -euo pipefail
+set -eu
 
 # --- SCRIPT CONFIGURATION ---
 # shellcheck disable=SC2034  # SCRIPT_NAME may be used by external functions
@@ -62,9 +62,9 @@ log_error() {
 }
 
 prompt_user() {
-    local prompt="$1"
-    local default="$2"
-    local response
+    prompt="$1"
+    default="$2"
+    response
 
     if [ -n "$default" ]; then
         read -r -p "$prompt [$default]: " response
@@ -76,7 +76,7 @@ prompt_user() {
 }
 
 check_command() {
-    local cmd="$1"
+    cmd="$1"
     if command -v "$cmd" >/dev/null 2>&1; then
         log_success "$cmd is available"
         return 0
@@ -99,7 +99,7 @@ install_dependencies() {
     opkg update >/dev/null 2>&1 || log_warn "Failed to update package lists"
 
     # Install required packages
-    local packages=("curl" "jq" "coreutils-timeout" "bc")
+    packages=("curl" "jq" "coreutils-timeout" "bc")
     for package in "${packages[@]}"; do
         if opkg list-installed | grep -q "^$package "; then
             log_success "$package is already installed"
@@ -116,7 +116,7 @@ install_dependencies() {
     # Install grpcurl if not present
     if [ ! -f "/root/grpcurl" ]; then
         log "Installing grpcurl..."
-        local grpcurl_url="https://github.com/fullstorydev/grpcurl/releases/download/v1.9.1/grpcurl_1.9.1_linux_arm.tar.gz"
+    grpcurl_url="https://github.com/fullstorydev/grpcurl/releases/download/v1.9.1/grpcurl_1.9.1_linux_arm.tar.gz"
 
         if curl -L -o grpcurl.tar.gz "$grpcurl_url" >/dev/null 2>&1; then
             tar -xzf grpcurl.tar.gz >/dev/null 2>&1
@@ -134,7 +134,7 @@ install_dependencies() {
     # Install jq binary if system jq is not sufficient
     if [ ! -f "/root/jq" ]; then
         log "Installing jq binary..."
-        local jq_url="https://github.com/jqlang/jq/releases/download/jq-1.7/jq-linux-arm"
+    jq_url="https://github.com/jqlang/jq/releases/download/jq-1.7/jq-linux-arm"
 
         if curl -L -o /root/jq "$jq_url" >/dev/null 2>&1; then
             chmod +x /root/jq
@@ -163,7 +163,7 @@ setup_persistent_logging() {
     cp /etc/config/system "$BACKUP_DIR/system.config.backup" 2>/dev/null || true
 
     # Get current logging configuration
-    local current_log_type current_log_size current_log_file
+    current_log_type current_log_size current_log_file
     current_log_type=$(uci get system.@system[0].log_type 2>/dev/null || echo "circular")
     current_log_size=$(uci get system.@system[0].log_size 2>/dev/null || echo "200")
     current_log_file=$(uci get system.@system[0].log_file 2>/dev/null || echo "")
@@ -213,11 +213,11 @@ setup_persistent_logging() {
 
 # --- UCI CONFIGURATION FOR AZURE ---
 setup_azure_uci_config() {
-    local azure_endpoint="$1"
-    local rutos_ip="$2"
-    local rutos_username="$3"
-    local rutos_password="$4"
-    local enable_gps="$5"
+    azure_endpoint="$1"
+    rutos_ip="$2"
+    rutos_username="$3"
+    rutos_password="$4"
+    enable_gps="$5"
 
     log "Configuring UCI settings for Azure integration..."
 
@@ -275,7 +275,7 @@ install_scripts() {
 
     # Install each script
     for script in "${!scripts[@]}"; do
-        local target="${scripts[$script]}"
+    target="${scripts[$script]}"
 
         if [ -f "./$script" ]; then
             log "Installing $script to $target..."
@@ -290,7 +290,7 @@ install_scripts() {
 
 # --- CRON JOB SETUP ---
 setup_cron_jobs() {
-    local enable_starlink_monitoring="$1"
+    enable_starlink_monitoring="$1"
 
     log "Setting up cron jobs..."
 
@@ -323,7 +323,7 @@ setup_cron_jobs() {
 
 # --- GPS CONFIGURATION ---
 setup_gps_config() {
-    local enable_gps="$1"
+    enable_gps="$1"
 
     if [ "$enable_gps" = "true" ]; then
         log "Configuring GPS settings..."
@@ -387,7 +387,7 @@ main() {
     log "Gathering configuration information..."
     echo
 
-    local azure_endpoint
+    azure_endpoint
     azure_endpoint=$(prompt_user "Azure Function endpoint URL" "$DEFAULT_AZURE_ENDPOINT")
 
     if [ -z "$azure_endpoint" ]; then
@@ -395,13 +395,13 @@ main() {
         exit 1
     fi
 
-    local enable_starlink_monitoring
+    enable_starlink_monitoring
     enable_starlink_monitoring=$(prompt_user "Enable Starlink performance monitoring? (true/false)" "$DEFAULT_ENABLE_STARLINK_MONITORING")
 
-    local enable_gps
+    enable_gps
     enable_gps=$(prompt_user "Enable GPS integration? (true/false)" "$DEFAULT_ENABLE_GPS")
 
-    local rutos_ip rutos_username rutos_password
+    rutos_ip rutos_username rutos_password
     if [ "$enable_gps" = "true" ]; then
         rutos_ip=$(prompt_user "RUTOS device IP address" "$DEFAULT_RUTOS_IP")
         rutos_username=$(prompt_user "RUTOS username (optional)" "")

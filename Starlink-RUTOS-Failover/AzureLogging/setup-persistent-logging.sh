@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # === RUTOS Persistent Logging Setup for Azure Integration ===
 # This script configures RUTOS to write logs to persistent storage
@@ -180,7 +180,8 @@ main() {
     else
         # Need to update configuration
         echo ""
-        read -p "Do you want to apply the new logging configuration? [y/N]: " -r
+        printf "Do you want to apply the new logging configuration? [y/N]: "
+        read -r REPLY
         if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]; then
             apply_config
             restart_logging

@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 # upgrade.sh: Safely upgrade scripts/configs without overwriting user changes
 # Usage: ./scripts/upgrade.sh
 
-set -euo pipefail
+set -eu
 
 # shellcheck disable=SC2034
 RED='\033[0;31m'

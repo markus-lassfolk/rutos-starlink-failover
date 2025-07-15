@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 # Comprehensive test scenarios for different conditions
 
-set -euo pipefail
+set -eu
 
 echo "=== Comprehensive Scenario Testing ==="
 
@@ -23,18 +23,18 @@ EOF
 
 # Test scenario function
 test_scenario() {
-    local scenario_name="$1"
-    local latency="$2"
-    local packet_loss="$3"
-    local obstruction="$4"
-    local expected_result="$5"
+    scenario_name="$1"
+    latency="$2"
+    packet_loss="$3"
+    obstruction="$4"
+    expected_result="$5"
 
     echo
     echo "--- Testing Scenario: $scenario_name ---"
     echo "Latency: ${latency}ms, Packet Loss: $packet_loss, Obstruction: $obstruction"
 
     # Load config
-    source config.sh
+    . config.sh
 
     # Evaluate quality
     quality_good=true
@@ -87,7 +87,7 @@ echo "Setting up test environment..."
 if ! command -v bc >/dev/null 2>&1; then
     echo "Creating mock bc calculator..."
     cat >./bc <<'EOF'
-#!/bin/bash
+#!/bin/sh
 # Mock bc that handles our test cases
 case "$*" in
     *"45.5 > 150"*) echo "0" ;;
@@ -243,7 +243,7 @@ echo "=== Testing File Permissions ==="
 test_scripts=("starlink_monitor.sh" "starlink_logger.sh" "verify-setup.sh")
 
 for script in "${test_scripts[@]}"; do
-    echo "#!/bin/bash" >"$script"
+    echo "#!/bin/sh" >"$script"
     echo "echo 'Test script'" >>"$script"
     chmod +x "$script"
 
@@ -260,7 +260,7 @@ echo
 echo "=== Testing Configuration Generation ==="
 
 cat >test_config.sh <<'EOF'
-#!/bin/bash
+#!/bin/sh
 # Test configuration
 STARLINK_IP="192.168.100.1"
 LATENCY_THRESHOLD_MS="150"

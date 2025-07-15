@@ -518,7 +518,7 @@ CRON_FILE="/etc/crontabs/root"
 print_status() {
     color="$1"
     message="$2"
-    echo -e "${color}${message}\033[0m"
+    printf "%b%s\033[0m\n" "$color" "$message"
 }
 
 print_status "\033[0;31m" "Uninstalling Starlink monitoring system..."

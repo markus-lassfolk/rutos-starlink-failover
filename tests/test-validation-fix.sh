@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 
 # Quick test to fix and verify the IP validation function
 
 # Improved IP validation function
 validate_ip() {
-    local ip="$1"
+    ip="$1"
 
     # Check basic format
     if [[ ! $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
@@ -23,7 +23,7 @@ validate_ip() {
 }
 
 validate_url() {
-    local url="$1"
+    url="$1"
     if [[ $url =~ ^https?:// ]]; then
         return 0
     else

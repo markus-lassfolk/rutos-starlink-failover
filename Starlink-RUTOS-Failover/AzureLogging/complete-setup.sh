@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # === Complete Azure Logging Setup and Verification ===
 # This script performs end-to-end setup and testing of Azure logging integration
@@ -167,7 +167,8 @@ main() {
     echo "4. Show next steps for Azure deployment"
     echo ""
 
-    read -p "Continue with setup? [y/N]: " -r
+    printf "Continue with setup? [y/N]: "
+    read -r REPLY
     if [ "$REPLY" != "y" ] && [ "$REPLY" != "Y" ]; then
         echo "Setup cancelled."
         exit 0

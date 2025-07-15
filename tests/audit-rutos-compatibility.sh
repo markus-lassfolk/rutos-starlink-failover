@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # RUTOS Script Compatibility Audit
 # This script checks all shell scripts in the repository for RUTOS compatibility issues
@@ -33,7 +33,7 @@ for script in $script_list; do
     # Check shebang
     shebang=$(head -1 "$script")
     case "$shebang" in
-        "#!/bin/bash")
+        "#!/bin/sh")
             echo -e "${BLUE}[BASH]${NC} Uses bash shebang"
             BASH_SCRIPTS=$((BASH_SCRIPTS + 1))
 

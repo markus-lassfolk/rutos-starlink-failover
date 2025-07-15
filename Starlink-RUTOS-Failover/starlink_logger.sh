@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
 # Starlink Performance Data Logger for OpenWrt/RUTOS
@@ -22,7 +22,7 @@
 # ==============================================================================
 
 # Exit on first error, undefined variable, or pipe failure for script robustness.
-set -euo pipefail
+set -eu
 
 # --- User Configuration ---
 

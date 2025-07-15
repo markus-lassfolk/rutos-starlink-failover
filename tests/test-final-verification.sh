@@ -1,18 +1,18 @@
-#!/bin/bash
+#!/bin/sh
 
 # Final verification test that matches the exact deployment script logic
 
-set -euo pipefail
+set -eu
 
 echo "=== Final Deployment Script Verification ==="
 
 # Test the exact comparison logic used in the deployment script
 test_comparison_logic() {
-    local test_name="$1"
-    local latency="$2"
-    local packet_loss="$3"
-    local obstruction="$4"
-    local expected="$5"
+    test_name="$1"
+    latency="$2"
+    packet_loss="$3"
+    obstruction="$4"
+    expected="$5"
 
     echo
     echo "Testing: $test_name"
@@ -80,7 +80,7 @@ if ! command -v bc >/dev/null 2>&1; then
 
     # Create bc fallback using awk
     cat >bc_fallback <<'EOF'
-#!/bin/bash
+#!/bin/sh
 # bc fallback using awk
 awk "BEGIN {print ($*)}"
 EOF
@@ -176,7 +176,7 @@ fi
 # Test the IP validation fix
 echo "Testing improved IP validation..."
 validate_ip_test() {
-    local ip="$1"
+    ip="$1"
 
     # Check basic format
     if [[ ! $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
@@ -214,7 +214,7 @@ fi
 
 # Test URL validation
 validate_url_test() {
-    local url="$1"
+    url="$1"
     if [[ $url =~ ^https?:// ]]; then
         return 0
     else
@@ -242,7 +242,7 @@ fi
 echo "Testing configuration file generation..."
 TEMP_CONFIG="/tmp/test_config_$$"
 cat >"$TEMP_CONFIG" <<'EOF'
-#!/bin/bash
+#!/bin/sh
 STARLINK_IP="192.168.100.1"
 LATENCY_THRESHOLD_MS="150"
 PACKET_LOSS_THRESHOLD="0.05"

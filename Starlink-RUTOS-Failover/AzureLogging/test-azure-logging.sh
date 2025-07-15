@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 
 # === Azure Logging Integration Test ===
 # This script tests the Azure logging solution end-to-end
 
-set -euo pipefail
+set -eu
 
 # Configuration - Use UCI if available, otherwise use command line parameter
 TEST_LOG_FILE="/tmp/test-azure-logging.log"
@@ -20,15 +20,15 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    printf "%b[INFO]%b %s\n" "${GREEN}" "${NC}" "$1"
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    printf "%b[WARN]%b %s\n" "${YELLOW}" "${NC}" "$1"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    printf "%b[ERROR]%b %s\n" "${RED}" "${NC}" "$1"
 }
 
 # Validate input

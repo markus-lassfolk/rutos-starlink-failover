@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
 # Starlink API Documentation Generator
@@ -18,7 +18,7 @@
 # ==============================================================================
 
 # Exit on first error, undefined variable, or pipe failure for script robustness.
-set -euo pipefail
+set -eu
 
 # --- User Configuration ---
 

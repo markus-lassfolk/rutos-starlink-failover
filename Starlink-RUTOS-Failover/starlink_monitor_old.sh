@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
 # Starlink Proactive Quality Monitor for OpenWrt/RUTOS
@@ -21,7 +21,7 @@
 # ==============================================================================
 
 # Exit on first error, undefined variable, or pipe failure for script robustness.
-set -euo pipefail
+set -eu
 
 # Configuration validation
 if [ -z "${STARLINK_IP:-}" ] || [ -z "${MWAN_IFACE:-}" ] || [ -z "${MWAN_MEMBER:-}" ]; then
