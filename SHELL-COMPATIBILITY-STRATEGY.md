@@ -9,7 +9,7 @@ RUTOS uses ash/dash shell, but our CI/CD workflows expect bash syntax for proper
 - Use `#!/bin/sh` shebang
 - POSIX shell syntax only
 - Compatible with ash/dash
-- Examples: `deploy-starlink-solution.sh`, `rutos-compatibility-test.sh`
+- Examples: `deploy-starlink-solution.sh`, `tests/rutos-compatibility-test.sh`
 
 ### For Development/CI Scripts (Development environment)
 - Keep `#!/bin/bash` shebang  

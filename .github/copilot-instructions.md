@@ -57,8 +57,12 @@ CONFIG_VALUE="${CONFIG_VALUE:-default_value}"
 - `scripts/update-version.sh` - Automatic version management
 - `scripts/upgrade-to-advanced.sh` - Configuration upgrades
 - `scripts/update-config.sh` - Configuration updates
+- `scripts/pre-commit-validation.sh` - Automated RUTOS compatibility validation
+- `scripts/self-update.sh` - Self-update functionality
+- `scripts/uci-optimizer.sh` - UCI configuration optimizer
 - `Starlink-RUTOS-Failover/starlink_monitor.sh` - Main monitoring script
 - `config/config.template.sh` - Base configuration template
+- `tests/` - All test scripts organized in dedicated directory
 
 ### Version Management System
 - Format: `MAJOR.MINOR.PATCH+GIT_COUNT.GIT_COMMIT[-dirty]`
@@ -182,8 +186,31 @@ log_step() {
 DEBUG="${DEBUG:-0}"
 if [ "$DEBUG" = "1" ]; then
     log_debug "==================== DEBUG MODE ENABLED ===================="
-    set -x  # Enable command tracing
+    log_debug "Script version: $SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    # Note: Using clean debug logging instead of set -x for better readability
 fi
+
+# Debug functions for development (cleaner than set -x)
+debug_exec() {
+    if [ "$DEBUG" = "1" ]; then
+        log_debug "EXECUTING: $*"
+    fi
+    "$@"
+}
+
+debug_var() {
+    if [ "$DEBUG" = "1" ]; then
+        log_debug "VARIABLE: $1 = $2"
+    fi
+}
+
+debug_func() {
+    if [ "$DEBUG" = "1" ]; then
+        log_debug "FUNCTION: $1"
+    fi
+}
 
 # Main function
 main() {
@@ -360,10 +387,31 @@ chmod +x scripts/*.sh
 ### Code Quality and Pre-Commit Checks
 
 #### CRITICAL: Always Run Before Commits
-1. **ShellCheck**: Validate all shell scripts for POSIX compliance
-2. **Syntax Validation**: Check for busybox compatibility issues
-3. **Version Consistency**: Ensure all scripts have matching version info
-4. **Template Validation**: Verify configuration templates are clean
+1. **Pre-Commit Validation**: Run `./scripts/pre-commit-validation.sh` for comprehensive checks
+2. **ShellCheck**: Validate all shell scripts for POSIX compliance
+3. **shfmt Integration**: Automatic formatting validation using industry standard
+4. **Version Consistency**: Ensure all scripts have matching version info
+5. **Template Validation**: Verify configuration templates are clean
+
+#### Automated Pre-Commit Validation System
+```bash
+# Run comprehensive validation (REQUIRED before commits)
+./scripts/pre-commit-validation.sh
+
+# For staged files only (pre-commit hook)
+./scripts/pre-commit-validation.sh --staged
+
+# With debug output for troubleshooting
+DEBUG=1 ./scripts/pre-commit-validation.sh
+
+# The validation system checks:
+# - ShellCheck compliance (POSIX sh only)
+# - Bash-specific syntax detection
+# - RUTOS compatibility patterns
+# - Code formatting with shfmt
+# - Critical whitespace issues
+# - Template cleanliness
+```
 
 #### ShellCheck Integration
 ```bash
@@ -374,15 +422,17 @@ sudo apt-get install shellcheck
 # On Windows with Chocolatey:
 choco install shellcheck
 
-# Run ShellCheck on all scripts before commit
-find scripts/ -name "*.sh" -exec shellcheck {} \;
-find Starlink-RUTOS-Failover/ -name "*.sh" -exec shellcheck {} \;
+# Install shfmt for formatting validation
+# On WSL/Ubuntu:
+sudo apt-get install shfmt
+# Or: go install mvdan.cc/sh/v3/cmd/shfmt@latest
 
-# Fix all SC2039 (bashisms) and SC2004 (POSIX compatibility) errors
-# These are CRITICAL for RUTOS compatibility
+# The pre-commit validation script handles all checks automatically
+# Manual checks are no longer needed if using the validation system
 ```
 
 #### Pre-Commit Quality Checklist
+- [ ] Run `./scripts/pre-commit-validation.sh` and fix all issues
 - [ ] All shell scripts pass ShellCheck with no errors
 - [ ] No bash-specific syntax (arrays, [[]], function() syntax)
 - [ ] All functions have proper closing braces
@@ -390,18 +440,22 @@ find Starlink-RUTOS-Failover/ -name "*.sh" -exec shellcheck {} \;
 - [ ] Debug mode support is implemented
 - [ ] Error handling is comprehensive
 - [ ] Templates are clean (no ShellCheck comments)
+- [ ] Code formatting passes shfmt validation
 
 #### Automated Quality Check Script
 ```bash
 # Run comprehensive quality checks (use in WSL/Git Bash)
-./scripts/quality-check.sh
+./scripts/pre-commit-validation.sh
 
 # On Windows PowerShell, switch to WSL first:
 wsl
-./scripts/quality-check.sh
+./scripts/pre-commit-validation.sh
 
-# Or use Git Bash directly
-"C:\Program Files\Git\bin\bash.exe" scripts/quality-check.sh
+# The validation system provides:
+# - Color-coded output (RED for critical, YELLOW for major, BLUE for minor)
+# - Detailed issue reporting with line numbers
+# - Comprehensive summary with pass/fail statistics
+# - Debug mode for troubleshooting validation issues
 ```
 
 #### Manual Quality Checks (if automated script fails)
@@ -419,13 +473,51 @@ grep -r "echo -e" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 - **GitLens**: Better git integration for version tracking
 - **Error Lens**: Inline error display
 
-### Development Workflow
+### Modern Development Workflow
 1. **Switch to WSL/Bash**: Better shell script development environment
 2. **Edit Scripts**: Use VS Code with ShellCheck extension
-3. **Test Locally**: Validate syntax and basic functionality
-4. **Run Quality Checks**: ShellCheck, syntax validation, version checks
-5. **Fix All Issues**: Address errors and warnings before commit
+3. **Run Pre-Commit Validation**: `./scripts/pre-commit-validation.sh`
+4. **Fix All Issues**: Address errors and warnings before commit
+5. **Test Locally**: Validate syntax and basic functionality
 6. **Commit**: Only after all quality checks pass
+
+### Development Tools Integration
+- **ShellCheck**: Automated syntax and compatibility validation
+- **shfmt**: Code formatting and style validation
+- **Pre-commit Hooks**: Automated quality checks before commits
+- **Debug Mode**: Enhanced debugging with clean output (`DEBUG=1`)
+- **Version Management**: Automatic version tracking and updates
+
+### Quality Assurance Pipeline
+```bash
+# Step 1: Run pre-commit validation
+./scripts/pre-commit-validation.sh
+
+# Step 2: Fix any issues found
+# Critical issues must be fixed
+# Major issues should be fixed
+# Minor issues can be addressed later
+
+# Step 3: Verify fixes
+./scripts/pre-commit-validation.sh --staged
+
+# Step 4: Commit when all checks pass
+git commit -m "Description of changes"
+```
+
+### Development Environment Setup
+```bash
+# Install required tools (WSL/Linux)
+sudo apt-get update
+sudo apt-get install shellcheck shfmt
+
+# Or on Windows with Chocolatey
+choco install shellcheck
+
+# Set up pre-commit hooks (optional)
+cp scripts/pre-commit-validation.sh .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
 
 ## Azure Integration Considerations
 
@@ -455,8 +547,25 @@ scripts/           # All utility scripts
 config/           # Configuration templates
 Starlink-RUTOS-Failover/  # Main monitoring scripts
 AzureLogging/     # Azure integration components
-tests/            # Test scripts
+tests/            # Test scripts and validation tools
 docs/             # Documentation
+```
+
+### Test Directory Organization
+```
+tests/
+├── README.md                      # Test documentation
+├── test-suite.sh                  # Main test runner
+├── test-core-logic.sh             # Core functionality tests
+├── test-comprehensive-scenarios.sh # Comprehensive testing
+├── test-deployment-functions.sh   # Deployment testing
+├── test-final-verification.sh     # Final verification
+├── test-validation-features.sh    # Validation system tests
+├── test-validation-fix.sh         # Validation fixes
+├── audit-rutos-compatibility.sh   # RUTOS compatibility audit
+├── rutos-compatibility-test.sh    # RUTOS compatibility testing
+├── verify-deployment.sh           # Deployment verification
+└── verify-deployment-script.sh    # Alternative deployment verification
 ```
 
 ## Common Pitfalls to Avoid
@@ -479,12 +588,20 @@ docs/             # Documentation
 ### Pre-Commit Quality Gates
 ```bash
 # MANDATORY: Run before every commit
-./scripts/quality-check.sh  # (Create this script)
+./scripts/pre-commit-validation.sh
 
-# Or manual checks:
-shellcheck scripts/*.sh Starlink-RUTOS-Failover/*.sh
-./scripts/validate-config.sh --syntax-check
-./scripts/update-version.sh --verify-consistency
+# For staged files only (pre-commit hook usage)
+./scripts/pre-commit-validation.sh --staged
+
+# With debug output for troubleshooting
+DEBUG=1 ./scripts/pre-commit-validation.sh
+
+# The validation system automatically handles:
+# - ShellCheck validation
+# - RUTOS compatibility checks
+# - Code formatting validation
+# - Version consistency checks
+# - Template validation
 ```
 
 ### Commit Message Format
@@ -506,20 +623,67 @@ Brief description of change
 ## Success Metrics
 
 ### Code Quality Indicators
-- ✅ POSIX sh compatibility
-- ✅ Comprehensive error handling
-- ✅ Debug mode support
-- ✅ Timestamped logging
-- ✅ Version information
-- ✅ Safe operation patterns
+- ✅ POSIX sh compatibility (validated by pre-commit system)
+- ✅ Comprehensive error handling (standardized logging functions)
+- ✅ Debug mode support (clean, structured output)
+- ✅ Timestamped logging (consistent color-coded format)
+- ✅ Version information (automatic semantic versioning)
+- ✅ Safe operation patterns (validated by 50+ compatibility checks)
 
 ### Testing Validation
-- ✅ Works on RUTX50 with RUTOS
-- ✅ Remote installation via curl
-- ✅ Configuration migration
-- ✅ Debug mode functionality
-- ✅ Version system operation
+- ✅ Works on RUTX50 with RUTOS (tested through 23 rounds)
+- ✅ Remote installation via curl (production ready)
+- ✅ Configuration migration (automatic template system)
+- ✅ Debug mode functionality (enhanced readability)
+- ✅ Version system operation (git-integrated versioning)
+- ✅ Quality assurance (automated pre-commit validation)
+
+### Development Experience
+- ✅ Modern tooling integration (ShellCheck, shfmt)
+- ✅ Automated quality checks (pre-commit validation)
+- ✅ Clean debug output (structured logging)
+- ✅ Repository organization (dedicated test directory)
+- ✅ Comprehensive documentation (up-to-date guides)
+- ✅ Consistent code formatting (shfmt validation)
+
+### Production Readiness
+- ✅ RUTOS compatibility (busybox shell support)
+- ✅ Error handling (comprehensive safety checks)
+- ✅ Configuration management (template migration)
+- ✅ Remote deployment (curl installation)
+- ✅ Version tracking (semantic versioning)
+- ✅ Quality assurance (validation system)
 
 ---
 
 **Remember**: This project prioritizes reliability and compatibility over advanced features. Always test changes in the RUTOS environment and maintain backward compatibility with existing configurations.
+
+## Current Project Status (As of July 2025)
+
+### Development Milestones Achieved
+- **Round 1-23**: Comprehensive testing and validation system development
+- **Production Ready**: Full RUTOS compatibility achieved
+- **Automated Quality**: Pre-commit validation system implemented
+- **Repository Organized**: Clean structure with dedicated test directory
+- **Debug System**: Modern, readable debug output system
+- **Validation Coverage**: 50+ compatibility checks implemented
+
+### Core Features Operational
+- ✅ **Remote Installation**: Works via curl on RUTX50
+- ✅ **Configuration Management**: Template migration and validation
+- ✅ **Debug Mode**: Enhanced debugging with clean output
+- ✅ **Version Management**: Automatic semantic versioning
+- ✅ **Quality Assurance**: Comprehensive pre-commit validation
+- ✅ **RUTOS Compatibility**: Full busybox shell support
+
+### Current Focus Areas
+1. **Main Monitoring Script**: Final testing of `starlink_monitor.sh`
+2. **Advanced Configuration**: Complete `config.advanced.template.sh`
+3. **Azure Integration**: Logging and monitoring components
+4. **Documentation**: Keep all guides up-to-date
+
+### Recent Improvements
+- **Round 22**: Repository cleanup and test organization
+- **Round 23**: Debug output improvements with clean, structured logging
+- **Modern Tooling**: Integration of shfmt and enhanced validation
+- **Development Experience**: Better debugging and quality assurance
