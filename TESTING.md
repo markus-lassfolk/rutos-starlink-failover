@@ -68,6 +68,33 @@ DEBUG: Config template appears current
 - ✅ Adds comprehensive descriptions
 - ✅ Creates backup of original config
 
+### 🔧 Current Known Issue: Busybox Trap Signal Compatibility - **RESOLVED**
+
+**Issue**: Installation script fails with `trap: line 649: ERR: invalid signal specification`
+**Status**: ✅ **RESOLVED** - Fixed busybox-incompatible signal handling
+
+**Root Cause**: Script used `trap handle_error ERR` which is not supported in busybox sh
+**Solution**: Changed to `trap handle_error INT TERM` and removed `local` keyword
+
+**Error Message**:
+```
+./install.sh: trap: line 649: ERR: invalid signal specification
+```
+
+**Fix Applied**:
+```bash
+# OLD (bash-specific)
+trap handle_error ERR
+
+# NEW (busybox compatible)
+trap handle_error INT TERM
+```
+
+**Additional Changes**:
+- Removed `local` keyword from `handle_error()` function
+- Maintained explicit error handling with `set -eu`
+- Preserved all error logging functionality
+
 ## Installation & Usage
 
 ### Quick Installation
@@ -139,6 +166,7 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 - **Round 14**: Debug mode enhancement for template detection troubleshooting
 - **Round 15**: Template detection false positive fix and enhanced logging
 - **Round 16**: Automatic version numbering system with git integration
+- **Round 17**: Busybox trap signal compatibility fix (`trap ERR` → `trap INT TERM`)
 
 ### Key Fixes Applied
 1. **Shell Compatibility** - Fixed busybox/POSIX compliance for RUTOS environment
@@ -148,6 +176,7 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 5. **Debug Support** - Added comprehensive debugging for troubleshooting
 6. **Template System** - Automatic migration and validation for configuration updates
 7. **Version System** - Automatic version numbering with git integration and build info
+8. **Signal Handling** - Fixed busybox trap compatibility (ERR → INT TERM)
 
 ### Current Status
 - ✅ **Installation**: Fully functional on RUTX50
