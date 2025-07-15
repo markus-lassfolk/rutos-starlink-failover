@@ -6,7 +6,7 @@ This document tracks testing progress and improvements for the RUTOS Starlink fa
 
 **Last Updated**: July 15, 2025  
 **System**: RUTX50 running RUTOS  
-**Status**: Production ready after 14 rounds of testing
+**Status**: Production ready after 18 rounds of testing
 
 ### Core Scripts Status
 - [✅] `scripts/install.sh` - Installation script *(FULLY FUNCTIONAL)*
@@ -25,6 +25,7 @@ This document tracks testing progress and improvements for the RUTOS Starlink fa
 - ✅ **Configuration Migration**: Automatic template migration system
 - ✅ **Debug Mode**: Available for troubleshooting
 - ✅ **RUTOS Compatibility**: Full busybox shell compatibility
+- ✅ **Busybox Compatibility**: trap signals and function definitions fixed (Round 18)
 
 ## Critical Issues Resolved
 
@@ -38,6 +39,8 @@ All major installation issues have been resolved through multiple testing rounds
 5. ✅ **Debug Mode** - Added comprehensive debugging for troubleshooting
 6. ✅ **Configuration Management** - Template migration and validation system
 7. ✅ **Architecture Detection** - Proper RUTX50 armv7l architecture support
+8. ✅ **Busybox Trap Compatibility** - Fixed trap ERR → trap INT TERM (Round 17)
+9. ✅ **Missing debug_exec Function** - Added proper debug_exec function definition (Round 18)
 
 ### 🔧 Current Known Issue: Template Detection False Positive - **RESOLVED**
 
@@ -47,53 +50,47 @@ All major installation issues have been resolved through multiple testing rounds
 **Root Cause**: Template file itself contained ShellCheck comment that was being copied during migration
 **Solution**: Removed ShellCheck comment from `config/config.template.sh` (line 2)
 
-**Debug Command**:
+### ✅ Round 18 Testing Results - **SUCCESSFUL**
+
+**Issue**: Missing debug_exec function in install.sh
+**Status**: ✅ **RESOLVED** - Added proper debug_exec function definition
+
+**Testing Context**:
+- RUTX50 testing revealed "debug_exec: not found" error on line 270
+- Function was being called 20+ times but not defined
+- debug_msg function existed but debug_exec was missing
+
+**Root Cause**: Missing debug_exec function definition
+**Solution**: Added proper debug_exec function with busybox compatibility
+
+**Fixed Code**:
 ```bash
-DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
+# Function to execute commands with debug output
+debug_exec() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        timestamp=$(get_timestamp)
+        printf "%b[%s] DEBUG EXEC: %s%b\n" "$CYAN" "$timestamp" "$*" "$NC"
+        log_message "DEBUG_EXEC" "$*"
+    fi
+    "$@"
+}
 ```
 
-**Expected Debug Output After Fix**:
-```
-==================== DEBUG MODE ENABLED ====================
-DEBUG: Checking if config uses outdated template format
-DEBUG: No ShellCheck comments found
-DEBUG: Checking for specific outdated template patterns
-DEBUG: Config template appears current
-```
+**Additional Fixes**:
+- Removed all `local` keywords from functions for busybox compatibility
+- Fixed `debug_msg`, `log_message`, and `print_status` functions
+- Functions now work correctly in strict busybox environment
 
-**Migration Process** (Correct Approach):
-- ✅ Uses clean template as base (no ShellCheck comments)
-- ✅ Preserves all user configuration values
-- ✅ Updates to latest template structure
-- ✅ Adds comprehensive descriptions
-- ✅ Creates backup of original config
-
-### 🔧 Current Known Issue: Busybox Trap Signal Compatibility - **RESOLVED**
-
-**Issue**: Installation script fails with `trap: line 649: ERR: invalid signal specification`
-**Status**: ✅ **RESOLVED** - Fixed busybox-incompatible signal handling
-
-**Root Cause**: Script used `trap handle_error ERR` which is not supported in busybox sh
-**Solution**: Changed to `trap handle_error INT TERM` and removed `local` keyword
-
-**Error Message**:
-```
-./install.sh: trap: line 649: ERR: invalid signal specification
-```
-
-**Fix Applied**:
+**Testing Verification**:
 ```bash
-# OLD (bash-specific)
-trap handle_error ERR
-
-# NEW (busybox compatible)
-trap handle_error INT TERM
+# Test script confirmed debug_exec works correctly
+wsl ./test_debug_exec.sh
+# [2025-07-15 14:01:47] DEBUG EXEC: mkdir -p /tmp/test_dir
+# [2025-07-15 14:01:47] DEBUG EXEC: ls -la /tmp/test_dir
+# [2025-07-15 14:01:47] DEBUG EXEC: echo Hello from debug_exec!
 ```
 
-**Additional Changes**:
-- Removed `local` keyword from `handle_error()` function
-- Maintained explicit error handling with `set -eu`
-- Preserved all error logging functionality
+**Quality Check**: install.sh now passes ShellCheck validation
 
 ## Installation & Usage
 
@@ -167,6 +164,7 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 - **Round 15**: Template detection false positive fix and enhanced logging
 - **Round 16**: Automatic version numbering system with git integration
 - **Round 17**: Busybox trap signal compatibility fix (`trap ERR` → `trap INT TERM`)
+- **Round 18**: Added missing debug_exec function and removed local keywords for busybox compatibility
 
 ### Key Fixes Applied
 1. **Shell Compatibility** - Fixed busybox/POSIX compliance for RUTOS environment
@@ -177,6 +175,7 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 6. **Template System** - Automatic migration and validation for configuration updates
 7. **Version System** - Automatic version numbering with git integration and build info
 8. **Signal Handling** - Fixed busybox trap compatibility (ERR → INT TERM)
+9. **Debug Exec Function** - Added missing debug_exec function with busybox compatibility
 
 ### Current Status
 - ✅ **Installation**: Fully functional on RUTX50

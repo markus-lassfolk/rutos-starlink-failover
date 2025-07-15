@@ -42,9 +42,8 @@ get_timestamp() {
 
 # Function to log messages to file
 log_message() {
-    local level="$1"
-    local message="$2"
-    local timestamp
+    level="$1"
+    message="$2"
     timestamp=$(get_timestamp)
     
     # Ensure log directory exists
@@ -69,11 +68,20 @@ print_status() {
 # Function to print debug messages with logging
 debug_msg() {
     if [ "${DEBUG:-0}" = "1" ]; then
-        local timestamp
         timestamp=$(get_timestamp)
         printf "%b[%s] DEBUG: %s%b\n" "$BLUE" "$timestamp" "$1" "$NC"
         log_message "DEBUG" "$1"
     fi
+}
+
+# Function to execute commands with debug output
+debug_exec() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        timestamp=$(get_timestamp)
+        printf "%b[%s] DEBUG EXEC: %s%b\n" "$CYAN" "$timestamp" "$*" "$NC"
+        log_message "DEBUG_EXEC" "$*"
+    fi
+    "$@"
 }
 
 # Version and compatibility
@@ -508,8 +516,8 @@ set -eu
 CRON_FILE="/etc/crontabs/root"
 
 print_status() {
-    local color="$1"
-    local message="$2"
+    color="$1"
+    message="$2"
     echo -e "${color}${message}\033[0m"
 }
 
