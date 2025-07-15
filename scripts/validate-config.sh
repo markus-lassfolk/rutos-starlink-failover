@@ -11,9 +11,13 @@
 set -eu
 
 # Script version information
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.0.1"
+# Build: 1.0.1+181.c96c23f-dirty
 SCRIPT_NAME="validate-config.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"
+
+# Extract build info from comment above
+BUILD_INFO=$(grep "# Build:" "$0" | head -1 | sed 's/# Build: //' || echo "unknown")
 
 # Debug mode - set to 1 to enable debug output
 DEBUG="${DEBUG:-0}"
@@ -680,6 +684,7 @@ main() {
     print_status "$GREEN" "=== Starlink System Configuration Validator ==="
     print_status "$BLUE" "Script: $SCRIPT_NAME"
     print_status "$BLUE" "Version: $SCRIPT_VERSION"
+    print_status "$BLUE" "Build: $BUILD_INFO"
     print_status "$BLUE" "Compatible with install.sh: $COMPATIBLE_INSTALL_VERSION"
     if [ "$DEBUG" = "1" ]; then
         print_status "$YELLOW" "==================== DEBUG MODE ENABLED ===================="

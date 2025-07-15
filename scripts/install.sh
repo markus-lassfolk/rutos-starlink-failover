@@ -11,8 +11,12 @@
 set -eu
 
 # Script version - automatically updated from VERSION file
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.0.1"
+# Build: 1.0.1+181.c96c23f-dirty
 SCRIPT_NAME="install.sh"
+
+# Extract build info from comment above
+BUILD_INFO=$(grep "# Build:" "$0" | head -1 | sed 's/# Build: //' || echo "unknown")
 
 # Configuration - can be overridden by environment variables
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
@@ -124,6 +128,7 @@ show_version() {
     print_status "$GREEN" "Starlink Monitor Installation Script"
     print_status "$GREEN" "Script: $SCRIPT_NAME"
     print_status "$GREEN" "Version: $SCRIPT_VERSION"
+    print_status "$GREEN" "Build: $BUILD_INFO"
     print_status "$GREEN" "Branch: $GITHUB_BRANCH"
     print_status "$GREEN" "Repository: $GITHUB_REPO"
     print_status "$GREEN" "==========================================="

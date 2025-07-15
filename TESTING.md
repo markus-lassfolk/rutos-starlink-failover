@@ -103,6 +103,25 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 - ✅ **Debug Mode**: Comprehensive debugging with `DEBUG=1`
 - ✅ **RUTOS Compatibility**: Full busybox shell support
 - ✅ **Safe Crontab**: Comments old entries instead of deletion
+- ✅ **Version System**: Automatic version numbering with git integration
+
+### Version Management
+```bash
+# Update version (patch increment)
+./scripts/update-version.sh patch
+
+# Update version (minor increment)
+./scripts/update-version.sh minor
+
+# Update version (major increment)
+./scripts/update-version.sh major
+```
+
+**Version Format**: `MAJOR.MINOR.PATCH+GIT_COUNT.GIT_COMMIT[-dirty]`
+- Example: `1.0.1+181.c96c23f-dirty`
+- Automatically includes git commit count and commit hash
+- Shows `-dirty` if there are uncommitted changes
+- Updates VERSION file and all scripts automatically
 
 ## Testing Environment
 - **Router**: RUTX50
@@ -118,7 +137,8 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 - **Round 12**: Critical function scope issue resolution (`show_version: command not found`)
 - **Round 13**: Successful configuration validation and migration system
 - **Round 14**: Debug mode enhancement for template detection troubleshooting
-- **Round 15**: Template detection false positive fix - migration now removes ShellCheck comments
+- **Round 15**: Template detection false positive fix and enhanced logging
+- **Round 16**: Automatic version numbering system with git integration
 
 ### Key Fixes Applied
 1. **Shell Compatibility** - Fixed busybox/POSIX compliance for RUTOS environment
@@ -127,6 +147,7 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 4. **Safe Operations** - Crontab commenting instead of deletion, config preservation
 5. **Debug Support** - Added comprehensive debugging for troubleshooting
 6. **Template System** - Automatic migration and validation for configuration updates
+7. **Version System** - Automatic version numbering with git integration and build info
 
 ### Current Status
 - ✅ **Installation**: Fully functional on RUTX50
