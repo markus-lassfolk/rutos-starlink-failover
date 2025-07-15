@@ -237,7 +237,7 @@ install_binaries() {
     # Install grpcurl
     if [ ! -f "$INSTALL_DIR/grpcurl" ]; then
         print_status "$YELLOW" "Downloading grpcurl..."
-        if curl -fL "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz; then
+        if curl -fL --progress-bar "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz; then
             tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl
             chmod +x "$INSTALL_DIR/grpcurl"
             rm /tmp/grpcurl.tar.gz
@@ -253,7 +253,7 @@ install_binaries() {
     # Install jq
     if [ ! -f "$INSTALL_DIR/jq" ]; then
         print_status "$YELLOW" "Downloading jq..."
-        if curl -fL "$JQ_URL" -o "$INSTALL_DIR/jq"; then
+        if curl -fL --progress-bar "$JQ_URL" -o "$INSTALL_DIR/jq"; then
             chmod +x "$INSTALL_DIR/jq"
             print_status "$GREEN" "✓ jq installed"
         else
@@ -338,7 +338,7 @@ install_scripts() {
         else
             print_status "$RED" "✗ Error: Could not download update-config.sh"
             print_status "$YELLOW" "  You can manually download it later from:"
-            print_status "$YELLOW" "  $BASE_URL/scripts/update-config.sh"
+            print_status "$YELLOW" "  https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/scripts/update-config.sh"
         fi
     fi
 
@@ -356,7 +356,7 @@ install_scripts() {
         else
             print_status "$RED" "✗ Error: Could not download upgrade-to-advanced.sh"
             print_status "$YELLOW" "  You can manually download it later from:"
-            print_status "$YELLOW" "  $BASE_URL/scripts/upgrade-to-advanced.sh"
+            print_status "$YELLOW" "  https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/scripts/upgrade-to-advanced.sh"
         fi
     fi
 }
@@ -555,7 +555,7 @@ main() {
     print_status "$BLUE" "Installation directory: $INSTALL_DIR"
     print_status "$BLUE" "Configuration file: $INSTALL_DIR/config/config.sh"
     print_status "$BLUE" "Uninstall script: $INSTALL_DIR/uninstall.sh"
-    print_status "$BLUE" "Scripts downloaded from: $BASE_URL"
+    print_status "$BLUE" "Scripts downloaded from: https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
     printf "\n"
     print_status "$GREEN" "System will start monitoring automatically after configuration"
     printf "\n"
