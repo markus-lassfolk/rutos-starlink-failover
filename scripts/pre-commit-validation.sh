@@ -1,6 +1,6 @@
 #!/bin/bash
 # Pre-commit validation script for RUTOS Starlink Failover Project
-# Version: 1.0.0
+# Version: 1.0.2
 # Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility
 #
 # NOTE: This script runs in the development environment (WSL/Linux), NOT on RUTOS,
@@ -11,7 +11,7 @@
 # and collect all validation issues before exiting
 
 # Version information
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.0.2"
 
 # Files to exclude from validation (patterns supported)
 EXCLUDED_FILES=(
@@ -274,17 +274,41 @@ validate_color_codes() {
 		done < <(grep -n "printf.*\\\${[A-Z_]*}.*[^%][^s]\"" "$file" 2>/dev/null)
 	fi
 
-	# Check for proper color detection logic
+	# Check for proper color detection logic and completeness
 	if grep -n "if.*-t.*1" "$file" >/dev/null 2>&1; then
-		# This is good - checking for terminal support
-		log_debug "✓ $file: Has terminal color detection"
+		# Check if it's using the new simplified RUTOS-compatible pattern
+		if grep -q "TERM.*dumb.*NO_COLOR" "$file"; then
+			log_debug "✓ $file: Has RUTOS-compatible color detection"
+		elif grep -q "command -v tput.*tput colors" "$file"; then
+			report_issue "MAJOR" "$file" "0" "Using old complex color detection - update to RUTOS-compatible: if [ -t 1 ] && [ \"\${TERM:-}\" != \"dumb\" ] && [ \"\${NO_COLOR:-}\" != \"1\" ]"
+		else
+			log_debug "✓ $file: Has basic terminal color detection"
+		fi
+		
+		# Check if all required colors are defined
+		required_colors=("RED" "GREEN" "YELLOW" "BLUE" "CYAN" "NC")
+		missing_colors=()
+		
+		for color in "${required_colors[@]}"; do
+			if ! grep -q "^[[:space:]]*$color=" "$file"; then
+				missing_colors+=("$color")
+			fi
+		done
+		
+		if [ ${#missing_colors[@]} -gt 0 ]; then
+			missing_list=$(printf "%s " "${missing_colors[@]}")
+			report_issue "MAJOR" "$file" "0" "Missing color definitions: ${missing_list% } - all scripts should define RED, GREEN, YELLOW, BLUE, CYAN, NC"
+		else
+			log_debug "✓ $file: All required colors defined"
+		fi
+		
 	elif grep -n "NO_COLOR\|TERM.*dumb" "$file" >/dev/null 2>&1; then
 		# This is good - checking for NO_COLOR or dumb terminal
 		log_debug "✓ $file: Has NO_COLOR detection"
 	elif grep -n "^[[:space:]]*RED=\|^[[:space:]]*GREEN=\|^[[:space:]]*YELLOW=" "$file" >/dev/null 2>&1; then
 		# Has color definitions but no detection - potential issue
 		if ! grep -q "if.*-t.*1\|NO_COLOR\|TERM.*dumb" "$file"; then
-			report_issue "MINOR" "$file" "0" "Defines colors but missing color detection logic - add terminal/NO_COLOR checks"
+			report_issue "MAJOR" "$file" "0" "Defines colors but missing color detection logic - add RUTOS-compatible detection: if [ -t 1 ] && [ \"\${TERM:-}\" != \"dumb\" ] && [ \"\${NO_COLOR:-}\" != \"1\" ]"
 		fi
 	fi
 

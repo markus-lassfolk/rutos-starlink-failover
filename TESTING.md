@@ -203,7 +203,7 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 ```
 
 **Version Format**: `MAJOR.MINOR.PATCH+GIT_COUNT.GIT_COMMIT[-dirty]`
-- Example: `1.0.1+181.c96c23f-dirty`
+- Example: `1.0.2+198.38fb60b-dirty`
 - Automatically includes git commit count and commit hash
 - Shows `-dirty` if there are uncommitted changes
 - Updates VERSION file and all scripts automatically
@@ -342,7 +342,7 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 **Debug Output Format**:
 ```bash
 [DEBUG] [2025-07-15 16:12:24] ==================== DEBUG MODE ENABLED ====================
-[DEBUG] [2025-07-15 16:12:24] Script version: 1.0.0
+[DEBUG] [2025-07-15 16:12:24] Script version: 1.0.2
 [DEBUG] [2025-07-15 16:12:24] Working directory: /mnt/c/GitHub/rutos-starlink-failover
 [DEBUG] [2025-07-15 16:12:24] Arguments: test-debug.sh
 [DEBUG] [2025-07-15 16:12:24] FUNCTION: main()

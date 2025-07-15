@@ -15,8 +15,8 @@ VERSION_FILE="$INSTALL_DIR/VERSION"
 # shellcheck disable=SC2034
 TMP_VERSION="/tmp/starlink-latest-version.txt"
 
-# Check if terminal supports colors
-if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+# Check if terminal supports colors (simplified for RUTOS compatibility)
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	# shellcheck disable=SC2034
 	RED='\033[0;31m'
 	# shellcheck disable=SC2034

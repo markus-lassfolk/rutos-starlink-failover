@@ -24,8 +24,8 @@
 set -eu
 
 # === COLORS AND FORMATTING ===
-# Check if terminal supports colors
-if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+# Check if terminal supports colors (simplified for RUTOS compatibility)
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	RED='\033[0;31m'
 	GREEN='\033[0;32m'
 	YELLOW='\033[1;33m'

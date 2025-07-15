@@ -11,8 +11,8 @@
 set -eu
 
 # Script version information
-SCRIPT_VERSION="1.0.1"
-# Build: 1.0.1+181.c96c23f-dirty
+SCRIPT_VERSION="1.0.2"
+# Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="validate-config.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"
 
@@ -42,12 +42,13 @@ debug_msg() {
 }
 
 # Colors for output
-# Check if terminal supports colors
-if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+# Check if terminal supports colors (simplified for RUTOS compatibility)
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	RED='\033[0;31m'
 	GREEN='\033[0;32m'
 	YELLOW='\033[1;33m'
-	BLUE='\033[0;36m'
+	BLUE='\033[0;34m'
+	CYAN='\033[0;36m'
 	NC='\033[0m' # No Color
 else
 	# Fallback to no colors if terminal doesn't support them
@@ -55,6 +56,7 @@ else
 	GREEN=''
 	YELLOW=''
 	BLUE=''
+	CYAN=''
 	NC=''
 fi
 

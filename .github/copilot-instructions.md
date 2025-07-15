@@ -133,7 +133,7 @@ log_debug "Current working directory: $(pwd)"
 set -e  # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.0.2"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'

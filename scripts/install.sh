@@ -11,8 +11,8 @@
 set -eu
 
 # Script version - automatically updated from VERSION file
-SCRIPT_VERSION="1.0.1"
-# Build: 1.0.1+181.c96c23f-dirty
+SCRIPT_VERSION="1.0.2"
+# Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="install.sh"
 
 # Extract build info from comment above
@@ -90,8 +90,8 @@ VERSION_URL="${BASE_URL}/VERSION"
 MIN_COMPATIBLE_VERSION="1.0.0" # Used for compatibility checks in future
 
 # Colors for output
-# Check if terminal supports colors
-if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+# Check if terminal supports colors (simplified for RUTOS compatibility)
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	RED="\033[0;31m"
 	GREEN="\033[0;32m"
 	YELLOW="\033[1;33m"
