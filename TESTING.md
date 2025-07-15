@@ -439,47 +439,49 @@ Most common issues found:
 ### ✅ Round 26 Testing Results - **SUCCESSFUL**
 
 **Issue**: Color codes appearing as literal escape sequences in git hook output instead of rendered colors
-**Status**: ✅ **RESOLVED** - Enhanced validation script to detect git hook color issues
+**Status**: ✅ **RESOLVED** - Fixed color detection logic in pre-commit validation script
 
 **Problem Description**:
 - Git commit output showing `\033[0;32m✅ Pre-commit validation passed. Proceeding with commit.\033[0m` instead of colored text
-- This specific issue occurs when git hooks run in environments with limited terminal capabilities
-- Color codes work in manual terminal execution but fail in git hook context (TERM=dumb, no TTY)
+- Issue occurred specifically when git hooks run in environments with limited terminal capabilities
+- Color codes worked in manual terminal execution but failed in git hook context (TERM=dumb, no TTY)
 
 **Root Cause Analysis**:
 - Git hooks often run with `TERM=dumb` or without proper TTY allocation
-- Scripts that don't properly detect terminal capabilities output literal color codes
-- The issue manifests in git commit messages but not in manual script execution
+- Original color detection logic was too restrictive: `[ ! -t 1 ] || [ ! -t 2 ]` disabled colors when only one stream wasn't a TTY
+- In WSL environment, stdout is often NO_TTY while stderr is TTY, causing incorrect color detection
 
 **Solution Applied**:
-1. **Enhanced Color Detection**: Improved color validation to catch insufficient terminal capability detection
-2. **Git Hook Simulation**: Added validation tests that simulate git hook environment conditions
-3. **Fallback Validation**: Ensures scripts gracefully handle non-color environments
-4. **Targeted Detection**: Focuses on scripts that run in git hook contexts, not development tools
+1. **Fixed Color Detection Logic**: Changed from OR to AND logic for TTY detection
+2. **Enhanced Environment Detection**: Improved `TERM=dumb` and `NO_COLOR` handling
+3. **Comprehensive Testing**: Validated fix across different terminal environments
+4. **Git Hook Compatibility**: Ensured clean output in git hook contexts
 
-**New Validation Features**:
-- **Git Hook Environment Testing**: Simulates `TERM=dumb` and no-TTY conditions
-- **Color Fallback Verification**: Confirms graceful degradation when colors aren't supported
-- **Terminal Capability Detection**: Validates proper `[ -t 1 ]` and `$TERM` checks
-- **Focused Scope**: Only validates scripts that could run in git hook contexts
-
-**Example Git Hook Color Issue**:
+**Technical Fix**:
 ```bash
-# Before fix: Literal escape sequences in git output
-\033[0;32m✅ Pre-commit validation passed. Proceeding with commit.\033[0m
+# Before: Too restrictive (disabled colors if ANY stream wasn't TTY)
+if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ] || [ ! -t 1 ] || [ ! -t 2 ]; then
 
-# After fix: Clean text output in git hooks
-✅ Pre-commit validation passed. Proceeding with commit.
+# After: Proper logic (disable colors only if BOTH streams aren't TTY)
+if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ] || ( [ ! -t 1 ] && [ ! -t 2 ] ); then
+```
+
+**Testing Verification**:
+```bash
+# Normal terminal: Colors enabled
+./test_script.sh  # ✅ Pre-commit validation passed (colored)
+
+# Git hook environment: Colors disabled
+TERM=dumb ./test_script.sh  # ✅ Pre-commit validation passed (clean text)
 ```
 
 **Benefits**:
-- **Professional Git Output**: Clean commit messages without literal escape sequences
-- **Environment Awareness**: Scripts properly detect terminal capabilities
-- **Focused Validation**: Doesn't over-validate development tools that don't need RUTOS compliance
-- **Regression Prevention**: Catches this specific recurring issue automatically
+- **Clean Git Output**: No more literal escape sequences in commit messages
+- **Environment Awareness**: Proper detection of terminal capabilities
+- **Cross-Platform Compatibility**: Works correctly in WSL, PowerShell, and native terminals
+- **Regression Prevention**: Prevents future color-related issues in git hooks
 
-**Technical Implementation**:
-- **Scope Limitation**: Pre-commit validation script itself is exempt from its own checks
-- **Targeted Testing**: Focuses on scripts that could run in constrained environments
-- **Environment Simulation**: Tests color behavior under `TERM=dumb` conditions
-- **Practical Focus**: Addresses real-world git hook color issues, not theoretical problems
+**Key Learning**:
+- TTY detection logic must account for mixed environments where stdout and stderr may have different TTY states
+- Git hooks require different color detection strategy than interactive terminal sessions
+- Testing must include both `TERM=dumb` and TTY state variations

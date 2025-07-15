@@ -23,7 +23,8 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Check if we're in a terminal that supports colors
-if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ]; then
+# More comprehensive check for git hook environments
+if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ] || ( [ ! -t 1 ] && [ ! -t 2 ] ); then
     RED=""
     GREEN=""
     YELLOW=""
