@@ -22,6 +22,25 @@
 
 set -eu
 
+# Standard colors for consistent output (compatible with busybox)
+# shellcheck disable=SC2034  # Color variables may not all be used in every script
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Check if we're in a terminal that supports colors
+if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
+	RED=""
+	GREEN=""
+	YELLOW=""
+	BLUE=""
+	CYAN=""
+	NC=""
+fi
+
 # --- Configuration Loading ---
 CONFIG_FILE="${CONFIG_FILE:-/root/config.sh}"
 if [ -f "$CONFIG_FILE" ]; then
@@ -30,6 +49,15 @@ if [ -f "$CONFIG_FILE" ]; then
 else
 	echo "Error: Configuration file not found: $CONFIG_FILE"
 	exit 1
+fi
+
+# Load placeholder utilities for graceful degradation
+script_dir="$(dirname "$0")/../scripts"
+if [ -f "$script_dir/placeholder-utils.sh" ]; then
+	# shellcheck source=/dev/null
+	. "$script_dir/placeholder-utils.sh"
+else
+	echo "Warning: placeholder-utils.sh not found. Pushover notifications may not work gracefully."
 fi
 
 # --- Derived Configuration ---
@@ -246,7 +274,7 @@ main() {
 
 					# Notify via external script if enabled
 					if [ "${NOTIFY_ON_SOFT_FAIL:-1}" = "1" ] && [ -x "$NOTIFIER_SCRIPT" ]; then
-						"$NOTIFIER_SCRIPT" "soft_failover" "$FAIL_REASON" || log "warn" "Notification failed"
+						safe_notify "soft_failover" "$FAIL_REASON" || log "warn" "Notification failed"
 					fi
 
 					log "info" "Soft failover completed successfully"
@@ -281,7 +309,7 @@ main() {
 
 						# Notify via external script if enabled
 						if [ "${NOTIFY_ON_RECOVERY:-1}" = "1" ] && [ -x "$NOTIFIER_SCRIPT" ]; then
-							"$NOTIFIER_SCRIPT" "soft_recovery" || log "warn" "Notification failed"
+							safe_notify "soft_recovery" || log "warn" "Notification failed"
 						fi
 
 						log "info" "Soft failback completed successfully"

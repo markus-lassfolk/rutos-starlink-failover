@@ -7,18 +7,26 @@ set -e
 
 # Colors for output
 # Check if terminal supports colors
-if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+# Color definitions for consistent output (compatible with busybox)
+# shellcheck disable=SC2034  # Color variables may not all be used in every script
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+	RED='\033[0;31m'
 	GREEN='\033[0;32m'
 	YELLOW='\033[1;33m'
+	BLUE='\033[1;35m'
+	CYAN='\033[0;36m'
 	NC='\033[0m' # No Color
 else
 	# Fallback to no colors if terminal doesn't support them
+	RED=""
 	GREEN=""
 	YELLOW=""
+	BLUE=""
+	CYAN=""
 	NC=""
 fi
 
-printf "%b\n" "${GREEN}Setting up Network Performance Analysis Environment${NC}"
+printf "%sSetting up Network Performance Analysis Environment%s\n" "$GREEN" "$NC"
 
 # Check if Python 3 is installed
 if ! command -v python3 >/dev/null 2>&1; then

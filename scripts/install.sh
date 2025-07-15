@@ -95,7 +95,7 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	RED="\033[0;31m"
 	GREEN="\033[0;32m"
 	YELLOW="\033[1;33m"
-	BLUE="\033[0;34m"
+	BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
 	CYAN="\033[0;36m"
 	NC="\033[0m" # No Color
 else
@@ -398,6 +398,57 @@ install_scripts() {
 		fi
 	fi
 
+	# Placeholder utilities - essential for graceful degradation
+	if [ -f "$script_dir/../scripts/placeholder-utils.sh" ]; then
+		cp "$script_dir/../scripts/placeholder-utils.sh" "$INSTALL_DIR/scripts/"
+		chmod +x "$INSTALL_DIR/scripts/placeholder-utils.sh"
+		print_status "$GREEN" "✓ Placeholder utilities installed"
+	else
+		# Download from repository
+		print_status "$BLUE" "Downloading placeholder-utils.sh..."
+		if download_file "$BASE_URL/scripts/placeholder-utils.sh" "$INSTALL_DIR/scripts/placeholder-utils.sh"; then
+			chmod +x "$INSTALL_DIR/scripts/placeholder-utils.sh"
+			print_status "$GREEN" "✓ Placeholder utilities installed"
+		else
+			print_status "$RED" "✗ Error: Could not download placeholder-utils.sh"
+			print_status "$YELLOW" "  This is required for graceful degradation features"
+		fi
+	fi
+
+	# System status script - handle both local and remote installation
+	if [ -f "$script_dir/../scripts/system-status.sh" ]; then
+		cp "$script_dir/../scripts/system-status.sh" "$INSTALL_DIR/scripts/"
+		chmod +x "$INSTALL_DIR/scripts/system-status.sh"
+		print_status "$GREEN" "✓ System status script installed"
+	else
+		# Download from repository
+		print_status "$BLUE" "Downloading system-status.sh..."
+		if download_file "$BASE_URL/scripts/system-status.sh" "$INSTALL_DIR/scripts/system-status.sh"; then
+			chmod +x "$INSTALL_DIR/scripts/system-status.sh"
+			print_status "$GREEN" "✓ System status script installed"
+		else
+			print_status "$YELLOW" "⚠ Warning: Could not download system-status.sh"
+		fi
+	fi
+
+	# Test scripts - handle both local and remote installation
+	for test_script in test-pushover.sh test-monitoring.sh health-check.sh; do
+		if [ -f "$script_dir/../scripts/$test_script" ]; then
+			cp "$script_dir/../scripts/$test_script" "$INSTALL_DIR/scripts/"
+			chmod +x "$INSTALL_DIR/scripts/$test_script"
+			print_status "$GREEN" "✓ $test_script installed"
+		else
+			# Download from repository
+			print_status "$BLUE" "Downloading $test_script..."
+			if download_file "$BASE_URL/scripts/$test_script" "$INSTALL_DIR/scripts/$test_script"; then
+				chmod +x "$INSTALL_DIR/scripts/$test_script"
+				print_status "$GREEN" "✓ $test_script installed"
+			else
+				print_status "$YELLOW" "⚠ Warning: Could not download $test_script"
+			fi
+		fi
+	done
+
 	# Configuration update script - handle both local and remote installation
 	if [ -f "$script_dir/../scripts/update-config.sh" ]; then
 		cp "$script_dir/../scripts/update-config.sh" "$INSTALL_DIR/scripts/"
@@ -433,6 +484,24 @@ install_scripts() {
 			print_status "$YELLOW" "  https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/scripts/upgrade-to-advanced.sh"
 		fi
 	fi
+
+	# Test scripts - handle both local and remote installation
+	for script in test-connectivity.sh test-pushover.sh placeholder-utils.sh; do
+		if [ -f "$script_dir/../scripts/$script" ]; then
+			cp "$script_dir/../scripts/$script" "$INSTALL_DIR/scripts/"
+			chmod +x "$INSTALL_DIR/scripts/$script"
+			print_status "$GREEN" "✓ $script installed"
+		else
+			# Download from repository
+			print_status "$BLUE" "Downloading $script..."
+			if download_file "$BASE_URL/scripts/$script" "$INSTALL_DIR/scripts/$script"; then
+				chmod +x "$INSTALL_DIR/scripts/$script"
+				print_status "$GREEN" "✓ $script installed"
+			else
+				print_status "$YELLOW" "⚠ Warning: Could not download $script"
+			fi
+		fi
+	done
 }
 
 # Install configuration
@@ -612,17 +681,29 @@ main() {
 		fi
 	done
 	print_status "$YELLOW" "Next steps:"
-	if [ -n "$available_editor" ]; then
-		print_status "$YELLOW" "1. Edit configuration: $available_editor $INSTALL_DIR/config/config.sh"
-	else
-		print_status "$YELLOW" "1. Edit configuration: $INSTALL_DIR/config/config.sh"
-		print_status "$YELLOW" "   Note: No standard editor found. You may need to install nano or use vi"
-	fi
-	print_status "$YELLOW" "2. Validate configuration: $INSTALL_DIR/scripts/validate-config.sh"
-	print_status "$YELLOW" "3. Configure mwan3 according to documentation"
-	print_status "$YELLOW" "4. Test the system manually"
+	print_status "$YELLOW" "1. Edit basic configuration: $available_editor $INSTALL_DIR/config/config.sh"
+	print_status "$YELLOW" "   - Update network settings (MWAN_IFACE, MWAN_MEMBER)"
+	print_status "$YELLOW" "   - Configure Pushover notifications (optional)"
+	print_status "$YELLOW" "   - Adjust failover thresholds if needed"
+	print_status "$YELLOW" "2. Run health check: $INSTALL_DIR/scripts/health-check.sh"
+	print_status "$YELLOW" "3. Check system status: $INSTALL_DIR/scripts/system-status.sh"
+	print_status "$YELLOW" "4. Test connectivity: $INSTALL_DIR/scripts/test-connectivity.sh"
+	print_status "$YELLOW" "5. Validate configuration: $INSTALL_DIR/scripts/validate-config.sh"
+	print_status "$YELLOW" "6. Configure mwan3 according to documentation"
+	print_status "$YELLOW" "7. Test the system manually"
+	printf "\n"
+	print_status "$CYAN" "🎯 NEW ARCHITECTURE - Graceful Degradation:"
+	print_status "$CYAN" "• BASIC CONFIG: 14 essential settings for core monitoring"
+	print_status "$CYAN" "• GRACEFUL DEGRADATION: Features disable safely if not configured"
+	print_status "$CYAN" "• PLACEHOLDER DETECTION: Notifications skip if tokens are placeholders"
+	print_status "$CYAN" "• UPGRADE PATH: Run upgrade-to-advanced.sh for full features"
+	print_status "$CYAN" "• SMART VALIDATION: Distinguishes critical vs optional settings"
 	printf "\n"
 	print_status "$BLUE" "Available tools:"
+	print_status "$BLUE" "• Comprehensive health check: $INSTALL_DIR/scripts/health-check.sh"
+	print_status "$BLUE" "• Check system status: $INSTALL_DIR/scripts/system-status.sh"
+	print_status "$BLUE" "• Test Pushover notifications: $INSTALL_DIR/scripts/test-pushover.sh"
+	print_status "$BLUE" "• Test monitoring: $INSTALL_DIR/scripts/test-monitoring.sh"
 	print_status "$BLUE" "• Update config with new options: $INSTALL_DIR/scripts/update-config.sh"
 	print_status "$BLUE" "• Upgrade to advanced features: $INSTALL_DIR/scripts/upgrade-to-advanced.sh"
 	printf "\n"
@@ -631,7 +712,8 @@ main() {
 	print_status "$BLUE" "Uninstall script: $INSTALL_DIR/uninstall.sh"
 	print_status "$BLUE" "Scripts downloaded from: https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 	printf "\n"
-	print_status "$GREEN" "System will start monitoring automatically after configuration"
+	print_status "$GREEN" "🚀 System will start monitoring automatically after configuration"
+	print_status "$GREEN" "🔧 Monitoring works with minimal configuration - advanced features are optional"
 	printf "\n"
 	if [ "${DEBUG:-0}" != "1" ]; then
 		print_status "$BLUE" "💡 Troubleshooting:"

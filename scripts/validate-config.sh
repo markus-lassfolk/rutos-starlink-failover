@@ -47,7 +47,7 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	RED='\033[0;31m'
 	GREEN='\033[0;32m'
 	YELLOW='\033[1;33m'
-	BLUE='\033[0;34m'
+	BLUE='\033[1;35m' # Bright magenta instead of dark blue for better readability
 	CYAN='\033[0;36m'
 	NC='\033[0m' # No Color
 else
@@ -264,8 +264,11 @@ extract_template_variables() {
 		return 1
 	fi
 
-	# Extract variables (exclude comments and empty lines)
-	grep -E '^[A-Z_]+=.*' "$template_file" | cut -d'=' -f1 | sort
+	# Extract variables (exclude comments and empty lines, handle both export and non-export)
+	{
+		grep -E '^[A-Z_]+=.*' "$template_file" | cut -d'=' -f1
+		grep -E '^export [A-Z_]+=.*' "$template_file" | sed 's/^export //' | cut -d'=' -f1
+	} | sort -u
 }
 
 # Get current config variables
@@ -275,8 +278,11 @@ extract_config_variables() {
 		return 1
 	fi
 
-	# Extract variables from config file
-	grep -E '^[A-Z_]+=.*' "$config_file" | cut -d'=' -f1 | sort
+	# Extract variables from config file (handle both export and non-export format)
+	{
+		grep -E '^[A-Z_]+=.*' "$config_file" | cut -d'=' -f1
+		grep -E '^export [A-Z_]+=.*' "$config_file" | sed 's/^export //' | cut -d'=' -f1
+	} | sort -u
 }
 
 # Compare configuration completeness
@@ -287,22 +293,60 @@ check_config_completeness() {
 
 	template_file=""
 	config_dir="$(dirname "$CONFIG_FILE")"
+	basic_template=""
+	advanced_template=""
 
-	# Look for template in same directory as config file
+	# Find both template files
 	if [ -f "$config_dir/config.template.sh" ]; then
-		template_file="$config_dir/config.template.sh"
-	elif [ -f "$config_dir/config.advanced.template.sh" ]; then
-		template_file="$config_dir/config.advanced.template.sh"
-	# Look in parent directory
+		basic_template="$config_dir/config.template.sh"
 	elif [ -f "$config_dir/../config/config.template.sh" ]; then
-		template_file="$config_dir/../config/config.template.sh"
-	elif [ -f "$config_dir/../config/config.advanced.template.sh" ]; then
-		template_file="$config_dir/../config/config.advanced.template.sh"
-	# Look in installation directory structure
+		basic_template="$config_dir/../config/config.template.sh"
 	elif [ -f "/root/starlink-monitor/config/config.template.sh" ]; then
-		template_file="/root/starlink-monitor/config/config.template.sh"
+		basic_template="/root/starlink-monitor/config/config.template.sh"
+	fi
+
+	if [ -f "$config_dir/config.advanced.template.sh" ]; then
+		advanced_template="$config_dir/config.advanced.template.sh"
+	elif [ -f "$config_dir/../config/config.advanced.template.sh" ]; then
+		advanced_template="$config_dir/../config/config.advanced.template.sh"
 	elif [ -f "/root/starlink-monitor/config/config.advanced.template.sh" ]; then
-		template_file="/root/starlink-monitor/config/config.advanced.template.sh"
+		advanced_template="/root/starlink-monitor/config/config.advanced.template.sh"
+	fi
+
+	# Determine which template to use by checking the configuration
+	printf "%b\n" "${BLUE}Determining configuration template type...${NC}"
+
+	# Count variables in config
+	config_var_count=$(grep -c "^export [A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || echo 0)
+	config_var_count_alt=$(grep -c "^[A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || echo 0)
+	if [ "$config_var_count_alt" -gt "$config_var_count" ]; then
+		config_var_count="$config_var_count_alt"
+	fi
+
+	# Check for advanced template indicators
+	has_advanced_vars=0
+	if grep -q "^export ENABLE_AZURE_LOGGING=" "$CONFIG_FILE" 2>/dev/null ||
+		grep -q "^export AZURE_WORKSPACE_ID=" "$CONFIG_FILE" 2>/dev/null ||
+		grep -q "^export GPS_DEVICE=" "$CONFIG_FILE" 2>/dev/null ||
+		grep -q "^export ADVANCED_MONITORING=" "$CONFIG_FILE" 2>/dev/null ||
+		grep -q "^ENABLE_AZURE_LOGGING=" "$CONFIG_FILE" 2>/dev/null ||
+		grep -q "^AZURE_WORKSPACE_ID=" "$CONFIG_FILE" 2>/dev/null ||
+		grep -q "^GPS_DEVICE=" "$CONFIG_FILE" 2>/dev/null ||
+		grep -q "^ADVANCED_MONITORING=" "$CONFIG_FILE" 2>/dev/null ||
+		[ "$config_var_count" -gt 25 ]; then
+		has_advanced_vars=1
+	fi
+
+	# Select appropriate template
+	if [ "$has_advanced_vars" -eq 1 ] && [ -n "$advanced_template" ]; then
+		template_file="$advanced_template"
+		printf "%b\n" "${GREEN}Detected advanced configuration (${config_var_count} variables)${NC}"
+	elif [ -n "$basic_template" ]; then
+		template_file="$basic_template"
+		printf "%b\n" "${GREEN}Detected basic configuration (${config_var_count} variables)${NC}"
+	elif [ -n "$advanced_template" ]; then
+		template_file="$advanced_template"
+		printf "%b\n" "${YELLOW}Using advanced template as fallback${NC}"
 	else
 		printf "%b\n" "${YELLOW}Warning: Could not find template file for comparison${NC}"
 		printf "%b\n" "${YELLOW}Searched in: $config_dir/, $config_dir/../config/, /root/starlink-monitor/config/${NC}"
@@ -354,19 +398,40 @@ check_config_completeness() {
 	done <"$temp_template"
 
 	# Check for extra variables (in config but not in template)
+	extra_vars_critical=""
+	extra_vars_info=""
+	total_extra_critical=0
+	total_extra_info=0
+
 	while IFS= read -r var; do
 		if ! grep -q "^$var$" "$temp_template"; then
-			extra_vars="$extra_vars $var"
-			total_extra=$((total_extra + 1))
+			# If we're using basic template but have both templates, check if variable exists in advanced template
+			if [ -n "$basic_template" ] && [ -n "$advanced_template" ] && [ "$template_file" = "$basic_template" ]; then
+				# Check if this variable exists in the advanced template
+				if [ -f "$advanced_template" ] && grep -q "^$var=" "$advanced_template"; then
+					extra_vars_info="$extra_vars_info $var"
+					total_extra_info=$((total_extra_info + 1))
+				else
+					extra_vars_critical="$extra_vars_critical $var"
+					total_extra_critical=$((total_extra_critical + 1))
+				fi
+			else
+				extra_vars_info="$extra_vars_info $var"
+				total_extra_info=$((total_extra_info + 1))
+			fi
 		fi
 	done <"$temp_config"
 
 	# Cleanup temp files
 	rm -f "$temp_template" "$temp_config"
 
-	# Report results
-	if [ "$total_missing" -eq 0 ] && [ "$total_extra" -eq 0 ]; then
-		print_status "$GREEN" "✓ Configuration structure matches template"
+	# Report results - only treat as error if there are missing variables or critical extra variables
+	if [ "$total_missing" -eq 0 ] && [ "$total_extra_critical" -eq 0 ]; then
+		if [ "$total_extra_info" -gt 0 ]; then
+			print_status "$GREEN" "✓ Configuration structure matches template (${total_extra_info} additional variables)"
+		else
+			print_status "$GREEN" "✓ Configuration structure matches template"
+		fi
 		return 0
 	fi
 
@@ -378,15 +443,28 @@ check_config_completeness() {
 		print_status "$YELLOW" "Suggestion: Run update-config.sh to add missing variables"
 	fi
 
-	if [ "$total_extra" -gt 0 ]; then
-		print_status "$YELLOW" "⚠ Extra configuration variables (${total_extra} found):"
-		for var in $extra_vars; do
+	if [ "$total_extra_critical" -gt 0 ]; then
+		print_status "$YELLOW" "⚠ Unknown configuration variables (${total_extra_critical} found):"
+		for var in $extra_vars_critical; do
 			print_status "$YELLOW" "  - $var"
 		done
 		print_status "$YELLOW" "Note: These may be custom variables or from an older version"
 	fi
 
-	return 1
+	if [ "$total_extra_info" -gt 0 ]; then
+		print_status "$CYAN" "ℹ Additional configuration variables (${total_extra_info} found):"
+		for var in $extra_vars_info; do
+			print_status "$CYAN" "  - $var"
+		done
+		print_status "$CYAN" "Note: These appear to be advanced configuration options"
+	fi
+
+	# Only return error if there are missing variables or critical extra variables
+	if [ "$total_missing" -gt 0 ] || [ "$total_extra_critical" -gt 0 ]; then
+		return 1
+	fi
+
+	return 0
 }
 
 # Check for placeholder values and provide recommendations
@@ -394,47 +472,63 @@ check_placeholder_values() {
 	print_status "$GREEN" "Checking for placeholder values..."
 
 	placeholders_found=0
+	placeholders_info=0
 
-	# Common placeholder patterns
+	# Source placeholder utility functions
+	script_dir="$(dirname "$0")"
+	if [ -f "$script_dir/placeholder-utils.sh" ]; then
+		. "$script_dir/placeholder-utils.sh"
+	fi
 
-	placeholder_patterns="
-        YOUR_PUSHOVER_API_TOKEN
-        YOUR_PUSHOVER_USER_KEY
-        CHANGE_ME
-        REPLACE_ME
-        TODO
-        FIXME
-        EXAMPLE
-        PLACEHOLDER
-    "
+	# Check Pushover configuration
+	if ! is_pushover_configured; then
+		if [ -n "$PUSHOVER_TOKEN" ] && [ -n "$PUSHOVER_USER" ]; then
+			print_status "$CYAN" "ℹ Pushover notifications disabled (placeholder tokens detected)"
+			print_status "$CYAN" "  System will work without notifications"
+			placeholders_info=$((placeholders_info + 1))
+		else
+			print_status "$CYAN" "ℹ Pushover notifications disabled (tokens not set)"
+			print_status "$CYAN" "  System will work without notifications"
+			placeholders_info=$((placeholders_info + 1))
+		fi
+	else
+		print_status "$GREEN" "✓ Pushover notifications properly configured"
+	fi
 
-	# Check for placeholder values in config
-
-	for pattern in $placeholder_patterns; do
-		if grep -q "$pattern" "$CONFIG_FILE" 2>/dev/null; then
-			var_name=$(grep "$pattern" "$CONFIG_FILE" | cut -d'=' -f1)
-			print_status "$YELLOW" "⚠ Placeholder value found: $var_name"
+	# Check for other placeholder patterns that are critical
+	critical_placeholders="STARLINK_IP MWAN_IFACE MWAN_MEMBER"
+	for var in $critical_placeholders; do
+		value=$(grep "^export $var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+		if [ -n "$value" ] && is_placeholder "$value"; then
+			print_status "$RED" "✗ Critical placeholder found: $var=$value"
+			print_status "$RED" "  This must be configured for the system to work"
 			placeholders_found=$((placeholders_found + 1))
 		fi
 	done
 
 	# Check for empty critical variables
-
-	critical_vars="PUSHOVER_TOKEN PUSHOVER_USER STARLINK_IP MWAN_IFACE MWAN_MEMBER"
-	for var in $critical_vars; do
-		value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+	for var in $critical_placeholders; do
+		value=$(grep "^export $var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
 		if [ -z "$value" ] || [ "$value" = '""' ] || [ "$value" = "''" ]; then
 			print_status "$RED" "✗ Critical variable is empty: $var"
+			print_status "$RED" "  This must be configured for the system to work"
 			placeholders_found=$((placeholders_found + 1))
 		fi
 	done
 
-	if [ "$placeholders_found" -eq 0 ]; then
-		print_status "$GREEN" "✓ No placeholder values found"
+	# Summary
+	if [ "$placeholders_found" -eq 0 ] && [ "$placeholders_info" -eq 0 ]; then
+		print_status "$GREEN" "✓ All configuration values are properly set"
+	elif [ "$placeholders_found" -eq 0 ]; then
+		print_status "$GREEN" "✓ All critical configuration values are set"
+		print_status "$CYAN" "ℹ $placeholders_info optional feature(s) disabled (will work without them)"
 	else
-		print_status "$YELLOW" "Found $placeholders_found placeholder/empty values"
-		print_status "$YELLOW" "Please update these values before deploying"
+		print_status "$RED" "✗ Found $placeholders_found critical placeholder(s) that must be configured"
+		if [ "$placeholders_info" -gt 0 ]; then
+			print_status "$CYAN" "ℹ $placeholders_info optional feature(s) disabled (will work without them)"
+		fi
 	fi
+
 	return "$placeholders_found"
 }
 
@@ -508,9 +602,9 @@ migrate_config_to_template() {
 	backup_suffix="backup.$(date +%Y%m%d_%H%M%S)"
 	config_backup="${CONFIG_FILE}.${backup_suffix}"
 
-	printf "%b\n" "${YELLOW}🔄 Migrating configuration to updated template...${NC}"
-	printf "%b\n" "${BLUE}Template: $template_file${NC}"
-	printf "%b\n" "${BLUE}Config: $CONFIG_FILE${NC}"
+	printf "%s🔄 Migrating configuration to updated template...%s\n" "$YELLOW" "$NC"
+	printf "%sTemplate: %s%s\n" "$BLUE" "$template_file" "$NC"
+	printf "%sConfig: %s%s\n" "$BLUE" "$CONFIG_FILE" "$NC"
 
 	# Create backup of current config
 	if ! cp "$CONFIG_FILE" "$config_backup"; then
@@ -662,22 +756,40 @@ show_overall_status() {
 		print_status "$GREEN" "✓ All values are valid"
 		return 0
 	else
-		print_status "$RED" "=== CONFIGURATION STATUS: NEEDS ATTENTION ==="
+		# Check if we only have minor issues (structure OK but placeholders/validation errors)
+		if [ "$structure_ok" -eq 0 ] && [ "$placeholders_found" -eq 0 ] && [ "$validation_errors" -eq 0 ]; then
+			print_status "$GREEN" "=== CONFIGURATION STATUS: READY FOR DEPLOYMENT ==="
+			return 0
+		elif [ "$structure_ok" -eq 0 ] && [ "$placeholders_found" -eq 0 ] && [ "$validation_errors" -gt 0 ]; then
+			print_status "$YELLOW" "=== CONFIGURATION STATUS: MINOR ISSUES DETECTED ==="
+			print_status "$YELLOW" "✓ Configuration structure is valid"
+			print_status "$YELLOW" "✓ No placeholder values detected"
+			print_status "$YELLOW" "⚠ Configuration contains $validation_errors validation errors"
+			return 1
+		else
+			print_status "$RED" "=== CONFIGURATION STATUS: NEEDS ATTENTION ==="
 
-		if [ "$structure_ok" -ne 0 ]; then
-			print_status "$RED" "✗ Configuration structure has issues"
+			if [ "$structure_ok" -ne 0 ]; then
+				print_status "$RED" "✗ Configuration structure has issues"
+			else
+				print_status "$GREEN" "✓ Configuration structure is valid"
+			fi
+
+			if [ "$placeholders_found" -gt 0 ]; then
+				print_status "$RED" "✗ Configuration contains $placeholders_found placeholder/empty values"
+				print_status "$RED" "  This means the config file hasn't been properly customized!"
+			else
+				print_status "$GREEN" "✓ No placeholder values detected"
+			fi
+
+			if [ "$validation_errors" -gt 0 ]; then
+				print_status "$RED" "✗ Configuration contains $validation_errors validation errors"
+			else
+				print_status "$GREEN" "✓ All values are valid"
+			fi
+
+			return 1
 		fi
-
-		if [ "$placeholders_found" -gt 0 ]; then
-			print_status "$RED" "✗ Configuration contains $placeholders_found placeholder/empty values"
-			print_status "$RED" "  This means the config file hasn't been properly customized!"
-		fi
-
-		if [ "$validation_errors" -gt 0 ]; then
-			print_status "$RED" "✗ Configuration contains $validation_errors validation errors"
-		fi
-
-		return 1
 	fi
 }
 
@@ -790,6 +902,16 @@ main() {
 	print_status "$GREEN" "• Update config: $(dirname "$CONFIG_FILE")/../scripts/update-config.sh"
 	print_status "$GREEN" "• Upgrade features: $(dirname "$CONFIG_FILE")/../scripts/upgrade-to-advanced.sh"
 	print_status "$GREEN" "• Migrate outdated template: $SCRIPT_NAME --migrate"
+	echo ""
+	print_status "$BLUE" "📝 Configuration File Editing:"
+	print_status "$BLUE" "• Edit main config: vi $CONFIG_FILE"
+	if [ -f "/usr/bin/nano" ]; then
+		print_status "$BLUE" "• Or use nano: nano $CONFIG_FILE"
+	fi
+	echo ""
+	print_status "$CYAN" "💡 Pro tip: Test your configuration changes with:"
+	print_status "$CYAN" "• Run connectivity tests: $INSTALL_DIR/scripts/test-connectivity.sh"
+	print_status "$CYAN" "• Re-run this validator: $SCRIPT_NAME"
 }
 
 # Run main function

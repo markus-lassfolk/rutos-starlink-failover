@@ -5,24 +5,21 @@
 set -eu
 
 # Check if terminal supports colors
-if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
-	# shellcheck disable=SC2034
+# shellcheck disable=SC2034  # Color variables may not all be used in every script
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	RED='\033[0;31m'
-	# shellcheck disable=SC2034
 	GREEN='\033[0;32m'
-	# shellcheck disable=SC2034
 	YELLOW='\033[1;33m'
-	# shellcheck disable=SC2034
+	BLUE='\033[1;35m'
+	CYAN='\033[0;36m'
 	NC='\033[0m'
 else
 	# Fallback to no colors if terminal doesn't support them
-	# shellcheck disable=SC2034
 	RED=""
-	# shellcheck disable=SC2034
 	GREEN=""
-	# shellcheck disable=SC2034
 	YELLOW=""
-	# shellcheck disable=SC2034
+	BLUE=""
+	CYAN=""
 	NC=""
 fi
 

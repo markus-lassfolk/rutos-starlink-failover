@@ -24,6 +24,10 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	# shellcheck disable=SC2034
 	YELLOW='\033[1;33m'
 	# shellcheck disable=SC2034
+	BLUE='\033[1;35m'
+	# shellcheck disable=SC2034
+	CYAN='\033[0;36m'
+	# shellcheck disable=SC2034
 	NC='\033[0m'
 else
 	# Fallback to no colors if terminal doesn't support them
@@ -33,6 +37,10 @@ else
 	GREEN=""
 	# shellcheck disable=SC2034
 	YELLOW=""
+	# shellcheck disable=SC2034
+	BLUE=""
+	# shellcheck disable=SC2034
+	CYAN=""
 	# shellcheck disable=SC2034
 	NC=""
 fi

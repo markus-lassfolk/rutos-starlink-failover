@@ -22,6 +22,12 @@ This is a shell-based failover solution for Starlink connectivity on RUTX50 rout
 7. **NO source command** - Use . (dot) for sourcing
 8. **NO $'\n'** - Use actual newlines or printf
 
+### CRITICAL ShellCheck Compliance Rules
+1. **SC2034 - Unused variables**: Only define colors you actually use, or use `# shellcheck disable=SC2034` for intentionally unused variables
+2. **SC2181 - Exit code checking**: Use direct command testing instead of `$?`
+3. **SC3045 - export -f**: Never use `export -f` - not supported in POSIX sh
+4. **SC1090/SC1091 - Source files**: Add `# shellcheck source=/dev/null` or `# shellcheck disable=SC1091` for dynamic sources
+
 ### Function Best Practices
 ```bash
 # Correct function definition
@@ -82,14 +88,37 @@ CONFIG_VALUE="${CONFIG_VALUE:-default_value}"
 
 ### Standard Color Scheme
 ```bash
-# Color definitions (busybox compatible)
+# Color definitions (busybox compatible) - ALWAYS include ALL colors
 RED='\033[0;31m'      # Errors, critical issues
 GREEN='\033[0;32m'    # Success, info, completed actions
 YELLOW='\033[1;33m'   # Warnings, important notices
-BLUE='\033[0;34m'     # Steps, progress indicators
+BLUE='\033[1;35m'     # Steps, progress indicators (bright magenta for better readability)
 PURPLE='\033[0;35m'   # Special status, headers
 CYAN='\033[0;36m'     # Debug messages, technical info
 NC='\033[0m'          # No Color (reset)
+
+# CRITICAL: Use RUTOS-compatible color detection
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # Colors enabled
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+else
+    # Colors disabled
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    CYAN=""
+    NC=""
+fi
+
+# CRITICAL: Use proper printf format strings to avoid SC2059 errors
+# WRONG: printf "${RED}Error: %s${NC}\n" "$message"
+# RIGHT: printf "%sError: %s%s\n" "$RED" "$message" "$NC"
 
 # Standard logging functions
 log_info()    # Green [INFO] for general information
@@ -98,6 +127,32 @@ log_error()   # Red [ERROR] for errors (to stderr)
 log_debug()   # Cyan [DEBUG] for debug info (if DEBUG=1)
 log_success() # Green [SUCCESS] for successful completion
 log_step()    # Blue [STEP] for progress steps
+```
+
+### CRITICAL Printf Format Rules
+1. **NEVER use variables in printf format strings** - Causes SC2059 errors
+2. **Use %s placeholders** for all variable content
+3. **Colors go as separate arguments** not in format string
+
+```bash
+# WRONG - Variables in format string
+printf "${RED}Error: %s${NC}\n" "$message"
+
+# RIGHT - Variables as arguments  
+printf "%sError: %s%s\n" "$RED" "$message" "$NC"
+
+# WRONG - Complex format with variables
+printf "${GREEN}✅ HEALTHY${NC}   | %-25s | %s\n" "$component" "$details"
+
+# RIGHT - Colors as separate arguments
+printf "%s✅ HEALTHY%s   | %-25s | %s\n" "$GREEN" "$NC" "$component" "$details"
+```
+
+### CRITICAL Color Detection Rules
+1. **NEVER use `command -v tput` pattern** - Not RUTOS compatible
+2. **ALWAYS use simplified pattern** shown above
+3. **ALWAYS define ALL colors** (RED, GREEN, YELLOW, BLUE, CYAN, NC)
+4. **NEVER use `tput colors`** - Not available in busybox
 ```
 
 ### Color Usage Examples
@@ -139,7 +194,7 @@ SCRIPT_VERSION="1.0.2"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+BLUE='\033[1;35m'
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color

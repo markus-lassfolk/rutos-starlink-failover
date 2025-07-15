@@ -16,18 +16,21 @@ VALIDATOR_SCRIPT="$(pwd)/scripts/validate-config.sh"
 
 # Colors for output
 # Check if terminal supports colors
-if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
-	# shellcheck disable=SC2034  # Color variables are used throughout the script
+# shellcheck disable=SC2034  # Color variables may not all be used in every script
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	RED='\033[0;31m'
 	GREEN='\033[0;32m'
 	YELLOW='\033[1;33m'
+	BLUE='\033[1;35m'
+	CYAN='\033[0;36m'
 	NC='\033[0m' # No Color
 else
 	# Fallback to no colors if terminal doesn't support them
-	# shellcheck disable=SC2034  # Color variables are used throughout the script
 	RED=""
 	GREEN=""
 	YELLOW=""
+	BLUE=""
+	CYAN=""
 	NC=""
 fi
 
