@@ -502,6 +502,23 @@ install_scripts() {
 			fi
 		fi
 	done
+
+	# Configuration merge script - handle both local and remote installation
+	if [ -f "$script_dir/../scripts/merge-config.sh" ]; then
+		cp "$script_dir/../scripts/merge-config.sh" "$INSTALL_DIR/scripts/"
+		chmod +x "$INSTALL_DIR/scripts/merge-config.sh"
+		print_status "$GREEN" "✓ Configuration merge script installed"
+	else
+		# Download from repository
+		print_status "$BLUE" "Downloading merge-config.sh..."
+		if download_file "$BASE_URL/scripts/merge-config.sh" "$INSTALL_DIR/scripts/merge-config.sh"; then
+			chmod +x "$INSTALL_DIR/scripts/merge-config.sh"
+			print_status "$GREEN" "✓ Configuration merge script installed"
+		else
+			print_status "$YELLOW" "⚠ Warning: Could not download merge-config.sh"
+			print_status "$YELLOW" "  Configuration merge will use fallback method"
+		fi
+	fi
 }
 
 # Install configuration
@@ -524,11 +541,36 @@ install_config() {
 		fi
 	fi
 
-	# Create config.sh from template if it doesn't exist
-	if [ ! -f "$INSTALL_DIR/config/config.sh" ]; then
+	# Intelligent configuration management - always use new template as base
+	if [ -f "$INSTALL_DIR/config/config.sh" ]; then
+		print_status "$BLUE" "Existing configuration detected - performing intelligent merge"
+
+		# Use the new merge-config.sh script if available
+		if [ -f "$INSTALL_DIR/scripts/merge-config.sh" ]; then
+			if "$INSTALL_DIR/scripts/merge-config.sh" \
+				"$INSTALL_DIR/config/config.template.sh" \
+				"$INSTALL_DIR/config/config.sh" \
+				"$INSTALL_DIR/config/config.sh"; then
+				print_status "$GREEN" "✓ Configuration merged successfully"
+				print_status "$YELLOW" "📋 Your existing settings have been preserved"
+				print_status "$YELLOW" "📋 New template features are now available"
+				print_status "$YELLOW" "📋 Extra settings preserved in separate section"
+			else
+				print_status "$YELLOW" "⚠ Merge failed, keeping existing configuration"
+			fi
+		else
+			# Fallback to simple backup and replace
+			backup_file="$INSTALL_DIR/config/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
+			cp "$INSTALL_DIR/config/config.sh" "$backup_file"
+			cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
+			print_status "$YELLOW" "⚠ Configuration replaced with template (backup: $backup_file)"
+			print_status "$YELLOW" "📋 Please restore your settings from the backup"
+		fi
+	else
+		# First time installation
 		cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
-		print_status "$YELLOW" "Configuration file created from template"
-		print_status "$YELLOW" "Please edit $INSTALL_DIR/config/config.sh before using"
+		print_status "$GREEN" "✓ Configuration file created from template"
+		print_status "$YELLOW" "📋 Please edit $INSTALL_DIR/config/config.sh before using"
 	fi
 
 	# Create convenience symlink

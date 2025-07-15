@@ -2,7 +2,8 @@
 
 ## Overview
 
-The `upgrade-to-advanced.sh` script allows you to seamlessly upgrade from basic Starlink configuration to advanced configuration while preserving all your existing settings.
+The `upgrade-to-advanced.sh` script allows you to seamlessly upgrade from basic Starlink configuration to advanced
+configuration while preserving all your existing settings.
 
 ## Features
 
@@ -16,6 +17,7 @@ The `upgrade-to-advanced.sh` script allows you to seamlessly upgrade from basic 
 ## Usage
 
 ### Basic Usage
+
 ```bash
 # Run the upgrade script
 /root/starlink-monitor/scripts/upgrade-to-advanced.sh
@@ -101,6 +103,7 @@ cp /root/starlink-monitor/config/config.sh.backup.YYYYMMDD_HHMMSS /root/starlink
 ## Troubleshooting
 
 ### Script not found
+
 ```bash
 # If script is missing, download it manually
 wget -O /root/starlink-monitor/scripts/upgrade-to-advanced.sh \
@@ -109,10 +112,13 @@ chmod +x /root/starlink-monitor/scripts/upgrade-to-advanced.sh
 ```
 
 ### Advanced template not found
+
 The script automatically downloads the advanced template if it's missing. If this fails, check your internet connection.
 
 ### Permission denied
+
 Make sure the script is executable:
+
 ```bash
 chmod +x /root/starlink-monitor/scripts/upgrade-to-advanced.sh
 ```

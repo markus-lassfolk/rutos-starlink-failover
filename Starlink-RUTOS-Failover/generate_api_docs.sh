@@ -22,6 +22,7 @@ set -eu
 
 # Standard colors for consistent output (compatible with busybox)
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
+# shellcheck disable=SC2034
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

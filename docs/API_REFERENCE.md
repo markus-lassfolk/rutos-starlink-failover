@@ -4,7 +4,8 @@
 
 This document provides comprehensive information about the Starlink gRPC API used by the monitoring system.
 
-> **⚠️ Important**: This is an **unofficial** API that may change without notice. SpaceX does not provide official documentation or support for this API.
+> **⚠️ Important**: This is an **unofficial** API that may change without notice. SpaceX does not provide official
+> documentation or support for this API.
 
 ## API Endpoint
 
@@ -24,11 +25,13 @@ The API does not require authentication when accessed from the local network.
 Returns real-time status information about the Starlink dish.
 
 **Request**:
+
 ```bash
 grpcurl -plaintext -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle
 ```
 
 **Response Structure**:
+
 ```json
 {
   "dishGetStatus": {
@@ -73,6 +76,7 @@ grpcurl -plaintext -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.D
 ```
 
 **Key Fields for Monitoring**:
+
 - `obstructionStats.fractionObstructed`: Percentage of sky view obstructed (0.0-1.0)
 - `popPingLatencyMs`: Latency to Point of Presence in milliseconds
 - `popPingDropRate`: Packet drop rate (0.0-1.0)
@@ -85,11 +89,13 @@ grpcurl -plaintext -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.D
 Returns historical performance data arrays.
 
 **Request**:
+
 ```bash
 grpcurl -plaintext -d '{"get_history":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle
 ```
 
 **Response Structure**:
+
 ```json
 {
   "dishGetHistory": {
@@ -106,6 +112,7 @@ grpcurl -plaintext -d '{"get_history":{}}' 192.168.100.1:9200 SpaceX.API.Device.
 ```
 
 **Key Fields for Monitoring**:
+
 - `current`: Current index in the data arrays
 - `popPingDropRate`: Array of packet drop rates
 - `popPingLatencyMs`: Array of latency measurements
@@ -116,11 +123,13 @@ grpcurl -plaintext -d '{"get_history":{}}' 192.168.100.1:9200 SpaceX.API.Device.
 Returns static device information.
 
 **Request**:
+
 ```bash
 grpcurl -plaintext -d '{"get_device_info":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle
 ```
 
 **Response Structure**:
+
 ```json
 {
   "deviceInfo": {
@@ -142,11 +151,13 @@ grpcurl -plaintext -d '{"get_device_info":{}}' 192.168.100.1:9200 SpaceX.API.Dev
 Returns GPS location information.
 
 **Request**:
+
 ```bash
 grpcurl -plaintext -d '{"get_location":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle
 ```
 
 **Response Structure**:
+
 ```json
 {
   "getLocation": {
@@ -170,11 +181,13 @@ grpcurl -plaintext -d '{"get_location":{}}' 192.168.100.1:9200 SpaceX.API.Device
 Returns diagnostic information.
 
 **Request**:
+
 ```bash
 grpcurl -plaintext -d '{"get_diagnostics":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle
 ```
 
 **Response Structure**:
+
 ```json
 {
   "dishGetDiagnostics": {
@@ -202,33 +215,38 @@ grpcurl -plaintext -d '{"get_diagnostics":{}}' 192.168.100.1:9200 SpaceX.API.Dev
 ## Data Types and Ranges
 
 ### Obstruction
+
 - **Type**: Float (0.0 - 1.0)
 - **Unit**: Fraction of sky view obstructed
 - **Typical Values**: 0.0 (clear) to 0.1 (10% obstructed)
 - **Monitoring Threshold**: > 0.001 (0.1%)
 
 ### Latency
+
 - **Type**: Float
 - **Unit**: Milliseconds
 - **Typical Values**: 20-80ms (depends on location)
 - **Monitoring Threshold**: > 150ms
 
 ### Packet Loss
+
 - **Type**: Float (0.0 - 1.0)
 - **Unit**: Fraction of packets lost
 - **Typical Values**: 0.0 (no loss) to 0.1 (10% loss)
 - **Monitoring Threshold**: > 0.05 (5%)
 
 ### Signal-to-Noise Ratio (SNR)
+
 - **Type**: Float
 - **Unit**: dB
 - **Typical Values**: 8-15 dB
 - **Good Signal**: > 10 dB
 
 ### Throughput
+
 - **Type**: Float
 - **Unit**: Bits per second
-- **Typical Values**: 
+- **Typical Values**:
   - Download: 50-200 Mbps
   - Upload: 10-40 Mbps
 
@@ -237,28 +255,37 @@ grpcurl -plaintext -d '{"get_diagnostics":{}}' 192.168.100.1:9200 SpaceX.API.Dev
 ### Common Errors
 
 #### Connection Refused
+
 ```bash
 grpcurl: error: failed to dial target host "192.168.100.1:9200": context deadline exceeded
 ```
+
 **Causes**:
+
 - Starlink dish not in Bypass Mode
 - Network routing issues
 - Dish powered off
 
 #### Invalid Method
+
 ```bash
 grpcurl: error: rpc error: code = Unimplemented desc = unknown service SpaceX.API.Device.Device
 ```
+
 **Causes**:
+
 - API version changed
 - Incorrect service name
 - Firmware update broke compatibility
 
 #### Timeout
+
 ```bash
 grpcurl: error: context deadline exceeded
 ```
+
 **Causes**:
+
 - Network congestion
 - Dish overloaded
 - API temporarily unavailable
@@ -284,26 +311,29 @@ grpcurl -plaintext -d '{"get_device_info":{}}' 192.168.100.1:9200 SpaceX.API.Dev
 
 ### Version Compatibility
 
-| Software Version | API Changes | Compatibility |
-|------------------|-------------|---------------|
-| 1.0.x | Initial release | Full |
-| 2.0.x | Added location API | Full |
-| 3.0.x | Enhanced diagnostics | Full |
-| 4.0.x | GPS improvements | Full |
+| Software Version | API Changes          | Compatibility |
+| ---------------- | -------------------- | ------------- |
+| 1.0.x            | Initial release      | Full          |
+| 2.0.x            | Added location API   | Full          |
+| 3.0.x            | Enhanced diagnostics | Full          |
+| 4.0.x            | GPS improvements     | Full          |
 
 ## Best Practices
 
 ### Rate Limiting
+
 - **Recommended**: 1 request per minute for monitoring
 - **Maximum**: 10 requests per minute
 - **Burst**: Up to 3 requests in quick succession
 
 ### Connection Management
+
 - Use connection pooling when possible
 - Implement exponential backoff for retries
 - Set appropriate timeouts (10-30 seconds)
 
 ### Data Processing
+
 - Always validate JSON responses
 - Handle missing fields gracefully
 - Use appropriate data types for comparisons
@@ -319,21 +349,21 @@ call_starlink_api() {
     local retry_count=0
     local max_retries=3
     local delay=2
-    
+
     while [ $retry_count -lt $max_retries ]; do
         local response
         if response=$(timeout 10 grpcurl -plaintext -max-time 10 -d "{\"$method\":{}}" "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null); then
             echo "$response"
             return 0
         fi
-        
+
         retry_count=$((retry_count + 1))
         if [ $retry_count -lt $max_retries ]; then
             sleep $delay
             delay=$((delay * 2))
         fi
     done
-    
+
     return 1
 }
 
@@ -350,18 +380,21 @@ fi
 ## Monitoring Recommendations
 
 ### Critical Metrics
+
 1. **Obstruction**: Monitor for physical blockages
 2. **Latency**: Track connection quality
 3. **Packet Loss**: Detect network issues
 4. **SNR**: Monitor signal quality
 
 ### Thresholds
+
 - **Obstruction**: > 0.1% (0.001)
 - **Latency**: > 150ms
 - **Packet Loss**: > 5% (0.05)
 - **SNR**: < 8 dB (poor signal)
 
 ### Alerting
+
 - **Immediate**: Hard failures (API unavailable)
 - **Delayed**: Soft failures (quality degradation)
 - **Informational**: Recovery events
@@ -369,16 +402,19 @@ fi
 ## Security Considerations
 
 ### Network Security
+
 - API is only accessible from local network
 - No authentication required
 - Consider firewall rules for additional protection
 
 ### Data Privacy
+
 - API responses may contain location data
 - Device IDs are unique identifiers
 - Don't log sensitive information
 
 ### API Abuse
+
 - Respect rate limits
 - Don't overload the dish
 - Monitor for API changes
@@ -386,16 +422,19 @@ fi
 ## Future Considerations
 
 ### API Evolution
+
 - SpaceX may change API without notice
 - New methods may be added
 - Existing methods may be deprecated
 
 ### Monitoring Strategy
+
 - Implement version checking
 - Plan for API changes
 - Have fallback mechanisms
 
 ### Community
+
 - Share findings with community
 - Contribute to API documentation
 - Report issues and changes

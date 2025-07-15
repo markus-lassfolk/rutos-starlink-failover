@@ -7,6 +7,7 @@ set -e
 
 # Colors for output
 # Check if terminal supports colors
+# shellcheck disable=SC2034
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	RED='\033[0;31m'
 	GREEN='\033[0;32m'

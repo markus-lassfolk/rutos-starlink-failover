@@ -2,11 +2,14 @@
 
 ## Overview
 
-This document describes the comprehensive pre-commit validation system designed to catch busybox compatibility issues before they reach the RUTX50 router. The system was created after repeatedly encountering issues that only surfaced during actual deployment.
+This document describes the comprehensive pre-commit validation system designed to catch busybox compatibility issues
+before they reach the RUTX50 router. The system was created after repeatedly encountering issues that only surfaced
+during actual deployment.
 
 ## Purpose
 
 The validation system addresses the problem of:
+
 - **Late Discovery**: Issues only found during RUTX50 testing
 - **Frequent Rework**: Commits that work in development but fail on busybox
 - **Manual Checking**: Relying on human memory for compatibility rules
@@ -15,18 +18,21 @@ The validation system addresses the problem of:
 ## Components
 
 ### 1. Pre-commit Validation Script (`scripts/pre-commit-validation.sh`)
+
 - **Comprehensive checks** for busybox compatibility
 - **Self-validation** to catch recursive issues
 - **Colored output** for easy issue identification
 - **Detailed reporting** with line numbers and suggestions
 
 ### 2. Git Pre-commit Hook (`.git/hooks/pre-commit`)
+
 - **Automatic execution** on every commit
 - **Staged files only** - validates what's actually being committed
 - **Blocking behavior** - prevents commits with critical issues
 - **Bypass option** - `git commit --no-verify` for emergencies
 
 ### 3. Development Environment Setup (`scripts/setup-dev-environment.sh`)
+
 - **One-command setup** for new developers
 - **Dependency checking** (ShellCheck, git, etc.)
 - **Hook installation** and testing
@@ -35,6 +41,7 @@ The validation system addresses the problem of:
 ## Validation Categories
 
 ### Critical Issues (🚨 CRITICAL)
+
 These issues will cause scripts to fail completely on busybox:
 
 1. **Process Substitution**: `< <(command)` → Use pipes instead
@@ -49,6 +56,7 @@ These issues will cause scripts to fail completely on busybox:
 10. **Stat Flags**: `stat -c/-f` → Use wc, ls, or other alternatives
 
 ### Major Issues (⚠️ MAJOR)
+
 These issues will likely cause problems or unexpected behavior:
 
 1. **Bash Shebang**: `#!/bin/bash` → Use `#!/bin/sh`
@@ -60,6 +68,7 @@ These issues will likely cause problems or unexpected behavior:
 7. **BC without Fallback**: `bc` → Include fallback with `2>/dev/null`
 
 ### Minor Issues (📝 MINOR)
+
 These issues are best practices or potential portability concerns:
 
 1. **== Comparison**: `[ "$a" == "$b" ]` → Use `[ "$a" = "$b" ]`
@@ -72,6 +81,7 @@ These issues are best practices or potential portability concerns:
 ## Usage
 
 ### Pre-commit Hook (Automatic)
+
 ```bash
 # Normal commit - validation runs automatically
 git commit -m "Your commit message"
@@ -81,6 +91,7 @@ git commit --no-verify -m "Emergency commit"
 ```
 
 ### Manual Validation
+
 ```bash
 # Validate all shell files
 ./scripts/pre-commit-validation.sh
@@ -93,6 +104,7 @@ DEBUG=1 ./scripts/pre-commit-validation.sh
 ```
 
 ### Setup for New Developers
+
 ```bash
 # One-time setup
 ./scripts/setup-dev-environment.sh
@@ -104,11 +116,13 @@ DEBUG=1 ./scripts/pre-commit-validation.sh
 ## Validation Rules
 
 ### Shebang Validation
+
 - ✅ `#!/bin/sh` - POSIX shell, busybox compatible
 - ❌ `#!/bin/bash` - Bash-specific, not available on RUTOS
 - ❌ Missing shebang - Unpredictable behavior
 
 ### Syntax Validation
+
 The system checks for 50+ specific patterns that cause issues:
 
 ```bash
@@ -126,12 +140,14 @@ fi
 ```
 
 ### RUTOS-Specific Checks
+
 - **Curl flags**: Checks for unsupported flags
 - **Stat commands**: Ensures compatible file operations
 - **Find options**: Validates supported flags
 - **Trap signals**: Ensures busybox-compatible signals
 
 ### Required Patterns
+
 - **Version information**: `SCRIPT_VERSION` variable
 - **Error handling**: `set -e` for fail-fast behavior
 - **Function structure**: Proper opening/closing braces
@@ -139,6 +155,7 @@ fi
 ## Integration with Development Workflow
 
 ### Before Committing
+
 1. **Write code** using standard practices
 2. **Stage changes** with `git add`
 3. **Commit** - validation runs automatically
@@ -146,6 +163,7 @@ fi
 5. **Re-commit** after fixes
 
 ### During Development
+
 ```bash
 # Check compatibility while coding
 ./scripts/pre-commit-validation.sh path/to/script.sh
@@ -158,6 +176,7 @@ fi
 ```
 
 ### CI/CD Pipeline
+
 The validation can be integrated into GitHub Actions:
 
 ```yaml
@@ -170,6 +189,7 @@ The validation can be integrated into GitHub Actions:
 ## Real-World Examples
 
 ### Example 1: Process Substitution Fix
+
 ```bash
 # WRONG - Causes "syntax error: redirection unexpected"
 while IFS=: read -r line_num line_content; do
@@ -183,6 +203,7 @@ done
 ```
 
 ### Example 2: Local Variable Fix
+
 ```bash
 # WRONG - "local: not found"
 function_name() {
@@ -198,6 +219,7 @@ function_name() {
 ```
 
 ### Example 3: Trap Signal Fix
+
 ```bash
 # WRONG - "trap: ERR: bad trap"
 trap 'echo "Error occurred"' ERR
@@ -218,10 +240,12 @@ trap 'echo "Script interrupted"' INT TERM
 ### Common Issues
 
 1. **"Syntax error: redirection unexpected"**
+
    - Usually process substitution `< <(...)`
    - Solution: Use pipes instead
 
 2. **"local: not found"**
+
    - Using `local` keyword in functions
    - Solution: Remove `local` keyword
 
@@ -230,6 +254,7 @@ trap 'echo "Script interrupted"' INT TERM
    - Solution: Use `trap INT TERM`
 
 ### Debug Mode
+
 ```bash
 # Enable debug output
 DEBUG=1 ./scripts/pre-commit-validation.sh
@@ -239,6 +264,7 @@ DEBUG=1 ./scripts/pre-commit-validation.sh path/to/script.sh
 ```
 
 ### Self-Validation
+
 The validation script validates itself to catch recursive issues:
 
 ```bash
@@ -249,12 +275,14 @@ The validation script validates itself to catch recursive issues:
 ## Maintenance
 
 ### Adding New Checks
+
 1. **Identify the issue** during RUTX50 testing
 2. **Add detection pattern** to appropriate function
 3. **Test on existing scripts** to verify accuracy
 4. **Update documentation** with examples
 
 ### Updating Patterns
+
 ```bash
 # Add new check in check_bash_syntax()
 if grep -n "new_pattern" "$file" >/dev/null 2>&1; then
@@ -265,6 +293,7 @@ fi
 ```
 
 ### Testing Changes
+
 ```bash
 # Test on all scripts
 ./scripts/pre-commit-validation.sh
@@ -279,18 +308,21 @@ fi
 ## Benefits
 
 ### For Developers
+
 - **Early Detection**: Issues found before deployment
 - **Learning Tool**: Understands busybox limitations
 - **Consistent Standards**: Enforced coding practices
 - **Faster Debugging**: Clear error messages with line numbers
 
 ### For Project
+
 - **Reliability**: Fewer deployment failures
 - **Quality**: Consistent code across all scripts
 - **Maintainability**: Self-documenting compatibility rules
 - **Documentation**: Living record of compatibility requirements
 
 ### For RUTX50 Deployment
+
 - **Success Rate**: Higher first-time deployment success
 - **Fewer Iterations**: Less back-and-forth with fixes
 - **Predictable Behavior**: Scripts work as expected
@@ -299,12 +331,14 @@ fi
 ## Future Enhancements
 
 ### Planned Features
+
 1. **Custom Rules**: Project-specific validation rules
 2. **Integration**: VS Code extension for real-time validation
 3. **Metrics**: Track validation success rates
 4. **Auto-fix**: Suggestions for common issues
 
 ### Advanced Validation
+
 1. **Semantic Analysis**: Beyond syntax checking
 2. **Performance Checks**: Resource usage validation
 3. **Security Scanning**: Common security pitfalls
@@ -312,4 +346,5 @@ fi
 
 ---
 
-**The validation system learns from every issue encountered, continuously improving to prevent similar problems in the future.**
+**The validation system learns from every issue encountered, continuously improving to prevent similar problems in the
+future.**

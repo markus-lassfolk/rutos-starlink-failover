@@ -43,6 +43,7 @@ debug_msg() {
 
 # Colors for output
 # Check if terminal supports colors (simplified for RUTOS compatibility)
+# shellcheck disable=SC2034
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	RED='\033[0;31m'
 	GREEN='\033[0;32m'
@@ -385,8 +386,10 @@ check_config_completeness() {
 	# Find missing variables
 
 	missing_vars=""
+	# shellcheck disable=SC2034
 	extra_vars=""
 	total_missing=0
+	# shellcheck disable=SC2034
 	total_extra=0
 
 	# Check for missing variables (in template but not in config)
@@ -477,6 +480,7 @@ check_placeholder_values() {
 	# Source placeholder utility functions
 	script_dir="$(dirname "$0")"
 	if [ -f "$script_dir/placeholder-utils.sh" ]; then
+		# shellcheck disable=SC1091
 		. "$script_dir/placeholder-utils.sh"
 	fi
 

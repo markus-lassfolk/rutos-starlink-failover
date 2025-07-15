@@ -5,29 +5,35 @@ This directory contains all test scripts for the RUTOS Starlink failover solutio
 ## Test Categories
 
 ### Core Functionality Tests
+
 - **test-suite.sh** - Main test suite runner
 - **test-core-logic.sh** - Tests core monitoring and failover logic
 - **test-comprehensive-scenarios.sh** - Comprehensive scenario testing
 
 ### Deployment Tests
+
 - **test-deployment-functions.sh** - Tests deployment script functions
 - **test-final-verification.sh** - Final verification tests after deployment
 
 ### Compatibility Tests
+
 - **audit-rutos-compatibility.sh** - Audits scripts for RUTOS compatibility
 - **rutos-compatibility-test.sh** - Tests RUTOS-specific compatibility
 
 ### Validation Tests
+
 - **test-validation-features.sh** - Tests validation system features
 - **test-validation-fix.sh** - Tests validation fixes and improvements
 
 ### Verification Scripts
+
 - **verify-deployment.sh** - Verifies deployment script compatibility
 - **verify-deployment-script.sh** - Alternative deployment verification
 
 ## Running Tests
 
 ### Individual Tests
+
 ```bash
 # Run a specific test
 ./tests/test-suite.sh
@@ -37,6 +43,7 @@ DEBUG=1 ./tests/test-core-logic.sh
 ```
 
 ### RUTOS Compatibility Tests
+
 ```bash
 # Check RUTOS compatibility
 ./tests/audit-rutos-compatibility.sh
@@ -46,6 +53,7 @@ DEBUG=1 ./tests/test-core-logic.sh
 ```
 
 ### Deployment Verification
+
 ```bash
 # Verify deployment scripts before use
 ./tests/verify-deployment.sh
@@ -54,11 +62,13 @@ DEBUG=1 ./tests/test-core-logic.sh
 
 ## Test Results
 
-All tests should pass before deployment to production. See `TESTING.md` in the root directory for detailed test results and history.
+All tests should pass before deployment to production. See `TESTING.md` in the root directory for detailed test results
+and history.
 
 ## Development
 
 When adding new tests:
+
 1. Follow the naming convention: `test-*.sh`
 2. Include proper error handling and exit codes
 3. Add debug output support with `DEBUG=1`

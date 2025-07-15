@@ -9,13 +9,16 @@
 ## Key Fixes Applied
 
 ### 1. ✅ Busybox Trap Signal Compatibility
+
 - **Issue**: `trap handle_error ERR` not supported in busybox
 - **Fix**: Changed to `trap handle_error INT TERM`
 - **Impact**: Proper signal handling on RUTX50
 
 ### 2. ✅ Missing debug_exec Function
+
 - **Issue**: Function called 20+ times but not defined
 - **Fix**: Added proper debug_exec function:
+
 ```bash
 debug_exec() {
     if [ "${DEBUG:-0}" = "1" ]; then
@@ -28,6 +31,7 @@ debug_exec() {
 ```
 
 ### 3. ✅ Removed 'local' Keywords
+
 - **Issue**: `local` keyword not supported in busybox
 - **Fix**: Removed from all functions in install.sh, update-version.sh, validate-config.sh
 - **Impact**: Full POSIX compliance
@@ -35,11 +39,13 @@ debug_exec() {
 ## Testing Instructions
 
 ### Remote Installation Command (RUTX50):
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/your-repo/rutos-starlink-failover/main/scripts/install.sh | DEBUG=1 sh
 ```
 
 ### Expected Behavior:
+
 1. **Trap Handling**: Proper signal handling (no ERR trap errors)
 2. **Debug Output**: Comprehensive debug messages when DEBUG=1
 3. **Function Execution**: All debug_exec calls work correctly
@@ -47,6 +53,7 @@ curl -fsSL https://raw.githubusercontent.com/your-repo/rutos-starlink-failover/m
 5. **Script Downloads**: Remote scripts downloaded and installed
 
 ### Debug Mode:
+
 - Set `DEBUG=1` environment variable
 - Shows detailed execution steps
 - Logs all commands to `/tmp/install.log`
@@ -55,11 +62,13 @@ curl -fsSL https://raw.githubusercontent.com/your-repo/rutos-starlink-failover/m
 ## Quality Status
 
 ### ShellCheck Results:
+
 - ✅ `scripts/install.sh` - PASSES
 - ✅ `scripts/update-version.sh` - PASSES (after local fixes)
 - ✅ `scripts/validate-config.sh` - PASSES (after local fixes)
 
 ### Busybox Compatibility:
+
 - ✅ No `local` keywords
 - ✅ POSIX signal handling
 - ✅ Standard shell built-ins only
@@ -75,6 +84,7 @@ curl -fsSL https://raw.githubusercontent.com/your-repo/rutos-starlink-failover/m
 ## Rollback Plan
 
 If issues occur:
+
 1. Previous working version available in git history
 2. Installation creates backups of existing files
 3. Uninstall script available for cleanup

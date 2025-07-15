@@ -1,6 +1,7 @@
 # Complete Starlink Solution Deployment Guide for RUTOS
 
-This guide provides both automated and manual installation methods for deploying a comprehensive Starlink monitoring and failover solution on RUTOS devices.
+This guide provides both automated and manual installation methods for deploying a comprehensive Starlink monitoring and
+failover solution on RUTOS devices.
 
 ## Table of Contents
 
@@ -15,17 +16,20 @@ This guide provides both automated and manual installation methods for deploying
 ## Prerequisites
 
 ### Hardware Requirements
+
 - RUTOS device (RUTX50 or compatible) with internet connectivity
 - Starlink dish connected to RUTOS device
 - At least 10MB free storage space
 - Root/admin access to RUTOS device
 
 ### Network Setup
+
 - RUTOS device accessible via SSH
 - Starlink dish management interface accessible (typically 192.168.100.1)
 - Internet connectivity for downloading binaries and Azure integration
 
 ### Software Requirements
+
 - RUTOS firmware with UCI configuration system
 - OpenWrt package system (opkg)
 - Cron service enabled
@@ -53,17 +57,21 @@ chmod +x deploy-starlink-solution.sh
 The script will prompt you for:
 
 1. **Azure Integration** (optional)
+
    - Enable Azure cloud logging: `true/false`
    - Azure Function endpoint URL (if enabled)
 
 2. **Starlink Monitoring**
+
    - Enable performance monitoring: `true/false` (recommended: true)
 
 3. **GPS Integration** (optional)
+
    - Enable GPS tracking: `true/false`
    - RUTOS device credentials (if enabled)
 
 4. **Pushover Notifications** (optional)
+
    - Enable notifications: `true/false`
    - Pushover application token and user key (if enabled)
 
@@ -247,51 +255,51 @@ log() {
 # Main monitoring logic
 main() {
     log "Starting quality check"
-    
+
     # Read current state
     last_state=$(cat "$STATE_FILE" 2>/dev/null || echo "up")
     stability_count=$(cat "$STABILITY_FILE" 2>/dev/null || echo "0")
     current_metric=$(uci -q get mwan3."$MWAN_MEMBER".metric 2>/dev/null || echo "$METRIC_GOOD")
-    
+
     # Gather Starlink data
     if [ -x "/root/grpcurl" ] && [ -x "/root/jq" ]; then
         # Get status data
         status_json=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
             -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
-        
+
         # Get history data for packet loss
         history_json=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
             -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
-        
+
         if [ -n "$status_json" ] && [ -n "$history_json" ]; then
             # Extract metrics
             latency=$(echo "$status_json" | /root/jq -r '.dishGetStatus.popPingLatencyMs // 0' 2>/dev/null || echo "0")
             obstruction=$(echo "$status_json" | /root/jq -r '.dishGetStatus.obstructionStats.currentlyObstructed // false' 2>/dev/null || echo "false")
-            
+
             # Calculate packet loss from history
             packet_loss=$(echo "$history_json" | /root/jq -r '
-                [.dishGetHistory.popPingDropRate // empty] | 
+                [.dishGetHistory.popPingDropRate // empty] |
                 if length > 0 then (add / length) else 0 end
             ' 2>/dev/null || echo "0")
-            
+
             # Evaluate quality
             quality_good=true
-            
+
             if [ "$(echo "$latency > $LATENCY_THRESHOLD_MS" | bc 2>/dev/null || echo 0)" -eq 1 ]; then
                 quality_good=false
                 log "Quality issue: High latency ($latency ms > $LATENCY_THRESHOLD_MS ms)"
             fi
-            
+
             if [ "$(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc 2>/dev/null || echo 0)" -eq 1 ]; then
                 quality_good=false
                 log "Quality issue: High packet loss ($packet_loss > $PACKET_LOSS_THRESHOLD)"
             fi
-            
+
             if [ "$obstruction" = "true" ]; then
                 quality_good=false
                 log "Quality issue: Dish obstructed"
             fi
-            
+
             # State machine logic
             if [ "$quality_good" = "true" ]; then
                 if [ "$last_state" = "down" ]; then
@@ -372,53 +380,53 @@ fi
 # Main logging logic
 main() {
     log "Starting performance data collection"
-    
+
     if [ -x "/root/grpcurl" ] && [ -x "/root/jq" ]; then
         # Get status data
         status_json=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
             -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
-        
+
         # Get history data
         history_json=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
             -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
-        
+
         if [ -n "$status_json" ] && [ -n "$history_json" ]; then
             # Extract current timestamp from status
             current_timestamp=$(echo "$status_json" | /root/jq -r '.dishGetStatus.uptimeS // 0' 2>/dev/null || echo "0")
-            
+
             # Check if this is a new sample
             last_timestamp=$(cat "$LAST_SAMPLE_FILE" 2>/dev/null || echo "0")
-            
+
             if [ "$current_timestamp" != "$last_timestamp" ]; then
                 # Extract metrics
                 latency=$(echo "$status_json" | /root/jq -r '.dishGetStatus.popPingLatencyMs // 0' 2>/dev/null || echo "0")
-                
+
                 # Calculate packet loss
                 packet_loss=$(echo "$history_json" | /root/jq -r '
-                    [.dishGetHistory.popPingDropRate // empty] | 
+                    [.dishGetHistory.popPingDropRate // empty] |
                     if length > 0 then (add / length) else 0 end
                 ' 2>/dev/null || echo "0")
-                
+
                 # Get obstruction percentage
                 obstruction=$(echo "$status_json" | /root/jq -r '.dishGetStatus.obstructionStats.fractionObstructed // 0' 2>/dev/null || echo "0")
-                
+
                 # Get throughput
                 throughput_down=$(echo "$status_json" | /root/jq -r '.dishGetStatus.downlinkThroughputBps // 0' 2>/dev/null || echo "0")
                 throughput_up=$(echo "$status_json" | /root/jq -r '.dishGetStatus.uplinkThroughputBps // 0' 2>/dev/null || echo "0")
-                
+
                 # Convert to Mbps
                 throughput_down_mbps=$(echo "scale=2; $throughput_down / 1000000" | bc 2>/dev/null || echo "0")
                 throughput_up_mbps=$(echo "scale=2; $throughput_up / 1000000" | bc 2>/dev/null || echo "0")
-                
+
                 # Create timestamp
                 timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-                
+
                 # Append to CSV
                 echo "$timestamp,$latency,$packet_loss,$obstruction,$throughput_down_mbps,$throughput_up_mbps" >> "$OUTPUT_CSV"
-                
+
                 # Update last sample timestamp
                 echo "$current_timestamp" > "$LAST_SAMPLE_FILE"
-                
+
                 log "Performance data logged: latency=${latency}ms, packet_loss=${packet_loss}, obstruction=${obstruction}"
             else
                 log "No new data available, skipping"
@@ -459,23 +467,23 @@ log() {
 # Main checking logic
 main() {
     log "Checking for Starlink API changes"
-    
+
     if [ -x "/root/grpcurl" ] && [ -x "/root/jq" ]; then
         # Get current API response structure
         current_response=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
             -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
-        
+
         if [ -n "$current_response" ]; then
             # Create a simple hash of the response structure
             current_hash=$(echo "$current_response" | /root/jq -r 'keys_unsorted | @json' 2>/dev/null | md5sum | cut -d' ' -f1)
-            
+
             if [ -f "$API_VERSION_FILE" ]; then
                 last_hash=$(cat "$API_VERSION_FILE")
-                
+
                 if [ "$current_hash" != "$last_hash" ]; then
                     log "WARNING: Starlink API structure has changed!"
                     log "This may require script updates to maintain compatibility"
-                    
+
                     # Trigger notification
                     /etc/hotplug.d/iface/99-pushover_notify >/dev/null 2>&1 || true
                 else
@@ -484,7 +492,7 @@ main() {
             else
                 log "First run, recording API structure"
             fi
-            
+
             echo "$current_hash" > "$API_VERSION_FILE"
         else
             log "Warning: Unable to get Starlink API data"
@@ -512,7 +520,7 @@ chmod +x /root/check_starlink_api.sh
     crontab -l 2>/dev/null
     echo "# Starlink Quality Monitoring (every minute)"
     echo "* * * * * /root/starlink_monitor.sh"
-    echo "# Starlink Performance Logging (every minute)"  
+    echo "# Starlink Performance Logging (every minute)"
     echo "* * * * * /root/starlink_logger.sh"
     echo "# Starlink API Change Detection (daily at 5:30 AM)"
     echo "30 5 * * * /root/check_starlink_api.sh"
@@ -553,7 +561,7 @@ send_notification() {
     local title="$1"
     local message="$2"
     local priority="${3:-0}"
-    
+
     curl -s \
         --form-string "token=$PUSHOVER_TOKEN" \
         --form-string "user=$PUSHOVER_USER" \
@@ -591,7 +599,7 @@ uci set azure.system.enabled='1'
 uci set azure.system.log_file='/overlay/messages'
 uci set azure.system.max_size='1048576'
 
-uci set azure.starlink=starlink_config  
+uci set azure.starlink=starlink_config
 uci set azure.starlink.endpoint="https://your-function-app.azurewebsites.net/api/HttpTrigger"
 uci set azure.starlink.enabled='1'
 uci set azure.starlink.csv_file='/root/starlink_performance_log.csv'
@@ -620,14 +628,14 @@ fi
 if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
     # Get file size
     file_size=$(stat -f%z "$LOG_FILE" 2>/dev/null || stat -c%s "$LOG_FILE" 2>/dev/null || echo "0")
-    
+
     if [ "$file_size" -gt 100 ]; then
         # Send logs to Azure
         curl -X POST "$AZURE_ENDPOINT" \
             -H "Content-Type: text/plain" \
             -d "@$LOG_FILE" \
             --max-time 30 >/dev/null 2>&1
-        
+
         # Rotate log if it's too large
         if [ "$file_size" -gt "$MAX_SIZE" ]; then
             echo "$(date): Log rotated" > "$LOG_FILE"
@@ -635,7 +643,7 @@ if [ -f "$LOG_FILE" ] && [ -s "$LOG_FILE" ]; then
             # Clear the log file
             > "$LOG_FILE"
         fi
-        
+
         logger -t "LogShipper" "Logs shipped to Azure ($file_size bytes)"
     fi
 fi
@@ -741,7 +749,7 @@ log_info() {
 # Test functions
 test_binaries() {
     log_test "Testing required binaries..."
-    
+
     if [ -x "/root/grpcurl" ]; then
         local version
         version=$(/root/grpcurl --version 2>&1 | head -1)
@@ -749,7 +757,7 @@ test_binaries() {
     else
         log_fail "grpcurl not found or not executable"
     fi
-    
+
     if [ -x "/root/jq" ]; then
         local version
         version=$(/root/jq --version 2>&1)
@@ -757,7 +765,7 @@ test_binaries() {
     else
         log_fail "jq not found or not executable"
     fi
-    
+
     if command -v bc >/dev/null 2>&1; then
         log_pass "bc calculator available"
     else
@@ -767,13 +775,13 @@ test_binaries() {
 
 test_scripts() {
     log_test "Testing deployed scripts..."
-    
+
     local scripts=(
         "/root/starlink_monitor.sh"
         "/root/starlink_logger.sh"
         "/root/check_starlink_api.sh"
     )
-    
+
     for script in "${scripts[@]}"; do
         if [ -x "$script" ]; then
             log_pass "$(basename "$script") deployed and executable"
@@ -781,14 +789,14 @@ test_scripts() {
             log_fail "$(basename "$script") missing or not executable"
         fi
     done
-    
+
     # Check Pushover notifier
     if [ -x "/etc/hotplug.d/iface/99-pushover_notify" ]; then
         log_pass "Pushover notifier deployed"
     else
         log_warn "Pushover notifier not found (notifications disabled)"
     fi
-    
+
     # Check Azure scripts
     if [ -x "/root/log-shipper.sh" ]; then
         log_pass "Azure log shipper deployed"
@@ -799,14 +807,14 @@ test_scripts() {
 
 test_configuration() {
     log_test "Testing system configuration..."
-    
+
     # Test UCI configuration
     if uci show system | grep -q "log_type='file'"; then
         log_pass "Persistent logging configured"
     else
         log_fail "Persistent logging not configured"
     fi
-    
+
     # Test network routes
     if ip route show | grep -q "192.168.100.1"; then
         log_pass "Starlink route configured"
@@ -816,7 +824,7 @@ test_configuration() {
     else
         log_fail "No route to Starlink management interface"
     fi
-    
+
     # Test mwan3 configuration
     if uci show mwan3 | grep -q "member1"; then
         log_pass "mwan3 configuration found"
@@ -827,27 +835,27 @@ test_configuration() {
 
 test_connectivity() {
     log_test "Testing connectivity..."
-    
+
     # Test internet connectivity
     if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
         log_pass "Internet connectivity working"
     else
         log_fail "No internet connectivity"
     fi
-    
+
     # Test Starlink management interface
     if ping -c 1 192.168.100.1 >/dev/null 2>&1; then
         log_pass "Starlink management interface reachable"
     else
         log_warn "Starlink management interface not reachable"
     fi
-    
+
     # Test Starlink API
     if [ -x "/root/grpcurl" ]; then
         local api_response
         api_response=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
             -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
-        
+
         if [ -n "$api_response" ]; then
             log_pass "Starlink API responding"
         else
@@ -858,28 +866,28 @@ test_connectivity() {
 
 test_cron_jobs() {
     log_test "Testing scheduled jobs..."
-    
+
     local cron_jobs
     cron_jobs=$(crontab -l 2>/dev/null || echo "")
-    
+
     if echo "$cron_jobs" | grep -q "starlink_monitor.sh"; then
         log_pass "Quality monitoring scheduled"
     else
         log_fail "Quality monitoring not scheduled"
     fi
-    
+
     if echo "$cron_jobs" | grep -q "starlink_logger.sh"; then
         log_pass "Performance logging scheduled"
     else
         log_warn "Performance logging not scheduled"
     fi
-    
+
     if echo "$cron_jobs" | grep -q "check_starlink_api.sh"; then
         log_pass "API change detection scheduled"
     else
         log_warn "API change detection not scheduled"
     fi
-    
+
     # Check cron service
     if pgrep crond >/dev/null; then
         log_pass "Cron service running"
@@ -890,7 +898,7 @@ test_cron_jobs() {
 
 test_logs() {
     log_test "Testing logging system..."
-    
+
     # Test log files
     if [ -f "/overlay/messages" ]; then
         log_pass "System log file exists"
@@ -900,14 +908,14 @@ test_logs() {
     else
         log_fail "System log file not found"
     fi
-    
+
     # Test performance log
     if [ -f "/root/starlink_performance_log.csv" ]; then
         log_pass "Performance log file exists"
     else
         log_warn "Performance log file not yet created"
     fi
-    
+
     # Test recent log entries
     if logread | grep -q "StarlinkMonitor\|StarlinkLogger" | tail -1; then
         log_pass "Recent monitoring activity found in logs"
@@ -922,7 +930,7 @@ main() {
     echo "Starlink Solution Verification"
     echo "========================================="
     echo
-    
+
     test_binaries
     echo
     test_scripts
@@ -935,7 +943,7 @@ main() {
     echo
     test_logs
     echo
-    
+
     # Summary
     echo "========================================="
     echo "Verification Summary"
@@ -944,7 +952,7 @@ main() {
     echo -e "${YELLOW}Tests Warned: $TESTS_WARNED${NC}"
     echo -e "${RED}Tests Failed: $TESTS_FAILED${NC}"
     echo
-    
+
     if [ "$TESTS_FAILED" -eq 0 ]; then
         echo -e "${GREEN}✓ Verification completed successfully!${NC}"
         echo "The Starlink monitoring solution is properly deployed and configured."
@@ -977,6 +985,7 @@ chmod +x /root/verify-starlink-setup.sh
 ### Common Issues
 
 #### 1. grpcurl or jq not working
+
 ```bash
 # Check if binaries are executable
 ls -la /root/grpcurl /root/jq
@@ -992,6 +1001,7 @@ chmod +x /root/grpcurl
 ```
 
 #### 2. Starlink API not accessible
+
 ```bash
 # Check network connectivity to Starlink
 ping -c 3 192.168.100.1
@@ -1004,6 +1014,7 @@ ip route show | grep 192.168.100.1
 ```
 
 #### 3. mwan3 not working
+
 ```bash
 # Check mwan3 status
 mwan3 status
@@ -1016,6 +1027,7 @@ uci show mwan3
 ```
 
 #### 4. Cron jobs not running
+
 ```bash
 # Check cron service
 /etc/init.d/cron status
@@ -1031,6 +1043,7 @@ logread | grep cron
 ```
 
 #### 5. No logs being generated
+
 ```bash
 # Check logging configuration
 uci show system | grep log
@@ -1148,7 +1161,7 @@ fi
 The solution provides several integration points:
 
 1. **Syslog Integration**: All events are logged to syslog with tags
-2. **File-based Data**: CSV files for performance data analysis  
+2. **File-based Data**: CSV files for performance data analysis
 3. **State Files**: Machine-readable state in `/tmp/run/`
 4. **Exit Codes**: Scripts return appropriate exit codes for automation
 
@@ -1160,11 +1173,13 @@ For more complex failover scenarios, you can adjust the mwan3 configuration:
 # Set fine-grained priorities
 uci set mwan3.member1.metric='1'    # Starlink (highest priority)
 uci set mwan3.member2.metric='2'    # LTE backup
-uci set mwan3.member3.metric='3'    # Ethernet backup  
+uci set mwan3.member3.metric='3'    # Ethernet backup
 uci set mwan3.member4.metric='10'   # Lowest priority backup
 
 uci commit mwan3
 mwan3 restart
 ```
 
-This deployment guide provides both automated and manual installation options for a complete Starlink monitoring and failover solution. The automated script handles all the complexity, while the manual steps give you full control over each aspect of the deployment.
+This deployment guide provides both automated and manual installation options for a complete Starlink monitoring and
+failover solution. The automated script handles all the complexity, while the manual steps give you full control over
+each aspect of the deployment.

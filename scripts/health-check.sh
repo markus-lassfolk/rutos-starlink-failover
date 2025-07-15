@@ -9,16 +9,18 @@ set -e # Exit on error
 SCRIPT_VERSION="1.0.2"
 
 # Standard colors for consistent output (compatible with busybox)
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-# Check if we're in a terminal that supports colors
-if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
+# CRITICAL: Use RUTOS-compatible color detection
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+	# Colors enabled
+	RED='\033[0;31m'
+	GREEN='\033[0;32m'
+	YELLOW='\033[1;33m'
+	BLUE='\033[1;35m'
+	PURPLE='\033[0;35m'
+	CYAN='\033[0;36m'
+	NC='\033[0m'
+else
+	# Colors disabled
 	RED=""
 	GREEN=""
 	YELLOW=""
@@ -218,7 +220,9 @@ check_starlink_connectivity() {
 
 	# Load configuration to get Starlink IP
 	if [ -f "$CONFIG_FILE" ]; then
+		# shellcheck disable=SC1090
 		. "$CONFIG_FILE"
+		# shellcheck disable=SC1091
 		. "$SCRIPT_DIR/placeholder-utils.sh" 2>/dev/null || true
 
 		if [ -n "${STARLINK_IP:-}" ] && [ "$STARLINK_IP" != "YOUR_STARLINK_IP" ]; then
@@ -273,7 +277,9 @@ check_configuration_health() {
 
 	# Check for placeholder values
 	if [ -f "$SCRIPT_DIR/placeholder-utils.sh" ]; then
+		# shellcheck disable=SC1091
 		. "$SCRIPT_DIR/placeholder-utils.sh"
+		# shellcheck disable=SC1090
 		. "$CONFIG_FILE" 2>/dev/null || true
 
 		if is_pushover_configured; then

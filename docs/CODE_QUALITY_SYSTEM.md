@@ -5,6 +5,7 @@ This document describes the comprehensive code quality system for the RUTOS Star
 ## Overview
 
 We've implemented a multi-language code quality system that validates:
+
 - **Shell scripts** (.sh) - ShellCheck + shfmt
 - **Python files** (.py) - black, flake8, pylint, mypy, isort, bandit
 - **PowerShell files** (.ps1) - PSScriptAnalyzer
@@ -15,12 +16,14 @@ We've implemented a multi-language code quality system that validates:
 ## Quick Start
 
 ### 1. Install All Tools
+
 ```bash
 # One-time setup - installs all code quality tools
 ./scripts/setup-code-quality-tools.sh
 ```
 
 ### 2. Run Comprehensive Validation
+
 ```bash
 # Validate all files in the repository
 ./scripts/comprehensive-validation.sh --all
@@ -30,6 +33,7 @@ validate-code --all
 ```
 
 ### 3. Language-Specific Validation
+
 ```bash
 # Validate only shell scripts
 ./scripts/comprehensive-validation.sh --shell-only
@@ -44,11 +48,13 @@ validate-code --all
 ## Tool Categories
 
 ### Shell Script Quality (ShellCheck + shfmt)
+
 - **ShellCheck**: POSIX compliance, bug detection, best practices
 - **shfmt**: Consistent formatting and style
 - **Focus**: RUTOS/busybox compatibility
 
 ### Python Quality (6 tools)
+
 - **black**: Uncompromising code formatting
 - **isort**: Import statement sorting
 - **flake8**: Style guide enforcement (PEP 8)
@@ -57,24 +63,30 @@ validate-code --all
 - **bandit**: Security vulnerability scanning
 
 ### PowerShell Quality (PSScriptAnalyzer)
+
 - **PSScriptAnalyzer**: PowerShell best practices and style
 
 ### Markdown Quality (markdownlint + prettier)
+
 - **markdownlint**: Markdown structure and style
 - **prettier**: Consistent formatting
 
 ### Configuration Quality (jq, yamllint, prettier)
+
 - **jq**: JSON syntax validation
 - **yamllint**: YAML structure validation
 - **prettier**: Consistent formatting
 
 ### Azure Infrastructure Quality (Bicep)
+
 - **bicep lint**: Azure resource validation
 
 ## Configuration Files
 
 ### Python Configuration (`pyproject.toml`)
+
 Modern Python project configuration with settings for:
+
 - black (line length: 88)
 - isort (compatible with black)
 - pylint (custom rules)
@@ -82,17 +94,21 @@ Modern Python project configuration with settings for:
 - bandit (security rules)
 
 ### Flake8 Configuration (`setup.cfg`)
+
 Since flake8 doesn't support pyproject.toml yet:
+
 - Line length: 88 (matches black)
 - Ignores conflicts with black
-- Per-file ignores for __init__.py
+- Per-file ignores for **init**.py
 
 ### Markdown Configuration (`.markdownlint.json`)
+
 - Line length: 120 characters
 - Allows HTML elements for documentation
 - Consistent heading styles
 
 ### Prettier Configuration (`.prettierrc.json`)
+
 - Print width: 100 characters
 - Language-specific overrides
 - Consistent formatting across file types
@@ -100,6 +116,7 @@ Since flake8 doesn't support pyproject.toml yet:
 ## Installation Options
 
 ### Automatic Installation
+
 ```bash
 # Install all tools
 ./scripts/setup-code-quality-tools.sh
@@ -113,6 +130,7 @@ Since flake8 doesn't support pyproject.toml yet:
 ### Manual Installation Commands
 
 #### Ubuntu/Debian
+
 ```bash
 # System tools
 sudo apt-get update
@@ -137,6 +155,7 @@ az bicep install
 ```
 
 #### macOS
+
 ```bash
 # System tools
 brew install shellcheck shfmt jq node
@@ -156,6 +175,7 @@ az bicep install
 ```
 
 #### Windows (PowerShell)
+
 ```powershell
 # Install Chocolatey first
 Set-ExecutionPolicy Bypass -Scope Process -Force
@@ -172,6 +192,7 @@ az bicep install
 ## Usage Examples
 
 ### Comprehensive Validation
+
 ```bash
 # Check all files in the repository
 ./scripts/comprehensive-validation.sh --all
@@ -186,6 +207,7 @@ az bicep install
 ```
 
 ### Individual Tool Usage
+
 ```bash
 # Python tools
 black --check analysis.py
@@ -210,6 +232,7 @@ prettier --check config.json
 ```
 
 ### Auto-fixing Issues
+
 ```bash
 # Python auto-fixes
 black analysis.py
@@ -228,6 +251,7 @@ prettier --write config.json
 ## Integration with Development Workflow
 
 ### Pre-commit Hook Integration
+
 ```bash
 # Use the existing pre-commit validation (shell scripts only)
 ./scripts/pre-commit-validation.sh
@@ -237,7 +261,9 @@ prettier --write config.json
 ```
 
 ### VS Code Integration
+
 Install these extensions for real-time validation:
+
 - **Python**: Python extension (includes pylint, black integration)
 - **Shell**: ShellCheck extension
 - **PowerShell**: PowerShell extension
@@ -245,6 +271,7 @@ Install these extensions for real-time validation:
 - **Prettier**: Prettier extension
 
 ### Git Hook Setup
+
 ```bash
 # Install comprehensive validation as pre-commit hook
 cp scripts/comprehensive-validation.sh .git/hooks/pre-commit
@@ -254,6 +281,7 @@ chmod +x .git/hooks/pre-commit
 ## Validation Output
 
 ### Success Output
+
 ```
 [SUCCESS] [2025-07-15 14:30:45] ✅ analysis.py passed validation
 [SUCCESS] [2025-07-15 14:30:46] ✅ script.sh passed validation
@@ -262,6 +290,7 @@ chmod +x .git/hooks/pre-commit
 ```
 
 ### Failure Output
+
 ```
 [ERROR] [2025-07-15 14:30:45] Black formatting issues in analysis.py
 [INFO] [2025-07-15 14:30:45] Run 'black analysis.py' to fix formatting
@@ -273,6 +302,7 @@ chmod +x .git/hooks/pre-commit
 ## Tool Availability Check
 
 The validation script automatically checks which tools are available:
+
 ```bash
 # Check what tools are installed
 ./scripts/comprehensive-validation.sh --install-deps
@@ -282,6 +312,7 @@ The validation script automatically checks which tools are available:
 ## Best Practices
 
 ### Python Development
+
 1. **Format first**: Run `black` and `isort` before other checks
 2. **Fix style**: Address `flake8` warnings
 3. **Comprehensive analysis**: Run `pylint` for detailed feedback
@@ -289,16 +320,19 @@ The validation script automatically checks which tools are available:
 5. **Security**: Run `bandit` for security issues
 
 ### Shell Development
+
 1. **POSIX compliance**: Use `shellcheck` for compatibility
 2. **Consistent formatting**: Use `shfmt` for style
 3. **RUTOS focus**: Ensure busybox compatibility
 
 ### Documentation
+
 1. **Structure**: Use `markdownlint` for consistent structure
 2. **Formatting**: Use `prettier` for consistent style
 3. **Readability**: Keep lines under 120 characters
 
 ### Configuration Files
+
 1. **Syntax**: Validate with `jq` (JSON) and `yamllint` (YAML)
 2. **Formatting**: Use `prettier` for consistency
 3. **Structure**: Maintain clear, readable configuration
@@ -308,6 +342,7 @@ The validation script automatically checks which tools are available:
 ### Common Issues
 
 #### Tool Not Found
+
 ```bash
 # Check tool availability
 ./scripts/setup-code-quality-tools.sh --verify
@@ -317,6 +352,7 @@ The validation script automatically checks which tools are available:
 ```
 
 #### Path Issues
+
 ```bash
 # Add user bin to PATH
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
@@ -324,12 +360,14 @@ source ~/.bashrc
 ```
 
 #### Permission Issues
+
 ```bash
 # Install tools with --user flag
 pip3 install --user black flake8 pylint mypy isort bandit yamllint
 ```
 
 ### Debug Mode
+
 ```bash
 # Run with debug output
 DEBUG=1 ./scripts/comprehensive-validation.sh --all
@@ -338,6 +376,7 @@ DEBUG=1 ./scripts/comprehensive-validation.sh --all
 ## Integration with CI/CD
 
 ### GitHub Actions Example
+
 ```yaml
 name: Code Quality
 
@@ -348,15 +387,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Code Quality Tools
         run: ./scripts/setup-code-quality-tools.sh
-        
+
       - name: Run Comprehensive Validation
         run: ./scripts/comprehensive-validation.sh --all
 ```
 
 ### Pre-commit Configuration
+
 ```yaml
 # .pre-commit-config.yaml
 repos:
@@ -373,6 +413,7 @@ repos:
 ## Performance Considerations
 
 ### Selective Validation
+
 ```bash
 # Validate only changed files
 git diff --name-only | xargs ./scripts/comprehensive-validation.sh
@@ -382,11 +423,14 @@ git diff --name-only | xargs ./scripts/comprehensive-validation.sh
 ```
 
 ### Parallel Processing
-The comprehensive validation script processes files sequentially but validates each file with multiple tools in parallel where possible.
+
+The comprehensive validation script processes files sequentially but validates each file with multiple tools in parallel
+where possible.
 
 ## Conclusion
 
 This comprehensive code quality system ensures:
+
 - **Consistent style** across all languages
 - **High code quality** with multiple validation layers
 - **Security scanning** for vulnerabilities
@@ -395,6 +439,7 @@ This comprehensive code quality system ensures:
 - **RUTOS compatibility** for production deployment
 
 The system is designed to be:
+
 - **Easy to install** with automated setup
 - **Easy to use** with simple commands
 - **Comprehensive** covering all file types

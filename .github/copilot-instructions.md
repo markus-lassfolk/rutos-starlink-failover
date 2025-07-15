@@ -1,9 +1,13 @@
 # VS Code Copilot Instructions for RUTOS Starlink Failover Project
 
 ## Project Context
-This is a shell-based failover solution for Starlink connectivity on RUTX50 routers running RUTOS (busybox shell environment). The project provides automated monitoring, configuration management, and failover capabilities with Azure integration.
+
+This is a shell-based failover solution for Starlink connectivity on RUTX50 routers running RUTOS (busybox shell
+environment). The project provides automated monitoring, configuration management, and failover capabilities with Azure
+integration.
 
 ## Key Project Characteristics
+
 - **Target Environment**: RUTX50 router with RUTOS RUT5_R_00.07.09.7 (armv7l architecture)
 - **Shell Requirements**: POSIX-compliant for busybox sh (not bash)
 - **Deployment**: Remote installation via curl from GitHub
@@ -13,9 +17,10 @@ This is a shell-based failover solution for Starlink connectivity on RUTX50 rout
 ## Shell Scripting Guidelines
 
 ### CRITICAL Shell Compatibility Rules
+
 1. **NO bash-specific syntax** - Use POSIX sh only
 2. **NO arrays** - Use space-separated strings or multiple variables
-3. **NO [[ ]]** - Use [ ] for all conditions
+3. **NO [[]]** - Use [ ] for all conditions
 4. **NO function() syntax** - Use `function_name() {` format
 5. **NO local variables** - All variables are global in busybox
 6. **NO echo -e** - Use printf instead
@@ -23,12 +28,16 @@ This is a shell-based failover solution for Starlink connectivity on RUTX50 rout
 8. **NO $'\n'** - Use actual newlines or printf
 
 ### CRITICAL ShellCheck Compliance Rules
-1. **SC2034 - Unused variables**: Only define colors you actually use, or use `# shellcheck disable=SC2034` for intentionally unused variables
+
+1. **SC2034 - Unused variables**: Only define colors you actually use, or use `# shellcheck disable=SC2034` for
+   intentionally unused variables
 2. **SC2181 - Exit code checking**: Use direct command testing instead of `$?`
 3. **SC3045 - export -f**: Never use `export -f` - not supported in POSIX sh
-4. **SC1090/SC1091 - Source files**: Add `# shellcheck source=/dev/null` or `# shellcheck disable=SC1091` for dynamic sources
+4. **SC1090/SC1091 - Source files**: Add `# shellcheck source=/dev/null` or `# shellcheck disable=SC1091` for dynamic
+   sources
 
 ### Function Best Practices
+
 ```bash
 # Correct function definition
 function_name() {
@@ -37,13 +46,14 @@ function_name() {
         printf "Error: function_name requires at least 1 argument\n"
         return 1
     fi
-    
+
     # Use explicit closing brace
     # ... function body ...
 }  # Always close functions properly
 ```
 
 ### Variable Handling
+
 ```bash
 # Correct variable assignment and usage
 VARIABLE="value"
@@ -58,6 +68,7 @@ CONFIG_VALUE="${CONFIG_VALUE:-default_value}"
 ## Project Structure Awareness
 
 ### Core Scripts and Their Purposes
+
 - `scripts/install.sh` - Remote installation with comprehensive logging
 - `scripts/validate-config.sh` - Configuration validation with debug mode
 - `scripts/update-version.sh` - Automatic version management
@@ -71,6 +82,7 @@ CONFIG_VALUE="${CONFIG_VALUE:-default_value}"
 - `tests/` - All test scripts organized in dedicated directory
 
 ### Version Management System
+
 - Format: `MAJOR.MINOR.PATCH+GIT_COUNT.GIT_COMMIT[-dirty]`
 - All scripts must include `SCRIPT_VERSION` variable
 - Use `scripts/update-version.sh` for version increments
@@ -79,14 +91,16 @@ CONFIG_VALUE="${CONFIG_VALUE:-default_value}"
 ## Code Generation Rules
 
 ### Always Include These Elements
+
 1. **Version Header**: Every script needs version information
-2. **Error Handling**: Comprehensive error checking with exit codes and colored output messages 
+2. **Error Handling**: Comprehensive error checking with exit codes and colored output messages
 3. **Logging**: Timestamped output with consistent colors for debugging
 4. **Debug Mode**: Support for DEBUG=1 environment variable
 5. **Safety Checks**: Validate environment before making changes
 6. **Consistent Colors**: Use standard color scheme for all output messages
 
 ### Standard Color Scheme
+
 ```bash
 # Color definitions (busybox compatible) - ALWAYS include ALL colors
 RED='\033[0;31m'      # Errors, critical issues
@@ -130,6 +144,7 @@ log_step()    # Blue [STEP] for progress steps
 ```
 
 ### CRITICAL Printf Format Rules
+
 1. **NEVER use variables in printf format strings** - Causes SC2059 errors
 2. **Use %s placeholders** for all variable content
 3. **Colors go as separate arguments** not in format string
@@ -138,7 +153,7 @@ log_step()    # Blue [STEP] for progress steps
 # WRONG - Variables in format string
 printf "${RED}Error: %s${NC}\n" "$message"
 
-# RIGHT - Variables as arguments  
+# RIGHT - Variables as arguments
 printf "%sError: %s%s\n" "$RED" "$message" "$NC"
 
 # WRONG - Complex format with variables
@@ -149,11 +164,13 @@ printf "%s✅ HEALTHY%s   | %-25s | %s\n" "$GREEN" "$NC" "$component" "$details"
 ```
 
 ### CRITICAL Color Detection Rules
+
 1. **NEVER use `command -v tput` pattern** - Not RUTOS compatible
 2. **ALWAYS use simplified pattern** shown above
 3. **ALWAYS define ALL colors** (RED, GREEN, YELLOW, BLUE, CYAN, NC)
 4. **NEVER use `tput colors`** - Not available in busybox
-```
+
+````
 
 ### Color Usage Examples
 ```bash
@@ -176,9 +193,10 @@ fi
 # Debug information
 log_debug "Configuration file path: $CONFIG_FILE"
 log_debug "Current working directory: $(pwd)"
-```
+````
 
 ### Standard Script Template
+
 ```bash
 #!/bin/sh
 # Script: script_name.sh
@@ -270,19 +288,19 @@ debug_func() {
 # Main function
 main() {
     log_info "Starting script_name.sh v$SCRIPT_VERSION"
-    
+
     # Validate environment
     if [ ! -f "/etc/openwrt_release" ]; then
         log_error "This script is designed for OpenWrt/RUTOS systems"
         exit 1
     fi
-    
+
     log_step "Validating environment"
     # Environment validation logic here
-    
+
     log_step "Main script logic"
     # Script logic here
-    
+
     log_success "Script completed successfully"
 }
 
@@ -293,12 +311,14 @@ main "$@"
 ## Configuration Management Guidelines
 
 ### Template System Rules
+
 1. **Clean Templates**: No ShellCheck comments in template files
 2. **Preserve User Values**: Always maintain user configurations during migration
 3. **Backup Strategy**: Create backups before any modifications
 4. **Validation**: Separate structure validation from content validation
 
 ### Configuration Variables Pattern
+
 ```bash
 # Standard configuration variable format
 VARIABLE_NAME="${VARIABLE_NAME:-default_value}"  # Description of what this controls
@@ -313,17 +333,18 @@ TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-30}"  # Timeout in seconds (1-300)
 ## Error Handling and Debugging
 
 ### Standard Error Patterns
+
 ```bash
 # Function with error handling and colored output
 safe_operation() {
     operation="$1"  # No 'local' keyword - busybox doesn't support it
     log_debug "Attempting: $operation"
-    
+
     if ! command_here; then
         log_error "Failed to $operation"
         return 1
     fi
-    
+
     log_debug "Success: $operation"
     return 0
 }
@@ -331,19 +352,19 @@ safe_operation() {
 # Configuration validation with colors
 validate_config() {
     config_file="$1"
-    
+
     log_step "Validating configuration file"
-    
+
     if [ ! -f "$config_file" ]; then
         log_error "Configuration file not found: $config_file"
         return 1
     fi
-    
+
     if ! grep -q "REQUIRED_VARIABLE" "$config_file"; then
         log_warning "Missing required variable in configuration"
         return 1
     fi
-    
+
     log_success "Configuration validation passed"
     return 0
 }
@@ -354,10 +375,10 @@ download_with_retry() {
     output_file="$2"
     max_attempts=3
     attempt=1
-    
+
     while [ $attempt -le $max_attempts ]; do
         log_step "Download attempt $attempt of $max_attempts"
-        
+
         if curl -fsSL "$url" -o "$output_file"; then
             log_success "Download completed successfully"
             return 0
@@ -367,13 +388,14 @@ download_with_retry() {
             sleep 2
         fi
     done
-    
+
     log_error "All download attempts failed"
     return 1
 }
 ```
 
 ### Debug Mode Implementation
+
 ```bash
 # Debug mode with colored output
 DEBUG="${DEBUG:-0}"
@@ -399,6 +421,7 @@ fi
 ## Testing and Validation
 
 ### Testing Environment Context
+
 - **Router**: RUTX50 with RUTOS RUT5_R_00.07.09.7
 - **Architecture**: armv7l
 - **Shell**: busybox sh (limited POSIX compliance)
@@ -406,6 +429,7 @@ fi
 - **Installation**: Remote via curl
 
 ### Common Testing Scenarios
+
 1. **Fresh Installation**: New router setup
 2. **Configuration Migration**: Upgrading from old template
 3. **Debug Mode**: Troubleshooting with DEBUG=1
@@ -415,12 +439,14 @@ fi
 ## VS Code Development Environment
 
 ### Terminal Configuration
+
 - **Default Shell**: PowerShell (Windows environment)
 - **Recommended for Shell Development**: Switch to WSL/bash when working on shell scripts
 - **Available Options**: PowerShell, WSL, Git Bash
 - **Best Practice**: Use WSL or Git Bash for shell script development and testing
 
 ### Terminal Commands for Development
+
 ```bash
 # Switch to WSL for shell development
 wsl
@@ -433,6 +459,7 @@ chmod +x scripts/*.sh
 ```
 
 ### Why Use WSL/Git Bash for Shell Development?
+
 - **Better POSIX Compliance**: Closer to RUTOS environment
 - **ShellCheck Support**: Native shell script linting
 - **File Permissions**: Can set executable permissions
@@ -442,6 +469,7 @@ chmod +x scripts/*.sh
 ### Code Quality and Pre-Commit Checks
 
 #### CRITICAL: Always Run Before Commits
+
 1. **Pre-Commit Validation**: Run `./scripts/pre-commit-validation.sh` for comprehensive checks
 2. **ShellCheck**: Validate all shell scripts for POSIX compliance
 3. **shfmt Integration**: Automatic formatting validation using industry standard
@@ -449,6 +477,7 @@ chmod +x scripts/*.sh
 5. **Template Validation**: Verify configuration templates are clean
 
 #### Automated Pre-Commit Validation System
+
 ```bash
 # Run comprehensive validation (REQUIRED before commits)
 ./scripts/pre-commit-validation.sh
@@ -469,6 +498,7 @@ DEBUG=1 ./scripts/pre-commit-validation.sh
 ```
 
 #### ShellCheck Integration
+
 ```bash
 # Install ShellCheck (if not already installed)
 # On WSL/Ubuntu:
@@ -487,6 +517,7 @@ sudo apt-get install shfmt
 ```
 
 #### Pre-Commit Quality Checklist
+
 - [ ] Run `./scripts/pre-commit-validation.sh` and fix all issues
 - [ ] All shell scripts pass ShellCheck with no errors
 - [ ] No bash-specific syntax (arrays, [[]], function() syntax)
@@ -498,6 +529,7 @@ sudo apt-get install shfmt
 - [ ] Code formatting passes shfmt validation
 
 #### Automated Quality Check Script
+
 ```bash
 # Run comprehensive quality checks (use in WSL/Git Bash)
 ./scripts/pre-commit-validation.sh
@@ -514,6 +546,7 @@ wsl
 ```
 
 #### Manual Quality Checks (if automated script fails)
+
 ```bash
 # Individual checks you can run manually
 shellcheck scripts/*.sh Starlink-RUTOS-Failover/*.sh
@@ -523,12 +556,14 @@ grep -r "echo -e" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 ```
 
 #### VS Code Extensions for Quality
+
 - **ShellCheck**: Provides real-time shell script linting
 - **Bash IDE**: Enhanced shell script editing
 - **GitLens**: Better git integration for version tracking
 - **Error Lens**: Inline error display
 
 ### Modern Development Workflow
+
 1. **Switch to WSL/Bash**: Better shell script development environment
 2. **Edit Scripts**: Use VS Code with ShellCheck extension
 3. **Run Pre-Commit Validation**: `./scripts/pre-commit-validation.sh`
@@ -537,6 +572,7 @@ grep -r "echo -e" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 6. **Commit**: Only after all quality checks pass
 
 ### Development Tools Integration
+
 - **ShellCheck**: Automated syntax and compatibility validation
 - **shfmt**: Code formatting and style validation
 - **Pre-commit Hooks**: Automated quality checks before commits
@@ -544,6 +580,7 @@ grep -r "echo -e" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 - **Version Management**: Automatic version tracking and updates
 
 ### Quality Assurance Pipeline
+
 ```bash
 # Step 1: Run pre-commit validation
 ./scripts/pre-commit-validation.sh
@@ -561,6 +598,7 @@ git commit -m "Description of changes"
 ```
 
 ### Development Environment Setup
+
 ```bash
 # Install required tools (WSL/Linux)
 sudo apt-get update
@@ -577,12 +615,14 @@ chmod +x .git/hooks/pre-commit
 ## Azure Integration Considerations
 
 ### When Working with Azure Components
+
 - Follow Azure development best practices
 - Use Azure tools when available
 - Implement proper authentication patterns
 - Consider network connectivity requirements for RUTOS environment
 
 ### Azure Logging Integration
+
 - Located in `Starlink-RUTOS-Failover/AzureLogging/`
 - Python-based analysis tools with requirements.txt
 - Bicep templates for infrastructure
@@ -591,12 +631,14 @@ chmod +x .git/hooks/pre-commit
 ## File Naming and Organization
 
 ### Naming Conventions
+
 - Scripts: `kebab-case.sh` (e.g., `validate-config.sh`)
 - Configs: `config.template.sh`, `config.advanced.template.sh`
 - Documentation: `UPPERCASE.md` (e.g., `TESTING.md`)
 - Logs: `lowercase.log` (e.g., `installation.log`)
 
 ### Directory Structure
+
 ```
 scripts/           # All utility scripts
 config/           # Configuration templates
@@ -607,6 +649,7 @@ docs/             # Documentation
 ```
 
 ### Test Directory Organization
+
 ```
 tests/
 ├── README.md                      # Test documentation
@@ -636,11 +679,13 @@ tests/
 ## Git and Version Control
 
 ### Branch Strategy
+
 - Main branch: `main`
 - Development: `feature/testing-improvements`
 - All changes go through feature branches
 
 ### Pre-Commit Quality Gates
+
 ```bash
 # MANDATORY: Run before every commit
 ./scripts/pre-commit-validation.sh
@@ -660,6 +705,7 @@ DEBUG=1 ./scripts/pre-commit-validation.sh
 ```
 
 ### Commit Message Format
+
 ```
 Brief description of change
 
@@ -670,6 +716,7 @@ Brief description of change
 ```
 
 ### GitHub Actions/Workflows
+
 - **Shell Script Validation**: Automated ShellCheck on all PRs
 - **POSIX Compliance**: Verify busybox compatibility
 - **Version Consistency**: Check all scripts have matching versions
@@ -678,6 +725,7 @@ Brief description of change
 ## Success Metrics
 
 ### Code Quality Indicators
+
 - ✅ POSIX sh compatibility (validated by pre-commit system)
 - ✅ Comprehensive error handling (standardized logging functions)
 - ✅ Debug mode support (clean, structured output)
@@ -686,6 +734,7 @@ Brief description of change
 - ✅ Safe operation patterns (validated by 50+ compatibility checks)
 
 ### Testing Validation
+
 - ✅ Works on RUTX50 with RUTOS (tested through 23 rounds)
 - ✅ Remote installation via curl (production ready)
 - ✅ Configuration migration (automatic template system)
@@ -694,6 +743,7 @@ Brief description of change
 - ✅ Quality assurance (automated pre-commit validation)
 
 ### Development Experience
+
 - ✅ Modern tooling integration (ShellCheck, shfmt)
 - ✅ Automated quality checks (pre-commit validation)
 - ✅ Clean debug output (structured logging)
@@ -702,6 +752,7 @@ Brief description of change
 - ✅ Consistent code formatting (shfmt validation)
 
 ### Production Readiness
+
 - ✅ RUTOS compatibility (busybox shell support)
 - ✅ Error handling (comprehensive safety checks)
 - ✅ Configuration management (template migration)
@@ -711,11 +762,13 @@ Brief description of change
 
 ---
 
-**Remember**: This project prioritizes reliability and compatibility over advanced features. Always test changes in the RUTOS environment and maintain backward compatibility with existing configurations.
+**Remember**: This project prioritizes reliability and compatibility over advanced features. Always test changes in the
+RUTOS environment and maintain backward compatibility with existing configurations.
 
 ## Current Project Status (As of July 2025)
 
 ### Development Milestones Achieved
+
 - **Round 1-23**: Comprehensive testing and validation system development
 - **Production Ready**: Full RUTOS compatibility achieved
 - **Automated Quality**: Pre-commit validation system implemented
@@ -724,6 +777,7 @@ Brief description of change
 - **Validation Coverage**: 50+ compatibility checks implemented
 
 ### Core Features Operational
+
 - ✅ **Remote Installation**: Works via curl on RUTX50
 - ✅ **Configuration Management**: Template migration and validation
 - ✅ **Debug Mode**: Enhanced debugging with clean output
@@ -732,12 +786,14 @@ Brief description of change
 - ✅ **RUTOS Compatibility**: Full busybox shell support
 
 ### Current Focus Areas
+
 1. **Main Monitoring Script**: Final testing of `starlink_monitor.sh`
 2. **Advanced Configuration**: Complete `config.advanced.template.sh`
 3. **Azure Integration**: Logging and monitoring components
 4. **Documentation**: Keep all guides up-to-date
 
 ### Recent Improvements
+
 - **Round 22**: Repository cleanup and test organization
 - **Round 23**: Debug output improvements with clean, structured logging
 - **Modern Tooling**: Integration of shfmt and enhanced validation

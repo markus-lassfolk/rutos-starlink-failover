@@ -1,10 +1,12 @@
 # RUTX50 Production Deployment Guide
 
-This guide provides step-by-step instructions for deploying the Starlink failover solution on a RUTX50 router based on real-world production configuration analysis.
+This guide provides step-by-step instructions for deploying the Starlink failover solution on a RUTX50 router based on
+real-world production configuration analysis.
 
 ## 📋 Pre-deployment Checklist
 
 ### Hardware Configuration Verified
+
 - ✅ **RUTX50** router with latest firmware (`RUTX_R_00.07.15.2` or newer)
 - ✅ **Starlink dish** in Bypass Mode connected to WAN port
 - ✅ **Dual SIM setup** (Primary: Telia, Backup: Roaming SIM)
@@ -12,6 +14,7 @@ This guide provides step-by-step instructions for deploying the Starlink failove
 - ✅ **Network interfaces** properly configured
 
 ### Current Network Setup Analysis
+
 Your configuration shows the following setup that we'll enhance:
 
 ```bash
@@ -47,6 +50,7 @@ nano /root/starlink-monitor/config/config.sh
 ```
 
 **Key settings to customize:**
+
 ```bash
 # Your Pushover credentials
 PUSHOVER_TOKEN="your_actual_pushover_token"
@@ -104,7 +108,7 @@ get_gps_location() {
     local gps_data
     gps_data=$(curl -s -H "Authorization: Bearer $(get_api_token)" \
                     "http://192.168.80.1/api/gps/position/status" 2>/dev/null)
-    
+
     if [[ -n "$gps_data" ]] && echo "$gps_data" | jq -e '.latitude' >/dev/null 2>&1; then
         echo "$gps_data"
         return 0
@@ -115,14 +119,14 @@ get_gps_location() {
 calculate_movement() {
     local current_lat current_lon last_lat last_lon
     local gps_data="$1"
-    
+
     current_lat=$(echo "$gps_data" | jq -r '.latitude')
     current_lon=$(echo "$gps_data" | jq -r '.longitude')
-    
+
     if [[ -f "/tmp/last_gps_position.json" ]]; then
         last_lat=$(jq -r '.latitude' /tmp/last_gps_position.json)
         last_lon=$(jq -r '.longitude' /tmp/last_gps_position.json)
-        
+
         # Calculate distance using haversine formula
         local distance
         distance=$(python3 -c "
@@ -134,12 +138,12 @@ a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
 distance = 6371000 * 2 * math.asin(math.sqrt(a))
 print(int(distance))
         ")
-        
+
         echo "$distance"
     else
         echo "0"
     fi
-    
+
     # Save current position
     echo "$gps_data" > /tmp/last_gps_position.json
 }
@@ -147,22 +151,22 @@ print(int(distance))
 # Main GPS-enhanced failover logic
 main() {
     local gps_data movement_distance
-    
+
     gps_data=$(get_gps_location)
     if [[ $? -eq 0 ]]; then
         movement_distance=$(calculate_movement "$gps_data")
-        
+
         # If moved more than threshold, reset Starlink obstruction map
         if [[ "$movement_distance" -gt "${STARLINK_OBSTRUCTION_RESET_DISTANCE:-500}" ]]; then
             logger -t "GPS-Failover" "Moved ${movement_distance}m, resetting Starlink obstruction map"
-            
+
             # Reset Starlink obstruction map via gRPC
             grpcurl -plaintext -d '{"stow": {"unstow": false}}' \
                 "${STARLINK_IP}" SpaceX.API.Device.Device/Handle >/dev/null 2>&1
             sleep 2
             grpcurl -plaintext -d '{"stow": {"unstow": true}}' \
                 "${STARLINK_IP}" SpaceX.API.Device.Device/Handle >/dev/null 2>&1
-            
+
             # Send notification
             if [[ "${NOTIFY_ON_GPS_STATUS:-0}" == "1" ]]; then
                 send_pushover_notification "GPS Movement Detected" \
@@ -181,6 +185,7 @@ chmod +x /root/starlink-monitor/scripts/gps-enhanced-failover.sh
 ### 5. Integration with Your Existing Systems
 
 #### MQTT Integration (based on your mosquitto config)
+
 ```bash
 # Enable MQTT logging in your config
 sed -i 's/ENABLE_MQTT_LOGGING=0/ENABLE_MQTT_LOGGING=1/' /root/starlink-monitor/config/config.sh
@@ -194,7 +199,7 @@ source /root/starlink-monitor/config/config.sh
 publish_starlink_status() {
     local status="$1"
     local topic="${MQTT_TOPIC_PREFIX:-starlink}/status"
-    
+
     # Publish to your existing MQTT broker
     mosquitto_pub -h "${MQTT_BROKER}" -p "${MQTT_PORT:-1883}" \
                   -t "$topic" -m "$status" -q 1
@@ -208,6 +213,7 @@ chmod +x /root/starlink-monitor/scripts/mqtt-publisher.sh
 ```
 
 #### RMS Integration (based on your rms_mqtt config)
+
 ```bash
 # Enable RMS monitoring if desired
 cat > /root/starlink-monitor/scripts/rms-integration.sh << 'EOF'
@@ -218,11 +224,11 @@ source /root/starlink-monitor/config/config.sh
 send_rms_alert() {
     local alert_type="$1"
     local message="$2"
-    
+
     # Send alert via RMS system (using your existing RMS config)
     # This integrates with your rms_mqtt.rms_connect_mqtt setup
     echo "$message" > /tmp/rms_starlink_alert.txt
-    
+
     # Log to system for RMS pickup
     logger -t "RMS-Starlink" "$alert_type: $message"
 }
@@ -245,32 +251,32 @@ source /root/starlink-monitor/config/config.sh
 # Check if Starlink is having issues before scheduled reboot
 check_starlink_health() {
     local issues=0
-    
+
     # Get Starlink status
     local starlink_status
     starlink_status=$(grpcurl -plaintext -d '{"get_status":{}}' \
                              "${STARLINK_IP}" SpaceX.API.Device.Device/Handle 2>/dev/null)
-    
+
     if [[ -n "$starlink_status" ]]; then
         # Check for obstruction issues
         local obstructed
         obstructed=$(echo "$starlink_status" | jq -r '.dishGetStatus.obstructed // false')
-        
+
         if [[ "$obstructed" == "true" ]]; then
             ((issues++))
             logger -t "Intelligent-Reboot" "Starlink obstructed, reboot may help"
         fi
-        
+
         # Check uptime - if recently rebooted, skip
         local uptime_hours
         uptime_hours=$(awk '{print int($1/3600)}' /proc/uptime)
-        
+
         if [[ "$uptime_hours" -lt 2 ]]; then
             logger -t "Intelligent-Reboot" "Recent reboot detected, skipping scheduled reboot"
             exit 0
         fi
     fi
-    
+
     return $issues
 }
 
@@ -307,19 +313,21 @@ uci commit periodic_reboot
 ## 📊 Monitoring Your Enhanced Setup
 
 ### Dashboard Integration
+
 Based on your system, you can monitor:
 
 1. **WebUI Integration**: Enhanced overview widgets
-2. **MQTT Monitoring**: Real-time status via your MQTT broker  
+2. **MQTT Monitoring**: Real-time status via your MQTT broker
 3. **SMS Status**: Use your existing SMS utils for remote status
 4. **RMS Dashboard**: Integration with Teltonika RMS
 
 ### Performance Monitoring
+
 ```bash
 # Real-time monitoring
 watch -n 5 'cat /tmp/run/starlink_monitor.health'
 
-# Historical analysis  
+# Historical analysis
 tail -f /var/log/starlink_performance.log | grep -E "(FAIL|RECOVER|GPS)"
 
 # Integration status
@@ -329,15 +337,18 @@ mqtt_sub -h 192.168.80.242 -t "starlink/+"
 ## 🔧 Maintenance
 
 ### Weekly Checks
+
 - Review performance logs
 - Check GPS movement tracking
 - Verify MQTT integration
 - Monitor cellular data usage
 
 ### Monthly Optimization
+
 - Analyze failover patterns
 - Optimize thresholds based on usage
 - Update firmware and scripts
 - Review notification effectiveness
 
-This enhanced setup leverages your existing RUTX50 configuration while adding intelligent Starlink-specific monitoring and failover capabilities.
+This enhanced setup leverages your existing RUTX50 configuration while adding intelligent Starlink-specific monitoring
+and failover capabilities.

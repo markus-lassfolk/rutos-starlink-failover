@@ -4,7 +4,8 @@ This document describes the comprehensive health monitoring system for the RUTOS
 
 ## Overview
 
-The health check system provides automated monitoring and diagnostic capabilities for the Starlink failover solution running on RUTX50 routers. It orchestrates all individual test scripts and provides a unified view of system health.
+The health check system provides automated monitoring and diagnostic capabilities for the Starlink failover solution
+running on RUTX50 routers. It orchestrates all individual test scripts and provides a unified view of system health.
 
 ## Main Health Check Script
 
@@ -28,30 +29,35 @@ DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
 ### Health Check Features
 
 #### 1. System Resource Monitoring
+
 - **Disk Space**: Monitors available disk space and warns if low
 - **Memory Usage**: Checks RAM utilization and swap usage
 - **CPU Load**: Monitors system load averages
 - **System Uptime**: Tracks system uptime and load statistics
 
 #### 2. Network Connectivity Testing
+
 - **Internet Connectivity**: Tests connection to external servers (8.8.8.8)
 - **DNS Resolution**: Verifies DNS functionality (google.com)
 - **Starlink Device**: Tests connectivity to Starlink dish (192.168.100.1)
 - **gRPC API**: Validates Starlink gRPC API accessibility
 
 #### 3. Configuration Health
+
 - **Configuration Validation**: Runs complete config validation
 - **Placeholder Detection**: Identifies unconfigured optional features
 - **Critical Settings**: Ensures essential configuration is present
 - **Template Compatibility**: Checks for outdated configuration templates
 
 #### 4. Monitoring System Health
+
 - **Log Freshness**: Checks if monitoring logs are recent
 - **Process Status**: Verifies monitoring processes are running
 - **Cron Schedule**: Validates monitoring is scheduled in crontab
 - **State Files**: Checks for proper state file management
 
 #### 5. Integrated Test Execution
+
 - **Pushover Testing**: Tests notification system (if configured)
 - **Monitoring Tests**: Validates core monitoring functionality
 - **System Status**: Comprehensive system overview
@@ -60,24 +66,29 @@ DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
 ## Health Check Modes
 
 ### 1. Full Health Check (Default)
+
 ```bash
 /root/starlink-monitor/scripts/health-check.sh
 ```
+
 - Runs all health checks
 - Executes all integrated tests
 - Provides comprehensive system overview
 - Most thorough but takes longest time
 
 ### 2. Quick Health Check
+
 ```bash
 /root/starlink-monitor/scripts/health-check.sh --quick
 ```
+
 - Skips time-consuming integrated tests
 - Focuses on essential system checks
 - Faster execution for routine monitoring
 - Good for automated scheduling
 
 ### 3. Component-Specific Checks
+
 ```bash
 # Test only network connectivity
 /root/starlink-monitor/scripts/health-check.sh --connectivity
@@ -95,13 +106,16 @@ DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
 ## Health Status Indicators
 
 ### Status Levels
+
 - **✅ HEALTHY**: Component is functioning normally
 - **⚠️ WARNING**: Non-critical issues that should be addressed
 - **❌ CRITICAL**: Critical issues requiring immediate attention
 - **❓ UNKNOWN**: Unable to determine component status
 
 ### Health Scoring
+
 The system provides an overall health score based on:
+
 - **Critical Issues**: Heavily impact score (major deduction)
 - **Warnings**: Moderately impact score (minor deduction)
 - **Healthy Components**: Contribute positively to score
@@ -164,17 +178,20 @@ Timestamp: 2025-07-15 14:30:15
 The health check system monitors log freshness to detect stale monitoring:
 
 ### Configurable Thresholds
+
 - **CRITICAL**: No logs in 60+ minutes (monitoring likely failed)
 - **WARNING**: No logs in 30-60 minutes (monitoring may be delayed)
 - **HEALTHY**: Recent logs within 30 minutes
 
 ### Log Locations Monitored
+
 - Main monitoring logs
 - System logs
 - Error logs
 - State files
 
 ### Custom Thresholds
+
 ```bash
 # Set custom log freshness threshold (in minutes)
 LOG_FRESHNESS_THRESHOLD=45 /root/starlink-monitor/scripts/health-check.sh
@@ -183,6 +200,7 @@ LOG_FRESHNESS_THRESHOLD=45 /root/starlink-monitor/scripts/health-check.sh
 ## System Resource Monitoring
 
 ### Disk Space Monitoring
+
 ```bash
 # Critical: < 1GB free space
 # Warning: < 2GB free space
@@ -190,6 +208,7 @@ LOG_FRESHNESS_THRESHOLD=45 /root/starlink-monitor/scripts/health-check.sh
 ```
 
 ### Memory Monitoring
+
 ```bash
 # Critical: > 90% memory usage
 # Warning: > 80% memory usage
@@ -197,6 +216,7 @@ LOG_FRESHNESS_THRESHOLD=45 /root/starlink-monitor/scripts/health-check.sh
 ```
 
 ### CPU Load Monitoring
+
 ```bash
 # Critical: Load > 2.0
 # Warning: Load > 1.0
@@ -208,13 +228,16 @@ LOG_FRESHNESS_THRESHOLD=45 /root/starlink-monitor/scripts/health-check.sh
 The health check system integrates with all existing test scripts:
 
 ### Test Script Integration
+
 - **test-pushover.sh**: Notification system testing
 - **test-monitoring.sh**: Core monitoring functionality
 - **system-status.sh**: System overview
 - **validate-config.sh**: Configuration validation
 
 ### Quiet Mode Support
+
 All integrated test scripts support `--quiet` mode for clean health check output:
+
 ```bash
 # Scripts run in quiet mode during health checks
 /root/starlink-monitor/scripts/test-pushover.sh --quiet
@@ -224,6 +247,7 @@ All integrated test scripts support `--quiet` mode for clean health check output
 ## Automated Health Monitoring
 
 ### Cron Integration
+
 Add health checks to crontab for automated monitoring:
 
 ```bash
@@ -235,6 +259,7 @@ Add health checks to crontab for automated monitoring:
 ```
 
 ### Health Check Notifications
+
 Integrate with notification system for automated alerts:
 
 ```bash
@@ -252,6 +277,7 @@ The health check script uses standard exit codes:
 - **3**: No checks performed (configuration error)
 
 ### Using Exit Codes in Scripts
+
 ```bash
 #!/bin/sh
 if /root/starlink-monitor/scripts/health-check.sh --quick; then
@@ -274,6 +300,7 @@ DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
 ```
 
 ### Debug Output Includes
+
 - Detailed execution flow
 - Variable values and states
 - Command execution traces
@@ -284,6 +311,7 @@ DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
 ## Troubleshooting Common Issues
 
 ### 1. Health Check Script Not Found
+
 ```bash
 # Verify installation
 ls -la /root/starlink-monitor/scripts/health-check.sh
@@ -293,12 +321,14 @@ curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failov
 ```
 
 ### 2. Permission Errors
+
 ```bash
 # Fix script permissions
 chmod +x /root/starlink-monitor/scripts/health-check.sh
 ```
 
 ### 3. Network Connectivity Issues
+
 ```bash
 # Test basic connectivity
 ping -c 1 8.8.8.8
@@ -311,6 +341,7 @@ ping -c 1 192.168.100.1
 ```
 
 ### 4. Configuration Issues
+
 ```bash
 # Run configuration validation
 /root/starlink-monitor/scripts/validate-config.sh
@@ -322,21 +353,25 @@ grep -r "YOUR_" /root/starlink-monitor/config/
 ## Best Practices
 
 ### 1. Regular Health Checks
+
 - Run health checks regularly (hourly quick checks, daily full checks)
 - Monitor health check logs for trends
 - Set up notifications for critical issues
 
 ### 2. Proactive Monitoring
+
 - Monitor log freshness to detect stale monitoring
 - Watch system resource usage trends
 - Verify network connectivity regularly
 
 ### 3. Configuration Management
+
 - Keep configuration up to date
 - Replace placeholder values with real settings
 - Use graceful degradation for optional features
 
 ### 4. Documentation
+
 - Document any custom modifications
 - Keep track of system changes
 - Maintain troubleshooting notes
@@ -344,6 +379,7 @@ grep -r "YOUR_" /root/starlink-monitor/config/
 ## Integration with Monitoring Systems
 
 ### Nagios Integration
+
 ```bash
 # Nagios check command
 define command{
@@ -353,12 +389,14 @@ define command{
 ```
 
 ### Prometheus Integration
+
 ```bash
 # Export health metrics
 /root/starlink-monitor/scripts/health-check.sh --quick | grep "HEALTH SCORE" | awk '{print "starlink_health_score " $3}' | sed 's/%//' > /var/lib/prometheus/node-exporter/starlink_health.prom
 ```
 
 ### Custom Monitoring Integration
+
 ```bash
 # JSON output for integration
 /root/starlink-monitor/scripts/health-check.sh --json > /tmp/health-status.json
@@ -367,6 +405,7 @@ define command{
 ## Advanced Configuration
 
 ### Custom Health Check Thresholds
+
 Create custom configuration file:
 
 ```bash
@@ -382,6 +421,7 @@ LOG_FRESHNESS_WARNING=30     # 30 minutes
 ```
 
 ### Health Check Customization
+
 ```bash
 # Custom health check script
 #!/bin/sh
@@ -400,7 +440,8 @@ check_custom_service
 
 ## Conclusion
 
-The health check system provides comprehensive monitoring capabilities for the RUTOS Starlink Failover solution. It offers:
+The health check system provides comprehensive monitoring capabilities for the RUTOS Starlink Failover solution. It
+offers:
 
 - **Comprehensive Coverage**: All system components monitored
 - **Flexible Operation**: Multiple modes for different use cases
@@ -409,8 +450,9 @@ The health check system provides comprehensive monitoring capabilities for the R
 - **Automated Operation**: Suitable for cron-based automation
 - **Troubleshooting Support**: Debug mode for problem resolution
 
-Regular use of the health check system ensures reliable operation of the Starlink failover solution and provides early warning of potential issues.
+Regular use of the health check system ensures reliable operation of the Starlink failover solution and provides early
+warning of potential issues.
 
 ---
 
-*For additional information, see the main project documentation and testing guides.*
+_For additional information, see the main project documentation and testing guides._

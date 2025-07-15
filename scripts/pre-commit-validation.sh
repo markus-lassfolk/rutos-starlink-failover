@@ -1,7 +1,8 @@
 #!/bin/bash
 # Pre-commit validation script for RUTOS Starlink Failover Project
-# Version: 1.0.2
+# Version: 1.0.3
 # Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility
+#              and markdown files for documentation quality
 #
 # NOTE: This script runs in the development environment (WSL/Linux), NOT on RUTOS,
 # so it can use modern bash features for efficiency. It validates OTHER scripts
@@ -11,9 +12,10 @@
 # and collect all validation issues before exiting
 
 # Version information
-SCRIPT_VERSION="1.0.2"
+SCRIPT_VERSION="1.0.3"
 
 # Files to exclude from validation (patterns supported)
+# Files to exclude from validation
 EXCLUDED_FILES=(
 	"scripts/pre-commit-validation.sh"
 	"scripts/setup-code-quality-tools.sh"
@@ -90,17 +92,22 @@ MINOR_ISSUES=0
 ISSUE_LIST=""
 
 # Function to check if a file should be excluded
+# Function to check if a file should be excluded
 is_excluded() {
 	local file="$1"
 	local pattern
 	
+	# Normalize path to handle both relative and absolute paths
+	local normalized_path
+	normalized_path=$(echo "$file" | sed 's|^\./||' | sed 's|\\|/|g')
+	
+	# Check if file is in excluded list
 	for pattern in "${EXCLUDED_FILES[@]}"; do
-		case "$file" in
-		*"$pattern"*)
+		if [[ "$normalized_path" == *"$pattern"* ]]; then
 			return 0  # File is excluded
-			;;
-		esac
+		fi
 	done
+	
 	return 1  # File is not excluded
 }
 
@@ -475,13 +482,18 @@ check_undefined_variables() {
 	fi
 }
 
-# Function to validate a single file
+# Function to validate a single shell script file
 validate_file() {
 	file="$1"
 
 	log_step "Validating: $file"
 
 	initial_issues=$TOTAL_ISSUES
+
+	# Try to auto-fix formatting issues first
+	if auto_fix_formatting "$file"; then
+		log_info "Applied auto-fixes to $file"
+	fi
 
 	# Check shebang
 	check_shebang "$file"
@@ -498,10 +510,7 @@ validate_file() {
 	# Run ShellCheck
 	run_shellcheck "$file"
 
-	# Run shfmt formatting validation
-	run_shfmt "$file"
-
-	# Run shfmt
+	# Run shfmt formatting validation (after potential auto-fixes)
 	run_shfmt "$file"
 
 	# Check for undefined variables
@@ -518,6 +527,131 @@ validate_file() {
 		FAILED_FILES=$((FAILED_FILES + 1))
 	fi
 
+	return $file_issues
+}
+
+# Function to auto-fix formatting issues
+auto_fix_formatting() {
+	local file="$1"
+	local file_extension="${file##*.}"
+	local fixes_applied=0
+	
+	case "$file_extension" in
+		"sh")
+			# Auto-fix shell script formatting with shfmt
+			if command_exists shfmt; then
+				if ! shfmt -d "$file" >/dev/null 2>&1; then
+					log_info "Auto-fixing shell script formatting: $file"
+					shfmt -w "$file"
+					fixes_applied=1
+				fi
+			fi
+			;;
+		"md")
+			# Auto-fix markdown formatting with prettier
+			if command_exists prettier; then
+				# Check if prettier would make changes
+				if ! prettier --check "$file" >/dev/null 2>&1; then
+					log_info "Auto-fixing markdown formatting: $file"
+					prettier --write "$file" >/dev/null 2>&1
+					fixes_applied=1
+				fi
+			fi
+			;;
+	esac
+	
+	return $fixes_applied
+}
+
+# Function to run markdownlint validation
+run_markdownlint() {
+	local file="$1"
+	
+	if ! command_exists markdownlint; then
+		log_warning "markdownlint not available - skipping markdown validation"
+		return 0
+	fi
+	
+	# Run markdownlint and capture output
+	markdownlint_output=$(markdownlint "$file" 2>&1)
+	
+	if [ $? -eq 0 ]; then
+		log_debug "✓ $file: Passes markdownlint validation"
+		return 0
+	else
+		log_warning "$file: markdownlint found issues"
+		
+		# Parse markdownlint output using a temporary file to avoid subshell
+		temp_file="/tmp/markdownlint_$$"
+		echo "$markdownlint_output" > "$temp_file"
+		
+		while IFS= read -r line; do
+			if [[ "$line" =~ ^([^:]+):([0-9]+).*MD([0-9]+)(.*)$ ]]; then
+				file_path="${BASH_REMATCH[1]}"
+				line_num="${BASH_REMATCH[2]}"
+				md_code="MD${BASH_REMATCH[3]}"
+				description="${BASH_REMATCH[4]}"
+				report_issue "MAJOR" "$file_path" "$line_num" "$md_code:$description"
+			fi
+		done < "$temp_file"
+		
+		# Clean up temporary file
+		rm -f "$temp_file"
+		
+		return 1
+	fi
+}
+
+# Function to run prettier validation for markdown
+run_prettier_markdown() {
+	local file="$1"
+	
+	if ! command_exists prettier; then
+		log_warning "prettier not available - skipping markdown formatting validation"
+		return 0
+	fi
+	
+	# Check if prettier would make changes
+	if prettier --check "$file" >/dev/null 2>&1; then
+		log_debug "✓ $file: Passes prettier formatting validation"
+		return 0
+	else
+		log_debug "prettier found formatting issues in $file"
+		report_issue "MAJOR" "$file" "0" "prettier formatting issues - run 'prettier --write $file' to fix"
+		return 1
+	fi
+}
+
+# Function to validate markdown file
+validate_markdown_file() {
+	local file="$1"
+	
+	log_step "Validating: $file"
+	
+	local initial_issues=$TOTAL_ISSUES
+	
+	# Try to auto-fix formatting issues first
+	if auto_fix_formatting "$file"; then
+		log_info "Applied auto-fixes to $file"
+	fi
+	
+	# Run markdownlint validation
+	run_markdownlint "$file"
+	
+	# Run prettier validation (after potential auto-fixes)
+	run_prettier_markdown "$file"
+	
+	# Calculate issues for this file
+	local file_issues=$((TOTAL_ISSUES - initial_issues))
+	
+	if [ $file_issues -eq 0 ]; then
+		log_success "✓ $file: All checks passed"
+		PASSED_FILES=$((PASSED_FILES + 1))
+	else
+		log_error "✗ $file: $file_issues issues found"
+		FAILED_FILES=$((FAILED_FILES + 1))
+	fi
+	
 	return $file_issues
 }
 
@@ -538,7 +672,7 @@ display_issue_summary() {
 	# Write issues to temp file for processing
 	printf "%s\n" "$ISSUE_LIST" >"$temp_file"
 
-	# Group issues by ShellCheck code first, then by full message
+	# Group issues by ShellCheck code, markdown linting code, or other message types
 	while IFS='|' read -r message file_path; do
 		# Skip empty lines
 		if [ -n "$message" ]; then
@@ -568,8 +702,148 @@ display_issue_summary() {
 					printf "%s: %s\n" "$sc_code" "$sc_desc"
 					;;
 				esac
+			# Check if this is a markdown linting issue
+			elif echo "$message" | grep -q "^MD[0-9]*:"; then
+				# Extract just the MD code and general description
+				md_code=$(echo "$message" | cut -d':' -f1)
+				md_desc=$(echo "$message" | cut -d':' -f2- | sed 's/^[[:space:]]*//')
+				# Group by MD code, but show generic description
+				case "$md_code" in
+				"MD001")
+					printf "%s: Heading levels should only increment by one level at a time\n" "$md_code"
+					;;
+				"MD003")
+					printf "%s: Heading style should be consistent\n" "$md_code"
+					;;
+				"MD004")
+					printf "%s: Unordered list style should be consistent\n" "$md_code"
+					;;
+				"MD005")
+					printf "%s: Inconsistent indentation for list items\n" "$md_code"
+					;;
+				"MD007")
+					printf "%s: Unordered list indentation should be consistent\n" "$md_code"
+					;;
+				"MD009")
+					printf "%s: Trailing spaces detected\n" "$md_code"
+					;;
+				"MD010")
+					printf "%s: Hard tabs detected\n" "$md_code"
+					;;
+				"MD011")
+					printf "%s: Reversed link syntax\n" "$md_code"
+					;;
+				"MD012")
+					printf "%s: Multiple consecutive blank lines\n" "$md_code"
+					;;
+				"MD013")
+					printf "%s: Line length exceeds maximum\n" "$md_code"
+					;;
+				"MD018")
+					printf "%s: No space after hash on atx style heading\n" "$md_code"
+					;;
+				"MD019")
+					printf "%s: Multiple spaces after hash on atx style heading\n" "$md_code"
+					;;
+				"MD020")
+					printf "%s: No space inside hashes on closed atx style heading\n" "$md_code"
+					;;
+				"MD021")
+					printf "%s: Multiple spaces inside hashes on closed atx style heading\n" "$md_code"
+					;;
+				"MD022")
+					printf "%s: Headings should be surrounded by blank lines\n" "$md_code"
+					;;
+				"MD023")
+					printf "%s: Headings must start at the beginning of the line\n" "$md_code"
+					;;
+				"MD024")
+					printf "%s: Multiple headings with the same content\n" "$md_code"
+					;;
+				"MD025")
+					printf "%s: Multiple top level headings in the same document\n" "$md_code"
+					;;
+				"MD026")
+					printf "%s: Trailing punctuation in heading\n" "$md_code"
+					;;
+				"MD027")
+					printf "%s: Multiple spaces after blockquote symbol\n" "$md_code"
+					;;
+				"MD028")
+					printf "%s: Blank line inside blockquote\n" "$md_code"
+					;;
+				"MD029")
+					printf "%s: Ordered list item prefix should be consistent\n" "$md_code"
+					;;
+				"MD030")
+					printf "%s: Spaces after list markers should be consistent\n" "$md_code"
+					;;
+				"MD031")
+					printf "%s: Fenced code blocks should be surrounded by blank lines\n" "$md_code"
+					;;
+				"MD032")
+					printf "%s: Lists should be surrounded by blank lines\n" "$md_code"
+					;;
+				"MD033")
+					printf "%s: Inline HTML usage detected\n" "$md_code"
+					;;
+				"MD034")
+					printf "%s: Bare URL used instead of proper link syntax\n" "$md_code"
+					;;
+				"MD036")
+					printf "%s: Emphasis used instead of a heading\n" "$md_code"
+					;;
+				"MD037")
+					printf "%s: Spaces inside emphasis markers\n" "$md_code"
+					;;
+				"MD038")
+					printf "%s: Spaces inside code span elements\n" "$md_code"
+					;;
+				"MD039")
+					printf "%s: Spaces inside link text\n" "$md_code"
+					;;
+				"MD040")
+					printf "%s: Fenced code blocks should have a language specified\n" "$md_code"
+					;;
+				"MD041")
+					printf "%s: First line in file should be a top level heading\n" "$md_code"
+					;;
+				"MD042")
+					printf "%s: No empty links\n" "$md_code"
+					;;
+				"MD043")
+					printf "%s: Required heading structure not followed\n" "$md_code"
+					;;
+				"MD044")
+					printf "%s: Proper names should have the correct capitalization\n" "$md_code"
+					;;
+				"MD045")
+					printf "%s: Images should have alternate text (alt text)\n" "$md_code"
+					;;
+				"MD046")
+					printf "%s: Code block style should be consistent\n" "$md_code"
+					;;
+				"MD047")
+					printf "%s: Files should end with a single newline character\n" "$md_code"
+					;;
+				"MD048")
+					printf "%s: Code fence style should be consistent\n" "$md_code"
+					;;
+				"MD049")
+					printf "%s: Emphasis style should be consistent\n" "$md_code"
+					;;
+				"MD050")
+					printf "%s: Strong style should be consistent\n" "$md_code"
+					;;
+				*)
+					printf "%s: %s\n" "$md_code" "$md_desc"
+					;;
+				esac
+			# Check if this is a prettier formatting issue
+			elif echo "$message" | grep -q "prettier formatting issues"; then
+				printf "prettier: Markdown formatting issues detected\n"
 			else
-				# Non-ShellCheck issues - show as is
+				# Other issues - show as is
 				printf "%s\n" "$message"
 			fi
 		fi
@@ -583,8 +857,15 @@ display_issue_summary() {
 				# For ShellCheck codes, count files that have this specific code
 				sc_code=$(echo "$message" | cut -d':' -f1)
 				unique_files=$(grep "^$sc_code:" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
+			elif echo "$message" | grep -q "^MD[0-9]*:"; then
+				# For markdown linting codes, count files that have this specific code
+				md_code=$(echo "$message" | cut -d':' -f1)
+				unique_files=$(grep "^$md_code:" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
+			elif echo "$message" | grep -q "^prettier:"; then
+				# For prettier issues, count files with prettier formatting issues
+				unique_files=$(grep -F "prettier formatting issues" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
 			else
-				# For non-ShellCheck issues, count normally
+				# For other issues, count normally
 				unique_files=$(grep -F "$message|" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
 			fi
 			printf "${YELLOW}%dx${NC} / ${CYAN}%d files${NC}: %s\n" "$count" "$unique_files" "$message"
@@ -630,33 +911,50 @@ display_summary() {
 # Function to display help
 show_help() {
 	cat <<EOF
-RUTOS Busybox Compatibility Validation Script
+RUTOS Busybox Compatibility and Markdown Validation Script
 
 Usage: $0 [OPTIONS] [FILES...]
 
 OPTIONS:
     --staged        Validate only staged files (for git pre-commit hook)
-    --all           Validate all shell files in the repository
+    --all           Validate all shell and markdown files in the repository
+    --shell-only    Validate only shell script files
+    --md-only       Validate only markdown files
     --help, -h      Show this help message
 
 EXAMPLES:
-    $0                              # Validate all shell files
+    $0                              # Validate all shell and markdown files
     $0 --all                        # Same as above, but explicit
     $0 --staged                     # Validate only staged files (git hook mode)
-    $0 file1.sh file2.sh            # Validate specific files
+    $0 --shell-only                 # Validate only shell scripts
+    $0 --md-only                    # Validate only markdown files
+    $0 file1.sh file2.md            # Validate specific files
     $0 scripts/*.sh                 # Validate all files in scripts directory
 
 DESCRIPTION:
-    This script validates shell scripts for RUTOS/busybox compatibility by checking:
+    This script validates shell scripts for RUTOS/busybox compatibility and
+    markdown files for documentation quality by checking:
+    
+    SHELL SCRIPTS:
     - Shebang compatibility (#!/bin/sh required)
     - Bash-specific syntax (arrays, double brackets, etc.)
     - Echo -e usage (should use printf instead)
     - Source command usage (should use . instead)
     - Function syntax compatibility
     - ShellCheck validation in POSIX mode
+    - shfmt formatting (with auto-fix)
+    
+    MARKDOWN FILES:
+    - markdownlint validation
+    - prettier formatting (with auto-fix)
 
-    The script processes ALL files even if some fail validation, providing
-    a comprehensive report of all issues found across all files.
+    AUTO-FIXING:
+    The script automatically fixes formatting issues using:
+    - shfmt for shell scripts
+    - prettier for markdown files
+    
+    After auto-fixes are applied, the script re-validates to ensure 
+    issues are resolved.
 
     EXCLUDED FILES:
     The following files are automatically excluded from validation:
@@ -672,73 +970,117 @@ EOF
 
 # Main function
 main() {
-	log_info "Starting RUTOS busybox compatibility validation v$SCRIPT_VERSION"
+	log_info "Starting RUTOS busybox compatibility and markdown validation v$SCRIPT_VERSION"
 
 	# Skip self-validation
 	log_step "Self-validation: Skipped - this script is excluded from validation"
 
+	local shell_files=""
+	local markdown_files=""
+	
 	# Check if running with specific files
 	if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
 		show_help
 		exit 0
 	elif [ "$1" = "--staged" ]; then
 		log_info "Running in pre-commit mode (staged files only)"
-		# Get staged shell files, excluding specified files
-		files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' | while read -r file; do
+		# Get staged shell and markdown files, excluding specified files
+		shell_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' | while read -r file; do
 			if ! is_excluded "$file"; then
 				echo "$file"
 			fi
 		done | sort)
+		markdown_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | sort)
 	elif [ "$1" = "--all" ]; then
-		log_info "Running in comprehensive validation mode (all shell files)"
-		# Get all shell files, excluding specified files
-		files=$(find . -name "*.sh" -type f | while read -r file; do
+		log_info "Running in comprehensive validation mode (all shell and markdown files)"
+		# Get all shell and markdown files, excluding specified files
+		shell_files=$(find . -name "*.sh" -type f | while read -r file; do
 			if ! is_excluded "$file"; then
 				echo "$file"
 			fi
 		done | sort)
-	elif [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-		show_help
-		return 0
+		markdown_files=$(find . -name "*.md" -type f | sort)
+	elif [ "$1" = "--shell-only" ]; then
+		log_info "Running in shell-only validation mode"
+		# Get all shell files, excluding specified files
+		shell_files=$(find . -name "*.sh" -type f | while read -r file; do
+			if ! is_excluded "$file"; then
+				echo "$file"
+			fi
+		done | sort)
+	elif [ "$1" = "--md-only" ]; then
+		log_info "Running in markdown-only validation mode"
+		# Get all markdown files
+		markdown_files=$(find . -name "*.md" -type f | sort)
 	elif [ $# -gt 0 ]; then
 		log_info "Running in specific file mode"
-		files="$@"
+		# Process specific files based on extension
+		for file in "$@"; do
+			case "$file" in
+				*.sh)
+					if ! is_excluded "$file"; then
+						shell_files="$shell_files $file"
+					fi
+					;;
+				*.md)
+					markdown_files="$markdown_files $file"
+					;;
+				*)
+					log_warning "Unsupported file type: $file (only .sh and .md supported)"
+					;;
+			esac
+		done
 	else
-		log_info "Running in full validation mode (all shell files)"
-		files=$(find . -name "*.sh" -type f | while read -r file; do
+		log_info "Running in full validation mode (all shell and markdown files)"
+		# Get all shell and markdown files, excluding specified files
+		shell_files=$(find . -name "*.sh" -type f | while read -r file; do
 			if ! is_excluded "$file"; then
 				echo "$file"
 			fi
 		done | sort)
+		markdown_files=$(find . -name "*.md" -type f | sort)
 	fi
 
-	if [ -z "$files" ]; then
-		log_warning "No shell files found to validate"
+	# Count total files
+	local total_files=0
+	for file in $shell_files $markdown_files; do
+		if [ -f "$file" ]; then
+			total_files=$((total_files + 1))
+		fi
+	done
+
+	if [ $total_files -eq 0 ]; then
+		log_warning "No files found to validate"
 		return 0
 	fi
 
-	# Convert to array for counting
-	file_count=0
-	for file in $files; do
-		file_count=$((file_count + 1))
-	done
+	log_step "Processing $total_files files"
 
-	# Validate each file
-	log_step "Processing $file_count files"
-	for file in $files; do
-		if [ -f "$file" ]; then
-			# Check if file should be excluded (for specific file mode)
-			if is_excluded "$file"; then
-				log_debug "Skipping excluded file: $file"
-				continue
+	# Validate shell files
+	if [ -n "$shell_files" ]; then
+		log_info "Validating shell script files"
+		for file in $shell_files; do
+			if [ -f "$file" ]; then
+				TOTAL_FILES=$((TOTAL_FILES + 1))
+				validate_file "$file"
+			else
+				log_debug "Skipping non-existent file: $file"
 			fi
-			
-			TOTAL_FILES=$((TOTAL_FILES + 1))
-			validate_file "$file"
-		else
-			log_debug "Skipping non-existent file: $file"
-		fi
-	done
+		done
+	fi
+
+	# Validate markdown files
+	if [ -n "$markdown_files" ]; then
+		log_info "Validating markdown files"
+		for file in $markdown_files; do
+			if [ -f "$file" ]; then
+				TOTAL_FILES=$((TOTAL_FILES + 1))
+				validate_markdown_file "$file"
+			else
+				log_debug "Skipping non-existent file: $file"
+			fi
+		done
+	fi
 
 	# Display summary
 	if ! display_summary; then

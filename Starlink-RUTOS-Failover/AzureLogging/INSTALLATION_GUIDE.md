@@ -1,10 +1,12 @@
 # Azure Logging Installation and Verification Guide
 
-This guide covers the comprehensive installation and verification system for Azure logging integration with RUTOS, Starlink monitoring, and GPS data collection.
+This guide covers the comprehensive installation and verification system for Azure logging integration with RUTOS,
+Starlink monitoring, and GPS data collection.
 
 ## Overview
 
 The Azure logging solution provides:
+
 - System log forwarding to Azure Functions
 - Starlink performance monitoring with CSV logging
 - GPS location data integration (RUTOS primary, Starlink fallback)
@@ -154,21 +156,24 @@ uci commit azure
 ### Common Issues
 
 1. **Dependencies Missing**
+
    ```bash
    # Re-run dependency installation
    /root/unified-azure-setup.sh --dependencies-only
    ```
 
 2. **Network Connectivity**
+
    ```bash
    # Check internet connectivity
    ping -c 3 8.8.8.8
-   
+
    # Check Azure endpoint
    curl -I "$(uci get azure.system.endpoint)"
    ```
 
 3. **GPS Not Working**
+
    ```bash
    # Test RUTOS GPS directly
    curl -u "$(uci get azure.gps.rutos_username):$(uci get azure.gps.rutos_password)" \
@@ -212,11 +217,13 @@ Check these locations for troubleshooting:
 ### Regular Checks
 
 1. Run verification weekly: `crontab -e` and add:
+
    ```
    0 2 * * 0 /root/verify-azure-setup.sh > /tmp/weekly-verification.log 2>&1
    ```
 
 2. Monitor CSV file sizes:
+
    ```bash
    # Check current size
    ls -lh "$(uci get azure.starlink.csv_file)"

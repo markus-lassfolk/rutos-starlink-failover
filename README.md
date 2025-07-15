@@ -19,11 +19,13 @@
 [![RUTOS](https://img.shields.io/badge/RUTOS-Compatible-orange.svg)](https://teltonika-networks.com/)
 [![Starlink](https://img.shields.io/badge/Starlink-Integrated-brightgreen.svg)](https://starlink.com/)
 
-A comprehensive solution for **RV and boat owners** seeking robust internet connectivity. This repository provides intelligent failover systems for Starlink connections on RUTOS routers.
+A comprehensive solution for **RV and boat owners** seeking robust internet connectivity. This repository provides
+intelligent failover systems for Starlink connections on RUTOS routers.
 
 ## 🌟 Features
 
 ### 🔄 Proactive Starlink Failover
+
 - **Real-time quality monitoring** using Starlink's internal API
 - **Soft failover** preserving existing connections
 - **Intelligent recovery** with stability checks
@@ -50,24 +52,27 @@ nano /root/starlink-monitor/config/config.sh
 ### Option 2: Manual Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/markus-lassfolk/rutos-starlink-failover.git
    cd rutos-starlink-failover
    ```
 
 2. **Install dependencies**
+
    ```bash
    # Install grpcurl (ARMv7)
    curl -fL https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz -o /tmp/grpcurl.tar.gz
    tar -zxf /tmp/grpcurl.tar.gz -C /root/ grpcurl
    chmod +x /root/grpcurl
-   
+
    # Install jq (ARMv7)
    curl -fL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf -o /root/jq
    chmod +x /root/jq
    ```
 
 3. **Configure the system**
+
    ```bash
    cp config/config.template.sh config/config.sh
    nano config/config.sh
@@ -83,11 +88,13 @@ nano /root/starlink-monitor/config/config.sh
 ## 📋 Prerequisites
 
 ### Hardware Requirements
+
 - **Teltonika RUTX50** or similar OpenWrt/RUTOS router
 - **Starlink dish** in Bypass Mode
 - **Cellular backup** connection
 
 ### Software Requirements
+
 - **RUTOS firmware** (latest stable)
 - **mwan3 package** configured
 - **Pushover account** for notifications
@@ -129,6 +136,7 @@ scripts/uci-optimizer.sh optimize          # Apply optimizations
 ```
 
 **Advanced features include:**
+
 - **GPS-enhanced failover** with movement detection
 - **Dual SIM integration** with automatic switching
 - **MQTT logging** for integration with existing systems
@@ -252,6 +260,7 @@ cat /root/starlink_performance_log.csv
 ## 📚 Documentation
 
 ### Project Structure
+
 ```
 ├── .github/workflows/          # CI/CD workflows
 ├── config/                     # Configuration templates
@@ -273,13 +282,13 @@ cat /root/starlink_performance_log.csv
 
 ### Key Scripts
 
-| Script | Purpose |
-|--------|---------|
+| Script                | Purpose                                            |
+| --------------------- | -------------------------------------------------- |
 | `starlink_monitor.sh` | Advanced monitoring with centralized configuration |
-| `99-pushover_notify` | Intelligent notification system |
-| `starlink_logger.sh` | Data collection for threshold optimization |
-| `install.sh` | Automated installation script |
-| `validate-config.sh` | Configuration validation |
+| `99-pushover_notify`  | Intelligent notification system                    |
+| `starlink_logger.sh`  | Data collection for threshold optimization         |
+| `install.sh`          | Automated installation script                      |
+| `validate-config.sh`  | Configuration validation                           |
 
 ## 🤝 Contributing
 
@@ -301,7 +310,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## ⚠️ Disclaimer
 
-This software is provided "as-is" without warranty. Test thoroughly in your environment before production use. The author is not responsible for any damage or service interruption.
+This software is provided "as-is" without warranty. Test thoroughly in your environment before production use. The
+author is not responsible for any damage or service interruption.
 
 ## 🙏 Acknowledgments
 
@@ -311,4 +321,5 @@ This software is provided "as-is" without warranty. Test thoroughly in your envi
 
 ---
 
-**Need help?** Check the [documentation](docs/) or open an [issue](https://github.com/markus-lassfolk/rutos-starlink-failover/issues).
+**Need help?** Check the [documentation](docs/) or open an
+[issue](https://github.com/markus-lassfolk/rutos-starlink-failover/issues).

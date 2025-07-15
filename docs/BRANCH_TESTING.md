@@ -2,27 +2,31 @@
 
 ## Problem: Branch Download Issue
 
-When working in a development branch (like `feature/testing-improvements`), the install script needs to download support files from the **same branch**, not from main.
+When working in a development branch (like `feature/testing-improvements`), the install script needs to download support
+files from the **same branch**, not from main.
 
 ## Solution: Dynamic Branch Support
 
 The install script now supports dynamic branch configuration via environment variables.
 
 ### For Main Branch (Production)
+
 ```bash
 # Standard installation - downloads from main branch
 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install.sh | sh
 ```
 
 ### For Development Branch Testing
+
 ```bash
 # Test installation from feature branch
 GITHUB_BRANCH="feature/testing-improvements" \
 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
-sh -s -- 
+sh -s --
 ```
 
 Or with DEBUG mode:
+
 ```bash
 # Test with debug output
 DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" \
@@ -39,6 +43,7 @@ The install script now uses these environment variables:
 - `DEBUG` - Enable debug output (default: "0")
 
 ### Internal Logic
+
 ```bash
 # Dynamic URL construction
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
@@ -54,6 +59,7 @@ download_file "$BASE_URL/config/config.template.sh" "$INSTALL_DIR/config/config.
 ## Verification
 
 After installation, the script shows which branch was used:
+
 ```
 Installation directory: /root/starlink-monitor
 Configuration file: /root/starlink-monitor/config/config.sh
