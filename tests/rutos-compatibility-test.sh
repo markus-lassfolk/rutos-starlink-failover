@@ -18,26 +18,26 @@ TESTS_TOTAL=0
 
 # Logging functions
 log_test() {
-    echo -e "${BLUE}[TEST]${NC} $1"
+    printf "${BLUE}[TEST]${NC} %s\n" "$1"
     TESTS_TOTAL=$((TESTS_TOTAL + 1))
 }
 
 log_pass() {
-    echo -e "${GREEN}[PASS]${NC} $1"
+    printf "${GREEN}[PASS]${NC} %s\n" "$1"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 }
 
 log_fail() {
-    echo -e "${RED}[FAIL]${NC} $1"
+    printf "${RED}[FAIL]${NC} %s\n" "$1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
 }
 
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    printf "${BLUE}[INFO]${NC} %s\n" "$1"
 }
 
 # Create test files for testing
@@ -495,14 +495,14 @@ echo "======================================"
 echo "TEST SUMMARY"
 echo "======================================"
 echo "Total tests: $TESTS_TOTAL"
-echo -e "Passed: ${GREEN}$TESTS_PASSED${NC}"
-echo -e "Failed: ${RED}$TESTS_FAILED${NC}"
+printf "Passed: ${GREEN}%d${NC}\n" "$TESTS_PASSED"
+printf "Failed: ${RED}%d${NC}\n" "$TESTS_FAILED"
 
 if [ $TESTS_FAILED -eq 0 ]; then
-    echo -e "${GREEN}All critical tests passed!${NC}"
+    printf "%sAll critical tests passed!%s\n" "$GREEN" "$NC"
     echo "Your RUTOS system appears compatible with the Starlink deployment."
 else
-    echo -e "${YELLOW}Some tests failed or warnings were issued.${NC}"
+    printf "%sSome tests failed or warnings were issued.%s\n" "$YELLOW" "$NC"
     echo "Review the failed tests above before proceeding with deployment."
 fi
 

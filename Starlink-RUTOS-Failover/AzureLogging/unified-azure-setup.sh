@@ -42,35 +42,37 @@ NC='\033[0m' # No Color
 
 # --- HELPER FUNCTIONS ---
 log() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}"
+    printf "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] %s${NC}\n" "$1"
     logger -t "$LOG_TAG" "$1"
 }
 
 log_success() {
-    echo -e "${GREEN}✓ $1${NC}"
+    printf "${GREEN}✓ %s${NC}\n" "$1"
     logger -t "$LOG_TAG" "SUCCESS: $1"
 }
 
 log_warn() {
-    echo -e "${YELLOW}⚠ $1${NC}"
+    printf "${YELLOW}⚠ %s${NC}\n" "$1"
     logger -t "$LOG_TAG" "WARNING: $1"
 }
 
 log_error() {
-    echo -e "${RED}✗ $1${NC}"
+    printf "${RED}✗ %s${NC}\n" "$1"
     logger -t "$LOG_TAG" "ERROR: $1"
 }
 
 prompt_user() {
     prompt="$1"
     default="$2"
-    response
+    response=""
 
     if [ -n "$default" ]; then
-        read -r -p "$prompt [$default]: " response
+        printf "%s [%s]: " "$prompt" "$default"
+        read -r response
         echo "${response:-$default}"
     else
-        read -r -p "$prompt: " response
+        printf "%s: " "$prompt"
+        read -r response
         echo "$response"
     fi
 }
@@ -99,8 +101,8 @@ install_dependencies() {
     opkg update >/dev/null 2>&1 || log_warn "Failed to update package lists"
 
     # Install required packages
-    packages=("curl" "jq" "coreutils-timeout" "bc")
-    for package in "${packages[@]}"; do
+    packages="curl jq coreutils-timeout bc"
+    for package in $packages; do
         if opkg list-installed | grep -q "^$package "; then
             log_success "$package is already installed"
         else
@@ -266,16 +268,17 @@ install_scripts() {
     log "Installing Azure logging scripts..."
 
     # List of required scripts and their target locations
-    declare -A scripts=(
-        ["setup-persistent-logging.sh"]="/usr/bin/setup-persistent-logging.sh"
-        ["log-shipper.sh"]="/usr/bin/log-shipper.sh"
-        ["starlink-azure-monitor.sh"]="/usr/bin/starlink-azure-monitor.sh"
-        ["test-azure-logging.sh"]="/usr/bin/test-azure-logging.sh"
-    )
+    # Using space-separated strings instead of arrays for busybox compatibility
+    SCRIPTS="setup-persistent-logging.sh log-shipper.sh starlink-azure-monitor.sh test-azure-logging.sh"
 
     # Install each script
-    for script in "${!scripts[@]}"; do
-    target="${scripts[$script]}"
+    for script in $SCRIPTS; do
+        case "$script" in
+            "setup-persistent-logging.sh") target="/usr/bin/setup-persistent-logging.sh" ;;
+            "log-shipper.sh") target="/usr/bin/log-shipper.sh" ;;
+            "starlink-azure-monitor.sh") target="/usr/bin/starlink-azure-monitor.sh" ;;
+            "test-azure-logging.sh") target="/usr/bin/test-azure-logging.sh" ;;
+        esac
 
         if [ -f "./$script" ]; then
             log "Installing $script to $target..."
@@ -371,11 +374,11 @@ setup_network_routes() {
 
 # --- MAIN SETUP FUNCTION ---
 main() {
-    echo -e "${BLUE}"
+    printf "%s" "${BLUE}"
     echo "========================================"
     echo "  Unified Azure Logging Setup Script"
     echo "========================================"
-    echo -e "${NC}"
+    printf "%s" "${NC}"
 
     # Check if running as root
     if [ "$(id -u)" -ne 0 ]; then
@@ -407,7 +410,11 @@ main() {
         rutos_username=$(prompt_user "RUTOS username (optional)" "")
 
         if [ -n "$rutos_username" ]; then
-            read -r -s -p "RUTOS password: " rutos_password
+            printf "RUTOS password: "
+            # Use stty to hide password input for POSIX compatibility
+            stty -echo
+            read -r rutos_password
+            stty echo
             echo
         fi
     fi
@@ -424,7 +431,8 @@ main() {
     echo
 
     # Confirm before proceeding
-    read -r -p "Proceed with installation? (y/N): " confirm
+    printf "Proceed with installation? (y/N): "
+    read -r confirm
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
         log "Installation cancelled by user"
         exit 0

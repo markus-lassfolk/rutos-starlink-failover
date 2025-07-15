@@ -21,35 +21,35 @@ cd "$TEST_DIR"
 
 # Logging functions
 log() {
-    echo -e "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+    printf "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} %s\n" "$1"
 }
 
 log_success() {
-    echo -e "${GREEN}✓${NC} $1"
+    printf "${GREEN}✓${NC} %s\n" "$1"
 }
 
 log_warn() {
-    echo -e "${YELLOW}⚠${NC} $1"
+    printf "${YELLOW}⚠${NC} %s\n" "$1"
 }
 
 log_error() {
-    echo -e "${RED}✗${NC} $1"
+    printf "${RED}✗${NC} %s\n" "$1"
 }
 
 log_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
+    printf "${BLUE}ℹ${NC} %s\n" "$1"
 }
 
 log_header() {
-    echo
-    echo -e "${PURPLE}=== $1 ===${NC}"
-    echo
+    printf "\n"
+    printf "${PURPLE}=== %s ===${NC}\n" "$1"
+    printf "\n"
 }
 
 # Test input validation functions
 validate_ip() {
     ip="$1"
-    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+    if echo "$ip" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
         return 0
     else
         return 1
@@ -58,7 +58,7 @@ validate_ip() {
 
 validate_url() {
     url="$1"
-    if [[ $url =~ ^https?:// ]]; then
+    if echo "$url" | grep -qE '^https?://'; then
         return 0
     else
         return 1
@@ -218,7 +218,8 @@ EOF
     if bash -n config.sh; then
         log_success "Configuration file syntax is valid"
         # Test sourcing the config
-        if source config.sh; then
+        # shellcheck disable=SC1091
+        if . config.sh; then
             log_success "Configuration file sources correctly"
             log_info "Test values: STARLINK_IP=$STARLINK_IP, AZURE_ENABLED=$AZURE_ENABLED"
         else
@@ -238,10 +239,10 @@ test_validation_functions() {
     # Test IP validation
     log "Testing IP address validation..."
 
-    valid_ips=("192.168.1.1" "10.0.0.1" "172.16.0.1")
-    invalid_ips=("999.999.999.999" "192.168.1" "not.an.ip")
+    valid_ips="192.168.1.1 10.0.0.1 172.16.0.1"
+    invalid_ips="999.999.999.999 192.168.1 not.an.ip"
 
-    for ip in "${valid_ips[@]}"; do
+    for ip in $valid_ips; do
         if validate_ip "$ip"; then
             log_success "Valid IP correctly accepted: $ip"
         else
@@ -250,7 +251,7 @@ test_validation_functions() {
         fi
     done
 
-    for ip in "${invalid_ips[@]}"; do
+    for ip in $invalid_ips; do
         if validate_ip "$ip"; then
             log_error "Invalid IP incorrectly accepted: $ip"
             return 1
@@ -262,10 +263,10 @@ test_validation_functions() {
     # Test URL validation
     log "Testing URL validation..."
 
-    valid_urls=("https://example.com" "http://test.azure.com/api/func" "https://subdomain.domain.com/path?query=value")
-    invalid_urls=("ftp://example.com" "example.com" "not-a-url")
+    valid_urls="https://example.com http://test.azure.com/api/func https://subdomain.domain.com/path?query=value"
+    invalid_urls="ftp://example.com example.com not-a-url"
 
-    for url in "${valid_urls[@]}"; do
+    for url in $valid_urls; do
         if validate_url "$url"; then
             log_success "Valid URL correctly accepted: $url"
         else
@@ -274,7 +275,7 @@ test_validation_functions() {
         fi
     done
 
-    for url in "${invalid_urls[@]}"; do
+    for url in $invalid_urls; do
         if validate_url "$url"; then
             log_error "Invalid URL incorrectly accepted: $url"
             return 1
@@ -308,26 +309,26 @@ TESTS_WARNED=0
 
 # Logging functions
 log_test() {
-    echo -e "${BLUE}[TEST]${NC} $1"
+    printf "${BLUE}[TEST]${NC} %s\n" "$1"
 }
 
 log_pass() {
-    echo -e "${GREEN}[PASS]${NC} $1"
+    printf "${GREEN}[PASS]${NC} %s\n" "$1"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 }
 
 log_fail() {
-    echo -e "${RED}[FAIL]${NC} $1"
+    printf "${RED}[FAIL]${NC} %s\n" "$1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
     TESTS_WARNED=$((TESTS_WARNED + 1))
 }
 
-# Test function that can run without RUTOS dependencies
-test_basic_functionality() {
+# Test utility that can run without RUTOS dependencies
+test_basic_utility() {
     log_test "Testing basic script functionality..."
     
     # Test that we can create state directories
@@ -353,21 +354,21 @@ test_basic_functionality() {
 }
 
 # Run basic tests
-test_basic_functionality
+test_basic_utility
 
 # Summary
 echo "========================================="
 echo "Test Summary"
 echo "========================================="
-echo -e "${GREEN}Tests Passed: $TESTS_PASSED${NC}"
-echo -e "${YELLOW}Tests Warned: $TESTS_WARNED${NC}"
-echo -e "${RED}Tests Failed: $TESTS_FAILED${NC}"
+printf "${GREEN}Tests Passed: %d${NC}\n" "$TESTS_PASSED"
+printf "${YELLOW}Tests Warned: %d${NC}\n" "$TESTS_WARNED"
+printf "${RED}Tests Failed: %d${NC}\n" "$TESTS_FAILED"
 
 if [ "$TESTS_FAILED" -eq 0 ]; then
-    echo -e "${GREEN}✓ Basic verification tests passed!${NC}"
+    printf "${GREEN}✓ Basic verification tests passed!${NC}\n"
     exit 0
 else
-    echo -e "${RED}✗ Some tests failed${NC}"
+    printf "${RED}✗ Some tests failed${NC}\n"
     exit 1
 fi
 EOF

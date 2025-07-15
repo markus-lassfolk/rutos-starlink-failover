@@ -21,19 +21,19 @@ NC='\033[0m' # No Color
 
 # Logging
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    printf "${BLUE}[INFO]${NC} %s\n" "$1"
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    printf "${RED}[ERROR]${NC} %s\n" "$1"
 }
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"
 }
 
 # Create backup
@@ -42,12 +42,9 @@ create_uci_backup() {
     mkdir -p "$BACKUP_DIR"
 
     # Backup critical configurations
-    configs=(
-        "mwan3" "network" "firewall" "gps" "simcard"
-        "system" "wireless" "dhcp" "dropbear"
-    )
+    configs="mwan3 network firewall gps simcard system wireless dhcp dropbear"
 
-    for config in "${configs[@]}"; do
+    for config in $configs; do
         uci export "$config" >"$BACKUP_DIR/${config}.uci" 2>/dev/null || {
             log_warn "Could not backup $config"
         }
@@ -72,11 +69,11 @@ analyze_mwan3() {
 
     log_info "Found mwan3 interfaces:"
     for iface in $interfaces; do
-    enabled
+    enabled=""
         enabled=$(uci get "mwan3.${iface%.*}.enabled" 2>/dev/null || echo "0")
 
-        if [[ "$enabled" == "1" ]]; then
-    metric
+        if [ "$enabled" = "1" ]; then
+            metric=""
             metric=$(uci show mwan3 | grep -E "member.*interface='?${iface}'?" | head -1 |
                 sed -n 's/.*metric=.\([0-9]*\).*/\1/p')
             echo "  - $iface (enabled, metric: ${metric:-unknown})"
@@ -107,10 +104,10 @@ optimize_mwan3() {
 
         # Find and update wan condition or create new one
     wan_condition=""
-    conditions
+    conditions=""
         conditions=$(uci show mwan3 | grep -E "@condition\[[0-9]+\]\.interface='wan'" | cut -d'[' -f2 | cut -d']' -f1)
 
-        if [[ -n "$conditions" ]]; then
+        if [ -n "$conditions" ]; then
             wan_condition=$(echo "$conditions" | head -1)
             log_info "Updating existing wan condition [$wan_condition]"
         else
@@ -158,10 +155,10 @@ add_starlink_route() {
     existing_routes
     existing_routes=$(uci show network | grep -E "route.*target='192\.168\.100\.1'" || true)
 
-    if [[ -z "$existing_routes" ]]; then
+    if [ -z "$existing_routes" ]; then
         # Add new route
         uci add network route
-    route_index
+        route_index=""
         route_index=$(uci show network | grep -E "@route\[[0-9]+\]=" | tail -1 | cut -d'[' -f2 | cut -d']' -f1)
 
         uci set "network.@route[$route_index].interface=wan"
@@ -208,10 +205,10 @@ optimize_firewall() {
     rules
     rules=$(uci show firewall | grep -E "name='.*[Ss]tarlink.*'" || true)
 
-    if [[ -z "$rules" ]]; then
+    if [ -z "$rules" ]; then
         # Add firewall rule for Starlink gRPC
         uci add firewall rule
-    rule_index
+        rule_index=""
         rule_index=$(uci show firewall | grep -E "@rule\[[0-9]+\]=" | tail -1 | cut -d'[' -f2 | cut -d']' -f1)
 
         uci set "firewall.@rule[$rule_index].name=Allow-Starlink-gRPC"
@@ -365,7 +362,7 @@ generate_report() {
 restore_backup() {
     backup_path="$1"
 
-    if [[ ! -d "$backup_path" ]]; then
+    if [ ! -d "$backup_path" ]; then
         log_error "Backup directory not found: $backup_path"
         return 1
     fi
@@ -373,8 +370,8 @@ restore_backup() {
     log_warn "Restoring configuration from backup..."
 
     for config_file in "$backup_path"/*.uci; do
-        if [[ -f "$config_file" ]]; then
-    config_name
+        if [ -f "$config_file" ]; then
+            config_name=""
             config_name=$(basename "$config_file" .uci)
 
             log_info "Restoring $config_name..."
@@ -421,7 +418,7 @@ main() {
             apply_optimizations "firewall"
             ;;
         "restore")
-            if [[ -n "${2:-}" ]]; then
+            if [ -n "${2:-}" ]; then
                 restore_backup "$2"
             else
                 log_error "Please specify backup directory path"

@@ -138,7 +138,7 @@ main() {
     
     # Read current version
     if [ -f "$VERSION_FILE" ]; then
-        current_version=$(cat "$VERSION_FILE" | tr -d '\n\r' | tr -d ' ')
+        current_version=$(tr -d '\n\r' < "$VERSION_FILE" | tr -d ' ')
         # Ensure version is not empty
         if [ -z "$current_version" ]; then
             current_version="1.0.0"

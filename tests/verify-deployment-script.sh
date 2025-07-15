@@ -81,7 +81,7 @@ case "$shebang" in
     "#!/bin/sh"* | "#!/bin/dash"* | "#!/bin/ash"*)
         log_success "POSIX shell shebang: $shebang"
         ;;
-    "#!/bin/sh"*)
+    "#!/bin/bash"*)
         if [ "$SCRIPT_FILE" = "deploy-starlink-solution.sh" ]; then
             log_info "Bash shebang (expected for CI/CD version): $shebang"
         else

@@ -1427,13 +1427,13 @@ main() {
     echo "========================================="
     echo "Verification Summary"
     echo "========================================="
-    echo -e "${GREEN}Tests Passed: $TESTS_PASSED${NC}"
-    echo -e "${YELLOW}Tests Warned: $TESTS_WARNED${NC}"
-    echo -e "${RED}Tests Failed: $TESTS_FAILED${NC}"
+    printf "%bTests Passed: %d%b\n" "$GREEN" "$TESTS_PASSED" "$NC"
+    printf "%bTests Warned: %d%b\n" "$YELLOW" "$TESTS_WARNED" "$NC"
+    printf "%bTests Failed: %d%b\n" "$RED" "$TESTS_FAILED" "$NC"
     echo
     
     if [ "$TESTS_FAILED" -eq 0 ]; then
-        echo -e "${GREEN}✓ Verification completed successfully!${NC}"
+        printf "%b✓ Verification completed successfully!%b\n" "$GREEN" "$NC"
         echo "The Starlink monitoring solution is properly deployed and configured."
         echo
         echo "Next steps:"
@@ -1443,7 +1443,7 @@ main() {
         echo "4. Test failover by setting low thresholds temporarily"
         return 0
     else
-        echo -e "${RED}✗ Verification found issues that need attention${NC}"
+        printf "%b✗ Verification found issues that need attention%b\n" "$RED" "$NC"
         echo "Please review the failed tests above and address any configuration issues."
         return 1
     fi

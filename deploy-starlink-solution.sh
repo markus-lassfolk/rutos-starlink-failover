@@ -51,33 +51,33 @@ JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
 
 # === LOGGING FUNCTIONS ===
 log() {
-    echo -e "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+    printf "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} %s\n" "$1"
     logger -t "starlink-deploy" "$1"
 }
 
 log_success() {
-    echo -e "${GREEN}✓${NC} $1"
+    printf "${GREEN}✓${NC} %s\n" "$1"
     logger -t "starlink-deploy" "SUCCESS: $1"
 }
 
 log_warn() {
-    echo -e "${YELLOW}⚠${NC} $1"
+    printf "${YELLOW}⚠${NC} %s\n" "$1"
     logger -t "starlink-deploy" "WARNING: $1"
 }
 
 log_error() {
-    echo -e "${RED}✗${NC} $1"
+    printf "${RED}✗${NC} %s\n" "$1"
     logger -t "starlink-deploy" "ERROR: $1"
 }
 
 log_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
+    printf "${BLUE}ℹ${NC} %s\n" "$1"
 }
 
 log_header() {
-    echo
-    echo -e "${PURPLE}=== $1 ===${NC}"
-    echo
+    printf "\n"
+    printf "${PURPLE}=== %s ===${NC}\n" "$1"
+    printf "\n"
 }
 
 # === INPUT VALIDATION ===
@@ -127,21 +127,26 @@ validate_url() {
 prompt_user() {
     prompt="$1"
     default="$2"
-    value
+    value=""
 
     if [ -n "$default" ]; then
-        read -r -p "$prompt [$default]: " value
+        printf "%s [%s]: " "$prompt" "$default"
+        read -r value
         echo "${value:-$default}"
     else
-        read -r -p "$prompt: " value
+        printf "%s: " "$prompt"
+        read -r value
         echo "$value"
     fi
 }
 
 prompt_password() {
     prompt="$1"
-    value
-    read -r -s -p "$prompt: " value
+    value=""
+    printf "%s: " "$prompt"
+    # Note: -s flag for silent input is not POSIX compliant
+    # In RUTOS/busybox, passwords may be visible during input
+    read -r value
     echo
     echo "$value"
 }
@@ -157,7 +162,7 @@ check_prerequisites() {
     fi
 
     # Check device architecture - RUTOS compatibility
-    arch
+    arch=""
     arch=$(uname -m 2>/dev/null || echo "unknown")
     case "$arch" in
         "armv7l" | "aarch64" | "arm")
@@ -165,7 +170,8 @@ check_prerequisites() {
             ;;
         *)
             log_warn "Device architecture ($arch) may not be compatible with ARM binaries"
-            read -r -p "Continue anyway? (y/N): " confirm
+            printf "Continue anyway? (y/N): "
+            read -r confirm
             if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
                 exit 1
             fi
@@ -179,11 +185,12 @@ check_prerequisites() {
     fi
 
     # Check available space
-    available_space
+    available_space=""
     available_space=$(df /overlay 2>/dev/null | awk 'NR==2 {print $4}' || df / | awk 'NR==2 {print $4}')
     if [ "$available_space" -lt 10240 ]; then # Less than 10MB
         log_warn "Low disk space available ($available_space KB)"
-        read -r -p "Continue anyway? (y/N): " confirm
+        printf "Continue anyway? (y/N): "
+        read -r confirm
         if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
             exit 1
         fi
@@ -201,7 +208,7 @@ collect_configuration() {
     echo
 
     # Azure configuration
-    enable_azure
+    enable_azure=""
     enable_azure=$(prompt_user "Enable Azure cloud logging integration? (true/false)" "$DEFAULT_ENABLE_AZURE")
 
     azure_endpoint=""
@@ -218,11 +225,11 @@ collect_configuration() {
     fi
 
     # Starlink monitoring
-    enable_starlink_monitoring
+    enable_starlink_monitoring=""
     enable_starlink_monitoring=$(prompt_user "Enable Starlink performance monitoring? (true/false)" "$DEFAULT_ENABLE_STARLINK_MONITORING")
 
     # GPS configuration
-    enable_gps
+    enable_gps=""
     enable_gps=$(prompt_user "Enable GPS integration? (true/false)" "$DEFAULT_ENABLE_GPS")
 
     rutos_ip="" rutos_username="" rutos_password=""
@@ -240,7 +247,7 @@ collect_configuration() {
     fi
 
     # Pushover configuration
-    enable_pushover
+    enable_pushover=""
     enable_pushover=$(prompt_user "Enable Pushover notifications? (true/false)" "$DEFAULT_ENABLE_PUSHOVER")
 
     pushover_token="" pushover_user=""
@@ -255,7 +262,7 @@ collect_configuration() {
     fi
 
     # Network configuration
-    starlink_ip
+    starlink_ip=""
     starlink_ip=$(prompt_user "Starlink dish IP address" "$DEFAULT_STARLINK_IP")
     if ! validate_ip "$starlink_ip"; then
         log_error "Invalid Starlink IP address format"
@@ -287,7 +294,8 @@ collect_configuration() {
     log_info "  Starlink IP: $starlink_ip"
     echo
 
-    read -r -p "Proceed with installation? (y/N): " confirm
+    printf "Proceed with installation? (y/N): "
+    read -r confirm
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
         log "Installation cancelled by user"
         exit 0
@@ -1184,26 +1192,26 @@ TESTS_WARNED=0
 
 # Logging functions
 log_test() {
-    echo -e "${BLUE}[TEST]${NC} $1"
+    printf "${BLUE}[TEST]${NC} %s\n" "$1"
 }
 
 log_pass() {
-    echo -e "${GREEN}[PASS]${NC} $1"
+    printf "${GREEN}[PASS]${NC} %s\n" "$1"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 }
 
 log_fail() {
-    echo -e "${RED}[FAIL]${NC} $1"
+    printf "${RED}[FAIL]${NC} %s\n" "$1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
     TESTS_WARNED=$((TESTS_WARNED + 1))
 }
 
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    printf "${BLUE}[INFO]${NC} %s\n" "$1"
 }
 
 # Test functions
@@ -1414,13 +1422,13 @@ main() {
     echo "========================================="
     echo "Verification Summary"
     echo "========================================="
-    echo -e "${GREEN}Tests Passed: $TESTS_PASSED${NC}"
-    echo -e "${YELLOW}Tests Warned: $TESTS_WARNED${NC}"
-    echo -e "${RED}Tests Failed: $TESTS_FAILED${NC}"
+    printf "${GREEN}Tests Passed: %s${NC}\n" "$TESTS_PASSED"
+    printf "${YELLOW}Tests Warned: %s${NC}\n" "$TESTS_WARNED"
+    printf "${RED}Tests Failed: %s${NC}\n" "$TESTS_FAILED"
     echo
     
     if [ "$TESTS_FAILED" -eq 0 ]; then
-        echo -e "${GREEN}✓ Verification completed successfully!${NC}"
+        printf "${GREEN}✓ Verification completed successfully!${NC}\n"
         echo "The Starlink monitoring solution is properly deployed and configured."
         echo
         echo "Next steps:"
@@ -1430,7 +1438,7 @@ main() {
         echo "4. Test failover by setting low thresholds temporarily"
         return 0
     else
-        echo -e "${RED}✗ Verification found issues that need attention${NC}"
+        printf "${RED}✗ Verification found issues that need attention${NC}\n"
         echo "Please review the failed tests above and address any configuration issues."
         return 1
     fi

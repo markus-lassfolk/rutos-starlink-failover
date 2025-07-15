@@ -33,8 +33,8 @@ for script in $script_list; do
     # Check shebang
     shebang=$(head -1 "$script")
     case "$shebang" in
-        "#!/bin/sh")
-            echo -e "${BLUE}[BASH]${NC} Uses bash shebang"
+        "#!/bin/bash")
+            printf "%s[BASH]%s Uses bash shebang\n" "$BLUE" "$NC"
             BASH_SCRIPTS=$((BASH_SCRIPTS + 1))
 
             # Check for bash-specific syntax

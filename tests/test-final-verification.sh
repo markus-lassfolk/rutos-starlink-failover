@@ -24,27 +24,27 @@ test_comparison_logic() {
 
     # Test the exact logic from the deployment script
     quality_good=true
-    issues=()
+    issues=""
 
     # Exact comparison logic from deploy script:
     # if [ "$(echo "$latency > $LATENCY_THRESHOLD_MS" | bc 2>/dev/null || echo 0)" -eq 1 ]; then
     latency_check=$(echo "$latency > $LATENCY_THRESHOLD_MS" | bc 2>/dev/null || echo 0)
     if [ "$latency_check" -eq 1 ]; then
         quality_good=false
-        issues+=("High latency ($latency ms > $LATENCY_THRESHOLD_MS ms)")
+        issues="$issues High latency ($latency ms > $LATENCY_THRESHOLD_MS ms);"
     fi
 
     # if [ "$(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc 2>/dev/null || echo 0)" -eq 1 ]; then
     packet_loss_check=$(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc 2>/dev/null || echo 0)
     if [ "$packet_loss_check" -eq 1 ]; then
         quality_good=false
-        issues+=("High packet loss ($packet_loss > $PACKET_LOSS_THRESHOLD)")
+        issues="$issues High packet loss ($packet_loss > $PACKET_LOSS_THRESHOLD);"
     fi
 
     # if [ "$obstruction" = "true" ]; then
     if [ "$obstruction" = "true" ]; then
         quality_good=false
-        issues+=("Dish obstructed")
+        issues="$issues Dish obstructed;"
     fi
 
     # Show intermediate results
@@ -59,9 +59,14 @@ test_comparison_logic() {
     else
         result="bad"
         echo "  Result: BAD (would failover)"
-        for issue in "${issues[@]}"; do
-            echo "    - $issue"
-        done
+        # Display issues (semicolon-separated)
+        if [ -n "$issues" ]; then
+            echo "$issues" | tr ';' '\n' | while read -r issue; do
+                if [ -n "$issue" ]; then
+                    echo "    - $issue"
+                fi
+            done
+        fi
     fi
 
     # Check expectation
@@ -178,15 +183,21 @@ echo "Testing improved IP validation..."
 validate_ip_test() {
     ip="$1"
 
-    # Check basic format
-    if [[ ! $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        return 1
-    fi
+    # Check basic format using case/esac pattern matching
+    case "$ip" in
+        *[!0-9.]*) return 1 ;;  # Contains non-digit, non-dot characters
+        *..*) return 1 ;;       # Contains consecutive dots
+        .*|*.) return 1 ;;      # Starts or ends with dot
+    esac
 
     # Check each octet is <= 255
-    IFS='.' read -ra ADDR <<<"$ip"
-    for i in "${ADDR[@]}"; do
-        if [[ $i -gt 255 ]]; then
+    IFS='.'
+    set -- "$ip"
+    for octet in "$@"; do
+        case "$octet" in
+            ''|*[!0-9]*) return 1 ;;  # Empty or contains non-digits
+        esac
+        if [ "$octet" -gt 255 ]; then
             return 1
         fi
     done
@@ -215,11 +226,14 @@ fi
 # Test URL validation
 validate_url_test() {
     url="$1"
-    if [[ $url =~ ^https?:// ]]; then
-        return 0
-    else
-        return 1
-    fi
+    case "$url" in
+        http://*|https://*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
 }
 
 if validate_url_test "https://example.com" && validate_url_test "http://test.com"; then
@@ -251,7 +265,8 @@ AZURE_ENDPOINT="https://test.azurewebsites.net/api/func"
 PUSHOVER_ENABLED="false"
 EOF
 
-if bash -n "$TEMP_CONFIG" && source "$TEMP_CONFIG"; then
+# shellcheck source=/dev/null
+if bash -n "$TEMP_CONFIG" && . "$TEMP_CONFIG"; then
     echo "✓ Configuration file generation works"
     tests_passed=$((tests_passed + 1))
 else

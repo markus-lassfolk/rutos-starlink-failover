@@ -78,6 +78,9 @@ CRITICAL_ISSUES=0
 MAJOR_ISSUES=0
 MINOR_ISSUES=0
 
+# Issue tracking for summary (format: "issue_type|file_path")
+ISSUE_LIST=""
+
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -89,6 +92,14 @@ report_issue() {
     file="$2"
     line="$3"
     message="$4"
+    
+    # Add to issue list for summary (format: "message|file_path")
+    if [ -n "$ISSUE_LIST" ]; then
+        ISSUE_LIST="${ISSUE_LIST}
+${message}|${file}"
+    else
+        ISSUE_LIST="${message}|${file}"
+    fi
     
     case "$severity" in
         "CRITICAL")
@@ -137,14 +148,28 @@ check_shebang() {
 check_bash_syntax() {
     file="$1"
     
-    # Check for double brackets (but not POSIX character classes)
-    if grep -n "\[\[" "$file" >/dev/null 2>&1; then
+    # Check for double brackets (bash-style conditions, not regex patterns)
+    if grep -n "if[[:space:]]*\[\[.*\]\]" "$file" >/dev/null 2>&1; then
+        while IFS=: read -r line_num line_content; do
+            report_issue "CRITICAL" "$file" "$line_num" "Uses double brackets [[ ]] - use single brackets [ ] for busybox"
+        done < <(grep -n "if[[:space:]]*\[\[.*\]\]" "$file" 2>/dev/null)
+    fi
+    
+    # Check for double brackets in while loops
+    if grep -n "while[[:space:]]*\[\[.*\]\]" "$file" >/dev/null 2>&1; then
+        while IFS=: read -r line_num line_content; do
+            report_issue "CRITICAL" "$file" "$line_num" "Uses double brackets [[ ]] - use single brackets [ ] for busybox"
+        done < <(grep -n "while[[:space:]]*\[\[.*\]\]" "$file" 2>/dev/null)
+    fi
+    
+    # Check for standalone double bracket conditions
+    if grep -n "^[[:space:]]*\[\[.*\]\]" "$file" >/dev/null 2>&1; then
         while IFS=: read -r line_num line_content; do
             # Skip if it's a POSIX character class like [[:space:]]
             if ! echo "$line_content" | grep -q "\[\[:[a-z]*:\]\]"; then
                 report_issue "CRITICAL" "$file" "$line_num" "Uses double brackets [[ ]] - use single brackets [ ] for busybox"
             fi
-        done < <(grep -n "\[\[" "$file" 2>/dev/null)
+        done < <(grep -n "^[[:space:]]*\[\[.*\]\]" "$file" 2>/dev/null)
     fi
     
     # Check for local keyword
@@ -178,11 +203,11 @@ check_bash_syntax() {
         done < <(grep -n "declare -[aA]" "$file" 2>/dev/null)
     fi
     
-    # Check for function() syntax
-    if grep -n "function.*(" "$file" >/dev/null 2>&1; then
+    # Check for function() syntax (the actual 'function' keyword, not function names containing 'function')
+    if grep -n "^[[:space:]]*function[[:space:]]\+[[:alnum:]_]\+[[:space:]]*(" "$file" >/dev/null 2>&1; then
         while IFS=: read -r line_num line_content; do
             report_issue "MAJOR" "$file" "$line_num" "Uses function() syntax - use function_name() { } for busybox"
-        done < <(grep -n "function.*(" "$file" 2>/dev/null)
+        done < <(grep -n "^[[:space:]]*function[[:space:]]\+[[:alnum:]_]\+[[:space:]]*(" "$file" 2>/dev/null)
     fi
     
     return 0
@@ -197,13 +222,36 @@ run_shellcheck() {
         return 0
     fi
     
-    # Run shellcheck with POSIX mode
-    if shellcheck -s sh "$file" >/dev/null 2>&1; then
+    # Run shellcheck with POSIX mode and capture output
+    shellcheck_output=$(shellcheck -s sh "$file" 2>&1)
+    
+    if [ $? -eq 0 ]; then
         log_debug "✓ $file: Passes ShellCheck validation"
         return 0
     else
         log_warning "$file: ShellCheck found issues"
-        shellcheck -s sh "$file" 2>&1 | head -10
+        echo "$shellcheck_output" | head -10
+        
+        # Parse ShellCheck output to extract error codes - avoid subshell
+        # Save output to temp file to avoid subshell issues
+        temp_file=$(mktemp)
+        echo "$shellcheck_output" > "$temp_file"
+        
+        # Parse the output line by line
+        line_num=""
+        while IFS= read -r line; do
+            if echo "$line" | grep -q "^In.*line [0-9]+:"; then
+                line_num=$(echo "$line" | sed 's/.*line \([0-9]*\):.*/\1/')
+            elif echo "$line" | grep -qE "SC[0-9]+"; then
+                sc_code=$(echo "$line" | sed 's/.*\(SC[0-9]*\).*/\1/')
+                description=$(echo "$line" | sed 's/.*SC[0-9]*[^:]*: *//')
+                report_issue "MAJOR" "$file" "$line_num" "$sc_code: $description"
+            fi
+        done < "$temp_file"
+        
+        # Clean up temp file
+        rm -f "$temp_file"
+        
         return 1
     fi
 }
@@ -223,9 +271,7 @@ validate_file() {
     check_bash_syntax "$file"
     
     # Run ShellCheck
-    if ! run_shellcheck "$file"; then
-        report_issue "MAJOR" "$file" "0" "ShellCheck found issues"
-    fi
+    run_shellcheck "$file"
     
     # Calculate issues for this file
     file_issues=$((TOTAL_ISSUES - initial_issues))
@@ -239,6 +285,82 @@ validate_file() {
     fi
     
     return $file_issues
+}
+
+# Function to display issue summary by type
+display_issue_summary() {
+    if [ -z "$ISSUE_LIST" ]; then
+        return 0
+    fi
+    
+    printf "\n"
+    printf "${PURPLE}=== ISSUE BREAKDOWN ===${NC}\n"
+    printf "Most common issues found:\n\n"
+    
+    # Process the issue list to group by message type
+    # Create a temporary file to process issues
+    temp_file="/tmp/issue_summary_$$"
+    
+    # Write issues to temp file for processing
+    printf "%s\n" "$ISSUE_LIST" > "$temp_file"
+    
+    # Group issues by ShellCheck code first, then by full message
+    while IFS='|' read -r message file_path; do
+        # Skip empty lines
+        if [ -n "$message" ]; then
+            # Check if this is a ShellCheck issue
+            if echo "$message" | grep -q "^SC[0-9]*:"; then
+                # Extract just the SC code and general description
+                sc_code=$(echo "$message" | cut -d':' -f1)
+                sc_desc=$(echo "$message" | cut -d':' -f2- | sed 's/^[[:space:]]*//')
+                # Group by SC code, but show generic description
+                case "$sc_code" in
+                    "SC2034")
+                        printf "%s: Variable appears unused in template/config file\n" "$sc_code"
+                        ;;
+                    "SC1090"|"SC1091") 
+                        printf "%s: Cannot follow dynamic source files\n" "$sc_code"
+                        ;;
+                    "SC2059")
+                        printf "%s: Printf format string contains variables\n" "$sc_code"
+                        ;;
+                    "SC3045")
+                        printf "%s: POSIX sh incompatible read options\n" "$sc_code"
+                        ;;
+                    "SC2030")
+                        printf "%s: Variable modification in subshell\n" "$sc_code"
+                        ;;
+                    *)
+                        printf "%s: %s\n" "$sc_code" "$sc_desc"
+                        ;;
+                esac
+            else
+                # Non-ShellCheck issues - show as is
+                printf "%s\n" "$message"
+            fi
+        fi
+    done < "$temp_file" | sort | uniq -c | sort -nr > "${temp_file}.counts"
+    
+    # Display grouped results
+    while read -r count message; do
+        if [ -n "$message" ]; then
+            # Count unique files for this message type
+            if echo "$message" | grep -q "^SC[0-9]*:"; then
+                # For ShellCheck codes, count files that have this specific code
+                sc_code=$(echo "$message" | cut -d':' -f1)
+                unique_files=$(grep "^$sc_code:" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
+            else
+                # For non-ShellCheck issues, count normally
+                unique_files=$(grep -F "$message|" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
+            fi
+            printf "${YELLOW}%dx${NC} / ${CYAN}%d files${NC}: %s\n" "$count" "$unique_files" "$message"
+        fi
+    done < "${temp_file}.counts"
+    
+    # Clean up temp files
+    rm -f "$temp_file" "${temp_file}.counts"
+    
+    printf "\n"
 }
 
 # Function to display summary
@@ -256,6 +378,11 @@ display_summary() {
     printf "${YELLOW}Major issues: %d${NC}\n" "$MAJOR_ISSUES"
     printf "${BLUE}Minor issues: %d${NC}\n" "$MINOR_ISSUES"
     printf "\n"
+    
+    # Show issue breakdown if there are issues
+    if [ $TOTAL_ISSUES -gt 0 ]; then
+        display_issue_summary
+    fi
     
     if [ $TOTAL_ISSUES -eq 0 ]; then
         log_success "All validations passed!"

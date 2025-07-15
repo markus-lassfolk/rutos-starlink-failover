@@ -40,43 +40,44 @@ PASSED_TESTS=0
 FAILED_TESTS=0
 WARNING_TESTS=0
 
-declare -a FAILURES=()
-declare -a WARNINGS=()
-declare -a SUGGESTIONS=()
+# Using simple variables instead of arrays for busybox compatibility
+FAILURES=""
+WARNINGS=""
+SUGGESTIONS=""
 
 # --- HELPER FUNCTIONS ---
 log() {
-    echo -e "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}"
+    printf "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')] %s${NC}\n" "$1"
 }
 
 log_test() {
-    echo -e "${BLUE}[TEST] $1${NC}"
-    ((TOTAL_TESTS++))
+    printf "${BLUE}[TEST] %s${NC}\n" "$1"
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
 }
 
 log_pass() {
-    echo -e "${GREEN}  ✓ $1${NC}"
-    ((PASSED_TESTS++))
+    printf "${GREEN}  ✓ %s${NC}\n" "$1"
+    PASSED_TESTS=$((PASSED_TESTS + 1))
 }
 
 log_fail() {
-    echo -e "${RED}  ✗ $1${NC}"
-    ((FAILED_TESTS++))
-    FAILURES+=("$1")
+    printf "${RED}  ✗ %s${NC}\n" "$1"
+    FAILED_TESTS=$((FAILED_TESTS + 1))
+    FAILURES="$FAILURES $1"
 }
 
 log_warn() {
-    echo -e "${YELLOW}  ⚠ $1${NC}"
-    ((WARNING_TESTS++))
-    WARNINGS+=("$1")
+    printf "${YELLOW}  ⚠ %s${NC}\n" "$1"
+    WARNING_TESTS=$((WARNING_TESTS + 1))
+    WARNINGS="$WARNINGS $1"
 }
 
 log_info() {
-    echo -e "${CYAN}  ℹ $1${NC}"
+    printf "${CYAN}  ℹ %s${NC}\n" "$1"
 }
 
 add_suggestion() {
-    SUGGESTIONS+=("$1")
+    SUGGESTIONS="$SUGGESTIONS $1"
 }
 
 # --- DEPENDENCY TESTS ---
@@ -84,21 +85,21 @@ test_dependencies() {
     log_test "Checking required dependencies..."
 
     # Check essential commands
-    deps=("curl" "jq" "timeout" "bc" "crontab")
-    missing_deps=()
+    deps="curl jq timeout bc crontab"
+    missing_deps=""
 
-    for dep in "${deps[@]}"; do
+    for dep in $deps; do
         if command -v "$dep" >/dev/null 2>&1; then
             log_pass "$dep is available"
         else
             log_fail "$dep is missing"
-            missing_deps+=("$dep")
+            missing_deps="$missing_deps $dep"
         fi
     done
 
     # Check grpcurl
     if [ -f "/root/grpcurl" ] && [ -x "/root/grpcurl" ]; then
-    grpcurl_version
+        grpcurl_version=""
         grpcurl_version=$(/root/grpcurl --version 2>&1 | head -n1 || echo "unknown")
         log_pass "grpcurl is installed ($grpcurl_version)"
     else
@@ -121,8 +122,8 @@ test_dependencies() {
         fi
     fi
 
-    if [ ${#missing_deps[@]} -gt 0 ]; then
-        add_suggestion "Install missing packages: opkg update && opkg install ${missing_deps[*]}"
+    if [ -n "$missing_deps" ]; then
+        add_suggestion "Install missing packages: opkg update && opkg install $missing_deps"
     fi
 }
 
@@ -131,7 +132,7 @@ test_logging_config() {
     log_test "Checking RUTOS logging configuration..."
 
     # Check log type
-    log_type
+    log_type=""
     log_type=$(uci get system.@system[0].log_type 2>/dev/null || echo "")
     if [ "$log_type" = "file" ]; then
         log_pass "Logging type is set to 'file'"
@@ -249,14 +250,9 @@ test_uci_config() {
 test_scripts() {
     log_test "Checking installed scripts..."
 
-    scripts=(
-        "/usr/bin/log-shipper.sh"
-        "/usr/bin/starlink-azure-monitor.sh"
-        "/usr/bin/setup-persistent-logging.sh"
-        "/usr/bin/test-azure-logging.sh"
-    )
+    scripts="/usr/bin/log-shipper.sh /usr/bin/starlink-azure-monitor.sh /usr/bin/setup-persistent-logging.sh /usr/bin/test-azure-logging.sh"
 
-    for script in "${scripts[@]}"; do
+    for script in $scripts; do
         if [ -f "$script" ]; then
             if [ -x "$script" ]; then
                 log_pass "$(basename "$script") is installed and executable"
@@ -521,15 +517,15 @@ test_data_collection() {
 
 # --- MAIN FUNCTION ---
 run_verification() {
-    echo -e "${BLUE}"
-    echo "=========================================="
-    echo "    Azure Logging Verification Script"
-    echo "=========================================="
-    echo -e "${NC}"
-    echo
+    printf "%s\n" "$BLUE"
+    printf "==========================================\n"
+    printf "    Azure Logging Verification Script\n"
+    printf "==========================================\n"
+    printf "%s\n" "$NC"
+    printf "\n"
 
     log "Starting comprehensive verification of Azure logging setup..."
-    echo
+    printf "\n"
 
     # Run all tests
     test_dependencies
@@ -547,85 +543,86 @@ run_verification() {
     test_starlink_api
     echo
     test_rutos_gps
-    echo
+    printf "\n"
     test_azure_connectivity
-    echo
+    printf "\n"
     test_data_collection
-    echo
+    printf "\n"
 
     # Print summary
-    echo -e "${BLUE}"
-    echo "=========================================="
-    echo "           VERIFICATION SUMMARY"
-    echo "=========================================="
-    echo -e "${NC}"
+    printf "%s\n" "${BLUE}"
+    printf "==========================================\n"
+    printf "           VERIFICATION SUMMARY\n"
+    printf "==========================================\n"
+    printf "%s\n" "${NC}"
 
-    echo -e "Total Tests: ${TOTAL_TESTS}"
-    echo -e "${GREEN}Passed: ${PASSED_TESTS}${NC}"
-    echo -e "${YELLOW}Warnings: ${WARNING_TESTS}${NC}"
-    echo -e "${RED}Failed: ${FAILED_TESTS}${NC}"
-    echo
+    printf "Total Tests: %s\n" "$TOTAL_TESTS"
+    printf "${GREEN}Passed: %s${NC}\n" "$PASSED_TESTS"
+    printf "${YELLOW}Warnings: %s${NC}\n" "$WARNING_TESTS"
+    printf "${RED}Failed: %s${NC}\n" "$FAILED_TESTS"
+    printf "\n"
 
     # Calculate success rate
     success_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))
 
     if [ "$FAILED_TESTS" -eq 0 ]; then
-        echo -e "${GREEN}✓ All critical tests passed!${NC}"
+        printf "%s✓ All critical tests passed!%s\n" "${GREEN}" "${NC}"
         if [ "$WARNING_TESTS" -gt 0 ]; then
-            echo -e "${YELLOW}⚠ Some optional features have warnings${NC}"
+            printf "%s⚠ Some optional features have warnings%s\n" "${YELLOW}" "${NC}"
         fi
     elif [ "$success_rate" -ge 80 ]; then
-        echo -e "${YELLOW}⚠ Setup is mostly working but has some issues${NC}"
+        printf "%s⚠ Setup is mostly working but has some issues%s\n" "${YELLOW}" "${NC}"
     else
-        echo -e "${RED}✗ Setup has significant problems that need to be addressed${NC}"
+        printf "%s✗ Setup has significant problems that need to be addressed%s\n" "${RED}" "${NC}"
     fi
 
-    echo -e "Overall Success Rate: ${success_rate}%"
-    echo
+    printf "Overall Success Rate: %s%%\n" "$success_rate"
+    printf "\n"
 
     # Print failures
-    if [ ${#FAILURES[@]} -gt 0 ]; then
-        echo -e "${RED}CRITICAL ISSUES:${NC}"
-        for failure in "${FAILURES[@]}"; do
-            echo -e "${RED}  ✗ $failure${NC}"
+    if [ -n "$FAILURES" ]; then
+        printf "%sCRITICAL ISSUES:%s\n" "${RED}" "${NC}"
+        for failure in $FAILURES; do
+            printf "%s  ✗ %s%s\n" "${RED}" "$failure" "${NC}"
         done
-        echo
+        printf "\n"
     fi
 
     # Print warnings
-    if [ ${#WARNINGS[@]} -gt 0 ]; then
-        echo -e "${YELLOW}WARNINGS:${NC}"
-        for warning in "${WARNINGS[@]}"; do
-            echo -e "${YELLOW}  ⚠ $warning${NC}"
+    if [ -n "$WARNINGS" ]; then
+        printf "%sWARNINGS:%s\n" "${YELLOW}" "${NC}"
+        for warning in $WARNINGS; do
+            printf "%s  ⚠ %s%s\n" "${YELLOW}" "$warning" "${NC}"
         done
-        echo
+        printf "\n"
     fi
 
     # Print suggestions
-    if [ ${#SUGGESTIONS[@]} -gt 0 ]; then
-        echo -e "${CYAN}SUGGESTED FIXES:${NC}"
-    i=1
-        for suggestion in "${SUGGESTIONS[@]}"; do
-            echo -e "${CYAN}$i. $suggestion${NC}"
-            ((i++))
+    if [ -n "$SUGGESTIONS" ]; then
+        printf "%sSUGGESTED FIXES:%s\n" "${CYAN}" "${NC}"
+        i=1
+        for suggestion in $SUGGESTIONS; do
+            printf "%s%s. %s%s\n" "${CYAN}" "$i" "$suggestion" "${NC}"
+            i=$((i + 1))
         done
-        echo
+        printf "\n"
     fi
 
     # Final recommendation
     if [ "$FAILED_TESTS" -eq 0 ]; then
-        echo -e "${GREEN}🎉 Your Azure logging setup is working correctly!${NC}"
-        echo "You can now monitor your logs in Azure storage."
+        printf "%s🎉 Your Azure logging setup is working correctly!%s\n" "${GREEN}" "${NC}"
+        printf "You can now monitor your logs in Azure storage.\n"
     else
-        echo -e "${YELLOW}📋 Please address the issues above and run this script again.${NC}"
-        echo "If you need help, check the documentation or run the setup script again."
+        printf "%s📋 Please address the issues above and run this script again.%s\n" "${YELLOW}" "${NC}"
+        printf "If you need help, check the documentation or run the setup script again.\n"
     fi
 
-    echo
+    printf "\n"
     log "Verification completed."
 }
 
 # Run verification if script is executed directly
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+# Check if script is executed directly (POSIX compatible)
+if [ "${0##*/}" = "verify-azure-setup.sh" ]; then
     run_verification "$@"
 fi

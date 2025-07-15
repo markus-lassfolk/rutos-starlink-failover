@@ -66,8 +66,9 @@ export PATH="$PWD:$PATH"
 cat > grpcurl << 'GRPCURL_EOF'
 #!/bin/sh
 # Mock grpcurl that returns test data
-if [[ "$*" == *"get_status"* ]]; then
-    cat << 'JSON_EOF'
+case "$*" in
+    *"get_status"*)
+        cat << 'JSON_EOF'
 {
   "dishGetStatus": {
     "popPingLatencyMs": 45.5,
@@ -81,15 +82,17 @@ if [[ "$*" == *"get_status"* ]]; then
   }
 }
 JSON_EOF
-elif [[ "$*" == *"get_history"* ]]; then
-    cat << 'JSON_EOF'
+        ;;
+    *"get_history"*)
+        cat << 'JSON_EOF'
 {
   "dishGetHistory": {
     "popPingDropRate": [0.01, 0.02, 0.01, 0.03, 0.02]
   }
 }
 JSON_EOF
-fi
+        ;;
+esac
 GRPCURL_EOF
 
 chmod +x grpcurl
@@ -140,11 +143,14 @@ case "$*" in
         echo "0"  # 0.018 > 0.05 = false
         ;;
     *"/ 1000000"*)
-        if [[ "$*" == *"50000000"* ]]; then
-            echo "50.00"
-        elif [[ "$*" == *"5000000"* ]]; then
-            echo "5.00"
-        fi
+        case "$*" in
+            *"50000000"*)
+                echo "50.00"
+                ;;
+            *"5000000"*)
+                echo "5.00"
+                ;;
+        esac
         ;;
 esac
 BC_EOF

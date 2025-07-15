@@ -20,10 +20,10 @@ check_secrets() {
         grep -v "test_token" | grep -v "test_user" | grep -v "Application API Token" | grep -v "User Key" | grep -v "apiVersion" |
         grep -v "Replace this placeholder" | grep -v "actual token" | grep -v "actual key" |
         grep -vE "placeholder|dummy|not.*a.*real.*secret"; then
-        echo -e "${RED}FAIL:${NC} Potential hardcoded secrets found above."
+        printf "%bFAIL:%b Potential hardcoded secrets found above.\n" "$RED" "$NC"
         failures=$((failures + 1))
     else
-        echo -e "${GREEN}OK:${NC} No hardcoded secrets detected."
+        printf "%bOK:%b No hardcoded secrets detected.\n" "$GREEN" "$NC"
     fi
 }
 

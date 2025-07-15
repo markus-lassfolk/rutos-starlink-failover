@@ -34,28 +34,29 @@ test_scenario() {
     echo "Latency: ${latency}ms, Packet Loss: $packet_loss, Obstruction: $obstruction"
 
     # Load config
+    # shellcheck disable=SC1091
     . config.sh
 
     # Evaluate quality
     quality_good=true
-    issues=()
+    issues=""
 
     # Check latency
-    if (($(echo "$latency > $LATENCY_THRESHOLD_MS" | bc -l))); then
+    if [ "$(echo "$latency > $LATENCY_THRESHOLD_MS" | bc -l)" -eq 1 ]; then
         quality_good=false
-        issues+=("High latency (${latency}ms > ${LATENCY_THRESHOLD_MS}ms)")
+        issues="$issues High latency (${latency}ms > ${LATENCY_THRESHOLD_MS}ms);"
     fi
 
     # Check packet loss
-    if (($(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc -l))); then
+    if [ "$(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc -l)" -eq 1 ]; then
         quality_good=false
-        issues+=("High packet loss ($packet_loss > $PACKET_LOSS_THRESHOLD)")
+        issues="$issues High packet loss ($packet_loss > $PACKET_LOSS_THRESHOLD);"
     fi
 
     # Check obstruction
     if [ "$obstruction" = "true" ]; then
         quality_good=false
-        issues+=("Dish obstructed")
+        issues="$issues Dish obstructed;"
     fi
 
     # Display results
@@ -64,9 +65,14 @@ test_scenario() {
         result="good"
     else
         echo "✗ Quality: BAD - Would trigger failover"
-        for issue in "${issues[@]}"; do
-            echo "  - $issue"
-        done
+        # Display issues (semicolon-separated)
+        if [ -n "$issues" ]; then
+            echo "$issues" | tr ';' '\n' | while read -r issue; do
+                if [ -n "$issue" ]; then
+                    echo "  - $issue"
+                fi
+            done
+        fi
         result="bad"
     fi
 
@@ -99,15 +105,11 @@ case "$*" in
     *"0.1 > 0.05"*) echo "1" ;;
     *"50 > 150"*) echo "0" ;;
     *) 
-        # Extract numbers and comparison
-        if [[ "$*" =~ ([0-9.]+)\ \>\ ([0-9.]+) ]]; then
-            left="${BASH_REMATCH[1]}"
-            right="${BASH_REMATCH[2]}"
-            result=$(awk "BEGIN {print ($left > $right)}")
-            echo "$result"
-        else
-            echo "0"
-        fi
+        # Extract numbers and comparison using parameter expansion
+        # Convert space-separated comparison to awk format
+        comparison=$(echo "$*" | sed 's/ > / > /')
+        result=$(echo "$comparison" | awk '{print ($1 > $3)}')
+        echo "$result"
         ;;
 esac
 EOF
@@ -199,9 +201,11 @@ echo "✓ State after failover: down, stability: 0"
 
 # Test failback with stability checking
 echo "Testing failback with stability checking..."
-for i in {1..5}; do
+i=1
+while [ $i -le 5 ]; do
     echo "✓ Stability check $i/5"
     echo "$i" >"$STABILITY_FILE"
+    i=$((i + 1))
 done
 
 echo "✓ Stability checks complete -> should transition back to up"
@@ -215,14 +219,13 @@ echo
 echo "=== Testing Cron Schedule Validation ==="
 
 # Test cron expressions
-cron_expressions=(
-    "* * * * *"   # Every minute
-    "*/5 * * * *" # Every 5 minutes
-    "30 5 * * *"  # Daily at 5:30 AM
-    "0 */6 * * *" # Every 6 hours
-)
-
-for expr in "${cron_expressions[@]}"; do
+cron_expressions="* * * * *
+*/5 * * * *
+30 5 * * *
+0 */6 * * *"
+# Use a temporary file to avoid subshell issues
+echo "$cron_expressions" > /tmp/cron_test.txt
+while read -r expr; do
     # Use case statement for POSIX compatibility instead of regex
     case "$expr" in
         *" "*" "*" "*" "*" "*)
@@ -233,16 +236,17 @@ for expr in "${cron_expressions[@]}"; do
             scenarios_failed=$((scenarios_failed + 1))
             ;;
     esac
-done
+done < /tmp/cron_test.txt
+rm -f /tmp/cron_test.txt
 
 # Test file permission simulation
 echo
 echo "=== Testing File Permissions ==="
 
 # Create test scripts and check permissions
-test_scripts=("starlink_monitor.sh" "starlink_logger.sh" "verify-setup.sh")
+test_scripts="starlink_monitor.sh starlink_logger.sh verify-setup.sh"
 
-for script in "${test_scripts[@]}"; do
+for script in $test_scripts; do
     echo "#!/bin/sh" >"$script"
     echo "echo 'Test script'" >>"$script"
     chmod +x "$script"
@@ -272,7 +276,8 @@ EOF
 if bash -n test_config.sh; then
     echo "✓ Configuration file syntax valid"
 
-    if source test_config.sh; then
+    # shellcheck disable=SC1091
+    if . test_config.sh; then
         echo "✓ Configuration file sources correctly"
         echo "✓ Test value: STARLINK_IP=$STARLINK_IP"
     else
