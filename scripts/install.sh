@@ -90,11 +90,23 @@ VERSION_URL="${BASE_URL}/VERSION"
 MIN_COMPATIBLE_VERSION="1.0.0" # Used for compatibility checks in future
 
 # Colors for output
-RED="\033[0;31m"
-GREEN="\033[0;32m"
-YELLOW="\033[1;33m"
-BLUE="\033[0;36m" # Changed to cyan for better readability
-NC="\033[0m"      # No Color
+# Check if terminal supports colors
+if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+	RED="\033[0;31m"
+	GREEN="\033[0;32m"
+	YELLOW="\033[1;33m"
+	BLUE="\033[0;34m"
+	CYAN="\033[0;36m"
+	NC="\033[0m" # No Color
+else
+	# Fallback to no colors if terminal doesn't support them
+	RED=""
+	GREEN=""
+	YELLOW=""
+	BLUE=""
+	CYAN=""
+	NC=""
+fi
 
 # Installation configuration
 # shellcheck disable=SC2034  # Variables are used throughout the script
@@ -518,15 +530,15 @@ CRON_FILE="/etc/crontabs/root"
 print_status() {
     color="$1"
     message="$2"
-    printf "%b%s\033[0m\n" "$color" "$message"
+    printf "%b%s%b\n" "$color" "$message" "$NC"
 }
 
-print_status "\033[0;31m" "Uninstalling Starlink monitoring system..."
+print_status "$RED" "Uninstalling Starlink monitoring system..."
 
 # Backup crontab before modification
 if [ -f "$CRON_FILE" ]; then
     cp "$CRON_FILE" "${CRON_FILE}.backup.uninstall.$(date +%Y%m%d_%H%M%S)"
-    print_status "\033[0;33m" "Crontab backed up before removal"
+    print_status "$YELLOW" "Crontab backed up before removal"
 fi
 
 # Remove cron entries (comment them out instead of deleting)
@@ -545,8 +557,8 @@ if [ -f "$CRON_FILE" ]; then
     }
     mv /tmp/crontab.tmp "$CRON_FILE"
     /etc/init.d/cron restart >/dev/null 2>&1 || true
-    print_status "\033[0;32m" "✓ Starlink cron entries commented out (not deleted)"
-    print_status "\033[0;33m" "ℹ To restore: sed -i 's/^# COMMENTED BY UNINSTALL [0-9-]*: //' $CRON_FILE"
+    print_status "$GREEN" "✓ Starlink cron entries commented out (not deleted)"
+    print_status "$YELLOW" "ℹ To restore: sed -i 's/^# COMMENTED BY UNINSTALL [0-9-]*: //' $CRON_FILE"
 fi
 
 # Remove hotplug script
@@ -558,7 +570,7 @@ rm -rf /root/starlink-monitor
 # Remove config symlink
 rm -f /root/config.sh
 
-print_status "\033[0;32m" "✓ Uninstall completed"
+print_status "$GREEN" "✓ Uninstall completed"
 EOF
 
 	chmod +x "$INSTALL_DIR/uninstall.sh"

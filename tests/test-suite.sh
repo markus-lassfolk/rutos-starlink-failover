@@ -11,17 +11,31 @@
 set -eu
 
 # Colors for output
-
-# shellcheck disable=SC2034
-RED='\033[0;31m'
-# shellcheck disable=SC2034
-GREEN='\033[0;32m'
-# shellcheck disable=SC2034
-YELLOW='\033[1;33m'
-# shellcheck disable=SC2034
-BLUE='\033[0;34m'
-# shellcheck disable=SC2034
-NC='\033[0m' # No Color
+# Check if terminal supports colors
+if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+	# shellcheck disable=SC2034
+	RED='\033[0;31m'
+	# shellcheck disable=SC2034
+	GREEN='\033[0;32m'
+	# shellcheck disable=SC2034
+	YELLOW='\033[1;33m'
+	# shellcheck disable=SC2034
+	BLUE='\033[0;34m'
+	# shellcheck disable=SC2034
+	NC='\033[0m' # No Color
+else
+	# Fallback to no colors if terminal doesn't support them
+	# shellcheck disable=SC2034
+	RED=""
+	# shellcheck disable=SC2034
+	GREEN=""
+	# shellcheck disable=SC2034
+	YELLOW=""
+	# shellcheck disable=SC2034
+	BLUE=""
+	# shellcheck disable=SC2034
+	NC=""
+fi
 
 # Test configuration
 TEST_DIR="/tmp/starlink-test"

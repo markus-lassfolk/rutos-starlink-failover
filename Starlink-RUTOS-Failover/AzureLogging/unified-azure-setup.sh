@@ -34,11 +34,21 @@ ENABLE_STARLINK_MONITORING=""
 AZURE_FUNCTION_URL=""
 
 # --- COLORS FOR OUTPUT ---
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Check if terminal supports colors
+if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+	RED='\033[0;31m'
+	GREEN='\033[0;32m'
+	YELLOW='\033[1;33m'
+	BLUE='\033[0;34m'
+	NC='\033[0m' # No Color
+else
+	# Fallback to no colors if terminal doesn't support them
+	RED=""
+	GREEN=""
+	YELLOW=""
+	BLUE=""
+	NC=""
+fi
 
 # --- HELPER FUNCTIONS ---
 log() {

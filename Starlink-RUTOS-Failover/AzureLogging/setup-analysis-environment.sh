@@ -6,9 +6,17 @@
 set -e
 
 # Colors for output
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Check if terminal supports colors
+if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+	GREEN='\033[0;32m'
+	YELLOW='\033[1;33m'
+	NC='\033[0m' # No Color
+else
+	# Fallback to no colors if terminal doesn't support them
+	GREEN=""
+	YELLOW=""
+	NC=""
+fi
 
 printf "%b\n" "${GREEN}Setting up Network Performance Analysis Environment${NC}"
 

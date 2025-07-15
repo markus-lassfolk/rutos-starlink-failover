@@ -15,11 +15,21 @@ TEMPLATE_FILE="$TEST_DIR/config.template.sh"
 VALIDATOR_SCRIPT="$(pwd)/scripts/validate-config.sh"
 
 # Colors for output
-# shellcheck disable=SC2034  # Color variables are used throughout the script
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Check if terminal supports colors
+if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
+	# shellcheck disable=SC2034  # Color variables are used throughout the script
+	RED='\033[0;31m'
+	GREEN='\033[0;32m'
+	YELLOW='\033[1;33m'
+	NC='\033[0m' # No Color
+else
+	# Fallback to no colors if terminal doesn't support them
+	# shellcheck disable=SC2034  # Color variables are used throughout the script
+	RED=""
+	GREEN=""
+	YELLOW=""
+	NC=""
+fi
 
 print_status() {
 	printf "%b %s\n" "$1" "$2${NC}"

@@ -281,7 +281,7 @@ validate_color_codes() {
 	elif grep -n "NO_COLOR\|TERM.*dumb" "$file" >/dev/null 2>&1; then
 		# This is good - checking for NO_COLOR or dumb terminal
 		log_debug "✓ $file: Has NO_COLOR detection"
-	elif grep -n "RED=\|GREEN=\|YELLOW=" "$file" >/dev/null 2>&1; then
+	elif grep -n "^[[:space:]]*RED=\|^[[:space:]]*GREEN=\|^[[:space:]]*YELLOW=" "$file" >/dev/null 2>&1; then
 		# Has color definitions but no detection - potential issue
 		if ! grep -q "if.*-t.*1\|NO_COLOR\|TERM.*dumb" "$file"; then
 			report_issue "MINOR" "$file" "0" "Defines colors but missing color detection logic - add terminal/NO_COLOR checks"
@@ -362,6 +362,95 @@ run_shfmt() {
 	return 0
 }
 
+# Function to check for undefined variables (especially color variables)
+check_undefined_variables() {
+	file="$1"
+
+	# Check for common color variables that might be undefined
+	local color_vars="RED GREEN YELLOW BLUE PURPLE CYAN NC"
+	
+	for var in $color_vars; do
+		# Check if variable is used before definition
+		if grep -n "\$$var\|\".*\$\{$var\}" "$file" >/dev/null 2>&1; then
+			# Find first usage
+			first_usage=$(grep -n "\$$var\|\".*\$\{$var\}" "$file" | head -1 | cut -d: -f1)
+			
+			# Find definition line
+			definition_line=$(grep -n "^[[:space:]]*$var=" "$file" | head -1 | cut -d: -f1)
+			
+			# If variable is used but not defined, or used before definition
+			if [ -z "$definition_line" ]; then
+				report_issue "CRITICAL" "$file" "$first_usage" "Variable \$$var is used but not defined"
+			elif [ "$first_usage" -lt "$definition_line" ]; then
+				report_issue "CRITICAL" "$file" "$first_usage" "Variable \$$var is used before it's defined (line $definition_line)"
+			fi
+		fi
+	done
+
+	# Check for variables used in parameter expansion that might be undefined
+	if grep -n "\${[A-Z_]*}" "$file" >/dev/null 2>&1; then
+		while IFS=: read -r line_num line_content; do
+			# Extract variable name from ${VAR} or ${VAR:-default}
+			var_name=$(echo "$line_content" | sed -n 's/.*\${\([A-Z_]*\)[:-].*/\1/p')
+			if [ -z "$var_name" ]; then
+				var_name=$(echo "$line_content" | sed -n 's/.*\${\([A-Z_]*\)}.*/\1/p')
+			fi
+			
+			# Skip if no variable name found or if it's a known environment variable
+			if [ -n "$var_name" ] && ! echo "$var_name" | grep -Eq "^(PATH|HOME|USER|DEBUG|GITHUB_|LOG_|SCRIPT_|BASE_|VERSION_|INSTALL_|CRON_|HOTPLUG_|GRPCURL_|JQ_|MIN_)"; then
+				# Check if this variable is defined in the file
+				if ! grep -q "^[[:space:]]*$var_name=" "$file"; then
+					# Check if the file sources a config file and the variable is defined there
+					variable_found=0
+					
+					# Check if the file sources config.sh or config.template.sh
+					if grep -q '\. "\$' "$file" || grep -q 'source "\$' "$file" || grep -q '\. [^"]*config\.sh' "$file" || grep -q 'source [^"]*config\.sh' "$file"; then
+						# Check in config template files
+						for config_file in "config/config.template.sh" "config/config.advanced.template.sh"; do
+							if [ -f "$config_file" ] && grep -q "^[[:space:]]*export[[:space:]]*$var_name=" "$config_file"; then
+								variable_found=1
+								break
+							fi
+						done
+					fi
+					
+					# Only report if variable is not found in sourced config files
+					if [ "$variable_found" -eq 0 ]; then
+						report_issue "MAJOR" "$file" "$line_num" "Variable \$$var_name might be undefined - check if it's defined earlier"
+					fi
+				fi
+			fi
+		done < <(grep -n "\${[A-Z_]*}" "$file" 2>/dev/null)
+	fi
+
+	# Check for variables used in functions that might not be in scope
+	# Look for functions that use variables that aren't defined within the function
+	if grep -n "^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*(" "$file" >/dev/null 2>&1; then
+		while IFS=: read -r line_num line_content; do
+			func_name=$(echo "$line_content" | sed -n 's/^[[:space:]]*\([a-zA-Z_][a-zA-Z0-9_]*\)[[:space:]]*(.*/\1/p')
+			if [ -n "$func_name" ]; then
+				# Extract the function body and check for undefined variables
+				awk -v start_line="$line_num" -v file="$file" '
+					NR >= start_line && /^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(/ { 
+						in_function=1; brace_count=0; func_start=NR
+					}
+					in_function && /{/ { brace_count++ }
+					in_function && /}/ { 
+						brace_count--; 
+						if (brace_count == 0) { 
+							in_function=0;
+							# Check if this function uses color variables
+							if (/\$CYAN/ || /\$RED/ || /\$GREEN/ || /\$YELLOW/ || /\$BLUE/ || /\$PURPLE/ || /\$NC/) {
+								print "Function at line " func_start " uses color variables"
+							}
+						}
+					}
+				' "$file" >/dev/null 2>&1
+			fi
+		done < <(grep -n "^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*(" "$file" 2>/dev/null)
+	fi
+}
+
 # Function to validate a single file
 validate_file() {
 	file="$1"
@@ -376,6 +465,9 @@ validate_file() {
 	# Check bash-specific syntax
 	check_bash_syntax "$file"
 
+	# Check for undefined variables
+	check_undefined_variables "$file"
+
 	# Validate color code usage
 	validate_color_codes "$file"
 
@@ -387,6 +479,9 @@ validate_file() {
 
 	# Run shfmt
 	run_shfmt "$file"
+
+	# Check for undefined variables
+	check_undefined_variables "$file"
 
 	# Calculate issues for this file
 	file_issues=$((TOTAL_ISSUES - initial_issues))
