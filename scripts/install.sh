@@ -638,15 +638,15 @@ main() {
 
 # Error handling function
 handle_error() {
-    local exit_code=$?
+    exit_code=$?
     log_message "ERROR" "Installation failed with exit code: $exit_code"
     log_message "ERROR" "Check the log file for details: $LOG_FILE"
     print_status "$RED" "❌ Installation failed! Check log: $LOG_FILE"
     exit $exit_code
 }
 
-# Set up error handling
-trap handle_error ERR
+# Set up signal handling (busybox compatible)
+trap handle_error INT TERM
 
 # Run main function
 main "$@"
