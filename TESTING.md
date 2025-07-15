@@ -39,27 +39,34 @@ All major installation issues have been resolved through multiple testing rounds
 6. ✅ **Configuration Management** - Template migration and validation system
 7. ✅ **Architecture Detection** - Proper RUTX50 armv7l architecture support
 
-### 🔧 Current Known Issue: Template Detection False Positive
+### 🔧 Current Known Issue: Template Detection False Positive - **RESOLVED**
 
 **Issue**: After successful configuration migration, validate-config.sh still detects config as outdated
-**Status**: 🔧 **DEBUG MODE ADDED FOR INVESTIGATION**
+**Status**: ✅ **RESOLVED** - Removed ShellCheck comment from template file
+
+**Root Cause**: Template file itself contained ShellCheck comment that was being copied during migration
+**Solution**: Removed ShellCheck comment from `config/config.template.sh` (line 2)
 
 **Debug Command**:
 ```bash
 DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 ```
 
-**Expected Debug Output**:
+**Expected Debug Output After Fix**:
 ```
 ==================== DEBUG MODE ENABLED ====================
 DEBUG: Checking if config uses outdated template format
 DEBUG: No ShellCheck comments found
-DEBUG: Checking for short comments that indicate outdated template
-DEBUG: Total variables: 30, Short comments: 2
+DEBUG: Checking for specific outdated template patterns
 DEBUG: Config template appears current
 ```
 
-**Next Steps**: Use debug output to identify and fix template detection logic
+**Migration Process** (Correct Approach):
+- ✅ Uses clean template as base (no ShellCheck comments)
+- ✅ Preserves all user configuration values
+- ✅ Updates to latest template structure
+- ✅ Adds comprehensive descriptions
+- ✅ Creates backup of original config
 
 ## Installation & Usage
 
@@ -111,6 +118,7 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 - **Round 12**: Critical function scope issue resolution (`show_version: command not found`)
 - **Round 13**: Successful configuration validation and migration system
 - **Round 14**: Debug mode enhancement for template detection troubleshooting
+- **Round 15**: Template detection false positive fix - migration now removes ShellCheck comments
 
 ### Key Fixes Applied
 1. **Shell Compatibility** - Fixed busybox/POSIX compliance for RUTOS environment
@@ -124,11 +132,11 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 - ✅ **Installation**: Fully functional on RUTX50
 - ✅ **Configuration**: Template migration and validation working
 - ✅ **Debug Mode**: Available for troubleshooting
-- 🔧 **Known Issue**: Template detection false positive after migration
+- ✅ **Template Detection**: False positive issue resolved (Round 15)
 
 ### Next Steps
-1. Debug template detection logic using `DEBUG=1` mode
-2. Fix template detection false positives
+1. ✅ Debug template detection logic using `DEBUG=1` mode - **COMPLETED**
+2. ✅ Fix template detection false positives - **COMPLETED**
 3. Test main monitoring script functionality
 4. Complete advanced configuration template testing
 

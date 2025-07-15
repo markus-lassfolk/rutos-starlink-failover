@@ -1,5 +1,4 @@
 #!/bin/sh
-# shellcheck disable=SC2034  # Variables are used when sourced by other scripts
 
 # ==============================================================================
 # STARLINK MONITOR CONFIGURATION TEMPLATE

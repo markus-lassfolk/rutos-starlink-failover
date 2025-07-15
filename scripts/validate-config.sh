@@ -572,42 +572,61 @@ check_outdated_template() {
     debug_msg "Checking if config uses outdated template format"
     debug_msg "Config file: $CONFIG_FILE"
     
-    # Check for ShellCheck comments
+    # Check for ShellCheck comments (primary indicator of outdated template)
     if grep -q "# shellcheck" "$CONFIG_FILE"; then
         debug_msg "Found ShellCheck comments - config appears outdated"
         return 0 # Found ShellCheck comments - outdated
     fi
     debug_msg "No ShellCheck comments found"
 
-    # Check for missing proper descriptions (very short comments)
-    debug_msg "Checking for short comments that indicate outdated template"
+    # Check for specific outdated template patterns
+    debug_msg "Checking for specific outdated template patterns"
+    
+    # Check for old variable names that indicate outdated template
+    if grep -q "^ROUTER_IP=" "$CONFIG_FILE" || \
+       grep -q "^DISH_IP=" "$CONFIG_FILE" || \
+       grep -q "^DISH_PORT=" "$CONFIG_FILE"; then
+        debug_msg "Found old variable names - config appears outdated"
+        return 0 # Found old variable names - outdated
+    fi
+    debug_msg "No old variable names found"
 
+    # Check for missing comprehensive descriptions (only if no proper descriptions exist)
+    debug_msg "Checking for template completeness indicators"
+    
+    # Count variables with comprehensive descriptions vs short ones
+    comprehensive_comments=0
     short_comments=0
     total_vars=0
 
     while read -r line; do
         if printf "%s" "$line" | grep -E '^[A-Z_]+=.*#' >/dev/null; then
             total_vars=$((total_vars + 1))
-            # Check if comment is very short (likely just a variable name)
+            # Extract comment part
             comment=$(printf "%s" "$line" | sed 's/.*#[[:space:]]*//')
             debug_msg "Variable comment: '$comment' (length: ${#comment})"
-            if [ "${#comment}" -lt 20 ]; then
+            
+            # Check if comment is comprehensive (contains helpful description)
+            if [ "${#comment}" -ge 30 ] && (printf "%s" "$comment" | grep -q -E "(default|should|used|connection|threshold|timeout|directory|command|notification)" >/dev/null 2>&1); then
+                comprehensive_comments=$((comprehensive_comments + 1))
+                debug_msg "  Comprehensive comment detected"
+            elif [ "${#comment}" -lt 15 ]; then
                 short_comments=$((short_comments + 1))
-                debug_msg "  Short comment detected"
+                debug_msg "  Very short comment detected"
             fi
         fi
     done <"$CONFIG_FILE"
 
-    debug_msg "Total variables: $total_vars, Short comments: $short_comments"
+    debug_msg "Total variables: $total_vars, Comprehensive comments: $comprehensive_comments, Short comments: $short_comments"
     
-    # If more than 50% of comments are very short, likely outdated
-    if [ "$total_vars" -gt 0 ] && [ "$short_comments" -gt $((total_vars / 2)) ]; then
-        debug_msg "Config appears outdated: $short_comments/$total_vars comments are short"
+    # If we have very few comprehensive comments AND many short ones, likely outdated
+    # But only if we have a reasonable number of variables to check
+    if [ "$total_vars" -gt 10 ] && [ "$comprehensive_comments" -lt 5 ] && [ "$short_comments" -gt $((total_vars / 3)) ]; then
+        debug_msg "Config appears outdated: only $comprehensive_comments comprehensive comments, $short_comments short comments out of $total_vars variables"
         return 0 # Likely outdated
     fi
     
-    debug_msg "Config template appears current"
-
+    debug_msg "Config template appears current ($comprehensive_comments comprehensive comments, $short_comments short comments)"
     return 1 # Appears current
 }
 
