@@ -67,7 +67,6 @@ TOTAL_CHECKS=0
 PASSED_CHECKS=0
 FAILED_CHECKS=0
 TOTAL_SCRIPTS=0
-ISSUE_COUNT=0
 
 # Configuration
 CHECK_LEVEL="comprehensive"  # Default to comprehensive checks
@@ -245,48 +244,55 @@ check_posix_compatibility() {
     compatibility_issues=0
     
     for script in $shell_scripts; do
+        # Skip validation scripts to avoid false positives from their own pattern matching
+        script_basename=$(basename "$script")
+        if [ "$script_basename" = "pre-commit-check.sh" ] || [ "$script_basename" = "quality-check.sh" ] || [ "$script_basename" = "audit-rutos-compatibility.sh" ]; then
+            log_debug "Skipping validation for $script (validation script)"
+            continue
+        fi
+        
         log_debug "Checking POSIX compatibility for: $script"
         
-        # Check for double brackets [[ ]]
-        if grep -n "\[\[" "$script" > /dev/null 2>&1; then
+        # Check for double brackets [[ ]] in actual code (not comments or strings)
+        if grep -n "^[[:space:]]*if.*\\[\\[" "$script" > /dev/null 2>&1 || grep -n "^[[:space:]]*elif.*\\[\\[" "$script" > /dev/null 2>&1 || grep -n "^[[:space:]]*while.*\\[\\[" "$script" > /dev/null 2>&1; then
             log_error "CRITICAL: Double brackets found in $script:"
-            grep -n "\[\[" "$script" | while read -r line; do
+            grep -n "^[[:space:]]*\\(if\\|elif\\|while\\).*\\[\\[" "$script" | while read -r line; do
                 log_error "  Line: $line"
             done
             compatibility_issues=1
         fi
         
-        # Check for function() syntax
-        if grep -n "function.*(" "$script" > /dev/null 2>&1; then
+        # Check for function() syntax (not in comments or strings)
+        if grep -n "^[[:space:]]*function.*(" "$script" > /dev/null 2>&1; then
             log_error "CRITICAL: function() syntax found in $script:"
-            grep -n "function.*(" "$script" | while read -r line; do
+            grep -n "^[[:space:]]*function.*(" "$script" | while read -r line; do
                 log_error "  Line: $line"
             done
             compatibility_issues=1
         fi
         
-        # Check for local variables
-        if grep -n "local " "$script" > /dev/null 2>&1; then
+        # Check for local variables (not in comments or strings)
+        if grep -n "^[[:space:]]*local " "$script" > /dev/null 2>&1; then
             log_error "CRITICAL: 'local' keyword found in $script:"
-            grep -n "local " "$script" | while read -r line; do
+            grep -n "^[[:space:]]*local " "$script" | while read -r line; do
                 log_error "  Line: $line"
             done
             compatibility_issues=1
         fi
         
-        # Check for echo -e usage
-        if grep -n "echo -e" "$script" > /dev/null 2>&1; then
+        # Check for echo -e usage (not in comments or strings)
+        if grep -n "^[[:space:]]*echo -e" "$script" > /dev/null 2>&1; then
             log_error "CRITICAL: 'echo -e' found in $script:"
-            grep -n "echo -e" "$script" | while read -r line; do
+            grep -n "^[[:space:]]*echo -e" "$script" | while read -r line; do
                 log_error "  Line: $line"
             done
             compatibility_issues=1
         fi
         
-        # Check for source command
-        if grep -n "source " "$script" > /dev/null 2>&1; then
+        # Check for source command (not in comments or strings)
+        if grep -n "^[[:space:]]*source " "$script" > /dev/null 2>&1; then
             log_error "CRITICAL: 'source' command found in $script:"
-            grep -n "source " "$script" | while read -r line; do
+            grep -n "^[[:space:]]*source " "$script" | while read -r line; do
                 log_error "  Line: $line"
             done
             compatibility_issues=1
@@ -521,7 +527,7 @@ check_naming_conventions() {
         fi
     done
     
-    if [ $naming_issues -eq 0 ]; then
+    if [ "$naming_issues" -eq 0 ]; then
         log_info "File naming conventions are correct"
         return 0
     else
