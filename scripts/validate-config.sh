@@ -15,6 +15,16 @@ SCRIPT_VERSION="1.0.0"
 SCRIPT_NAME="validate-config.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"
 
+# Debug mode - set to 1 to enable debug output
+DEBUG="${DEBUG:-0}"
+
+# Debug output function
+debug_msg() {
+    if [ "$DEBUG" = "1" ]; then
+        printf "%b\n" "${BLUE}DEBUG: $1${NC}"
+    fi
+}
+
 # Colors for output
 # Check if terminal supports colors
 if [ -t 1 ] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1; then
@@ -41,10 +51,14 @@ show_usage() {
     printf "%b\n" "${BLUE}Arguments:${NC}"
     printf "%b\n" "${BLUE}  config_file     Path to configuration file (default: ./config.sh)${NC}"
     printf "%b\n" ""
+    printf "%b\n" "${BLUE}Environment Variables:${NC}"
+    printf "%b\n" "${BLUE}  DEBUG=1         Enable debug output for troubleshooting${NC}"
+    printf "%b\n" ""
     printf "%b\n" "${BLUE}Examples:${NC}"
     printf "%b\n" "${BLUE}  $SCRIPT_NAME                    # Validate default config.sh${NC}"
     printf "%b\n" "${BLUE}  $SCRIPT_NAME /path/to/config.sh # Validate specific config${NC}"
     printf "%b\n" "${BLUE}  $SCRIPT_NAME --migrate          # Force migration of outdated template${NC}"
+    printf "%b\n" "${BLUE}  DEBUG=1 $SCRIPT_NAME            # Run with debug output${NC}"
 }
 
 # Parse command line arguments
@@ -280,7 +294,9 @@ check_config_completeness() {
     printf "%b\n" "${GREEN}Comparing against template: $template_file${NC}"
 
     # Check if config uses outdated template format
+    debug_msg "Starting template format check"
     if check_outdated_template; then
+        debug_msg "Template check result: OUTDATED"
         printf "%b\n" "${YELLOW}⚠ Configuration appears to use outdated template format${NC}"
         if offer_template_migration "$template_file"; then
             printf "%b\n" "${GREEN}✓ Configuration migrated to current template${NC}"
@@ -553,12 +569,18 @@ offer_template_migration() {
 
 # Check if config uses outdated template format
 check_outdated_template() {
+    debug_msg "Checking if config uses outdated template format"
+    debug_msg "Config file: $CONFIG_FILE"
+    
     # Check for ShellCheck comments
     if grep -q "# shellcheck" "$CONFIG_FILE"; then
+        debug_msg "Found ShellCheck comments - config appears outdated"
         return 0 # Found ShellCheck comments - outdated
     fi
+    debug_msg "No ShellCheck comments found"
 
     # Check for missing proper descriptions (very short comments)
+    debug_msg "Checking for short comments that indicate outdated template"
 
     short_comments=0
     total_vars=0
@@ -568,16 +590,23 @@ check_outdated_template() {
             total_vars=$((total_vars + 1))
             # Check if comment is very short (likely just a variable name)
             comment=$(printf "%s" "$line" | sed 's/.*#[[:space:]]*//')
+            debug_msg "Variable comment: '$comment' (length: ${#comment})"
             if [ "${#comment}" -lt 20 ]; then
                 short_comments=$((short_comments + 1))
+                debug_msg "  Short comment detected"
             fi
         fi
     done <"$CONFIG_FILE"
 
+    debug_msg "Total variables: $total_vars, Short comments: $short_comments"
+    
     # If more than 50% of comments are very short, likely outdated
     if [ "$total_vars" -gt 0 ] && [ "$short_comments" -gt $((total_vars / 2)) ]; then
+        debug_msg "Config appears outdated: $short_comments/$total_vars comments are short"
         return 0 # Likely outdated
     fi
+    
+    debug_msg "Config template appears current"
 
     return 1 # Appears current
 }
@@ -588,6 +617,12 @@ main() {
     printf "%b\n" "${BLUE}Script: $SCRIPT_NAME${NC}"
     printf "%b\n" "${BLUE}Version: $SCRIPT_VERSION${NC}"
     printf "%b\n" "${BLUE}Compatible with install.sh: $COMPATIBLE_INSTALL_VERSION${NC}"
+    if [ "$DEBUG" = "1" ]; then
+        printf "%b\n" "${YELLOW}==================== DEBUG MODE ENABLED ====================${NC}"
+        printf "%b\n" "${YELLOW}DEBUG: Script starting with DEBUG=1${NC}"
+        printf "%b\n" "${YELLOW}DEBUG: Configuration file: $CONFIG_FILE${NC}"
+        printf "%b\n" "${YELLOW}==========================================================${NC}"
+    fi
     echo ""
 
     check_root
