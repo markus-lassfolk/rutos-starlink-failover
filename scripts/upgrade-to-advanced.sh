@@ -12,7 +12,7 @@
 set -eu
 
 # Script version information
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.0.1"
 SCRIPT_NAME="upgrade-to-advanced.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"
 
