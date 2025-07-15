@@ -213,6 +213,61 @@ check_bash_syntax() {
     return 0
 }
 
+# Function to validate color code usage
+validate_color_codes() {
+    file="$1"
+    
+    # Check for direct color codes in printf statements (should use variables)
+    if grep -n "printf.*\\\\033\[" "$file" >/dev/null 2>&1; then
+        while IFS=: read -r line_num line_content; do
+            report_issue "MAJOR" "$file" "$line_num" "Uses hardcoded color codes in printf - use color variables instead"
+        done < <(grep -n "printf.*\\\\033\[" "$file" 2>/dev/null)
+    fi
+    
+    # Check for echo with color codes (should use printf)
+    if grep -n "echo.*\\\\033\[" "$file" >/dev/null 2>&1; then
+        while IFS=: read -r line_num line_content; do
+            report_issue "MAJOR" "$file" "$line_num" "Uses echo with color codes - use printf for better compatibility"
+        done < <(grep -n "echo.*\\\\033\[" "$file" 2>/dev/null)
+    fi
+    
+    # Check for problematic printf patterns with color variables but missing proper format
+    if grep -n "printf.*\\\${[A-Z_]*}.*%s.*\\\${[A-Z_]*}" "$file" >/dev/null 2>&1; then
+        while IFS=: read -r line_num line_content; do
+            # Only flag if it looks like color codes might be getting literal output
+            if echo "$line_content" | grep -q 'printf.*"[^"]*\\\${[A-Z_]*}[^"]*".*[^%]s'; then
+                report_issue "MINOR" "$file" "$line_num" "Complex printf with colors - verify format string handles colors correctly"
+            fi
+        done < <(grep -n "printf.*\\\${[A-Z_]*}.*%s.*\\\${[A-Z_]*}" "$file" 2>/dev/null)
+    fi
+    
+    # Check for printf without proper format when using color variables
+    if grep -n "printf.*\\\${[A-Z_]*}.*[^%][^s]\"" "$file" >/dev/null 2>&1; then
+        while IFS=: read -r line_num line_content; do
+            # Check if it's a printf that ends with a variable (not a format string)
+            if echo "$line_content" | grep -q 'printf.*\\\${[A-Z_]*}$'; then
+                report_issue "MAJOR" "$file" "$line_num" "printf ending with color variable - missing format string or text"
+            fi
+        done < <(grep -n "printf.*\\\${[A-Z_]*}.*[^%][^s]\"" "$file" 2>/dev/null)
+    fi
+    
+    # Check for proper color detection logic
+    if grep -n "if.*-t.*1" "$file" >/dev/null 2>&1; then
+        # This is good - checking for terminal support
+        log_debug "✓ $file: Has terminal color detection"
+    elif grep -n "NO_COLOR\|TERM.*dumb" "$file" >/dev/null 2>&1; then
+        # This is good - checking for NO_COLOR or dumb terminal
+        log_debug "✓ $file: Has NO_COLOR detection"
+    elif grep -n "RED=\|GREEN=\|YELLOW=" "$file" >/dev/null 2>&1; then
+        # Has color definitions but no detection - potential issue
+        if ! grep -q "if.*-t.*1\|NO_COLOR\|TERM.*dumb" "$file"; then
+            report_issue "MINOR" "$file" "0" "Defines colors but missing color detection logic - add terminal/NO_COLOR checks"
+        fi
+    fi
+    
+    return 0
+}
+
 # Function to run ShellCheck
 run_shellcheck() {
     file="$1"
@@ -269,6 +324,9 @@ validate_file() {
     
     # Check bash-specific syntax
     check_bash_syntax "$file"
+    
+    # Validate color code usage
+    validate_color_codes "$file"
     
     # Run ShellCheck
     run_shellcheck "$file"
