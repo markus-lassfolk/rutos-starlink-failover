@@ -130,22 +130,26 @@ STATUS          | COMPONENT                 | DETAILS
 **Graceful Degradation Components**:
 
 1. **Basic Template** (`config/config.template.sh`):
+
    - Only 14 essential variables (down from 30+)
    - Placeholder tokens for optional features
    - Works immediately after installation
 
 2. **Placeholder Detection** (`scripts/placeholder-utils.sh`):
+
    - `is_placeholder()` - Detects placeholder values
    - `is_pushover_configured()` - Checks if Pushover is properly configured
    - `safe_notify()` - Gracefully handles notifications
    - Smart feature detection for graceful degradation
 
 3. **Enhanced Validation** (`scripts/validate-config.sh`):
+
    - Distinguishes critical vs optional settings
    - Graceful handling of placeholder values
    - No more false positives for unconfigured features
 
 4. **Test Scripts with Graceful Degradation**:
+
    - `test-pushover.sh` - Gracefully handles unconfigured Pushover
    - `test-monitoring.sh` - Tests core monitoring connectivity
    - `system-status.sh` - Shows comprehensive system status
@@ -1168,36 +1172,43 @@ SUCCESS** - Fixed 95 issues, reduced from 156 to 61 total issues
 **Major Fixes Applied**:
 
 1. **SC2059 Printf Format String Issues (51 occurrences)**:
+
    - Fixed `printf "${RED}Error: %s${NC}\n" "$message"` patterns
    - Updated to `printf "%sError: %s%s\n" "$RED" "$message" "$NC"`
    - Applied systematic fixes across all affected scripts
 
 2. **Color Detection Pattern Updates**:
+
    - Changed from `command -v tput` patterns to RUTOS-compatible format
    - Updated to `if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]`
    - Fixed 5 files with old color detection patterns
 
 3. **SC2181 Exit Code Checking Patterns**:
+
    - Fixed `if [ $? -ne 0 ]` patterns for direct command testing
    - Updated to `if ! command; then` format for better reliability
    - Applied fixes across multiple test scripts
 
 4. **SC3045 Export Function Issues**:
+
    - Removed `export -f` statements for POSIX compliance
    - Added POSIX compatibility notes for function availability
    - Fixed placeholder-utils.sh and other affected scripts
 
 5. **Missing Color Definitions**:
+
    - Added missing CYAN and BLUE color definitions across multiple files
    - Standardized color scheme: RED, GREEN, YELLOW, BLUE, CYAN, NC
    - Added shellcheck disable directives for unused color variables
 
 6. **SC2034 Unused Variable Warnings**:
+
    - Added `# shellcheck disable=SC2034` directives for color variables
    - Fixed 38 unused variable warnings across 10 files
    - Maintained proper variable definitions for external usage
 
 7. **Bash Shebang Compatibility**:
+
    - Changed `#!/bin/bash` to `#!/bin/sh` for RUTOS compatibility
    - Fixed test_template_detection.sh for proper busybox support
 

@@ -27,6 +27,7 @@ fi
 ### What This Means
 
 1. **First Installation**:
+
    - Creates `config.sh` from `config.template.sh`
    - Shows yellow message asking you to edit it
 
