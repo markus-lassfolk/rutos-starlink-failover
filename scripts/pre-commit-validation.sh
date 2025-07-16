@@ -662,7 +662,7 @@ display_issue_summary() {
 	fi
 
 	printf "\n"
-	printf "${PURPLE}=== ISSUE BREAKDOWN ===${NC}\n"
+	printf "%s=== ISSUE BREAKDOWN ===%s\n" "$PURPLE" "$NC"
 	printf "Most common issues found:\n\n"
 
 	# Process the issue list to group by message type
@@ -883,7 +883,7 @@ display_summary() {
 	log_step "Generating validation summary"
 
 	printf "\n"
-	printf "${PURPLE}=== VALIDATION SUMMARY ===${NC}\n"
+	printf "%s=== VALIDATION SUMMARY ===%s\n" "$PURPLE" "$NC"
 	printf "Files processed: %d\n" "$TOTAL_FILES"
 	printf "Files passed: %d\n" "$PASSED_FILES"
 	printf "Files failed: %d\n" "$FAILED_FILES"
