@@ -20,26 +20,26 @@ TESTS_TOTAL=0
 
 # Logging functions
 log_test() {
-	printf "${BLUE}[TEST]${NC} %s\n" "$1"
+	printf "%s[TEST]%s %s\n" "$BLUE" "$NC" "$1"
 	TESTS_TOTAL=$((TESTS_TOTAL + 1))
 }
 
 log_pass() {
-	printf "${GREEN}[PASS]${NC} %s\n" "$1"
+	printf "%s[PASS]%s %s\n" "$GREEN" "$NC" "$1"
 	TESTS_PASSED=$((TESTS_PASSED + 1))
 }
 
 log_fail() {
-	printf "${RED}[FAIL]${NC} %s\n" "$1"
+	printf "%s[FAIL]%s %s\n" "$RED" "$NC" "$1"
 	TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 log_warn() {
-	printf "${YELLOW}[WARN]${NC} %s\n" "$1"
+	printf "%s[WARN]%s %s\n" "$YELLOW" "$NC" "$1"
 }
 
 log_info() {
-	printf "${BLUE}[INFO]${NC} %s\n" "$1"
+	printf "%s[INFO]%s %s\n" "$BLUE" "$NC" "$1"
 }
 
 # Create test files for testing
@@ -497,8 +497,8 @@ echo "======================================"
 echo "TEST SUMMARY"
 echo "======================================"
 echo "Total tests: $TESTS_TOTAL"
-printf "Passed: ${GREEN}%d${NC}\n" "$TESTS_PASSED"
-printf "Failed: ${RED}%d${NC}\n" "$TESTS_FAILED"
+printf "Passed: %s%d%s\n" "$GREEN" "$TESTS_PASSED" "$NC"
+printf "Failed: %s%d%s\n" "$RED" "$TESTS_FAILED" "$NC"
 
 if [ $TESTS_FAILED -eq 0 ]; then
 	printf "%sAll critical tests passed!%s\n" "$GREEN" "$NC"
