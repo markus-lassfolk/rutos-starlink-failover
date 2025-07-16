@@ -55,7 +55,8 @@ fi
 
 # --- HELPER FUNCTIONS ---
 log() {
-	printf "%s[$(date '+%Y-%m-%d %H:%M:%S')] %s%s\n" "$BLUE" "$1" "$NC"
+	timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+	printf "%s[%s] %s%s\n" "$BLUE" "$timestamp" "$1" "$NC"
 	logger -t "$LOG_TAG" "$1"
 }
 
