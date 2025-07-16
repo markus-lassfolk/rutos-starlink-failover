@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
 # Starlink API Version Monitor
@@ -20,7 +20,7 @@
 # ==============================================================================
 
 # Exit on first error, undefined variable, or pipe failure for script robustness.
-set -euo pipefail
+set -eu
 
 # --- User Configuration ---
 
@@ -51,20 +51,20 @@ JQ_CMD="jq"
 
 # --- Helper Functions ---
 log() {
-    # Use -- to prevent messages starting with - from being treated as options
-    logger -t "$LOG_TAG" -- "$1"
+	# Use -- to prevent messages starting with - from being treated as options
+	logger -t "$LOG_TAG" -- "$1"
 }
 
 send_notification() {
-    local title="$1"
-    local message="$2"
-    log "Sending Pushover -> Title: '$title', Message: '$message'"
-    curl -s --max-time 15 \
-        -F "token=$PUSHOVER_TOKEN" \
-        -F "user=$PUSHOVER_USER" \
-        -F "title=$title" \
-        -F "message=$message" \
-        https://api.pushover.net/1/messages.json >/dev/null
+	title="$1"
+	message="$2"
+	log "Sending Pushover -> Title: '$title', Message: '$message'"
+	curl -s --max-time 15 \
+		-F "token=$PUSHOVER_TOKEN" \
+		-F "user=$PUSHOVER_USER" \
+		-F "title=$title" \
+		-F "message=$message" \
+		https://api.pushover.net/1/messages.json >/dev/null
 }
 
 # --- Main Script ---
@@ -79,27 +79,27 @@ current_version=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_device_info":{}
 
 # If we couldn't get a valid version number, exit gracefully.
 if [ "$current_version" = "0" ] || [ -z "$current_version" ]; then
-    log "ERROR: Could not retrieve current API version from dish. Skipping check."
-    exit 0
+	log "ERROR: Could not retrieve current API version from dish. Skipping check."
+	exit 0
 fi
 
 log "INFO: Known version: $known_version, Current version: $current_version"
 
 # Compare the current version with the last known version.
 if [ "$current_version" != "$known_version" ]; then
-    # --- API VERSION HAS CHANGED ---
-    log "WARN: API version has changed from $known_version to $current_version. Sending notification."
+	# --- API VERSION HAS CHANGED ---
+	log "WARN: API version has changed from $known_version to $current_version. Sending notification."
 
-    MESSAGE="Starlink API version has changed from $known_version to $current_version. Please check if monitoring scripts need updates."
-    TITLE="Starlink API Alert"
+	MESSAGE="Starlink API version has changed from $known_version to $current_version. Please check if monitoring scripts need updates."
+	TITLE="Starlink API Alert"
 
-    send_notification "$TITLE" "$MESSAGE"
+	send_notification "$TITLE" "$MESSAGE"
 
-    # Update the known version file with the new version for the next check.
-    echo "$current_version" >"$KNOWN_API_VERSION_FILE"
-    log "INFO: Updated known version file to $current_version."
+	# Update the known version file with the new version for the next check.
+	echo "$current_version" >"$KNOWN_API_VERSION_FILE"
+	log "INFO: Updated known version file to $current_version."
 else
-    log "INFO: API version is unchanged. No action needed."
+	log "INFO: API version is unchanged. No action needed."
 fi
 
 log "--- API version check finished ---"

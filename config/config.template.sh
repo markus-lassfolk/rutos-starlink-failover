@@ -1,110 +1,74 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
-# Configuration Template for Starlink RUTOS Failover
+# STARLINK MONITOR BASIC CONFIGURATION
+# ==============================================================================
+# This is the basic configuration for Starlink monitoring.
+# Only essential settings are included.
 #
-# This file contains all user-configurable settings for the Starlink monitoring
-# and failover system. Copy this file to config.sh and customize the values.
+# For advanced features (Azure logging, GPS tracking, etc.), run:
+#   /root/starlink-monitor/scripts/upgrade-to-advanced.sh
 #
+# Template version: 1.0.0
+# Compatible with install.sh: 1.0.0
 # ==============================================================================
 
 # --- Network Configuration ---
 
-# shellcheck disable=SC2034
-STARLINK_IP="192.168.100.1:9200"
+# Starlink gRPC endpoint IP and port
+# Default: 192.168.100.1:9200 (standard Starlink configuration)
+export STARLINK_IP="192.168.100.1:9200"
 
-# shellcheck disable=SC2034
-MWAN_IFACE="wan"
+# MWAN3 interface name for Starlink connection
+# Check your MWAN3 config: uci show mwan3 | grep interface
+export MWAN_IFACE="wan"
 
-# shellcheck disable=SC2034
-MWAN_MEMBER="member1"
+# MWAN3 member name for Starlink connection
+# Check your MWAN3 config: uci show mwan3 | grep member
+export MWAN_MEMBER="member1"
 
 # --- Notification Settings ---
 
-# shellcheck disable=SC2034
-PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"
-# shellcheck disable=SC2034
-PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"
+# Pushover API credentials for notifications
+# Get your token from: https://pushover.net/apps/build
+# Get your user key from: https://pushover.net/
+# Leave as placeholders to disable notifications
+export PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"
+export PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"
 
-# shellcheck disable=SC2034
-NOTIFY_ON_CRITICAL=1 # Always notify on critical errors
-# shellcheck disable=SC2034
-NOTIFY_ON_SOFT_FAIL=1 # Notify on soft failover events
-# shellcheck disable=SC2034
-NOTIFY_ON_HARD_FAIL=1 # Notify on hard failover events
-# shellcheck disable=SC2034
-NOTIFY_ON_RECOVERY=1 # Notify when system recovers/failback
-# shellcheck disable=SC2034
-NOTIFY_ON_INFO=0 # Notify on info/status (set to 1 for verbose)
+# Notification triggers (1=enabled, 0=disabled)
+export NOTIFY_ON_CRITICAL=1  # Critical errors (recommended: 1)
+export NOTIFY_ON_HARD_FAIL=1 # Complete failures (recommended: 1)
+export NOTIFY_ON_RECOVERY=1  # System recovery (recommended: 1)
+export NOTIFY_ON_SOFT_FAIL=0 # Degraded performance (0=disabled for basic setup)
+export NOTIFY_ON_INFO=0      # Status updates (0=disabled for basic setup)
 
-# --- Failover Thresholds ---
+# --- Basic Failover Thresholds ---
 
-# shellcheck disable=SC2034
-PACKET_LOSS_THRESHOLD=0.05
+# Packet loss threshold (percentage as decimal: 0.05 = 5%)
+export PACKET_LOSS_THRESHOLD=0.05
 
-# shellcheck disable=SC2034
-OBSTRUCTION_THRESHOLD=0.001
+# Obstruction threshold (percentage as decimal: 0.001 = 0.1%)
+export OBSTRUCTION_THRESHOLD=0.001
 
-# shellcheck disable=SC2034
-LATENCY_THRESHOLD_MS=150
+# Latency threshold in milliseconds
+export LATENCY_THRESHOLD_MS=150
 
-# --- Recovery Settings ---
+# --- System Settings ---
 
-# shellcheck disable=SC2034
-STABILITY_CHECKS_REQUIRED=5
+# Check interval in seconds (how often to test Starlink)
+export CHECK_INTERVAL=30
 
-# --- mwan3 Metrics ---
+# API timeout in seconds
+export API_TIMEOUT=10
 
-# shellcheck disable=SC2034
-METRIC_GOOD=1
+# Directory for log files (persistent across reboots)
+export LOG_DIR="/overlay/starlink-logs"
 
-# shellcheck disable=SC2034
-METRIC_BAD=10
+# Directory for runtime state files
+export STATE_DIR="/tmp/run"
 
-# --- File Paths ---
+# --- Binary Paths (set by install script) ---
 
-# shellcheck disable=SC2034
-STATE_DIR="/tmp/run"
-
-# shellcheck disable=SC2034
-LOG_DIR="/var/log"
-
-# shellcheck disable=SC2034
-DATA_DIR="/root"
-
-# --- Binary Paths ---
-
-# shellcheck disable=SC2034
-GRPCURL_CMD="/root/grpcurl"
-
-# shellcheck disable=SC2034
-JQ_CMD="/root/jq"
-
-# --- RUTOS API Configuration (for GPS) ---
-
-# shellcheck disable=SC2034
-RUTOS_IP="192.168.80.1"
-
-# shellcheck disable=SC2034
-RUTOS_USERNAME="YOUR_RUTOS_USERNAME"
-# shellcheck disable=SC2034
-RUTOS_PASSWORD="YOUR_RUTOS_PASSWORD"
-
-# --- Logging Configuration ---
-
-# shellcheck disable=SC2034
-LOG_TAG="StarlinkSystem"
-
-# shellcheck disable=SC2034
-LOG_RETENTION_DAYS=7
-
-# --- Advanced Settings ---
-
-# shellcheck disable=SC2034
-API_TIMEOUT=10
-# shellcheck disable=SC2034
-HTTP_TIMEOUT=15
-# shellcheck disable=SC2034
-GPS_ACCURACY_THRESHOLD=100
-# shellcheck disable=SC2034
-MOVEMENT_THRESHOLD=500
+export GRPCURL_CMD="/root/grpcurl" # gRPC client for Starlink API
+export JQ_CMD="/root/jq"           # JSON processor for parsing API responses

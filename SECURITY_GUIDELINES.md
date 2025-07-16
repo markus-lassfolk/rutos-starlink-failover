@@ -2,17 +2,20 @@
 
 ## Overview
 
-This document outlines security best practices for the Starlink monitoring system to protect your infrastructure and data.
+This document outlines security best practices for the Starlink monitoring system to protect your infrastructure and
+data.
 
 ## Credential Management
 
 ### ✅ Do
+
 - Use the configuration template system
 - Store credentials in `/root/config.sh` with proper permissions (600)
 - Rotate API keys regularly
 - Use unique credentials for each installation
 
 ### ❌ Don't
+
 - Hardcode credentials in scripts
 - Commit real credentials to version control
 - Share credentials in documentation or issues
@@ -21,11 +24,13 @@ This document outlines security best practices for the Starlink monitoring syste
 ## Network Security
 
 ### API Access Control
+
 - Limit Starlink API access to monitoring scripts only
 - Use firewall rules to restrict access to management interfaces
 - Monitor API usage for anomalies
 
 ### Router Security
+
 - Change default passwords on all devices
 - Keep firmware updated
 - Disable unnecessary services
@@ -34,6 +39,7 @@ This document outlines security best practices for the Starlink monitoring syste
 ## File System Security
 
 ### Permissions
+
 ```bash
 # Set proper permissions
 chmod 600 /root/config.sh
@@ -42,6 +48,7 @@ chmod 644 /root/starlink-monitor/config/*.template.sh
 ```
 
 ### Directory Structure
+
 - Keep sensitive files in `/root/` (restricted access)
 - Use `/tmp/run/` for temporary state files
 - Implement log rotation to prevent disk exhaustion
@@ -49,12 +56,14 @@ chmod 644 /root/starlink-monitor/config/*.template.sh
 ## Logging and Monitoring
 
 ### Secure Logging
+
 - Don't log sensitive data (passwords, tokens)
 - Implement log rotation
 - Monitor logs for security events
 - Use structured logging format
 
 ### Example Secure Logging
+
 ```bash
 # Good - no sensitive data
 log "info" "API call successful"
@@ -66,12 +75,14 @@ log "debug" "Using token: $PUSHOVER_TOKEN"
 ## Notification Security
 
 ### Pushover Security
+
 - Use application-specific tokens
 - Implement rate limiting
 - Don't include sensitive system information in notifications
 - Use appropriate priority levels
 
 ### Message Content
+
 - Avoid including IP addresses in external notifications
 - Sanitize error messages
 - Use generic identifiers for systems
@@ -79,12 +90,14 @@ log "debug" "Using token: $PUSHOVER_TOKEN"
 ## Code Security
 
 ### Input Validation
+
 - Validate all external inputs
 - Use `set -euo pipefail` in all scripts
 - Implement timeout values for all network operations
 - Use proper error handling
 
 ### Example Input Validation
+
 ```bash
 # Validate numeric input
 if ! [ "$LATENCY_THRESHOLD_MS" -gt 0 ] 2>/dev/null; then
@@ -102,12 +115,14 @@ fi
 ## Dependency Security
 
 ### Binary Verification
+
 - Download binaries from official sources only
 - Verify checksums when possible
 - Use specific version numbers
 - Monitor for security updates
 
 ### Package Management
+
 - Use package managers where possible
 - Keep dependencies updated
 - Monitor for vulnerabilities
@@ -116,6 +131,7 @@ fi
 ## Incident Response
 
 ### Security Incident Checklist
+
 1. **Identify** the scope of the incident
 2. **Isolate** affected systems
 3. **Assess** the impact
@@ -124,6 +140,7 @@ fi
 6. **Document** lessons learned
 
 ### Emergency Procedures
+
 - Disable monitoring immediately: `rm /etc/crontabs/root`
 - Block API access: `iptables -A OUTPUT -d 192.168.100.1 -j DROP`
 - Check logs: `logread | grep -i error`
@@ -131,16 +148,19 @@ fi
 ## Regular Security Tasks
 
 ### Daily
+
 - Monitor system logs
 - Check for failed authentication attempts
 - Verify system health
 
 ### Weekly
+
 - Review notification logs
 - Check for unusual API patterns
 - Validate configuration integrity
 
 ### Monthly
+
 - Rotate credentials
 - Update dependencies
 - Review security logs
@@ -149,12 +169,14 @@ fi
 ## Configuration Security
 
 ### Template System
+
 - Use configuration templates
 - Validate all configuration values
 - Implement secure defaults
 - Document security implications
 
 ### Environment Variables
+
 ```bash
 # Secure environment setup
 export CONFIG_FILE="/root/config.sh"
@@ -165,12 +187,14 @@ umask 077  # Restrictive permissions for new files
 ## Backup and Recovery
 
 ### Secure Backups
+
 - Encrypt backup files
 - Store backups securely
 - Test recovery procedures
 - Include configuration in backups
 
 ### Recovery Procedures
+
 - Document recovery steps
 - Test on non-production systems
 - Maintain offline copies
@@ -179,12 +203,14 @@ umask 077  # Restrictive permissions for new files
 ## Compliance Considerations
 
 ### Data Protection
+
 - Minimize data collection
 - Implement data retention policies
 - Secure data transmission
 - Document data flows
 
 ### Regulatory Compliance
+
 - Consider local regulations
 - Implement appropriate controls
 - Document compliance measures
@@ -193,6 +219,7 @@ umask 077  # Restrictive permissions for new files
 ## Security Checklist
 
 ### Pre-Deployment
+
 - [ ] Configuration file permissions set correctly
 - [ ] No hardcoded credentials
 - [ ] All scripts have proper error handling
@@ -200,6 +227,7 @@ umask 077  # Restrictive permissions for new files
 - [ ] Logging configured securely
 
 ### Post-Deployment
+
 - [ ] Monitor logs for errors
 - [ ] Validate notifications working
 - [ ] Check system health
@@ -207,6 +235,7 @@ umask 077  # Restrictive permissions for new files
 - [ ] Plan security review schedule
 
 ### Ongoing
+
 - [ ] Regular security updates
 - [ ] Credential rotation
 - [ ] Log monitoring

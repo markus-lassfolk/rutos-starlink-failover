@@ -1,18 +1,21 @@
 # RUTOS Shell Compatibility Strategy
 
 ## Problem
+
 RUTOS uses ash/dash shell, but our CI/CD workflows expect bash syntax for proper validation.
 
 ## Solution: Dual Compatibility Approach
 
 ### For Deployment Scripts (RUTOS-specific)
+
 - Use `#!/bin/sh` shebang
 - POSIX shell syntax only
 - Compatible with ash/dash
-- Examples: `deploy-starlink-solution.sh`, `rutos-compatibility-test.sh`
+- Examples: `deploy-starlink-solution.sh`, `tests/rutos-compatibility-test.sh`
 
 ### For Development/CI Scripts (Development environment)
-- Keep `#!/bin/bash` shebang  
+
+- Keep `#!/bin/bash` shebang
 - Can use bash-specific features
 - Validated by CI/CD workflows
 - Examples: All scripts in `Starlink-RUTOS-Failover/` folder
@@ -20,15 +23,18 @@ RUTOS uses ash/dash shell, but our CI/CD workflows expect bash syntax for proper
 ### Implementation Strategy
 
 #### Option 1: Rename Deployment Script
+
 - `deploy-starlink-solution.sh` → `deploy-starlink-solution-rutos.sh`
 - Keep original with bash shebang for CI/CD
 - New version optimized for RUTOS
 
 #### Option 2: Conditional Shebang Detection
+
 - Scripts detect their runtime environment
 - Use appropriate syntax based on available shell
 
 #### Option 3: CI/CD Workflow Updates
+
 - Update shellcheck to handle both bash and POSIX sh
 - Add special handling for RUTOS-specific scripts
 

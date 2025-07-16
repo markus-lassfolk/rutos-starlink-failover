@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 # Test the core monitoring logic by simulating the key functions
 
-set -euo pipefail
+set -eu
 
 # Test directory
 TEST_DIR="/tmp/starlink-monitor-test-$$"
@@ -13,7 +13,7 @@ echo "=== Testing Starlink Monitor Logic ==="
 
 # Create a mock configuration
 cat >config.sh <<'EOF'
-#!/bin/bash
+#!/bin/sh
 STARLINK_IP="192.168.100.1:9200"
 MWAN_IFACE="wan"
 MWAN_MEMBER="member1"
@@ -30,11 +30,11 @@ mkdir -p /tmp/run
 
 # Create a test monitoring script with mock data
 cat >test_monitor.sh <<'EOF'
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 # Load configuration
-source ./config.sh
+    . ./config.sh
 
 # State files
 STATE_FILE="/tmp/run/starlink_monitor.state"
@@ -64,10 +64,11 @@ export PATH="$PWD:$PATH"
 
 # Create mock grpcurl
 cat > grpcurl << 'GRPCURL_EOF'
-#!/bin/bash
+#!/bin/sh
 # Mock grpcurl that returns test data
-if [[ "$*" == *"get_status"* ]]; then
-    cat << 'JSON_EOF'
+case "$*" in
+    *"get_status"*)
+        cat << 'JSON_EOF'
 {
   "dishGetStatus": {
     "popPingLatencyMs": 45.5,
@@ -81,22 +82,24 @@ if [[ "$*" == *"get_status"* ]]; then
   }
 }
 JSON_EOF
-elif [[ "$*" == *"get_history"* ]]; then
-    cat << 'JSON_EOF'
+        ;;
+    *"get_history"*)
+        cat << 'JSON_EOF'
 {
   "dishGetHistory": {
     "popPingDropRate": [0.01, 0.02, 0.01, 0.03, 0.02]
   }
 }
 JSON_EOF
-fi
+        ;;
+esac
 GRPCURL_EOF
 
 chmod +x grpcurl
 
 # Create mock jq
 cat > jq << 'JQ_EOF'
-#!/bin/bash
+#!/bin/sh
 # Mock jq that processes our test JSON
 case "$*" in
     *"popPingLatencyMs"*)
@@ -130,7 +133,7 @@ chmod +x jq
 
 # Create mock bc
 cat > bc << 'BC_EOF'
-#!/bin/bash
+#!/bin/sh
 # Mock bc calculator
 case "$*" in
     *"> 150"*)
@@ -140,11 +143,14 @@ case "$*" in
         echo "0"  # 0.018 > 0.05 = false
         ;;
     *"/ 1000000"*)
-        if [[ "$*" == *"50000000"* ]]; then
-            echo "50.00"
-        elif [[ "$*" == *"5000000"* ]]; then
-            echo "5.00"
-        fi
+        case "$*" in
+            *"50000000"*)
+                echo "50.00"
+                ;;
+            *"5000000"*)
+                echo "5.00"
+                ;;
+        esac
         ;;
 esac
 BC_EOF
@@ -210,10 +216,10 @@ chmod +x test_monitor.sh
 # Run the test
 echo "Running monitoring logic test..."
 if ./test_monitor.sh; then
-    echo "✓ Monitoring logic test completed successfully"
+	echo "✓ Monitoring logic test completed successfully"
 else
-    echo "✗ Monitoring logic test failed"
-    exit 1
+	echo "✗ Monitoring logic test failed"
+	exit 1
 fi
 
 echo
@@ -221,8 +227,8 @@ echo "=== Testing Performance Logger Logic ==="
 
 # Test the performance logger
 cat >test_logger.sh <<'EOF'
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 OUTPUT_CSV="./starlink_performance_log.csv"
 LAST_SAMPLE_FILE="/tmp/run/starlink_last_sample.ts"
@@ -273,10 +279,10 @@ EOF
 chmod +x test_logger.sh
 
 if ./test_logger.sh; then
-    echo "✓ Performance logging test completed successfully"
+	echo "✓ Performance logging test completed successfully"
 else
-    echo "✗ Performance logging test failed"
-    exit 1
+	echo "✗ Performance logging test failed"
+	exit 1
 fi
 
 echo
@@ -284,8 +290,8 @@ echo "=== Testing Azure Log Shipper Logic ==="
 
 # Test the Azure log shipper logic
 cat >test_azure.sh <<'EOF'
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 AZURE_ENDPOINT="https://test-function.azurewebsites.net/api/HttpTrigger"
 LOG_FILE="./test_messages"
@@ -333,10 +339,10 @@ EOF
 chmod +x test_azure.sh
 
 if ./test_azure.sh; then
-    echo "✓ Azure logging test completed successfully"
+	echo "✓ Azure logging test completed successfully"
 else
-    echo "✗ Azure logging test failed"
-    exit 1
+	echo "✗ Azure logging test failed"
+	exit 1
 fi
 
 # Cleanup

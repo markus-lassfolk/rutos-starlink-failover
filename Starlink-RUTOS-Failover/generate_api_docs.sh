@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # ==============================================================================
 # Starlink API Documentation Generator
@@ -18,7 +18,28 @@
 # ==============================================================================
 
 # Exit on first error, undefined variable, or pipe failure for script robustness.
-set -euo pipefail
+set -eu
+
+# Standard colors for consistent output (compatible with busybox)
+# shellcheck disable=SC2034  # Color variables may not all be used in every script
+# shellcheck disable=SC2034
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Check if we're in a terminal that supports colors
+if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
+	RED=""
+	GREEN=""
+	YELLOW=""
+	BLUE=""
+	CYAN=""
+	NC=""
+fi
+set -eu
 
 # --- User Configuration ---
 
@@ -55,7 +76,7 @@ echo "Fetching current API version..."
 api_version=$($GRPCURL_CMD -plaintext -max-time 5 -d '{"get_device_info":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.apiVersion // "UNKNOWN"')
 
 if [ "$api_version" = "UNKNOWN" ]; then
-    echo "Warning: Could not determine API version. Using default filename."
+	echo "Warning: Could not determine API version. Using default filename."
 fi
 echo "API version found: $api_version"
 
@@ -74,30 +95,30 @@ true >"$FILENAME"
 
 # Loop through each method in the list.
 for method in $METHODS_TO_CALL; do
-    # Print status to the console.
-    echo ""
-    echo "--- Executing: $method ---"
+	# Print status to the console.
+	echo ""
+	echo "--- Executing: $method ---"
 
-    # The JSON payload required by grpcurl.
-    json_data="{\"${method}\":{}}"
+	# The JSON payload required by grpcurl.
+	json_data="{\"${method}\":{}}"
 
-    # Add a Markdown header for this section to the output file.
-    {
-        echo ""
-        echo "## Command: ${method}"
-        echo '```json'
-    } >>"$FILENAME"
+	# Add a Markdown header for this section to the output file.
+	{
+		echo ""
+		echo "## Command: ${method}"
+		echo '```json'
+	} >>"$FILENAME"
 
-    # Execute the grpcurl command.
-    # The output is piped to jq to be pretty-printed, then appended to our file.
+	# Execute the grpcurl command.
+	# The output is piped to jq to be pretty-printed, then appended to our file.
 
-    if ! $GRPCURL_CMD -plaintext -max-time 10 -d "$json_data" "$STARLINK_IP" SpaceX.API.Device.Device/Handle | $JQ_CMD '.' >>"$FILENAME"; then
-        echo "ERROR: grpcurl command failed for method: $method"
-        echo "ERROR: grpcurl command failed for method: $method" >>"$FILENAME"
-    fi
+	if ! $GRPCURL_CMD -plaintext -max-time 10 -d "$json_data" "$STARLINK_IP" SpaceX.API.Device.Device/Handle | $JQ_CMD '.' >>"$FILENAME"; then
+		echo "ERROR: grpcurl command failed for method: $method"
+		echo "ERROR: grpcurl command failed for method: $method" >>"$FILENAME"
+	fi
 
-    # Close the Markdown code block.
-    echo '```' >>"$FILENAME"
+	# Close the Markdown code block.
+	echo '```' >>"$FILENAME"
 done
 
 echo ""

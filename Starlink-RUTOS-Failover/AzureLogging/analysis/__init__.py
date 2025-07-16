@@ -10,7 +10,7 @@ This package provides:
 - Report creation
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.2"
 __author__ = "RUTOS Starlink Project"
 
 # Import main classes for easy access

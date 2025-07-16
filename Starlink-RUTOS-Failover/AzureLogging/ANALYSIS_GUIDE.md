@@ -2,17 +2,20 @@
 
 ## Overview
 
-The Network Performance Analysis tool helps you understand your RUTOS device behavior, Starlink performance patterns, and optimize failover thresholds by analyzing the data collected in Azure Storage.
+The Network Performance Analysis tool helps you understand your RUTOS device behavior, Starlink performance patterns,
+and optimize failover thresholds by analyzing the data collected in Azure Storage.
 
 ## What This Tool Analyzes
 
 ### System Events
+
 - **Failover Events**: When RUTOS switches between Starlink and backup connections
 - **Reboot Events**: System restarts (planned and unplanned)
 - **Network Changes**: Interface up/down events, routing changes
 - **System Errors**: Kernel messages, service failures
 
 ### Starlink Performance Metrics
+
 - **Latency**: Ping response times and trends
 - **Packet Loss**: Drop rates and patterns
 - **Throughput**: Upload/download speeds over time
@@ -22,6 +25,7 @@ The Network Performance Analysis tool helps you understand your RUTOS device beh
 - **Alerts**: Thermal, mechanical, and software issues
 
 ### Correlation Analysis
+
 - **Performance vs Events**: How network performance relates to system events
 - **Threshold Effectiveness**: Whether your current thresholds are too aggressive or too weak
 - **Timing Patterns**: When failures typically occur (time of day, day of week)
@@ -30,11 +34,13 @@ The Network Performance Analysis tool helps you understand your RUTOS device beh
 ## Prerequisites
 
 ### Azure Access
+
 - Azure Storage Account with system logs and performance data
 - Azure CLI authenticated OR managed identity configured
 - Read access to both blob containers (`system-logs` and `starlink-performance`)
 
 ### Local Environment
+
 - Python 3.8 or later
 - Required packages (installed via requirements.txt)
 
@@ -43,12 +49,14 @@ The Network Performance Analysis tool helps you understand your RUTOS device beh
 ### 1. Environment Setup
 
 **Linux/macOS:**
+
 ```bash
 chmod +x setup-analysis-environment.sh
 ./setup-analysis-environment.sh
 ```
 
 **Windows PowerShell:**
+
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 .\setup-analysis-environment.ps1
@@ -72,12 +80,12 @@ python analyze-network-performance.py --storage-account mystorageaccount --days 
 
 ## Command Line Options
 
-| Option | Description | Default | Example |
-|--------|-------------|---------|---------|
-| `--storage-account` | Azure Storage account name | Required | `mystorageaccount` |
-| `--days` | Number of days to analyze | 30 | `--days 7` |
-| `--output-dir` | Output directory for results | `./analysis_output` | `--output-dir ./reports` |
-| `--visualizations` | Generate charts and graphs | False | `--visualizations` |
+| Option              | Description                  | Default             | Example                  |
+| ------------------- | ---------------------------- | ------------------- | ------------------------ |
+| `--storage-account` | Azure Storage account name   | Required            | `mystorageaccount`       |
+| `--days`            | Number of days to analyze    | 30                  | `--days 7`               |
+| `--output-dir`      | Output directory for results | `./analysis_output` | `--output-dir ./reports` |
+| `--visualizations`  | Generate charts and graphs   | False               | `--visualizations`       |
 
 ## Understanding the Output
 
@@ -149,17 +157,20 @@ The tool generates `network_analysis_report.json` with comprehensive data:
 ### 3. Visualizations (with --visualizations flag)
 
 #### Performance Trends Chart
+
 - **Latency over time**: Shows ping response patterns
 - **Packet loss over time**: Identifies problem periods
 - **Throughput over time**: Upload/download speed trends
 - **Obstruction fraction**: Satellite view blockages
 
 #### Events Timeline
+
 - **Failover events**: Red dots showing when failovers occurred
 - **Reboot events**: Orange dots showing system restarts
 - **Timeline correlation**: Visual relationship between events
 
 #### Threshold Violations
+
 - **Daily violation counts**: How often thresholds are exceeded
 - **Pattern identification**: Peak problem periods
 
@@ -168,28 +179,33 @@ The tool generates `network_analysis_report.json` with comprehensive data:
 ### Failover Analysis
 
 **Good Signs:**
+
 - Low failover frequency (< 1 per day average)
 - Failovers during known problem times (storms, maintenance)
 - Quick recovery after failovers
 
 **Warning Signs:**
+
 - High failover frequency (> 3 per day average)
 - Clustered failovers (many in short time)
 - Failovers during good weather/conditions
 
 **Action Items:**
+
 - If too many failovers: Increase thresholds (make less sensitive)
 - If too few failovers during problems: Decrease thresholds (make more sensitive)
 
 ### Performance Trends
 
 **Good Signs:**
+
 - Stable latency (< 100ms average)
 - Low packet loss (< 1% average)
 - Consistent throughput matching your plan
 - Low obstruction rates (< 2%)
 
 **Warning Signs:**
+
 - Increasing latency trends over time
 - High packet loss (> 5% regularly)
 - Declining throughput trends
@@ -206,6 +222,7 @@ The tool recommends thresholds based on your actual performance:
 ### Event Correlation
 
 **Key Patterns to Look For:**
+
 - Performance degradation before failovers (indicates thresholds working)
 - Random failovers with good performance (indicates thresholds too sensitive)
 - Missed failovers during poor performance (indicates thresholds too relaxed)
@@ -216,18 +233,21 @@ The tool recommends thresholds based on your actual performance:
 ### Based on Analysis Results
 
 #### High Failover Rate (> 2/day average)
+
 1. **Increase latency thresholds** by 20-30%
 2. **Increase packet loss thresholds** by 20-30%
 3. **Add hysteresis delays** to prevent flapping
 4. **Check for interference sources**
 
 #### Low Failover Rate During Problems
+
 1. **Decrease latency thresholds** by 10-20%
 2. **Decrease packet loss thresholds** by 10-20%
 3. **Add additional monitoring metrics**
 4. **Implement multi-factor triggering**
 
 #### Performance Degradation Trends
+
 1. **Check for obstructions** (trees growing, new buildings)
 2. **Monitor thermal issues** (check alerts data)
 3. **Verify Starlink firmware** is current
@@ -275,6 +295,7 @@ python analyze-network-performance.py \
 ### Azure Automation
 
 You can also run this analysis in Azure:
+
 - **Azure Container Instances**: Run analysis on demand
 - **Azure Functions**: Triggered analysis on schedule
 - **Azure Automation**: PowerShell-based scheduled analysis
@@ -284,6 +305,7 @@ You can also run this analysis in Azure:
 ### Common Issues
 
 **Authentication Errors:**
+
 ```bash
 # Ensure Azure CLI is logged in
 az login
@@ -293,16 +315,19 @@ az account show
 ```
 
 **Missing Data:**
+
 - Verify Azure Function is processing logs correctly
 - Check blob containers have data for the specified date range
 - Ensure both system-logs and starlink-performance containers exist
 
 **Performance Issues:**
+
 - Large datasets may take several minutes to process
 - Consider reducing analysis period for faster results
 - Use `--days 7` for quicker analysis
 
 **Visualization Errors:**
+
 - Ensure all Python packages are installed correctly
 - Check that matplotlib backend supports display/file output
 - Try running without `--visualizations` first
@@ -338,9 +363,11 @@ custom_results = analyzer.custom_analysis_function()
 ### Integration with Monitoring Systems
 
 Export results to monitoring platforms:
+
 - **Grafana**: Import JSON data for dashboards
 - **Power BI**: Connect to JSON reports
 - **Splunk**: Forward analysis results
 - **Prometheus**: Export metrics format
 
-This analysis tool will give you the insights you need to optimize your failover thresholds and understand your network behavior patterns!
+This analysis tool will give you the insights you need to optimize your failover thresholds and understand your network
+behavior patterns!

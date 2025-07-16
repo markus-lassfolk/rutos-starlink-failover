@@ -8,7 +8,7 @@ This directory contains the refactored network performance analysis modules.
 analysis/
 ├── __init__.py              # Package initialization
 ├── data_downloader.py       # Azure Storage data downloading
-├── log_parser.py           # Log parsing and event extraction  
+├── log_parser.py           # Log parsing and event extraction
 ├── performance_analyzer.py  # Performance metrics analysis
 ├── visualizer.py           # Chart and graph generation
 └── network_analyzer.py     # Main orchestrator class
@@ -17,11 +17,13 @@ analysis/
 ## Usage
 
 ### New Modular Version (Recommended)
+
 ```bash
 python network-analyzer.py --storage-account myaccount --days 30 --visualizations
 ```
 
 ### Legacy Version (Deprecated)
+
 ```bash
 python analyze-network-performance.py --storage-account myaccount --days 30
 ```
@@ -36,4 +38,5 @@ python analyze-network-performance.py --storage-account myaccount --days 30
 
 ## Migration Guide
 
-The new modular version provides the same functionality as the original script but with improved architecture. All command-line arguments remain the same for backward compatibility.
+The new modular version provides the same functionality as the original script but with improved architecture. All
+command-line arguments remain the same for backward compatibility.

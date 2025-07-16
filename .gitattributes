@@ -1,0 +1,18 @@
+# Git attributes to ensure consistent line endings
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary files
+*.gz binary
+*.tar binary
+*.tgz binary
+*.zip binary
+*.jpg binary
+*.png binary
+*.gif binary
+*.pdf binary
