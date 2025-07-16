@@ -23,67 +23,67 @@ EOF
 
 # Test scenario function
 test_scenario() {
-	scenario_name="$1"
-	latency="$2"
-	packet_loss="$3"
-	obstruction="$4"
-	expected_result="$5"
+    scenario_name="$1"
+    latency="$2"
+    packet_loss="$3"
+    obstruction="$4"
+    expected_result="$5"
 
-	echo
-	echo "--- Testing Scenario: $scenario_name ---"
-	echo "Latency: ${latency}ms, Packet Loss: $packet_loss, Obstruction: $obstruction"
+    echo
+    echo "--- Testing Scenario: $scenario_name ---"
+    echo "Latency: ${latency}ms, Packet Loss: $packet_loss, Obstruction: $obstruction"
 
-	# Load config
-	# shellcheck disable=SC1091
-	. config.sh
+    # Load config
+    # shellcheck disable=SC1091
+    . config.sh
 
-	# Evaluate quality
-	quality_good=true
-	issues=""
+    # Evaluate quality
+    quality_good=true
+    issues=""
 
-	# Check latency
-	if [ "$(echo "$latency > $LATENCY_THRESHOLD_MS" | bc -l)" -eq 1 ]; then
-		quality_good=false
-		issues="$issues High latency (${latency}ms > ${LATENCY_THRESHOLD_MS}ms);"
-	fi
+    # Check latency
+    if [ "$(echo "$latency > $LATENCY_THRESHOLD_MS" | bc -l)" -eq 1 ]; then
+        quality_good=false
+        issues="$issues High latency (${latency}ms > ${LATENCY_THRESHOLD_MS}ms);"
+    fi
 
-	# Check packet loss
-	if [ "$(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc -l)" -eq 1 ]; then
-		quality_good=false
-		issues="$issues High packet loss ($packet_loss > $PACKET_LOSS_THRESHOLD);"
-	fi
+    # Check packet loss
+    if [ "$(echo "$packet_loss > $PACKET_LOSS_THRESHOLD" | bc -l)" -eq 1 ]; then
+        quality_good=false
+        issues="$issues High packet loss ($packet_loss > $PACKET_LOSS_THRESHOLD);"
+    fi
 
-	# Check obstruction
-	if [ "$obstruction" = "true" ]; then
-		quality_good=false
-		issues="$issues Dish obstructed;"
-	fi
+    # Check obstruction
+    if [ "$obstruction" = "true" ]; then
+        quality_good=false
+        issues="$issues Dish obstructed;"
+    fi
 
-	# Display results
-	if [ "$quality_good" = "true" ]; then
-		echo "✓ Quality: GOOD - Connection should remain active"
-		result="good"
-	else
-		echo "✗ Quality: BAD - Would trigger failover"
-		# Display issues (semicolon-separated)
-		if [ -n "$issues" ]; then
-			echo "$issues" | tr ';' '\n' | while read -r issue; do
-				if [ -n "$issue" ]; then
-					echo "  - $issue"
-				fi
-			done
-		fi
-		result="bad"
-	fi
+    # Display results
+    if [ "$quality_good" = "true" ]; then
+        echo "✓ Quality: GOOD - Connection should remain active"
+        result="good"
+    else
+        echo "✗ Quality: BAD - Would trigger failover"
+        # Display issues (semicolon-separated)
+        if [ -n "$issues" ]; then
+            echo "$issues" | tr ';' '\n' | while read -r issue; do
+                if [ -n "$issue" ]; then
+                    echo "  - $issue"
+                fi
+            done
+        fi
+        result="bad"
+    fi
 
-	# Check if result matches expectation
-	if [ "$result" = "$expected_result" ]; then
-		echo "✓ Scenario result matches expectation"
-		return 0
-	else
-		echo "✗ Scenario result mismatch! Expected: $expected_result, Got: $result"
-		return 1
-	fi
+    # Check if result matches expectation
+    if [ "$result" = "$expected_result" ]; then
+        echo "✓ Scenario result matches expectation"
+        return 0
+    else
+        echo "✗ Scenario result mismatch! Expected: $expected_result, Got: $result"
+        return 1
+    fi
 }
 
 # Install bc for calculations
@@ -91,8 +91,8 @@ echo "Setting up test environment..."
 
 # Create mock bc if not available
 if ! command -v bc >/dev/null 2>&1; then
-	echo "Creating mock bc calculator..."
-	cat >./bc <<'EOF'
+    echo "Creating mock bc calculator..."
+    cat >./bc <<'EOF'
 #!/bin/sh
 # Mock bc that handles our test cases
 case "$*" in
@@ -113,8 +113,8 @@ case "$*" in
         ;;
 esac
 EOF
-	chmod +x bc
-	export PATH="$PWD:$PATH"
+    chmod +x bc
+    export PATH="$PWD:$PATH"
 fi
 
 echo "✓ Test environment ready"
@@ -125,51 +125,51 @@ scenarios_failed=0
 
 # Scenario 1: Perfect conditions
 if test_scenario "Perfect Connection" "45.5" "0.02" "false" "good"; then
-	scenarios_passed=$((scenarios_passed + 1))
+    scenarios_passed=$((scenarios_passed + 1))
 else
-	scenarios_failed=$((scenarios_failed + 1))
+    scenarios_failed=$((scenarios_failed + 1))
 fi
 
 # Scenario 2: High latency
 if test_scenario "High Latency" "200" "0.02" "false" "bad"; then
-	scenarios_passed=$((scenarios_passed + 1))
+    scenarios_passed=$((scenarios_passed + 1))
 else
-	scenarios_failed=$((scenarios_failed + 1))
+    scenarios_failed=$((scenarios_failed + 1))
 fi
 
 # Scenario 3: High packet loss
 if test_scenario "High Packet Loss" "45.5" "0.08" "false" "bad"; then
-	scenarios_passed=$((scenarios_passed + 1))
+    scenarios_passed=$((scenarios_passed + 1))
 else
-	scenarios_failed=$((scenarios_failed + 1))
+    scenarios_failed=$((scenarios_failed + 1))
 fi
 
 # Scenario 4: Obstruction
 if test_scenario "Obstructed Dish" "45.5" "0.02" "true" "bad"; then
-	scenarios_passed=$((scenarios_passed + 1))
+    scenarios_passed=$((scenarios_passed + 1))
 else
-	scenarios_failed=$((scenarios_failed + 1))
+    scenarios_failed=$((scenarios_failed + 1))
 fi
 
 # Scenario 5: Multiple issues
 if test_scenario "Multiple Issues" "200" "0.08" "true" "bad"; then
-	scenarios_passed=$((scenarios_passed + 1))
+    scenarios_passed=$((scenarios_passed + 1))
 else
-	scenarios_failed=$((scenarios_failed + 1))
+    scenarios_failed=$((scenarios_failed + 1))
 fi
 
 # Scenario 6: Borderline good
 if test_scenario "Borderline Good" "100" "0.03" "false" "good"; then
-	scenarios_passed=$((scenarios_passed + 1))
+    scenarios_passed=$((scenarios_passed + 1))
 else
-	scenarios_failed=$((scenarios_failed + 1))
+    scenarios_failed=$((scenarios_failed + 1))
 fi
 
 # Scenario 7: Borderline bad
 if test_scenario "Borderline Bad" "50" "0.1" "false" "bad"; then
-	scenarios_passed=$((scenarios_passed + 1))
+    scenarios_passed=$((scenarios_passed + 1))
 else
-	scenarios_failed=$((scenarios_failed + 1))
+    scenarios_failed=$((scenarios_failed + 1))
 fi
 
 echo
@@ -203,9 +203,9 @@ echo "✓ State after failover: down, stability: 0"
 echo "Testing failback with stability checking..."
 i=1
 while [ $i -le 5 ]; do
-	echo "✓ Stability check $i/5"
-	echo "$i" >"$STABILITY_FILE"
-	i=$((i + 1))
+    echo "✓ Stability check $i/5"
+    echo "$i" >"$STABILITY_FILE"
+    i=$((i + 1))
 done
 
 echo "✓ Stability checks complete -> should transition back to up"
@@ -226,16 +226,16 @@ cron_expressions="* * * * *
 # Use a temporary file to avoid subshell issues
 echo "$cron_expressions" >/tmp/cron_test.txt
 while read -r expr; do
-	# Use case statement for POSIX compatibility instead of regex
-	case "$expr" in
-	*" "*" "*" "*" "*" "*)
-		echo "✓ Valid cron expression: $expr"
-		;;
-	*)
-		echo "✗ Invalid cron expression: $expr"
-		scenarios_failed=$((scenarios_failed + 1))
-		;;
-	esac
+    # Use case statement for POSIX compatibility instead of regex
+    case "$expr" in
+        *" "*" "*" "*" "*" "*)
+            echo "✓ Valid cron expression: $expr"
+            ;;
+        *)
+            echo "✗ Invalid cron expression: $expr"
+            scenarios_failed=$((scenarios_failed + 1))
+            ;;
+    esac
 done </tmp/cron_test.txt
 rm -f /tmp/cron_test.txt
 
@@ -247,16 +247,16 @@ echo "=== Testing File Permissions ==="
 test_scripts="starlink_monitor.sh starlink_logger.sh verify-setup.sh"
 
 for script in $test_scripts; do
-	echo "#!/bin/sh" >"$script"
-	echo "echo 'Test script'" >>"$script"
-	chmod +x "$script"
+    echo "#!/bin/sh" >"$script"
+    echo "echo 'Test script'" >>"$script"
+    chmod +x "$script"
 
-	if [ -x "$script" ]; then
-		echo "✓ Script executable: $script"
-	else
-		echo "✗ Script not executable: $script"
-		scenarios_failed=$((scenarios_failed + 1))
-	fi
+    if [ -x "$script" ]; then
+        echo "✓ Script executable: $script"
+    else
+        echo "✗ Script not executable: $script"
+        scenarios_failed=$((scenarios_failed + 1))
+    fi
 done
 
 # Test configuration file generation
@@ -274,19 +274,19 @@ AZURE_ENDPOINT="https://test.azurewebsites.net/api/func"
 EOF
 
 if bash -n test_config.sh; then
-	echo "✓ Configuration file syntax valid"
+    echo "✓ Configuration file syntax valid"
 
-	# shellcheck disable=SC1091
-	if . test_config.sh; then
-		echo "✓ Configuration file sources correctly"
-		echo "✓ Test value: STARLINK_IP=$STARLINK_IP"
-	else
-		echo "✗ Configuration file source failed"
-		scenarios_failed=$((scenarios_failed + 1))
-	fi
+    # shellcheck disable=SC1091
+    if . test_config.sh; then
+        echo "✓ Configuration file sources correctly"
+        echo "✓ Test value: STARLINK_IP=$STARLINK_IP"
+    else
+        echo "✗ Configuration file source failed"
+        scenarios_failed=$((scenarios_failed + 1))
+    fi
 else
-	echo "✗ Configuration file syntax invalid"
-	scenarios_failed=$((scenarios_failed + 1))
+    echo "✗ Configuration file syntax invalid"
+    scenarios_failed=$((scenarios_failed + 1))
 fi
 
 # Cleanup
@@ -299,21 +299,21 @@ echo "Total Scenarios Passed: $scenarios_passed"
 echo "Total Scenarios Failed: $scenarios_failed"
 
 if [ "$scenarios_failed" -eq 0 ]; then
-	echo
-	echo "🎉 ALL TESTS PASSED! 🎉"
-	echo
-	echo "✅ Quality evaluation logic works correctly"
-	echo "✅ State machine transitions function properly"
-	echo "✅ Threshold comparisons are accurate"
-	echo "✅ Configuration generation is valid"
-	echo "✅ File permissions are set correctly"
-	echo "✅ Cron expressions are properly formatted"
-	echo
-	echo "The deployment script is fully tested and ready for production use!"
-	exit 0
+    echo
+    echo "🎉 ALL TESTS PASSED! 🎉"
+    echo
+    echo "✅ Quality evaluation logic works correctly"
+    echo "✅ State machine transitions function properly"
+    echo "✅ Threshold comparisons are accurate"
+    echo "✅ Configuration generation is valid"
+    echo "✅ File permissions are set correctly"
+    echo "✅ Cron expressions are properly formatted"
+    echo
+    echo "The deployment script is fully tested and ready for production use!"
+    exit 0
 else
-	echo
-	echo "❌ Some tests failed"
-	echo "Please review and fix the issues above."
-	exit 1
+    echo
+    echo "❌ Some tests failed"
+    echo "Please review and fix the issues above."
+    exit 1
 fi
