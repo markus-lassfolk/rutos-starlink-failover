@@ -1,78 +1,185 @@
-# RUTOS Starlink Failover Automation Tools
+# Enhanced RUTOS Automation System
 
-This directory contains automation tools for managing the RUTOS Starlink Failover project.
+## Overview
 
-## Files
+The enhanced `Create-RUTOS-PRs.ps1` script provides a fully autonomous system for managing RUTOS compatibility fixes
+through GitHub Issues and Pull Requests. This system is designed to work seamlessly with GitHub Copilot for automated
+code fixes.
 
-### Create-RUTOS-PRs.ps1
-**Purpose**: Automated GitHub Issues creation for RUTOS compatibility fixes
+## Key Features
 
-**Description**: This PowerShell script creates GitHub Issues with @copilot mentions to trigger autonomous RUTOS compatibility fixes. It analyzes pre-commit validation output and creates targeted issues for each problematic file.
+### 🚀 **Autonomous Operation**
 
-**Key Features**:
-- Parses pre-commit validation output for errors
-- Creates GitHub Issues with @copilot mentions
-- Includes detailed RUTOS compatibility context
-- Provides specific fix instructions for each file
-- Enables autonomous PR creation by GitHub Copilot
+- **Single Branch Strategy**: All fixes consolidated in one working branch
+- **Smart Assignee Detection**: Automatically assigns issues to Copilot when available
+- **Auto-Close Mechanism**: Issues automatically close when commits include "Closes #issue-number"
+- **Automated PR Creation**: Creates PRs automatically when fixes are committed
+- **Validation Retry Logic**: Up to 3 validation attempts with intelligent delays
 
-**Usage**:
+### 🤖 **GitHub Copilot Integration**
+
+- **Enhanced Assignment**: Multiple methods to assign issues to Copilot
+- **Rich Context**: Complete RUTOS environment details in each issue
+- **Autonomous Instructions**: Step-by-step fix protocol for Copilot
+- **Auto-Mention**: @copilot mentioned in all issues for immediate attention
+
+### 📊 **Monitoring & Management**
+
+- **Real-time Dashboard**: Monitor open issues, PRs, and branch status
+- **Quick Validation**: Instant validation status check
+- **Recommended Actions**: Smart suggestions based on current state
+- **Multiple Operation Modes**: Full, monitor, dry-run, cleanup
+
+## Usage Examples
+
+### Basic Operations
+
 ```powershell
-# Run from repository root
-.\automation\Create-RUTOS-PRs.ps1
+# Full automation run (recommended)
+./automation/Create-RUTOS-PRs.ps1 -MaxIssues 5
+
+# Monitor current status
+./automation/Create-RUTOS-PRs.ps1 -MonitorOnly
+
+# Dry run to see what would be created
+./automation/Create-RUTOS-PRs.ps1 -DryRun
+
+# Clean up old issues first
+./automation/Create-RUTOS-PRs.ps1 -CleanupOldIssues
 ```
 
-**Requirements**:
-- PowerShell 5.1 or higher
-- GitHub CLI (`gh`) installed and authenticated
-- Repository with GitHub Issues enabled
+### Advanced Usage
 
-**Output**: 
-- Creates GitHub Issues #39-#43 (or similar numbered sequence)
-- Each issue targets specific RUTOS compatibility problems
-- Issues include @copilot mentions for autonomous fixing
+```powershell
+# Custom branch name
+./automation/Create-RUTOS-PRs.ps1 -WorkingBranch 'fix/custom-rutos'
 
-## Autonomous RUTOS Compatibility System
+# High-priority batch processing
+./automation/Create-RUTOS-PRs.ps1 -MaxIssues 10 -CleanupOldIssues
 
-This automation system successfully creates self-healing RUTOS compatibility fixes:
-
-1. **Detection**: Pre-commit validation identifies RUTOS compatibility issues
-2. **Issue Creation**: `Create-RUTOS-PRs.ps1` creates targeted GitHub Issues
-3. **Autonomous Fixing**: GitHub Copilot creates PRs with actual fixes
-4. **Validation**: GitHub Actions validate changes with proper RUTOS/bash differentiation
-
-## System Architecture
-
-```
-┌─────────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
-│ Pre-commit          │    │ Create-RUTOS-PRs.ps1 │    │ GitHub Issues       │
-│ Validation          │───▶│ Automation           │───▶│ with @copilot       │
-│ (identifies issues) │    │ (creates issues)     │    │ mentions            │
-└─────────────────────┘    └──────────────────────┘    └─────────────────────┘
-                                                                   │
-                                                                   ▼
-┌─────────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
-│ GitHub Actions      │    │ Copilot PRs         │    │ GitHub Copilot      │
-│ Validation          │◀───│ (actual fixes)      │◀───│ (autonomous fixes)  │
-│ (RUTOS/bash aware)  │    │                     │    │                     │
-└─────────────────────┘    └──────────────────────┘    └─────────────────────┘
+# Monitor with detailed output
+./automation/Create-RUTOS-PRs.ps1 -MonitorOnly -Verbose
 ```
 
-## Success Metrics
+## Parameters
 
-- ✅ **Autonomous Operation**: Creates Issues and PRs without manual intervention
-- ✅ **Actual Fixes**: Copilot generates working RUTOS compatibility fixes
-- ✅ **Validation Integration**: GitHub Actions properly validate RUTOS vs bash scripts
-- ✅ **Naming Convention**: `*-rutos.sh` files get POSIX validation, others get bash
-- ✅ **Production Ready**: System successfully fixed multiple RUTOS compatibility issues
+| Parameter          | Default                                | Description                        |
+| ------------------ | -------------------------------------- | ---------------------------------- |
+| `WorkingBranch`    | `automation/rutos-compatibility-fixes` | Single branch for all fixes        |
+| `MaxIssues`        | `5`                                    | Maximum number of issues to create |
+| `DryRun`           | `false`                                | Preview mode - no actual changes   |
+| `CleanupOldIssues` | `false`                                | Remove old automation issues       |
+| `MonitorOnly`      | `false`                                | Show monitoring dashboard only     |
 
-## Historical Context
+## Single Branch Strategy Benefits
 
-This automation system was developed during the RUTOS Starlink Failover project to address the challenge of maintaining POSIX/busybox compatibility across a large codebase. The system proved highly effective at:
+### Why One Branch?
 
-1. **Identifying Issues**: Pre-commit validation caught 50+ compatibility problems
-2. **Creating Fixes**: Autonomous system generated actual working solutions
-3. **Maintaining Quality**: Proper validation ensures ongoing compatibility
-4. **Scaling**: Can handle large numbers of files efficiently
+1. **Reduced Complexity**: No need to manage multiple feature branches
+2. **Efficient CI/CD**: GitHub Actions only validates changed files in PRs
+3. **Batch Processing**: Multiple fixes can be reviewed together
+4. **Conflict Avoidance**: Changes don't interfere with each other
+5. **Streamlined Workflow**: Simpler merge process
 
-The automation successfully transformed a manual, error-prone process into a reliable, autonomous system that maintains RUTOS compatibility without human intervention.
+### Branch Management
+
+- **Auto-Creation**: Working branch created automatically if missing
+- **Reset Logic**: Existing branch reset to ensure clean state
+- **Commit Tracking**: Monitors commits for automated PR creation
+- **Merge Strategy**: Single PR for all accumulated fixes
+
+## Autonomous Workflow
+
+### Issue Creation Process
+
+1. **Validation Analysis**: Identify files with RUTOS compatibility issues
+2. **Priority Sorting**: Process Critical → Major → Shell scripts
+3. **Smart Assignment**: Assign to Copilot or fallback to current user
+4. **Rich Context**: Include complete fix instructions and environment details
+5. **Post-Creation Validation**: Verify issue creation success
+
+### Copilot Integration
+
+- **@copilot Mentions**: Automatic mention in all issues
+- **Detailed Instructions**: Complete fix protocol for autonomous handling
+- **Environment Context**: Full RUTOS/busybox compatibility requirements
+- **Validation Workflow**: Integrated testing instructions
+- **Auto-Close Instructions**: Commit message format for automatic closure
+
+### Automated PR Creation
+
+- **Commit Detection**: Monitors working branch for new commits
+- **Batch Processing**: Groups multiple fixes into single PR
+- **Rich Description**: Comprehensive PR with all fixed files
+- **Issue References**: Automatic linking to closed issues
+- **Review Guidelines**: Testing and validation recommendations
+
+## Monitoring Dashboard
+
+### Real-time Status
+
+- **Open Issues**: Current automation issues awaiting fixes
+- **Branch Status**: Commits and changes in working branch
+- **PR Status**: Existing pull requests from working branch
+- **Validation Status**: Current critical and major issues count
+
+### Recommended Actions
+
+- **Issue Management**: When to create new issues
+- **PR Creation**: When to create pull requests
+- **Branch Management**: When to reset or merge branches
+- **Validation**: When to run validation checks
+
+## Technical Architecture
+
+### Prerequisites
+
+- **GitHub CLI**: Authenticated and configured
+- **Git Repository**: Valid repository with proper structure
+- **WSL**: Windows Subsystem for Linux for validation
+- **PowerShell**: Windows PowerShell 5.1 or later
+
+### File Structure
+
+```
+automation/
+├── Create-RUTOS-PRs.ps1      # Main automation script
+├── README.md                 # This documentation
+└── examples/                 # Usage examples (future)
+```
+
+### Integration Points
+
+- **Validation Script**: `scripts/pre-commit-validation.sh`
+- **GitHub Actions**: `.github/workflows/shellcheck-format.yml`
+- **Copilot Instructions**: `.github/copilot-instructions.md`
+- **RUTOS Scripts**: All `*-rutos.sh` files
+
+## Quick Reference
+
+### Essential Commands
+
+```powershell
+# Create issues for RUTOS fixes
+./automation/Create-RUTOS-PRs.ps1
+
+# Monitor current status
+./automation/Create-RUTOS-PRs.ps1 -MonitorOnly
+
+# Check validation status
+wsl ./scripts/pre-commit-validation.sh --all
+
+# View automation issues
+gh issue list --label rutos-compatibility
+```
+
+### Key Benefits
+
+- 🚀 **Autonomous**: Minimal human intervention required
+- 🤖 **Copilot-Ready**: Optimized for GitHub Copilot integration
+- 📊 **Intelligent**: Smart prioritization and processing
+- 🔄 **Efficient**: Single branch strategy reduces complexity
+- 📈 **Scalable**: Handles multiple fixes simultaneously
+- 🛡️ **Robust**: Comprehensive error handling and recovery
+
+**Enhanced PowerShell automation v2.0 - Fully autonomous RUTOS compatibility management**
