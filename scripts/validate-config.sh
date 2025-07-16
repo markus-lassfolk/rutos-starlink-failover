@@ -317,7 +317,7 @@ check_config_completeness() {
 	# Determine which template to use by checking the configuration
 	printf "%b\n" "${BLUE}Determining configuration template type...${NC}"
 
-	# Count variables in config
+	# Count variables in config (handle both export and non-export formats)
 	config_var_count=$(grep -c "^export [A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || echo 0)
 	config_var_count_alt=$(grep -c "^[A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || echo 0)
 	if [ "$config_var_count_alt" -gt "$config_var_count" ]; then
@@ -502,7 +502,11 @@ check_placeholder_values() {
 	# Check for other placeholder patterns that are critical
 	critical_placeholders="STARLINK_IP MWAN_IFACE MWAN_MEMBER"
 	for var in $critical_placeholders; do
+		# Try both export and non-export formats
 		value=$(grep "^export $var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+		if [ -z "$value" ]; then
+			value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+		fi
 		if [ -n "$value" ] && is_placeholder "$value"; then
 			print_status "$RED" "✗ Critical placeholder found: $var=$value"
 			print_status "$RED" "  This must be configured for the system to work"
@@ -512,7 +516,11 @@ check_placeholder_values() {
 
 	# Check for empty critical variables
 	for var in $critical_placeholders; do
+		# Try both export and non-export formats
 		value=$(grep "^export $var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+		if [ -z "$value" ]; then
+			value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+		fi
 		if [ -z "$value" ] || [ "$value" = '""' ] || [ "$value" = "''" ]; then
 			print_status "$RED" "✗ Critical variable is empty: $var"
 			print_status "$RED" "  This must be configured for the system to work"
