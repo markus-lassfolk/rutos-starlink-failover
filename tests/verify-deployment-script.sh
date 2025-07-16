@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # RUTOS Deployment Script Verification Test
 # This script verifies the updated deployment script syntax for RUTOS compatibility

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Test the extract_variable function directly
 
 mkdir -p /tmp/debug-test
@@ -19,8 +20,7 @@ cat /tmp/debug-test/test-config.sh
 echo ""
 echo "=== TESTING EXTRACT_VARIABLE ==="
 
-# Test the extract_variable function
-extract_variable() {
+# Test the extract_variable extract_variable() {
 	file="$1"
 	var_name="$2"
 

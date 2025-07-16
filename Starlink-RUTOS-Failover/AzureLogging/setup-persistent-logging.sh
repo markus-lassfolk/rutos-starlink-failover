@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # === RUTOS Persistent Logging Setup for Azure Integration ===
 # This script configures RUTOS to write logs to persistent storage

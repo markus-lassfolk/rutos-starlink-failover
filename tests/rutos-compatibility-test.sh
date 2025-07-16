@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # RUTOS Compatibility Test Script
 # This script tests all commands and options used in the Starlink deployment

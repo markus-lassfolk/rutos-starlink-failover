@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Script: test-pushover.sh
 # Version: 1.0.2
 # Description: Simple Pushover notification test script
@@ -187,8 +188,7 @@ show_usage() {
 	echo "• User Key: https://pushover.net/ (after login)"
 }
 
-# Main function
-main() {
+# Main main() {
 	quiet_mode="$1"
 	custom_message="$2"
 

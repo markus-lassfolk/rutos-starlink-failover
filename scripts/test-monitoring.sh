@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Script: test-monitoring.sh
 # Version: 1.0.2
 # Description: Test monitoring system connectivity and configuration
@@ -137,8 +138,7 @@ test_monitoring_config() {
 	return 0
 }
 
-# Main test function
-main() {
+# Main test main() {
 	quiet_mode="$1"
 
 	if [ "$quiet_mode" != "--quiet" ]; then

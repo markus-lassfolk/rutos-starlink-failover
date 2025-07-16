@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # self-update.sh: Checks for new version and updates scripts if needed
 # Usage: ./scripts/self-update.sh
 
@@ -63,7 +64,7 @@ main() {
 	echo "Checking for updates..."
 	local_version=$(get_local_version)
 	remote_version=$(get_remote_version)
-	echo "Local version: $local_version"
+	echo "# local version: $local_version"
 	echo "Remote version: $remote_version"
 	if version_gt "$remote_version" "$local_version"; then
 		echo "${YELLOW}Update available!${NC}"

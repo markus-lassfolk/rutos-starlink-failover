@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # Script to add missing CHECK_INTERVAL to user's config
 CONFIG_FILE="${1:-./config.sh}"

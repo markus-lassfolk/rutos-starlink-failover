@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Script: test-connectivity.sh
 # Version: 1.0.2
 # Description: Comprehensive connectivity and credential testing for Starlink monitoring system
@@ -373,8 +374,7 @@ show_results() {
 	fi
 }
 
-# Main function
-main() {
+# Main main() {
 	log_info "Starting Starlink Monitor Connectivity Tests v$SCRIPT_VERSION"
 	echo ""
 

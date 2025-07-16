@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # ==============================================================================
 # Starlink Performance Data Logger for OpenWrt/RUTOS

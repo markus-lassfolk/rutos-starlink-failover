@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # ==============================================================================
 # PLACEHOLDER DETECTION UTILITY

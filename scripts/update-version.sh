@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # ==============================================================================
 # Version Update Script
@@ -118,8 +119,7 @@ GIT_DIRTY=$GIT_DIRTY
 EOF
 }
 
-# Main function
-main() {
+# Main main() {
 	level="${1:-patch}"
 
 	# Validate level

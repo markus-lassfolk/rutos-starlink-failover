@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # RUTOS Script Compatibility Audit
 # This script checks all shell scripts in the repository for RUTOS compatibility issues

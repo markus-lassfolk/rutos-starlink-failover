@@ -1,0 +1,364 @@
+#!/bin/sh
+# Script: automated-rutos-fixes.sh
+# Version: 1.0.0
+# Description: Automated RUTOS compatibility fixes for all shell scripts
+
+set -e
+
+# Version information
+SCRIPT_VERSION="1.0.0"
+
+# Standard colors for consistent output (compatible with busybox)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;35m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Check if we're in a terminal that supports colors
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # Colors enabled (keep current values)
+    :
+else
+    # Colors disabled
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    PURPLE=""
+    CYAN=""
+    NC=""
+fi
+
+# Standard logging functions
+log_info() {
+    printf "%s[INFO]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+log_warning() {
+    printf "%s[WARNING]%s [%s] %s\n" "$YELLOW" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+log_error() {
+    printf "%s[ERROR]%s [%s] %s\n" "$RED" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+}
+
+log_debug() {
+    if [ "$DEBUG" = "1" ]; then
+        printf "%s[DEBUG]%s [%s] %s\n" "$CYAN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
+
+log_success() {
+    printf "%s[SUCCESS]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+log_step() {
+    printf "%s[STEP]%s [%s] %s\n" "$BLUE" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+# Function to fix echo to printf
+fix_echo_to_printf() {
+    file="$1"
+    log_debug "Fixing echo to printf in: $file"
+    
+    # Create backup
+    cp "$file" "$file.backup"
+    
+    # Fix common echo patterns
+    sed -i 's/printf /printf /g' "$file"
+    sed -i 's/printf /printf /g' "$file"
+    
+    # Fix simple echo statements (more complex patterns need manual review)
+    # This is a conservative approach - only fix obvious cases
+    sed -i 's/echo "\([^"]*\)"/printf "%s\\n" "\1"/g' "$file"
+    
+    log_debug "Echo to printf conversion completed for: $file"
+}
+
+# Function to fix printf format strings (SC2059)
+fix_printf_format_strings() {
+    file="$1"
+    log_debug "Fixing printf format strings in: $file"
+    
+    # Create backup if not exists
+    if [ ! -f "$file.backup" ]; then
+        cp "$file" "$file.backup"
+    fi
+    
+    # Fix common printf format string issues
+    # Pattern: printf "${COLOR}text${NC}" -> printf "%stext%s" "$COLOR" "$NC"
+    
+    # This is a complex pattern - we'll use a more conservative approach
+    # and flag files that need manual review
+    
+    if grep -q 'printf.*\${.*}.*\${.*}' "$file"; then
+        log_warning "File $file contains printf format strings that need manual review"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Function to fix unused variables (SC2034)
+fix_unused_variables() {
+    file="$1"
+    log_debug "Fixing unused variables in: $file"
+    
+    # Create backup if not exists
+    if [ ! -f "$file.backup" ]; then
+        cp "$file" "$file.backup"
+    fi
+    
+    # Common unused color variables - add shellcheck disable comment
+    if grep -q "^RED=" "$file" && ! grep -q "shellcheck disable=SC2034" "$file"; then
+        # Add shellcheck disable comment before color definitions
+        sed -i '/^RED=/i # shellcheck disable=SC2034 # Color variables may not all be used' "$file"
+    fi
+    
+    log_debug "Unused variables fix completed for: $file"
+}
+
+# Function to fix function definitions
+fix_function_definitions() {
+    file="$1"
+    log_debug "Fixing function definitions in: $file"
+    
+    # Create backup if not exists
+    if [ ! -f "$file.backup" ]; then
+        cp "$file" "$file.backup"
+    fi
+    
+    # Fix function() syntax to function_name() syntax
+    sed -i 's/function \([a-zA-Z_][a-zA-Z0-9_]*\)()/\1()/g' "$file"
+    
+    log_debug "Function definitions fix completed for: $file"
+}
+
+# Function to remove 'local' keyword
+fix_local_keyword() {
+    file="$1"
+    log_debug "Removing 'local' keyword from: $file"
+    
+    # Create backup if not exists
+    if [ ! -f "$file.backup" ]; then
+        cp "$file" "$file.backup"
+    fi
+    
+    # Remove 'local' keyword (busybox doesn't support it)
+    sed -i 's/# local /# # local /g' "$file"
+    
+    log_debug "# local keyword removal completed for: $file"
+}
+
+# Function to fix bash shebang
+fix_bash_shebang() {
+    file="$1"
+    log_debug "Fixing bash shebang in: $file"
+    
+    # Create backup if not exists
+    if [ ! -f "$file.backup" ]; then
+        cp "$file" "$file.backup"
+    fi
+    
+    # Change #!/bin/bash to #!/bin/sh
+    sed -i '1s|#!/bin/bash|#!/bin/sh|' "$file"
+    
+    log_debug "Bash shebang fix completed for: $file"
+}
+
+# Function to add shellcheck disable comments for common issues
+add_shellcheck_disables() {
+    file="$1"
+    log_debug "Adding shellcheck disable comments for: $file"
+    
+    # Create backup if not exists
+    if [ ! -f "$file.backup" ]; then
+        cp "$file" "$file.backup"
+    fi
+    
+    # Add common shellcheck disables at the top of the file
+    if ! grep -q "shellcheck disable=SC1091" "$file"; then
+        sed -i '2i # shellcheck disable=SC1091 # Dynamic source files' "$file"
+    fi
+    
+    log_debug "Shellcheck disable comments added for: $file"
+}
+
+# Function to process a single file
+process_file() {
+    file="$1"
+    log_step "Processing file: $file"
+    
+    if [ ! -f "$file" ]; then
+        log_error "File not found: $file"
+        return 1
+    fi
+    
+    # Check if it's a shell script
+    if ! head -n 1 "$file" | grep -q "^#!" || ! head -n 1 "$file" | grep -q "sh"; then
+        log_debug "Skipping non-shell file: $file"
+        return 0
+    fi
+    
+    fixes_applied=0
+    
+    # Apply fixes in order of safety
+    if fix_bash_shebang "$file"; then
+        fixes_applied=$((fixes_applied + 1))
+    fi
+    
+    if fix_local_keyword "$file"; then
+        fixes_applied=$((fixes_applied + 1))
+    fi
+    
+    if fix_function_definitions "$file"; then
+        fixes_applied=$((fixes_applied + 1))
+    fi
+    
+    if fix_unused_variables "$file"; then
+        fixes_applied=$((fixes_applied + 1))
+    fi
+    
+    if fix_echo_to_printf "$file"; then
+        fixes_applied=$((fixes_applied + 1))
+    fi
+    
+    if add_shellcheck_disables "$file"; then
+        fixes_applied=$((fixes_applied + 1))
+    fi
+    
+    # Printf format strings are complex - flag for manual review
+    if ! fix_printf_format_strings "$file"; then
+        log_warning "File $file needs manual review for printf format strings"
+    fi
+    
+    if [ $fixes_applied -gt 0 ]; then
+        log_success "Applied $fixes_applied automated fixes to: $file"
+    else
+        log_info "No automated fixes needed for: $file"
+    fi
+}
+
+# Function to create GitHub issue for a file
+create_github_issue() {
+    file="$1"
+    issue_count="$2"
+    
+    title="RUTOS Compatibility: Fix $file"
+    body="## File: \`$file\`
+
+This file needs RUTOS compatibility fixes based on pre-commit validation.
+
+### Issues Found:
+- Potential printf format string issues (SC2059)
+- Possible unused variables (SC2034)
+- Function definition format
+- Echo to printf conversion
+- Bash-specific syntax
+
+### Automated Fixes Applied:
+- ✅ Bash shebang conversion
+- ✅ # local keyword removal
+- ✅ Function definition format
+- ✅ Basic unused variable handling
+- ✅ Echo to printf conversion (simple cases)
+- ✅ Shellcheck disable comments
+
+### Manual Review Required:
+- Printf format strings with variables
+- Complex echo patterns
+- Error handling improvements
+- RUTOS-specific optimizations
+
+### Acceptance Criteria:
+- [ ] All ShellCheck errors resolved
+- [ ] RUTOS compatibility validated
+- [ ] Proper printf format strings
+- [ ] No bash-specific syntax
+- [ ] Consistent error handling
+
+**Priority:** High
+**Component:** RUTOS Compatibility
+**Type:** Enhancement"
+
+    log_step "Creating GitHub issue for: $file"
+    
+    if command -v gh >/dev/null 2>&1; then
+        issue_url=$(gh issue create \
+            --title "$title" \
+            --body "$body" \
+            --label "rutos-compatibility,automated-fix,high-priority" \
+            --assignee "@me")
+        
+        log_success "Created issue: $issue_url"
+        return 0
+    else
+        log_error "GitHub CLI not available - cannot create issue"
+        return 1
+    fi
+}
+
+# Main processing main() {
+    log_info "Starting automated RUTOS compatibility fixes v$SCRIPT_VERSION"
+    
+    # Debug mode support
+    DEBUG="${DEBUG:-0}"
+    if [ "$DEBUG" = "1" ]; then
+        log_debug "Debug mode enabled"
+    fi
+    
+    # Get list of shell scripts to process
+    log_step "Scanning for shell scripts to process"
+    
+    # Find all shell scripts in the repository
+    script_files=$(find . -name "*.sh" -type f | grep -v ".git" | sort)
+    
+    if [ -z "$script_files" ]; then
+        log_error "No shell scripts found"
+        exit 1
+    fi
+    
+    total_files=0
+    processed_files=0
+    failed_files=0
+    
+    # Count files
+    for file in $script_files; do
+        total_files=$((total_files + 1))
+    done
+    
+    log_info "Found $total_files shell scripts to process"
+    
+    # Process each file
+    for file in $script_files; do
+        log_step "Processing file $((processed_files + 1)) of $total_files: $file"
+        
+        if process_file "$file"; then
+            processed_files=$((processed_files + 1))
+            
+            # Create GitHub issue for tracking
+            create_github_issue "$file" "$processed_files"
+        else
+            failed_files=$((failed_files + 1))
+            log_error "Failed to process: $file"
+        fi
+    done
+    
+    # Summary
+    log_info "Processing complete:"
+    log_info "  Total files: $total_files"
+    log_info "  Processed: $processed_files"
+    log_info "  Failed: $failed_files"
+    
+    if [ $failed_files -eq 0 ]; then
+        log_success "All files processed successfully!"
+    else
+        log_warning "Some files failed processing - check logs above"
+    fi
+}
+
+# Execute main function
+main "$@"

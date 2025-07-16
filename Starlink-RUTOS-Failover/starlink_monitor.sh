@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # ==============================================================================
 # Starlink Proactive Quality Monitor for OpenWrt/RUTOS

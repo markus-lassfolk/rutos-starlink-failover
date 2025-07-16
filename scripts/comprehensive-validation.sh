@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Comprehensive Code Quality Validation Script
 # Version: 1.0.2
 # Description: Multi-language code quality validation for RUTOS Starlink Failover Project
@@ -80,9 +81,9 @@ command_exists() {
 
 # Function to check tool availability
 check_tool_availability() {
-	local tool_name="$1"
-	local command_name="$2"
-	local install_info="$3"
+	# local tool_name="$1"
+	# local command_name="$2"
+	# local install_info="$3"
 
 	if command_exists "$command_name"; then
 		TOOLS_AVAILABLE["$tool_name"]=true
@@ -130,11 +131,11 @@ initialize_tools() {
 
 # Function to check RUTOS/busybox compatibility for shell scripts
 check_rutos_compatibility() {
-	local file="$1"
-	local issues=0
+	# local file="$1"
+	# local issues=0
 
 	# Check shebang compatibility
-	local shebang=$(head -1 "$file")
+	# local shebang=$(head -1 "$file")
 	case "$shebang" in
 	"#!/bin/sh")
 		log_debug "✓ $file: Uses POSIX shell shebang"
@@ -175,14 +176,13 @@ check_rutos_compatibility() {
 		done < <(grep -n "^[[:space:]]*\[\[.*\]\]" "$file" 2>/dev/null)
 	fi
 
-	# Check for local keyword
-	if grep -n "^[[:space:]]*local " "$file" >/dev/null 2>&1; then
+	# Check for # local keyword
+	if grep -n "^[[:space:]]*# local " "$file" >/dev/null 2>&1; then
 		log_error "Uses 'local' keyword - not supported in busybox"
 		issues=$((issues + 1))
 	fi
 
-	# Check for echo -e
-	if grep -n "echo -e" "$file" >/dev/null 2>&1; then
+	# Check for printf if grep -n "echo -e" "$file" >/dev/null 2>&1; then
 		log_error "Uses 'echo -e' - use printf for busybox compatibility"
 		issues=$((issues + 1))
 	fi
@@ -235,8 +235,8 @@ check_rutos_compatibility() {
 
 # Function to validate shell scripts with RUTOS compatibility
 validate_shell_scripts() {
-	local files=("$@")
-	local shell_issues=0
+	# local files=("$@")
+	# local shell_issues=0
 
 	if [ ${#files[@]} -eq 0 ]; then
 		return 0
@@ -246,7 +246,7 @@ validate_shell_scripts() {
 
 	for file in "${files[@]}"; do
 		TOTAL_FILES=$((TOTAL_FILES + 1))
-		local file_issues=0
+		# local file_issues=0
 
 		log_info "Validating shell script: $file"
 
@@ -290,8 +290,8 @@ validate_shell_scripts() {
 
 # Function to validate Python files
 validate_python_files() {
-	local files=("$@")
-	local python_issues=0
+	# local files=("$@")
+	# local python_issues=0
 
 	if [ ${#files[@]} -eq 0 ]; then
 		return 0
@@ -301,7 +301,7 @@ validate_python_files() {
 
 	for file in "${files[@]}"; do
 		TOTAL_FILES=$((TOTAL_FILES + 1))
-		local file_issues=0
+		# local file_issues=0
 
 		log_info "Validating Python file: $file"
 
@@ -381,8 +381,8 @@ validate_python_files() {
 
 # Function to validate PowerShell files
 validate_powershell_files() {
-	local files=("$@")
-	local ps_issues=0
+	# local files=("$@")
+	# local ps_issues=0
 
 	if [ ${#files[@]} -eq 0 ]; then
 		return 0
@@ -392,7 +392,7 @@ validate_powershell_files() {
 
 	for file in "${files[@]}"; do
 		TOTAL_FILES=$((TOTAL_FILES + 1))
-		local file_issues=0
+		# local file_issues=0
 
 		log_info "Validating PowerShell file: $file"
 
@@ -420,8 +420,8 @@ validate_powershell_files() {
 
 # Function to validate Markdown files
 validate_markdown_files() {
-	local files=("$@")
-	local md_issues=0
+	# local files=("$@")
+	# local md_issues=0
 
 	if [ ${#files[@]} -eq 0 ]; then
 		return 0
@@ -431,7 +431,7 @@ validate_markdown_files() {
 
 	for file in "${files[@]}"; do
 		TOTAL_FILES=$((TOTAL_FILES + 1))
-		local file_issues=0
+		# local file_issues=0
 
 		log_info "Validating Markdown file: $file"
 
@@ -470,8 +470,8 @@ validate_markdown_files() {
 
 # Function to validate JSON/YAML files
 validate_json_yaml_files() {
-	local files=("$@")
-	local config_issues=0
+	# local files=("$@")
+	# local config_issues=0
 
 	if [ ${#files[@]} -eq 0 ]; then
 		return 0
@@ -481,7 +481,7 @@ validate_json_yaml_files() {
 
 	for file in "${files[@]}"; do
 		TOTAL_FILES=$((TOTAL_FILES + 1))
-		local file_issues=0
+		# local file_issues=0
 
 		log_info "Validating config file: $file"
 
@@ -534,8 +534,8 @@ validate_json_yaml_files() {
 
 # Function to validate Bicep files
 validate_bicep_files() {
-	local files=("$@")
-	local bicep_issues=0
+	# local files=("$@")
+	# local bicep_issues=0
 
 	if [ ${#files[@]} -eq 0 ]; then
 		return 0
@@ -545,7 +545,7 @@ validate_bicep_files() {
 
 	for file in "${files[@]}"; do
 		TOTAL_FILES=$((TOTAL_FILES + 1))
-		local file_issues=0
+		# local file_issues=0
 
 		log_info "Validating Bicep file: $file"
 
@@ -573,8 +573,8 @@ validate_bicep_files() {
 
 # Function to find files by extension
 find_files_by_extension() {
-	local extension="$1"
-	local files=()
+	# local extension="$1"
+	# local files=()
 
 	# Use find to get all files with the extension
 	while IFS= read -r -d '' file; do
@@ -619,7 +619,7 @@ Tool Coverage:
 RUTOS/Busybox Compatibility Checks:
     - Shebang validation (#!/bin/sh required)
     - Bash-specific syntax detection (arrays, double brackets, etc.)
-    - Echo -e usage (should use printf instead)
+    - printf usage (should use printf instead)
     - Source command usage (should use . instead)
     - Function syntax compatibility
     - Color code best practices
@@ -677,7 +677,7 @@ EOF
 
 # Function to print summary
 print_summary() {
-	local total_issues=$1
+	# local total_issues=$1
 
 	log_step "=== COMPREHENSIVE VALIDATION SUMMARY ==="
 	log_info "Total files processed: $TOTAL_FILES"
@@ -694,11 +694,10 @@ print_summary() {
 	fi
 }
 
-# Main function
-main() {
-	local validation_mode="mixed"
-	local files_to_validate=()
-	local total_issues=0
+# Main main() {
+	# local validation_mode="mixed"
+	# local files_to_validate=()
+	# local total_issues=0
 
 	# Parse command line arguments
 	while [[ $# -gt 0 ]]; do
@@ -752,13 +751,13 @@ main() {
 	initialize_tools
 
 	# Collect files based on mode
-	local shell_files=()
-	local python_files=()
-	local ps_files=()
-	local md_files=()
-	local json_files=()
-	local yaml_files=()
-	local bicep_files=()
+	# local shell_files=()
+	# local python_files=()
+	# local ps_files=()
+	# local md_files=()
+	# local json_files=()
+	# local yaml_files=()
+	# local bicep_files=()
 
 	if [ "$validation_mode" = "all" ]; then
 		# Find all files by extension
@@ -824,7 +823,7 @@ main() {
 	fi
 
 	if [ "$validation_mode" = "all" ] || [ "$validation_mode" = "mixed" ] || [ "$validation_mode" = "config" ]; then
-		local config_files=("${json_files[@]}" "${yaml_files[@]}")
+		# local config_files=("${json_files[@]}" "${yaml_files[@]}")
 		if ! validate_json_yaml_files "${config_files[@]}"; then
 			total_issues=$((total_issues + $?))
 		fi

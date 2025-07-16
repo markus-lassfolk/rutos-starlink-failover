@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # ==============================================================================
 # Starlink Monitoring System Installation Script
@@ -364,7 +365,7 @@ install_scripts() {
 		return 1
 	fi
 
-	# Other scripts - handle both local and remote installation
+	# Other scripts - handle both # local and remote installation
 	for script in starlink_logger.sh check_starlink_api.sh; do
 		if [ -f "$script_dir/$script" ]; then
 			cp "$script_dir/$script" "$INSTALL_DIR/scripts/"
@@ -382,7 +383,7 @@ install_scripts() {
 		fi
 	done
 
-	# Validation script - handle both local and remote installation
+	# Validation script - handle both # local and remote installation
 	if [ -f "$script_dir/../scripts/validate-config.sh" ]; then
 		cp "$script_dir/../scripts/validate-config.sh" "$INSTALL_DIR/scripts/"
 		chmod +x "$INSTALL_DIR/scripts/validate-config.sh"
@@ -415,7 +416,7 @@ install_scripts() {
 		fi
 	fi
 
-	# System status script - handle both local and remote installation
+	# System status script - handle both # local and remote installation
 	if [ -f "$script_dir/../scripts/system-status.sh" ]; then
 		cp "$script_dir/../scripts/system-status.sh" "$INSTALL_DIR/scripts/"
 		chmod +x "$INSTALL_DIR/scripts/system-status.sh"
@@ -431,7 +432,7 @@ install_scripts() {
 		fi
 	fi
 
-	# Test scripts - handle both local and remote installation
+	# Test scripts - handle both # local and remote installation
 	for test_script in test-pushover.sh test-monitoring.sh health-check.sh; do
 		if [ -f "$script_dir/../scripts/$test_script" ]; then
 			cp "$script_dir/../scripts/$test_script" "$INSTALL_DIR/scripts/"
@@ -449,7 +450,7 @@ install_scripts() {
 		fi
 	done
 
-	# Configuration update script - handle both local and remote installation
+	# Configuration update script - handle both # local and remote installation
 	if [ -f "$script_dir/../scripts/update-config.sh" ]; then
 		cp "$script_dir/../scripts/update-config.sh" "$INSTALL_DIR/scripts/"
 		chmod +x "$INSTALL_DIR/scripts/update-config.sh"
@@ -467,7 +468,7 @@ install_scripts() {
 		fi
 	fi
 
-	# Configuration upgrade script - handle both local and remote installation
+	# Configuration upgrade script - handle both # local and remote installation
 	if [ -f "$script_dir/../scripts/upgrade-to-advanced.sh" ]; then
 		cp "$script_dir/../scripts/upgrade-to-advanced.sh" "$INSTALL_DIR/scripts/"
 		chmod +x "$INSTALL_DIR/scripts/upgrade-to-advanced.sh"
@@ -485,7 +486,7 @@ install_scripts() {
 		fi
 	fi
 
-	# Test scripts - handle both local and remote installation
+	# Test scripts - handle both # local and remote installation
 	for script in test-connectivity.sh test-pushover.sh placeholder-utils.sh; do
 		if [ -f "$script_dir/../scripts/$script" ]; then
 			cp "$script_dir/../scripts/$script" "$INSTALL_DIR/scripts/"
@@ -503,7 +504,7 @@ install_scripts() {
 		fi
 	done
 
-	# Configuration merge script - handle both local and remote installation
+	# Configuration merge script - handle both # local and remote installation
 	if [ -f "$script_dir/../scripts/merge-config.sh" ]; then
 		cp "$script_dir/../scripts/merge-config.sh" "$INSTALL_DIR/scripts/"
 		chmod +x "$INSTALL_DIR/scripts/merge-config.sh"
@@ -526,7 +527,7 @@ install_config() {
 	print_status "$BLUE" "Installing configuration..."
 	config_dir="$(dirname "$0")/../config"
 
-	# Handle both local and remote installation
+	# Handle both # local and remote installation
 	if [ -f "$config_dir/config.template.sh" ]; then
 		cp "$config_dir/config.template.sh" "$INSTALL_DIR/config/"
 		print_status "$GREEN" "✓ Configuration template installed"
@@ -688,8 +689,7 @@ EOF
 	print_status "$GREEN" "✓ Uninstall script created"
 }
 
-# Main installation function
-main() {
+# Main installation main() {
 	if [ "${DEBUG:-0}" = "1" ]; then
 		show_version
 		printf "\n"
@@ -780,8 +780,7 @@ main() {
 	print_status "$GREEN" "📋 Installation log saved to: $LOG_FILE"
 }
 
-# Error handling function
-handle_error() {
+# Error handling handle_error() {
 	exit_code=$?
 	log_message "ERROR" "Installation failed with exit code: $exit_code"
 	log_message "ERROR" "Check the log file for details: $LOG_FILE"

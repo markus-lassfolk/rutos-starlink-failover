@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Configuration merging script for Starlink RUTOS Failover
 # Version: 1.0.3
 

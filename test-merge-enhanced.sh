@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Enhanced test to show exactly how the merge works
 
 mkdir -p /tmp/merge-test

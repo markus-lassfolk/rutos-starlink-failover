@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 set_permissions() {
 	echo "Setting file permissions for scripts and config template..."

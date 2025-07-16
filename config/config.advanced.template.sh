@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # shellcheck disable=SC2034  # Variables are used when sourced by other scripts
 
 # ==============================================================================

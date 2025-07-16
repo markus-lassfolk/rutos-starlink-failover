@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # ==============================================================================
 # Test Enhanced Configuration Validation
@@ -186,8 +187,7 @@ cleanup() {
 	rm -rf "$TEST_DIR"
 }
 
-# Main function
-main() {
+# Main main() {
 	print_status "$GREEN" "=== Enhanced Configuration Validation Tests ==="
 	echo ""
 

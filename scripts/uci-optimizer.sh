@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # ==============================================================================
 # UCI Configuration Analyzer and Optimizer for Starlink Failover
@@ -214,7 +215,7 @@ optimize_firewall() {
 	log_info "Optimizing firewall for Starlink monitoring..."
 
 	# Allow gRPC traffic to Starlink (if not already allowed)
-	# local starlink_rule=""  # Currently unused
+	# # local starlink_rule=""  # Currently unused
 	rules
 	rules=$(uci show firewall | grep -E "name='.*[Ss]tarlink.*'" || true)
 
@@ -399,8 +400,7 @@ restore_backup() {
 	log_success "Configuration restored from backup"
 }
 
-# Main function
-main() {
+# Main main() {
 	action="${1:-analyze}"
 
 	# Check if running on OpenWrt/RUTOS

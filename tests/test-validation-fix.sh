@@ -1,9 +1,9 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # Quick test to fix and verify the IP validation function
 
-# Improved IP validation function
-validate_ip() {
+# Improved IP validation validate_ip() {
 	ip="$1"
 
 	# Check basic format using case/esac pattern matching

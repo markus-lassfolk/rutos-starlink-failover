@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # ==============================================================================
 # Configuration Update Script
@@ -265,8 +266,7 @@ merge_configs() {
 	fi
 }
 
-# Main function
-main() {
+# Main main() {
 	print_info "Configuration Update Tool"
 	print_info "========================="
 	print_info "Script: $SCRIPT_NAME"

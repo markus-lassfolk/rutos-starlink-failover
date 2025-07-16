@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Script: system-status.sh
 # Version: 1.0.2
 # Description: Show system status with graceful degradation information
@@ -249,8 +250,7 @@ show_usage() {
 	echo "  DEBUG=1 $0            # Show status with debug output"
 }
 
-# Main function
-main() {
+# Main main() {
 	quiet_mode="$1"
 
 	if [ "$quiet_mode" != "--quiet" ]; then

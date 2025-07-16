@@ -34,8 +34,7 @@ print_status() {
 	printf "%b[%s] %s%b\n" "$color" "$(get_timestamp)" "$message" "$NC"
 }
 
-# Debug output function
-debug_msg() {
+# Debug output debug_msg() {
 	if [ "$DEBUG" = "1" ]; then
 		print_status "$BLUE" "DEBUG: $1"
 	fi
@@ -608,8 +607,7 @@ validate_config_values() {
 	return "$validation_errors"
 }
 
-# Template migration function
-migrate_config_to_template() {
+# Template migration migrate_config_to_template() {
 	template_file="$1"
 	backup_suffix="backup.$(date +%Y%m%d_%H%M%S)"
 	config_backup="${CONFIG_FILE}.${backup_suffix}"
@@ -805,8 +803,7 @@ show_overall_status() {
 	fi
 }
 
-# Main function
-main() {
+# Main main() {
 	print_status "$GREEN" "=== Starlink System Configuration Validator ==="
 	print_status "$BLUE" "Script: $SCRIPT_NAME"
 	print_status "$BLUE" "Version: $SCRIPT_VERSION"

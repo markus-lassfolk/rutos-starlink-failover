@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # ==============================================================================
 # Test Suite for Starlink Monitoring System
@@ -235,8 +236,7 @@ test_logging() {
 	# shellcheck source=/dev/null
 	. "$MOCK_CONFIG"
 
-	# Mock log function
-	log() {
+	# Mock log log() {
 		level="$1"
 		message="$2"
 		echo "[$level] $message" >>"$LOG_DIR/test.log"
@@ -297,8 +297,7 @@ test_rate_limiting() {
 	# Create rate limit entry
 	echo "soft_failover=$current_time" >"$rate_file"
 
-	# Test rate limiting function
-	check_rate_limit() {
+	# Test rate limiting check_rate_limit() {
 		message_type="$1"
 		rate_limit_seconds=300
 

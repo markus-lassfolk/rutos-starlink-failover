@@ -512,8 +512,7 @@ show_usage() {
 	echo "  3  - No checks performed"
 }
 
-# Main function
-main() {
+# Main main() {
 	log_info "Starting comprehensive health check v$SCRIPT_VERSION"
 
 	# Validate environment

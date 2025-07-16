@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # Colors for output - RUTOS compatible
 # shellcheck disable=SC2034

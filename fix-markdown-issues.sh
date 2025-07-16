@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Fix common markdown issues found by markdownlint
 
 # Color codes for output - RUTOS compatible
@@ -101,8 +102,7 @@ fix_md010() {
 	log_info "Fixed hard tabs in $file"
 }
 
-# Main function
-main() {
+# Main main() {
 	log_info "Starting markdown issue fixes"
 
 	# List of files that need fixes based on the validation report

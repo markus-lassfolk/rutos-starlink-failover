@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # === Complete Azure Logging Setup and Verification ===
 # This script performs end-to-end setup and testing of Azure logging integration

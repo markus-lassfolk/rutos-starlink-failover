@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Setup script for comprehensive code quality tools
 # Version: 1.0.2
 # Description: Installs all code quality tools for the RUTOS Starlink Failover project
@@ -158,7 +159,7 @@ install_go_tools() {
 verify_installations() {
 	log_step "Verifying installations"
 
-	local tools=(
+	# local tools=(
 		"shellcheck:Shell script linting"
 		"shfmt:Shell script formatting"
 		"black:Python code formatting"
@@ -175,8 +176,8 @@ verify_installations() {
 		"bicep:Azure Bicep CLI"
 	)
 
-	local available_count=0
-	local total_count=${#tools[@]}
+	# local available_count=0
+	# local total_count=${#tools[@]}
 
 	for tool_info in "${tools[@]}"; do
 		IFS=":" read -r tool_name tool_description <<<"$tool_info"
@@ -262,8 +263,8 @@ EOF
 create_validation_alias() {
 	log_step "Creating convenient validation alias"
 
-	local alias_line="alias validate-code='$(pwd)/scripts/comprehensive-validation.sh'"
-	local bashrc_file="$HOME/.bashrc"
+	# local alias_line="alias validate-code='$(pwd)/scripts/comprehensive-validation.sh'"
+	# local bashrc_file="$HOME/.bashrc"
 
 	if [ -f "$bashrc_file" ]; then
 		if ! grep -q "validate-code" "$bashrc_file"; then
@@ -305,17 +306,16 @@ Examples:
 EOF
 }
 
-# Main function
-main() {
-	local install_system=false
-	local install_python=false
-	local install_nodejs=false
-	local install_powershell=false
-	local install_bicep=false
-	local install_go=false
-	local verify_only=false
-	local show_manual=false
-	local install_all=true
+# Main main() {
+	# local install_system=false
+	# local install_python=false
+	# local install_nodejs=false
+	# local install_powershell=false
+	# local install_bicep=false
+	# local install_go=false
+	# local verify_only=false
+	# local show_manual=false
+	# local install_all=true
 
 	# Parse command line arguments
 	while [[ $# -gt 0 ]]; do

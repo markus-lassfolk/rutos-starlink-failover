@@ -122,8 +122,7 @@ LOG_TAG="StarlinkMonitor"
 # Create state directory
 mkdir -p "$(dirname "$STATE_FILE")"
 
-# Logging function
-log() {
+# Logging log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
@@ -165,8 +164,7 @@ LOG_TAG="StarlinkLogger"
 # Create state directory
 mkdir -p "$(dirname "$LAST_SAMPLE_FILE")"
 
-# Logging function
-log() {
+# Logging log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 

@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Test script to demonstrate the new configuration merging system
 
 # Create test files

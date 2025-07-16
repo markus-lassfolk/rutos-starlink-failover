@@ -15,7 +15,7 @@ fi
 AZURE_INTEGRATION_ENABLED=$(uci get azure.starlink.enabled 2>/dev/null || echo "false")
 AZURE_FUNCTION_URL=$(uci get azure.starlink.endpoint 2>/dev/null || echo "")
 
-# Local CSV log file for performance data
+# # local CSV log file for performance data
 CSV_LOG_FILE=$(uci get azure.starlink.csv_file 2>/dev/null || echo "/overlay/starlink_performance.csv")
 CSV_MAX_SIZE=$(uci get azure.starlink.max_size 2>/dev/null || echo "1048576") # 1MB default
 

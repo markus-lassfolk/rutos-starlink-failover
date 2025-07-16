@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # ==============================================================================
 # Complete Starlink Solution Deployment Script for RUTOS (POSIX Shell Version)
@@ -689,8 +690,7 @@ LOG_TAG="StarlinkMonitor"
 # Create state directory
 mkdir -p "$(dirname "$STATE_FILE")"
 
-# Logging function
-log() {
+# Logging log() {
     logger -t "$LOG_TAG" -- "$1"
 }
 
@@ -814,8 +814,7 @@ LOG_TAG="StarlinkLogger"
 # Create state directory
 mkdir -p "$(dirname "$LAST_SAMPLE_FILE")"
 
-# Logging function
-log() {
+# Logging log() {
     logger -t "$LOG_TAG" -- "$1"
 }
 
@@ -905,8 +904,7 @@ STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
 API_VERSION_FILE="/tmp/starlink_api_version"
 LOG_TAG="StarlinkAPIChecker"
 
-# Logging function
-log() {
+# Logging log() {
     logger -t "$LOG_TAG" -- "$1"
 }
 
@@ -976,8 +974,7 @@ if [ -z "\$PUSHOVER_TOKEN" ] || [ -z "\$PUSHOVER_USER" ]; then
     exit 0
 fi
 
-# Notification function
-send_notification() {
+# Notification send_notification() {
     title="\$1"
     message="\$2"
     priority="\${3:-0}"

@@ -1,8 +1,9 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # === RUTOS Log Shipper for Azure ===
-# This script reads the local log file, sends its content to an Azure Function,
-# and clears the local file upon successful transmission.
+# This script reads the # local log file, sends its content to an Azure Function,
+# and clears the # local file upon successful transmission.
 #
 # IMPORTANT: Requires persistent logging to be configured first!
 # Run setup-persistent-logging.sh to configure RUTOS for file-based logging
@@ -63,13 +64,13 @@ fi
 
 # Check if the transmission was successful (HTTP status 200 OK).
 if [ "$HTTP_STATUS" -eq 200 ]; then
-	# Success! Clear the local log file by truncating it to zero size.
+	# Success! Clear the # local log file by truncating it to zero size.
 	# This is safer than 'rm' as it preserves file permissions.
 	true >"$LOG_FILE"
-	logger -t "azure-log-shipper" "Successfully sent logs to Azure. Local log file cleared."
+	logger -t "azure-log-shipper" "Successfully sent logs to Azure. # local log file cleared."
 else
-	# Failure. Do not clear the local file. It will be retried on the next run.
-	logger -t "azure-log-shipper" "Failed to send logs to Azure. HTTP Status: $HTTP_STATUS. Retaining local logs."
+	# Failure. Do not clear the # local file. It will be retried on the next run.
+	logger -t "azure-log-shipper" "Failed to send logs to Azure. HTTP Status: $HTTP_STATUS. Retaining # local logs."
 	exit 1
 fi
 

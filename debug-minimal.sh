@@ -1,10 +1,11 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Minimal debug script
 
 # Let's manually test the functions
 variable_exists() {
-	local file="$1"
-	local var_name="$2"
+	# local file="$1"
+	# local var_name="$2"
 
 	if [ -f "$file" ]; then
 		grep -q "^[[:space:]]*export[[:space:]]*${var_name}=" "$file"
@@ -14,8 +15,8 @@ variable_exists() {
 }
 
 extract_variable() {
-	local file="$1"
-	local var_name="$2"
+	# local file="$1"
+	# local var_name="$2"
 
 	if [ -f "$file" ]; then
 		grep "^[[:space:]]*export[[:space:]]*${var_name}=" "$file" | head -1 | sed 's/^[[:space:]]*export[[:space:]]*[^=]*="\([^"]*\)".*/\1/'

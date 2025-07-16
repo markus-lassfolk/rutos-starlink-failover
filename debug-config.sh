@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Script: debug-config.sh
 # Version: 1.0.0
 # Description: Debug script to analyze config format issues
@@ -59,8 +60,7 @@ log_step() {
 	printf "%s[STEP]%s [%s] %s\n" "$BLUE" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
-# Main analysis function
-analyze_config() {
+# Main analysis analyze_config() {
 	CONFIG_FILE="${1:-./config.sh}"
 
 	log_info "Starting config analysis v$SCRIPT_VERSION"

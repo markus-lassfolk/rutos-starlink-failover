@@ -21,8 +21,7 @@ METRIC_GOOD="1"
 METRIC_BAD="100"
 EOF
 
-# Test scenario function
-test_scenario() {
+# Test scenario test_scenario() {
 	scenario_name="$1"
 	latency="$2"
 	packet_loss="$3"

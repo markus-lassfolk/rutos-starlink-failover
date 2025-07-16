@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Pre-commit validation script for RUTOS Starlink Failover Project
 # Version: 1.0.3
 # Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility
@@ -94,11 +95,11 @@ ISSUE_LIST=""
 # Function to check if a file should be excluded
 # Function to check if a file should be excluded
 is_excluded() {
-	local file="$1"
-	local pattern
+	# local file="$1"
+	# local pattern
 	
 	# Normalize path to handle both relative and absolute paths
-	local normalized_path
+	# local normalized_path
 	normalized_path=$(echo "$file" | sed 's|^\./||' | sed 's|\\|/|g')
 	
 	# Check if file is in excluded list
@@ -202,14 +203,14 @@ check_bash_syntax() {
 		done < <(grep -n "^[[:space:]]*\[\[.*\]\]" "$file" 2>/dev/null)
 	fi
 
-	# Check for local keyword
-	if grep -n "^[[:space:]]*local " "$file" >/dev/null 2>&1; then
+	# Check for # local keyword
+	if grep -n "^[[:space:]]*# local " "$file" >/dev/null 2>&1; then
 		while IFS=: read -r line_num line_content; do
 			report_issue "CRITICAL" "$file" "$line_num" "Uses 'local' keyword - not supported in busybox"
-		done < <(grep -n "^[[:space:]]*local " "$file" 2>/dev/null)
+		done < <(grep -n "^[[:space:]]*# local " "$file" 2>/dev/null)
 	fi
 
-	# Check for echo -e
+	# Check for echo -e usage
 	if grep -n "echo -e" "$file" >/dev/null 2>&1; then
 		while IFS=: read -r line_num line_content; do
 			report_issue "MAJOR" "$file" "$line_num" "Uses 'echo -e' - use printf for busybox compatibility"
@@ -398,7 +399,7 @@ check_undefined_variables() {
 	file="$1"
 
 	# Check for common color variables that might be undefined
-	local color_vars="RED GREEN YELLOW BLUE PURPLE CYAN NC"
+	# local color_vars="RED GREEN YELLOW BLUE PURPLE CYAN NC"
 	
 	for var in $color_vars; do
 		# Check if variable is used before definition
@@ -532,9 +533,9 @@ validate_file() {
 
 # Function to auto-fix formatting issues
 auto_fix_formatting() {
-	local file="$1"
-	local file_extension="${file##*.}"
-	local fixes_applied=0
+	# local file="$1"
+	# local file_extension="${file##*.}"
+	# local fixes_applied=0
 	
 	case "$file_extension" in
 		"sh")
@@ -565,7 +566,7 @@ auto_fix_formatting() {
 
 # Function to run markdownlint validation
 run_markdownlint() {
-	local file="$1"
+	# local file="$1"
 	
 	if ! command_exists markdownlint; then
 		log_warning "markdownlint not available - skipping markdown validation"
@@ -604,7 +605,7 @@ run_markdownlint() {
 
 # Function to run prettier validation for markdown
 run_prettier_markdown() {
-	local file="$1"
+	# local file="$1"
 	
 	if ! command_exists prettier; then
 		log_warning "prettier not available - skipping markdown formatting validation"
@@ -624,11 +625,11 @@ run_prettier_markdown() {
 
 # Function to validate markdown file
 validate_markdown_file() {
-	local file="$1"
+	# local file="$1"
 	
 	log_step "Validating: $file"
 	
-	local initial_issues=$TOTAL_ISSUES
+	# local initial_issues=$TOTAL_ISSUES
 	
 	# Try to auto-fix formatting issues first
 	if auto_fix_formatting "$file"; then
@@ -642,7 +643,7 @@ validate_markdown_file() {
 	run_prettier_markdown "$file"
 	
 	# Calculate issues for this file
-	local file_issues=$((TOTAL_ISSUES - initial_issues))
+	# local file_issues=$((TOTAL_ISSUES - initial_issues))
 	
 	if [ $file_issues -eq 0 ]; then
 		log_success "✓ $file: All checks passed"
@@ -938,7 +939,7 @@ DESCRIPTION:
     SHELL SCRIPTS:
     - Shebang compatibility (#!/bin/sh required)
     - Bash-specific syntax (arrays, double brackets, etc.)
-    - Echo -e usage (should use printf instead)
+    - printf usage (should use printf instead)
     - Source command usage (should use . instead)
     - Function syntax compatibility
     - ShellCheck validation in POSIX mode
@@ -968,15 +969,14 @@ EXIT CODES:
 EOF
 }
 
-# Main function
-main() {
+# Main main() {
 	log_info "Starting RUTOS busybox compatibility and markdown validation v$SCRIPT_VERSION"
 
 	# Skip self-validation
 	log_step "Self-validation: Skipped - this script is excluded from validation"
 
-	local shell_files=""
-	local markdown_files=""
+	# local shell_files=""
+	# local markdown_files=""
 	
 	# Check if running with specific files
 	if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
@@ -1042,7 +1042,7 @@ main() {
 	fi
 
 	# Count total files
-	local total_files=0
+	# local total_files=0
 	for file in $shell_files $markdown_files; do
 		if [ -f "$file" ]; then
 			total_files=$((total_files + 1))

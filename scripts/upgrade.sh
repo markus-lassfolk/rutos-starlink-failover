@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # upgrade.sh: Safely upgrade scripts/configs without overwriting user changes
 # Usage: ./scripts/upgrade.sh
 

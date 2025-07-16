@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 
 # Global shellcheck disables for this file
 # shellcheck disable=SC2155

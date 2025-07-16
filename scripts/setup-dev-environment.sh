@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091 # Dynamic source files
 # Setup script for RUTOS development environment
 # Version: [AUTO-GENERATED]
 # Description: Sets up pre-commit hooks and validation tools
@@ -46,8 +47,7 @@ command_exists() {
 	command -v "$1" >/dev/null 2>&1
 }
 
-# Main setup function
-main() {
+# Main setup main() {
 	log_info "Setting up RUTOS development environment..."
 
 	# Check if we're in a git repository
