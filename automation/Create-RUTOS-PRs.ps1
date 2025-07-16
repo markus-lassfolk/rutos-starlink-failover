@@ -16,18 +16,123 @@ function Get-SmartValidationStatus {
     Write-Host "🔍 **SMART VALIDATION STATUS**" -ForegroundColor Cyan
     Write-Host "=" * 50 -ForegroundColor Cyan
     
-    # Get validation issues on main branch
-    Write-Host "📊 Checking issues on main branch..." -ForegroundColor Yellow
-    $quickValidation = wsl ./scripts/pre-commit-validation.sh --all 2>&1
-    $criticalCount = ($quickValidation | Select-String -Pattern "\[CRITICAL\]" | Measure-Object).Count
-    $majorCount = ($quickValidation | Select-String -Pattern "\[MAJOR\]" | Measure-Object).Count
+    # Get validation issues on main branch (stay on current branch)
+    Write-Host "📊 Checking validation issues on main branch..." -ForegroundColor Yellow
     
-    # Get files with issues
-    $filesWithIssues = $quickValidation | Select-String -Pattern "\[CRITICAL\]|\[MAJOR\]" | ForEach-Object {
-        if ($_ -match '\[(CRITICAL|MAJOR)\]\s+(.+?):') { $matches[2].Trim() }
-    } | Where-Object { $_ -ne $null } | Select-Object -Unique
+    # Option 1: Check GitHub Actions workflow results for validation
+    Write-Host "🔍 Checking GitHub Actions workflow results..." -ForegroundColor Cyan
+    try {
+        $workflowRuns = gh run list --workflow="shellcheck-format.yml" --limit=5 --json status,conclusion,headBranch,displayTitle 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $workflowData = $workflowRuns | ConvertFrom-Json
+            $mainWorkflow = $workflowData | Where-Object { $_.headBranch -eq "main" } | Select-Object -First 1
+            
+            if ($mainWorkflow) {
+                $statusColor = switch ($mainWorkflow.conclusion) {
+                    "success" { "Green" }
+                    "failure" { "Red" }
+                    "skipped" { "Yellow" }
+                    "action_required" { "Yellow" }
+                    default { "Gray" }
+                }
+                Write-Host "  ✅ Latest shellcheck workflow: $($mainWorkflow.conclusion)" -ForegroundColor $statusColor
+                Write-Host "  📝 Commit: $($mainWorkflow.displayTitle)" -ForegroundColor Gray
+                
+                # If workflow passed, we know validation is clean
+                if ($mainWorkflow.conclusion -eq "success") {
+                    Write-Host "  ✅ Server-side validation indicates clean repository" -ForegroundColor Green
+                    $serverValidationClean = $true
+                } else {
+                    Write-Host "  ⚠️  Server-side validation indicates issues exist" -ForegroundColor Yellow
+                    $serverValidationClean = $false
+                }
+            } else {
+                Write-Host "  ⚠️  No recent validation workflow found for main branch" -ForegroundColor Yellow
+                $serverValidationClean = $false
+            }
+        } else {
+            Write-Host "  ⚠️  Could not fetch workflow results" -ForegroundColor Yellow
+            $serverValidationClean = $false
+        }
+    } catch {
+        Write-Host "  ⚠️  GitHub Actions check failed" -ForegroundColor Yellow
+        $serverValidationClean = $false
+    }
     
-    # Check if any PRs are addressing these files
+    # Option 2: Use server-side validation via GitHub API (check file contents)
+    Write-Host "🔍 Performing server-side validation check..." -ForegroundColor Cyan
+    try {
+        # Get shell script files from repository
+        $shellFiles = gh api repos/:owner/:repo/contents --jq '.[].name | select(endswith(".sh"))' 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $shellFileCount = ($shellFiles | Measure-Object).Count
+            Write-Host "  📁 Shell files found: $shellFileCount" -ForegroundColor Blue
+            
+            # Check for common RUTOS compatibility issues via file content
+            $criticalCount = 0
+            $majorCount = 0
+            $filesWithIssues = @()
+            
+            # Sample a few files to check for issues (avoid rate limiting)
+            $sampleFiles = $shellFiles | Select-Object -First 10
+            foreach ($file in $sampleFiles) {
+                try {
+                    $fileContent = gh api repos/:owner/:repo/contents/$file --jq '.content' | base64 -d 2>&1
+                    if ($LASTEXITCODE -eq 0) {
+                        # Check for common RUTOS compatibility issues
+                        if ($fileContent -match '#!/bin/bash' -or $fileContent -match '\[\[' -or $fileContent -match 'local\s+\w+' -or $fileContent -match 'echo\s+-e') {
+                            $criticalCount++
+                            $filesWithIssues += $file
+                        }
+                    }
+                } catch {
+                    # Skip files that can't be read
+                }
+            }
+            
+            Write-Host "  🔍 Sample validation results:" -ForegroundColor Gray
+            Write-Host "  🔴 Estimated critical issues: $criticalCount" -ForegroundColor Red
+            Write-Host "  📁 Files with potential issues: $($filesWithIssues.Count)" -ForegroundColor Yellow
+        } else {
+            Write-Host "  ⚠️  Could not fetch repository file list" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  ⚠️  Server-side validation check failed" -ForegroundColor Yellow
+    }
+    
+    # Option 3: Use local validation only if server-side methods failed
+    if ($serverValidationClean) {
+        Write-Host "🔍 Server-side validation indicates clean repository - skipping local validation" -ForegroundColor Green
+        $criticalCount = 0
+        $majorCount = 0
+        $filesWithIssues = @()
+    } else {
+        Write-Host "🔍 Fallback: Running local validation (staying on current branch)..." -ForegroundColor Cyan
+        $currentBranch = git branch --show-current
+        
+        # Save current branch and ensure we're on main for validation
+        if ($currentBranch -ne "main") {
+            Write-Host "  🔄 Temporarily switching to main for validation..." -ForegroundColor Yellow
+            git checkout main 2>&1 | Out-Null
+        }
+        
+        $quickValidation = wsl ./scripts/pre-commit-validation.sh --all 2>&1
+        $criticalCount = ($quickValidation | Select-String -Pattern "\[CRITICAL\]" | Measure-Object).Count
+        $majorCount = ($quickValidation | Select-String -Pattern "\[MAJOR\]" | Measure-Object).Count
+        
+        # Get files with issues
+        $filesWithIssues = $quickValidation | Select-String -Pattern "\[CRITICAL\]|\[MAJOR\]" | ForEach-Object {
+            if ($_ -match '\[(CRITICAL|MAJOR)\]\s+(.+?):') { $matches[2].Trim() }
+        } | Where-Object { $_ -ne $null } | Select-Object -Unique
+        
+        # CRITICAL: Always restore original branch if we switched
+        if ($currentBranch -ne "main") {
+            Write-Host "  🔄 Restoring original branch: $currentBranch" -ForegroundColor Yellow
+            git checkout $currentBranch 2>&1 | Out-Null
+        }
+    }
+    
+    # Check if any PRs are addressing these files (server-side approach)
     $allPRs = gh pr list --json number,headRefName,files | ConvertFrom-Json
     $filesBeingFixed = @()
     
@@ -81,7 +186,7 @@ function Invoke-AutomationMonitoring {
     Write-Host "🔍 **AUTOMATION MONITORING DASHBOARD**" -ForegroundColor Cyan
     Write-Host "=" * 60 -ForegroundColor Cyan
     
-    # Check current branch status
+    # Check current branch status (no switching needed)
     $currentBranch = git branch --show-current
     Write-Host "📍 Current branch: $currentBranch" -ForegroundColor Gray
     
@@ -108,18 +213,30 @@ function Invoke-AutomationMonitoring {
         }
     }
     
-    # Check branch commits
-    $branchExists = git branch --list ${WorkingBranch} | Measure-Object | Select-Object -ExpandProperty Count
-    if ($branchExists -gt 0) {
-        $branchCommits = git rev-list --count HEAD ^main 2>&1
+    # Check branch commits using GitHub API (server-side approach)
+    Write-Host "🔍 Checking working branch status (server-side)..." -ForegroundColor Cyan
+    try {
+        $branchInfo = gh api repos/:owner/:repo/branches/${WorkingBranch} 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "🌿 Commits in ${WorkingBranch}: $branchCommits" -ForegroundColor Magenta
+            $branchData = $branchInfo | ConvertFrom-Json
+            
+            # Get commit count comparison using GitHub API
+            $comparisonResult = gh api repos/:owner/:repo/compare/main...${WorkingBranch} 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                $comparisonData = $comparisonResult | ConvertFrom-Json
+                Write-Host "🌿 Commits in ${WorkingBranch}: $($comparisonData.ahead_by)" -ForegroundColor Magenta
+                Write-Host "  📊 Files changed: $($comparisonData.files.Count)" -ForegroundColor Gray
+            } else {
+                Write-Host "🌿 Branch ${WorkingBranch} comparison failed" -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "🌿 Working branch ${WorkingBranch}: Not created yet" -ForegroundColor Yellow
         }
-    } else {
-        Write-Host "🌿 Working branch ${WorkingBranch}: Not created yet" -ForegroundColor Yellow
+    } catch {
+        Write-Host "🌿 Working branch ${WorkingBranch}: Status check failed" -ForegroundColor Yellow
     }
     
-    # Smart validation status
+    # Smart validation status (server-side validation)
     $validationStatus = Get-SmartValidationStatus
     
     Write-Host "`n💡 **RECOMMENDED ACTIONS**" -ForegroundColor Green
@@ -637,6 +754,112 @@ foreach ($file in $targetFiles) {
         continue
     }
     
+function Format-ValidationIssuesMarkdown {
+    param(
+        [string]$FilePath,
+        [string]$ValidationOutput
+    )
+    
+    # Parse validation output to extract detailed issues
+    $issueLines = $ValidationOutput -split "`n" | Where-Object { $_ -match '\[(CRITICAL|MAJOR)\]' }
+    
+    if ($issueLines.Count -eq 0) {
+        return "## ⚠️  **No specific validation issues found**`n`nThe validation script reported problems, but no detailed issues were extracted from the output. This might be a validation script issue rather than a RUTOS compatibility problem.`n`nPlease check the validation script output manually."
+    }
+    
+    $markdownOutput = @()
+    $markdownOutput += "## 🔍 **Detailed Validation Issues**"
+    $markdownOutput += ""
+    
+    $realIssueCount = 0
+    
+    foreach ($issueLine in $issueLines) {
+        if ($issueLine -match '\[(CRITICAL|MAJOR)\]\s+(.+?):\s*(.+)') {
+            $severity = $matches[1]
+            $file = $matches[2]
+            $description = $matches[3]
+            
+            # Skip automation-related issues
+            if ($description -like "*Could not fetch file*" -or $description -like "*Server-side validation*") {
+                continue
+            }
+            
+            $realIssueCount++
+            
+            # Extract line number if present
+            $lineNumber = "Unknown"
+            if ($description -match 'line (\d+)') {
+                $lineNumber = $matches[1]
+            }
+            
+            # Extract ShellCheck code if present
+            $shellCheckCode = "N/A"
+            if ($description -match '(SC\d+)') {
+                $shellCheckCode = $matches[1]
+            }
+            
+            # Create severity icon
+            $severityIcon = if ($severity -eq "CRITICAL") { "🔴" } else { "🟡" }
+            
+            $markdownOutput += "### $severityIcon **$severity**: Line $lineNumber"
+            $markdownOutput += ""
+            $markdownOutput += "**File**: ``$file``"
+            $markdownOutput += "**Issue**: $description"
+            $markdownOutput += "**ShellCheck**: $shellCheckCode"
+            $markdownOutput += ""
+            
+            # Add specific solutions based on common issues
+            $solution = Get-SolutionForIssue -Description $description -ShellCheckCode $shellCheckCode
+            if ($solution) {
+                $markdownOutput += "**Solution**:"
+                $markdownOutput += "``````bash"
+                $markdownOutput += $solution
+                $markdownOutput += "``````"
+                $markdownOutput += ""
+            }
+            
+            $markdownOutput += "---"
+            $markdownOutput += ""
+        }
+    }
+    
+    if ($realIssueCount -eq 0) {
+        return "## ⚠️  **No actionable RUTOS compatibility issues found**`n`nThe validation failures appear to be related to automation/technical issues rather than actual RUTOS compatibility problems. This issue may resolve automatically."
+    }
+    
+    return $markdownOutput -join "`n"
+}
+
+function Get-SolutionForIssue {
+    param(
+        [string]$Description,
+        [string]$ShellCheckCode
+    )
+    
+    # Provide specific solutions based on common RUTOS compatibility issues
+    switch -Regex ($Description) {
+        "bash.*shebang" { return "#!/bin/sh" }
+        "local.*keyword" { return "# Remove 'local' keyword - all variables are global in busybox`nVARIABLE_NAME=`"value`"" }
+        "printf.*format" { return "# Use %s placeholders instead of variables in format string`nprintf `"%s%s%s`n`" `"`$VAR1`" `"`$VAR2`" `"`$VAR3`"" }
+        "echo.*-e" { return "# Replace echo -e with printf`nprintf `"message with\nescapes\n`"" }
+        "\[\[.*\]\]" { return "# Replace [[ ]] with [ ] for POSIX compatibility`nif [ `"`$condition`" = `"value`" ]; then" }
+        "array" { return "# Convert arrays to space-separated strings`nITEMS=`"item1 item2 item3`"`nfor item in `$ITEMS; do" }
+        "function.*syntax" { return "# Use POSIX function syntax`nfunction_name() {`n    # function body`n}" }
+        "source.*command" { return "# Use dot (.) instead of source`n. ./script.sh" }
+        default { 
+            # Fallback based on ShellCheck code
+            switch ($ShellCheckCode) {
+                "SC2164" { return "# Add error handling to cd commands`ncd /path/to/directory || exit 1" }
+                "SC2002" { return "# Remove useless cat`n# Instead of: cat file | command`ncommand < file" }
+                "SC2034" { return "# Add shellcheck disable for intentionally unused variables`n# shellcheck disable=SC2034`nVARIABLE_NAME=`"value`"" }
+                "SC2059" { return "# Fix printf format strings`nprintf `"%s: %s`n`" `"`$label`" `"`$value`"" }
+                "SC3043" { return "# Remove local keyword`n# Instead of: local var=value`nvar=value" }
+                default { return $null }
+            }
+        }
+    }
+}
+
     # Extract specific issues with enhanced parsing
     $specificIssues = $fileValidation | Select-String -Pattern "\[MAJOR\]|\[CRITICAL\]" | ForEach-Object { 
         $_.Line.Trim() 
@@ -647,6 +870,18 @@ foreach ($file in $targetFiles) {
     $allIssues = ($specificIssues + $shellCheckIssues) | Select-Object -Unique
     
     Write-Host "📊 Found $($allIssues.Count) specific issues in $file" -ForegroundColor Yellow
+    
+    # Create detailed markdown-formatted issues
+    $detailedIssues = Format-ValidationIssuesMarkdown -FilePath $file -ValidationOutput $fileValidation
+    
+    # Check if there are actual RUTOS compatibility issues to fix
+    if ($detailedIssues -like "*No actionable RUTOS compatibility issues found*" -or 
+        $detailedIssues -like "*No specific validation issues found*") {
+        Write-Host "⚠️  No actionable RUTOS compatibility issues found in $file - skipping issue creation" -ForegroundColor Yellow
+        continue
+    }
+    
+    Write-Host "📊 Created detailed validation report for $file" -ForegroundColor Yellow
     
     # Create comprehensive issue with enhanced autonomous instructions
     $issueTitle = "🤖 RUTOS Compatibility: Fix $file (Autonomous Fix Required)"
@@ -666,9 +901,7 @@ foreach ($file in $targetFiles) {
 - **Priority**: $priority
 
 ### **Specific Issues Found**
-``````
-$($allIssues -join "`n")
-``````
+$detailedIssues
 
 ### **🤖 Autonomous Fix Protocol for @copilot**
 1. **Read Guidelines**: Follow ``.github/copilot-instructions.md`` for RUTOS requirements

@@ -83,7 +83,7 @@ function Get-CopilotPRs {
             Write-StatusMessage "ℹ️  No Copilot PRs found using advanced detection" -Color $CYAN
             
             if ($DebugMode) {
-                Write-StatusMessage "� Debug: Found $($prData.Count) total PRs, analyzing..." -Color $GRAY
+                Write-StatusMessage "🔍 Debug: Found $($prData.Count) total PRs, analyzing..." -Color $GRAY
                 foreach ($pr in $prData) {
                     Write-StatusMessage "   PR #$($pr.number): Author=$($pr.author.login), IsBot=$($pr.author.is_bot), Title=$($pr.title)" -Color $GRAY
                 }
@@ -157,18 +157,18 @@ function Approve-WorkflowRun {
         $runDetails = gh run view $RunId --json status,conclusion,workflowName | ConvertFrom-Json
         
         if ($runDetails.status -eq "waiting") {
-            Write-StatusMessage "✅ Approving workflow run #${RunId}: $WorkflowName" -Color $GREEN
+            Write-StatusMessage "✅ Approving workflow run #$RunId: $WorkflowName" -Color $GREEN
             gh run approve $RunId 2>&1 | Out-Null
             
             if ($LASTEXITCODE -eq 0) {
-                Write-StatusMessage "✅ Successfully approved workflow run #${RunId}" -Color $GREEN
+                Write-StatusMessage "✅ Successfully approved workflow run #$RunId" -Color $GREEN
                 return $true
             } else {
-                Write-StatusMessage "❌ Failed to approve workflow run #${RunId}" -Color $RED
+                Write-StatusMessage "❌ Failed to approve workflow run #$RunId" -Color $RED
                 return $false
             }
         } else {
-            Write-StatusMessage "ℹ️  Workflow run #${RunId} does not need approval (status: $($runDetails.status))" -Color $CYAN
+            Write-StatusMessage "ℹ️  Workflow run #$RunId does not need approval (status: $($runDetails.status))" -Color $CYAN
             return $false
         }
         
@@ -185,7 +185,7 @@ function Test-PRValidation {
         [string]$HeadRef
     )
     
-    Write-StatusMessage "� Starting comprehensive RUTOS validation for PR #$PRNumber..." -Color $BLUE
+    Write-StatusMessage "🔍 Starting comprehensive RUTOS validation for PR #$PRNumber..." -Color $BLUE
     
     try {
         # Get comprehensive PR information
@@ -276,7 +276,7 @@ function Test-PRValidation {
                 }
                 
             } catch {
-                Write-StatusMessage "   ❌ Error validating ${file}: $_" -Color $RED
+                Write-StatusMessage "   ❌ Error validating $file: $_" -Color $RED
                 $technicalIssues += @{
                     File = $file
                     Line = 0
@@ -707,7 +707,7 @@ function Format-ComprehensiveValidationResults {
 # Enhanced PR processing with comprehensive workflow management
 function Start-CopilotPRs {
     Write-StatusMessage "🚀 Starting Advanced Copilot PR Monitoring System..." -Color $GREEN
-    Write-StatusMessage "� Cost optimization: Only posting validation comments for real issues" -Color $YELLOW
+    Write-StatusMessage "💰 Cost optimization: Only posting validation comments for real issues" -Color $YELLOW
     
     # Get Copilot PRs using advanced detection
     $openPRs = Get-CopilotPRs
