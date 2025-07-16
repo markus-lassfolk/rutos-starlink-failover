@@ -47,33 +47,33 @@ SUGGESTIONS=""
 
 # --- HELPER FUNCTIONS ---
 log() {
-	printf "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')] %s${NC}\n" "$1"
+	printf "%s[$(date '+%Y-%m-%d %H:%M:%S')] %s%s\n" "$CYAN" "$1" "$NC"
 }
 
 log_test() {
-	printf "${BLUE}[TEST] %s${NC}\n" "$1"
+	printf "%s[TEST] %s%s\n" "$BLUE" "$1" "$NC"
 	TOTAL_TESTS=$((TOTAL_TESTS + 1))
 }
 
 log_pass() {
-	printf "${GREEN}  ✓ %s${NC}\n" "$1"
+	printf "%s  ✓ %s%s\n" "$GREEN" "$1" "$NC"
 	PASSED_TESTS=$((PASSED_TESTS + 1))
 }
 
 log_fail() {
-	printf "${RED}  ✗ %s${NC}\n" "$1"
+	printf "%s  ✗ %s%s\n" "$RED" "$1" "$NC"
 	FAILED_TESTS=$((FAILED_TESTS + 1))
 	FAILURES="$FAILURES $1"
 }
 
 log_warn() {
-	printf "${YELLOW}  ⚠ %s${NC}\n" "$1"
+	printf "%s  ⚠ %s%s\n" "$YELLOW" "$1" "$NC"
 	WARNING_TESTS=$((WARNING_TESTS + 1))
 	WARNINGS="$WARNINGS $1"
 }
 
 log_info() {
-	printf "${CYAN}  ℹ %s${NC}\n" "$1"
+	printf "%s  ℹ %s%s\n" "$CYAN" "$1" "$NC"
 }
 
 add_suggestion() {
@@ -557,9 +557,9 @@ run_verification() {
 	printf "%s\n" "${NC}"
 
 	printf "Total Tests: %s\n" "$TOTAL_TESTS"
-	printf "${GREEN}Passed: %s${NC}\n" "$PASSED_TESTS"
-	printf "${YELLOW}Warnings: %s${NC}\n" "$WARNING_TESTS"
-	printf "${RED}Failed: %s${NC}\n" "$FAILED_TESTS"
+	printf "%sPassed: %s%s\n" "$GREEN" "$PASSED_TESTS" "$NC"
+	printf "%sWarnings: %s%s\n" "$YELLOW" "$WARNING_TESTS" "$NC"
+	printf "%sFailed: %s%s\n" "$RED" "$FAILED_TESTS" "$NC"
 	printf "\n"
 
 	# Calculate success rate
