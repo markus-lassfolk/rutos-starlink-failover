@@ -12,6 +12,71 @@ param(
     [switch]$TestCopilotAssignment = $false
 )
 
+function Get-SmartValidationStatus {
+    Write-Host "🔍 **SMART VALIDATION STATUS**" -ForegroundColor Cyan
+    Write-Host "=" * 50 -ForegroundColor Cyan
+    
+    # Get validation issues on main branch
+    Write-Host "📊 Checking issues on main branch..." -ForegroundColor Yellow
+    $quickValidation = wsl ./scripts/pre-commit-validation.sh --all 2>&1
+    $criticalCount = ($quickValidation | Select-String -Pattern "\[CRITICAL\]" | Measure-Object).Count
+    $majorCount = ($quickValidation | Select-String -Pattern "\[MAJOR\]" | Measure-Object).Count
+    
+    # Get files with issues
+    $filesWithIssues = $quickValidation | Select-String -Pattern "\[CRITICAL\]|\[MAJOR\]" | ForEach-Object {
+        if ($_ -match '\[(CRITICAL|MAJOR)\]\s+(.+?):') { $matches[2].Trim() }
+    } | Where-Object { $_ -ne $null } | Select-Object -Unique
+    
+    # Check if any PRs are addressing these files
+    $allPRs = gh pr list --json number,headRefName,files | ConvertFrom-Json
+    $filesBeingFixed = @()
+    
+    foreach ($pr in $allPRs) {
+        $prFiles = $pr.files | Where-Object { $_.path -like "*.sh" } | Select-Object -ExpandProperty path
+        $filesBeingFixed += $prFiles
+    }
+    
+    $filesBeingFixed = $filesBeingFixed | Select-Object -Unique
+    
+    Write-Host "📋 Validation Summary:" -ForegroundColor White
+    Write-Host "  🔴 Critical issues: $criticalCount" -ForegroundColor Red
+    Write-Host "  🟡 Major issues: $majorCount" -ForegroundColor Yellow
+    Write-Host "  📁 Files with issues: $($filesWithIssues.Count)" -ForegroundColor Gray
+    Write-Host "  🔄 Files being fixed in PRs: $($filesBeingFixed.Count)" -ForegroundColor Blue
+    
+    # Show which files are being addressed
+    if ($filesBeingFixed.Count -gt 0) {
+        Write-Host "`n🔄 **FILES BEING FIXED IN OPEN PRs**:" -ForegroundColor Blue
+        $filesBeingFixed | ForEach-Object {
+            $isIssueFile = $filesWithIssues -contains $_
+            $status = if ($isIssueFile) { "🔧 Fixing issues" } else { "📝 Other changes" }
+            Write-Host "  $status $_" -ForegroundColor $(if ($isIssueFile) { "Green" } else { "Gray" })
+        }
+    }
+    
+    # Show remaining issues
+    $remainingIssues = $filesWithIssues | Where-Object { $filesBeingFixed -notcontains $_ }
+    if ($remainingIssues.Count -gt 0) {
+        Write-Host "`n❌ **FILES STILL NEEDING FIXES**:" -ForegroundColor Red
+        $remainingIssues | ForEach-Object {
+            Write-Host "  🔴 $_" -ForegroundColor Red
+        }
+        Write-Host "`n💡 Run: ./automation/Create-RUTOS-PRs.ps1 -MaxIssues 5 to create issues for these files" -ForegroundColor Yellow
+    } else {
+        Write-Host "`n✅ All files with issues are being addressed in open PRs!" -ForegroundColor Green
+        Write-Host "💡 Use: .\automation\Monitor-CopilotPRs.ps1 -CheckValidation to check PR status" -ForegroundColor Cyan
+    }
+    
+    Write-Host ("=" * 50) -ForegroundColor Cyan
+    
+    return @{
+        TotalIssues = $criticalCount + $majorCount
+        FilesWithIssues = $filesWithIssues.Count
+        FilesBeingFixed = $filesBeingFixed.Count
+        RemainingIssues = $remainingIssues.Count
+    }
+}
+
 function Invoke-AutomationMonitoring {
     Write-Host "🔍 **AUTOMATION MONITORING DASHBOARD**" -ForegroundColor Cyan
     Write-Host "=" * 60 -ForegroundColor Cyan
@@ -54,25 +119,26 @@ function Invoke-AutomationMonitoring {
         Write-Host "🌿 Working branch ${WorkingBranch}: Not created yet" -ForegroundColor Yellow
     }
     
-    # Quick validation status
-    Write-Host "🔍 Running quick validation check..." -ForegroundColor Cyan
-    $quickValidation = wsl ./scripts/pre-commit-validation.sh --all 2>&1
-    $criticalCount = ($quickValidation | Select-String -Pattern "\[CRITICAL\]" | Measure-Object).Count
-    $majorCount = ($quickValidation | Select-String -Pattern "\[MAJOR\]" | Measure-Object).Count
-    
-    Write-Host "📊 Current validation status:" -ForegroundColor Yellow
-    Write-Host "  🔴 Critical issues: $criticalCount" -ForegroundColor Red
-    Write-Host "  🟡 Major issues: $majorCount" -ForegroundColor Yellow
+    # Smart validation status
+    $validationStatus = Get-SmartValidationStatus
     
     Write-Host "`n💡 **RECOMMENDED ACTIONS**" -ForegroundColor Green
     if ($openIssues.Count -gt 0) {
         Write-Host "  ⏳ Wait for Copilot to complete open issues" -ForegroundColor Yellow
+        Write-Host "  📊 Monitor PR progress with: .\automation\Monitor-CopilotPRs.ps1" -ForegroundColor Cyan
     }
     if ($criticalCount -gt 0 -or $majorCount -gt 0) {
-        Write-Host "  🚀 Run: ./automation/Create-RUTOS-PRs.ps1 -MaxIssues 5" -ForegroundColor Green
+        if ($openIssues.Count -eq 0) {
+            Write-Host "  🚀 Create new issues: ./automation/Create-RUTOS-PRs.ps1 -MaxIssues 5" -ForegroundColor Green
+        } else {
+            Write-Host "  🔄 Check if PRs fix these issues: .\automation\Monitor-CopilotPRs.ps1 -CheckValidation" -ForegroundColor Blue
+        }
     }
     if ($branchCommits -gt 0 -and $existingPRs.Count -eq 0) {
         Write-Host "  🔄 Consider creating PR from ${WorkingBranch}" -ForegroundColor Blue
+    }
+    if ($existingPRs.Count -gt 0) {
+        Write-Host "  📋 Check PR validation status: .\automation\Monitor-CopilotPRs.ps1 -CheckValidation" -ForegroundColor Magenta
     }
     
     Write-Host "`n" + ("=" * 60) -ForegroundColor Cyan
