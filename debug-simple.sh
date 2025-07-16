@@ -5,7 +5,7 @@
 mkdir -p /tmp/debug-test
 cd /tmp/debug-test
 
-cat > test-config.sh << 'EOF'
+cat >test-config.sh <<'EOF'
 #!/bin/sh
 # Test configuration
 export STARLINK_GRPC_HOST="192.168.1.100"

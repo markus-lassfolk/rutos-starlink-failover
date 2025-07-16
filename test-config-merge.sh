@@ -5,7 +5,7 @@
 mkdir -p /tmp/config-test
 
 # Create a "current" template (simulating new version)
-cat > /tmp/config-test/config.template.sh << 'EOF'
+cat >/tmp/config-test/config.template.sh <<'EOF'
 #!/bin/sh
 # Configuration Template - Version 2.0
 
@@ -26,7 +26,7 @@ export CUSTOM_ALERTS="false"
 EOF
 
 # Create an "existing" config (simulating user's current config)
-cat > /tmp/config-test/config.sh << 'EOF'
+cat >/tmp/config-test/config.sh <<'EOF'
 #!/bin/sh
 # User's existing configuration
 
@@ -55,9 +55,9 @@ echo ""
 
 echo "=== RUNNING MERGE ==="
 DEBUG=1 ./scripts/merge-config.sh \
-    /tmp/config-test/config.template.sh \
-    /tmp/config-test/config.sh \
-    /tmp/config-test/config.sh
+	/tmp/config-test/config.template.sh \
+	/tmp/config-test/config.sh \
+	/tmp/config-test/config.sh
 
 echo ""
 echo "=== AFTER MERGE ==="

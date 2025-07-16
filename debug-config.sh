@@ -8,8 +8,8 @@ echo "File: $CONFIG_FILE"
 echo
 
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo "Config file not found: $CONFIG_FILE"
-    exit 1
+	echo "Config file not found: $CONFIG_FILE"
+	exit 1
 fi
 
 echo "=== EXPORT VARIABLES ==="
@@ -30,39 +30,39 @@ echo "Total: $((export_count + nonexport_count))"
 echo
 echo "=== CRITICAL VARIABLES CHECK ==="
 for var in STARLINK_IP MWAN_IFACE MWAN_MEMBER CHECK_INTERVAL; do
-    # Try both formats
-    value=$(grep "^export $var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-    if [ -z "$value" ]; then
-        value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-    fi
-    
-    if [ -n "$value" ]; then
-        echo "✓ $var = '$value'"
-    else
-        echo "✗ $var = NOT FOUND"
-    fi
+	# Try both formats
+	value=$(grep "^export $var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+	if [ -z "$value" ]; then
+		value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+	fi
+
+	if [ -n "$value" ]; then
+		echo "✓ $var = '$value'"
+	else
+		echo "✗ $var = NOT FOUND"
+	fi
 done
 
 echo
 echo "=== TEMPLATE COMPARISON ==="
 template_file="/root/starlink-monitor/config/config.template.sh"
 if [ -f "$template_file" ]; then
-    echo "Template file exists: $template_file"
-    template_vars=$(grep -E '^export [A-Z_]+=.*' "$template_file" | sed 's/^export //' | cut -d'=' -f1 | sort)
-    config_vars=$(grep -E '^[A-Z_]+=.*' "$CONFIG_FILE" | cut -d'=' -f1 | sort)
-    
-    echo "Template variables:"
-    echo "$template_vars"
-    echo
-    echo "Config variables:"
-    echo "$config_vars"
-    echo
-    echo "Missing from config:"
-    echo "$template_vars" | while read -r var; do
-        if ! echo "$config_vars" | grep -q "^$var$"; then
-            echo "  - $var"
-        fi
-    done
+	echo "Template file exists: $template_file"
+	template_vars=$(grep -E '^export [A-Z_]+=.*' "$template_file" | sed 's/^export //' | cut -d'=' -f1 | sort)
+	config_vars=$(grep -E '^[A-Z_]+=.*' "$CONFIG_FILE" | cut -d'=' -f1 | sort)
+
+	echo "Template variables:"
+	echo "$template_vars"
+	echo
+	echo "Config variables:"
+	echo "$config_vars"
+	echo
+	echo "Missing from config:"
+	echo "$template_vars" | while read -r var; do
+		if ! echo "$config_vars" | grep -q "^$var$"; then
+			echo "  - $var"
+		fi
+	done
 else
-    echo "Template file not found: $template_file"
+	echo "Template file not found: $template_file"
 fi
