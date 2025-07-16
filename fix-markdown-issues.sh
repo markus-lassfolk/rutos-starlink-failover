@@ -7,6 +7,7 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	GREEN='\033[0;32m'
 	YELLOW='\033[1;33m'
 	BLUE='\033[1;34m'
+	# shellcheck disable=SC2034
 	CYAN='\033[0;36m'
 	NC='\033[0m' # No Color
 else
@@ -14,6 +15,7 @@ else
 	GREEN=""
 	YELLOW=""
 	BLUE=""
+	# shellcheck disable=SC2034
 	CYAN=""
 	NC=""
 fi
@@ -45,7 +47,7 @@ fix_md040() {
 	# For now, we'll focus on the most common cases
 
 	# First, let's identify directory structure blocks
-	sed 's/^```$/```text/' "$file" >"$temp_file"
+	sed "s/^\`\`\`$/\`\`\`text/" "$file" >"$temp_file"
 
 	# Check if any changes were made
 	if ! diff -q "$file" "$temp_file" >/dev/null; then

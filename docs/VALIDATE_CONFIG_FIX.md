@@ -9,7 +9,7 @@
 
 ## Root Cause Analysis
 
-### Primary Issues Found:
+### Primary Issues Found
 
 1. **Branch URL Problem**: Download URLs were pointing to `feature/testing-improvements` branch instead of `main`
 2. **Shell Compatibility**: `validate-config.sh` was using bash-specific features incompatible with RUTOS
@@ -22,10 +22,10 @@
 **Problem**: All GitHub raw URLs were pointing to testing branch **Solution**: Updated all URLs to use `main` branch
 
 ```bash
-# Before (broken):
+# Before (broken)
 https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/validate-config.sh
 
-# After (working):
+# After (working)
 https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/validate-config.sh
 ```
 
@@ -35,11 +35,11 @@ https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/s
 busybox/RUTOS shell
 
 ```bash
-# Before (bash-specific):
+# Before (bash-specific)
 #!/bin/bash
 set -euo pipefail
 
-# After (POSIX-compatible):
+# After (POSIX-compatible)
 #!/bin/sh
 set -eu
 ```
@@ -58,7 +58,7 @@ scripts:
 **Problem**: Poor debugging capabilities when downloads fail **Solution**: Added DEBUG mode and better error handling
 
 ```bash
-# Usage:
+# Usage
 DEBUG=1 curl -fL <install_url> | sh
 ```
 
@@ -92,7 +92,7 @@ DEBUG=1 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlin
 
 ```bash
 ls -la /root/starlink-monitor/scripts/
-# Should show:
+# Should show
 # - validate-config.sh
 # - upgrade-to-advanced.sh
 # - uci-optimizer.sh
@@ -143,7 +143,7 @@ ls -la /root/starlink-monitor/scripts/
 
 ## User Experience Improvements
 
-### Installation Now Includes:
+### Installation Now Includes
 
 1. All essential scripts automatically downloaded
 2. Better error messages with manual download URLs
@@ -151,7 +151,7 @@ ls -la /root/starlink-monitor/scripts/
 4. Utility scripts for system optimization
 5. Self-update capability
 
-### Next Steps After Installation:
+### Next Steps After Installation
 
 1. Edit configuration: `vi /root/starlink-monitor/config/config.sh`
 2. Validate: `/root/starlink-monitor/scripts/validate-config.sh`

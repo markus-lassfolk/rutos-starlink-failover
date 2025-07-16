@@ -47,7 +47,7 @@ nano /root/starlink-monitor/config/config.sh
 /root/starlink-monitor/scripts/validate-config.sh
 
 # Configure mwan3 (see documentation)
-```
+```text
 
 ### Option 2: Manual Installation
 
@@ -119,7 +119,7 @@ PUSHOVER_USER="your_pushover_user_key"
 PACKET_LOSS_THRESHOLD=0.05    # 5%
 OBSTRUCTION_THRESHOLD=0.001   # 0.1%
 LATENCY_THRESHOLD_MS=150      # 150ms
-```
+```text
 
 ### 1.1 Advanced Configuration (RUTX50 Production)
 
@@ -133,7 +133,7 @@ nano config/config.sh
 # Run UCI optimizer for your existing setup
 scripts/uci-optimizer.sh analyze           # Analyze current config
 scripts/uci-optimizer.sh optimize          # Apply optimizations
-```
+```text
 
 **Advanced features include:**
 
@@ -164,7 +164,7 @@ uci set mwan3.wan.up='3'
 # Commit changes
 uci commit mwan3
 mwan3 restart
-```
+```text
 
 ### 3. Static Route for Starlink
 
@@ -176,7 +176,7 @@ uci set network.@route[-1].target='192.168.100.1'
 uci set network.@route[-1].netmask='255.255.255.255'
 uci commit network
 /etc/init.d/network reload
-```
+```text
 
 ## 🚨 Starlink API Change Response
 
@@ -227,7 +227,7 @@ cat /tmp/run/starlink_monitor.health
 
 # Check recent notifications
 tail -f /var/log/notifications.log
-```
+```text
 
 ### Test Notifications
 
@@ -237,7 +237,7 @@ tail -f /var/log/notifications.log
 
 # Test Starlink API
 grpcurl -plaintext -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle
-```
+```text
 
 ### Performance Analysis
 
@@ -247,7 +247,7 @@ cat /root/starlink_performance_log.csv
 
 # Generate API documentation
 /root/starlink-monitor/scripts/generate_api_docs.sh
-```
+```text
 
 ## 🔒 Security Considerations
 
@@ -261,7 +261,7 @@ cat /root/starlink_performance_log.csv
 
 ### Project Structure
 
-```
+```text
 ├── .github/workflows/          # CI/CD workflows
 ├── config/                     # Configuration templates
 │   ├── config.template.sh      # Basic configuration template
@@ -278,7 +278,7 @@ cat /root/starlink_performance_log.csv
     ├── starlink_monitor.sh     # Main monitoring script
     ├── 99-pushover_notify      # Notification system
     └── AzureLogging/           # Azure integration
-```
+```text
 
 ### Key Scripts
 

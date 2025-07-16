@@ -53,14 +53,14 @@ and optimize failover thresholds by analyzing the data collected in Azure Storag
 ```bash
 chmod +x setup-analysis-environment.sh
 ./setup-analysis-environment.sh
-```
+```text
 
 **Windows PowerShell:**
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 .\setup-analysis-environment.ps1
-```
+```text
 
 ### 2. Basic Analysis
 
@@ -76,7 +76,7 @@ python analyze-network-performance.py --storage-account mystorageaccount --days 
 
 # Run analysis with visualizations
 python analyze-network-performance.py --storage-account mystorageaccount --days 30 --visualizations
-```
+```text
 
 ## Command Line Options
 
@@ -93,7 +93,7 @@ python analyze-network-performance.py --storage-account mystorageaccount --days 
 
 The tool displays a real-time summary:
 
-```
+```text
 ============================================================
 NETWORK ANALYSIS SUMMARY
 ============================================================
@@ -113,7 +113,7 @@ Threshold Recommendations:
   Latency Warning: 180 ms
   Packet Loss Warning: 2.1%
   Min Throughput: 25.4 Mbps
-```
+```text
 
 ### 2. Detailed JSON Report
 
@@ -152,7 +152,7 @@ The tool generates `network_analysis_report.json` with comprehensive data:
     }
   }
 }
-```
+```text
 
 ### 3. Visualizations (with --visualizations flag)
 
@@ -272,7 +272,7 @@ MIN_THROUGHPUT=40Mbps
 LATENCY_THRESHOLD=150ms
 PACKET_LOSS_THRESHOLD=3%
 MIN_THROUGHPUT=30Mbps
-```
+```text
 
 ## Automation and Scheduling
 
@@ -290,7 +290,7 @@ python analyze-network-performance.py \
   --days 7 \
   --visualizations \
   --output-dir "./weekly-reports/$(date +%Y-%m-%d)"
-```
+```text
 
 ### Azure Automation
 
@@ -312,7 +312,7 @@ az login
 az account show
 
 # Or configure managed identity in Azure environment
-```
+```text
 
 **Missing Data:**
 
@@ -341,7 +341,7 @@ az storage blob list --container-name starlink-performance --account-name mystor
 
 # Verify recent data
 az storage blob download --container-name system-logs --name router-2025-07-14.log --account-name mystorageaccount
-```
+```text
 
 ## Advanced Usage
 
@@ -358,7 +358,7 @@ analyzer.download_data(days_back=7)
 
 # Custom analysis
 custom_results = analyzer.custom_analysis_function()
-```
+```text
 
 ### Integration with Monitoring Systems
 

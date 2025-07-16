@@ -85,7 +85,7 @@ The included Python analysis tool provides comprehensive insights:
 
 # Run analysis for last 30 days with visualizations
 python analyze-network-performance.py --storage-account mystorageaccount --days 30 --visualizations
-```
+```text
 
 **What it analyzes:**
 
@@ -166,7 +166,7 @@ ssh root@YOUR_ROUTER_IP
 cd /tmp
 chmod +x unified-azure-setup.sh
 ./unified-azure-setup.sh
-```
+```text
 
 This will automatically:
 
@@ -328,9 +328,9 @@ Open the crontab editor on the router: `crontab -e`
 
 Add the following line to run the script every 5 minutes:
 
-```
+```text
 */5 * * * * /overlay/log-shipper.sh
-```
+```text
 
 Save and exit the editor. The cron service will automatically pick up the change.
 
@@ -410,7 +410,7 @@ Use the provided test script to validate your deployment:
 ```bash
 # Run the integration test
 ./test-azure-logging.sh "https://your-app.azurewebsites.net/api/HttpLogIngestor?code=..."
-```
+```text
 
 ### Manual Verification
 

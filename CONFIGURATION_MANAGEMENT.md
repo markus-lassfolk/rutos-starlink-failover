@@ -75,7 +75,7 @@ Available tools:
 
 # Use custom template
 ./scripts/update-config.sh --template /path/to/custom.template.sh
-```
+```text
 
 ### 3. **upgrade-to-advanced.sh** - Feature Upgrade Tool
 
@@ -97,7 +97,7 @@ Available tools:
 
 # Check what will be migrated
 ./scripts/upgrade-to-advanced.sh --dry-run
-```
+```text
 
 ### 4. **install.sh** - Safe Installation Script
 
@@ -117,7 +117,7 @@ Available tools:
 if [ ! -f "$INSTALL_DIR/config/config.sh" ]; then
     cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
 fi
-```
+```text
 
 ## 🛡️ Configuration Safety
 
@@ -154,7 +154,7 @@ fi
 
 # Upgrade to advanced features
 ./scripts/upgrade-to-advanced.sh
-```
+```text
 
 ### Installation/Re-installation
 
@@ -165,7 +165,7 @@ curl -fL https://raw.githubusercontent.com/.../install.sh | sh
 # Your config.sh is automatically preserved
 # Templates are updated with new options
 # All management tools are installed
-```
+```text
 
 ### Configuration Updates
 
@@ -176,7 +176,7 @@ curl -fL https://raw.githubusercontent.com/.../install.sh | sh
 
 # Validation after updates
 ./scripts/validate-config.sh
-```
+```text
 
 ## 🔍 Validation Capabilities
 

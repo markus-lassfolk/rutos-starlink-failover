@@ -21,7 +21,7 @@ configuration while preserving all your existing settings.
 ```bash
 # Run the upgrade script
 /root/starlink-monitor/scripts/upgrade-to-advanced.sh
-```
+```text
 
 ### What It Does
 
@@ -60,7 +60,7 @@ After upgrading, you'll have access to:
 
 ## Example Output
 
-```
+```text
 === Upgrade to Advanced Configuration ===
 
 ℹ Creating backup of current configuration...
@@ -79,7 +79,7 @@ After upgrading, you'll have access to:
    (detailed feature list displayed)
 
 🎉 Upgrade Complete!
-```
+```text
 
 ## Post-Upgrade Steps
 
@@ -98,7 +98,7 @@ ls -la /root/starlink-monitor/config/config.sh.backup.*
 
 # Restore from backup
 cp /root/starlink-monitor/config/config.sh.backup.YYYYMMDD_HHMMSS /root/starlink-monitor/config/config.sh
-```
+```text
 
 ## Troubleshooting
 
@@ -109,7 +109,7 @@ cp /root/starlink-monitor/config/config.sh.backup.YYYYMMDD_HHMMSS /root/starlink
 wget -O /root/starlink-monitor/scripts/upgrade-to-advanced.sh \
   https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/upgrade-to-advanced.sh
 chmod +x /root/starlink-monitor/scripts/upgrade-to-advanced.sh
-```
+```text
 
 ### Advanced template not found
 
@@ -121,7 +121,7 @@ Make sure the script is executable:
 
 ```bash
 chmod +x /root/starlink-monitor/scripts/upgrade-to-advanced.sh
-```
+```text
 
 ## Benefits
 

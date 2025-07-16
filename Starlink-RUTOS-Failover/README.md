@@ -120,7 +120,7 @@ Starlink, then the primary SIM, and finally the roaming SIM.
 uci set mwan3.member1.metric='1'
 uci set mwan3.member3.metric='2'
 uci set mwan3.member4.metric='4'
-```
+```text
 
 Configure tracking for interfaces similarly, commit and restart the service afterward.
 
@@ -141,7 +141,7 @@ uci set mwan3.@condition[1].count='1'
 uci set mwan3.@condition[1].down='2' # Mark as down after 2 failed ping cycles
 uci set mwan3.@condition[1].up='3'   # Mark as up after 3 successful ping cycles
 uci set mwan3.wan.recovery_wait='10' # Wait 10s after recovery before use
-```
+```text
 
 ### 3. Configure Mobile Interface Health Checks (Crucial)
 
@@ -171,7 +171,7 @@ uci set mwan3.@condition[-1].timeout='3'
 uci set mwan3.@condition[-1].interval='10' # Check less frequently
 uci set mwan3.@condition[-1].down='3'
 uci set mwan3.@condition[-1].up='3'
-```
+```text
 
 ### 4. Commit and Restart
 
@@ -179,7 +179,7 @@ uci set mwan3.@condition[-1].up='3'
 # Apply all mwan3 changes and restart the service
 uci commit mwan3
 mwan3 restart
-```
+```text
 
 ### 5. Static Route for Starlink
 
@@ -193,7 +193,7 @@ uci set network.@route[-1].interface='wan'
 uci set network.@route[-1].target='192.168.100.0/24'
 uci commit network
 /etc/init.d/network restart
-```
+```text
 
 ### 6. SSH & WebUI Timeouts (Optional)
 
@@ -210,7 +210,7 @@ uci commit dropbear
 uci set uhttpd.main.session_timeout='31536000'
 uci commit uhttpd
 /etc/init.d/uhttpd restart
-```
+```text
 
 ### 7. Script Configuration (Important)
 
@@ -244,7 +244,7 @@ chmod +x /etc/hotplug.d/iface/99-pushover_notify
 chmod +x /root/starlink_logger.sh
 chmod +x /root/check_starlink_api.sh
 chmod +x /root/generate_api_docs.sh
-```
+```text
 
 4. Apply UCI Changes: Run the commands in the Configuration section above to set up mwan3 and the necessary static
    route.
@@ -278,6 +278,6 @@ After setup, it's important to verify that the system is working as expected.
 
 ```sh
 ACTION=ifdown INTERFACE=wan /etc/hotplug.d/iface/99-pushover_notify
-```
+```text
 
 This should trigger the "Starlink Offline (Hard)" notification.

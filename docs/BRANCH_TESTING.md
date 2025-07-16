@@ -14,7 +14,7 @@ The install script now supports dynamic branch configuration via environment var
 ```bash
 # Standard installation - downloads from main branch
 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install.sh | sh
-```
+```text
 
 ### For Development Branch Testing
 
@@ -23,7 +23,7 @@ curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failov
 GITHUB_BRANCH="feature/testing-improvements" \
 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
 sh -s --
-```
+```text
 
 Or with DEBUG mode:
 
@@ -32,7 +32,7 @@ Or with DEBUG mode:
 DEBUG=1 GITHUB_BRANCH="feature/testing-improvements" \
 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/feature/testing-improvements/scripts/install.sh | \
 sh -s --
-```
+```text
 
 ## How It Works
 
@@ -54,13 +54,13 @@ BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 download_file "$BASE_URL/scripts/validate-config.sh" "$INSTALL_DIR/scripts/validate-config.sh"
 download_file "$BASE_URL/scripts/update-config.sh" "$INSTALL_DIR/scripts/update-config.sh"
 download_file "$BASE_URL/config/config.template.sh" "$INSTALL_DIR/config/config.template.sh"
-```
+```text
 
 ## Verification
 
 After installation, the script shows which branch was used:
 
-```
+```text
 Installation directory: /root/starlink-monitor
 Configuration file: /root/starlink-monitor/config/config.sh
 Uninstall script: /root/starlink-monitor/uninstall.sh
@@ -68,7 +68,7 @@ Scripts downloaded from: https://raw.githubusercontent.com/markus-lassfolk/rutos
 
 ⚠ Development Mode: Using branch 'feature/testing-improvements'
   This is a testing/development installation
-```
+```text
 
 ## Testing Workflow
 

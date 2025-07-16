@@ -45,7 +45,7 @@ rutos-starlink-failover/
 ├── TESTING.md        # Testing documentation
 ├── README.md         # Main documentation
 └── ...other essential files
-```
+```text
 
 ## Benefits
 

@@ -20,7 +20,7 @@ We've implemented a multi-language code quality system that validates:
 ```bash
 # One-time setup - installs all code quality tools
 ./scripts/setup-code-quality-tools.sh
-```
+```text
 
 ### 2. Run Comprehensive Validation
 
@@ -30,7 +30,7 @@ We've implemented a multi-language code quality system that validates:
 
 # Or use the convenient alias (after setup)
 validate-code --all
-```
+```text
 
 ### 3. Language-Specific Validation
 
@@ -43,7 +43,7 @@ validate-code --all
 
 # Validate only Markdown files
 ./scripts/comprehensive-validation.sh --md-only
-```
+```text
 
 ## Tool Categories
 
@@ -125,7 +125,7 @@ Since flake8 doesn't support pyproject.toml yet:
 ./scripts/setup-code-quality-tools.sh --python
 ./scripts/setup-code-quality-tools.sh --nodejs
 ./scripts/setup-code-quality-tools.sh --system
-```
+```text
 
 ### Manual Installation Commands
 
@@ -152,7 +152,7 @@ pwsh -Command "Install-Module -Name PSScriptAnalyzer -Force"
 # Azure CLI and Bicep (optional)
 curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 az bicep install
-```
+```text
 
 #### macOS
 
@@ -172,7 +172,7 @@ brew install --cask powershell
 # Azure CLI and Bicep (optional)
 brew install azure-cli
 az bicep install
-```
+```text
 
 #### Windows (PowerShell)
 
@@ -187,7 +187,7 @@ choco install shellcheck jq nodejs python3 azure-cli
 pip install black flake8 pylint mypy isort bandit yamllint
 npm install -g markdownlint-cli prettier
 az bicep install
-```
+```text
 
 ## Usage Examples
 
@@ -204,7 +204,7 @@ az bicep install
 ./scripts/comprehensive-validation.sh --python-only
 ./scripts/comprehensive-validation.sh --shell-only
 ./scripts/comprehensive-validation.sh --md-only
-```
+```text
 
 ### Individual Tool Usage
 
@@ -229,7 +229,7 @@ prettier --check README.md
 jq empty config.json
 yamllint config.yaml
 prettier --check config.json
-```
+```text
 
 ### Auto-fixing Issues
 
@@ -246,7 +246,7 @@ prettier --write README.md
 
 # JSON/YAML auto-fixes
 prettier --write config.json
-```
+```text
 
 ## Integration with Development Workflow
 
@@ -258,7 +258,7 @@ prettier --write config.json
 
 # Or use comprehensive validation for all languages
 ./scripts/comprehensive-validation.sh --all
-```
+```text
 
 ### VS Code Integration
 
@@ -276,28 +276,28 @@ Install these extensions for real-time validation:
 # Install comprehensive validation as pre-commit hook
 cp scripts/comprehensive-validation.sh .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
-```
+```text
 
 ## Validation Output
 
 ### Success Output
 
-```
+```text
 [SUCCESS] [2025-07-15 14:30:45] ✅ analysis.py passed validation
 [SUCCESS] [2025-07-15 14:30:46] ✅ script.sh passed validation
 [SUCCESS] [2025-07-15 14:30:47] ✅ README.md passed validation
 [INFO] [2025-07-15 14:30:48] 🎉 All files passed comprehensive validation!
-```
+```text
 
 ### Failure Output
 
-```
+```text
 [ERROR] [2025-07-15 14:30:45] Black formatting issues in analysis.py
 [INFO] [2025-07-15 14:30:45] Run 'black analysis.py' to fix formatting
 [ERROR] [2025-07-15 14:30:46] ShellCheck failed for script.sh
 [ERROR] [2025-07-15 14:30:47] markdownlint issues in README.md
 [ERROR] [2025-07-15 14:30:48] ❌ 3 validation issues found across 3 files
-```
+```text
 
 ## Tool Availability Check
 
@@ -307,7 +307,7 @@ The validation script automatically checks which tools are available:
 # Check what tools are installed
 ./scripts/comprehensive-validation.sh --install-deps
 ./scripts/setup-code-quality-tools.sh --verify
-```
+```text
 
 ## Best Practices
 
@@ -349,7 +349,7 @@ The validation script automatically checks which tools are available:
 
 # Install missing tools
 ./scripts/setup-code-quality-tools.sh --python
-```
+```text
 
 #### Path Issues
 
@@ -357,21 +357,21 @@ The validation script automatically checks which tools are available:
 # Add user bin to PATH
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
-```
+```text
 
 #### Permission Issues
 
 ```bash
 # Install tools with --user flag
 pip3 install --user black flake8 pylint mypy isort bandit yamllint
-```
+```text
 
 ### Debug Mode
 
 ```bash
 # Run with debug output
 DEBUG=1 ./scripts/comprehensive-validation.sh --all
-```
+```text
 
 ## Integration with CI/CD
 
@@ -393,7 +393,7 @@ jobs:
 
       - name: Run Comprehensive Validation
         run: ./scripts/comprehensive-validation.sh --all
-```
+```text
 
 ### Pre-commit Configuration
 
@@ -408,7 +408,7 @@ repos:
         language: script
         pass_filenames: false
         always_run: true
-```
+```text
 
 ## Performance Considerations
 
@@ -420,7 +420,7 @@ git diff --name-only | xargs ./scripts/comprehensive-validation.sh
 
 # Validate by file type
 ./scripts/comprehensive-validation.sh --python-only
-```
+```text
 
 ### Parallel Processing
 

@@ -29,7 +29,7 @@ AZURE_ENDPOINT="https://your-app.azurewebsites.net/api/HttpLogIngestor?code=..."
 RUTOS_USERNAME="admin" \
 RUTOS_PASSWORD="your-password" \
 /root/unified-azure-setup.sh --batch
-```
+```text
 
 ### 2. What the Installation Script Does
 
@@ -71,7 +71,7 @@ uci set azure.gps.rutos_password='your-password'
 uci set azure.gps.accuracy_threshold='100'
 
 uci commit azure
-```
+```text
 
 ## Verification
 
@@ -85,7 +85,7 @@ uci commit azure
 /root/verify-azure-setup.sh --category dependencies
 /root/verify-azure-setup.sh --category logging
 /root/verify-azure-setup.sh --category gps
-```
+```text
 
 ### 2. Verification Categories
 
@@ -118,7 +118,7 @@ Test individual components:
 
 # Check cron jobs
 crontab -l | grep -E "(log-shipper|starlink-azure-monitor)"
-```
+```text
 
 ## Configuration Management
 
@@ -132,7 +132,7 @@ uci show azure
 uci show azure.system
 uci show azure.starlink
 uci show azure.gps
-```
+```text
 
 ### Modifying Configuration
 
@@ -149,7 +149,7 @@ uci commit azure
 uci set azure.gps.rutos_username='newuser'
 uci set azure.gps.rutos_password='newpass'
 uci commit azure
-```
+```text
 
 ## Troubleshooting
 
@@ -199,7 +199,7 @@ Check these locations for troubleshooting:
 
 ## File Structure
 
-```
+```text
 /root/
 ├── unified-azure-setup.sh          # Main installation script
 ├── verify-azure-setup.sh           # Comprehensive verification script
@@ -210,7 +210,7 @@ Check these locations for troubleshooting:
 /overlay/
 ├── starlink_performance.csv        # Starlink performance data
 └── azure-setup-backup-*/           # Configuration backups
-```
+```text
 
 ## Maintenance
 

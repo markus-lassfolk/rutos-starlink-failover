@@ -45,7 +45,7 @@ RUTOS_IP="192.168.80.1"                    # RUTOS device IP (standard)
 RUTOS_USERNAME="your_username"             # RUTOS login credentials
 RUTOS_PASSWORD="your_password"
 GPS_ACCURACY_THRESHOLD=100                 # Accuracy threshold in meters
-```
+```text
 
 ### Quality Thresholds
 
@@ -135,7 +135,7 @@ The system uses GPS quality checks for reliable positioning:
 LATENCY_THRESHOLD_MOBILE=100ms
 PACKET_LOSS_THRESHOLD_MOBILE=2%
 SPEED_THRESHOLD_FOR_MOBILE=5kmh  # Switch to mobile mode above this speed
-```
+```text
 
 ### For Fixed Installation with Movement Capability
 
@@ -144,7 +144,7 @@ SPEED_THRESHOLD_FOR_MOBILE=5kmh  # Switch to mobile mode above this speed
 LATENCY_THRESHOLD_STATIONARY=200ms
 LATENCY_THRESHOLD_MOBILE=120ms
 MOBILITY_DETECTION_ENABLED=true
-```
+```text
 
 ### For Site Survey/Analysis
 
@@ -153,7 +153,7 @@ MOBILITY_DETECTION_ENABLED=true
 GPS_COLLECTION_INTERVAL=30s  # More frequent for detailed mapping
 DETAILED_LOCATION_LOGGING=true
 MOVEMENT_TRACKING_ENABLED=true
-```
+```text
 
 ## Analysis Insights
 
@@ -223,7 +223,7 @@ MOVEMENT_TRACKING_ENABLED=true
 
 ```bash
 pip install pandas matplotlib seaborn folium  # Add folium for mapping
-```
+```text
 
 ## Troubleshooting GPS Issues
 

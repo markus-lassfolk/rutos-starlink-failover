@@ -50,7 +50,7 @@ function_name() {
     # Use explicit closing brace
     # ... function body ...
 }  # Always close functions properly
-```
+```text
 
 ### Variable Handling
 
@@ -63,7 +63,7 @@ fi
 
 # For configuration variables, always provide defaults
 CONFIG_VALUE="${CONFIG_VALUE:-default_value}"
-```
+```text
 
 ## Project Structure Awareness
 
@@ -141,7 +141,7 @@ log_error()   # Red [ERROR] for errors (to stderr)
 log_debug()   # Cyan [DEBUG] for debug info (if DEBUG=1)
 log_success() # Green [SUCCESS] for successful completion
 log_step()    # Blue [STEP] for progress steps
-```
+```text
 
 ### CRITICAL Printf Format Rules
 
@@ -161,7 +161,7 @@ printf "${GREEN}✅ HEALTHY${NC}   | %-25s | %s\n" "$component" "$details"
 
 # RIGHT - Colors as separate arguments
 printf "%s✅ HEALTHY%s   | %-25s | %s\n" "$GREEN" "$NC" "$component" "$details"
-```
+```text
 
 ### CRITICAL Color Detection Rules
 
@@ -306,7 +306,7 @@ main() {
 
 # Execute main function
 main "$@"
-```
+```text
 
 ## Configuration Management Guidelines
 
@@ -328,7 +328,7 @@ ENABLE_FEATURE="${ENABLE_FEATURE:-true}"  # Enable/disable feature (true/false)
 
 # For numeric values with validation
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-30}"  # Timeout in seconds (1-300)
-```
+```text
 
 ## Error Handling and Debugging
 
@@ -392,7 +392,7 @@ download_with_retry() {
     log_error "All download attempts failed"
     return 1
 }
-```
+```text
 
 ### Debug Mode Implementation
 
@@ -416,7 +416,7 @@ if [ "$DEBUG" = "1" ]; then
         log_debug "  $line"
     done
 fi
-```
+```text
 
 ## Testing and Validation
 
@@ -456,7 +456,7 @@ wsl
 
 # Make scripts executable in WSL/Git Bash (not needed in PowerShell)
 chmod +x scripts/*.sh
-```
+```text
 
 ### Why Use WSL/Git Bash for Shell Development?
 
@@ -495,7 +495,7 @@ DEBUG=1 ./scripts/pre-commit-validation.sh
 # - Code formatting with shfmt
 # - Critical whitespace issues
 # - Template cleanliness
-```
+```text
 
 #### ShellCheck Integration
 
@@ -514,7 +514,7 @@ sudo apt-get install shfmt
 
 # The pre-commit validation script handles all checks automatically
 # Manual checks are no longer needed if using the validation system
-```
+```text
 
 #### Pre-Commit Quality Checklist
 
@@ -543,7 +543,7 @@ wsl
 # - Detailed issue reporting with line numbers
 # - Comprehensive summary with pass/fail statistics
 # - Debug mode for troubleshooting validation issues
-```
+```text
 
 #### Manual Quality Checks (if automated script fails)
 
@@ -553,7 +553,7 @@ shellcheck scripts/*.sh Starlink-RUTOS-Failover/*.sh
 grep -r "\[\[" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 grep -r "local " scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 grep -r "echo -e" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
-```
+```text
 
 #### VS Code Extensions for Quality
 
@@ -595,7 +595,7 @@ grep -r "echo -e" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 
 # Step 4: Commit when all checks pass
 git commit -m "Description of changes"
-```
+```text
 
 ### Development Environment Setup
 
@@ -610,7 +610,7 @@ choco install shellcheck
 # Set up pre-commit hooks (optional)
 cp scripts/pre-commit-validation.sh .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
-```
+```text
 
 ## Azure Integration Considerations
 
@@ -639,18 +639,18 @@ chmod +x .git/hooks/pre-commit
 
 ### Directory Structure
 
-```
+```text
 scripts/           # All utility scripts
 config/           # Configuration templates
 Starlink-RUTOS-Failover/  # Main monitoring scripts
 AzureLogging/     # Azure integration components
 tests/            # Test scripts and validation tools
 docs/             # Documentation
-```
+```text
 
 ### Test Directory Organization
 
-```
+```text
 tests/
 ├── README.md                      # Test documentation
 ├── test-suite.sh                  # Main test runner
@@ -664,7 +664,7 @@ tests/
 ├── rutos-compatibility-test.sh    # RUTOS compatibility testing
 ├── verify-deployment.sh           # Deployment verification
 └── verify-deployment-script.sh    # Alternative deployment verification
-```
+```text
 
 ## Common Pitfalls to Avoid
 
@@ -702,18 +702,18 @@ DEBUG=1 ./scripts/pre-commit-validation.sh
 # - Code formatting validation
 # - Version consistency checks
 # - Template validation
-```
+```text
 
 ### Commit Message Format
 
-```
+```text
 Brief description of change
 
 - Bullet point of specific change
 - Another specific change
 - Reference to issue/feature if applicable
 - Quality: All ShellCheck issues resolved
-```
+```text
 
 ### GitHub Actions/Workflows
 

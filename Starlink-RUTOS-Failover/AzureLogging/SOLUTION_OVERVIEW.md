@@ -77,7 +77,7 @@ enterprise-grade cloud logging capabilities.
 
 ```bash
 ./unified-azure-setup.sh
-```
+```text
 
 - Interactive configuration
 - Handles both system logs and optional Starlink monitoring
@@ -89,7 +89,7 @@ enterprise-grade cloud logging capabilities.
 ```bash
 ./setup-persistent-logging.sh
 ./complete-setup.sh
-```
+```text
 
 - Basic system logging without Starlink data
 - Smaller resource footprint
@@ -103,7 +103,7 @@ enterprise-grade cloud logging capabilities.
 
 ## File Organization
 
-```
+```text
 AzureLogging/
 ├── README.md                     # Complete setup documentation
 ├── SOLUTION_OVERVIEW.md          # This file
@@ -117,7 +117,7 @@ AzureLogging/
 ├── log-shipper.sh              # System log transmission
 ├── setup-persistent-logging.sh  # RUTOS logging configuration
 └── complete-setup.sh           # System log setup only
-```
+```text
 
 ## Integration with Existing Systems
 

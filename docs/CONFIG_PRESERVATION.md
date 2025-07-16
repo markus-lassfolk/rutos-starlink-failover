@@ -22,7 +22,7 @@ if [ ! -f "$INSTALL_DIR/config/config.sh" ]; then
     print_status "$YELLOW" "Configuration file created from template"
     print_status "$YELLOW" "Please edit $INSTALL_DIR/config/config.sh before using"
 fi
-```
+```text
 
 ### What This Means
 
@@ -76,14 +76,14 @@ If you want to see new configuration options after re-running install:
 ```bash
 # Compare your config with new template
 diff /root/starlink-monitor/config/config.sh /root/starlink-monitor/config/config.template.sh
-```
+```text
 
 ### Option 2: Use Upgrade Script
 
 ```bash
 # Upgrade to advanced template (preserves all settings)
 /root/starlink-monitor/scripts/upgrade-to-advanced.sh
-```
+```text
 
 ### Option 3: Manual Update
 
@@ -93,7 +93,7 @@ cat /root/starlink-monitor/config/config.template.sh
 
 # Edit your config to add new options
 vi /root/starlink-monitor/config/config.sh
-```
+```text
 
 ## Testing Commands
 
@@ -111,7 +111,7 @@ curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failov
 
 # Verify your changes are still there
 cat /root/starlink-monitor/config/config.sh
-```
+```text
 
 ## Best Practices
 

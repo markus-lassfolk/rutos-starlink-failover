@@ -24,7 +24,7 @@ The main health check script provides comprehensive system monitoring with multi
 
 # Debug mode for troubleshooting
 DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
-```
+```text
 
 ### Health Check Features
 
@@ -69,7 +69,7 @@ DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
 
 ```bash
 /root/starlink-monitor/scripts/health-check.sh
-```
+```text
 
 - Runs all health checks
 - Executes all integrated tests
@@ -80,7 +80,7 @@ DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
 
 ```bash
 /root/starlink-monitor/scripts/health-check.sh --quick
-```
+```text
 
 - Skips time-consuming integrated tests
 - Focuses on essential system checks
@@ -101,7 +101,7 @@ DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
 
 # Test only system resources
 /root/starlink-monitor/scripts/health-check.sh --resources
-```
+```text
 
 ## Health Status Indicators
 
@@ -123,7 +123,7 @@ The system provides an overall health score based on:
 
 ## Sample Health Check Output
 
-```
+```text
 === RUTOS STARLINK FAILOVER HEALTH CHECK ===
 Health Check Version: 1.0.2
 Timestamp: 2025-07-15 14:30:15
@@ -171,7 +171,7 @@ Timestamp: 2025-07-15 14:30:15
 ⚠️  Configure Pushover notifications for alerts
 ⚠️  Install grpcurl for enhanced Starlink API testing
 ℹ️  System is operating normally with minor configuration gaps
-```
+```text
 
 ## Log Freshness Monitoring
 
@@ -195,7 +195,7 @@ The health check system monitors log freshness to detect stale monitoring:
 ```bash
 # Set custom log freshness threshold (in minutes)
 LOG_FRESHNESS_THRESHOLD=45 /root/starlink-monitor/scripts/health-check.sh
-```
+```text
 
 ## System Resource Monitoring
 
@@ -205,7 +205,7 @@ LOG_FRESHNESS_THRESHOLD=45 /root/starlink-monitor/scripts/health-check.sh
 # Critical: < 1GB free space
 # Warning: < 2GB free space
 # Healthy: > 2GB free space
-```
+```text
 
 ### Memory Monitoring
 
@@ -213,7 +213,7 @@ LOG_FRESHNESS_THRESHOLD=45 /root/starlink-monitor/scripts/health-check.sh
 # Critical: > 90% memory usage
 # Warning: > 80% memory usage
 # Healthy: < 80% memory usage
-```
+```text
 
 ### CPU Load Monitoring
 
@@ -221,7 +221,7 @@ LOG_FRESHNESS_THRESHOLD=45 /root/starlink-monitor/scripts/health-check.sh
 # Critical: Load > 2.0
 # Warning: Load > 1.0
 # Healthy: Load < 1.0
-```
+```text
 
 ## Integration with Other Scripts
 
@@ -242,7 +242,7 @@ All integrated test scripts support `--quiet` mode for clean health check output
 # Scripts run in quiet mode during health checks
 /root/starlink-monitor/scripts/test-pushover.sh --quiet
 /root/starlink-monitor/scripts/system-status.sh --quiet
-```
+```text
 
 ## Automated Health Monitoring
 
@@ -256,7 +256,7 @@ Add health checks to crontab for automated monitoring:
 
 # Run comprehensive health check daily
 0 6 * * * /root/starlink-monitor/scripts/health-check.sh > /var/log/health-check-daily.log 2>&1
-```
+```text
 
 ### Health Check Notifications
 
@@ -265,7 +265,7 @@ Integrate with notification system for automated alerts:
 ```bash
 # Health check with notification on critical issues
 /root/starlink-monitor/scripts/health-check.sh && echo "Health check passed" || echo "Health check failed - investigate immediately"
-```
+```text
 
 ## Exit Codes
 
@@ -289,7 +289,7 @@ else
         3) echo "Health check failed to run - check configuration" ;;
     esac
 fi
-```
+```text
 
 ## Debug Mode
 
@@ -297,7 +297,7 @@ Enable debug mode for detailed troubleshooting:
 
 ```bash
 DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
-```
+```text
 
 ### Debug Output Includes
 
@@ -318,14 +318,14 @@ ls -la /root/starlink-monitor/scripts/health-check.sh
 
 # Re-run installation if missing
 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install.sh | sh
-```
+```text
 
 ### 2. Permission Errors
 
 ```bash
 # Fix script permissions
 chmod +x /root/starlink-monitor/scripts/health-check.sh
-```
+```text
 
 ### 3. Network Connectivity Issues
 
@@ -338,7 +338,7 @@ nslookup google.com
 
 # Test Starlink device
 ping -c 1 192.168.100.1
-```
+```text
 
 ### 4. Configuration Issues
 
@@ -348,7 +348,7 @@ ping -c 1 192.168.100.1
 
 # Check for placeholder values
 grep -r "YOUR_" /root/starlink-monitor/config/
-```
+```text
 
 ## Best Practices
 
@@ -386,21 +386,21 @@ define command{
     command_name    check_starlink_health
     command_line    /root/starlink-monitor/scripts/health-check.sh --quick
 }
-```
+```text
 
 ### Prometheus Integration
 
 ```bash
 # Export health metrics
 /root/starlink-monitor/scripts/health-check.sh --quick | grep "HEALTH SCORE" | awk '{print "starlink_health_score " $3}' | sed 's/%//' > /var/lib/prometheus/node-exporter/starlink_health.prom
-```
+```text
 
 ### Custom Monitoring Integration
 
 ```bash
 # JSON output for integration
 /root/starlink-monitor/scripts/health-check.sh --json > /tmp/health-status.json
-```
+```text
 
 ## Advanced Configuration
 
@@ -418,7 +418,7 @@ LOAD_CRITICAL=2.0            # Load average 2.0
 LOAD_WARNING=1.0             # Load average 1.0
 LOG_FRESHNESS_CRITICAL=60    # 60 minutes
 LOG_FRESHNESS_WARNING=30     # 30 minutes
-```
+```text
 
 ### Health Check Customization
 
@@ -436,7 +436,7 @@ check_custom_service() {
 
 # Run custom checks
 check_custom_service
-```
+```text
 
 ## Conclusion
 

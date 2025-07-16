@@ -98,11 +98,11 @@ testing **Status**: ✅ **RESOLVED** - Improved color readability and added comp
 /root/starlink-monitor/scripts/health-check.sh --monitoring
 /root/starlink-monitor/scripts/health-check.sh --config
 /root/starlink-monitor/scripts/health-check.sh --resources
-```
+```text
 
 **Health Check Output Example**:
 
-```
+```text
 STATUS          | COMPONENT                 | DETAILS
 =============== | ========================= | ================================
 ✅ HEALTHY      | Internet Connectivity     | Can reach 8.8.8.8
@@ -125,7 +125,7 @@ STATUS          | COMPONENT                 | DETAILS
 
 🎉 OVERALL STATUS: HEALTHY
 📈 HEALTH SCORE: 80%
-```
+```text
 
 **Graceful Degradation Components**:
 
@@ -221,7 +221,7 @@ STATUS          | COMPONENT                 | DETAILS
 
 # Debug mode for detailed troubleshooting
 DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
-```
+```text
 
 **Problem Resolution**:
 
@@ -288,7 +288,7 @@ DEBUG=1 /root/starlink-monitor/scripts/health-check.sh
 
 # Debug mode for troubleshooting
 DEBUG=1 /root/starlink-monitor/scripts/test-connectivity.sh
-```
+```text
 
 **Color Scheme Now**:
 
@@ -374,7 +374,7 @@ debug_exec() {
     fi
     "$@"
 }
-```
+```text
 
 **Additional Fixes**:
 
@@ -390,7 +390,7 @@ wsl ./test_debug_exec.sh
 # [2025-07-15 14:01:47] DEBUG EXEC: mkdir -p /tmp/test_dir
 # [2025-07-15 14:01:47] DEBUG EXEC: ls -la /tmp/test_dir
 # [2025-07-15 14:01:47] DEBUG EXEC: echo Hello from debug_exec!
-```
+```text
 
 **Quality Check**: install.sh now passes ShellCheck validation
 
@@ -473,7 +473,7 @@ curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failov
 
 # With debug mode
 DEBUG=1 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install.sh | sh
-```
+```text
 
 ### Configuration Management
 
@@ -492,7 +492,7 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 
 # Upgrade to advanced configuration
 /root/starlink-monitor/scripts/upgrade-to-advanced.sh
-```
+```text
 
 ### Key Features
 
@@ -514,7 +514,7 @@ DEBUG=1 /root/starlink-monitor/scripts/validate-config.sh
 
 # Update version (major increment)
 ./scripts/update-version.sh major
-```
+```text
 
 **Version Format**: `MAJOR.MINOR.PATCH+GIT_COUNT.GIT_COMMIT[-dirty]`
 
@@ -681,7 +681,7 @@ Implemented clean, structured debug logging system
 [DEBUG] [2025-07-15 16:12:24] VARIABLE: self_issues = 0
 [DEBUG] [2025-07-15 16:12:24] VARIABLE: files = test-debug.sh
 [DEBUG] [2025-07-15 16:12:24] VARIABLE: files_found = 1
-```
+```text
 
 **Benefits**:
 
@@ -728,7 +728,7 @@ issue reports
 
 # Show help
 ./scripts/pre-commit-validation.sh --help
-```
+```text
 
 **Benefits**:
 
@@ -766,7 +766,7 @@ issue reports
 
 **Enhanced Issue Breakdown Format**:
 
-```
+```text
 === ISSUE BREAKDOWN ===
 Most common issues found:
 31x / 1 files: SC2034: Variable appears unused in template/config file
@@ -774,7 +774,7 @@ Most common issues found:
 5x / 2 files: SC1091: Cannot follow dynamic source files
 3x / 1 files: SC3045: POSIX sh incompatible read options
 2x / 2 files: SC3054: In POSIX sh, array references are undefined
-```
+```text
 
 **Benefits**:
 
@@ -824,7 +824,7 @@ if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ] || [ ! -t 1 ]
 
 # After: Proper logic (disable colors only if BOTH streams aren't TTY)
 if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ] || ( [ ! -t 1 ] && [ ! -t 2 ] ); then
-```
+```text
 
 **Testing Verification**:
 
@@ -834,7 +834,7 @@ if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ] || ( [ ! -t 1
 
 # Git hook environment: Colors disabled
 TERM=dumb ./test_script.sh  # ✅ Pre-commit validation passed (clean text)
-```
+```text
 
 **Benefits**:
 
@@ -899,7 +899,7 @@ Implemented comprehensive multi-language code quality validation system
 ./scripts/comprehensive-validation.sh --python-only
 ./scripts/comprehensive-validation.sh --shell-only
 ./scripts/comprehensive-validation.sh --md-only
-```
+```text
 
 **Key Features**:
 
@@ -1021,7 +1021,7 @@ else
     CYAN=""
     NC=""
 fi
-```
+```text
 
 **Validation Improvements**:
 
@@ -1037,7 +1037,7 @@ fi
 # Critical issues: 0 (all undefined variables in install.sh fixed)
 # Major issues: 10 (down from 13)
 # Minor issues: 16 (mostly color detection logic missing)
-```
+```text
 
 **Quality Achievements**:
 
@@ -1091,7 +1091,7 @@ else
     CYAN=""
     NC=""
 fi
-```
+```text
 
 **2. Enhanced Validation Script** (sourced config detection):
 
@@ -1106,7 +1106,7 @@ if grep -q '\. "\$' "$file" || grep -q 'source "\$' "$file" || grep -q '\. [^"]*
         fi
     done
 fi
-```
+```text
 
 **Files Fixed**:
 
