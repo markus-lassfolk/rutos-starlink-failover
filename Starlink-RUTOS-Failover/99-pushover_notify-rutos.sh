@@ -1,11 +1,9 @@
-#!/bin/bash
-# shellcheck shell=bash
-
-# ==============================================================================
-# Enhanced Pushover Notifier for Starlink Monitoring System
-#
+#!/bin/sh
+# Script: 99-pushover_notify-rutos.sh
 # Version: 2.0 (Enhanced Edition)
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
+#
+# Enhanced Pushover Notifier for Starlink Monitoring System
 #
 # This script serves as the central notification hub for the Starlink monitoring
 # system. It provides enhanced error handling, rate limiting, and better
@@ -13,7 +11,46 @@
 #
 # ==============================================================================
 
-set -euo pipefail
+set -e
+
+# Standard colors for consistent output (compatible with busybox)
+# shellcheck disable=SC2034
+RED='\033[0;31m'
+# shellcheck disable=SC2034
+GREEN='\033[0;32m'
+# shellcheck disable=SC2034
+YELLOW='\033[1;33m'
+# shellcheck disable=SC2034
+BLUE='\033[1;35m'
+# shellcheck disable=SC2034
+CYAN='\033[0;36m'
+# shellcheck disable=SC2034
+NC='\033[0m' # No Color
+
+# Check if we're in a terminal that supports colors
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # Colors enabled
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+else
+    # Colors disabled
+    # shellcheck disable=SC2034
+    RED=""
+    # shellcheck disable=SC2034
+    GREEN=""
+    # shellcheck disable=SC2034
+    YELLOW=""
+    # shellcheck disable=SC2034
+    BLUE=""
+    # shellcheck disable=SC2034
+    CYAN=""
+    # shellcheck disable=SC2034
+    NC=""
+fi
 
 # --- Configuration Loading ---
 CONFIG_FILE="${CONFIG_FILE:-/root/config.sh}"
@@ -33,32 +70,30 @@ NOTIFICATION_LOG="${LOG_DIR}/notifications.log"
 
 # Enhanced logging
 log() {
-    local level="$1"
-    local message="$2"
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    log_level="$1"
+    log_message="$2"
+    log_timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    logger -t "PushoverNotifier" -p "daemon.$level" -- "$message"
-    echo "$timestamp [$level] $message" >>"$NOTIFICATION_LOG"
+    logger -t "PushoverNotifier" -p "daemon.$log_level" -- "$log_message"
+    echo "$log_timestamp [$log_level] $log_message" >>"$NOTIFICATION_LOG"
 
     if [ -t 1 ]; then
-        echo "[$level] $message"
+        echo "[$log_level] $log_message"
     fi
 }
 
 # Rate limiting function
 check_rate_limit() {
-    local message_type="$1"
-    local current_time
-    current_time=$(date '+%s')
-    local rate_limit_seconds=300 # 5 minutes
+    check_message_type="$1"
+    check_current_time=$(date '+%s')
+    check_rate_limit_seconds=300 # 5 minutes
 
     if [ -f "$RATE_LIMIT_FILE" ]; then
         while IFS='=' read -r type last_time; do
-            if [ "$type" = "$message_type" ]; then
-                local time_diff=$((current_time - last_time))
-                if [ $time_diff -lt $rate_limit_seconds ]; then
-                    log "info" "Rate limit active for $message_type (${time_diff}s ago)"
+            if [ "$type" = "$check_message_type" ]; then
+                check_time_diff=$((check_current_time - last_time))
+                if [ $check_time_diff -lt $check_rate_limit_seconds ]; then
+                    log "info" "Rate limit active for $check_message_type (${check_time_diff}s ago)"
                     return 1
                 fi
             fi
@@ -66,25 +101,24 @@ check_rate_limit() {
     fi
 
     # Update rate limit file
-    local temp_file
-    temp_file=$(mktemp)
+    check_temp_file=$(mktemp)
     if [ -f "$RATE_LIMIT_FILE" ]; then
-        grep -v "^$message_type=" "$RATE_LIMIT_FILE" >"$temp_file" 2>/dev/null || true
+        grep -v "^$check_message_type=" "$RATE_LIMIT_FILE" >"$check_temp_file" 2>/dev/null || true
     fi
-    echo "$message_type=$current_time" >>"$temp_file"
-    mv "$temp_file" "$RATE_LIMIT_FILE"
+    echo "$check_message_type=$check_current_time" >>"$check_temp_file"
+    mv "$check_temp_file" "$RATE_LIMIT_FILE"
 
     return 0
 }
 
 # Enhanced notification function with retry logic
 send_notification() {
-    local title="$1"
-    local message="$2"
-    local priority="${3:-0}"
-    local retry_count=0
-    local max_retries=3
-    local delay=2
+    send_title="$1"
+    send_message="$2"
+    send_priority="${3:-0}"
+    send_retry_count=0
+    send_max_retries=3
+    send_delay=2
 
     # Check for configuration
     if [ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] || [ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ]; then
@@ -92,36 +126,33 @@ send_notification() {
         return 0
     fi
 
-    log "info" "Sending notification: $title - $message"
+    log "info" "Sending notification: $send_title - $send_message"
 
-    while [ $retry_count -lt $max_retries ]; do
-        local response
-        response=$(curl -s --max-time "$HTTP_TIMEOUT" -w "%{http_code}" \
+    while [ $send_retry_count -lt $send_max_retries ]; do
+        send_response=$(curl -s --max-time "$HTTP_TIMEOUT" -w "%{http_code}" \
             -F "token=$PUSHOVER_TOKEN" \
             -F "user=$PUSHOVER_USER" \
-            -F "title=$title" \
-            -F "message=$message" \
-            -F "priority=$priority" \
+            -F "title=$send_title" \
+            -F "message=$send_message" \
+            -F "priority=$send_priority" \
             -F "device=" \
             https://api.pushover.net/1/messages.json 2>/dev/null)
 
-        local http_code
-        http_code="${response##*]}"
-        local response_body
+        send_http_code="${send_response##*]}"
         # shellcheck disable=SC2034
-        response_body="${response%"$http_code"}"
+        send_response_body="${send_response%"$send_http_code"}"
 
-        if [ "$http_code" = "200" ]; then
+        if [ "$send_http_code" = "200" ]; then
             log "info" "Notification sent successfully"
             return 0
         else
-            retry_count=$((retry_count + 1))
-            if [ $retry_count -lt $max_retries ]; then
-                log "warn" "Notification failed (HTTP $http_code), retrying in ${delay}s (attempt $retry_count/$max_retries)"
-                sleep $delay
-                delay=$((delay * 2))
+            send_retry_count=$((send_retry_count + 1))
+            if [ $send_retry_count -lt $send_max_retries ]; then
+                log "warn" "Notification failed (HTTP $send_http_code), retrying in ${send_delay}s (attempt $send_retry_count/$send_max_retries)"
+                sleep $send_delay
+                send_delay=$((send_delay * 2))
             else
-                log "error" "Notification failed after $max_retries attempts (HTTP $http_code)"
+                log "error" "Notification failed after $send_max_retries attempts (HTTP $send_http_code)"
                 return 1
             fi
         fi
@@ -132,61 +163,50 @@ send_notification() {
 
 # Format system information for notifications
 get_system_info() {
-    local hostname
-    hostname=$(uname -n)
-    local uptime
-    uptime=$(uptime | cut -d, -f1)
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    printf "Host: %s\nTime: %s\nUptime: %s\n" "$hostname" "$timestamp" "$uptime"
+    system_hostname=$(uname -n)
+    system_uptime=$(uptime | cut -d, -f1)
+    system_timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    printf "Host: %s\nTime: %s\nUptime: %s\n" "$system_hostname" "$system_timestamp" "$system_uptime"
 }
 
 # Main notification logic
 main() {
-    local action="${1:-hotplug}"
-    local detail="${2:-}"
+    main_action="${1:-hotplug}"
+    main_detail="${2:-}"
 
-    log "info" "Notification triggered: action=$action, detail=$detail"
+    log "info" "Notification triggered: action=$main_action, detail=$main_detail"
 
-    case "$action" in
+    case "$main_action" in
         soft_failover)
             if [ "${NOTIFY_ON_SOFT_FAIL:-1}" = "1" ]; then
                 if check_rate_limit "soft_failover"; then
-                    local title
-                    title="🔄 Starlink Quality Failover"
-                    local message
-                    message="Starlink quality degraded.\nReason: $detail\nPerforming soft failover to mobile backup.\n\n$(get_system_info)"
-                    send_notification "$title" "$message" 1
+                    soft_failover_title="🔄 Starlink Quality Failover"
+                    soft_failover_message="Starlink quality degraded.\nReason: $main_detail\nPerforming soft failover to mobile backup.\n\n$(get_system_info)"
+                    send_notification "$soft_failover_title" "$soft_failover_message" 1
                 fi
             fi
             ;;
         soft_recovery)
             if [ "${NOTIFY_ON_RECOVERY:-1}" = "1" ]; then
                 if check_rate_limit "soft_recovery"; then
-                    local title
-                    title="✅ Starlink Recovered"
-                    local message
-                    message="Starlink connection is stable.\nPerforming soft failback to primary.\n\n$(get_system_info)"
-                    send_notification "$title" "$message" 0
+                    soft_recovery_title="✅ Starlink Recovered"
+                    soft_recovery_message="Starlink connection is stable.\nPerforming soft failback to primary.\n\n$(get_system_info)"
+                    send_notification "$soft_recovery_title" "$soft_recovery_message" 0
                 fi
             fi
             ;;
         api_version_change)
             if [ "${NOTIFY_ON_CRITICAL:-1}" = "1" ]; then
-                local title
-                title="⚠️ Starlink API Changed"
-                local message
-                message="Starlink API version changed.\nPrevious: $detail\nPlease check monitoring scripts.\n\n$(get_system_info)"
-                send_notification "$title" "$message" 1
+                api_version_title="⚠️ Starlink API Changed"
+                api_version_message="Starlink API version changed.\nPrevious: $main_detail\nPlease check monitoring scripts.\n\n$(get_system_info)"
+                send_notification "$api_version_title" "$api_version_message" 1
             fi
             ;;
         system_error)
             if [ "${NOTIFY_ON_CRITICAL:-1}" = "1" ]; then
-                local title
-                title="❌ Starlink Monitor Error"
-                local message
-                message="System error occurred.\nDetails: $detail\n\n$(get_system_info)"
-                send_notification "$title" "$message" 2
+                system_error_title="❌ Starlink Monitor Error"
+                system_error_message="System error occurred.\nDetails: $main_detail\n\n$(get_system_info)"
+                send_notification "$system_error_title" "$system_error_message" 2
             fi
             ;;
         hotplug)
@@ -196,11 +216,9 @@ main() {
                     if [ "${INTERFACE:-}" = "$MWAN_IFACE" ]; then
                         if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
                             if check_rate_limit "ifdown_$INTERFACE"; then
-                                local title
-                                title="🔴 Starlink Offline (Hard)"
-                                local message
-                                message="Starlink ($INTERFACE) link is down or failed ping test.\nThis is a hard failure event.\n\n$(get_system_info)"
-                                send_notification "$title" "$message" 2
+                                ifdown_title="🔴 Starlink Offline (Hard)"
+                                ifdown_message="Starlink ($INTERFACE) link is down or failed ping test.\nThis is a hard failure event.\n\n$(get_system_info)"
+                                send_notification "$ifdown_title" "$ifdown_message" 2
                             fi
                         fi
                     fi
@@ -209,21 +227,17 @@ main() {
                     if [ "${INTERFACE:-}" = "$MWAN_IFACE" ]; then
                         if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
                             if check_rate_limit "connected_$INTERFACE"; then
-                                local title
-                                title="🟢 Starlink Recovered (Hard)"
-                                local message
-                                message="Starlink ($INTERFACE) is back online.\nFailback complete via mwan3.\n\n$(get_system_info)"
-                                send_notification "$title" "$message" 0
+                                connected_starlink_title="🟢 Starlink Recovered (Hard)"
+                                connected_starlink_message="Starlink ($INTERFACE) is back online.\nFailback complete via mwan3.\n\n$(get_system_info)"
+                                send_notification "$connected_starlink_title" "$connected_starlink_message" 0
                             fi
                         fi
                     elif [ "${INTERFACE:-}" = "mob1s1a1" ] || [ "${INTERFACE:-}" = "mob1s2a1" ]; then
                         if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
                             if check_rate_limit "connected_$INTERFACE"; then
-                                local title
-                                title="📱 Mobile Failover Active"
-                                local message
-                                message="Failover complete.\nTraffic is now flowing over mobile interface ($INTERFACE).\n\n$(get_system_info)"
-                                send_notification "$title" "$message" 1
+                                connected_mobile_title="📱 Mobile Failover Active"
+                                connected_mobile_message="Failover complete.\nTraffic is now flowing over mobile interface ($INTERFACE).\n\n$(get_system_info)"
+                                send_notification "$connected_mobile_title" "$connected_mobile_message" 1
                             fi
                         fi
                     fi
@@ -249,7 +263,7 @@ main() {
             fi
             ;;
         *)
-            log "warn" "Unknown notification action: $action"
+            log "warn" "Unknown notification action: $main_action"
             ;;
     esac
 
@@ -259,28 +273,25 @@ main() {
 # Cleanup old rate limit entries
 cleanup_rate_limits() {
     if [ -f "$RATE_LIMIT_FILE" ]; then
-        local current_time
-        current_time=$(date '+%s')
-        local temp_file
-        temp_file=$(mktemp)
+        cleanup_current_time=$(date '+%s')
+        cleanup_temp_file=$(mktemp)
 
         while IFS='=' read -r type last_time; do
-            local time_diff=$((current_time - last_time))
-            if [ $time_diff -lt 3600 ]; then # Keep entries for 1 hour
-                echo "$type=$last_time" >>"$temp_file"
+            cleanup_time_diff=$((cleanup_current_time - last_time))
+            if [ $cleanup_time_diff -lt 3600 ]; then # Keep entries for 1 hour
+                echo "$type=$last_time" >>"$cleanup_temp_file"
             fi
         done <"$RATE_LIMIT_FILE"
 
-        mv "$temp_file" "$RATE_LIMIT_FILE"
+        mv "$cleanup_temp_file" "$RATE_LIMIT_FILE"
     fi
 }
 
 # Log rotation
 rotate_logs() {
     if [ -f "$NOTIFICATION_LOG" ]; then
-        local log_size
-        log_size=$(stat -c%s "$NOTIFICATION_LOG" 2>/dev/null || echo 0)
-        if [ "$log_size" -gt 1048576 ]; then # 1MB
+        rotate_log_size=$(stat -c%s "$NOTIFICATION_LOG" 2>/dev/null || echo 0)
+        if [ "$rotate_log_size" -gt 1048576 ]; then # 1MB
             mv "$NOTIFICATION_LOG" "${NOTIFICATION_LOG}.old"
             touch "$NOTIFICATION_LOG"
         fi
