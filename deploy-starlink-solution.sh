@@ -609,7 +609,7 @@ setup_cron_jobs() {
 	# Add main monitoring script (every minute)
 	(
 		crontab -l 2>/dev/null
-		echo "* * * * * $SCRIPTS_DIR/starlink_monitor.sh"
+		echo "* * * * * $SCRIPTS_DIR/starlink_monitor.sh  # Standard version"
 	) | crontab -
 	log_success "Starlink quality monitoring scheduled (every minute)"
 
@@ -617,7 +617,7 @@ setup_cron_jobs() {
 	if [ "$ENABLE_STARLINK_MONITORING" = "true" ]; then
 		(
 			crontab -l 2>/dev/null
-			echo "* * * * * $SCRIPTS_DIR/starlink_logger.sh"
+			echo "* * * * * $SCRIPTS_DIR/starlink_logger.sh  # Standard version"
 		) | crontab -
 		log_success "Performance logging scheduled (every minute)"
 	fi

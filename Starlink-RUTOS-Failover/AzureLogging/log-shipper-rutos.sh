@@ -5,7 +5,7 @@
 # and clears the local file upon successful transmission.
 #
 # IMPORTANT: Requires persistent logging to be configured first!
-# Run setup-persistent-logging.sh to configure RUTOS for file-based logging
+# Run setup-persistent-logging-rutos.sh to configure RUTOS for file-based logging
 # before using this script.
 
 # --- CONFIGURATION ---

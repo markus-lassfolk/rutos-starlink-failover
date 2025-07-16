@@ -297,16 +297,16 @@ check_monitoring_health() {
 	log_step "Checking monitoring system health"
 
 	# Check if monitoring script exists
-	if [ -f "$INSTALL_DIR/scripts/starlink_monitor.sh" ]; then
+	if [ -f "$INSTALL_DIR/scripts/starlink_monitor-rutos.sh" ]; then
 		show_health_status "healthy" "Monitor Script" "Script exists and is readable"
 		increment_counter "healthy"
 	else
-		show_health_status "critical" "Monitor Script" "starlink_monitor.sh not found"
+		show_health_status "critical" "Monitor Script" "starlink_monitor-rutos.sh not found"
 		increment_counter "critical"
 	fi
 
 	# Check if monitoring is configured in cron
-	if crontab -l 2>/dev/null | grep -q "starlink_monitor.sh"; then
+	if crontab -l 2>/dev/null | grep -q "starlink_monitor-rutos.sh"; then
 		show_health_status "healthy" "Cron Schedule" "Monitoring scheduled in crontab"
 		increment_counter "healthy"
 	else

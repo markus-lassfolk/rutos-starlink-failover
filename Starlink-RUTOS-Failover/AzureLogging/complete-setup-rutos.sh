@@ -7,10 +7,10 @@ set -e
 
 SCRIPT_DIR="$(dirname "$0")"
 LOG_FILE="/overlay/messages"
-SETUP_SCRIPT="$SCRIPT_DIR/setup-persistent-logging.sh"
-SHIPPER_SCRIPT="$SCRIPT_DIR/log-shipper.sh"
+SETUP_SCRIPT="$SCRIPT_DIR/setup-persistent-logging-rutos.sh"
+SHIPPER_SCRIPT="$SCRIPT_DIR/log-shipper-rutos.sh"
 # shellcheck disable=SC2034  # TEST_SCRIPT may be used for debugging
-TEST_SCRIPT="$SCRIPT_DIR/test-azure-logging.sh"
+TEST_SCRIPT="$SCRIPT_DIR/test-azure-logging-rutos.sh"
 
 echo "=== Azure Logging Complete Setup and Verification ==="
 echo ""

@@ -244,7 +244,7 @@ echo
 echo "=== Testing File Permissions ==="
 
 # Create test scripts and check permissions
-test_scripts="starlink_monitor.sh starlink_logger.sh verify-setup.sh"
+test_scripts="starlink_monitor-rutos.sh starlink_logger-rutos.sh verify-setup.sh"
 
 for script in $test_scripts; do
 	echo "#!/bin/sh" >"$script"

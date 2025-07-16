@@ -282,15 +282,15 @@ install_scripts() {
 
 	# List of required scripts and their target locations
 	# Using space-separated strings instead of arrays for busybox compatibility
-	SCRIPTS="setup-persistent-logging.sh log-shipper.sh starlink-azure-monitor.sh test-azure-logging.sh"
+	SCRIPTS="setup-persistent-logging-rutos.sh log-shipper-rutos.sh starlink-azure-monitor-rutos.sh test-azure-logging-rutos.sh"
 
 	# Install each script
 	for script in $SCRIPTS; do
 		case "$script" in
-		"setup-persistent-logging.sh") target="/usr/bin/setup-persistent-logging.sh" ;;
-		"log-shipper.sh") target="/usr/bin/log-shipper.sh" ;;
-		"starlink-azure-monitor.sh") target="/usr/bin/starlink-azure-monitor.sh" ;;
-		"test-azure-logging.sh") target="/usr/bin/test-azure-logging.sh" ;;
+		"setup-persistent-logging-rutos.sh") target="/usr/bin/setup-persistent-logging-rutos.sh" ;;
+		"log-shipper-rutos.sh") target="/usr/bin/log-shipper-rutos.sh" ;;
+		"starlink-azure-monitor-rutos.sh") target="/usr/bin/starlink-azure-monitor-rutos.sh" ;;
+		"test-azure-logging-rutos.sh") target="/usr/bin/test-azure-logging-rutos.sh" ;;
 		esac
 
 		if [ -f "./$script" ]; then

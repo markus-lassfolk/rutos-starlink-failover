@@ -345,9 +345,9 @@ install_scripts() {
 	script_dir="$(dirname "$0")"
 
 	# Main monitoring script (enhanced version is now default)
-	if [ -f "$script_dir/starlink_monitor.sh" ]; then
-		cp "$script_dir/starlink_monitor.sh" "$INSTALL_DIR/scripts/starlink_monitor.sh"
-		chmod +x "$INSTALL_DIR/scripts/starlink_monitor.sh"
+	if [ -f "$script_dir/starlink_monitor-rutos.sh" ]; then
+		cp "$script_dir/starlink_monitor-rutos.sh" "$INSTALL_DIR/scripts/starlink_monitor-rutos.sh"
+		chmod +x "$INSTALL_DIR/scripts/starlink_monitor-rutos.sh"
 		print_status "$GREEN" "✓ Monitor script installed"
 	else
 		print_status "$RED" "Error: Monitor script not found"
@@ -355,9 +355,9 @@ install_scripts() {
 	fi
 
 	# Notification script (enhanced version is now default)
-	if [ -f "$script_dir/99-pushover_notify" ]; then
-		cp "$script_dir/99-pushover_notify" "$HOTPLUG_DIR/99-pushover_notify"
-		chmod +x "$HOTPLUG_DIR/99-pushover_notify"
+	if [ -f "$script_dir/99-pushover_notify-rutos.sh" ]; then
+		cp "$script_dir/99-pushover_notify-rutos.sh" "$HOTPLUG_DIR/99-pushover_notify-rutos.sh"
+		chmod +x "$HOTPLUG_DIR/99-pushover_notify-rutos.sh"
 		print_status "$GREEN" "✓ Notification script installed"
 	else
 		print_status "$RED" "Error: Notification script not found"
@@ -365,7 +365,7 @@ install_scripts() {
 	fi
 
 	# Other scripts - handle both local and remote installation
-	for script in starlink_logger.sh check_starlink_api.sh; do
+	for script in starlink_logger-rutos.sh check_starlink_api-rutos.sh; do
 		if [ -f "$script_dir/$script" ]; then
 			cp "$script_dir/$script" "$INSTALL_DIR/scripts/"
 			chmod +x "$INSTALL_DIR/scripts/$script"
@@ -613,8 +613,8 @@ configure_cron() {
 	cat >>"$CRON_FILE" <<EOF
 
 # Starlink monitoring system - Added by install script $(date +%Y-%m-%d)
-* * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_monitor.sh
-* * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_logger.sh
+* * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_monitor-rutos.sh
+* * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_logger-rutos.sh
 0 6 * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/check_starlink_api.sh
 EOF
 
@@ -673,7 +673,7 @@ if [ -f "$CRON_FILE" ]; then
 fi
 
 # Remove hotplug script
-rm -f /etc/hotplug.d/iface/99-pushover_notify
+rm -f /etc/hotplug.d/iface/99-pushover_notify*
 
 # Remove installation directory
 rm -rf /root/starlink-monitor

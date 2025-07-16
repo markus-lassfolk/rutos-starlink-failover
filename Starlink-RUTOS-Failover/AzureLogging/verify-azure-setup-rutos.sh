@@ -250,7 +250,7 @@ test_uci_config() {
 test_scripts() {
 	log_test "Checking installed scripts..."
 
-	scripts="/usr/bin/log-shipper.sh /usr/bin/starlink-azure-monitor.sh /usr/bin/setup-persistent-logging.sh /usr/bin/test-azure-logging.sh"
+	scripts="/usr/bin/log-shipper-rutos.sh /usr/bin/starlink-azure-monitor-rutos.sh /usr/bin/setup-persistent-logging-rutos.sh /usr/bin/test-azure-logging-rutos.sh"
 
 	for script in $scripts; do
 		if [ -f "$script" ]; then
