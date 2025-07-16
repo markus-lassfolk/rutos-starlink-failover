@@ -34,35 +34,42 @@ cd "$TEST_DIR"
 
 # Logging functions
 log() {
-	printf "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} %s\n" "$1"
+	printf "%s[$(date '+%Y-%m-%d %H:%M:%S')]%s %s\n" "$CYAN" "$NC" "$1"
 }
 
 log_success() {
-	printf "${GREEN}✓${NC} %s\n" "$1"
+	printf "%s✓%s %s\n" "$GREEN" "$NC" "$1"
 }
 
 log_warn() {
-	printf "${YELLOW}⚠${NC} %s\n" "$1"
+	printf "%s⚠%s %s\n" "$YELLOW" "$NC" "$1"
 }
 
 log_error() {
-	printf "${RED}✗${NC} %s\n" "$1"
+	printf "%s✗%s %s\n" "$RED" "$NC" "$1"
 }
 
 log_info() {
-	printf "${BLUE}ℹ${NC} %s\n" "$1"
+	printf "%sℹ%s %s\n" "$BLUE" "$NC" "$1"
 }
 
 log_header() {
 	printf "\n"
-	printf "${PURPLE}=== %s ===${NC}\n" "$1"
+	printf "%s=== %s ===%s\n" "$PURPLE" "$1" "$NC"
 	printf "\n"
 }
 
 # Test input validation functions
 validate_ip() {
 	ip="$1"
+	# Check basic format first
 	if echo "$ip" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
+		# Check each octet is <= 255
+		for octet in $(echo "$ip" | tr '.' ' '); do
+			if [ "$octet" -gt 255 ]; then
+				return 1
+			fi
+		done
 		return 0
 	else
 		return 1
@@ -232,7 +239,7 @@ EOF
 		log_success "Configuration file syntax is valid"
 		# Test sourcing the config
 		# shellcheck disable=SC1091
-		if . config.sh; then
+		if . ./config.sh; then
 			log_success "Configuration file sources correctly"
 			log_info "Test values: STARLINK_IP=$STARLINK_IP, AZURE_ENABLED=$AZURE_ENABLED"
 		else
@@ -322,21 +329,21 @@ TESTS_WARNED=0
 
 # Logging functions
 log_test() {
-    printf "${BLUE}[TEST]${NC} %s\n" "$1"
+    printf "%s[TEST]%s %s\n" "$BLUE" "$NC" "$1"
 }
 
 log_pass() {
-    printf "${GREEN}[PASS]${NC} %s\n" "$1"
+    printf "%s[PASS]%s %s\n" "$GREEN" "$NC" "$1"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 }
 
 log_fail() {
-    printf "${RED}[FAIL]${NC} %s\n" "$1"
+    printf "%s[FAIL]%s %s\n" "$RED" "$NC" "$1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 log_warn() {
-    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
+    printf "%s[WARN]%s %s\n" "$YELLOW" "$NC" "$1"
     TESTS_WARNED=$((TESTS_WARNED + 1))
 }
 
@@ -373,15 +380,15 @@ test_basic_utility
 echo "========================================="
 echo "Test Summary"
 echo "========================================="
-printf "${GREEN}Tests Passed: %d${NC}\n" "$TESTS_PASSED"
-printf "${YELLOW}Tests Warned: %d${NC}\n" "$TESTS_WARNED"
-printf "${RED}Tests Failed: %d${NC}\n" "$TESTS_FAILED"
+printf "%sTests Passed: %d%s\n" "$GREEN" "$TESTS_PASSED" "$NC"
+printf "%sTests Warned: %d%s\n" "$YELLOW" "$TESTS_WARNED" "$NC"
+printf "%sTests Failed: %d%s\n" "$RED" "$TESTS_FAILED" "$NC"
 
 if [ "$TESTS_FAILED" -eq 0 ]; then
-    printf "${GREEN}✓ Basic verification tests passed!${NC}\n"
+    printf "%s✓ Basic verification tests passed!%s\n" "$GREEN" "$NC"
     exit 0
 else
-    printf "${RED}✗ Some tests failed${NC}\n"
+    printf "%s✗ Some tests failed%s\n" "$RED" "$NC"
     exit 1
 fi
 EOF
