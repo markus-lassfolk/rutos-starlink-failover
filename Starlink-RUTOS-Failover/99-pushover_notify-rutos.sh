@@ -98,13 +98,13 @@ send_notification() {
 		local response
 		response=$(
 			curl -s --max-time "$HTTP_TIMEOUT" -w "%{http_code}" \
-			-F "token=$PUSHOVER_TOKEN" \
-			-F "user=$PUSHOVER_USER" \
-			-F "title=$title" \
-			-F "message=$message" \
-			-F "priority=$priority" \
-			-F "device=" \
-			https://api.pushover.net/1/messages.json 2>/dev/null
+				-F "token=$PUSHOVER_TOKEN" \
+				-F "user=$PUSHOVER_USER" \
+				-F "title=$title" \
+				-F "message=$message" \
+				-F "priority=$priority" \
+				-F "device=" \
+				https://api.pushover.net/1/messages.json 2>/dev/null
 		)
 
 		local http_code
