@@ -77,23 +77,23 @@ update_version_in_files() {
 	# Update VERSION file
 	echo "$version" >"$VERSION_FILE"
 
-	# Update install.sh
-	if [ -f "$PROJECT_ROOT/scripts/install.sh" ]; then
-		sed -i "s/^SCRIPT_VERSION=.*/SCRIPT_VERSION=\"$version\"/" "$PROJECT_ROOT/scripts/install.sh"
+	# Update install-rutos.sh
+	if [ -f "$PROJECT_ROOT/scripts/install-rutos.sh" ]; then
+		sed -i "s/^SCRIPT_VERSION=.*/SCRIPT_VERSION=\"$version\"/" "$PROJECT_ROOT/scripts/install-rutos.sh"
 		# Add build info as comment
-		sed -i "/^SCRIPT_VERSION=/a\\# Build: $build_info" "$PROJECT_ROOT/scripts/install.sh"
+		sed -i "/^SCRIPT_VERSION=/a\\# Build: $build_info" "$PROJECT_ROOT/scripts/install-rutos.sh"
 	fi
 
-	# Update validate-config.sh
-	if [ -f "$PROJECT_ROOT/scripts/validate-config.sh" ]; then
-		sed -i "s/^SCRIPT_VERSION=.*/SCRIPT_VERSION=\"$version\"/" "$PROJECT_ROOT/scripts/validate-config.sh"
+	# Update validate-config-rutos.sh
+	if [ -f "$PROJECT_ROOT/scripts/validate-config-rutos.sh" ]; then
+		sed -i "s/^SCRIPT_VERSION=.*/SCRIPT_VERSION=\"$version\"/" "$PROJECT_ROOT/scripts/validate-config-rutos.sh"
 		# Add build info as comment
 		sed -i "/^SCRIPT_VERSION=/a\\# Build: $build_info" "$PROJECT_ROOT/scripts/validate-config.sh"
 	fi
 
 	# Update other scripts
 	for script in "$PROJECT_ROOT/scripts"/*.sh; do
-		if [ -f "$script" ] && [ "$script" != "$PROJECT_ROOT/scripts/install.sh" ] && [ "$script" != "$PROJECT_ROOT/scripts/validate-config.sh" ]; then
+		if [ -f "$script" ] && [ "$script" != "$PROJECT_ROOT/scripts/install-rutos.sh" ] && [ "$script" != "$PROJECT_ROOT/scripts/validate-config-rutos.sh" ]; then
 			if grep -q "^SCRIPT_VERSION=" "$script" 2>/dev/null; then
 				sed -i "s/^SCRIPT_VERSION=.*/SCRIPT_VERSION=\"$version\"/" "$script"
 			fi
@@ -169,8 +169,8 @@ main() {
 	echo "Updated files:"
 	echo "- VERSION"
 	echo "- VERSION_INFO"
-	echo "- scripts/install.sh"
-	echo "- scripts/validate-config.sh"
+	echo "- scripts/install-rutos.sh"
+	echo "- scripts/validate-config-rutos.sh"
 	echo "- Other scripts with SCRIPT_VERSION"
 }
 

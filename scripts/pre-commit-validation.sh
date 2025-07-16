@@ -331,8 +331,19 @@ run_shellcheck() {
 		return 0
 	fi
 
-	# Run shellcheck with POSIX mode and capture output
-	shellcheck_output=$(shellcheck -s sh "$file" 2>&1)
+	# Determine shell type based on filename
+	# RUTOS scripts (ending with -rutos.sh) use POSIX mode
+	# Other scripts use bash mode
+	if echo "$file" | grep -q -- '-rutos\.sh$'; then
+		shell_type="sh"
+		log_debug "Using POSIX mode for RUTOS script: $file"
+	else
+		shell_type="bash"
+		log_debug "Using bash mode for development script: $file"
+	fi
+
+	# Run shellcheck with appropriate shell mode and capture output
+	shellcheck_output=$(shellcheck -s "$shell_type" "$file" 2>&1)
 
 	if [ $? -eq 0 ]; then
 		log_debug "✓ $file: Passes ShellCheck validation"
@@ -936,12 +947,13 @@ DESCRIPTION:
     markdown files for documentation quality by checking:
     
     SHELL SCRIPTS:
-    - Shebang compatibility (#!/bin/sh required)
-    - Bash-specific syntax (arrays, double brackets, etc.)
-    - Echo -e usage (should use printf instead)
-    - Source command usage (should use . instead)
-    - Function syntax compatibility
-    - ShellCheck validation in POSIX mode
+    - Shebang compatibility (#!/bin/sh required for RUTOS scripts)
+    - Bash-specific syntax (arrays, double brackets, etc.) for RUTOS scripts
+    - Echo -e usage (should use printf instead) for RUTOS scripts
+    - Source command usage (should use . instead) for RUTOS scripts
+    - Function syntax compatibility for RUTOS scripts
+    - ShellCheck validation in POSIX mode for *-rutos.sh files, bash mode for others
+    - RUTOS naming convention compliance (*-rutos.sh for RUTOS-target scripts)
     - shfmt formatting (with auto-fix)
     
     MARKDOWN FILES:

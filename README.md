@@ -38,7 +38,7 @@ intelligent failover systems for Starlink connections on RUTOS routers.
 
 ```bash
 # Download and run the installer
-curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install.sh | sh
+curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install-rutos.sh | sh
 
 # Configure the system
 nano /root/starlink-monitor/config/config.sh

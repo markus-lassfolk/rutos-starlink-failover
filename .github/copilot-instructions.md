@@ -69,7 +69,7 @@ CONFIG_VALUE="${CONFIG_VALUE:-default_value}"
 
 ### Core Scripts and Their Purposes
 
-- `scripts/install.sh` - Remote installation with comprehensive logging
+- `scripts/install-rutos.sh` - Remote installation with comprehensive logging
 - `scripts/validate-config.sh` - Configuration validation with debug mode
 - `scripts/update-version.sh` - Automatic version management
 - `scripts/upgrade-to-advanced.sh` - Configuration upgrades

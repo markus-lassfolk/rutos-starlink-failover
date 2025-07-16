@@ -13,7 +13,7 @@ set -eu
 # Script version - automatically updated from VERSION file
 SCRIPT_VERSION="1.0.2"
 # Build: 1.0.2+198.38fb60b-dirty
-SCRIPT_NAME="install.sh"
+SCRIPT_NAME="install-rutos.sh"
 
 # Extract build info from comment above
 BUILD_INFO=$(grep "# Build:" "$0" | head -1 | sed 's/# Build: //' || echo "unknown")
