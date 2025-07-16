@@ -6,6 +6,7 @@
 # This script automates the installation and configuration of the Starlink
 # monitoring system on OpenWrt/RUTOS devices.
 #
+#
 # ==============================================================================
 
 set -eu
