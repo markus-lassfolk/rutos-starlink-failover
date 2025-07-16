@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Setup script for comprehensive code quality tools
 # Version: 1.0.2
 # Description: Installs all code quality tools for the RUTOS Starlink Failover project
@@ -93,9 +93,9 @@ install_python_tools() {
 	pip3 install --user black flake8 pylint mypy isort bandit yamllint
 
 	# Add user bin to PATH if not already there
-	if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+	if [ "${PATH#*"$HOME"/.local/bin}" = "$PATH" ]; then
 		log_info "Adding ~/.local/bin to PATH"
-		echo 'export PATH="$HOME/.local/bin:$PATH"' >>~/.bashrc
+		echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >>~/.bashrc
 		export PATH="$HOME/.local/bin:$PATH"
 	fi
 }
@@ -164,7 +164,7 @@ install_go_tools() {
 
 	# Add GOPATH/bin to PATH if not already there
 	GOPATH=$(go env GOPATH)
-	if [[ ":$PATH:" != *":$GOPATH/bin:"* ]]; then
+	if [ "${PATH#*"$GOPATH"/bin}" = "$PATH" ]; then
 		log_info "Adding $GOPATH/bin to PATH"
 		echo "export PATH=\"$GOPATH/bin:\$PATH\"" >>~/.bashrc
 		export PATH="$GOPATH/bin:$PATH"
@@ -175,28 +175,37 @@ install_go_tools() {
 verify_installations() {
 	log_step "Verifying installations"
 
-	local tools=(
-		"shellcheck:Shell script linting"
-		"shfmt:Shell script formatting"
-		"black:Python code formatting"
-		"flake8:Python style guide enforcement"
-		"pylint:Python comprehensive linting"
-		"mypy:Python type checking"
-		"isort:Python import sorting"
-		"bandit:Python security scanning"
-		"markdownlint:Markdown linting"
-		"prettier:Code formatting"
-		"jq:JSON processing"
-		"yamllint:YAML linting"
-		"pwsh:PowerShell Core"
-		"bicep:Azure Bicep CLI"
-	)
+	# Define tools as a multiline string instead of array
+	tools_list="shellcheck:Shell script linting
+shfmt:Shell script formatting
+black:Python code formatting
+flake8:Python style guide enforcement
+pylint:Python comprehensive linting
+mypy:Python type checking
+isort:Python import sorting
+bandit:Python security scanning
+markdownlint:Markdown linting
+prettier:Code formatting
+jq:JSON processing
+yamllint:YAML linting
+pwsh:PowerShell Core
+bicep:Azure Bicep CLI"
 
-	local available_count=0
-	local total_count=${#tools[@]}
+	available_count=0
+	total_count=0
 
-	for tool_info in "${tools[@]}"; do
-		IFS=":" read -r tool_name tool_description <<<"$tool_info"
+	# Count total tools
+	total_count=$(echo "$tools_list" | wc -l)
+
+	# Process each tool
+	old_ifs="$IFS"
+	IFS='
+'
+	for tool_info in $tools_list; do
+		# Extract tool name and description manually
+		tool_name=$(echo "$tool_info" | cut -d':' -f1)
+		tool_description=$(echo "$tool_info" | cut -d':' -f2)
+		
 		if command_exists "$tool_name"; then
 			log_info "✅ $tool_name ($tool_description) - Available"
 			available_count=$((available_count + 1))
@@ -204,10 +213,11 @@ verify_installations() {
 			log_warning "❌ $tool_name ($tool_description) - Not available"
 		fi
 	done
+	IFS="$old_ifs"
 
 	log_info "Tool availability: $available_count/$total_count tools available"
 
-	if [ $available_count -eq $total_count ]; then
+	if [ "$available_count" -eq "$total_count" ]; then
 		log_info "🎉 All tools successfully installed!"
 		return 0
 	else
@@ -279,19 +289,19 @@ EOF
 create_validation_alias() {
 	log_step "Creating convenient validation alias"
 
-	local alias_line="alias validate-code='$(pwd)/scripts/comprehensive-validation.sh'"
-	local bashrc_file="$HOME/.bashrc"
+	alias_line="alias validate-code='$(pwd)/scripts/comprehensive-validation.sh'"
+	bashrc_file="$HOME/.bashrc"
 
 	if [ -f "$bashrc_file" ]; then
 		if ! grep -q "validate-code" "$bashrc_file"; then
 			echo "$alias_line" >>"$bashrc_file"
-			log_info "Added 'validate-code' alias to ~/.bashrc"
-			log_info "Run 'source ~/.bashrc' or restart your terminal to use the alias"
+			log_info "Added 'validate-code' alias to $HOME/.bashrc"
+			log_info "Run 'source $HOME/.bashrc' or restart your terminal to use the alias"
 		else
-			log_info "Alias 'validate-code' already exists in ~/.bashrc"
+			log_info "Alias 'validate-code' already exists in $HOME/.bashrc"
 		fi
 	else
-		log_warning "~/.bashrc not found. You can manually add: $alias_line"
+		log_warning "$HOME/.bashrc not found. You can manually add: $alias_line"
 	fi
 }
 
@@ -324,18 +334,18 @@ EOF
 
 # Main function
 main() {
-	local install_system=false
-	local install_python=false
-	local install_nodejs=false
-	local install_powershell=false
-	local install_bicep=false
-	local install_go=false
-	local verify_only=false
-	local show_manual=false
-	local install_all=true
+	install_system=false
+	install_python=false
+	install_nodejs=false
+	install_powershell=false
+	install_bicep=false
+	install_go=false
+	verify_only=false
+	show_manual=false
+	install_all=true
 
 	# Parse command line arguments
-	while [[ $# -gt 0 ]]; do
+	while [ $# -gt 0 ]; do
 		case $1 in
 		--system)
 			install_system=true
