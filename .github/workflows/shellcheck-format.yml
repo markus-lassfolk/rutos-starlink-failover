@@ -17,12 +17,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install shellcheck and shfmt
+      - name: Install shellcheck, shfmt, and GitHub CLI
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
           curl -sSLo /usr/local/bin/shfmt https://github.com/mvdan/sh/releases/download/v3.7.0/shfmt_v3.7.0_linux_amd64
           chmod +x /usr/local/bin/shfmt
+          # Install GitHub CLI
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y gh
       
       - name: Auto-format shell scripts with shfmt
         if: github.event_name == 'push'
@@ -63,12 +68,80 @@ jobs:
           find Starlink-RUTOS-Failover -type f -name '*.sh' -exec chmod 755 {} +
           # Legacy/compatibility: notify script
           if [ -f Starlink-RUTOS-Failover/99-pushover_notify ]; then chmod 755 Starlink-RUTOS-Failover/99-pushover_notify; fi
-      - name: Run ShellCheck on all shell scripts
+      - name: Run ShellCheck on changed shell scripts
         run: |
-          find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shellcheck --exclude=SC1090,SC1091 {} +
+          echo "🔍 Checking for changed shell files..."
+          
+          # For PR events, check only changed files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "📋 PR mode: Checking only changed files"
+            
+            # Get list of changed files from the PR
+            changed_files=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files[].path' || true)
+            
+            if [ -z "$changed_files" ]; then
+              echo "⚠️  Could not get changed files from PR, falling back to git diff"
+              changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+            fi
+            
+            # Filter for shell files
+            shell_files=""
+            for file in $changed_files; do
+              if [ -f "$file" ] && { [ "${file##*.}" = "sh" ] || [ "$(basename "$file")" = "99-pushover_notify" ]; }; then
+                shell_files="$shell_files $file"
+              fi
+            done
+            
+            if [ -n "$shell_files" ]; then
+              echo "🔧 Running ShellCheck on changed shell files:"
+              echo "$shell_files"
+              shellcheck --exclude=SC1090,SC1091 $shell_files
+            else
+              echo "✅ No shell files changed in this PR"
+            fi
+          else
+            echo "📋 Push mode: Checking all shell files"
+            find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shellcheck --exclude=SC1090,SC1091 {} +
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify shell script formatting (shfmt)
         run: |
-          find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shfmt -d -i 4 -ci {} +
+          echo "🎨 Checking shell script formatting..."
+          
+          # For PR events, check only changed files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "📋 PR mode: Checking formatting of changed files only"
+            
+            # Get list of changed files from the PR
+            changed_files=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files[].path' || true)
+            
+            if [ -z "$changed_files" ]; then
+              echo "⚠️  Could not get changed files from PR, falling back to git diff"
+              changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+            fi
+            
+            # Filter for shell files
+            shell_files=""
+            for file in $changed_files; do
+              if [ -f "$file" ] && { [ "${file##*.}" = "sh" ] || [ "$(basename "$file")" = "99-pushover_notify" ]; }; then
+                shell_files="$shell_files $file"
+              fi
+            done
+            
+            if [ -n "$shell_files" ]; then
+              echo "🔧 Checking formatting on changed shell files:"
+              echo "$shell_files"
+              shfmt -d -i 4 -ci $shell_files
+            else
+              echo "✅ No shell files changed in this PR"
+            fi
+          else
+            echo "📋 Push mode: Checking formatting of all shell files"
+            find . -type f \( -name '*.sh' -o -name '99-pushover_notify' \) -exec shfmt -d -i 4 -ci {} +
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Check for RUTOS-specific best practices
         run: |
           echo "Checking RUTOS-specific best practices..."
