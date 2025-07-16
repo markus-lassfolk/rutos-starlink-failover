@@ -99,9 +99,9 @@ analyze_config() {
 		fi
 
 		if [ -n "$value" ]; then
-			printf "%s✓ %s = '%s'%s\n" "$GREEN" "$var" "$value" "$NC"
+			printf "%s✓ %s%s = '%s'\n" "$GREEN" "$var" "$NC" "$value"
 		else
-			printf "%s✗ %s = NOT FOUND%s\n" "$RED" "$var" "$NC"
+			printf "%s✗ %s%s = NOT FOUND\n" "$RED" "$var" "$NC"
 		fi
 	done
 
