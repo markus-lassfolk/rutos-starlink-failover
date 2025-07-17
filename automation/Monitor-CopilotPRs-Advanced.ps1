@@ -157,7 +157,7 @@ function Approve-WorkflowRun {
         $runDetails = gh run view $RunId --json status,conclusion,workflowName | ConvertFrom-Json
         
         if ($runDetails.status -eq "waiting") {
-            Write-StatusMessage "✅ Approving workflow run #$RunId: $WorkflowName" -Color $GREEN
+            Write-StatusMessage "✅ Approving workflow run #$RunId" -Color $GREEN
             gh run approve $RunId 2>&1 | Out-Null
             
             if ($LASTEXITCODE -eq 0) {
