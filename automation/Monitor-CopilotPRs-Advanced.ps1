@@ -2,7 +2,7 @@ param(
     [int]$PRNumber = $null,
     [switch]$VerboseOutput = $false,
     [switch]$SkipValidation = $false,
-    [switch]$AutoResolveConflicts = $false,
+    [switch]$RequestCopilotForConflicts = $false,
     [switch]$SkipWorkflowApproval = $false,
     [switch]$ForceValidation = $false,
     [switch]$MonitorOnly = $false,
@@ -186,6 +186,137 @@ function Get-WorkflowRuns {
     }
 }
 
+# Show repository settings guidance for fixing workflow approval issues
+function Invoke-WorkflowDispatch {
+    param(
+        [int]$PRNumber,
+        [string]$HeadRef
+    )
+    
+    try {
+        # List available workflow dispatch workflows
+        $workflows = gh api repos/:owner/:repo/actions/workflows --jq '.workflows[] | select(.state=="active") | {name, id, path}'
+        if ($LASTEXITCODE -eq 0) {
+            $workflowList = $workflows | ConvertFrom-Json
+            
+            foreach ($workflow in $workflowList) {
+                if ($workflow.name -match "test|validation|check" -or $workflow.path -match "test|validation|check") {
+                    Write-StatusMessage "     🔄 Triggering workflow: $($workflow.name)" -Color $CYAN
+                    
+                    $dispatchData = @{
+                        ref = $HeadRef
+                        inputs = @{
+                            pr_number = $PRNumber.ToString()
+                        }
+                    } | ConvertTo-Json -Depth 3
+                    
+                    $tempFile = [System.IO.Path]::GetTempFileName()
+                    $dispatchData | Out-File -FilePath $tempFile -Encoding UTF8
+                    
+                    $result = gh api repos/:owner/:repo/actions/workflows/$($workflow.id)/dispatches -X POST --input $tempFile
+                    Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+                    
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-StatusMessage "     ✅ Workflow dispatch sent: $($workflow.name)" -Color $GREEN
+                        return @{ Success = $true }
+                    }
+                }
+            }
+        }
+        
+        return @{ Success = $false; Error = "No suitable workflows found or dispatch failed" }
+    } catch {
+        return @{ Success = $false; Error = $_.Exception.Message }
+    }
+}
+
+function Create-EmptyCommitViaAPI {
+    param(
+        [int]$PRNumber,
+        [string]$HeadRef
+    )
+    
+    try {
+        # Get PR head SHA for API operations
+        $prInfo = gh api repos/:owner/:repo/pulls/$PRNumber --jq '.head.sha'
+        if ($LASTEXITCODE -ne 0 -or -not $prInfo) {
+            return @{ Success = $false; Error = "Failed to get PR head SHA" }
+        }
+        
+        $headSha = $prInfo.Trim()
+        Write-StatusMessage "     📋 Using head SHA: $headSha" -Color $GRAY
+        
+        # Get tree SHA for the commit
+        $treeInfo = gh api repos/:owner/:repo/git/commits/$headSha --jq '.tree.sha'
+        if ($LASTEXITCODE -ne 0 -or -not $treeInfo) {
+            return @{ Success = $false; Error = "Failed to get tree SHA" }
+        }
+        
+        $treeSha = $treeInfo.Trim()
+        Write-StatusMessage "     📋 Using tree SHA: $treeSha" -Color $GRAY
+        
+        # Create empty commit via GitHub API
+        $emptyCommitData = @{
+            message = "🚀 Trigger workflows for PR #$PRNumber"
+            tree = $treeSha
+            parents = @($headSha)
+        } | ConvertTo-Json -Depth 3
+        
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        $emptyCommitData | Out-File -FilePath $tempFile -Encoding UTF8
+        
+        $commitResult = gh api repos/:owner/:repo/git/commits -X POST --input $tempFile
+        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+        
+        if ($LASTEXITCODE -ne 0) {
+            return @{ Success = $false; Error = "Failed to create empty commit via API" }
+        }
+        
+        $commitInfo = $commitResult | ConvertFrom-Json
+        $newCommitSha = $commitInfo.sha
+        Write-StatusMessage "     ✅ Empty commit created: $newCommitSha" -Color $GREEN
+        
+        # Update branch reference via API
+        $updateRefData = @{
+            sha = $newCommitSha
+            force = $false
+        } | ConvertTo-Json -Depth 3
+        
+        $tempRefFile = [System.IO.Path]::GetTempFileName()
+        $updateRefData | Out-File -FilePath $tempRefFile -Encoding UTF8
+        
+        $refResult = gh api repos/:owner/:repo/git/refs/heads/$HeadRef -X PATCH --input $tempRefFile
+        Remove-Item $tempRefFile -Force -ErrorAction SilentlyContinue
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-StatusMessage "     ✅ Branch updated via API - workflows should trigger" -Color $GREEN
+            return @{ Success = $true }
+        } else {
+            return @{ Success = $false; Error = "Failed to update branch reference" }
+        }
+    } catch {
+        return @{ Success = $false; Error = $_.Exception.Message }
+    }
+}
+
+function Show-RepositorySettingsGuidance {
+    Write-StatusMessage "" -Color $GRAY
+    Write-StatusMessage "   💡 **PERMANENT SOLUTION - Repository Settings:**" -Color $PURPLE
+    Write-StatusMessage "   🔧 Go to: https://github.com/markus-lassfolk/rutos-starlink-failover/settings/actions" -Color $BLUE
+    Write-StatusMessage "" -Color $GRAY
+    Write-StatusMessage "   ✅ **Workflow permissions** → Change to: 'Read and write permissions'" -Color $GREEN
+    Write-StatusMessage "   ✅ **Allow GitHub Actions** → Enable: 'Allow GitHub Actions to create and approve pull requests'" -Color $GREEN
+    Write-StatusMessage "" -Color $GRAY
+    Write-StatusMessage "   📋 **Why this helps:**" -Color $CYAN
+    Write-StatusMessage "   • Copilot can trigger workflows automatically" -Color $BLUE
+    Write-StatusMessage "   • No manual approval needed for local branch PRs" -Color $BLUE
+    Write-StatusMessage "   • Workflows can modify labels, comments, and statuses" -Color $BLUE
+    Write-StatusMessage "   • GitHub Actions can approve and merge PRs automatically" -Color $BLUE
+    Write-StatusMessage "" -Color $GRAY
+    Write-StatusMessage "   🚨 **Current Issue:** Workflow permissions are set to 'Read repository contents and packages permissions'" -Color $YELLOW
+    Write-StatusMessage "   🔧 **Solution:** Change to 'Read and write permissions' for full automation" -Color $GREEN
+}
+
 # Auto-approve all pending workflows for a PR
 function Approve-PendingWorkflows {
     param(
@@ -222,6 +353,12 @@ function Approve-PendingWorkflows {
         Write-StatusMessage "   📋 Found $($pendingRuns.Count) pending workflow(s) that need approval" -Color $YELLOW
         Write-StatusMessage "   ⚠️  Note: These workflows require manual approval through GitHub web interface" -Color $YELLOW
         Write-StatusMessage "   🌐 GitHub Actions security requires manual approval for bot-triggered workflows" -Color $CYAN
+        Write-StatusMessage "" -Color $GRAY
+        Write-StatusMessage "   💡 **Repository Settings Recommendation:**" -Color $PURPLE
+        Write-StatusMessage "   🔧 Go to: Settings → Actions → General → Workflow permissions" -Color $BLUE
+        Write-StatusMessage "   ✅ Change to: 'Read and write permissions'" -Color $GREEN
+        Write-StatusMessage "   ✅ Enable: 'Allow GitHub Actions to create and approve pull requests'" -Color $GREEN
+        Write-StatusMessage "   📋 This will eliminate the need for manual approvals for Copilot PRs" -Color $CYAN
         
         foreach ($run in $pendingRuns) {
             $statusType = if ($run.status -eq "waiting") { "waiting" } else { "action_required" }
@@ -231,6 +368,9 @@ function Approve-PendingWorkflows {
         
         Write-StatusMessage "   ⚠️  Manual approval required - cannot be automated for bot-triggered workflows" -Color $YELLOW
         Write-StatusMessage "   📋 Please visit the GitHub Actions page to approve these workflows manually" -Color $BLUE
+        
+        # Provide repository settings guidance
+        Show-RepositorySettingsGuidance
         
         return @{ Success = $true; ApprovedCount = 0; ManualApprovalRequired = $true; PendingCount = $pendingRuns.Count }
         
@@ -282,6 +422,9 @@ function Trigger-WorkflowRuns {
                 
                 Write-StatusMessage "   ⚠️  Manual approval required - cannot be automated for bot-triggered workflows" -Color $YELLOW
                 $triggeredCount = $pendingRuns.Count # Count as "triggered" since we identified them
+                
+                # Show repository settings guidance
+                Show-RepositorySettingsGuidance
             }
             
             # Check for queued or in-progress runs
@@ -292,43 +435,38 @@ function Trigger-WorkflowRuns {
             }
         }
         
-        # Method 2: Trigger workflows via empty commit (this actually works for PR workflows)
+        # Method 2: Trigger workflows via GitHub API (server-side, no local branch switching)
         if ($triggeredCount -eq 0) {
-            Write-StatusMessage "   🔄 Triggering workflows via empty commit to PR branch..." -Color $CYAN
+            Write-StatusMessage "   🔄 Triggering workflows via GitHub API (server-side)..." -Color $CYAN
             
-            # Get current branch
-            $currentBranch = git branch --show-current
-            
-            # Fetch and checkout PR branch
-            git fetch origin $HeadRef 2>&1 | Out-Null
-            git checkout $HeadRef 2>&1 | Out-Null
-            
-            if ($LASTEXITCODE -eq 0) {
-                # Create empty commit to trigger workflows
-                git commit --allow-empty -m "🚀 Trigger workflows for PR #$PRNumber" 2>&1 | Out-Null
+            try {
+                # Method 2a: Try workflow dispatch for specific workflows
+                Write-StatusMessage "   � Attempting workflow dispatch..." -Color $CYAN
+                $dispatchResult = Invoke-WorkflowDispatch -PRNumber $PRNumber -HeadRef $HeadRef
                 
-                if ($LASTEXITCODE -eq 0) {
-                    # Push the empty commit
-                    git push origin $HeadRef 2>&1 | Out-Null
+                if ($dispatchResult.Success) {
+                    Write-StatusMessage "   ✅ Workflow dispatch successful" -Color $GREEN
+                    $triggeredCount++
+                } else {
+                    Write-StatusMessage "   ⚠️  Workflow dispatch failed, trying alternative methods..." -Color $YELLOW
                     
-                    if ($LASTEXITCODE -eq 0) {
-                        Write-StatusMessage "   ✅ Empty commit pushed to trigger workflows" -Color $GREEN
+                    # Method 2b: Create empty commit via API (fallback)
+                    Write-StatusMessage "   🔄 Creating empty commit via GitHub API..." -Color $CYAN
+                    $commitResult = Create-EmptyCommitViaAPI -PRNumber $PRNumber -HeadRef $HeadRef
+                    
+                    if ($commitResult.Success) {
+                        Write-StatusMessage "   ✅ Empty commit created - workflows should trigger automatically" -Color $GREEN
                         $triggeredCount++
                         
                         # Wait a moment for workflows to start
-                        Write-StatusMessage "   ⏳ Waiting 15 seconds for workflows to start..." -Color $CYAN
-                        Start-Sleep -Seconds 15
+                        Write-StatusMessage "   ⏳ Waiting 10 seconds for workflows to start..." -Color $CYAN
+                        Start-Sleep -Seconds 10
                     } else {
-                        Write-StatusMessage "   ❌ Failed to push empty commit" -Color $RED
+                        Write-StatusMessage "   ❌ Failed to create empty commit: $($commitResult.Error)" -Color $RED
                     }
-                } else {
-                    Write-StatusMessage "   ❌ Failed to create empty commit" -Color $RED
                 }
-                
-                # Return to original branch
-                git checkout $currentBranch 2>&1 | Out-Null
-            } else {
-                Write-StatusMessage "   ❌ Failed to checkout PR branch" -Color $RED
+            } catch {
+                Write-StatusMessage "   ❌ Error in API-based workflow triggering: $($_.Exception.Message)" -Color $RED
             }
         }
         
@@ -794,121 +932,228 @@ function Get-FileContentFromPR {
     }
 }
 
-# Automated merge conflict resolution
+# API-based merge conflict analysis with Copilot resolution request
 function Resolve-MergeConflicts {
     param(
         [string]$PRNumber,
         [string]$HeadRef
     )
     
-    Write-StatusMessage "🔄 Attempting automated merge conflict resolution for PR #$PRNumber..." -Color $BLUE
+    Write-StatusMessage "🔄 Analyzing merge conflicts via GitHub API (server-side)..." -Color $BLUE
     
     try {
-        # Get current branch
-        $currentBranch = git branch --show-current
-        
-        # Create a temporary branch for conflict resolution
-        $tempBranch = "temp-conflict-resolution-$PRNumber"
-        
-        # Checkout the PR branch
-        git fetch origin $HeadRef 2>&1 | Out-Null
-        git checkout -b $tempBranch origin/$HeadRef 2>&1 | Out-Null
-        
+        # Get PR mergeable status via API
+        $prInfo = gh api repos/:owner/:repo/pulls/$PRNumber --jq '.mergeable,.mergeable_state,.merge_commit_sha'
         if ($LASTEXITCODE -ne 0) {
-            return @{ Success = $false; Error = "Failed to checkout PR branch" }
+            return @{ Success = $false; Error = "Failed to get PR merge status" }
         }
         
-        # Attempt to merge main
-        $mergeResult = git merge origin/main 2>&1
+        $prData = $prInfo | ConvertFrom-Json
+        $mergeable = $prData.mergeable
+        $mergeableState = $prData.mergeable_state
         
-        if ($LASTEXITCODE -eq 0) {
-            Write-StatusMessage "✅ No conflicts found during merge" -Color $GREEN
-            git checkout $currentBranch 2>&1 | Out-Null
-            git branch -D $tempBranch 2>&1 | Out-Null
-            return @{ Success = $true; Error = $null }
+        Write-StatusMessage "   📊 PR merge status: mergeable=$mergeable, state=$mergeableState" -Color $CYAN
+        
+        if ($mergeable -eq $true) {
+            Write-StatusMessage "   ✅ PR is mergeable - no conflicts detected" -Color $GREEN
+            return @{ Success = $true; Error = $null; HasConflicts = $false }
         }
         
-        # Get conflicted files
-        $conflictedFiles = git diff --name-only --diff-filter=U
-        
-        if ($conflictedFiles) {
-            Write-StatusMessage "🔍 Found conflicts in: $($conflictedFiles -join ', ')" -Color $YELLOW
+        if ($mergeable -eq $false) {
+            Write-StatusMessage "   ⚠️  PR has merge conflicts that need resolution" -Color $YELLOW
             
-            # Try automated resolution for common patterns
-            $resolvedFiles = @()
-            
-            foreach ($file in $conflictedFiles) {
-                if (Test-Path $file) {
-                    $content = Get-Content $file -Raw
+            # Get conflicted files via API
+            try {
+                $prFiles = gh api repos/:owner/:repo/pulls/$PRNumber/files --jq '.[]'
+                if ($LASTEXITCODE -eq 0) {
+                    $filesData = $prFiles | ConvertFrom-Json
+                    $conflictedFiles = $filesData | Where-Object { $_.status -eq "modified" -or $_.status -eq "added" }
                     
-                    # Pattern 1: Simple version conflicts (keep both changes)
-                    if ($content -match '<<<<<<< HEAD\s*\n(.+?)\n=======\s*\n(.+?)\n>>>>>>> ') {
-                        $headContent = $matches[1]
-                        $incomingContent = $matches[2]
+                    if ($conflictedFiles.Count -gt 0) {
+                        Write-StatusMessage "   🔍 Files that may have conflicts:" -Color $CYAN
+                        foreach ($file in $conflictedFiles) {
+                            Write-StatusMessage "     - $($file.filename) (status: $($file.status))" -Color $GRAY
+                        }
                         
-                        # For version files, keep the higher version
-                        if ($file -match "VERSION|version" -and $headContent -match "\d+\.\d+\.\d+" -and $incomingContent -match "\d+\.\d+\.\d+") {
-                            $headVersion = [version]$matches[0]
-                            $incomingVersion = [version]$matches[0]
+                        # Request Copilot to resolve the merge conflicts
+                        Write-StatusMessage "   🤖 Requesting Copilot to resolve merge conflicts..." -Color $PURPLE
+                        $copilotRequest = Request-CopilotMergeConflictResolution -PRNumber $PRNumber -ConflictedFiles $conflictedFiles
+                        
+                        if ($copilotRequest.Success) {
+                            Write-StatusMessage "   ✅ Copilot merge conflict resolution requested successfully" -Color $GREEN
+                            Write-StatusMessage "   ⏳ Copilot will analyze and resolve the conflicts automatically" -Color $CYAN
                             
-                            $resolvedContent = if ($headVersion -gt $incomingVersion) { $headContent } else { $incomingContent }
-                            $content = $content -replace '<<<<<<< HEAD\s*\n.+?\n=======\s*\n.+?\n>>>>>>> [^\n]*\n', $resolvedContent
+                            return @{ 
+                                Success = $true
+                                Error = $null
+                                HasConflicts = $true
+                                ConflictedFiles = $conflictedFiles
+                                CopilotRequested = $true
+                                Message = "Copilot has been requested to resolve merge conflicts"
+                            }
+                        } else {
+                            Write-StatusMessage "   ❌ Failed to request Copilot assistance: $($copilotRequest.Error)" -Color $RED
                             
-                            $content | Out-File -FilePath $file -Encoding UTF8
-                            git add $file 2>&1 | Out-Null
-                            $resolvedFiles += $file
+                            # Fallback to manual resolution guidance
+                            Write-StatusMessage "   📋 **Manual Resolution Required:**" -Color $YELLOW
+                            Write-StatusMessage "     1. Checkout the PR branch locally" -Color $BLUE
+                            Write-StatusMessage "     2. Merge main branch: git merge main" -Color $BLUE
+                            Write-StatusMessage "     3. Resolve conflicts in the listed files" -Color $BLUE
+                            Write-StatusMessage "     4. Commit and push the resolution" -Color $BLUE
                             
-                            Write-StatusMessage "   ✅ Auto-resolved version conflict in $file" -Color $GREEN
+                            return @{ 
+                                Success = $false
+                                Error = "Merge conflicts detected - Copilot request failed, manual resolution required"
+                                HasConflicts = $true
+                                ConflictedFiles = $conflictedFiles
+                                CopilotRequested = $false
+                            }
                         }
                     }
-                    
-                    # Pattern 2: Documentation conflicts (keep both, merge intelligently)
-                    if ($file -match "\.(md|txt|rst)$" -and $content -match '<<<<<<< HEAD') {
-                        # Simple strategy: keep both changes with a separator
-                        $resolvedContent = $content -replace '<<<<<<< HEAD\s*\n', '' -replace '\n=======\s*\n', "`n`n---`n`n" -replace '\n>>>>>>> [^\n]*\n', "`n"
-                        $resolvedContent | Out-File -FilePath $file -Encoding UTF8
-                        git add $file 2>&1 | Out-Null
-                        $resolvedFiles += $file
-                        
-                        Write-StatusMessage "   ✅ Auto-resolved documentation conflict in $file" -Color $GREEN
-                    }
                 }
+            } catch {
+                Write-StatusMessage "   ❌ Error getting conflicted files: $($_.Exception.Message)" -Color $RED
             }
-            
-            # Check if all conflicts were resolved
-            $remainingConflicts = git diff --name-only --diff-filter=U
-            
-            if ($remainingConflicts.Count -eq 0) {
-                # All conflicts resolved, commit the resolution
-                git commit -m "🔧 Auto-resolve merge conflicts for PR #$PRNumber" 2>&1 | Out-Null
-                
-                if ($LASTEXITCODE -eq 0) {
-                    # Push the resolved changes
-                    git push origin $HeadRef 2>&1 | Out-Null
-                    
-                    if ($LASTEXITCODE -eq 0) {
-                        Write-StatusMessage "✅ Successfully resolved and pushed merge conflicts" -Color $GREEN
-                        git checkout $currentBranch 2>&1 | Out-Null
-                        git branch -D $tempBranch 2>&1 | Out-Null
-                        return @{ Success = $true; Error = $null }
-                    }
-                }
-            }
-            
-            Write-StatusMessage "⚠️  Some conflicts require manual resolution" -Color $YELLOW
-            git checkout $currentBranch 2>&1 | Out-Null
-            git branch -D $tempBranch 2>&1 | Out-Null
-            return @{ Success = $false; Error = "Manual conflict resolution required for: $($remainingConflicts -join ', ')" }
         }
         
-        return @{ Success = $false; Error = "No conflicts found but merge failed" }
+        if ($mergeable -eq $null) {
+            Write-StatusMessage "   ⏳ GitHub is still calculating merge status..." -Color $YELLOW
+            Write-StatusMessage "   🔄 Please wait a moment and try again" -Color $CYAN
+            return @{ Success = $false; Error = "GitHub is calculating merge status - try again in a moment"; HasConflicts = $null }
+        }
+        
+        return @{ Success = $false; Error = "Unknown merge state: $mergeableState"; HasConflicts = $null }
         
     } catch {
-        # Cleanup on error
-        git checkout $currentBranch 2>&1 | Out-Null
-        git branch -D $tempBranch 2>&1 | Out-Null
-        return @{ Success = $false; Error = "Error during conflict resolution: $($_.Exception.Message)" }
+        Write-StatusMessage "   ❌ Error during API-based conflict analysis: $($_.Exception.Message)" -Color $RED
+        return @{ Success = $false; Error = "Error during conflict analysis: $($_.Exception.Message)"; HasConflicts = $null }
     }
+}
+
+# Request Copilot to resolve merge conflicts
+function Request-CopilotMergeConflictResolution {
+    param(
+        [string]$PRNumber,
+        [Array]$ConflictedFiles
+    )
+    
+    Write-StatusMessage "   🤖 Preparing Copilot merge conflict resolution request..." -Color $PURPLE
+    
+    try {
+        # Build a comprehensive conflict resolution request
+        $fileList = ($ConflictedFiles | ForEach-Object { "- `$($_.filename)`" }) -join "`n"
+        
+        $copilotComment = @"
+@github-copilot resolve
+
+## 🔄 **Merge Conflict Resolution Request**
+
+This PR has merge conflicts that need to be resolved. Based on our previous experience, you're quite good at handling these intelligently.
+
+### **Conflicted Files:**
+$fileList
+
+### **Context:**
+- This is a **RUTOS Starlink Failover** project targeting **RUTX50 routers**
+- Files must be **POSIX shell compatible** (busybox sh, not bash)
+- Preserve **RUTOS compatibility** and avoid bash-specific syntax
+- Maintain **configuration templates** and **user settings**
+
+### **Resolution Guidelines:**
+1. **Preserve RUTOS compatibility** - Use POSIX sh syntax only
+2. **Merge intelligently** - Combine changes where possible
+3. **Maintain functionality** - Ensure all features continue to work
+4. **Follow project patterns** - Use existing code style and conventions
+5. **Version files** - Keep the higher version number if applicable
+
+### **Special Considerations:**
+- **Shell Scripts**: Must work in busybox environment
+- **Configuration**: Preserve user customizations
+- **Documentation**: Merge both sets of changes clearly
+- **Version Files**: Choose higher version number
+
+Please analyze the conflicts and provide a resolution that maintains the project's RUTOS compatibility while intelligently merging the changes.
+
+---
+*🤖 Automated merge conflict resolution request from monitoring system*
+"@
+
+        # Post the comment to the PR
+        $tempCommentFile = [System.IO.Path]::GetTempFileName()
+        $copilotComment | Out-File -FilePath $tempCommentFile -Encoding UTF8
+        
+        $commentResult = gh api repos/:owner/:repo/issues/$PRNumber/comments -X POST -f body=@$tempCommentFile
+        Remove-Item $tempCommentFile -Force -ErrorAction SilentlyContinue
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-StatusMessage "   ✅ Copilot merge conflict resolution comment posted successfully" -Color $GREEN
+            return @{ Success = $true; Error = $null }
+        } else {
+            Write-StatusMessage "   ❌ Failed to post Copilot comment" -Color $RED
+            return @{ Success = $false; Error = "Failed to post comment to PR" }
+        }
+        
+    } catch {
+        Write-StatusMessage "   ❌ Error requesting Copilot merge conflict resolution: $($_.Exception.Message)" -Color $RED
+        return @{ Success = $false; Error = "Error posting Copilot request: $($_.Exception.Message)" }
+    }
+}
+
+# Helper function for conflict resolution suggestions
+function Get-ConflictResolutionSuggestions {
+    param(
+        [string]$PRNumber,
+        [Array]$ConflictedFiles
+    )
+    
+    $suggestions = @()
+    
+    foreach ($file in $ConflictedFiles) {
+        $fileName = $file.filename
+        
+        # Suggest resolutions based on file type and patterns
+        if ($fileName -match "VERSION|version") {
+            $suggestions += @{
+                File = $fileName
+                Suggestion = "Version conflict - keep the higher version number"
+                Type = "Version"
+            }
+        }
+        
+        if ($fileName -match "\.(md|txt|rst)$") {
+            $suggestions += @{
+                File = $fileName
+                Suggestion = "Documentation conflict - merge both changes with clear separation"
+                Type = "Documentation"
+            }
+        }
+        
+        if ($fileName -match "\.sh$") {
+            $suggestions += @{
+                File = $fileName
+                Suggestion = "Shell script conflict - carefully review for RUTOS compatibility"
+                Type = "Script"
+            }
+        }
+        
+        if ($fileName -match "config|Config") {
+            $suggestions += @{
+                File = $fileName
+                Suggestion = "Configuration conflict - preserve user settings where possible"
+                Type = "Configuration"
+            }
+        }
+        
+        if ($fileName -match "\.json$") {
+            $suggestions += @{
+                File = $fileName
+                Suggestion = "JSON conflict - validate syntax after resolution"
+                Type = "JSON"
+            }
+        }
+    }
+    
+    return $suggestions
 }
 
 # Server-side validation using actual tools
@@ -1605,19 +1850,24 @@ function Start-CopilotPRs {
             }
         }
         
-        # Handle merge conflicts if enabled
-        if ($AutoResolveConflicts) {
+        # Handle merge conflicts - Request Copilot assistance if enabled
+        if ($RequestCopilotForConflicts) {
             $conflictResolution = Resolve-MergeConflicts -PRNumber $pr.Number -HeadRef $pr.HeadRef
             if ($conflictResolution.Success) {
-                Write-StatusMessage "✅ Merge conflicts resolved for PR #$($pr.Number)" -Color $GREEN
+                if ($conflictResolution.CopilotRequested) {
+                    Write-StatusMessage "🤖 Copilot has been requested to resolve merge conflicts for PR #$($pr.Number)" -Color $PURPLE
+                } else {
+                    Write-StatusMessage "✅ No merge conflicts detected for PR #$($pr.Number)" -Color $GREEN
+                }
             } else {
-                Write-StatusMessage "❌ Failed to resolve merge conflicts for PR #$($pr.Number): $($conflictResolution.Error)" -Color $RED
+                Write-StatusMessage "❌ Failed to analyze merge conflicts for PR #$($pr.Number): $($conflictResolution.Error)" -Color $RED
             }
         } else {
             # Check for merge conflicts and provide guidance
             $prInfo = gh pr view $pr.Number --json mergeable,mergeStateStatus 2>$null | ConvertFrom-Json
             if ($prInfo -and $prInfo.mergeable -eq "CONFLICTING") {
                 Write-StatusMessage "⚠️  PR #$($pr.Number) has merge conflicts that need resolution" -Color $YELLOW
+                Write-StatusMessage "💡 Tip: Use -RequestCopilotForConflicts to automatically request Copilot assistance" -Color $CYAN
                 
                 # Post conflict resolution comment
                 $conflictComment = @"
@@ -1969,13 +2219,13 @@ function Invoke-PRWorkflow {
             } else {
                 Write-StatusMessage "   ❌ Failed to request Copilot conflict fix: $($conflictResult.Error)" -Color $RED
                 
-                # Fallback: Try automated resolution
-                if ($AutoResolveConflicts) {
-                    $autoResult = Resolve-MergeConflicts -PRNumber $PRNumber -HeadRef $HeadRef
-                    if ($autoResult.Success) {
-                        Write-StatusMessage "   ✅ Automated conflict resolution successful" -Color $GREEN
+                # Fallback: Try Copilot resolution if enabled
+                if ($RequestCopilotForConflicts) {
+                    $copilotResult = Resolve-MergeConflicts -PRNumber $PRNumber -HeadRef $HeadRef
+                    if ($copilotResult.Success -and $copilotResult.CopilotRequested) {
+                        Write-StatusMessage "   🤖 Copilot merge conflict resolution requested as fallback" -Color $PURPLE
                     } else {
-                        Write-StatusMessage "   ❌ Automated conflict resolution failed: $($autoResult.Error)" -Color $RED
+                        Write-StatusMessage "   ❌ Copilot conflict resolution fallback failed: $($copilotResult.Error)" -Color $RED
                     }
                 }
                 
@@ -2269,7 +2519,7 @@ function Start-CopilotPRMonitoring {
     Write-StatusMessage "🤖 Starting Copilot PR Monitoring with intelligent workflow management..." -Color $GREEN
     Write-StatusMessage "   📊 Monitoring interval: $IntervalSeconds seconds" -Color $BLUE
     Write-StatusMessage "   🔄 Max iterations: $(if ($MaxIterations -eq 0) { "Unlimited" } else { $MaxIterations })" -Color $BLUE
-    Write-StatusMessage "   🎯 Parameters: VerboseOutput=$VerboseOutput, SkipValidation=$SkipValidation, AutoResolveConflicts=$AutoResolveConflicts" -Color $BLUE
+    Write-StatusMessage "   🎯 Parameters: VerboseOutput=$VerboseOutput, SkipValidation=$SkipValidation, RequestCopilotForConflicts=$RequestCopilotForConflicts" -Color $BLUE
     
     $iteration = 0
     $processedPRs = @{}
@@ -2400,7 +2650,7 @@ try {
     Write-StatusMessage "🔧 Configuration:" -Color $CYAN
     Write-StatusMessage "   VerboseOutput: $VerboseOutput" -Color $GRAY
     Write-StatusMessage "   SkipValidation: $SkipValidation" -Color $GRAY
-    Write-StatusMessage "   AutoResolveConflicts: $AutoResolveConflicts" -Color $GRAY
+    Write-StatusMessage "   RequestCopilotForConflicts: $RequestCopilotForConflicts" -Color $GRAY
     Write-StatusMessage "   SkipWorkflowApproval: $SkipWorkflowApproval" -Color $GRAY
     Write-StatusMessage "   ForceValidation: $ForceValidation" -Color $GRAY
     Write-StatusMessage "   MonitorOnly: $MonitorOnly" -Color $GRAY
