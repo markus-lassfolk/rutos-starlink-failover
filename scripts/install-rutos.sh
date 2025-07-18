@@ -401,139 +401,38 @@ install_scripts() {
         fi
     done
 
-    # Configuration validation script - handle both local and remote installation
-    validate_script="validate-config-rutos.sh"
-    if [ -f "$script_dir/$validate_script" ]; then
-        cp "$script_dir/$validate_script" "$INSTALL_DIR/scripts/$validate_script"
-        chmod +x "$INSTALL_DIR/scripts/$validate_script"
-        print_status "$GREEN" "✓ Configuration validation script installed"
-    else
-        print_status "$BLUE" "Downloading $validate_script..."
-        if download_file "$BASE_URL/scripts/$validate_script" "$INSTALL_DIR/scripts/$validate_script"; then
-            chmod +x "$INSTALL_DIR/scripts/$validate_script"
-            print_status "$GREEN" "✓ $validate_script downloaded and installed"
-        else
-            print_status "$YELLOW" "⚠ Warning: Could not download $validate_script"
-        fi
-    fi
-
-    # Placeholder utilities - essential for graceful degradation
-    if [ -f "$script_dir/../scripts/placeholder-utils.sh" ]; then
-        cp "$script_dir/../scripts/placeholder-utils.sh" "$INSTALL_DIR/scripts/"
-        chmod +x "$INSTALL_DIR/scripts/placeholder-utils.sh"
-        print_status "$GREEN" "✓ Placeholder utilities installed"
-    else
-        # Download from repository
-        print_status "$BLUE" "Downloading placeholder-utils.sh..."
-        if download_file "$BASE_URL/scripts/placeholder-utils.sh" "$INSTALL_DIR/scripts/placeholder-utils.sh"; then
-            chmod +x "$INSTALL_DIR/scripts/placeholder-utils.sh"
-            print_status "$GREEN" "✓ Placeholder utilities installed"
-        else
-            print_status "$RED" "✗ Error: Could not download placeholder-utils.sh"
-            print_status "$YELLOW" "  This is required for graceful degradation features"
-        fi
-    fi
-
-    # System status script - handle both local and remote installation
-    status_script="system-status-rutos.sh"
-    if [ -f "$script_dir/$status_script" ]; then
-        cp "$script_dir/$status_script" "$INSTALL_DIR/scripts/$status_script"
-        chmod +x "$INSTALL_DIR/scripts/$status_script"
-        print_status "$GREEN" "✓ System status script installed"
-    else
-        print_status "$BLUE" "Downloading $status_script..."
-        if download_file "$BASE_URL/scripts/$status_script" "$INSTALL_DIR/scripts/$status_script"; then
-            chmod +x "$INSTALL_DIR/scripts/$status_script"
-            print_status "$GREEN" "✓ $status_script downloaded and installed"
-        else
-            print_status "$YELLOW" "⚠ Warning: Could not download $status_script"
-        fi
-    fi
-
-    # Test scripts - handle both local and remote installation
-    for test_base in test-pushover test-monitoring health-check; do
-        test_script="${test_base}-rutos.sh"
-        if [ -f "$script_dir/$test_script" ]; then
-            cp "$script_dir/$test_script" "$INSTALL_DIR/scripts/$test_script"
-            chmod +x "$INSTALL_DIR/scripts/$test_script"
-            print_status "$GREEN" "✓ $test_script installed"
-        else
-            print_status "$BLUE" "Downloading $test_script..."
-            if download_file "$BASE_URL/scripts/$test_script" "$INSTALL_DIR/scripts/$test_script"; then
-                chmod +x "$INSTALL_DIR/scripts/$test_script"
-                print_status "$GREEN" "✓ $test_script downloaded and installed"
-            else
-                print_status "$YELLOW" "⚠ Warning: Could not download $test_script"
-            fi
-        fi
-    done
-
-    # Configuration update script - handle both local and remote installation
-    update_script="update-config-rutos.sh"
-    if [ -f "$script_dir/$update_script" ]; then
-        cp "$script_dir/$update_script" "$INSTALL_DIR/scripts/$update_script"
-        chmod +x "$INSTALL_DIR/scripts/$update_script"
-        print_status "$GREEN" "✓ Configuration update script installed"
-    else
-        print_status "$BLUE" "Downloading $update_script..."
-        if download_file "$BASE_URL/scripts/$update_script" "$INSTALL_DIR/scripts/$update_script"; then
-            chmod +x "$INSTALL_DIR/scripts/$update_script"
-            print_status "$GREEN" "✓ $update_script downloaded and installed"
-        else
-            print_status "$RED" "✗ Error: Could not download $update_script"
-        fi
-    fi
-
-    # Configuration upgrade script - handle both local and remote installation
-    upgrade_script="upgrade-to-advanced-rutos.sh"
-    if [ -f "$script_dir/$upgrade_script" ]; then
-        cp "$script_dir/$upgrade_script" "$INSTALL_DIR/scripts/$upgrade_script"
-        chmod +x "$INSTALL_DIR/scripts/$upgrade_script"
-        print_status "$GREEN" "✓ Configuration upgrade script installed"
-    else
-        print_status "$BLUE" "Downloading $upgrade_script..."
-        if download_file "$BASE_URL/scripts/$upgrade_script" "$INSTALL_DIR/scripts/$upgrade_script"; then
-            chmod +x "$INSTALL_DIR/scripts/$upgrade_script"
-            print_status "$GREEN" "✓ $upgrade_script downloaded and installed"
-        else
-            print_status "$RED" "✗ Error: Could not download $upgrade_script"
-        fi
-    fi
-
-    # Test scripts - handle both local and remote installation
-    for script in test-connectivity.sh test-pushover.sh placeholder-utils.sh; do
-        if [ -f "$script_dir/../scripts/$script" ]; then
-            cp "$script_dir/../scripts/$script" "$INSTALL_DIR/scripts/"
+    # All scripts must use the *-rutos.sh naming convention
+    for script in \
+        validate-config-rutos.sh \
+        placeholder-utils.sh \
+        system-status-rutos.sh \
+        test-pushover-rutos.sh \
+        test-monitoring-rutos.sh \
+        health-check-rutos.sh \
+        update-config-rutos.sh \
+        upgrade-to-advanced-rutos.sh \
+        test-connectivity-rutos.sh \
+        merge-config-rutos.sh
+    do
+        # Try local script first
+        if [ -f "$script_dir/$script" ]; then
+            cp "$script_dir/$script" "$INSTALL_DIR/scripts/$script"
+            chmod +x "$INSTALL_DIR/scripts/$script"
+            print_status "$GREEN" "✓ $script installed"
+        elif [ -f "$script_dir/../scripts/$script" ]; then
+            cp "$script_dir/../scripts/$script" "$INSTALL_DIR/scripts/$script"
             chmod +x "$INSTALL_DIR/scripts/$script"
             print_status "$GREEN" "✓ $script installed"
         else
-            # Download from repository
             print_status "$BLUE" "Downloading $script..."
             if download_file "$BASE_URL/scripts/$script" "$INSTALL_DIR/scripts/$script"; then
                 chmod +x "$INSTALL_DIR/scripts/$script"
-                print_status "$GREEN" "✓ $script installed"
+                print_status "$GREEN" "✓ $script downloaded and installed"
             else
                 print_status "$YELLOW" "⚠ Warning: Could not download $script"
             fi
         fi
     done
-
-    # Configuration merge script - handle both local and remote installation
-    if [ -f "$script_dir/../scripts/merge-config.sh" ]; then
-        cp "$script_dir/../scripts/merge-config.sh" "$INSTALL_DIR/scripts/"
-        chmod +x "$INSTALL_DIR/scripts/merge-config.sh"
-        print_status "$GREEN" "✓ Configuration merge script installed"
-    else
-        # Download from repository
-        print_status "$BLUE" "Downloading merge-config.sh..."
-        if download_file "$BASE_URL/scripts/merge-config.sh" "$INSTALL_DIR/scripts/merge-config.sh"; then
-            chmod +x "$INSTALL_DIR/scripts/merge-config.sh"
-            print_status "$GREEN" "✓ Configuration merge script installed"
-        else
-            print_status "$YELLOW" "⚠ Warning: Could not download merge-config.sh"
-            print_status "$YELLOW" "  Configuration merge will use fallback method"
-        fi
-    fi
 }
 
 # Install configuration
