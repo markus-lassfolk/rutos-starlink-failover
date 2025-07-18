@@ -38,13 +38,13 @@ debug_exec() {
 
 ## Testing Instructions
 
-### Remote Installation Command (RUTX50):
+### Remote Installation Command (RUTX50)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/your-repo/rutos-starlink-failover/main/scripts/install.sh | DEBUG=1 sh
 ```
 
-### Expected Behavior:
+### Expected Behavior
 
 1. **Trap Handling**: Proper signal handling (no ERR trap errors)
 2. **Debug Output**: Comprehensive debug messages when DEBUG=1
@@ -52,7 +52,7 @@ curl -fsSL https://raw.githubusercontent.com/your-repo/rutos-starlink-failover/m
 4. **Directory Creation**: All required directories created properly
 5. **Script Downloads**: Remote scripts downloaded and installed
 
-### Debug Mode:
+### Debug Mode
 
 - Set `DEBUG=1` environment variable
 - Shows detailed execution steps
@@ -61,13 +61,13 @@ curl -fsSL https://raw.githubusercontent.com/your-repo/rutos-starlink-failover/m
 
 ## Quality Status
 
-### ShellCheck Results:
+### ShellCheck Results
 
 - ✅ `scripts/install.sh` - PASSES
 - ✅ `scripts/update-version.sh` - PASSES (after local fixes)
 - ✅ `scripts/validate-config.sh` - PASSES (after local fixes)
 
-### Busybox Compatibility:
+### Busybox Compatibility
 
 - ✅ No `local` keywords
 - ✅ POSIX signal handling
