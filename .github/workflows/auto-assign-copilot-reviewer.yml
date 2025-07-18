@@ -32,86 +32,139 @@ jobs:
         run: |
           set -e
           
+          echo "=== WORKFLOW DEBUG LOGGING STARTED ==="
+          echo "Timestamp: $(date)"
           echo "Checking if Copilot has finished working on draft PRs..."
           echo "Event name: ${{ github.event_name }}"
           echo "GitHub actor: ${{ github.actor }}"
           echo "Repository: ${{ github.repository }}"
+          echo "=== ENVIRONMENT DETAILS ==="
+          echo "Working directory: $(pwd)"
+          echo "User: $(whoami)"
+          echo "Shell: $0"
+          echo "PATH: $PATH"
           
-          # Test gh CLI authentication
+          # Test gh CLI authentication with detailed output
+          echo "=== TESTING GITHUB CLI AUTHENTICATION ==="
           echo "Testing GitHub CLI authentication..."
-          gh auth status || exit 1
+          if gh auth status; then
+            echo "✓ GitHub CLI authentication successful"
+          else
+            echo "✗ GitHub CLI authentication failed"
+            exit 1
+          fi
+          
+          # Test basic gh CLI functionality
+          echo "=== TESTING GITHUB CLI FUNCTIONALITY ==="
+          echo "Testing basic gh CLI commands..."
+          echo "Current user: $(gh api user --jq '.login')"
+          echo "Repository info: $(gh repo view --json name,owner --jq '.owner.login + "/" + .name')"
           
           # Determine which PR to check based on trigger event
+          echo "=== DETERMINING TRIGGER CONTEXT ==="
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             pr_number="${{ github.event.number }}"
             echo "Triggered by PR #$pr_number event: ${{ github.event.action }}"
+            echo "PR details from event:"
+            echo "  - PR number: $pr_number"
+            echo "  - PR action: ${{ github.event.action }}"
           elif [ "${{ github.event_name }}" = "issue_comment" ]; then
             pr_number="${{ github.event.issue.number }}"
             echo "Triggered by comment on PR #$pr_number"
+            echo "Comment details from event:"
+            echo "  - Issue/PR number: $pr_number"
+            echo "  - Comment author: ${{ github.event.comment.user.login }}"
           else
             echo "Manual trigger - checking all draft PRs"
             pr_number=""
           fi
           
           # Function to check if Copilot appears to be done working
+          echo "=== DEFINING COMPLETION CHECK FUNCTION ==="
           check_copilot_completion() {
+            echo "  [FUNCTION] check_copilot_completion called with PR #$1"
             pr_num=$1
-            pr_data=$(gh pr view "$pr_num" --json isDraft,assignees,title,body,comments)
+            
+            echo "  [FUNCTION] Fetching PR data for #$pr_num..."
+            if ! pr_data=$(gh pr view "$pr_num" --json isDraft,assignees,title,body,comments 2>&1); then
+              echo "  [FUNCTION] ✗ Failed to fetch PR data: $pr_data"
+              return 1
+            fi
+            echo "  [FUNCTION] ✓ Successfully fetched PR data"
             
             # Check if PR is draft and has Copilot assigned
+            echo "  [FUNCTION] Parsing PR status..."
             is_draft=$(echo "$pr_data" | jq -r '.isDraft')
             copilot_assigned=$(echo "$pr_data" | jq -r '.assignees[] | select(.login == "Copilot") | .login // empty')
             
+            echo "  [FUNCTION] PR #$pr_num status:"
+            echo "  [FUNCTION]   - isDraft: $is_draft"
+            echo "  [FUNCTION]   - Copilot assigned: $copilot_assigned"
+            
             if [ "$is_draft" != "true" ] || [ -z "$copilot_assigned" ]; then
-              echo "PR #$pr_num: Not a Copilot draft PR (skipping)"
+              echo "  [FUNCTION] PR #$pr_num: Not a Copilot draft PR (skipping)"
               return 1
             fi
             
             pr_title=$(echo "$pr_data" | jq -r '.title')
             pr_body=$(echo "$pr_data" | jq -r '.body // ""')
             
-            echo "Analyzing PR #$pr_num: '$pr_title'"
+            echo "  [FUNCTION] Analyzing PR #$pr_num: '$pr_title'"
+            echo "  [FUNCTION] PR body length: ${#pr_body} characters"
             
             # Look for completion indicators in PR body
             completion_indicators="Fixes #|Closes #|Summary|Issues Fixed|Testing|Validation Results|Scope Compliance"
+            echo "  [FUNCTION] Checking for completion indicators..."
             
             if echo "$pr_body" | grep -qE "$completion_indicators"; then
-              echo "PR #$pr_num: Found completion indicators in description"
+              echo "  [FUNCTION] ✓ PR #$pr_num: Found completion indicators in description"
               
               # Additional check: Look for recent comments from Copilot
+              echo "  [FUNCTION] Checking for recent Copilot comments..."
               recent_comments=$(echo "$pr_data" | jq -r '.comments[-3:] | .[] | select(.author.login == "Copilot") | .body' 2>/dev/null || echo "")
               
               if echo "$recent_comments" | grep -qE "(completed|finished|ready|done)"; then
-                echo "PR #$pr_num: Found completion language in recent comments"
+                echo "  [FUNCTION] ✓ PR #$pr_num: Found completion language in recent comments"
                 return 0
               elif [ ${#pr_body} -gt 1000 ]; then
-                echo "PR #$pr_num: Substantial PR description (${#pr_body} chars) suggests completion"
+                echo "  [FUNCTION] ✓ PR #$pr_num: Substantial PR description (${#pr_body} chars) suggests completion"
                 return 0
               else
-                echo "PR #$pr_num: Has completion indicators but waiting for more signals"
+                echo "  [FUNCTION] ⏳ PR #$pr_num: Has completion indicators but waiting for more signals"
                 return 1
               fi
             else
-              echo "PR #$pr_num: No completion indicators found yet"
+              echo "  [FUNCTION] ⏳ PR #$pr_num: No completion indicators found yet"
               return 1
             fi
           }
           
           # Check specific PR or all draft PRs
+          echo "=== MAIN PROCESSING LOGIC ==="
           if [ -n "$pr_number" ]; then
+            echo "Processing specific PR #$pr_number..."
             if check_copilot_completion "$pr_number"; then
+              echo "✓ PR #$pr_number is ready for conversion"
               echo "Converting PR #$pr_number from draft to ready for review..."
               if gh pr ready "$pr_number"; then
-                echo "Successfully converted PR #$pr_number to ready for review"
+                echo "✓ Successfully converted PR #$pr_number to ready for review"
                 echo "This will trigger validation workflows automatically"
               else
-                echo "Failed to convert PR #$pr_number from draft to ready"
+                echo "✗ Failed to convert PR #$pr_number from draft to ready"
               fi
+            else
+              echo "⏳ PR #$pr_number is not ready for conversion yet"
             fi
           else
             # Manual trigger - check all draft PRs
+            echo "Manual trigger mode - checking all draft PRs..."
             echo "Fetching all draft PRs..."
-            draft_prs=$(gh pr list --state open --draft --json number --limit 20)
+            
+            if ! draft_prs=$(gh pr list --state open --draft --json number --limit 20 2>&1); then
+              echo "✗ Failed to fetch draft PRs: $draft_prs"
+              exit 1
+            fi
+            
             echo "Draft PRs found: $draft_prs"
             
             if [ "$draft_prs" = "[]" ] || [ -z "$draft_prs" ]; then
@@ -119,18 +172,23 @@ jobs:
             else
               echo "Processing draft PRs..."
               echo "$draft_prs" | jq -r '.[].number' | while read pr_num; do
-                echo "Checking PR #$pr_num..."
+                echo "=== PROCESSING PR #$pr_num ==="
                 if [ -n "$pr_num" ] && check_copilot_completion "$pr_num"; then
+                  echo "✓ PR #$pr_num is ready for conversion"
                   echo "Converting PR #$pr_num from draft to ready for review..."
                   if gh pr ready "$pr_num"; then
-                    echo "Successfully converted PR #$pr_num to ready for review"
+                    echo "✓ Successfully converted PR #$pr_num to ready for review"
                   else
-                    echo "Failed to convert PR #$pr_num from draft to ready"
+                    echo "✗ Failed to convert PR #$pr_num from draft to ready"
                     echo "Exit code: $?"
                   fi
+                else
+                  echo "⏳ PR #$pr_num is not ready for conversion yet"
                 fi
+                echo "=== FINISHED PROCESSING PR #$pr_num ==="
               done
             fi
           fi
           
+          echo "=== WORKFLOW DEBUG LOGGING COMPLETED ==="
           echo "Copilot completion check finished"
