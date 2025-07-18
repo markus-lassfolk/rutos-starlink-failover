@@ -832,10 +832,6 @@ main() {
     print_status "$GREEN" "=== Installation Complete ==="
     printf "\n"
 
-    # Optional: Run Starlink connectivity and API test after install
-    print_status "$BLUE" "Running Starlink connectivity and API test..."
-    test_starlink_connectivity
-    printf "\n"
     available_editor=""
     for editor in nano vi vim; do
         if command -v "$editor" >/dev/null 2>&1; then
@@ -872,10 +868,10 @@ main() {
     printf "\n"
 
     # Print recommended actions with correct filenames
-    print_status "$BLUE" "\033[1;35m  • Test monitoring: ./scripts/test-monitoring-rutos.sh\033[0m"
-    print_status "$BLUE" "\033[1;35m  • Test Pushover: ./scripts/test-pushover-rutos.sh\033[0m"
-    print_status "$BLUE" "\033[1;35m  • Validate config: ./scripts/validate-config-rutos.sh\033[0m"
-    print_status "$BLUE" "\033[1;35m  • Upgrade to advanced: ./scripts/upgrade-to-advanced-rutos.sh\033[0m"
+    print_status "$BLUE" "  • Test monitoring: ./scripts/test-monitoring-rutos.sh"
+    print_status "$BLUE" "  • Test Pushover: ./scripts/test-pushover-rutos.sh"
+    print_status "$BLUE" "  • Validate config: ./scripts/validate-config-rutos.sh"
+    print_status "$BLUE" "  • Upgrade to advanced: ./scripts/upgrade-to-advanced-rutos.sh"
     print_status "$BLUE" "Installation directory: $INSTALL_DIR"
     print_status "$BLUE" "Configuration file: $INSTALL_DIR/config/config.sh"
     print_status "$BLUE" "Uninstall script: $INSTALL_DIR/uninstall.sh"
