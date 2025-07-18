@@ -510,20 +510,12 @@ install_config() {
 
         # Use the new merge-config.sh script if available
         if [ -f "$INSTALL_DIR/scripts/merge-config.sh" ]; then
-            if "$INSTALL_DIR/scripts/merge-config.sh" \
-                "$INSTALL_DIR/config/config.template.sh" \
-                "$INSTALL_DIR/config/config.sh" \
-                "$INSTALL_DIR/config/config.sh"; then
+            if "$INSTALL_DIR/scripts/merge-config.sh" "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"; then
                 print_status "$GREEN" "✓ Configuration merged successfully"
-                print_status "$YELLOW" "📋 Your existing settings have been preserved"
-                print_status "$YELLOW" "📋 New template features are now available"
-                print_status "$YELLOW" "📋 Extra settings preserved in separate section"
             else
-                print_status "$RED" "✗ Merge failed, attempting to preserve settings manually"
-                backup_file="$INSTALL_DIR/config/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
-                cp "$INSTALL_DIR/config/config.sh" "$backup_file"
-                cat "$INSTALL_DIR/config/config.template.sh" "$backup_file" >"$INSTALL_DIR/config/config.sh"
-                print_status "$YELLOW" "⚠ Configuration manually merged (backup: $backup_file)"
+                print_status "$YELLOW" "⚠ Merge failed, preserving user settings manually"
+                cp "$INSTALL_DIR/config/config.sh" "$INSTALL_DIR/config/config.sh.merged"
+                cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
             fi
         else
             # Fallback to simple backup and replace
