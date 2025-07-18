@@ -19,22 +19,22 @@ ENABLED=$(uci get azure.system.enabled 2>/dev/null || echo "1")
 # --- VALIDATION ---
 # Check if Azure logging is enabled
 if [ "$ENABLED" != "1" ]; then
-	# Silently exit if disabled
-	exit 0
+    # Silently exit if disabled
+    exit 0
 fi
 
 # Check if the Azure Function URL has been configured
 if [ -z "$AZURE_FUNCTION_URL" ]; then
-	echo "Error: Azure Function URL not configured. Please set azure.system.endpoint in UCI."
-	logger -t "log-shipper" "ERROR: Azure Function URL not configured"
-	exit 1
+    echo "Error: Azure Function URL not configured. Please set azure.system.endpoint in UCI."
+    logger -t "log-shipper" "ERROR: Azure Function URL not configured"
+    exit 1
 fi
 
 # Validate URL format (basic HTTPS check, allow custom domains)
 if ! echo "$AZURE_FUNCTION_URL" | grep -q "^https://"; then
-	echo "Error: Azure Function URL must use HTTPS protocol."
-	echo "Provided URL: $AZURE_FUNCTION_URL"
-	exit 1
+    echo "Error: Azure Function URL must use HTTPS protocol."
+    echo "Provided URL: $AZURE_FUNCTION_URL"
+    exit 1
 fi
 
 # --- SCRIPT LOGIC ---
@@ -42,8 +42,8 @@ fi
 # Exit immediately if the log file doesn't exist or is empty.
 # The '-s' flag checks for existence and non-zero size.
 if [ ! -s "$LOG_FILE" ]; then
-	# echo "Log file is empty or does not exist. Nothing to do."
-	exit 0
+    # echo "Log file is empty or does not exist. Nothing to do."
+    exit 0
 fi
 
 # Send the log file content to the Azure Function via HTTP POST.
@@ -57,20 +57,20 @@ CURL_EXIT_CODE=$?
 
 # Check curl command exit status first
 if [ "$CURL_EXIT_CODE" -ne 0 ]; then
-	logger -t "azure-log-shipper" "curl failed with exit code $CURL_EXIT_CODE"
-	exit 1
+    logger -t "azure-log-shipper" "curl failed with exit code $CURL_EXIT_CODE"
+    exit 1
 fi
 
 # Check if the transmission was successful (HTTP status 200 OK).
 if [ "$HTTP_STATUS" -eq 200 ]; then
-	# Success! Clear the local log file by truncating it to zero size.
-	# This is safer than 'rm' as it preserves file permissions.
-	true >"$LOG_FILE"
-	logger -t "azure-log-shipper" "Successfully sent logs to Azure. Local log file cleared."
+    # Success! Clear the local log file by truncating it to zero size.
+    # This is safer than 'rm' as it preserves file permissions.
+    true >"$LOG_FILE"
+    logger -t "azure-log-shipper" "Successfully sent logs to Azure. Local log file cleared."
 else
-	# Failure. Do not clear the local file. It will be retried on the next run.
-	logger -t "azure-log-shipper" "Failed to send logs to Azure. HTTP Status: $HTTP_STATUS. Retaining local logs."
-	exit 1
+    # Failure. Do not clear the local file. It will be retried on the next run.
+    logger -t "azure-log-shipper" "Failed to send logs to Azure. HTTP Status: $HTTP_STATUS. Retaining local logs."
+    exit 1
 fi
 
 exit 0

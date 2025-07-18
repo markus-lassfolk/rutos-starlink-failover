@@ -10,36 +10,36 @@ set -e
 # Color definitions for consistent output (compatible with busybox)
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-	RED='\033[0;31m'
-	GREEN='\033[0;32m'
-	YELLOW='\033[1;33m'
-	BLUE='\033[1;35m'
-	CYAN='\033[0;36m'
-	NC='\033[0m' # No Color
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m' # No Color
 else
-	# Fallback to no colors if terminal doesn't support them
-	RED=""
-	GREEN=""
-	YELLOW=""
-	BLUE=""
-	CYAN=""
-	NC=""
+    # Fallback to no colors if terminal doesn't support them
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    CYAN=""
+    NC=""
 fi
 
 printf "%sSetting up Network Performance Analysis Environment%s\n" "$GREEN" "$NC"
 
 # Check if Python 3 is installed
 if ! command -v python3 >/dev/null 2>&1; then
-	echo "Python 3 is required but not installed. Please install Python 3.8 or later."
-	exit 1
+    echo "Python 3 is required but not installed. Please install Python 3.8 or later."
+    exit 1
 fi
 
 echo "Python version: $(python3 --version)"
 
 # Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
-	printf "%b\n" "${YELLOW}Creating Python virtual environment...${NC}"
-	python3 -m venv venv
+    printf "%b\n" "${YELLOW}Creating Python virtual environment...${NC}"
+    python3 -m venv venv
 fi
 
 # Activate virtual environment
