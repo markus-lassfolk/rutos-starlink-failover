@@ -16,31 +16,23 @@
 set -eu
 
 # Standard colors for consistent output (compatible with busybox)
-# shellcheck disable=SC2034  # Colors defined for potential future use
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-# Check if we're in a terminal that supports colors
+# shellcheck disable=SC2034  # Color variables may not all be used in every script
+# CRITICAL: Use RUTOS-compatible color detection
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    # Colors enabled - keep definitions above
-    :
+    # Colors enabled
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
 else
     # Colors disabled
-    # shellcheck disable=SC2034  # Colors defined for potential future use
     RED=""
-    # shellcheck disable=SC2034
     GREEN=""
-    # shellcheck disable=SC2034
     YELLOW=""
-    # shellcheck disable=SC2034
     BLUE=""
-    # shellcheck disable=SC2034
     CYAN=""
-    # shellcheck disable=SC2034
     NC=""
 fi
 
