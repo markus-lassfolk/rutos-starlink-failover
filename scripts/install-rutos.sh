@@ -69,7 +69,7 @@ print_status() {
 debug_msg() {
     if [ "${DEBUG:-0}" = "1" ]; then
         timestamp=$(get_timestamp)
-        printf "%b[%s] DEBUG: %s%b\n" "$BLUE" "$timestamp" "$1" "$NC"
+        printf "%b[%s] DEBUG: %s%b\n" "$BLUE" "$timestamp" "$1" "$NC" >&2
         log_message "DEBUG" "$1"
     fi
 }
@@ -78,7 +78,7 @@ debug_msg() {
 debug_exec() {
     if [ "${DEBUG:-0}" = "1" ]; then
         timestamp=$(get_timestamp)
-        printf "%b[%s] DEBUG EXEC: %s%b\n" "$CYAN" "$timestamp" "$*" "$NC"
+        printf "%b[%s] DEBUG EXEC: %s%b\n" "$CYAN" "$timestamp" "$*" "$NC" >&2
         log_message "DEBUG_EXEC" "$*"
     fi
     "$@"
@@ -350,23 +350,37 @@ install_scripts() {
     script_dir="$(dirname "$0")"
 
     # Main monitoring script (enhanced version is now default)
-    if [ -f "$script_dir/starlink_monitor-rutos.sh" ]; then
-        cp "$script_dir/starlink_monitor-rutos.sh" "$INSTALL_DIR/scripts/starlink_monitor-rutos.sh"
-        chmod +x "$INSTALL_DIR/scripts/starlink_monitor-rutos.sh"
+    monitor_script="starlink_monitor-rutos.sh"
+    if [ -f "$script_dir/$monitor_script" ]; then
+        cp "$script_dir/$monitor_script" "$INSTALL_DIR/scripts/$monitor_script"
+        chmod +x "$INSTALL_DIR/scripts/$monitor_script"
         print_status "$GREEN" "✓ Monitor script installed"
     else
-        print_status "$RED" "Error: Monitor script not found"
-        return 1
+        print_status "$BLUE" "Downloading $monitor_script..."
+        if download_file "$BASE_URL/Starlink-RUTOS-Failover/$monitor_script" "$INSTALL_DIR/scripts/$monitor_script"; then
+            chmod +x "$INSTALL_DIR/scripts/$monitor_script"
+            print_status "$GREEN" "✓ $monitor_script downloaded and installed"
+        else
+            print_status "$RED" "Error: Failed to install $monitor_script"
+            return 1
+        fi
     fi
 
     # Notification script (enhanced version is now default)
-    if [ -f "$script_dir/99-pushover_notify-rutos.sh" ]; then
-        cp "$script_dir/99-pushover_notify-rutos.sh" "$HOTPLUG_DIR/99-pushover_notify-rutos.sh"
-        chmod +x "$HOTPLUG_DIR/99-pushover_notify-rutos.sh"
+    notify_script="99-pushover_notify-rutos.sh"
+    if [ -f "$script_dir/$notify_script" ]; then
+        cp "$script_dir/$notify_script" "$HOTPLUG_DIR/$notify_script"
+        chmod +x "$HOTPLUG_DIR/$notify_script"
         print_status "$GREEN" "✓ Notification script installed"
     else
-        print_status "$RED" "Error: Notification script not found"
-        return 1
+        print_status "$BLUE" "Downloading $notify_script..."
+        if download_file "$BASE_URL/Starlink-RUTOS-Failover/$notify_script" "$HOTPLUG_DIR/$notify_script"; then
+            chmod +x "$HOTPLUG_DIR/$notify_script"
+            print_status "$GREEN" "✓ $notify_script downloaded and installed"
+        else
+            print_status "$RED" "Error: Failed to install $notify_script"
+            return 1
+        fi
     fi
 
     # Other scripts - handle both local and remote installation
