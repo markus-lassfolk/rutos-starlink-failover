@@ -52,11 +52,14 @@ Warning: mwan3 member 'member1' not found
 **Solution**:
 
 1. Check existing members:
+
    ```bash
    uci show mwan3 | grep member
    ```
+
 2. Update config.sh with correct member name
 3. Configure mwan3 if needed:
+
    ```bash
    uci set mwan3.member1=member
    uci set mwan3.member1.interface='wan'
@@ -75,6 +78,7 @@ Warning: Zero thresholds may cause issues
 
 1. Review threshold values in config.sh
 2. Use realistic values:
+
    ```bash
    PACKET_LOSS_THRESHOLD=0.05    # 5%
    OBSTRUCTION_THRESHOLD=0.001   # 0.1%
@@ -95,14 +99,19 @@ ERROR: Failed to get data from API. Dish may be unreachable.
 
 1. Check Starlink is in Bypass Mode
 2. Verify static route:
+
    ```bash
    ip route show | grep 192.168.100.1
    ```
+
 3. Test connectivity:
+
    ```bash
    ping -c 1 192.168.100.1
    ```
+
 4. Check firewall rules:
+
    ```bash
    iptables -L | grep 192.168.100.1
    ```
@@ -119,10 +128,13 @@ HTTP 401 Unauthorized
 
 1. Verify credentials in config.sh
 2. Check API is enabled:
+
    ```bash
    uci show uhttpd | grep rpc
    ```
+
 3. Test authentication:
+
    ```bash
    curl -u username:password http://192.168.80.1/cgi-bin/luci/rpc/uci
    ```
@@ -141,10 +153,13 @@ Warning: Pushover not configured, skipping notification
 
 1. Verify Pushover credentials in config.sh
 2. Test notification:
+
    ```bash
    /etc/hotplug.d/iface/99-pushover_notify test
    ```
+
 3. Check logs:
+
    ```bash
    tail -f /var/log/notifications.log
    ```
@@ -179,6 +194,7 @@ top | grep starlink
 1. Reduce monitoring frequency in cron
 2. Check for infinite loops in scripts
 3. Monitor log file sizes:
+
    ```bash
    du -h /var/log/starlink_monitor_*.log
    ```
@@ -195,10 +211,13 @@ Cannot allocate memory
 
 1. Enable log rotation
 2. Clean up state files:
+
    ```bash
    rm -f /tmp/run/starlink_monitor.*
    ```
+
 3. Check for memory leaks:
+
    ```bash
    free -h
    ```
@@ -218,6 +237,7 @@ DEBUG INFO: Loss Check: triggered=0, Obstruction Check: triggered=0, Latency Che
 1. Check threshold values are appropriate
 2. Verify API data is being received
 3. Review logs for errors:
+
    ```bash
    logread | grep StarlinkMonitor
    ```
@@ -243,7 +263,7 @@ STATE CHANGE: Stability threshold met
 
 **Normal Operation**:
 
-```
+```text
 INFO: Current state: up, Stability: 0, Metric: 1
 DEBUG: Metrics - Loss: 0.02, Obstruction: 0.000, Latency: 45ms
 INFO: Connection quality remains good
@@ -251,7 +271,7 @@ INFO: Connection quality remains good
 
 **Quality Degradation**:
 
-```
+```text
 WARN: Quality degraded below threshold: [High Latency: 200ms]
 INFO: Performing soft failover - setting metric to 10
 INFO: Soft failover completed successfully
@@ -259,7 +279,7 @@ INFO: Soft failover completed successfully
 
 **Recovery**:
 
-```
+```text
 INFO: Quality recovered - stability check 3/5
 INFO: Stability threshold met - performing failback
 INFO: Soft failback completed successfully
@@ -287,10 +307,12 @@ awk -F',' '$3 > 100 { print $1, $3 }' /root/starlink_performance_log.csv
 
 1. Collect data for at least a week
 2. Analyze patterns:
+
    ```bash
    # Find 95th percentile latency
    tail -n +2 /root/starlink_performance_log.csv | cut -d',' -f3 | sort -n | awk '{a[NR]=$0} END {print a[int(NR*0.95)]}'
    ```
+
 3. Set thresholds above normal operation
 
 ### Recovery Procedures
@@ -298,15 +320,20 @@ awk -F',' '$3 > 100 { print $1, $3 }' /root/starlink_performance_log.csv
 #### System Recovery
 
 1. Stop monitoring:
+
    ```bash
    crontab -r
    ```
+
 2. Reset network:
+
    ```bash
    mwan3 restart
    /etc/init.d/network restart
    ```
+
 3. Restart monitoring:
+
    ```bash
    crontab -e
    # Add cron entries back
@@ -315,10 +342,13 @@ awk -F',' '$3 > 100 { print $1, $3 }' /root/starlink_performance_log.csv
 #### Configuration Recovery
 
 1. Restore from backup:
+
    ```bash
    cp /root/config.sh.backup /root/config.sh
    ```
+
 2. Validate configuration:
+
    ```bash
    /root/starlink-monitor/scripts/validate-config.sh
    ```
