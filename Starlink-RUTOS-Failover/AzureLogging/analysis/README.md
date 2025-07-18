@@ -4,7 +4,7 @@ This directory contains the refactored network performance analysis modules.
 
 ## Architecture
 
-```
+```text
 analysis/
 ├── __init__.py              # Package initialization
 ├── data_downloader.py       # Azure Storage data downloading
