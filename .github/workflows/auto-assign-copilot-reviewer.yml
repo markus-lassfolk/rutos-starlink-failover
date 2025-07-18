@@ -19,6 +19,8 @@ jobs:
       contents: read
       pull-requests: write
       issues: read
+      actions: read
+      metadata: read
     
     steps:
       - name: Checkout repository
@@ -31,6 +33,18 @@ jobs:
           set -e
           
           echo "🔍 Checking if Copilot has finished working on draft PRs..."
+          echo "🔧 Event name: ${{ github.event_name }}"
+          echo "🔧 GitHub actor: ${{ github.actor }}"
+          echo "🔧 Repository: ${{ github.repository }}"
+          
+          # Test gh CLI authentication
+          echo "🔧 Testing GitHub CLI authentication..."
+          if gh auth status; then
+            echo "✅ GitHub CLI authentication successful"
+          else
+            echo "❌ GitHub CLI authentication failed"
+            exit 1
+          fi
           
           # Determine which PR to check based on trigger event
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -101,17 +115,27 @@ jobs:
             fi
           else
             # Manual trigger - check all draft PRs
+            echo "🔧 Fetching all draft PRs..."
             draft_prs=$(gh pr list --state open --draft --json number --limit 20)
-            echo "$draft_prs" | jq -r '.[].number' | while read pr_num; do
-              if [ -n "$pr_num" ] && check_copilot_completion "$pr_num"; then
-                echo "🔧 Converting PR #$pr_num from draft to ready for review..."
-                if gh pr ready "$pr_num"; then
-                  echo "✅ Successfully converted PR #$pr_num to ready for review"
-                else
-                  echo "❌ Failed to convert PR #$pr_num from draft to ready"
+            echo "🔧 Draft PRs found: $draft_prs"
+            
+            if [ "$draft_prs" = "[]" ] || [ -z "$draft_prs" ]; then
+              echo "ℹ️  No draft PRs found to process"
+            else
+              echo "🔧 Processing draft PRs..."
+              echo "$draft_prs" | jq -r '.[].number' | while read pr_num; do
+                echo "🔧 Checking PR #$pr_num..."
+                if [ -n "$pr_num" ] && check_copilot_completion "$pr_num"; then
+                  echo "🔧 Converting PR #$pr_num from draft to ready for review..."
+                  if gh pr ready "$pr_num"; then
+                    echo "✅ Successfully converted PR #$pr_num to ready for review"
+                  else
+                    echo "❌ Failed to convert PR #$pr_num from draft to ready"
+                    echo "🔧 Exit code: $?"
+                  fi
                 fi
-              fi
-            done
+              done
+            fi
           fi
           
           echo "🎉 Copilot completion check finished"
