@@ -59,14 +59,14 @@ The system uses GPS quality checks for reliable positioning:
 
 ### Location-Based Performance Analysis
 
-**Coverage Mapping**
+#### Coverage Mapping
 
 - Visual maps showing where you've been
 - Performance overlays (latency, throughput, packet loss)
 - Identification of problem areas
 - Best/worst performing locations
 
-**Geographic Patterns**
+#### Geographic Patterns
 
 - Performance correlation with latitude/longitude
 - Regional performance variations
@@ -75,14 +75,14 @@ The system uses GPS quality checks for reliable positioning:
 
 ### Mobility Analysis
 
-**Speed vs Performance Correlation**
+#### Speed vs Performance Correlation
 
 - How velocity affects network quality
 - Optimal speed ranges for connectivity
 - Performance degradation at high speeds
 - Handoff behavior during movement
 
-**Movement Pattern Analysis**
+#### Movement Pattern Analysis
 
 - Total distance traveled
 - Average movement per measurement
@@ -91,14 +91,14 @@ The system uses GPS quality checks for reliable positioning:
 
 ### Enhanced Failover Intelligence
 
-**Location-Aware Thresholds**
+#### Location-Aware Thresholds
 
 - Different thresholds for stationary vs mobile use
 - Speed-dependent performance expectations
 - Geographic area-specific adjustments
 - Movement-predictive failover triggering
 
-**Mobility State Considerations**
+#### Mobility State Considerations
 
 - Faster failover for high-speed scenarios
 - More tolerant thresholds when stationary
@@ -159,21 +159,21 @@ MOVEMENT_TRACKING_ENABLED=true
 
 ### Performance Reports Include
 
-**Geographic Analysis**
+#### Geographic Analysis
 
 - Coverage area in km²
 - Unique locations visited
 - Best/worst performing coordinates
 - Regional performance variations
 
-**Movement Analysis**
+#### Movement Analysis
 
 - Average travel speed
 - Maximum recorded speed
 - Time spent in each mobility state
 - Speed vs performance correlations
 
-**Location-Based Recommendations**
+#### Location-Based Recommendations
 
 - Optimal positioning suggestions
 - Problem area identification
@@ -182,21 +182,21 @@ MOVEMENT_TRACKING_ENABLED=true
 
 ### Visualization Outputs
 
-**Coverage Maps**
+#### Coverage Maps
 
 - GPS track overlaid with performance data
 - Color-coded performance regions
 - Problem area highlighting
 - Coverage density analysis
 
-**Mobility Charts**
+#### Mobility Charts
 
 - Speed over time
 - Performance vs velocity correlations
 - Mobility state distributions
 - Movement pattern analysis
 
-**Location Performance**
+#### Location Performance
 
 - Latitude/longitude vs latency scatter plots
 - Geographic performance gradients
