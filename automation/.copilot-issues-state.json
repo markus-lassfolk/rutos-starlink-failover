@@ -1,4 +1,16 @@
 {
+  "debug-minimal.sh": {
+    "Status": "Assigned",
+    "IssueCount": 4,
+    "CreatedAt": "2025-07-18 15:34:02",
+    "IssueNumber": "75"
+  },
+  "docs/BRANCH_TESTING.md": {
+    "IssueCount": 1,
+    "IssueNumber": "79",
+    "CreatedAt": "2025-07-18 15:39:51",
+    "Status": "Assigned"
+  },
   "automation/README.md": {
     "Status": "Assigned",
     "IssueCount": 3,

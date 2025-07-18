@@ -42,6 +42,9 @@
 .PARAMETER SortByPriority
     Process files with critical issues first, then major, then minor
 
+.PARAMETER RecentlyClosedHours
+    Hours to look back for recently closed issues to avoid conflicts (default: 8)
+
 .EXAMPLE
     .\create-copilot-issues-optimized.ps1
     Run in safe dry run mode with max 3 issues
@@ -66,7 +69,8 @@ param(
     [switch]$ForceReprocessing = $false,
     [string]$TargetFile = "",
     [int]$MinIssuesPerFile = 1,
-    [switch]$SortByPriority = $false
+    [switch]$SortByPriority = $false,
+    [int]$RecentlyClosedHours = 8  # Hours to look back for recently closed issues
 )
 
 # Import the enhanced label management module
@@ -517,45 +521,98 @@ function Get-FileValidationDetail {
     }
 }
 
-# Test if an issue already exists for a file
+# Test if an issue already exists for a file (open or recently closed)
 function Test-IssueExist {
     param([string]$FilePath)
     
     Write-DebugMessage "Checking if issue exists for: $FilePath"
     
     try {
-        # Search for existing issues related to this file - capture stdout separately from stderr
-        $searchResult = & gh issue list --search "$FilePath" --state "open" --json "number,title" 2>$null
+        # Calculate cutoff time for "recent" closed issues (configurable hours ago)
+        $cutoffTime = (Get-Date).AddHours(-$RecentlyClosedHours).ToString("yyyy-MM-ddTHH:mm:ssZ")
+        Write-DebugMessage "Checking for issues closed after: $cutoffTime ($RecentlyClosedHours hours ago)"
         
-        if ($LASTEXITCODE -eq 0) {
-            # The result should be a JSON array, even if empty
-            if ($searchResult -and $searchResult.Trim()) {
-                try {
-                    $issues = $searchResult | ConvertFrom-Json
-                    $existingIssue = $issues | Where-Object { $_.title -match [regex]::Escape($FilePath) }
-                    
-                    if ($existingIssue) {
-                        Write-DebugMessage "Found existing issue #$($existingIssue.number) for file"
-                        return @{
-                            Exists = $true
-                            IssueNumber = $existingIssue.number
-                            Title = $existingIssue.title
-                        }
+        # First check for open issues
+        $openResult = & gh issue list --search "$FilePath" --state "open" --json "number,title,state,updatedAt" 2>$null
+        
+        if ($LASTEXITCODE -eq 0 -and $openResult -and $openResult.Trim()) {
+            try {
+                $openIssues = $openResult | ConvertFrom-Json
+                # Smart matching: check for any of the possible title patterns for this file
+                $fileName = Split-Path $FilePath -Leaf
+                $expectedTitlePatterns = @(
+                    "[CRITICAL] RUTOS Compatibility Fix: $fileName",
+                    "[MAJOR] RUTOS Compatibility Fix: $fileName", 
+                    "[MINOR] RUTOS Compatibility Fix: $fileName"
+                )
+                
+                $existingOpenIssue = $openIssues | Where-Object { 
+                    $currentTitle = $_.title
+                    $expectedTitlePatterns | Where-Object { $currentTitle -eq $_ }
+                } | Select-Object -First 1
+                
+                if ($existingOpenIssue) {
+                    Write-DebugMessage "Found existing OPEN issue #$($existingOpenIssue.number) for file with exact title match: '$($existingOpenIssue.title)'"
+                    return @{
+                        Exists = $true
+                        IssueNumber = $existingOpenIssue.number
+                        Title = $existingOpenIssue.title
+                        State = "open"
+                        Reason = "Open issue already exists"
                     }
-                } catch {
-                    Write-DebugMessage "JSON parsing failed, treating as no existing issues. Raw output: $searchResult"
                 }
-            } else {
-                Write-DebugMessage "Empty result from GitHub CLI - no existing issues"
+            } catch {
+                Write-DebugMessage "JSON parsing failed for open issues. Raw output: $openResult"
             }
-        } else {
-            Write-DebugMessage "GitHub CLI command failed with exit code: $LASTEXITCODE"
         }
         
-        return @{ Exists = $false }
+        # Then check for recently closed issues
+        $closedResult = & gh issue list --search "$FilePath" --state "closed" --json "number,title,state,closedAt" 2>$null
+        
+        if ($LASTEXITCODE -eq 0 -and $closedResult -and $closedResult.Trim()) {
+            try {
+                $closedIssues = $closedResult | ConvertFrom-Json
+                # Smart matching: check for any of the possible title patterns for this file
+                $fileName = Split-Path $FilePath -Leaf
+                $expectedTitlePatterns = @(
+                    "[CRITICAL] RUTOS Compatibility Fix: $fileName",
+                    "[MAJOR] RUTOS Compatibility Fix: $fileName", 
+                    "[MINOR] RUTOS Compatibility Fix: $fileName"
+                )
+                
+                $recentlyClosedIssue = $closedIssues | Where-Object { 
+                    $currentTitle = $_.title
+                    $matchesTitle = $expectedTitlePatterns | Where-Object { $currentTitle -eq $_ }
+                    $withinTimeWindow = $_.closedAt -and ([DateTime]::Parse($_.closedAt) -gt [DateTime]::Parse($cutoffTime))
+                    
+                    $matchesTitle -and $withinTimeWindow
+                } | Select-Object -First 1
+                
+                if ($recentlyClosedIssue) {
+                    $timeSinceClosed = [DateTime]::Now - [DateTime]::Parse($recentlyClosedIssue.closedAt)
+                    $hoursAgo = [Math]::Round($timeSinceClosed.TotalHours, 1)
+                    Write-DebugMessage "Found recently CLOSED issue #$($recentlyClosedIssue.number) for file (closed $hoursAgo hours ago, exact title match: '$($recentlyClosedIssue.title)')"
+                    return @{
+                        Exists = $true
+                        IssueNumber = $recentlyClosedIssue.number
+                        Title = $recentlyClosedIssue.title
+                        State = "closed"
+                        ClosedAt = $recentlyClosedIssue.closedAt
+                        HoursAgo = $hoursAgo
+                        Reason = "Recently closed issue (within $RecentlyClosedHours hours)"
+                    }
+                }
+            } catch {
+                Write-DebugMessage "JSON parsing failed for closed issues. Raw output: $closedResult"
+            }
+        }
+        
+        Write-DebugMessage "No existing or recently closed issues found for file"
+        return @{ Exists = $false; Reason = "No conflicts found" }
+        
     } catch {
         Add-CollectedError -ErrorMessage "Failed to check for existing issues: $($_.Exception.Message)" -FunctionName "Test-IssueExist" -Exception $_.Exception -Context "Checking for existing issue for $FilePath"
-        return @{ Exists = $false }
+        return @{ Exists = $false; Reason = "Error during check" }
     }
 }
 
@@ -582,13 +639,13 @@ function Test-ShouldProcessFile {
     
     if (-not $passesFilter) {
         Write-DebugMessage "File doesn't match priority filter ($PriorityFilter) - skipping"
-        return $false
+        return @{ ShouldProcess = $false; SkipReason = "LowPriority" }
     }
     
     # Apply minimum issues filter
     if ($Issues.Count -lt $MinIssuesPerFile) {
         Write-DebugMessage "File has only $($Issues.Count) issues, minimum is $MinIssuesPerFile - skipping"
-        return $false
+        return @{ ShouldProcess = $false; SkipReason = "InsufficientIssues" }
     }
     
     # Check if already processed (unless forcing reprocessing)
@@ -596,19 +653,26 @@ function Test-ShouldProcessFile {
         $fileState = $global:IssueState[$FilePath]
         if ($fileState.Status -eq "Completed") {
             Write-DebugMessage "File already completed - skipping"
-            return $false
+            return @{ ShouldProcess = $false; SkipReason = "AlreadyCompleted" }
         }
     }
     
-    # Check if issue already exists
+    # Check if issue already exists (open or recently closed)
     $existingIssue = Test-IssueExist -FilePath $FilePath
     if ($existingIssue.Exists -and -not $ForceReprocessing) {
-        Write-DebugMessage "Issue already exists (#$($existingIssue.IssueNumber)) - skipping"
-        return $false
+        if ($existingIssue.State -eq "open") {
+            Write-DebugMessage "SKIPPING: Open issue #$($existingIssue.IssueNumber) already exists for this file"
+            Write-Host "   ⚠️  CONFLICT: Open issue #$($existingIssue.IssueNumber) already exists - $($existingIssue.Reason)" -ForegroundColor Yellow
+            return @{ ShouldProcess = $false; SkipReason = "OpenIssue"; IssueNumber = $existingIssue.IssueNumber }
+        } elseif ($existingIssue.State -eq "closed") {
+            Write-DebugMessage "SKIPPING: Recently closed issue #$($existingIssue.IssueNumber) for this file (closed $($existingIssue.HoursAgo) hours ago)"
+            Write-Host "   ⏰ RECENT: Issue #$($existingIssue.IssueNumber) was closed $($existingIssue.HoursAgo) hours ago - avoiding conflict" -ForegroundColor Cyan
+            return @{ ShouldProcess = $false; SkipReason = "RecentlyClosed"; IssueNumber = $existingIssue.IssueNumber; HoursAgo = $existingIssue.HoursAgo }
+        }
     }
     
     Write-DebugMessage "File should be processed"
-    return $true
+    return @{ ShouldProcess = $true; SkipReason = $null }
 }
 
 # Create GitHub issue with comprehensive content and intelligent labeling
@@ -1126,6 +1190,10 @@ function Start-OptimizedIssueCreation {
     $issuesCreated = 0
     $filesProcessed = 0
     $filesSkipped = 0
+    $filesSkippedOpenIssue = 0
+    $filesSkippedRecentlyClosed = 0
+    $filesSkippedLowPriority = 0
+    $filesSkippedOther = 0
     
     foreach ($file in $filesToProcess) {
         # Check if we've reached the maximum issues limit
@@ -1154,9 +1222,30 @@ function Start-OptimizedIssueCreation {
             Write-InfoMessage "⚠️  Found $($validationResult.Issues.Count) issues in: $file"
             
             # Check if this file should be processed based on our criteria
-            if (-not (Test-ShouldProcessFile -FilePath $file -Issues $validationResult.Issues)) {
-                Write-DebugMessage "⏭️  Skipping file based on processing criteria: $file"
+            $shouldProcessResult = Test-ShouldProcessFile -FilePath $file -Issues $validationResult.Issues
+            if (-not $shouldProcessResult.ShouldProcess) {
+                Write-DebugMessage "⏭️  Skipping file based on processing criteria: $file (Reason: $($shouldProcessResult.SkipReason))"
                 $filesSkipped++
+                
+                # Track specific skip reasons
+                switch ($shouldProcessResult.SkipReason) {
+                    "OpenIssue" { 
+                        $filesSkippedOpenIssue++
+                        Write-Host "   📋 Skipped: Open issue #$($shouldProcessResult.IssueNumber) exists" -ForegroundColor Yellow
+                    }
+                    "RecentlyClosed" { 
+                        $filesSkippedRecentlyClosed++
+                        Write-Host "   ⏰ Skipped: Recently closed issue #$($shouldProcessResult.IssueNumber) ($($shouldProcessResult.HoursAgo)h ago)" -ForegroundColor Cyan
+                    }
+                    "LowPriority" { 
+                        $filesSkippedLowPriority++
+                        Write-Host "   🎯 Skipped: Priority filter ($PriorityFilter)" -ForegroundColor Gray
+                    }
+                    default { 
+                        $filesSkippedOther++
+                        Write-Host "   ℹ️  Skipped: $($shouldProcessResult.SkipReason)" -ForegroundColor Gray
+                    }
+                }
                 continue
             }
             
@@ -1201,6 +1290,23 @@ function Start-OptimizedIssueCreation {
     Write-InfoMessage "⏭️  Files Skipped: $filesSkipped"
     Write-InfoMessage "📝 Issues Created: $issuesCreated"
     Write-InfoMessage "🎯 Maximum Issues: $MaxIssues"
+    
+    # Show detailed skip breakdown if any files were skipped
+    if ($filesSkipped -gt 0) {
+        Write-Host "`n📊 Skip Breakdown:" -ForegroundColor $CYAN
+        if ($filesSkippedOpenIssue -gt 0) {
+            Write-Host "   ⚠️  Open Issues: $filesSkippedOpenIssue files (avoiding conflicts)" -ForegroundColor Yellow
+        }
+        if ($filesSkippedRecentlyClosed -gt 0) {
+            Write-Host "   ⏰ Recently Closed: $filesSkippedRecentlyClosed files (within $RecentlyClosedHours hours)" -ForegroundColor Cyan
+        }
+        if ($filesSkippedLowPriority -gt 0) {
+            Write-Host "   🎯 Low Priority: $filesSkippedLowPriority files (filter: $PriorityFilter)" -ForegroundColor Gray
+        }
+        if ($filesSkippedOther -gt 0) {
+            Write-Host "   ℹ️  Other: $filesSkippedOther files (various reasons)" -ForegroundColor Gray
+        }
+    }
     
     if ($global:CreatedIssues.Count -gt 0) {
         Write-Host "`n📋 Created Issues:" -ForegroundColor $GREEN
