@@ -128,6 +128,7 @@ cat /root/starlink-monitor/config/config.sh
    ```
 
 3. **Use upgrade script for advanced features**:
+
    ```bash
    /root/starlink-monitor/scripts/upgrade-to-advanced.sh
    ```
