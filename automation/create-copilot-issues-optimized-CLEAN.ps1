@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 
 <#
 .SYNOPSIS
@@ -21,7 +21,7 @@
 .PARAMETER PriorityFilter
     Filter issues by priority: All, Critical, Major, Minor (default: All)
     
-.PARAMETER DebugMode
+.PARAMETER Debug
     Enable detailed debug logging
     
 .PARAMETER TestMode
@@ -51,7 +51,7 @@
     Production mode with maximum 5 issues
     
 .EXAMPLE
-    .\create-copilot-issues-optimized.ps1 -PriorityFilter Critical -DebugMode
+    .\create-copilot-issues-optimized.ps1 -PriorityFilter Critical -Debug
     Focus on critical issues with debug output
 #>
 
@@ -60,7 +60,7 @@ param(
     [switch]$Production = $false,
     [int]$MaxIssues = 3,
     [string]$PriorityFilter = "All", # All, Critical, Major, Minor
-    [switch]$DebugMode = $false,
+    [switch]$Debug = $false,
     [switch]$TestMode = $false,
     [switch]$SkipValidation = $false,
     [switch]$ForceReprocessing = $false,
@@ -73,11 +73,11 @@ param(
 $labelModulePath = Join-Path $PSScriptRoot "GitHub-Label-Management.psm1"
 if (Test-Path $labelModulePath) {
     Import-Module $labelModulePath -Force -ErrorAction SilentlyContinue
-    Write-Host "[LABELS] GitHub Label Management Module Loaded" -ForegroundColor Blue
-    Write-Host "[SUCCESS] Loaded enhanced label management system (100+ labels)" -ForegroundColor Green
+    Write-Host "🏷️  GitHub Label Management Module Loaded" -ForegroundColor Blue
+    Write-Host "✅ Loaded enhanced label management system (100+ labels)" -ForegroundColor Green
     $intelligentLabelingAvailable = $true
 } else {
-    Write-Host "[WARNING] Enhanced label management module not found - using basic labels" -ForegroundColor Yellow
+    Write-Host "⚠️  Enhanced label management module not found - using basic labels" -ForegroundColor Yellow
     $intelligentLabelingAvailable = $false
 }
 
@@ -126,34 +126,34 @@ function Write-StatusMessage {
 
 function Write-DebugMessage {
     param([string]$Message)
-    if ($DebugMode) {
-        Write-StatusMessage "[DEBUG] $Message" -Color $CYAN -Level "DEBUG"
+    if ($Debug) {
+        Write-StatusMessage "🔍 $Message" -Color $CYAN -Level "DEBUG"
     }
 }
 
 function Write-StepMessage {
     param([string]$Message)
-    Write-StatusMessage "[STEP] $Message" -Color $BLUE -Level "STEP"
+    Write-StatusMessage "🔄 $Message" -Color $BLUE -Level "STEP"
 }
 
 function Write-ErrorMessage {
     param([string]$Message)
-    Write-StatusMessage "[ERROR] $Message" -Color $RED -Level "ERROR"
+    Write-StatusMessage "❌ $Message" -Color $RED -Level "ERROR"
 }
 
 function Write-SuccessMessage {
     param([string]$Message)
-    Write-StatusMessage "[SUCCESS] $Message" -Color $GREEN -Level "SUCCESS"
+    Write-StatusMessage "✅ $Message" -Color $GREEN -Level "SUCCESS"
 }
 
 function Write-WarningMessage {
     param([string]$Message)
-    Write-StatusMessage "[WARNING] $Message" -Color $YELLOW -Level "WARNING"
+    Write-StatusMessage "⚠️ $Message" -Color $YELLOW -Level "WARNING"
 }
 
 function Write-InfoMessage {
     param([string]$Message)
-    Write-StatusMessage "$Message" -Color White -Level "INFO"
+    Write-StatusMessage "$Message" -Color [ConsoleColor]::White -Level "INFO"
 }
 
 # Enhanced error collection with comprehensive information
@@ -200,7 +200,7 @@ function Add-CollectedError {
     # Display the error immediately for real-time feedback
     Write-StatusMessage "❌ Error #$global:ErrorCount in $FunctionName`: $ErrorMessage" -Color $RED -Level "ERROR"
     
-    if ($DebugMode) {
+    if ($Debug) {
         Write-StatusMessage "   📍 Location: $Location" -Color $GRAY -Level "DEBUG"
         if ($Context) {
             Write-StatusMessage "   📝 Context: $Context" -Color $GRAY -Level "DEBUG"
@@ -212,7 +212,7 @@ function Add-CollectedError {
 }
 
 # Display comprehensive error report
-function Show-CollectedError {
+function Show-CollectedErrors {
     if ($global:CollectedErrors.Count -eq 0) {
         Write-StatusMessage "✅ No errors collected during execution" -Color $GREEN
         return
@@ -413,7 +413,7 @@ function Parse-ValidationOutput {
 }
 
 # Get list of relevant files to process
-function Get-RelevantFile {
+function Get-RelevantFiles {
     Write-DebugMessage "Getting relevant files to process"
     
     $filesToProcess = Get-ChildItem -Path "." -Recurse -Include "*.sh", "*.md" -File | 
@@ -433,7 +433,7 @@ function Get-RelevantFile {
 }
 
 # Test if file has validation issues
-function Test-FileHasValidationIssue {
+function Test-FileHasValidationIssues {
     param([string]$FilePath)
     
     Write-DebugMessage "Testing if file has validation issues: $FilePath"
@@ -447,7 +447,7 @@ function Test-FileHasValidationIssue {
 }
 
 # Get detailed validation information for a file
-function Get-FileValidationDetail {
+function Get-FileValidationDetails {
     param([string]$FilePath)
     
     Write-DebugMessage "Getting validation details for: $FilePath"
@@ -479,43 +479,32 @@ function Get-FileValidationDetail {
 }
 
 # Test if an issue already exists for a file
-function Test-IssueExist {
+function Test-IssueExists {
     param([string]$FilePath)
     
     Write-DebugMessage "Checking if issue exists for: $FilePath"
     
     try {
-        # Search for existing issues related to this file - capture stdout separately from stderr
-        $searchResult = & gh issue list --search "$FilePath" --state "open" --json "number,title" 2>$null
+        # Search for existing issues related to this file
+        $searchResult = gh issue list --search "$FilePath" --state "open" --json "number,title" 2>&1
         
         if ($LASTEXITCODE -eq 0) {
-            # The result should be a JSON array, even if empty
-            if ($searchResult -and $searchResult.Trim()) {
-                try {
-                    $issues = $searchResult | ConvertFrom-Json
-                    $existingIssue = $issues | Where-Object { $_.title -match [regex]::Escape($FilePath) }
-                    
-                    if ($existingIssue) {
-                        Write-DebugMessage "Found existing issue #$($existingIssue.number) for file"
-                        return @{
-                            Exists = $true
-                            IssueNumber = $existingIssue.number
-                            Title = $existingIssue.title
-                        }
-                    }
-                } catch {
-                    Write-DebugMessage "JSON parsing failed, treating as no existing issues. Raw output: $searchResult"
+            $issues = $searchResult | ConvertFrom-Json
+            $existingIssue = $issues | Where-Object { $_.title -match [regex]::Escape($FilePath) }
+            
+            if ($existingIssue) {
+                Write-DebugMessage "Found existing issue #$($existingIssue.number) for file"
+                return @{
+                    Exists = $true
+                    IssueNumber = $existingIssue.number
+                    Title = $existingIssue.title
                 }
-            } else {
-                Write-DebugMessage "Empty result from GitHub CLI - no existing issues"
             }
-        } else {
-            Write-DebugMessage "GitHub CLI command failed with exit code: $LASTEXITCODE"
         }
         
         return @{ Exists = $false }
     } catch {
-        Add-CollectedError -ErrorMessage "Failed to check for existing issues: $($_.Exception.Message)" -FunctionName "Test-IssueExist" -Exception $_.Exception -Context "Checking for existing issue for $FilePath"
+        Add-CollectedError -ErrorMessage "Failed to check for existing issues: $($_.Exception.Message)" -FunctionName "Test-IssueExists" -Exception $_.Exception -Context "Checking for existing issue for $FilePath"
         return @{ Exists = $false }
     }
 }
@@ -562,7 +551,7 @@ function Test-ShouldProcessFile {
     }
     
     # Check if issue already exists
-    $existingIssue = Test-IssueExist -FilePath $FilePath
+    $existingIssue = Test-IssueExists -FilePath $FilePath
     if ($existingIssue.Exists -and -not $ForceReprocessing) {
         Write-DebugMessage "Issue already exists (#$($existingIssue.IssueNumber)) - skipping"
         return $false
@@ -626,7 +615,7 @@ function New-CopilotIssue {
         $intelligentLabels += "copilot-assigned"
         
         # Debug output for intelligent labeling
-        if ($DebugMode) {
+        if ($Debug) {
             Write-DebugMessage "🏷️  Intelligent Labeling System Results:"
             Write-DebugMessage "   Module Available: $intelligentLabelingAvailable"
             Write-DebugMessage "   Total Labels: $($intelligentLabels.Count)"
@@ -637,9 +626,9 @@ function New-CopilotIssue {
         }
         
         # Priority emoji based on highest severity
-        $priorityEmoji = if ($criticalIssues.Count -gt 0) { "[CRITICAL]" } 
-                         elseif ($majorIssues.Count -gt 0) { "[MAJOR]" } 
-                         else { "[MINOR]" }
+        $priorityEmoji = if ($criticalIssues.Count -gt 0) { "🔴" } 
+                         elseif ($majorIssues.Count -gt 0) { "🟡" } 
+                         else { "🔵" }
         
         # Generate enhanced issue title
         $issueTitle = "$priorityEmoji RUTOS Compatibility Fix: $(Split-Path $FilePath -Leaf)"
@@ -863,7 +852,7 @@ function Start-OptimizedIssueCreation {
         $filesToProcess = @($TargetFile)
     } else {
         Write-StepMessage "📂 Scanning repository for shell scripts and markdown files..."
-        $filesToProcess = Get-RelevantFile
+        $filesToProcess = Get-RelevantFiles
     }
     
     Write-InfoMessage "📊 Found $($filesToProcess.Count) potential files to process"
@@ -879,7 +868,7 @@ function Start-OptimizedIssueCreation {
         $prioritizedFiles = @()
         
         foreach ($file in $filesToProcess) {
-            $validationDetails = Get-FileValidationDetail -FilePath $file
+            $validationDetails = Get-FileValidationDetails -FilePath $file
             if ($validationDetails.HasIssues) {
                 $priority = if ($validationDetails.CriticalCount -gt 0) { 1 }
                            elseif ($validationDetails.MajorCount -gt 0) { 2 }
@@ -986,7 +975,7 @@ function Start-OptimizedIssueCreation {
     
     # Show any collected errors
     if ($global:CollectedErrors.Count -gt 0) {
-        Show-CollectedError
+        Show-CollectedErrors
     } else {
         Write-SuccessMessage "✅ No errors encountered during processing"
     }
@@ -999,7 +988,7 @@ function Main {
     Write-InfoMessage "🔧 Optimized RUTOS Copilot Issue Creation System"
     Write-InfoMessage "📅 Started at: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
     
-    if ($DebugMode) {
+    if ($Debug) {
         Write-DebugMessage "==================== DEBUG MODE ENABLED ===================="
         Write-DebugMessage "Script version: $SCRIPT_VERSION"
         Write-DebugMessage "Working directory: $(Get-Location)"
