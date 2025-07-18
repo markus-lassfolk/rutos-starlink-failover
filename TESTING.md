@@ -102,7 +102,7 @@ testing **Status**: ✅ **RESOLVED** - Improved color readability and added comp
 
 **Health Check Output Example**:
 
-```
+```text
 STATUS          | COMPONENT                 | DETAILS
 =============== | ========================= | ================================
 ✅ HEALTHY      | Internet Connectivity     | Can reach 8.8.8.8
@@ -766,7 +766,7 @@ issue reports
 
 **Enhanced Issue Breakdown Format**:
 
-```
+```text
 === ISSUE BREAKDOWN ===
 Most common issues found:
 31x / 1 files: SC2034: Variable appears unused in template/config file
