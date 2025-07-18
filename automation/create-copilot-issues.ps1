@@ -90,7 +90,8 @@ param(
     [string]$PriorityFilter = "All",  # All, Critical, Major, Minor
     [int]$MinIssuesPerFile = 1,       # Skip files with fewer issues
     [switch]$SortByPriority,          # Process critical issues first
-    [switch]$Production               # Enable production mode (disables DryRun)
+    [switch]$Production,              # Enable production mode (disables DryRun)
+    [switch]$Help                     # Show help message
 )
 
 # Set DryRun default behavior - enabled by default for safety unless Production mode is specified
@@ -1405,7 +1406,7 @@ function Set-CopilotPRAssignment {
             Write-DebugMessage "Adding reviewer: $ReviewerUsername"
             $reviewResult = gh pr edit $PRNumber --add-reviewer $ReviewerUsername 2>&1
             if ($LASTEXITCODE -ne 0) {
-                Write-WarningMessage "Failed to add reviewer $ReviewerUsername: $reviewResult"
+                Write-WarningMessage "Failed to add reviewer ${ReviewerUsername}: $reviewResult"
             } else {
                 Write-DebugMessage "✅ Reviewer $ReviewerUsername added"
             }
@@ -1828,7 +1829,7 @@ For more information, see the project documentation.
 # Main execution
 try {
     # Handle help
-    if ($args -contains "-Help" -or $args -contains "--help" -or $args -contains "-h") {
+    if ($Help) {
         Show-Help
         exit 0
     }
