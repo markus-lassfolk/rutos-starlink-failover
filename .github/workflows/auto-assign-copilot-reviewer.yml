@@ -19,7 +19,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: read
-      actions: read
+      actions: write
       metadata: read
     
     steps:
