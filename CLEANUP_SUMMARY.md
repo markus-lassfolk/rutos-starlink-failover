@@ -85,7 +85,7 @@ system.
 
 ## Final Repository State
 
-```
+```text
 rutos-starlink-failover/
 ├── automation/
 │   ├── Create-RUTOS-PRs.ps1     # Autonomous issue creation
@@ -124,7 +124,7 @@ RUTOS compatibility system for potential future use.
 4. **Preserved Functionality**: All deployment scripts maintained
 5. **Comprehensive Documentation**: Added README for test directory
 
-## What Was Preserved
+## Core Components Preserved
 
 - All core operational scripts in `scripts/`
 - Both deployment scripts (bash and POSIX versions)
