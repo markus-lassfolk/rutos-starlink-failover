@@ -11,8 +11,8 @@
 set -eu
 
 # Script version - automatically updated from VERSION file
-SCRIPT_VERSION="2.0.2"
-# Build: 1.0.2+198.38fb60b-dirty
+SCRIPT_VERSION="2.0.4"
+# Build: 1.0.2+198.38fb60b-dirty  
 SCRIPT_NAME="install-rutos.sh"
 
 # Extract build info from comment above
