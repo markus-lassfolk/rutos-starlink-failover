@@ -60,7 +60,7 @@ download_file "$BASE_URL/config/config.template.sh" "$INSTALL_DIR/config/config.
 
 After installation, the script shows which branch was used:
 
-```
+```console
 Installation directory: /root/starlink-monitor
 Configuration file: /root/starlink-monitor/config/config.sh
 Uninstall script: /root/starlink-monitor/uninstall.sh
