@@ -113,6 +113,7 @@ support
    ```
 
 4. **Test Curl Downloads**:
+
    ```bash
    # Should fallback gracefully
    curl --help | grep -q "\-L" && echo "L flag supported" || echo "Basic curl only"
