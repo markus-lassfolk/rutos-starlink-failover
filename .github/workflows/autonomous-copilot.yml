@@ -9,8 +9,7 @@ on:
       - review_requested
       - synchronize
   schedule:
-    - cron: "*/10 * * * *" # Fallback: check every 10 minutes for drafts
-
+    - cron: "*/10 * * * *" # Fallback check every 10 minutes
   workflow_run:
     workflows: ["*"]
     types:
@@ -29,11 +28,14 @@ jobs:
       - name: Install gh CLI (if needed)
         run: sudo apt-get install gh -y
 
-      - name: Mark Draft PRs Ready (Fallback if No Review Requested)
+      #########################################################
+      # 1. Fallback: Mark Draft PRs Ready if Idle for 30 Minutes
+      #########################################################
+      - name: Mark Draft PRs Ready (Fallback)
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🔍 Checking draft PRs (fallback)..."
+          echo "🔍 Checking draft PRs..."
           PRS=$(gh pr list --repo ${{ github.repository }} --state open \
             --json number,isDraft,headRefName \
             --jq '.[] | select(.isDraft==true) | .number')
@@ -44,16 +46,19 @@ jobs:
             MINUTES=$(( ( $(date +%s) - $(date -d "$LAST_COMMIT" +%s) ) / 60 ))
             echo "⏳ Last commit was $MINUTES minutes ago"
             if [ $MINUTES -ge 30 ]; then
-              echo "✅ Marking PR #$PR ready for review (fallback)"
+              echo "✅ Marking PR #$PR ready for review"
               gh pr ready $PR --repo ${{ github.repository }}
             fi
           done
 
+      #########################################################
+      # 2. Auto-Approve Pending Workflow Runs
+      #########################################################
       - name: Approve Pending Workflow Runs
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🔄 Checking for workflow runs that need approval..."
+          echo "🔄 Checking for workflow runs needing approval..."
           RUNS=$(gh run list --repo ${{ github.repository }} \
             --json databaseId,status --jq '.[] | select(.status=="waiting") | .databaseId')
           for RUN_ID in $RUNS; do
@@ -61,19 +66,48 @@ jobs:
             gh api --method POST repos/${{ github.repository }}/actions/runs/$RUN_ID/approve
           done
 
+      #########################################################
+      # 3. Resolve Merge Conflicts (Trigger Copilot SWE Agent)
+      #########################################################
+      - name: Resolve Merge Conflicts with Copilot
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "🔍 Checking for merge conflicts..."
+          MERGEABLE=$(gh pr view ${{ github.event.number }} \
+            --repo ${{ github.repository }} \
+            --json mergeable --jq '.mergeable')
+          if [ "$MERGEABLE" = "false" ]; then
+            echo "⚠️ Conflicts detected! Asking Copilot SWE Agent to resolve..."
+            gh pr comment ${{ github.event.number }} \
+              --repo ${{ github.repository }} \
+              --body "@copilot resolve merge conflicts and push the fixed version."
+          else
+            echo "✅ No conflicts detected."
+          fi
+
+      #########################################################
+      # 4. Approve PR (Self-Review)
+      #########################################################
       - name: Approve PR on Review Request
         if: github.event.action == 'review_requested' || github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "✅ Approving PR #${{ github.event.number }}"
-          gh pr review ${{ github.event.number }} --repo ${{ github.repository }} --approve
+          gh pr review ${{ github.event.number }} \
+            --repo ${{ github.repository }} --approve
 
-      - name: Merge PR Automatically (If Checks Pass)
+      #########################################################
+      # 5. Auto-Merge PR Once Checks Pass
+      #########################################################
+      - name: Merge PR Automatically
         if: github.event.action == 'review_requested' || github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "✅ Attempting to merge PR #${{ github.event.number }}"
-          gh pr merge ${{ github.event.number }} --repo ${{ github.repository }} --auto --merge
+          gh pr merge ${{ github.event.number }} \
+            --repo ${{ github.repository }} --auto --merge
 
