@@ -1,30 +1,13 @@
-#!/bin/bash
-
-# Colors for output - RUTOS compatible
-# shellcheck disable=SC2034
-if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-	# Colors enabled
-	RED='\033[0;31m'
-	GREEN='\033[0;32m'
-	YELLOW='\033[1;33m'
-	BLUE='\033[1;35m'
-	CYAN='\033[0;36m'
-	NC='\033[0m'
-else
-	# Colors disabled
-	RED=""
-	GREEN=""
-	YELLOW=""
-	BLUE=""
-	CYAN=""
-	NC=""
-fik_api_change.sh: Detects Starlink API schema changes and notifies via Pushover
+#!/bin/sh
+# Script: check_starlink_api_change.sh
+# Description: Detects Starlink API schema changes and notifies via Pushover
 # Intended for daily cron use
 
 set -eu
 
 # Standard colors for consistent output (compatible with busybox)
 # CRITICAL: Use RUTOS-compatible color detection
+# shellcheck disable=SC2034
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 	# Colors enabled
 	RED='\033[0;31m'
@@ -72,7 +55,7 @@ fi
 if ! diff -q "$CUR_SCHEMA_FILE" "$LAST_SCHEMA_FILE" >/dev/null; then
 	# Schema changed, notify
 	if [ -x "$NOTIFIER_SCRIPT" ]; then
-		"$NOTIFIER_SCRIPT" api_version_change "$(jq -r '.apiVersion // "UNKNOWN"' "$LAST_SCHEMA_FILE") -> $(jq -r '.apiVersion // "UNKNOWN"' "$CUR_SCHEMA_FILE")"
+		"$NOTIFIER_SCRIPT" api_version_change "$("$JQ_CMD" -r '.apiVersion // "UNKNOWN"' "$LAST_SCHEMA_FILE") -> $("$JQ_CMD" -r '.apiVersion // "UNKNOWN"' "$CUR_SCHEMA_FILE")"
 	fi
 	cp "$CUR_SCHEMA_FILE" "$LAST_SCHEMA_FILE"
 fi
