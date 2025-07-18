@@ -5,12 +5,6 @@
     "CreatedAt": "2025-07-18 21:48:55",
     "IssueNumber": "111"
   },
-  "RUTOS-COMPATIBILITY-FIXES.md": {
-    "Status": "Assigned",
-    "IssueCount": 1,
-    "CreatedAt": "2025-07-18 21:50:29",
-    "IssueNumber": "121"
-  },
   "automation/create-copilot-issues-optimized.ps1": {
     "IssueNumber": "87",
     "CreatedAt": "2025-07-18 18:42:55",
@@ -40,6 +34,12 @@
     "IssueCount": 2,
     "CreatedAt": "2025-07-18 21:49:52",
     "IssueNumber": "117"
+  },
+  "RUTOS-COMPATIBILITY-FIXES.md": {
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "CreatedAt": "2025-07-18 21:50:29",
+    "IssueNumber": "121"
   },
   "automation/create-copilot-issues-enhanced.ps1": {
     "IssueNumber": "81",
@@ -77,12 +77,6 @@
     "CreatedAt": "2025-07-18 21:50:44",
     "IssueNumber": "123"
   },
-  "automation/README.md": {
-    "Status": "Assigned",
-    "IssueCount": 3,
-    "CreatedAt": "2025-07-18 14:59:15",
-    "IssueNumber": "73"
-  },
   "automation/create-copilot-issues-optimized-CLEAN.ps1": {
     "IssueNumber": "85",
     "CreatedAt": "2025-07-18 18:42:08",
@@ -106,5 +100,11 @@
     "IssueCount": 1,
     "CreatedAt": "2025-07-18 21:49:23",
     "IssueNumber": "115"
+  },
+  "automation/README.md": {
+    "Status": "Assigned",
+    "IssueCount": 3,
+    "CreatedAt": "2025-07-18 14:59:15",
+    "IssueNumber": "73"
   }
 }
