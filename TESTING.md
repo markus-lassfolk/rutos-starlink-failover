@@ -423,7 +423,7 @@ wsl ./test_debug_exec.sh
 
 - **Industry Standard**: Uses the standard Go-based shell formatter
 - **Comprehensive**: Detects indentation, spacing, and formatting issues
-- **Auto-fix**: Provides `shfmt -w file.sh` command to automatically fix issues
+- **Auto-fix**: Provides `shfmt -i 4 -ci -w file.sh` command to automatically fix issues
 - **Consistent**: Ensures all shell scripts follow consistent formatting standards
 
 ### ✅ Round 21 Testing Results - **SUCCESSFUL**

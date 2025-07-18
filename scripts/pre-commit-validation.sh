@@ -385,15 +385,15 @@ run_shfmt() {
         return 0
     fi
 
-    # Run shfmt to check formatting
-    if ! shfmt -d "$file" >/dev/null 2>&1; then
+    # Run shfmt to check formatting (use 4 spaces and case indentation to match repository standard)
+    if ! shfmt -i 4 -ci -d "$file" >/dev/null 2>&1; then
         log_debug "shfmt found formatting issues in $file"
 
         # Count the number of formatting issues (lines of diff output)
-        diff_lines=$(shfmt -d "$file" 2>/dev/null | wc -l)
+        diff_lines=$(shfmt -i 4 -ci -d "$file" 2>/dev/null | wc -l)
 
         if [ "$diff_lines" -gt 0 ]; then
-            report_issue "MAJOR" "$file" "0" "shfmt formatting issues - run 'shfmt -w $file' to fix"
+            report_issue "MAJOR" "$file" "0" "shfmt formatting issues - run 'shfmt -i 4 -ci -w $file' to fix"
             return 1
         fi
     else
@@ -549,11 +549,11 @@ auto_fix_formatting() {
 
     case "$file_extension" in
         "sh")
-            # Auto-fix shell script formatting with shfmt
+            # Auto-fix shell script formatting with shfmt (use 4 spaces and case indentation to match repository standard)
             if command_exists shfmt; then
-                if ! shfmt -d "$file" >/dev/null 2>&1; then
+                if ! shfmt -i 4 -ci -d "$file" >/dev/null 2>&1; then
                     log_info "Auto-fixing shell script formatting: $file"
-                    shfmt -w "$file"
+                    shfmt -i 4 -ci -w "$file"
                     fixes_applied=1
                 fi
             fi

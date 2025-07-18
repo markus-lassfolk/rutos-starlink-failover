@@ -265,11 +265,11 @@ validate_shell_scripts() {
             log_warning "Skipping ShellCheck validation (not available)"
         fi
 
-        # shfmt validation
+        # shfmt validation (use 4 spaces and case indentation to match repository standard)
         if [ "${TOOLS_AVAILABLE[shfmt]}" = "true" ]; then
-            if ! shfmt -d "$file"; then
+            if ! shfmt -i 4 -ci -d "$file"; then
                 log_error "shfmt formatting issues in $file"
-                log_info "Run 'shfmt -w $file' to fix formatting"
+                log_info "Run 'shfmt -i 4 -ci -w $file' to fix formatting"
                 file_issues=$((file_issues + 1))
             fi
         else

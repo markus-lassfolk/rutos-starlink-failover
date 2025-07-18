@@ -219,7 +219,7 @@ bandit analysis.py
 
 # Shell tools
 shellcheck script.sh
-shfmt -d script.sh
+shfmt -i 4 -ci -d script.sh
 
 # Markdown tools
 markdownlint README.md
@@ -239,7 +239,7 @@ black analysis.py
 isort analysis.py
 
 # Shell auto-fixes
-shfmt -w script.sh
+shfmt -i 4 -ci -w script.sh
 
 # Markdown auto-fixes
 prettier --write README.md
