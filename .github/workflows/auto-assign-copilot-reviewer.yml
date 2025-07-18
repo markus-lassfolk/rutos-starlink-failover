@@ -1,0 +1,67 @@
+name: Auto-Assign Copilot as Reviewer
+
+on:
+  schedule:
+    # Run every minute
+    - cron: '* * * * *'
+  workflow_dispatch:
+    # Allow manual triggering for testing
+
+jobs:
+  auto-assign-copilot-reviewer:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Auto-assign Copilot as reviewer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          
+          echo "🔍 Checking for PRs where Copilot is assigned but not a reviewer..."
+          
+          # Get all open PRs
+          open_prs=$(gh pr list --state open --json number,assignees,reviewRequests --limit 100)
+          
+          if [ "$open_prs" = "[]" ]; then
+            echo "ℹ️  No open PRs found"
+            exit 0
+          fi
+          
+          # Process each PR
+          echo "$open_prs" | jq -c '.[]' | while read -r pr; do
+            pr_number=$(echo "$pr" | jq -r '.number')
+            
+            # Check if Copilot is assigned
+            copilot_assigned=$(echo "$pr" | jq -r '.assignees[] | select(.login == "Copilot") | .login // empty')
+            
+            # Check if Copilot is already a reviewer
+            copilot_reviewer=$(echo "$pr" | jq -r '.reviewRequests[] | select(.login == "Copilot") | .login // empty')
+            
+            if [ -n "$copilot_assigned" ] && [ -z "$copilot_reviewer" ]; then
+              echo "✅ PR #$pr_number: Copilot is assigned but not a reviewer"
+              echo "🔧 Adding Copilot as reviewer to PR #$pr_number..."
+              
+              if gh pr edit "$pr_number" --add-reviewer Copilot; then
+                echo "✅ Successfully added Copilot as reviewer to PR #$pr_number"
+                
+                # Log the action for tracking
+                echo "📝 PR #$pr_number: Auto-assigned Copilot as reviewer at $(date)"
+              else
+                echo "❌ Failed to add Copilot as reviewer to PR #$pr_number"
+              fi
+            elif [ -n "$copilot_assigned" ] && [ -n "$copilot_reviewer" ]; then
+              echo "ℹ️  PR #$pr_number: Copilot is both assigned and reviewer (no action needed)"
+            else
+              echo "ℹ️  PR #$pr_number: Copilot is not assigned (skipping)"
+            fi
+          done
+          
+          echo "🎉 Auto-assignment check completed"
