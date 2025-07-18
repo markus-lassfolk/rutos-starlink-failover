@@ -1,3 +1,85 @@
+# Test 3a: Starlink basic connectivity (ping/curl)
+test_starlink_ping_curl() {
+    log_debug "Testing Starlink basic connectivity (ping/curl/nc)"
+    starlink_host=$(echo "$STARLINK_IP" | cut -d':' -f1)
+    starlink_port=$(echo "$STARLINK_IP" | cut -d':' -f2)
+
+    # Ping test
+    if ping -c 2 -W 2 "$starlink_host" >/dev/null 2>&1; then
+        log_success "Ping to Starlink dish ($starlink_host) successful."
+    else
+        log_error "Ping to Starlink dish ($starlink_host) failed."
+        return 1
+    fi
+
+    # Curl test (HTTP port, may not return data but should connect)
+    if command -v curl >/dev/null 2>&1; then
+        curl_output="$(curl -v --max-time 5 "http://$starlink_host:$starlink_port/" 2>&1)"
+        if echo "$curl_output" | grep -q 'Received HTTP/0.9 when not allowed'; then
+            log_success "curl: Port $starlink_port is open and responded (HTTP/0.9 error as expected for gRPC port)."
+        elif echo "$curl_output" | grep -q 'Connection refused'; then
+            log_error "curl: Connection refused on $starlink_host:$starlink_port."
+            return 1
+        elif echo "$curl_output" | grep -q 'timed out'; then
+            log_error "curl: Connection timed out on $starlink_host:$starlink_port."
+            return 1
+        elif echo "$curl_output" | grep -q 'Failed to connect'; then
+            log_error "curl: Failed to connect to $starlink_host:$starlink_port."
+            return 1
+        else
+            log_warning "curl: No HTTP response, but port may still be open (API is gRPC, not HTTP)."
+        fi
+    else
+        log_warning "curl not available for HTTP test."
+    fi
+
+    # BusyBox nc test (TCP port open check)
+    if command -v nc >/dev/null 2>&1; then
+        nc_output="$(echo | nc "$starlink_host" "$starlink_port" 2>&1)"
+        nc_status=$?
+        if [ $nc_status -eq 0 ]; then
+            log_success "nc: TCP port $starlink_port is open on $starlink_host (no error, port is reachable)."
+        else
+            log_error "nc: TCP port $starlink_port is not open on $starlink_host (nc exit code $nc_status)."
+            log_info "nc output: $nc_output"
+            return 1
+        fi
+    else
+        log_warning "nc (netcat) not available for TCP port test."
+    fi
+    return 0
+}
+
+# Test 3b: Starlink gRPC Device/Handle API
+test_starlink_api_device_info() {
+    log_debug "Testing Starlink gRPC Device/Handle API (get_device_info)"
+    starlink_host=$(echo "$STARLINK_IP" | cut -d':' -f1)
+    starlink_port=$(echo "$STARLINK_IP" | cut -d':' -f2)
+    grpcurl_cmd="$INSTALL_DIR/grpcurl"
+    if ! command -v grpcurl >/dev/null 2>&1; then
+        if [ ! -f "$grpcurl_cmd" ]; then
+            log_error "grpcurl not found"
+            return 1
+        fi
+    else
+        grpcurl_cmd="grpcurl"
+    fi
+    # Use the provided payload for get_device_info
+    payload='{"get_device_info":{}}'
+    if response=$(timeout 10 "$grpcurl_cmd" -plaintext -d "$payload" "$starlink_host:$starlink_port" SpaceX.API.Device.Device/Handle 2>/dev/null); then
+        if echo "$response" | grep -q 'deviceInfo'; then
+            log_success "Starlink Device/Handle API returned device info."
+            log_info "Device Info (truncated): $(echo "$response" | grep -o '"deviceInfo".*' | head -c 120)"
+        else
+            log_warning "Starlink Device/Handle API call succeeded but no deviceInfo found."
+            log_info "Response: $response"
+        fi
+        return 0
+    else
+        log_error "Starlink Device/Handle API call failed."
+        return 1
+    fi
+}
 #!/bin/sh
 # Script: test-connectivity.sh
 # Version: 1.0.2
@@ -384,7 +466,9 @@ main() {
     # Run all tests
     run_test "test_system_requirements" "System Requirements"
     run_test "test_network_connectivity" "Network Connectivity"
-    run_test "test_starlink_api" "Starlink API Connectivity"
+    run_test "test_starlink_ping_curl" "Starlink Dish Ping & HTTP Port"
+    run_test "test_starlink_api" "Starlink API Connectivity (gRPC GetStatus)"
+    run_test "test_starlink_api_device_info" "Starlink API Device/Handle (get_device_info)"
     run_test "test_rutos_credentials" "RUTOS Admin Credentials"
     run_test "test_pushover" "Pushover Notifications"
     run_test "test_filesystem" "Filesystem Permissions"

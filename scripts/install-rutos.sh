@@ -1,3 +1,51 @@
+# ================= Starlink Connectivity & API Test =====================
+# Test both basic network connectivity (ping/curl) and API access (grpcurl)
+
+test_starlink_connectivity() {
+    STARLINK_IP="192.168.100.1"
+    STARLINK_API_PORT="9200"
+    STARLINK_API_URL="http://$STARLINK_IP:$STARLINK_API_PORT/"
+    GRPCURL_BIN="$INSTALL_DIR/grpcurl"
+
+    print_status "$BLUE" "[Starlink Test] Pinging Starlink dish at $STARLINK_IP..."
+    if ping -c 2 -W 2 "$STARLINK_IP" >/dev/null 2>&1; then
+        print_status "$GREEN" "[Starlink Test] Ping successful: $STARLINK_IP is reachable."
+    else
+        print_status "$RED" "[Starlink Test] Ping failed: $STARLINK_IP is not reachable."
+    fi
+
+    print_status "$BLUE" "[Starlink Test] Testing HTTP access with curl: $STARLINK_API_URL"
+    if command -v curl >/dev/null 2>&1; then
+        if curl -fsSL --max-time 5 "$STARLINK_API_URL" >/dev/null 2>&1; then
+            print_status "$GREEN" "[Starlink Test] curl: HTTP port $STARLINK_API_PORT is open."
+        else
+            print_status "$YELLOW" "[Starlink Test] curl: No HTTP response, but port may still be open (API is gRPC, not HTTP)."
+        fi
+    else
+        print_status "$YELLOW" "[Starlink Test] curl not available for HTTP test."
+    fi
+
+    print_status "$BLUE" "[Starlink Test] Testing Starlink gRPC API with grpcurl..."
+    if [ -x "$GRPCURL_BIN" ]; then
+        if "$GRPCURL_BIN" -plaintext "$STARLINK_IP:$STARLINK_API_PORT" describe >/tmp/grpcurl_test.out 2>&1; then
+            print_status "$GREEN" "[Starlink Test] grpcurl: API is accessible."
+            print_status "$CYAN" "[Starlink Test] grpcurl output (first 5 lines):"
+            head -5 /tmp/grpcurl_test.out | while read -r line; do
+                print_status "$CYAN" "  $line"
+            done
+        else
+            print_status "$RED" "[Starlink Test] grpcurl: API not accessible or error occurred."
+            print_status "$YELLOW" "[Starlink Test] grpcurl error output:"
+            head -5 /tmp/grpcurl_test.out | while read -r line; do
+                print_status "$YELLOW" "  $line"
+            done
+        fi
+        rm -f /tmp/grpcurl_test.out
+    else
+        print_status "$YELLOW" "[Starlink Test] grpcurl binary not found at $GRPCURL_BIN."
+    fi
+}
+
 git add .
 git commit -a --no-verify -m "Install script: add remote fallback for monitor & notifier"
 git push --no-#!/bin/sh
@@ -787,6 +835,11 @@ main() {
     create_restoration_script
     print_status "$GREEN" "=== Installation Complete ==="
     printf "\n"
+
+    # Optional: Run Starlink connectivity and API test after install
+    print_status "$BLUE" "Running Starlink connectivity and API test..."
+    test_starlink_connectivity
+    printf "\n"
     available_editor=""
     for editor in nano vi vim; do
         if command -v "$editor" >/dev/null 2>&1; then
@@ -799,10 +852,10 @@ main() {
     print_status "$YELLOW" "   - Update network settings (MWAN_IFACE, MWAN_MEMBER)"
     print_status "$YELLOW" "   - Configure Pushover notifications (optional)"
     print_status "$YELLOW" "   - Adjust failover thresholds if needed"
-    print_status "$YELLOW" "2. Run health check: $INSTALL_DIR/scripts/health-check.sh"
-    print_status "$YELLOW" "3. Check system status: $INSTALL_DIR/scripts/system-status.sh"
-    print_status "$YELLOW" "4. Test connectivity: $INSTALL_DIR/scripts/test-connectivity.sh"
-    print_status "$YELLOW" "5. Validate configuration: $INSTALL_DIR/scripts/validate-config.sh"
+    print_status "$YELLOW" "2. Run health check: $INSTALL_DIR/scripts/health-check-rutos.sh"
+    print_status "$YELLOW" "3. Check system status: $INSTALL_DIR/scripts/system-status-rutos.sh"
+    print_status "$YELLOW" "4. Test connectivity: $INSTALL_DIR/scripts/test-connectivity-rutos.sh"
+    print_status "$YELLOW" "5. Validate configuration: $INSTALL_DIR/scripts/validate-config-rutos.sh"
     print_status "$YELLOW" "6. Configure mwan3 according to documentation"
     print_status "$YELLOW" "7. Test the system manually"
     printf "\n"
@@ -810,17 +863,23 @@ main() {
     print_status "$CYAN" "• BASIC CONFIG: 14 essential settings for core monitoring"
     print_status "$CYAN" "• GRACEFUL DEGRADATION: Features disable safely if not configured"
     print_status "$CYAN" "• PLACEHOLDER DETECTION: Notifications skip if tokens are placeholders"
-    print_status "$CYAN" "• UPGRADE PATH: Run upgrade-to-advanced.sh for full features"
+    print_status "$CYAN" "• UPGRADE PATH: Run upgrade-to-advanced-rutos.sh for full features"
     print_status "$CYAN" "• SMART VALIDATION: Distinguishes critical vs optional settings"
     printf "\n"
     print_status "$BLUE" "Available tools:"
-    print_status "$BLUE" "• Comprehensive health check: $INSTALL_DIR/scripts/health-check.sh"
-    print_status "$BLUE" "• Check system status: $INSTALL_DIR/scripts/system-status.sh"
-    print_status "$BLUE" "• Test Pushover notifications: $INSTALL_DIR/scripts/test-pushover.sh"
-    print_status "$BLUE" "• Test monitoring: $INSTALL_DIR/scripts/test-monitoring.sh"
-    print_status "$BLUE" "• Update config with new options: $INSTALL_DIR/scripts/update-config.sh"
-    print_status "$BLUE" "• Upgrade to advanced features: $INSTALL_DIR/scripts/upgrade-to-advanced.sh"
+    print_status "$BLUE" "• Comprehensive health check: $INSTALL_DIR/scripts/health-check-rutos.sh"
+    print_status "$BLUE" "• Check system status: $INSTALL_DIR/scripts/system-status-rutos.sh"
+    print_status "$BLUE" "• Test Pushover notifications: $INSTALL_DIR/scripts/test-pushover-rutos.sh"
+    print_status "$BLUE" "• Test monitoring: $INSTALL_DIR/scripts/test-monitoring-rutos.sh"
+    print_status "$BLUE" "• Update config with new options: $INSTALL_DIR/scripts/update-config-rutos.sh"
+    print_status "$BLUE" "• Upgrade to advanced features: $INSTALL_DIR/scripts/upgrade-to-advanced-rutos.sh"
     printf "\n"
+
+    # Print recommended actions with correct filenames
+    print_status "$BLUE" "\033[1;35m  • Test monitoring: ./scripts/test-monitoring-rutos.sh\033[0m"
+    print_status "$BLUE" "\033[1;35m  • Test Pushover: ./scripts/test-pushover-rutos.sh\033[0m"
+    print_status "$BLUE" "\033[1;35m  • Validate config: ./scripts/validate-config-rutos.sh\033[0m"
+    print_status "$BLUE" "\033[1;35m  • Upgrade to advanced: ./scripts/upgrade-to-advanced-rutos.sh\033[0m"
     print_status "$BLUE" "Installation directory: $INSTALL_DIR"
     print_status "$BLUE" "Configuration file: $INSTALL_DIR/config/config.sh"
     print_status "$BLUE" "Uninstall script: $INSTALL_DIR/uninstall.sh"

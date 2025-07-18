@@ -32,29 +32,29 @@ fi
 
 # Standard logging functions with consistent colors
 log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "%s[INFO]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "%s[WARNING]%s [%s] %s\n" "$YELLOW" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "%s[ERROR]%s [%s] %s\n" "$RED" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "%s[DEBUG]%s [%s] %s\n" "$CYAN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_success() {
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "%s[SUCCESS]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "%s[STEP]%s [%s] %s\n" "$BLUE" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Status display functions
@@ -64,16 +64,16 @@ show_status() {
 
     case "$status" in
         "ok")
-            printf "${GREEN}✅ %s${NC}\n" "$message"
+            printf "%s✅ %s%s\n" "$GREEN" "$message" "$NC"
             ;;
         "warn")
-            printf "${YELLOW}⚠️  %s${NC}\n" "$message"
+            printf "%s⚠️  %s%s\n" "$YELLOW" "$message" "$NC"
             ;;
         "error")
-            printf "${RED}❌ %s${NC}\n" "$message"
+            printf "%s❌ %s%s\n" "$RED" "$message" "$NC"
             ;;
         "info")
-            printf "${BLUE}ℹ️  %s${NC}\n" "$message"
+            printf "%sℹ️  %s%s\n" "$BLUE" "$message" "$NC"
             ;;
         *)
             printf "%s\n" "$message"
@@ -158,7 +158,14 @@ check_system_status() {
 
     # Check thresholds
     show_status "info" "Quality Thresholds:"
-    printf "  • Latency: %sms\n" "${LATENCY_THRESHOLD:-N/A}"
+    # Prefer LATENCY_THRESHOLD_MS, fallback to LATENCY_THRESHOLD, else N/A
+    if [ -n "${LATENCY_THRESHOLD_MS:-}" ]; then
+        printf "  • Latency: %s ms\n" "$LATENCY_THRESHOLD_MS"
+    elif [ -n "${LATENCY_THRESHOLD:-}" ]; then
+        printf "  • Latency: %s ms\n" "$LATENCY_THRESHOLD"
+    else
+        printf "  • Latency: N/A\n"
+    fi
     printf "  • Packet Loss: %s%%\n" "${PACKET_LOSS_THRESHOLD:-N/A}"
     printf "  • Obstruction: %s%%\n" "${OBSTRUCTION_THRESHOLD:-N/A}"
 
@@ -175,10 +182,13 @@ check_system_status() {
     fi
 
     # Check notification script
-    if [ -n "${NOTIFIER_SCRIPT:-}" ] && [ -x "$NOTIFIER_SCRIPT" ]; then
-        show_status "ok" "Notification script: $NOTIFIER_SCRIPT"
-    else
-        show_status "warn" "Notification script: Not configured or not executable"
+    # Only warn about notification script if notifications are enabled and pushover is configured
+    if is_pushover_configured && { [ "${NOTIFY_ON_CRITICAL:-0}" = "1" ] || [ "${NOTIFY_ON_HARD_FAIL:-0}" = "1" ] || [ "${NOTIFY_ON_RECOVERY:-0}" = "1" ] || [ "${NOTIFY_ON_SOFT_FAIL:-0}" = "1" ] || [ "${NOTIFY_ON_INFO:-0}" = "1" ]; }; then
+        if [ -n "${NOTIFIER_SCRIPT:-}" ] && [ -x "$NOTIFIER_SCRIPT" ]; then
+            show_status "ok" "Notification script: $NOTIFIER_SCRIPT"
+        else
+            show_status "warn" "Notification delivery script (internal): Not found or not executable. This is not your Pushover API config. If you see this warning but Pushover is enabled above, please re-run the installer or check for missing files in /usr/local/starlink-monitor/scripts."
+        fi
     fi
 
     # Check logging configuration
@@ -213,7 +223,7 @@ check_system_status() {
         printf "%s  2. Get user key: https://pushover.net/%s\n" "$BLUE" "$NC"
         printf "%s  3. Edit config: vi %s%s\n" "$BLUE" "$CONFIG_FILE" "$NC"
         printf "%s  4. Replace placeholder values with real tokens%s\n" "$BLUE" "$NC"
-        printf "%s  5. Test with: ./scripts/test-pushover.sh%s\n" "$BLUE" "$NC"
+        printf "%s  5. Test with: ./scripts/test-pushover-rutos.sh%s\n" "$BLUE" "$NC"
     fi
 
     echo ""
@@ -223,10 +233,10 @@ check_system_status() {
     echo ""
 
     show_status "info" "Recommended actions:"
-    printf "%s  • Test monitoring: ./scripts/test-monitoring.sh%s\n" "$BLUE" "$NC"
-    printf "%s  • Test Pushover: ./scripts/test-pushover.sh%s\n" "$BLUE" "$NC"
-    printf "%s  • Validate config: ./scripts/validate-config.sh%s\n" "$BLUE" "$NC"
-    printf "%s  • Upgrade to advanced: ./scripts/upgrade-to-advanced.sh%s\n" "$BLUE" "$NC"
+    printf "%s  • Test monitoring: ./scripts/test-monitoring-rutos.sh%s\n" "$BLUE" "$NC"
+    printf "%s  • Test Pushover: ./scripts/test-pushover-rutos.sh%s\n" "$BLUE" "$NC"
+    printf "%s  • Validate config: ./scripts/validate-config-rutos.sh%s\n" "$BLUE" "$NC"
+    printf "%s  • Upgrade to advanced: ./scripts/upgrade-to-advanced-rutos.sh%s\n" "$BLUE" "$NC"
 
     echo ""
     log_success "System status check completed"
