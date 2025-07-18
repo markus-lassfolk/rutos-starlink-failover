@@ -21,7 +21,7 @@
 .PARAMETER PriorityFilter
     Filter issues by priority: All, Critical, Major, Minor (default: All)
 
-.PARAMETER Debug
+.PARAMETER EnableDebug
     Enable detailed debug logging
 
 .PARAMETER TestMode
@@ -51,7 +51,7 @@
     Production mode with maximum 5 issues
 
 .EXAMPLE
-    .\create-copilot-issues-optimized.ps1 -PriorityFilter Critical -Debug
+    .\create-copilot-issues-optimized.ps1 -PriorityFilter Critical -EnableDebug
     Focus on critical issues with debug output
 #>
 
@@ -60,7 +60,7 @@ param(
     [switch]$Production = $false,
     [int]$MaxIssues = 3,
     [string]$PriorityFilter = "All", # All, Critical, Major, Minor
-    [switch]$Debug = $false,
+    [switch]$EnableDebug = $false,
     [switch]$TestMode = $false,
     [switch]$SkipValidation = $false,
     [switch]$ForceReprocessing = $false,
@@ -115,7 +115,7 @@ function Write-StatusMessage {
 
 function Write-DebugMessage {
     param([string]$Message)
-    if ($Debug) {
+    if ($EnableDebug) {
         Write-StatusMessage "🔍 $Message" -Color $CYAN -Level "DEBUG"
     }
 }
@@ -189,7 +189,7 @@ function Add-CollectedError {
     # Display the error immediately for real-time feedback
     Write-StatusMessage "❌ Error #$script:ErrorCount in $FunctionName`: $ErrorMessage" -Color $RED -Level "ERROR"
 
-    if ($Debug) {
+    if ($EnableDebug) {
         Write-StatusMessage "   📍 Location: $Location" -Color $GRAY -Level "DEBUG"
         if ($Context) {
             Write-StatusMessage "   📝 Context: $Context" -Color $GRAY -Level "DEBUG"
@@ -625,7 +625,7 @@ function New-CopilotIssue {
         $intelligentLabels += "copilot-assigned"
 
         # Debug output for intelligent labeling
-        if ($Debug) {
+        if ($EnableDebug) {
             Write-DebugMessage "🏷️  Intelligent Labeling System Results:"
             Write-DebugMessage "   Module Available: $intelligentLabelingAvailable"
             Write-DebugMessage "   Total Labels: $($intelligentLabels.Count)"
@@ -1023,7 +1023,7 @@ function Main {
     Write-InfoMessage "🔧 Optimized RUTOS Copilot Issue Creation System"
     Write-InfoMessage "📅 Started at: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 
-    if ($Debug) {
+    if ($EnableDebug) {
         Write-DebugMessage "==================== DEBUG MODE ENABLED ===================="
         Write-DebugMessage "Script version: $SCRIPT_VERSION"
         Write-DebugMessage "Working directory: $(Get-Location)"
