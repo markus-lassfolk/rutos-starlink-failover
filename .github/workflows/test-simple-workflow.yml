@@ -1,0 +1,31 @@
+name: Test Simple Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-simple:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      actions: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Test basic functionality
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Testing basic functionality"
+          echo "GitHub CLI version: $(gh --version)"
+          echo "Current user: $(gh api user --jq '.login')"
+          echo "Repository: ${{ github.repository }}"
+          
+          # Test PR listing
+          gh pr list --draft --limit 5
+          
+          echo "Simple workflow test completed successfully"
