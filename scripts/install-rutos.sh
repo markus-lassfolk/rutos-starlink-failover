@@ -504,26 +504,51 @@ install_config() {
         fi
     fi
 
-    # Intelligent configuration management - always use new template as base
+    # Intelligent configuration management - preserve user settings
     if [ -f "$INSTALL_DIR/config/config.sh" ]; then
         print_status "$BLUE" "Existing configuration detected - performing intelligent merge"
 
-        # Use the new merge-config.sh script if available
-        if [ -f "$INSTALL_DIR/scripts/merge-config.sh" ]; then
-            if "$INSTALL_DIR/scripts/merge-config.sh" "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"; then
-                print_status "$GREEN" "✓ Configuration merged successfully"
-            else
-                print_status "$YELLOW" "⚠ Merge failed, preserving user settings manually"
-                cp "$INSTALL_DIR/config/config.sh" "$INSTALL_DIR/config/config.sh.merged"
-                cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
+        # Create backup first
+        backup_file="$INSTALL_DIR/config/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
+        cp "$INSTALL_DIR/config/config.sh" "$backup_file"
+        
+        # Try to use merge script first
+        merge_success=false
+        if [ -f "$INSTALL_DIR/scripts/merge-config-rutos.sh" ]; then
+            if "$INSTALL_DIR/scripts/merge-config-rutos.sh" "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh" 2>/dev/null; then
+                merge_success=true
+                print_status "$GREEN" "✓ Configuration merged successfully using merge script"
             fi
-        else
-            # Fallback to simple backup and replace
-            backup_file="$INSTALL_DIR/config/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
-            cp "$INSTALL_DIR/config/config.sh" "$backup_file"
-            cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
-            print_status "$YELLOW" "⚠ Configuration replaced with template (backup: $backup_file)"
-            print_status "$YELLOW" "📋 Please restore your settings from the backup"
+        fi
+        
+        # If merge script failed or doesn't exist, do manual merge
+        if [ "$merge_success" = "false" ]; then
+            print_status "$BLUE" "Performing manual configuration merge..."
+            
+            # Extract user settings from existing config
+            temp_config="/tmp/config_merge.tmp"
+            cp "$INSTALL_DIR/config/config.template.sh" "$temp_config"
+            
+            # Preserve critical user settings by extracting from backup
+            for setting in STARLINK_IP MWAN_IFACE MWAN_MEMBER PUSHOVER_TOKEN PUSHOVER_USER RUTOS_USERNAME RUTOS_PASSWORD RUTOS_IP; do
+                if grep -q "^${setting}=" "$backup_file" 2>/dev/null; then
+                    user_value=$(grep "^${setting}=" "$backup_file" | head -1)
+                    if [ -n "$user_value" ] && ! echo "$user_value" | grep -q "YOUR_"; then
+                        # Replace the template value with user value
+                        if grep -q "^${setting}=" "$temp_config"; then
+                            sed -i "s|^${setting}=.*|${user_value}|" "$temp_config"
+                        else
+                            echo "$user_value" >> "$temp_config"
+                        fi
+                        debug_msg "Preserved setting: $setting"
+                    fi
+                fi
+            done
+            
+            # Replace config with merged version
+            mv "$temp_config" "$INSTALL_DIR/config/config.sh"
+            print_status "$GREEN" "✓ Configuration merged manually - user settings preserved"
+            print_status "$BLUE" "✓ Backup created: $backup_file"
         fi
     else
         # First time installation
