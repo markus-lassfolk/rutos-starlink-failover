@@ -81,7 +81,7 @@
 [CmdletBinding()]
 param(
     [switch]$TestMode,
-    [switch]$DryRun = $true,           # DEFAULT: Dry run mode for safety
+    [switch]$DryRun,                   # Dry run mode for safety (enabled by default unless -Production specified)
     [int]$MaxIssuesPerRun = 3,         # DEFAULT: Maximum 3 issues for testing
     [switch]$SkipValidation,
     [switch]$DebugMode,
@@ -93,28 +93,37 @@ param(
     [switch]$Production               # Enable production mode (disables DryRun)
 )
 
-# Production mode override - if -Production is specified, disable dry run
+# Set DryRun default behavior - enabled by default for safety unless Production mode is specified
 if ($Production) {
     $DryRun = $false
-    Write-Host "🚀 Production mode enabled - DryRun disabled" -ForegroundColor Green
+    Write-Information "🚀 Production mode enabled - DryRun disabled" -InformationAction Continue
+} elseif (-not $PSBoundParameters.ContainsKey('DryRun')) {
+    # DryRun not explicitly specified, enable by default for safety
+    $DryRun = $true
+    Write-Information "🧪 Safety mode - DryRun enabled by default" -InformationAction Continue
+    Write-Information "   To run in production mode, use: -Production" -InformationAction Continue
 } else {
-    Write-Host "🧪 Safety mode - DryRun enabled by default" -ForegroundColor Yellow
-    Write-Host "   To run in production mode, use: -Production" -ForegroundColor Yellow
+    # DryRun was explicitly specified by user
+    if ($DryRun) {
+        Write-Information "🧪 Dry run mode explicitly enabled" -InformationAction Continue
+    } else {
+        Write-Information "🚀 Live mode explicitly enabled" -InformationAction Continue
+    }
 }
 
 # Import the enhanced label management module
 $labelModulePath = Join-Path $PSScriptRoot "GitHub-Label-Management.psm1"
 if (Test-Path $labelModulePath) {
     Import-Module $labelModulePath -Force -ErrorAction SilentlyContinue
-    Write-Host "✅ Loaded enhanced label management system (100 labels)" -ForegroundColor Green
+    Write-Information "✅ Loaded enhanced label management system (100 labels)" -InformationAction Continue
 } else {
-    Write-Host "⚠️  Enhanced label management module not found - using basic labels" -ForegroundColor Yellow
+    Write-Warning "⚠️  Enhanced label management module not found - using basic labels"
 }
 
 # Additional safety checks
 if (-not $DryRun -and $MaxIssuesPerRun -gt 5) {
-    Write-Host "⚠️  WARNING: MaxIssuesPerRun is set to $MaxIssuesPerRun" -ForegroundColor Yellow
-    Write-Host "   Consider using a smaller number for initial testing" -ForegroundColor Yellow
+    Write-Warning "⚠️  WARNING: MaxIssuesPerRun is set to $MaxIssuesPerRun"
+    Write-Warning "   Consider using a smaller number for initial testing"
 }
 
 # Color definitions for consistent output
@@ -135,14 +144,14 @@ $MAX_RETRIES = 3
 $RETRY_DELAY_SECONDS = 30
 $RATE_LIMIT_DELAY = 10
 
-# Global error collection for comprehensive reporting
-$global:CollectedErrors = @()
-$global:ErrorCount = 0
+# Script-scoped error collection for comprehensive reporting
+$script:CollectedErrors = @()
+$script:ErrorCount = 0
 
 # State tracking for preventing infinite loops
-$global:ProcessedFiles = @{}
-$global:IssueState = @{}
-$global:CreatedIssues = @()
+$script:ProcessedFiles = @{}
+$script:IssueState = @{}
+$script:CreatedIssues = @()
 
 # Enhanced logging with debug support
 function Write-StatusMessage {
@@ -210,7 +219,7 @@ function Add-CollectedError {
         [hashtable]$AdditionalInfo = @{}
     )
     
-    $global:ErrorCount++
+    $script:ErrorCount++
     
     # Get caller information if not provided
     if ($FunctionName -eq "Unknown" -or $Location -eq "Unknown") {
@@ -225,7 +234,7 @@ function Add-CollectedError {
     # Create comprehensive error information
     $errorInfo = @{
         Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        ErrorNumber = $global:ErrorCount
+        ErrorNumber = $script:ErrorCount
         Message = $ErrorMessage
         FunctionName = $FunctionName
         Location = $Location
@@ -241,10 +250,10 @@ function Add-CollectedError {
     }
     
     # Add to global collection
-    $global:CollectedErrors += $errorInfo
+    $script:CollectedErrors += $errorInfo
     
     # Still display the error immediately for real-time feedback
-    Write-StatusMessage "❌ Error #$global:ErrorCount in $FunctionName`: $ErrorMessage" -Color $RED -Level "ERROR"
+    Write-StatusMessage "❌ Error #$script:ErrorCount in $FunctionName`: $ErrorMessage" -Color $RED -Level "ERROR"
     
     if ($DebugMode) {
         Write-StatusMessage "   📍 Location: $Location" -Color $GRAY -Level "DEBUG"
@@ -259,16 +268,16 @@ function Add-CollectedError {
 
 # Display comprehensive error report at the end
 function Show-CollectedErrors {
-    if ($global:CollectedErrors.Count -eq 0) {
+    if ($script:CollectedErrors.Count -eq 0) {
         Write-StatusMessage "✅ No errors collected during execution" -Color $GREEN
         return
     }
     
     Write-StatusMessage "`n" + ("=" * 100) -Color $RED
-    Write-StatusMessage "🚨 COMPREHENSIVE ERROR REPORT - $($global:CollectedErrors.Count) Error(s) Found" -Color $RED
+    Write-StatusMessage "🚨 COMPREHENSIVE ERROR REPORT - $($script:CollectedErrors.Count) Error(s) Found" -Color $RED
     Write-StatusMessage ("=" * 100) -Color $RED
     
-    foreach ($errorInfo in $global:CollectedErrors) {
+    foreach ($errorInfo in $script:CollectedErrors) {
         Write-StatusMessage "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)" -Color $RED
         Write-StatusMessage "   🎯 Function: $($errorInfo.FunctionName)" -Color $YELLOW
         Write-StatusMessage "   📍 Location: $($errorInfo.Location)" -Color $YELLOW
@@ -314,12 +323,12 @@ function Show-CollectedErrors {
     }
     
     Write-StatusMessage "`n📊 ERROR SUMMARY:" -Color $RED
-    Write-StatusMessage "   Total Errors: $($global:CollectedErrors.Count)" -Color $RED
-    Write-StatusMessage "   Functions with Errors: $($global:CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -Color $YELLOW
-    Write-StatusMessage "   Exception Types: $($global:CollectedErrors | Where-Object { $_.ExceptionType -ne 'N/A' } | Select-Object -Unique ExceptionType | Measure-Object).Count" -Color $PURPLE
+    Write-StatusMessage "   Total Errors: $($script:CollectedErrors.Count)" -Color $RED
+    Write-StatusMessage "   Functions with Errors: $($script:CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -Color $YELLOW
+    Write-StatusMessage "   Exception Types: $($script:CollectedErrors | Where-Object { $_.ExceptionType -ne 'N/A' } | Select-Object -Unique ExceptionType | Measure-Object).Count" -Color $PURPLE
     
     # Most common error types
-    $errorTypes = $global:CollectedErrors | Group-Object -Property ExceptionType | Sort-Object Count -Descending
+    $errorTypes = $script:CollectedErrors | Group-Object -Property ExceptionType | Sort-Object Count -Descending
     if ($errorTypes.Count -gt 0) {
         Write-StatusMessage "   Most Common Error Types:" -Color $BLUE
         foreach ($type in $errorTypes | Select-Object -First 3) {
@@ -338,29 +347,29 @@ function Show-CollectedErrors {
 }
 
 # Load and save state for preventing infinite loops
-function Load-IssueState {
+function Get-IssueState {
     Write-DebugMessage "Loading issue state from: $STATE_FILE"
     
     if (Test-Path $STATE_FILE) {
         try {
             $stateContent = Get-Content $STATE_FILE -Raw | ConvertFrom-Json
-            $global:IssueState = @{}
+            $script:IssueState = @{}
             
             foreach ($property in $stateContent.PSObject.Properties) {
-                $global:IssueState[$property.Name] = $property.Value
+                $script:IssueState[$property.Name] = $property.Value
             }
             
-            Write-DebugMessage "Loaded state for $($global:IssueState.Count) files"
+            Write-DebugMessage "Loaded state for $($script:IssueState.Count) files"
             return $true
         } catch {
-            Add-CollectedError -ErrorMessage "Failed to load state file: $($_.Exception.Message)" -FunctionName "Load-IssueState" -Exception $_.Exception -Context "Loading issue state from $STATE_FILE" -AdditionalInfo @{StateFile = $STATE_FILE}
+            Add-CollectedError -ErrorMessage "Failed to load state file: $($_.Exception.Message)" -FunctionName "Get-IssueState" -Exception $_.Exception -Context "Loading issue state from $STATE_FILE" -AdditionalInfo @{StateFile = $STATE_FILE}
             Write-WarningMessage "Failed to load state file: $($_.Exception.Message)"
-            $global:IssueState = @{}
+            $script:IssueState = @{}
             return $false
         }
     } else {
         Write-DebugMessage "No existing state file found - starting fresh"
-        $global:IssueState = @{}
+        $script:IssueState = @{}
         return $false
     }
 }
@@ -376,7 +385,7 @@ function Save-IssueState {
         }
         
         # Convert to JSON and save
-        $global:IssueState | ConvertTo-Json -Depth 10 | Out-File $STATE_FILE -Encoding UTF8
+        $script:IssueState | ConvertTo-Json -Depth 10 | Out-File $STATE_FILE -Encoding UTF8
         Write-DebugMessage "State saved successfully"
         return $true
     } catch {
@@ -808,8 +817,8 @@ function Test-ShouldProcessFile {
     Write-DebugMessage "Checking if file should be processed: $FilePath"
     
     # Check if we have state for this file
-    if ($global:IssueState.ContainsKey($FilePath)) {
-        $fileState = $global:IssueState[$FilePath]
+    if ($script:IssueState.ContainsKey($FilePath)) {
+        $fileState = $script:IssueState[$FilePath]
         
         Write-DebugMessage "File state: Status=$($fileState.Status), Attempts=$($fileState.Attempts), LastProcessed=$($fileState.LastProcessed)"
         
@@ -885,6 +894,7 @@ function Test-ShouldProcessFile {
 
 # Update file processing state
 function Update-FileState {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [string]$FilePath,
         [string]$Status,
@@ -893,16 +903,17 @@ function Update-FileState {
         [string]$ErrorMessage = ""
     )
     
-    Write-DebugMessage "Updating file state: $FilePath -> $Status"
+    if ($PSCmdlet.ShouldProcess($FilePath, "Update file state to $Status")) {
+        Write-DebugMessage "Updating file state: $FilePath -> $Status"
     
-    if (-not $global:IssueState.ContainsKey($FilePath)) {
-        $global:IssueState[$FilePath] = @{
+    if (-not $script:IssueState.ContainsKey($FilePath)) {
+        $script:IssueState[$FilePath] = @{
             Attempts = 0
             CreatedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         }
     }
     
-    $fileState = $global:IssueState[$FilePath]
+    $fileState = $script:IssueState[$FilePath]
     $fileState.Status = $Status
     $fileState.LastProcessed = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     
@@ -922,22 +933,25 @@ function Update-FileState {
         $fileState.LastError = $ErrorMessage
     }
     
-    $global:IssueState[$FilePath] = $fileState
+    $script:IssueState[$FilePath] = $fileState
     
     # Save state immediately
     Save-IssueState | Out-Null
     
     Write-DebugMessage "File state updated and saved"
+    }
 }
 
 # Generate comprehensive issue content
 function New-CopilotIssueContent {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [string]$FilePath,
         [array]$Issues
     )
     
-    Write-DebugMessage "Generating issue content for: $FilePath"
+    if ($PSCmdlet.ShouldProcess($FilePath, "Generate issue content")) {
+        Write-DebugMessage "Generating issue content for: $FilePath"
     
     # Categorize issues by severity
     $criticalIssues = $Issues | Where-Object { $_.Type -eq "Critical" -or $_.Type -eq "Error" }
@@ -1118,21 +1132,24 @@ The system will automatically verify fixes by:
         Body = $issueBody
         Labels = $intelligentLabels
     }
+    }
 }
 
 # Create GitHub issue with Copilot assignment
 function New-CopilotIssue {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [string]$FilePath,
         [array]$Issues
     )
     
-    Write-StepMessage "Creating Copilot issue for: $FilePath"
-    
-    if ($DryRun) {
-        Write-SuccessMessage "[DRY RUN] Would create issue for: $FilePath"
-        return @{ Success = $true; IssueNumber = "DRY-RUN"; DryRun = $true }
-    }
+    if ($PSCmdlet.ShouldProcess($FilePath, "Create GitHub issue")) {
+        Write-StepMessage "Creating Copilot issue for: $FilePath"
+        
+        if ($DryRun) {
+            Write-SuccessMessage "[DRY RUN] Would create issue for: $FilePath"
+            return @{ Success = $true; IssueNumber = "DRY-RUN"; DryRun = $true }
+        }
     
     try {
         # Generate issue content
@@ -1181,7 +1198,7 @@ function New-CopilotIssue {
                 Write-SuccessMessage "Assigned Copilot to issue #$issueNumber"
                 
                 # Update tracking
-                $global:CreatedIssues += @{
+                $script:CreatedIssues += @{
                     IssueNumber = $issueNumber
                     FilePath = $FilePath
                     CreatedAt = Get-Date
@@ -1219,13 +1236,16 @@ function New-CopilotIssue {
             Error = $_.Exception.Message
         }
     }
+    }
 }
 
 # Assign Copilot to an issue with comprehensive role assignment
 function Set-CopilotAssignment {
+    [CmdletBinding(SupportsShouldProcess)]
     param([string]$IssueNumber)
     
-    Write-DebugMessage "Assigning Copilot to issue #$IssueNumber with comprehensive roles"
+    if ($PSCmdlet.ShouldProcess("Issue #$IssueNumber", "Assign Copilot")) {
+        Write-DebugMessage "Assigning Copilot to issue #$IssueNumber with comprehensive roles"
     
     try {
         if ($DryRun -or $TestMode) {
@@ -1540,7 +1560,7 @@ function Start-CopilotIssueCreation {
     }
     
     # Load state
-    Load-IssueState | Out-Null
+    Get-IssueState | Out-Null
     
     # Run validation if not skipped
     if (-not $SkipValidation) {
@@ -1850,8 +1870,8 @@ try {
 Show-CollectedErrors
 
 # Exit with appropriate code
-if ($global:ErrorCount -gt 0) {
-    Write-StatusMessage "⚠️ Script completed with $global:ErrorCount error(s) - see error report above" -Color $YELLOW
+if ($script:ErrorCount -gt 0) {
+    Write-StatusMessage "⚠️ Script completed with $script:ErrorCount error(s) - see error report above" -Color $YELLOW
     exit 1
 } else {
     Write-StatusMessage "✅ Script completed successfully with no errors" -Color $GREEN
