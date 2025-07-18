@@ -267,7 +267,7 @@ function Add-CollectedError {
 }
 
 # Display comprehensive error report at the end
-function Show-CollectedErrors {
+function Show-CollectedError {
     if ($script:CollectedErrors.Count -eq 0) {
         Write-StatusMessage "✅ No errors collected during execution" -Color $GREEN
         return
@@ -406,23 +406,23 @@ function Invoke-ValidationScript {
     
     try {
         # Build validation command for shell script
-        $validationCmd = if ($FilePath) {
-            "wsl bash -c `"cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$FilePath'`""
+        if ($FilePath) {
+            $wslArgs = @('bash', '-c', "cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$FilePath'")
         } else {
-            "wsl bash -c `"cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT`""
+            $wslArgs = @('bash', '-c', "cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT")
         }
         
-        Write-DebugMessage "Executing: $validationCmd"
+        Write-DebugMessage "Executing: wsl $($wslArgs -join ' ')"
         
         # Execute validation
-        $validationOutput = Invoke-Expression $validationCmd 2>&1
+        $validationOutput = & wsl @wslArgs 2>&1
         $exitCode = $LASTEXITCODE
         
         Write-DebugMessage "Validation exit code: $exitCode"
         Write-DebugMessage "Validation output length: $($validationOutput.Length) characters"
         
         if ($ParseOutput) {
-            return Parse-ValidationOutput -Output $validationOutput -ExitCode $exitCode
+            return ConvertFrom-ValidationOutput -Output $validationOutput -ExitCode $exitCode
         } else {
             return @{
                 Success = $exitCode -eq 0
@@ -444,7 +444,7 @@ function Invoke-ValidationScript {
 }
 
 # Parse validation output to extract specific file issues
-function Parse-ValidationOutput {
+function ConvertFrom-ValidationOutput {
     param(
         [string[]]$Output,
         [int]$ExitCode
@@ -467,7 +467,7 @@ function Parse-ValidationOutput {
     
     if ($isSummaryOutput) {
         Write-DebugMessage "Detected summary output format - extracting file patterns"
-        return Parse-SummaryOutput -Output $Output -ExitCode $ExitCode
+        return ConvertFrom-SummaryOutput -Output $Output -ExitCode $ExitCode
     }
     
     # Parse detailed output (per-file)
@@ -647,7 +647,7 @@ function Parse-ValidationOutput {
 }
 
 # Parse summary output to extract files that have issues
-function Parse-SummaryOutput {
+function ConvertFrom-SummaryOutput {
     param(
         [string[]]$Output,
         [int]$ExitCode
@@ -745,7 +745,7 @@ function Get-FilesForValidation {
 }
 
 # Run validation on individual files to get detailed results
-function Get-DetailedValidationResults {
+function Get-DetailedValidationResult {
     param(
         [string[]]$Files,
         [int]$MaxFiles = 20
@@ -766,16 +766,16 @@ function Get-DetailedValidationResults {
         
         try {
             # Run validation on individual file
-            $validationCmd = "wsl bash -c `"cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$file'`""
-            Write-DebugMessage "Executing: $validationCmd"
+            $wslArgs = @('bash', '-c', "cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$file'")
+            Write-DebugMessage "Executing: wsl $($wslArgs -join ' ')"
             
-            $validationOutput = Invoke-Expression $validationCmd 2>&1
+            $validationOutput = & wsl @wslArgs 2>&1
             $exitCode = $LASTEXITCODE
             
             Write-DebugMessage "Individual validation exit code: $exitCode"
             
             # Parse the detailed output
-            $parseResult = Parse-ValidationOutput -Output $validationOutput -ExitCode $exitCode
+            $parseResult = ConvertFrom-ValidationOutput -Output $validationOutput -ExitCode $exitCode
             
             # Add results to collection
             if ($parseResult.FileIssues.Count -gt 0) {
@@ -790,7 +790,7 @@ function Get-DetailedValidationResults {
             $filesProcessed++
         }
         catch {
-            Add-CollectedError -ErrorMessage "Error validating file ${file}: $($_.Exception.Message)" -FunctionName "Get-DetailedValidationResults" -Exception $_.Exception -Context "Validating individual file $file" -AdditionalInfo @{File = $file; ProcessedFiles = $filesProcessed}
+            Add-CollectedError -ErrorMessage "Error validating file ${file}: $($_.Exception.Message)" -FunctionName "Get-DetailedValidationResult" -Exception $_.Exception -Context "Validating individual file $file" -AdditionalInfo @{File = $file; ProcessedFiles = $filesProcessed}
             Write-ErrorMessage "Error validating file ${file}: $($_.Exception.Message)"
         }
         
@@ -1163,20 +1163,22 @@ function New-CopilotIssue {
         $tempFile = [System.IO.Path]::GetTempFileName()
         $issueContent.Body | Out-File -FilePath $tempFile -Encoding UTF8
         
-        # Build GitHub CLI command
-        $labels = ($issueContent.Labels | ForEach-Object { "-l `"$_`"" }) -join " "
-        $ghCommand = "gh issue create -t `"$($issueContent.Title)`" -F `"$tempFile`" $labels"
+        # Build GitHub CLI command arguments
+        $ghArgs = @('issue', 'create', '-t', $issueContent.Title, '-F', $tempFile)
+        foreach ($label in $issueContent.Labels) {
+            $ghArgs += @('-l', $label)
+        }
         
-        Write-DebugMessage "Executing: $ghCommand"
+        Write-DebugMessage "Executing: gh $($ghArgs -join ' ')"
         
         if ($TestMode) {
-            Write-SuccessMessage "[TEST MODE] Would execute: $ghCommand"
+            Write-SuccessMessage "[TEST MODE] Would execute: gh $($ghArgs -join ' ')"
             Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
             return @{ Success = $true; IssueNumber = "TEST-MODE"; TestMode = $true }
         }
         
         # Execute GitHub CLI command
-        $result = Invoke-Expression $ghCommand
+        $result = & gh @ghArgs
         Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
         
         if ($LASTEXITCODE -eq 0) {
@@ -1348,10 +1350,10 @@ Thank you for your comprehensive assistance! 🤖✨
             $assignmentComment | Out-File -FilePath $tempFile -Encoding UTF8
             
             # Post comprehensive assignment comment
-            $ghCommand = "gh issue comment $IssueNumber -F `"$tempFile`""
-            Write-DebugMessage "Executing comprehensive assignment: $ghCommand"
+            $ghArgs = @('issue', 'comment', $IssueNumber, '-F', $tempFile)
+            Write-DebugMessage "Executing comprehensive assignment: gh $($ghArgs -join ' ')"
             
-            $result = Invoke-Expression $ghCommand
+            $result = & gh @ghArgs
             Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
             
             if ($LASTEXITCODE -eq 0) {
@@ -1371,10 +1373,12 @@ Thank you for your comprehensive assistance! 🤖✨
         Write-ErrorMessage "Error in comprehensive Copilot assignment: $($_.Exception.Message)"
         return @{ Success = $false; Error = $_.Exception.Message }
     }
+    }
 }
 
 # Enhanced Copilot PR assignment with reviewer capabilities
 function Set-CopilotPRAssignment {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [string]$PRNumber,
         [string]$ReviewerUsername = "mranv", # GitHub username for reviewer since @copilot doesn't work for reviewers
@@ -1383,24 +1387,25 @@ function Set-CopilotPRAssignment {
         [string]$Labels = "copilot-assigned,autonomous-fix,high-priority,needs-review"
     )
     
-    Write-DebugMessage "🎯 Starting comprehensive Copilot PR assignment for PR #$PRNumber"
-    
-    try {
-        # Step 1: Assign Copilot as assignee
-        Write-DebugMessage "Assigning @copilot as PR assignee..."
-        $assignResult = gh pr edit $PRNumber --add-assignee "@copilot"
-        if ($LASTEXITCODE -ne 0) {
-            Write-WarningMessage "Failed to assign @copilot to PR, continuing with other assignments..."
-        } else {
-            Write-DebugMessage "✅ @copilot assigned as PR assignee"
-        }
+    if ($PSCmdlet.ShouldProcess("PR #$PRNumber", "Assign Copilot and set PR properties")) {
+        Write-DebugMessage "🎯 Starting comprehensive Copilot PR assignment for PR #$PRNumber"
+        
+        try {
+            # Step 1: Assign Copilot as assignee
+            Write-DebugMessage "Assigning @copilot as PR assignee..."
+            $assignResult = gh pr edit $PRNumber --add-assignee "@copilot" 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Write-WarningMessage "Failed to assign @copilot to PR: $assignResult"
+            } else {
+                Write-DebugMessage "✅ @copilot assigned as PR assignee"
+            }
         
         # Step 2: Add reviewer (human username since @copilot doesn't work)
         if ($ReviewerUsername) {
             Write-DebugMessage "Adding reviewer: $ReviewerUsername"
-            $reviewResult = gh pr edit $PRNumber --add-reviewer $ReviewerUsername
+            $reviewResult = gh pr edit $PRNumber --add-reviewer $ReviewerUsername 2>&1
             if ($LASTEXITCODE -ne 0) {
-                Write-WarningMessage "Failed to add reviewer $ReviewerUsername, continuing..."
+                Write-WarningMessage "Failed to add reviewer $ReviewerUsername: $reviewResult"
             } else {
                 Write-DebugMessage "✅ Reviewer $ReviewerUsername added"
             }
@@ -1409,9 +1414,9 @@ function Set-CopilotPRAssignment {
         # Step 3: Add to project (if specified)
         if ($ProjectName) {
             Write-DebugMessage "Adding to project: $ProjectName"
-            $projectResult = gh pr edit $PRNumber --add-project $ProjectName
+            $projectResult = gh pr edit $PRNumber --add-project $ProjectName 2>&1
             if ($LASTEXITCODE -ne 0) {
-                Write-WarningMessage "Failed to add to project '$ProjectName', continuing..."
+                Write-WarningMessage "Failed to add to project '$ProjectName': $projectResult"
             } else {
                 Write-DebugMessage "✅ Added to project '$ProjectName'"
             }
@@ -1420,9 +1425,9 @@ function Set-CopilotPRAssignment {
         # Step 4: Add to milestone (if specified)
         if ($MilestoneName) {
             Write-DebugMessage "Adding to milestone: $MilestoneName"
-            $milestoneResult = gh pr edit $PRNumber --milestone $MilestoneName
+            $milestoneResult = gh pr edit $PRNumber --milestone $MilestoneName 2>&1
             if ($LASTEXITCODE -ne 0) {
-                Write-WarningMessage "Failed to add to milestone '$MilestoneName', continuing..."
+                Write-WarningMessage "Failed to add to milestone '$MilestoneName': $milestoneResult"
             } else {
                 Write-DebugMessage "✅ Added to milestone '$MilestoneName'"
             }
@@ -1430,9 +1435,9 @@ function Set-CopilotPRAssignment {
         
         # Step 5: Add comprehensive labels
         Write-DebugMessage "Adding comprehensive labels: $Labels"
-        $labelResult = gh pr edit $PRNumber --add-label $Labels
+        $labelResult = gh pr edit $PRNumber --add-label $Labels 2>&1
         if ($LASTEXITCODE -ne 0) {
-            Write-WarningMessage "Failed to add all labels, continuing..."
+            Write-WarningMessage "Failed to add all labels: $labelResult"
         } else {
             Write-DebugMessage "✅ Comprehensive labels added"
         }
@@ -1469,10 +1474,10 @@ function Set-CopilotPRAssignment {
             $assignmentMessage | Out-File -FilePath $tempFile -Encoding utf8
             
             # Post comprehensive assignment comment
-            $ghCommand = "gh pr comment $PRNumber -F `"$tempFile`""
-            Write-DebugMessage "Executing comprehensive PR assignment: $ghCommand"
+            $ghArgs = @('pr', 'comment', $PRNumber, '-F', $tempFile)
+            Write-DebugMessage "Executing comprehensive PR assignment: gh $($ghArgs -join ' ')"
             
-            $result = Invoke-Expression $ghCommand
+            $result = & gh @ghArgs
             Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
             
             if ($LASTEXITCODE -eq 0) {
@@ -1492,6 +1497,7 @@ function Set-CopilotPRAssignment {
         Add-CollectedError -ErrorMessage "Error in comprehensive Copilot PR assignment: $($_.Exception.Message)" -FunctionName "Set-CopilotPRAssignment" -Exception $_.Exception -Context "Comprehensive PR assignment to PR $PRNumber" -AdditionalInfo @{PRNumber = $PRNumber; LastExitCode = $LASTEXITCODE; ReviewerUsername = $ReviewerUsername}
         Write-ErrorMessage "Error in comprehensive Copilot PR assignment: $($_.Exception.Message)"
         return @{ Success = $false; Error = $_.Exception.Message }
+    }
     }
 }
 
@@ -1538,7 +1544,9 @@ function Test-Environment {
     try {
         $testResult = wsl bash -c "cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT --help" 2>&1
         if ($LASTEXITCODE -ne 0) {
-            Write-WarningMessage "Validation script test failed, but continuing..."
+            Write-WarningMessage "Validation script test failed: $testResult"
+        } else {
+            Write-DebugMessage "Validation script test passed"
         }
     } catch {
         Add-CollectedError -ErrorMessage "Could not test validation script: $($_.Exception.Message)" -FunctionName "Test-Environment" -Exception $_.Exception -Context "Testing validation script $VALIDATION_SCRIPT" -AdditionalInfo @{ValidationScript = $VALIDATION_SCRIPT}
@@ -1551,7 +1559,11 @@ function Test-Environment {
 
 # Main execution function
 function Start-CopilotIssueCreation {
-    Write-StatusMessage "🚀 Starting Autonomous RUTOS Copilot Issue Creation System v$SCRIPT_VERSION" -Color $GREEN
+    [CmdletBinding(SupportsShouldProcess)]
+    param()
+    
+    if ($PSCmdlet.ShouldProcess("RUTOS repository", "Create Copilot issues")) {
+        Write-StatusMessage "🚀 Starting Autonomous RUTOS Copilot Issue Creation System v$SCRIPT_VERSION" -Color $GREEN
     
     # Environment check
     if (-not (Test-Environment)) {
@@ -1582,7 +1594,7 @@ function Start-CopilotIssueCreation {
                 
                 if ($filesToValidate.Count -gt 0) {
                     Write-DebugMessage "Step 3: Running detailed validation on $($filesToValidate.Count) files..."
-                    $validationResult = Get-DetailedValidationResults -Files $filesToValidate -MaxFiles 20
+                    $validationResult = Get-DetailedValidationResult -Files $filesToValidate -MaxFiles 20
                 } else {
                     Write-WarningMessage "No files found for validation"
                     $validationResult = @{
@@ -1754,11 +1766,12 @@ function Start-CopilotIssueCreation {
     Save-IssueState | Out-Null
     
     return $issuesCreated -gt 0
+    }
 }
 
 # Display help information
 function Show-Help {
-    Write-Host @"
+    $helpText = @"
 🤖 Autonomous RUTOS Copilot Issue Creation System v$SCRIPT_VERSION
 
 This script creates targeted GitHub issues for RUTOS compatibility problems and 
@@ -1808,6 +1821,8 @@ FILES:
 
 For more information, see the project documentation.
 "@
+    
+    Write-Information $helpText -InformationAction Continue
 }
 
 # Main execution
@@ -1819,17 +1834,17 @@ try {
     }
     
     # Display safety banner
-    Write-Host ""
-    Write-Host "🛡️  AUTONOMOUS RUTOS COPILOT ISSUE CREATION SYSTEM v$SCRIPT_VERSION" -ForegroundColor Yellow
-    Write-Host ""
+    Write-Information "" -InformationAction Continue
+    Write-Information "🛡️  AUTONOMOUS RUTOS COPILOT ISSUE CREATION SYSTEM v$SCRIPT_VERSION" -InformationAction Continue
+    Write-Information "" -InformationAction Continue
     if ($DryRun) {
-        Write-Host "🧪 SAFETY MODE: DryRun enabled - No actual issues will be created" -ForegroundColor Yellow
-        Write-Host "   This is the default behavior for safety. Use -Production to create real issues." -ForegroundColor Yellow
+        Write-Information "🧪 SAFETY MODE: DryRun enabled - No actual issues will be created" -InformationAction Continue
+        Write-Information "   This is the default behavior for safety. Use -Production to create real issues." -InformationAction Continue
     } else {
-        Write-Host "🚀 PRODUCTION MODE: Issues will be created and assigned to Copilot" -ForegroundColor Green
-        Write-Host "   Maximum $MaxIssuesPerRun issues will be created in this run." -ForegroundColor Green
+        Write-Information "🚀 PRODUCTION MODE: Issues will be created and assigned to Copilot" -InformationAction Continue
+        Write-Information "   Maximum $MaxIssuesPerRun issues will be created in this run." -InformationAction Continue
     }
-    Write-Host ""
+    Write-Information "" -InformationAction Continue
     
     # Display configuration
     Write-StatusMessage "🔧 Configuration:" -Color $CYAN
@@ -1862,12 +1877,12 @@ try {
     Write-DebugMessage "Stack trace: $($_.ScriptStackTrace)"
     
     # Always show collected errors before exiting
-    Show-CollectedErrors
+    Show-CollectedError
     exit 1
 }
 
 # Always show collected errors at the end, even on success
-Show-CollectedErrors
+Show-CollectedError
 
 # Exit with appropriate code
 if ($script:ErrorCount -gt 0) {
