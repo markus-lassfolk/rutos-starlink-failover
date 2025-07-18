@@ -17,56 +17,6 @@ SCRIPT_NAME="install-rutos.sh"
 
 # Extract build info from comment above
 BUILD_INFO=$(grep "# Build:" "$0" | head -1 | sed 's/# Build: //' || echo "unknown")
-            print_status "$GREEN" "[Starlink Test] curl: HTTP port $STARLINK_API_PORT is open."
-        else
-            print_status "$YELLOW" "[Starlink Test] curl: No HTTP response, but port may still be open (API is gRPC, not HTTP)."
-        fi
-    else
-        print_status "$YELLOW" "[Starlink Test] curl not available for HTTP test."
-    fi
-
-    print_status "$BLUE" "[Starlink Test] Testing Starlink gRPC API with grpcurl..."
-    if [ -x "$GRPCURL_BIN" ]; then
-        if "$GRPCURL_BIN" -plaintext "$STARLINK_IP:$STARLINK_API_PORT" describe >/tmp/grpcurl_test.out 2>&1; then
-            print_status "$GREEN" "[Starlink Test] grpcurl: API is accessible."
-            print_status "$CYAN" "[Starlink Test] grpcurl output (first 5 lines):"
-            head -5 /tmp/grpcurl_test.out | while read -r line; do
-                print_status "$CYAN" "  $line"
-            done
-        else
-            print_status "$RED" "[Starlink Test] grpcurl: API not accessible or error occurred."
-            print_status "$YELLOW" "[Starlink Test] grpcurl error output:"
-            head -5 /tmp/grpcurl_test.out | while read -r line; do
-                print_status "$YELLOW" "  $line"
-            done
-        fi
-        rm -f /tmp/grpcurl_test.out
-    else
-        print_status "$YELLOW" "[Starlink Test] grpcurl binary not found at $GRPCURL_BIN."
-    fi
-}
-
-git add .
-git commit -a --no-verify -m "Install script: add remote fallback for monitor & notifier"
-git push --no-#!/bin/sh
-
-# ==============================================================================
-# Starlink Monitoring System Installation Script
-#
-# This script automates the installation and configuration of the Starlink
-# monitoring system on OpenWrt/RUTOS devices.
-#
-# ==============================================================================
-
-set -eu
-
-# Script version - automatically updated from VERSION file
-SCRIPT_VEsRSION="2.0.3"
-# Build: 1.0.2+198.38fb60b-dirty
-SCRIPT_NAME="install-rutos.sh"
-
-# Extract build info from comment above
-BUILD_INFO=$(grep "# Build:" "$0" | head -1 | sed 's/# Build: //' || echo "unknown")
 
 # Configuration - can be overridden by environment variables
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
