@@ -522,7 +522,7 @@ install_config() {
                 print_status "$RED" "✗ Merge failed, attempting to preserve settings manually"
                 backup_file="$INSTALL_DIR/config/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
                 cp "$INSTALL_DIR/config/config.sh" "$backup_file"
-                cat "$INSTALL_DIR/config/config.template.sh" "$backup_file" > "$INSTALL_DIR/config/config.sh"
+                cat "$INSTALL_DIR/config/config.template.sh" "$backup_file" >"$INSTALL_DIR/config/config.sh"
                 print_status "$YELLOW" "⚠ Configuration manually merged (backup: $backup_file)"
             fi
         else
