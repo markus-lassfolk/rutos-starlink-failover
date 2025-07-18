@@ -5289,3 +5289,281 @@ at <ScriptBlock>, <No file>: line 1
 [DEBUG] [2025-07-18 09:14:04] 🔍 Saving issue state to: automation/.copilot-issues-state.json
 [DEBUG] [2025-07-18 09:14:04] 🔍 State saved successfully
 [WARNING] [2025-07-18 09:14:04] ⚠️ Issue creation completed with no new issues
+[INFO] [2025-07-18 09:39:45] 🔧 Configuration:
+[INFO] [2025-07-18 09:39:45]    TestMode: False
+[INFO] [2025-07-18 09:39:45]    DryRun: False (PRODUCTION)
+[INFO] [2025-07-18 09:39:45]    MaxIssuesPerRun: 1
+[INFO] [2025-07-18 09:39:45]    Production: True
+[INFO] [2025-07-18 09:39:45]    PriorityFilter: All
+[INFO] [2025-07-18 09:39:45]    MinIssuesPerFile: 1
+[INFO] [2025-07-18 09:39:46]    SortByPriority: False
+[INFO] [2025-07-18 09:39:46]    SkipValidation: False
+[INFO] [2025-07-18 09:39:46]    DebugMode: True
+[INFO] [2025-07-18 09:39:46]    ForceReprocessing: False
+[INFO] [2025-07-18 09:39:46]    TargetFile: scripts\check_starlink_api_change.sh
+[INFO] [2025-07-18 09:39:46] 🚀 Starting Autonomous RUTOS Copilot Issue Creation System v1.0.0
+[STEP] [2025-07-18 09:39:46] 🔄 Checking environment and prerequisites...
+[DEBUG] [2025-07-18 09:39:46] 🔍 Testing validation script...
+[SUCCESS] [2025-07-18 09:39:52] ✅ Environment check passed
+[DEBUG] [2025-07-18 09:39:52] 🔍 Loading issue state from: automation/.copilot-issues-state.json
+[DEBUG] [2025-07-18 09:39:52] 🔍 Loaded state for 0 files
+[STEP] [2025-07-18 09:39:52] 🔄 Running comprehensive validation...
+[STEP] [2025-07-18 09:39:52] 🔄 Running validation script...
+[DEBUG] [2025-07-18 09:39:52] 🔍 Executing: wsl bash -c "cd /mnt/c/GitHub/rutos-starlink-failover && ./scripts/pre-commit-validation.sh 'scripts\check_starlink_api_change.sh'"
+[DEBUG] [2025-07-18 09:39:52] 🔍 Validation exit code: 0
+[DEBUG] [2025-07-18 09:39:52] 🔍 Validation output length: 4 characters
+[DEBUG] [2025-07-18 09:39:52] 🔍 Parsing validation output...
+[DEBUG] [2025-07-18 09:39:52] 🔍 Joined 4 lines into 4 lines
+[DEBUG] [2025-07-18 09:39:52] 🔍 Processing line: [INFO] [2025-07-18 09:39:52] Starting RUTOS busybox compatibility and markdown validation v1.0.3
+[DEBUG] [2025-07-18 09:39:52] 🔍 Processing line: [STEP] [2025-07-18 09:39:52] Self-validation: Skipped - this script is excluded from validation
+[DEBUG] [2025-07-18 09:39:52] 🔍 Processing line: [INFO] [2025-07-18 09:39:52] Running in specific file mode
+[DEBUG] [2025-07-18 09:39:52] 🔍 Processing line: [WARNING] [2025-07-18 09:39:52] No files found to validate
+[DEBUG] [2025-07-18 09:39:52] 🔍 Parsed issues for 0 files
+[DEBUG] [2025-07-18 09:39:52] 🔍 Validation result structure: Success=True, TotalFiles=0, TotalIssues=0
+[INFO] [2025-07-18 09:39:52] Validation completed: 0 files with issues
+[DEBUG] [2025-07-18 09:39:52] 🔍 Total issues found: 0
+[DEBUG] [2025-07-18 09:39:52] 🔍 No files with issues to process
+[+] [2025-07-18 09:39:52] 
+
+[INFO] [2025-07-18 09:39:52] 🎉 Autonomous Issue Creation Completed!
+[INFO] [2025-07-18 09:39:52] 📊 Summary:
+[INFO] [2025-07-18 09:39:52]    Files processed: 0
+[INFO] [2025-07-18 09:39:52]    Files skipped: 0
+[INFO] [2025-07-18 09:39:52]    Issues created: 0
+[INFO] [2025-07-18 09:39:52]    Max issues per run: 1
+[INFO] [2025-07-18 09:39:52]    Priority filter: All
+[INFO] [2025-07-18 09:39:52]    Min issues per file: 1
+[INFO] [2025-07-18 09:39:52]    Sort by priority: False
+[INFO] [2025-07-18 09:39:52] ================================================================================
+[DEBUG] [2025-07-18 09:39:52] 🔍 Saving issue state to: automation/.copilot-issues-state.json
+[DEBUG] [2025-07-18 09:39:52] 🔍 State saved successfully
+[WARNING] [2025-07-18 09:39:52] ⚠️ Issue creation completed with no new issues
+[INFO] [2025-07-18 09:40:09] 🔧 Configuration:
+[INFO] [2025-07-18 09:40:09]    TestMode: False
+[INFO] [2025-07-18 09:40:09]    DryRun: False (PRODUCTION)
+[INFO] [2025-07-18 09:40:09]    MaxIssuesPerRun: 1
+[INFO] [2025-07-18 09:40:09]    Production: True
+[INFO] [2025-07-18 09:40:09]    PriorityFilter: All
+[INFO] [2025-07-18 09:40:09]    MinIssuesPerFile: 1
+[INFO] [2025-07-18 09:40:09]    SortByPriority: False
+[INFO] [2025-07-18 09:40:09]    SkipValidation: False
+[INFO] [2025-07-18 09:40:09]    DebugMode: True
+[INFO] [2025-07-18 09:40:09]    ForceReprocessing: False
+[INFO] [2025-07-18 09:40:09]    TargetFile: Starlink-RUTOS-Failover\starlink_monitor.sh
+[INFO] [2025-07-18 09:40:09] 🚀 Starting Autonomous RUTOS Copilot Issue Creation System v1.0.0
+[STEP] [2025-07-18 09:40:09] 🔄 Checking environment and prerequisites...
+[DEBUG] [2025-07-18 09:40:09] 🔍 Testing validation script...
+[SUCCESS] [2025-07-18 09:40:13] ✅ Environment check passed
+[DEBUG] [2025-07-18 09:40:13] 🔍 Loading issue state from: automation/.copilot-issues-state.json
+[DEBUG] [2025-07-18 09:40:13] 🔍 Loaded state for 0 files
+[STEP] [2025-07-18 09:40:13] 🔄 Running comprehensive validation...
+[STEP] [2025-07-18 09:40:13] 🔄 Running validation script...
+[DEBUG] [2025-07-18 09:40:13] 🔍 Executing: wsl bash -c "cd /mnt/c/GitHub/rutos-starlink-failover && ./scripts/pre-commit-validation.sh 'Starlink-RUTOS-Failover\starlink_monitor.sh'"
+[DEBUG] [2025-07-18 09:40:13] 🔍 Validation exit code: 0
+[DEBUG] [2025-07-18 09:40:13] 🔍 Validation output length: 4 characters
+[DEBUG] [2025-07-18 09:40:13] 🔍 Parsing validation output...
+[DEBUG] [2025-07-18 09:40:13] 🔍 Joined 4 lines into 4 lines
+[DEBUG] [2025-07-18 09:40:13] 🔍 Processing line: [INFO] [2025-07-18 09:40:14] Starting RUTOS busybox compatibility and markdown validation v1.0.3
+[DEBUG] [2025-07-18 09:40:13] 🔍 Processing line: [STEP] [2025-07-18 09:40:14] Self-validation: Skipped - this script is excluded from validation
+[DEBUG] [2025-07-18 09:40:13] 🔍 Processing line: [INFO] [2025-07-18 09:40:14] Running in specific file mode
+[DEBUG] [2025-07-18 09:40:13] 🔍 Processing line: [WARNING] [2025-07-18 09:40:14] No files found to validate
+[DEBUG] [2025-07-18 09:40:13] 🔍 Parsed issues for 0 files
+[DEBUG] [2025-07-18 09:40:13] 🔍 Validation result structure: Success=True, TotalFiles=0, TotalIssues=0
+[INFO] [2025-07-18 09:40:13] Validation completed: 0 files with issues
+[DEBUG] [2025-07-18 09:40:13] 🔍 Total issues found: 0
+[DEBUG] [2025-07-18 09:40:13] 🔍 No files with issues to process
+[+] [2025-07-18 09:40:13] 
+
+[INFO] [2025-07-18 09:40:13] 🎉 Autonomous Issue Creation Completed!
+[INFO] [2025-07-18 09:40:14] 📊 Summary:
+[INFO] [2025-07-18 09:40:14]    Files processed: 0
+[INFO] [2025-07-18 09:40:14]    Files skipped: 0
+[INFO] [2025-07-18 09:40:14]    Issues created: 0
+[INFO] [2025-07-18 09:40:14]    Max issues per run: 1
+[INFO] [2025-07-18 09:40:14]    Priority filter: All
+[INFO] [2025-07-18 09:40:14]    Min issues per file: 1
+[INFO] [2025-07-18 09:40:14]    Sort by priority: False
+[INFO] [2025-07-18 09:40:14] ================================================================================
+[DEBUG] [2025-07-18 09:40:14] 🔍 Saving issue state to: automation/.copilot-issues-state.json
+[DEBUG] [2025-07-18 09:40:14] 🔍 State saved successfully
+[WARNING] [2025-07-18 09:40:14] ⚠️ Issue creation completed with no new issues
+[INFO] [2025-07-18 09:40:38] 🔧 Configuration:
+[INFO] [2025-07-18 09:40:38]    TestMode: False
+[INFO] [2025-07-18 09:40:38]    DryRun: False (PRODUCTION)
+[INFO] [2025-07-18 09:40:38]    MaxIssuesPerRun: 1
+[INFO] [2025-07-18 09:40:38]    Production: True
+[INFO] [2025-07-18 09:40:38]    PriorityFilter: All
+[INFO] [2025-07-18 09:40:38]    MinIssuesPerFile: 1
+[INFO] [2025-07-18 09:40:38]    SortByPriority: False
+[INFO] [2025-07-18 09:40:38]    SkipValidation: False
+[INFO] [2025-07-18 09:40:38]    DebugMode: True
+[INFO] [2025-07-18 09:40:38]    ForceReprocessing: False
+[INFO] [2025-07-18 09:40:38]    TargetFile: Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh
+[INFO] [2025-07-18 09:40:38] 🚀 Starting Autonomous RUTOS Copilot Issue Creation System v1.0.0
+[STEP] [2025-07-18 09:40:38] 🔄 Checking environment and prerequisites...
+[DEBUG] [2025-07-18 09:40:39] 🔍 Testing validation script...
+[SUCCESS] [2025-07-18 09:40:39] ✅ Environment check passed
+[DEBUG] [2025-07-18 09:40:39] 🔍 Loading issue state from: automation/.copilot-issues-state.json
+[DEBUG] [2025-07-18 09:40:39] 🔍 Loaded state for 0 files
+[STEP] [2025-07-18 09:40:39] 🔄 Running comprehensive validation...
+[STEP] [2025-07-18 09:40:39] 🔄 Running validation script...
+[DEBUG] [2025-07-18 09:40:39] 🔍 Executing: wsl bash -c "cd /mnt/c/GitHub/rutos-starlink-failover && ./scripts/pre-commit-validation.sh 'Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh'"
+[DEBUG] [2025-07-18 09:40:41] 🔍 Validation exit code: 1
+[DEBUG] [2025-07-18 09:40:41] 🔍 Validation output length: 127 characters
+[DEBUG] [2025-07-18 09:40:41] 🔍 Parsing validation output...
+[DEBUG] [2025-07-18 09:40:41] 🔍 Detected summary output format - extracting file patterns
+[DEBUG] [2025-07-18 09:40:41] 🔍 Parsing summary output to extract files with issues...
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [INFO] [2025-07-18 09:40:39] Starting RUTOS busybox compatibility and markdown validation v1.0.3
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [STEP] [2025-07-18 09:40:39] Self-validation: Skipped - this script is excluded from validation
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [INFO] [2025-07-18 09:40:39] Running in specific file mode
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [STEP] [2025-07-18 09:40:39] Processing 1 files
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [INFO] [2025-07-18 09:40:39] Validating shell script files
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [STEP] [2025-07-18 09:40:39] Validating: Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [INFO] [2025-07-18 09:40:39] Applied auto-fixes to Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:1 Uses bash shebang - should use #!/bin/sh for RUTOS compatibility
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:36 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:37 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:38 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:51 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:41] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:52 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:54 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:59 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:69 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:82 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:83 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:84 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:85 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:86 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:87 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:98 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:110 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:112 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:137 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:139 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:141 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:148 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:149 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:157 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:159 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:168 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:170 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:178 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:180 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:187 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:189 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:201 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:203 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:214 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:216 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:224 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:226 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:264 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:266 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:270 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [CRITICAL] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:283 Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh:0 Missing color definitions: RED GREEN YELLOW BLUE CYAN NC - all scripts should define RED, GREEN, YELLOW, BLUE, CYAN, NC
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [WARNING] [2025-07-18 09:40:40] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: ShellCheck found issues
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: 
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: In Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh line 16:
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: set -euo pipefail
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: ^------^ SC3040 (warning): In POSIX sh, set option pipefail is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: 
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: 
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: In Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh line 36:
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: local level="$1"
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: ^---------^ SC3043 (warning): In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: 
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3040: In POSIX sh, set option pipefail is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:42] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3040:   https://www.shellcheck.net/wiki/SC3040 -- In POSIX sh, set option pipefail ...
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [MAJOR] Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC3043:   https://www.shellcheck.net/wiki/SC3043 -- In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: [STEP] [2025-07-18 09:40:41] Generating validation summary
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: === VALIDATION SUMMARY ===
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: Files processed: 1
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: Files passed: 0
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: Files failed: 1
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: Total issues: 85
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: Critical issues: 40
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: Major issues: 45
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: Minor issues: 0
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: === ISSUE BREAKDOWN ===
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: Most common issues found:
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 40x / 1 files: Uses 'local' keyword - not supported in busybox
+[DEBUG] [2025-07-18 09:40:43] 🔍 Found issue: 40x / 1 files: Uses 'local' keyword - not supported in busybox affecting 0 files
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 40x / 1 files: SC3043: In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Found issue: 40x / 1 files: SC3043: In POSIX sh, 'local' is undefined. affecting 0 files
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 1x / 1 files: Uses bash shebang - should use #!/bin/sh for RUTOS compatibility
+[DEBUG] [2025-07-18 09:40:43] 🔍 Found issue: 1x / 1 files: Uses bash shebang - should use #!/bin/sh for RUTOS compatibility affecting 0 files
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 1x / 1 files: SC3043: https://www.shellcheck.net/wiki/SC3043 -- In POSIX sh, 'local' is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Found issue: 1x / 1 files: SC3043: https://www.shellcheck.net/wiki/SC3043 -- In POSIX sh, 'local' is undefined. affecting 0 files
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 1x / 1 files: SC3040: https://www.shellcheck.net/wiki/SC3040 -- In POSIX sh, set option pipefail ...
+[DEBUG] [2025-07-18 09:40:43] 🔍 Found issue: 1x / 1 files: SC3040: https://www.shellcheck.net/wiki/SC3040 -- In POSIX sh, set option pipefail ... affecting 0 files
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 1x / 1 files: SC3040: In POSIX sh, set option pipefail is undefined.
+[DEBUG] [2025-07-18 09:40:43] 🔍 Found issue: 1x / 1 files: SC3040: In POSIX sh, set option pipefail is undefined. affecting 0 files
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 1x / 1 files: Missing color definitions: RED GREEN YELLOW BLUE CYAN NC - all scripts should define RED, GREEN, YELLOW, BLUE, CYAN, NC
+[DEBUG] [2025-07-18 09:40:43] 🔍 Processing line: 
+[DEBUG] [2025-07-18 09:40:43] 🔍 Summary parsing found 0 placeholder files with issues
+[WARNING] [2025-07-18 09:40:43] ⚠️ Validation found issues - this is expected for issue creation
+[DEBUG] [2025-07-18 09:40:43] 🔍 Validation result structure: Success=False, TotalFiles=0, TotalIssues=0
+[INFO] [2025-07-18 09:40:43] Validation completed: 0 files with issues
+[DEBUG] [2025-07-18 09:40:43] 🔍 Total issues found: 0
+[DEBUG] [2025-07-18 09:40:43] 🔍 No files with issues to process
+[+] [2025-07-18 09:40:43] 
+
+[INFO] [2025-07-18 09:40:43] 🎉 Autonomous Issue Creation Completed!
+[INFO] [2025-07-18 09:40:43] 📊 Summary:
+[INFO] [2025-07-18 09:40:43]    Files processed: 0
+[INFO] [2025-07-18 09:40:43]    Files skipped: 0
+[INFO] [2025-07-18 09:40:43]    Issues created: 0
+[INFO] [2025-07-18 09:40:43]    Max issues per run: 1
+[INFO] [2025-07-18 09:40:43]    Priority filter: All
+[INFO] [2025-07-18 09:40:43]    Min issues per file: 1
+[INFO] [2025-07-18 09:40:43]    Sort by priority: False
+[INFO] [2025-07-18 09:40:43] ================================================================================
+[DEBUG] [2025-07-18 09:40:43] 🔍 Saving issue state to: automation/.copilot-issues-state.json
+[DEBUG] [2025-07-18 09:40:43] 🔍 State saved successfully
+[WARNING] [2025-07-18 09:40:43] ⚠️ Issue creation completed with no new issues

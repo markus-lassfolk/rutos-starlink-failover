@@ -51,6 +51,148 @@ $CYAN = [ConsoleColor]::Cyan
 $PURPLE = [ConsoleColor]::Magenta
 $GRAY = [ConsoleColor]::Gray
 
+# Global error collection for comprehensive reporting
+$global:CollectedErrors = @()
+$global:ErrorCount = 0
+
+# Enhanced error collection with comprehensive information
+function Add-CollectedError {
+    param(
+        [string]$ErrorMessage,
+        [string]$FunctionName = "Unknown",
+        [string]$Location = "Unknown",
+        [object]$Exception = $null,
+        [string]$Context = "",
+        [hashtable]$AdditionalInfo = @{}
+    )
+    
+    $global:ErrorCount++
+    
+    # Get caller information if not provided
+    if ($FunctionName -eq "Unknown" -or $Location -eq "Unknown") {
+        $callStack = Get-PSCallStack
+        if ($callStack.Count -gt 1) {
+            $caller = $callStack[1]
+            if ($FunctionName -eq "Unknown") { $FunctionName = $caller.FunctionName }
+            if ($Location -eq "Unknown") { $Location = "$($caller.ScriptName):$($caller.ScriptLineNumber)" }
+        }
+    }
+    
+    # Create comprehensive error information
+    $errorInfo = @{
+        Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        ErrorNumber = $global:ErrorCount
+        Message = $ErrorMessage
+        FunctionName = $FunctionName
+        Location = $Location
+        Context = $Context
+        ExceptionType = if ($Exception) { $Exception.GetType().Name } else { "N/A" }
+        ExceptionMessage = if ($Exception) { $Exception.Message } else { "N/A" }
+        InnerException = if ($Exception -and $Exception.InnerException) { $Exception.InnerException.Message } else { "N/A" }
+        StackTrace = if ($Exception) { $Exception.StackTrace } else { "N/A" }
+        PowerShellStackTrace = if ($Exception) { $Exception.ScriptStackTrace } else { "N/A" }
+        LastExitCode = $LASTEXITCODE
+        ErrorActionPreference = $ErrorActionPreference
+        AdditionalInfo = $AdditionalInfo
+    }
+    
+    # Add to global collection
+    $global:CollectedErrors += $errorInfo
+    
+    # Still display the error immediately for real-time feedback
+    Write-StatusMessage "❌ Error #$global:ErrorCount in $FunctionName`: $ErrorMessage" -Color $RED
+    
+    if ($DebugMode) {
+        Write-StatusMessage "   📍 Location: $Location" -Color $GRAY
+        if ($Context) {
+            Write-StatusMessage "   📝 Context: $Context" -Color $GRAY
+        }
+        if ($Exception) {
+            Write-StatusMessage "   🔍 Exception: $($Exception.GetType().Name) - $($Exception.Message)" -Color $GRAY
+        }
+    }
+}
+
+# Display comprehensive error report at the end
+function Show-CollectedErrors {
+    if ($global:CollectedErrors.Count -eq 0) {
+        Write-StatusMessage "✅ No errors collected during execution" -Color $GREEN
+        return
+    }
+    
+    Write-StatusMessage "`n" + ("=" * 100) -Color $RED
+    Write-StatusMessage "🚨 COMPREHENSIVE ERROR REPORT - $($global:CollectedErrors.Count) Error(s) Found" -Color $RED
+    Write-StatusMessage ("=" * 100) -Color $RED
+    
+    foreach ($errorInfo in $global:CollectedErrors) {
+        Write-StatusMessage "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)" -Color $RED
+        Write-StatusMessage "   🎯 Function: $($errorInfo.FunctionName)" -Color $YELLOW
+        Write-StatusMessage "   📍 Location: $($errorInfo.Location)" -Color $YELLOW
+        Write-StatusMessage "   💬 Message: $($errorInfo.Message)" -Color $CYAN
+        
+        if ($errorInfo.Context) {
+            Write-StatusMessage "   📝 Context: $($errorInfo.Context)" -Color $CYAN
+        }
+        
+        if ($errorInfo.ExceptionType -ne "N/A") {
+            Write-StatusMessage "   🔍 Exception Type: $($errorInfo.ExceptionType)" -Color $PURPLE
+            Write-StatusMessage "   🔍 Exception Message: $($errorInfo.ExceptionMessage)" -Color $PURPLE
+        }
+        
+        if ($errorInfo.InnerException -ne "N/A") {
+            Write-StatusMessage "   🔍 Inner Exception: $($errorInfo.InnerException)" -Color $PURPLE
+        }
+        
+        if ($errorInfo.LastExitCode -ne 0) {
+            Write-StatusMessage "   🔢 Last Exit Code: $($errorInfo.LastExitCode)" -Color $RED
+        }
+        
+        if ($errorInfo.AdditionalInfo.Count -gt 0) {
+            Write-StatusMessage "   📊 Additional Info:" -Color $BLUE
+            foreach ($key in $errorInfo.AdditionalInfo.Keys) {
+                Write-StatusMessage "      $key`: $($errorInfo.AdditionalInfo[$key])" -Color $GRAY
+            }
+        }
+        
+        # Show stack trace in debug mode or for critical errors
+        if ($DebugMode -or $errorInfo.ExceptionType -ne "N/A") {
+            if ($errorInfo.PowerShellStackTrace -ne "N/A") {
+                Write-StatusMessage "   📚 PowerShell Stack Trace:" -Color $GRAY
+                $errorInfo.PowerShellStackTrace -split "`n" | ForEach-Object {
+                    if ($_.Trim()) {
+                        Write-StatusMessage "      $($_.Trim())" -Color $GRAY
+                    }
+                }
+            }
+        }
+        
+        Write-StatusMessage "   " + ("-" * 80) -Color $GRAY
+    }
+    
+    Write-StatusMessage "`n📊 ERROR SUMMARY:" -Color $RED
+    Write-StatusMessage "   Total Errors: $($global:CollectedErrors.Count)" -Color $RED
+    Write-StatusMessage "   Functions with Errors: $($global:CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -Color $YELLOW
+    Write-StatusMessage "   Exception Types: $($global:CollectedErrors | Where-Object { $_.ExceptionType -ne 'N/A' } | Select-Object -Unique ExceptionType | Measure-Object).Count" -Color $PURPLE
+    
+    # Most common error types
+    $errorTypes = $global:CollectedErrors | Group-Object -Property ExceptionType | Sort-Object Count -Descending
+    if ($errorTypes.Count -gt 0) {
+        Write-StatusMessage "   Most Common Error Types:" -Color $BLUE
+        foreach ($type in $errorTypes | Select-Object -First 3) {
+            Write-StatusMessage "      $($type.Name): $($type.Count) occurrence(s)" -Color $GRAY
+        }
+    }
+    
+    Write-StatusMessage "`n💡 DEBUGGING TIPS:" -Color $CYAN
+    Write-StatusMessage "   • Run with -DebugMode for more detailed information" -Color $GRAY
+    Write-StatusMessage "   • Use -TestMode to avoid making actual changes while debugging" -Color $GRAY
+    Write-StatusMessage "   • Check the Location field for exact line numbers" -Color $GRAY
+    Write-StatusMessage "   • Review the Context field for operation details" -Color $GRAY
+    Write-StatusMessage "   • Exception details provide root cause information" -Color $GRAY
+    
+    Write-StatusMessage "`n" + ("=" * 100) -Color $RED
+}
+
 # Enhanced Copilot PR detection with multiple strategies
 function Get-CopilotPRs {
     Write-StatusMessage "🔍 Fetching open Copilot PRs with enhanced detection..." -Color $BLUE
@@ -60,7 +202,7 @@ function Get-CopilotPRs {
         $prs = gh pr list --state open --json number,title,headRefName,author,labels,createdAt,updatedAt --limit 100
         
         if ($LASTEXITCODE -ne 0) {
-            Write-StatusMessage "❌ Failed to fetch PR list" -Color $RED
+            Add-CollectedError -ErrorMessage "Failed to fetch PR list" -FunctionName "Get-CopilotPRs" -Context "GitHub CLI pr list command failed" -AdditionalInfo @{LastExitCode=$LASTEXITCODE}
             return @()
         }
         
@@ -77,7 +219,7 @@ function Get-CopilotPRs {
             
             # Check title patterns
             ($_.title -match "copilot" -or
-             $_.title -match "🔧 Fix" -or
+             $_.title -match "Fix" -or
              $_.title -match "automated" -or
              $_.title -match "compatibility") -or
             
@@ -122,7 +264,7 @@ function Get-CopilotPRs {
         return $copilotPRs
         
     } catch {
-        Write-StatusMessage "❌ Error in enhanced Copilot PR detection: $($_.Exception.Message)" -Color $RED
+        Add-CollectedError -ErrorMessage "Error in enhanced Copilot PR detection" -FunctionName "Get-CopilotPRs" -Context "Enhanced Copilot PR detection failed" -Exception $_.Exception
         return @()
     }
 }
@@ -140,7 +282,7 @@ function Get-SpecificPR {
         $prInfo = gh pr view $PRNumber --json number,title,headRefName,author,labels,createdAt,updatedAt,state
         
         if ($LASTEXITCODE -ne 0) {
-            Write-StatusMessage "❌ Failed to fetch PR #$PRNumber" -Color $RED
+            Add-CollectedError -ErrorMessage "Failed to fetch PR #$PRNumber" -FunctionName "Get-SinglePR" -Context "GitHub CLI pr view command failed" -AdditionalInfo @{PRNumber=$PRNumber; LastExitCode=$LASTEXITCODE}
             return $null
         }
         
@@ -170,8 +312,86 @@ function Get-SpecificPR {
         return $pr
         
     } catch {
-        Write-StatusMessage "❌ Error fetching PR #${PRNumber}: $($_.Exception.Message)" -Color $RED
+        Add-CollectedError -ErrorMessage "Error fetching PR #$PRNumber" -FunctionName "Get-SinglePR" -Context "Single PR fetch operation failed" -Exception $_.Exception -AdditionalInfo @{PRNumber=$PRNumber}
         return $null
+    }
+}
+
+# Transfer labels from original issue to Copilot PR
+function Transfer-IssueLabels {
+    param(
+        [int]$PRNumber,
+        [string]$PRTitle
+    )
+    
+    Write-StatusMessage "🏷️  Checking for labels to transfer from original issue to PR #$PRNumber..." -Color $BLUE
+    
+    try {
+        # Extract issue number from PR title if it exists
+        $issueNumber = $null
+        if ($PRTitle -match "#(\d+)") {
+            $issueNumber = $Matches[1]
+        }
+        
+        if (-not $issueNumber) {
+            Write-StatusMessage "ℹ️  No issue reference found in PR title - skipping label transfer" -Color $CYAN
+            return @{ Success = $false; Reason = "No issue reference found" }
+        }
+        
+        Write-StatusMessage "🔍 Found issue reference #$issueNumber in PR title - fetching issue labels..." -Color $BLUE
+        
+        # Get issue labels
+        $issueLabels = gh issue view $issueNumber --json labels --jq '.labels[].name' 2>$null
+        
+        if (-not $issueLabels -or $issueLabels.Count -eq 0) {
+            Write-StatusMessage "ℹ️  No labels found on issue #$issueNumber" -Color $CYAN
+            return @{ Success = $false; Reason = "No labels on issue" }
+        }
+        
+        $labelList = $issueLabels -split "`n" | Where-Object { $_ -ne "" }
+        Write-StatusMessage "📋 Found $($labelList.Count) labels on issue #$issueNumber" -Color $BLUE
+        
+        # Get current PR labels
+        $currentPRLabels = gh pr view $PRNumber --json labels --jq '.labels[].name' 2>$null
+        $currentLabels = if ($currentPRLabels) { $currentPRLabels -split "`n" | Where-Object { $_ -ne "" } } else { @() }
+        
+        # Filter labels to transfer (exclude labels that are already on the PR)
+        $labelsToTransfer = $labelList | Where-Object { $_ -notin $currentLabels }
+        
+        if ($labelsToTransfer.Count -eq 0) {
+            Write-StatusMessage "ℹ️  All relevant labels already exist on PR #$PRNumber" -Color $CYAN
+            return @{ Success = $true; Reason = "All labels already present" }
+        }
+        
+        Write-StatusMessage "🏷️  Transferring $($labelsToTransfer.Count) labels from issue #$issueNumber to PR #$PRNumber..." -Color $GREEN
+        
+        # Transfer labels to PR
+        foreach ($label in $labelsToTransfer) {
+            Write-StatusMessage "   Adding label: $label" -Color $CYAN
+            $result = gh pr edit $PRNumber --add-label "$label" 2>&1
+            
+            if ($LASTEXITCODE -ne 0) {
+                Write-StatusMessage "⚠️  Failed to add label '$label': $result" -Color $YELLOW
+            }
+        }
+        
+        # Update PR labels to reflect workflow progress
+        if (Get-Command "Update-PRLabels" -ErrorAction SilentlyContinue) {
+            Write-StatusMessage "🔄 Updating PR labels for workflow progress..." -Color $BLUE
+            Update-PRLabels -PRNumber $PRNumber -Status "LabelTransferCompleted"
+        }
+        
+        Write-StatusMessage "✅ Successfully transferred labels from issue #$issueNumber to PR #$PRNumber" -Color $GREEN
+        
+        return @{ 
+            Success = $true; 
+            IssueNumber = $issueNumber; 
+            TransferredLabels = $labelsToTransfer.Count 
+        }
+        
+    } catch {
+        Add-CollectedError -ErrorMessage "Error transferring labels" -FunctionName "Transfer-IssueLabels" -Context "Label transfer operation failed" -Exception $_.Exception -AdditionalInfo @{IssueNumber=$IssueNumber; PRNumber=$PRNumber}
+        return @{ Success = $false; Error = $_.Exception.Message }
     }
 }
 
@@ -202,7 +422,7 @@ function Get-WorkflowRuns {
         return $runs
         
     } catch {
-        Write-StatusMessage "❌ Error fetching workflow runs: $($_.Exception.Message)" -Color $RED
+        Add-CollectedError -ErrorMessage "Error fetching workflow runs" -FunctionName "Get-WorkflowRuns" -Context "Workflow runs fetch operation failed" -Exception $_.Exception -AdditionalInfo @{PRNumber=$PRNumber}
         return @()
     }
 }
@@ -396,7 +616,7 @@ function Approve-PendingWorkflows {
         return @{ Success = $true; ApprovedCount = 0; ManualApprovalRequired = $true; PendingCount = $pendingRuns.Count }
         
     } catch {
-        Write-StatusMessage "❌ Error approving pending workflows: $($_.Exception.Message)" -Color $RED
+        Add-CollectedError -ErrorMessage "Error approving pending workflows" -FunctionName "Approve-PendingWorkflows" -Context "Pending workflow approval operation failed" -Exception $_.Exception -AdditionalInfo @{PRNumber=$PRNumber}
         return @{ Success = $false; ApprovedCount = 0 }
     }
 }
@@ -732,7 +952,7 @@ function Test-PRValidation {
         }
         
     } catch {
-        Write-StatusMessage "❌ Comprehensive validation failed: $($_.Exception.Message)" -Color $RED
+        Add-CollectedError -ErrorMessage "Comprehensive validation failed" -FunctionName "Invoke-ComprehensiveValidation" -Context "Comprehensive validation operation failed" -Exception $_.Exception -AdditionalInfo @{PRNumber=$PRNumber}
         return @{
             IsValid = $false
             Issues = @(@{
@@ -907,7 +1127,7 @@ function Get-FileContentFromPR {
         # Method 3: Use PR files API
         if (-not $decodedContent) {
             Write-StatusMessage "   🔄 Method 3: Using PR files API..." -Color $GRAY
-            $prFiles = gh api repos/:owner/:repo/pulls/$PRNumber/files --jq '.[]' 2>&1
+            $prFiles = gh api repos/:owner/:repo/pulls/$PRNumber/files --jq ".[]" 2>&1
             if ($LASTEXITCODE -eq 0) {
                 $prFilesData = $prFiles | ConvertFrom-Json
                 $targetFile = $prFilesData | Where-Object { $_.filename -eq $FilePath }
@@ -1062,7 +1282,7 @@ function Request-CopilotMergeConflictResolution {
     
     try {
         # Build a comprehensive conflict resolution request
-        $fileList = ($ConflictedFiles | ForEach-Object { "- `$($_.filename)`" }) -join "`n"
+        $fileList = ($ConflictedFiles | ForEach-Object { "- $($_.filename)" }) -join "`n"
         
         $copilotComment = @"
 @github-copilot resolve
@@ -1254,7 +1474,7 @@ function Test-ServerSideValidation {
             $validationCmd = if ($IsWindows) {
                 "wsl bash -c 'cd /mnt/c/GitHub/rutos-starlink-failover && ./scripts/pre-commit-validation.sh temp-validation/$(Split-Path $FilePath -Leaf)'"
             } else {
-                "./scripts/pre-commit-validation.sh '$targetFile'"
+                "                "./scripts/pre-commit-validation.sh `"$targetFile`"""
             }
             
             $validationResult = Invoke-Expression $validationCmd 2>&1
@@ -1750,6 +1970,12 @@ function Start-CopilotPRs {
         Write-StatusMessage "🔍 Processing PR #$($pr.Number): $($pr.Title)" -Color $PURPLE
         Write-StatusMessage "📝 Author: $($pr.Author) | Branch: $($pr.HeadRef)" -Color $BLUE
         Write-StatusMessage ("=" * 80) -Color $PURPLE
+        
+        # Transfer labels from original issue to PR
+        $labelTransferResult = Transfer-IssueLabels -PRNumber $pr.Number -PRTitle $pr.Title
+        if ($labelTransferResult.Success) {
+            Write-StatusMessage "🏷️  Label transfer completed for PR #$($pr.Number)" -Color $GREEN
+        }
         
         # Check workflow runs and approve if needed
         if (-not $SkipWorkflowApproval) {
@@ -2648,7 +2874,7 @@ function Start-CopilotPRMonitoring {
             Write-StatusMessage "✅ [Iteration $iteration] Monitoring cycle completed" -Color $GREEN
             
         } catch {
-            Write-StatusMessage "❌ [Iteration $iteration] Error in monitoring cycle: $($_.Exception.Message)" -Color $RED
+            Add-CollectedError -ErrorMessage "Error in monitoring cycle" -FunctionName "Start-CopilotPRMonitoring" -Context "Monitoring cycle iteration $iteration failed" -Exception $_.Exception -AdditionalInfo @{Iteration=$iteration}
             Write-StatusMessage "🔄 Continuing with next iteration..." -Color $YELLOW
         }
         
@@ -2666,13 +2892,13 @@ function Start-CopilotPRMonitoring {
 try {
     # Validate environment
     if (-not (Test-Path ".git")) {
-        Write-StatusMessage "❌ This script must be run from the repository root" -Color $RED
+        Add-CollectedError -ErrorMessage "This script must be run from the repository root" -FunctionName "Main" -Context "Environment validation failed - .git directory not found"
         exit 1
     }
     
     # Check GitHub CLI availability
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-        Write-StatusMessage "❌ GitHub CLI (gh) is not installed or not in PATH" -Color $RED
+        Add-CollectedError -ErrorMessage "GitHub CLI (gh) is not installed or not in PATH" -FunctionName "Main" -Context "GitHub CLI dependency check failed"
         Write-StatusMessage "📋 Install: https://cli.github.com/" -Color $CYAN
         exit 1
     }
@@ -2680,7 +2906,7 @@ try {
     # Verify GitHub CLI authentication
     gh auth status 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        Write-StatusMessage "❌ GitHub CLI is not authenticated" -Color $RED
+        Add-CollectedError -ErrorMessage "GitHub CLI is not authenticated" -FunctionName "Main" -Context "GitHub CLI authentication check failed" -AdditionalInfo @{LastExitCode=$LASTEXITCODE}
         Write-StatusMessage "🔐 Run: gh auth login" -Color $CYAN
         exit 1
     }
@@ -2705,7 +2931,7 @@ try {
             Write-StatusMessage "✅ Single PR processing completed successfully" -Color $GREEN
             exit 0
         } else {
-            Write-StatusMessage "❌ Single PR processing failed" -Color $RED
+            Add-CollectedError -ErrorMessage "Single PR processing failed" -FunctionName "Main" -Context "Single PR processing returned false/null" -AdditionalInfo @{PRNumber=$PRNumber}
             exit 1
         }
     } elseif ($MonitorOnly) {
@@ -2717,7 +2943,11 @@ try {
     }
     
 } catch {
+    Add-CollectedError -ErrorMessage $_.Exception.Message -FunctionName "Main" -Context "Advanced monitoring system execution" -Exception $_.Exception
     Write-StatusMessage "❌ Advanced monitoring system failed: $($_.Exception.Message)" -Color $RED
     Write-StatusMessage "🔍 Error details: $($_.ScriptStackTrace)" -Color $GRAY
     exit 1
+} finally {
+    # Show comprehensive error report at the end
+    Show-CollectedErrors
 }

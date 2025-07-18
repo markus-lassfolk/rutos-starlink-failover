@@ -112,6 +112,61 @@ jobs:
           fi
 
       #########################################################
+      # 3.5. Check All Copilot PRs for Conflicts Autonomously
+      #########################################################
+      - name: Check All Copilot PRs for Conflicts
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "🔍 Checking ALL open Copilot PRs for conflicts..."
+          
+          # Get all open Copilot PRs
+          COPILOT_PRS=$(gh api repos/${{ github.repository }}/pulls --jq '.[] | select(.state=="open") | select((.user.login | test("copilot|github-copilot|app/github-copilot|app/copilot-swe-agent|swe-agent")) or (.title | test("copilot|Fix|automated|compatibility"; "i")) or (.head.ref | test("copilot|fix-|automated"; "i"))) | .number')
+
+          if [ -z "$COPILOT_PRS" ]; then
+            echo "ℹ️  No Copilot PRs found"
+            exit 0
+          fi
+
+          echo "📋 Found Copilot PRs: $(echo "$COPILOT_PRS" | tr '\n' ' ')"
+
+          # Check each PR for conflicts
+          for PR_NUMBER in $COPILOT_PRS; do
+            echo "🔍 Checking PR #$PR_NUMBER..."
+            
+            MERGEABLE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.mergeable')
+            MERGE_STATE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.mergeable_state')
+            
+            echo "   Status: mergeable=$MERGEABLE, state=$MERGE_STATE"
+
+            if [ "$MERGEABLE" = "false" ] || [ "$MERGE_STATE" = "dirty" ]; then
+              echo "⚠️  Conflicts detected in PR #$PR_NUMBER!"
+              
+              # Check for recent conflict resolution requests
+              RECENT_REQUESTS=$(gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments --jq '.[] | select(.created_at > (now - 3600 | todate)) | select(.body | test("resolve merge conflicts"; "i")) | .id')
+              
+              if [ -z "$RECENT_REQUESTS" ]; then
+                echo "🤖 Requesting Copilot conflict resolution..."
+                gh pr comment $PR_NUMBER --repo ${{ github.repository }} --body "@copilot resolve merge conflicts and push the fixed version. This PR has conflicts detected by autonomous monitoring. Please resolve all conflicts while maintaining RUTOS compatibility and existing functionality."
+                
+                if [ $? -eq 0 ]; then
+                  echo "✅ Conflict resolution requested for PR #$PR_NUMBER"
+                else
+                  echo "❌ Failed to request conflict resolution for PR #$PR_NUMBER"
+                fi
+              else
+                echo "ℹ️  Conflict resolution already requested recently for PR #$PR_NUMBER"
+              fi
+            elif [ "$MERGEABLE" = "true" ]; then
+              echo "✅ No conflicts in PR #$PR_NUMBER"
+            else
+              echo "🔄 PR #$PR_NUMBER status unclear: $MERGEABLE"
+            fi
+          done
+
+          echo "🏁 Conflict check completed"
+
+      #########################################################
       # 4. Approve PR (Self-Review)
       #########################################################
       - name: Approve PR on Review Request

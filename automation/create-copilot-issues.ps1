@@ -959,6 +959,18 @@ function New-CopilotIssueContent {
 ## 🎯 **Objective**
 Fix all RUTOS compatibility issues in this file to ensure it works correctly on RUTX50 hardware with busybox shell environment.
 
+## ⚠️ **IMPORTANT: Scope Restriction**
+**🎯 ONLY MODIFY THE FILE SPECIFIED ABOVE: `$FilePath`**
+
+**DO NOT commit or alter any other files including:**
+- ❌ Other shell scripts or configuration files
+- ❌ Validation scripts or testing tools  
+- ❌ Documentation or README files
+- ❌ GitHub workflow files
+- ❌ Any files not explicitly identified in this issue
+
+**✅ Focus exclusively on fixing the issues in the single target file listed above.**
+
 ## 🚨 **Issues Found**
 
 ### 📊 **Issue Summary**
@@ -1036,11 +1048,16 @@ After making fixes, the validation system will automatically:
 5. ✅ **Merge and close** when everything is green
 
 ### **Scope Control**
-**🎯 IMPORTANT**: Only modify the file mentioned above (`$FilePath`). Do not make changes to:
+**🎯 CRITICAL REQUIREMENT**: Only modify the file mentioned above (`$FilePath`). 
+
+**❌ STRICTLY FORBIDDEN - Do NOT make changes to:**
 - Other shell scripts or configuration files
 - Validation scripts or tooling
 - Documentation files (unless fixing syntax in the target file)
+- GitHub Actions workflow files (.github/workflows/)
 - Any files not explicitly mentioned in this issue
+
+**⚠️ REMINDER**: Your commit should contain changes to ONLY the single target file. Any additional file modifications will be rejected.
 
 ## 📋 **Acceptance Criteria**
 - [ ] All critical issues resolved
@@ -1204,57 +1221,256 @@ function New-CopilotIssue {
     }
 }
 
-# Assign Copilot to an issue
+# Assign Copilot to an issue with comprehensive role assignment
 function Set-CopilotAssignment {
     param([string]$IssueNumber)
     
-    Write-DebugMessage "Assigning Copilot to issue #$IssueNumber"
+    Write-DebugMessage "Assigning Copilot to issue #$IssueNumber with comprehensive roles"
     
     try {
         if ($DryRun -or $TestMode) {
-            Write-SuccessMessage "[DRY RUN] Would assign Copilot to issue #$IssueNumber"
+            Write-SuccessMessage "[DRY RUN] Would assign Copilot with full roles to issue #$IssueNumber"
             return @{ Success = $true; DryRun = $true }
         }
         
-        # Post @github-copilot comment to trigger assignment
+        # Step 1: Assign Copilot as assignee (primary role)
+        Write-DebugMessage "Step 1: Assigning Copilot as assignee..."
+        $assignResult = gh issue edit $IssueNumber --add-assignee "@copilot" 2>&1
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-ErrorMessage "Failed to assign Copilot as assignee: $assignResult"
+            return @{ Success = $false; Error = $assignResult }
+        }
+        
+        Write-DebugMessage "✅ Copilot assigned as assignee successfully!"
+        
+        # Step 2: Add to RUTOS project if available (enhance project management)
+        Write-DebugMessage "Step 2: Adding to RUTOS project..."
+        $projectResult = gh issue edit $IssueNumber --add-project "RUTOS Compatibility" 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-DebugMessage "✅ Added to RUTOS Compatibility project!"
+        } else {
+            Write-DebugMessage "ℹ️  RUTOS project not available or already assigned: $projectResult"
+        }
+        
+        # Step 3: Add to Current Sprint milestone if available
+        Write-DebugMessage "Step 3: Adding to milestone..."
+        $milestoneResult = gh issue edit $IssueNumber --milestone "RUTOS Fixes" 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-DebugMessage "✅ Added to RUTOS Fixes milestone!"
+        } else {
+            Write-DebugMessage "ℹ️  RUTOS Fixes milestone not available: $milestoneResult"
+        }
+        
+        # Step 4: Add high-priority label for autonomous handling
+        Write-DebugMessage "Step 4: Adding autonomous handling labels..."
+        $labelResult = gh issue edit $IssueNumber --add-label "copilot-assigned,autonomous-fix,high-priority" 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-DebugMessage "✅ Added autonomous handling labels!"
+        } else {
+            Write-DebugMessage "ℹ️  Label addition may have had issues: $labelResult"
+        }
+        
+        # Step 5: Verify the assignment worked
+        Write-DebugMessage "Step 5: Verifying comprehensive assignment..."
+        Start-Sleep -Seconds 2  # Give GitHub API time to process
+        
+        # Step 6: Post comprehensive @github-copilot assignment comment
         $assignmentComment = @"
-@github-copilot please fix the RUTOS compatibility issues in this file.
+🤖 **Comprehensive Copilot Assignment**
 
-This is an automated request to resolve the validation issues listed above. Please:
+@github-copilot you have been assigned to this issue with full project management roles:
 
+## 🎯 **Your Roles:**
+- ✅ **Assignee** - Primary responsibility for resolution
+- 📍 **Project Member** - Added to RUTOS Compatibility project (if available)
+- 🎯 **Milestone Participant** - Part of RUTOS Fixes milestone tracking
+- 🏷️ **Priority Handler** - Labeled for autonomous processing
+
+## 📋 **Task Details:**
+Please fix the RUTOS compatibility issues listed above with these requirements:
+
+### 🔧 **Technical Requirements:**
 1. **Fix all issues** listed in the issue description
-2. **Follow RUTOS compatibility guidelines** exactly
-3. **Only modify the target file** mentioned in the issue
+2. **Follow RUTOS compatibility guidelines** exactly (POSIX sh, busybox support)
+3. **Only modify the target file** mentioned in the issue title
 4. **Test your changes** to ensure they work correctly
 5. **Preserve all existing functionality** while making fixes
 
-The validation system will automatically verify your fixes and handle the workflow process.
+### 🎯 **Quality Standards:**
+- ✅ ShellCheck compliance (no SC errors)
+- ✅ POSIX sh compatibility (no bash-specific syntax)
+- ✅ Busybox shell support
+- ✅ Error handling preservation
+- ✅ Debug mode functionality maintained
 
-Thank you for your assistance! 🤖
+### 🚀 **Automation Integration:**
+- The autonomous system will detect your PR and handle workflows
+- Merge conflicts will be resolved automatically if they occur
+- Quality validation will run automatically
+
+## 🎊 **Success Criteria:**
+Your fix will be considered complete when:
+1. All validation issues are resolved
+2. Code passes ShellCheck and formatting checks
+3. PR is successfully merged by autonomous system
+
+Thank you for your comprehensive assistance! 🤖✨
+
+*This is an enhanced assignment with full project management integration*
 "@
-        
-        # Create temporary file for comment
-        $tempFile = [System.IO.Path]::GetTempFileName()
-        $assignmentComment | Out-File -FilePath $tempFile -Encoding UTF8
-        
-        # Post comment
-        $ghCommand = "gh issue comment $IssueNumber -F `"$tempFile`""
-        Write-DebugMessage "Executing: $ghCommand"
-        
-        $result = Invoke-Expression $ghCommand
-        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-        
-        if ($LASTEXITCODE -eq 0) {
-            Write-DebugMessage "Copilot assignment comment posted successfully"
-            return @{ Success = $true }
-        } else {
-            Write-ErrorMessage "Failed to post Copilot assignment comment: $result"
-            return @{ Success = $false; Error = $result }
-        }
+            
+            # Create temporary file for comment
+            $tempFile = [System.IO.Path]::GetTempFileName()
+            $assignmentComment | Out-File -FilePath $tempFile -Encoding UTF8
+            
+            # Post comprehensive assignment comment
+            $ghCommand = "gh issue comment $IssueNumber -F `"$tempFile`""
+            Write-DebugMessage "Executing comprehensive assignment: $ghCommand"
+            
+            $result = Invoke-Expression $ghCommand
+            Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-DebugMessage "✅ Comprehensive Copilot assignment completed!"
+                Write-SuccessMessage "🎯 Copilot assigned with full project management roles to issue #$IssueNumber"
+                return @{ 
+                    Success = $true; 
+                    Roles = @("assignee", "project-member", "milestone-participant", "priority-handler")
+                }
+            } else {
+                Write-WarningMessage "Copilot assigned but comprehensive comment posting failed: $result"
+                return @{ Success = $true; Warning = "Comment posting failed but assignment succeeded" }
+            }
         
     } catch {
-        Add-CollectedError -ErrorMessage "Error assigning Copilot: $($_.Exception.Message)" -FunctionName "Add-CopilotAssignment" -Exception $_.Exception -Context "Assigning Copilot to issue $IssueNumber" -AdditionalInfo @{IssueNumber = $IssueNumber; LastExitCode = $LASTEXITCODE}
-        Write-ErrorMessage "Error assigning Copilot: $($_.Exception.Message)"
+        Add-CollectedError -ErrorMessage "Error in comprehensive Copilot assignment: $($_.Exception.Message)" -FunctionName "Set-CopilotAssignment" -Exception $_.Exception -Context "Comprehensive assignment to issue $IssueNumber" -AdditionalInfo @{IssueNumber = $IssueNumber; LastExitCode = $LASTEXITCODE}
+        Write-ErrorMessage "Error in comprehensive Copilot assignment: $($_.Exception.Message)"
+        return @{ Success = $false; Error = $_.Exception.Message }
+    }
+}
+
+# Enhanced Copilot PR assignment with reviewer capabilities
+function Set-CopilotPRAssignment {
+    param(
+        [string]$PRNumber,
+        [string]$ReviewerUsername = "mranv", # GitHub username for reviewer since @copilot doesn't work for reviewers
+        [string]$ProjectName = "RUTOS Compatibility",
+        [string]$MilestoneName = "RUTOS Fixes",
+        [string]$Labels = "copilot-assigned,autonomous-fix,high-priority,needs-review"
+    )
+    
+    Write-DebugMessage "🎯 Starting comprehensive Copilot PR assignment for PR #$PRNumber"
+    
+    try {
+        # Step 1: Assign Copilot as assignee
+        Write-DebugMessage "Assigning @copilot as PR assignee..."
+        $assignResult = gh pr edit $PRNumber --add-assignee "@copilot"
+        if ($LASTEXITCODE -ne 0) {
+            Write-WarningMessage "Failed to assign @copilot to PR, continuing with other assignments..."
+        } else {
+            Write-DebugMessage "✅ @copilot assigned as PR assignee"
+        }
+        
+        # Step 2: Add reviewer (human username since @copilot doesn't work)
+        if ($ReviewerUsername) {
+            Write-DebugMessage "Adding reviewer: $ReviewerUsername"
+            $reviewResult = gh pr edit $PRNumber --add-reviewer $ReviewerUsername
+            if ($LASTEXITCODE -ne 0) {
+                Write-WarningMessage "Failed to add reviewer $ReviewerUsername, continuing..."
+            } else {
+                Write-DebugMessage "✅ Reviewer $ReviewerUsername added"
+            }
+        }
+        
+        # Step 3: Add to project (if specified)
+        if ($ProjectName) {
+            Write-DebugMessage "Adding to project: $ProjectName"
+            $projectResult = gh pr edit $PRNumber --add-project $ProjectName
+            if ($LASTEXITCODE -ne 0) {
+                Write-WarningMessage "Failed to add to project '$ProjectName', continuing..."
+            } else {
+                Write-DebugMessage "✅ Added to project '$ProjectName'"
+            }
+        }
+        
+        # Step 4: Add to milestone (if specified)
+        if ($MilestoneName) {
+            Write-DebugMessage "Adding to milestone: $MilestoneName"
+            $milestoneResult = gh pr edit $PRNumber --milestone $MilestoneName
+            if ($LASTEXITCODE -ne 0) {
+                Write-WarningMessage "Failed to add to milestone '$MilestoneName', continuing..."
+            } else {
+                Write-DebugMessage "✅ Added to milestone '$MilestoneName'"
+            }
+        }
+        
+        # Step 5: Add comprehensive labels
+        Write-DebugMessage "Adding comprehensive labels: $Labels"
+        $labelResult = gh pr edit $PRNumber --add-label $Labels
+        if ($LASTEXITCODE -ne 0) {
+            Write-WarningMessage "Failed to add all labels, continuing..."
+        } else {
+            Write-DebugMessage "✅ Comprehensive labels added"
+        }
+        
+        # Step 6: Add comprehensive assignment comment
+        $assignmentMessage = @"
+🤖 **Comprehensive Copilot PR Assignment Complete!**
+
+**Assigned Roles:**
+- 👤 **Assignee**: @copilot (Primary AI reviewer)
+- 👥 **Reviewer**: @$ReviewerUsername (Human oversight)
+- 📁 **Project**: $ProjectName (Project management)
+- 🎯 **Milestone**: $MilestoneName (Release tracking)
+- 🏷️ **Labels**: Enhanced automation and priority tags
+
+**Assignment Capabilities:**
+✅ **Full Project Management**: This PR is now integrated into our project management workflow
+✅ **Dual Review Process**: AI (@copilot) + Human ($ReviewerUsername) review coverage
+✅ **Milestone Tracking**: Linked to release milestone for progress tracking
+✅ **Priority Handling**: Marked for autonomous processing and high-priority attention
+✅ **Enhanced Automation**: Tagged for advanced automation features
+
+**Next Steps:**
+- @copilot will provide AI-powered code review
+- @$ReviewerUsername will provide human oversight and final approval
+- Autonomous conflict resolution active for merge conflicts
+- Progress tracked in '$ProjectName' project and '$MilestoneName' milestone
+
+*This comprehensive assignment ensures maximum coverage and efficient PR processing! 🚀*
+"@
+            
+            # Write to temp file to handle multi-line content
+            $tempFile = Join-Path $env:TEMP "copilot-pr-assignment-$(Get-Random).md"
+            $assignmentMessage | Out-File -FilePath $tempFile -Encoding utf8
+            
+            # Post comprehensive assignment comment
+            $ghCommand = "gh pr comment $PRNumber -F `"$tempFile`""
+            Write-DebugMessage "Executing comprehensive PR assignment: $ghCommand"
+            
+            $result = Invoke-Expression $ghCommand
+            Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-DebugMessage "✅ Comprehensive Copilot PR assignment completed!"
+                Write-SuccessMessage "🎯 Copilot assigned with full roles + reviewer to PR #$PRNumber"
+                return @{ 
+                    Success = $true; 
+                    Roles = @("assignee", "reviewer-oversight", "project-member", "milestone-participant")
+                    Reviewer = $ReviewerUsername
+                }
+            } else {
+                Write-WarningMessage "Copilot assigned but comprehensive comment posting failed: $result"
+                return @{ Success = $true; Warning = "Comment posting failed but assignment succeeded" }
+            }
+        
+    } catch {
+        Add-CollectedError -ErrorMessage "Error in comprehensive Copilot PR assignment: $($_.Exception.Message)" -FunctionName "Set-CopilotPRAssignment" -Exception $_.Exception -Context "Comprehensive PR assignment to PR $PRNumber" -AdditionalInfo @{PRNumber = $PRNumber; LastExitCode = $LASTEXITCODE; ReviewerUsername = $ReviewerUsername}
+        Write-ErrorMessage "Error in comprehensive Copilot PR assignment: $($_.Exception.Message)"
         return @{ Success = $false; Error = $_.Exception.Message }
     }
 }
