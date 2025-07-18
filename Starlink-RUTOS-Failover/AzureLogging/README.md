@@ -245,6 +245,7 @@ After setting up system logging, you can optionally add Starlink performance mon
    ```
 
 3. **Configure the Azure endpoint (same as system logs):**
+
    ```bash
    uci set azure.starlink.endpoint='https://your-function-app.azurewebsites.net/api/HttpLogIngestor'
    uci commit azure
@@ -328,7 +329,7 @@ Open the crontab editor on the router: `crontab -e`
 
 Add the following line to run the script every 5 minutes:
 
-```
+```bash
 */5 * * * * /overlay/log-shipper.sh
 ```
 
