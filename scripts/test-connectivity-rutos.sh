@@ -4,6 +4,8 @@ test_starlink_ping_curl() {
     starlink_host=$(echo "$STARLINK_IP" | cut -d':' -f1)
     starlink_port=$(echo "$STARLINK_IP" | cut -d':' -f2)
 
+    log_debug "Extracted Starlink host: $starlink_host, port: $starlink_port"
+
     # Ping test
     if ping -c 2 -W 2 "$starlink_host" >/dev/null 2>&1; then
         log_success "Ping to Starlink dish ($starlink_host) successful."
@@ -15,6 +17,7 @@ test_starlink_ping_curl() {
     # Curl test (HTTP port, may not return data but should connect)
     if command -v curl >/dev/null 2>&1; then
         curl_output="$(curl -v --max-time 5 "http://$starlink_host:$starlink_port/" 2>&1)"
+        log_debug "Curl output: $curl_output"
         if echo "$curl_output" | grep -q 'Received HTTP/0.9 when not allowed'; then
             log_success "curl: Port $starlink_port is open and responded (HTTP/0.9 error as expected for gRPC port)."
         elif echo "$curl_output" | grep -q 'Connection refused'; then
@@ -37,6 +40,7 @@ test_starlink_ping_curl() {
     if command -v nc >/dev/null 2>&1; then
         nc_output="$(echo | nc "$starlink_host" "$starlink_port" 2>&1)"
         nc_status=$?
+        log_debug "nc output: $nc_output, status: $nc_status"
         if [ $nc_status -eq 0 ]; then
             log_success "nc: TCP port $starlink_port is open on $starlink_host (no error, port is reachable)."
         else

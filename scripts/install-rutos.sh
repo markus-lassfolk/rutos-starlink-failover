@@ -519,7 +519,11 @@ install_config() {
                 print_status "$YELLOW" "📋 New template features are now available"
                 print_status "$YELLOW" "📋 Extra settings preserved in separate section"
             else
-                print_status "$YELLOW" "⚠ Merge failed, keeping existing configuration"
+                print_status "$RED" "✗ Merge failed, attempting to preserve settings manually"
+                backup_file="$INSTALL_DIR/config/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
+                cp "$INSTALL_DIR/config/config.sh" "$backup_file"
+                cat "$INSTALL_DIR/config/config.template.sh" "$backup_file" > "$INSTALL_DIR/config/config.sh"
+                print_status "$YELLOW" "⚠ Configuration manually merged (backup: $backup_file)"
             fi
         else
             # Fallback to simple backup and replace
@@ -852,10 +856,10 @@ main() {
     print_status "$YELLOW" "   - Update network settings (MWAN_IFACE, MWAN_MEMBER)"
     print_status "$YELLOW" "   - Configure Pushover notifications (optional)"
     print_status "$YELLOW" "   - Adjust failover thresholds if needed"
-    print_status "$YELLOW" "2. Run health check: $INSTALL_DIR/scripts/health-check-rutos.sh"
-    print_status "$YELLOW" "3. Check system status: $INSTALL_DIR/scripts/system-status-rutos.sh"
-    print_status "$YELLOW" "4. Test connectivity: $INSTALL_DIR/scripts/test-connectivity-rutos.sh"
-    print_status "$YELLOW" "5. Validate configuration: $INSTALL_DIR/scripts/validate-config-rutos.sh"
+    print_status "$YELLOW" "2. Validate configuration: $INSTALL_DIR/scripts/validate-config-rutos.sh"
+    print_status "$YELLOW" "3. Test connectivity: $INSTALL_DIR/scripts/test-connectivity-rutos.sh"
+    print_status "$YELLOW" "4. Check system status: $INSTALL_DIR/scripts/system-status-rutos.sh"
+    print_status "$YELLOW" "5. Run health check: $INSTALL_DIR/scripts/health-check-rutos.sh"
     print_status "$YELLOW" "6. Configure mwan3 according to documentation"
     print_status "$YELLOW" "7. Test the system manually"
     printf "\n"
