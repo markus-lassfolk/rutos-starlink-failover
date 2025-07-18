@@ -6,7 +6,7 @@
     
 .DESCRIPTION
     Optimized version that processes files individually for better performance:
-    1. Scans repository for relevant files (shell scripts and markdown)
+    1. Scans repository for relevant files (shell scripts, PowerShell scripts, and markdown)
     2. Tests each file individually with validation script
     3. Creates targeted issues for files with problems
     4. Stops early when reaching the maximum issues limit
@@ -420,6 +420,30 @@ function Parse-ValidationOutput {
                 Write-DebugMessage "Skipped ShellCheck issue for different file: $filepath"
             }
         }
+        # Handle PSScriptAnalyzer format: RuleName: Line number severity message
+        elseif ($line -match "^([A-Za-z0-9_]+):\s+Line\s+(\d+)\s+(Error|Warning|Information)\s+(.+)$") {
+            $ruleName = $Matches[1]
+            $lineNumber = $Matches[2]
+            $severity = $Matches[3]
+            $message = $Matches[4]
+            
+            Write-DebugMessage "Found PSScriptAnalyzer issue: Line $lineNumber $severity`: $ruleName - $message"
+            
+            $issueType = switch ($severity) {
+                "Error" { "Critical" }
+                "Warning" { "Major" }
+                "Information" { "Minor" }
+                default { "Minor" }
+            }
+            
+            $issues += @{
+                Line = [int]$lineNumber
+                Description = "$ruleName - $message"
+                Type = $issueType
+                Severity = $severity
+            }
+            Write-DebugMessage "Added PSScriptAnalyzer issue: Type=$issueType, Line=$lineNumber"
+        }
         # Generic error patterns - be more specific to avoid false positives
         elseif ($line -match "^\s*(CRITICAL|ERROR):\s*(.+)" -and $line -notmatch "SUCCESS|PASSED|Files failed|Total|Summary") {
             $description = $Matches[2].Trim()
@@ -459,7 +483,7 @@ function Parse-ValidationOutput {
 function Get-RelevantFile {
     Write-DebugMessage "Getting relevant files to process"
     
-    $filesToProcess = Get-ChildItem -Path "." -Recurse -Include "*.sh", "*.md" -File | 
+    $filesToProcess = Get-ChildItem -Path "." -Recurse -Include "*.sh", "*.ps1", "*.md" -File | 
                      Where-Object { 
                          $_.Name -ne "pre-commit-validation.sh" -and 
                          $_.FullName -notmatch "\.git" -and
@@ -709,20 +733,43 @@ function New-CopilotIssue {
         if ($intelligentLabelingAvailable -and (Get-Command Get-IntelligentLabels -ErrorAction SilentlyContinue)) {
             $intelligentLabels = Get-IntelligentLabels -FilePath $FilePath -Issues $issuesArray -Context "issue"
         } else {
-            # Fallback to basic labels if module not available
-            $intelligentLabels = @("rutos-compatibility", "posix-compliance", "busybox-compatibility", "shellcheck-issues")
+            # Determine file type for appropriate labeling
+            $fileExtension = [System.IO.Path]::GetExtension($FilePath).ToLower()
+            $isShellScript = $fileExtension -eq ".sh"
+            $isPowerShellScript = $fileExtension -eq ".ps1"
+            $isMarkdownFile = $fileExtension -eq ".md"
+            
+            # Base labels based on file type
+            if ($isShellScript) {
+                $intelligentLabels = @("rutos-compatibility", "posix-compliance", "busybox-compatibility", "shellcheck-issues")
+            } elseif ($isPowerShellScript) {
+                $intelligentLabels = @("powershell-quality", "psscriptanalyzer", "automation-enhancement", "powershell-best-practices")
+            } elseif ($isMarkdownFile) {
+                $intelligentLabels = @("documentation", "markdown-quality", "formatting")
+            } else {
+                $intelligentLabels = @("code-quality")
+            }
             
             if ($criticalIssues.Count -gt 0) {
-                $intelligentLabels += @("priority-critical", "critical-busybox-incompatible", "auto-fix-needed")
+                $intelligentLabels += @("priority-critical", "auto-fix-needed")
+                if ($isShellScript) { $intelligentLabels += "critical-busybox-incompatible" }
+                if ($isPowerShellScript) { $intelligentLabels += "critical-powershell-issues" }
             } elseif ($majorIssues.Count -gt 0) {
                 $intelligentLabels += @("priority-major", "manual-fix-needed")
             } else {
                 $intelligentLabels += @("priority-minor", "manual-fix-needed")
             }
             
-            if ($Issues | Where-Object { $_.Description -match "busybox" }) { $intelligentLabels += "busybox-fix" }
-            if ($Issues | Where-Object { $_.Description -match "local" }) { $intelligentLabels += "critical-local-keyword" }
-            if ($Issues | Where-Object { $_.Description -match "bash" }) { $intelligentLabels += "type-bash-shebang" }
+            # Add specific issue type labels
+            if ($isShellScript) {
+                if ($Issues | Where-Object { $_.Description -match "busybox" }) { $intelligentLabels += "busybox-fix" }
+                if ($Issues | Where-Object { $_.Description -match "local" }) { $intelligentLabels += "critical-local-keyword" }
+                if ($Issues | Where-Object { $_.Description -match "bash" }) { $intelligentLabels += "type-bash-shebang" }
+            } elseif ($isPowerShellScript) {
+                if ($Issues | Where-Object { $_.Description -match "PSAvoidUsingWriteHost" }) { $intelligentLabels += "output-handling" }
+                if ($Issues | Where-Object { $_.Description -match "PSAvoidUsingInvokeExpression" }) { $intelligentLabels += "security-issue" }
+                if ($Issues | Where-Object { $_.Description -match "PSUseApprovedVerbs" }) { $intelligentLabels += "naming-convention" }
+            }
         }
         
         # Add copilot assignment label
@@ -744,20 +791,13 @@ function New-CopilotIssue {
                          elseif ($majorIssues.Count -gt 0) { "[MAJOR]" } 
                          else { "[MINOR]" }
         
-        # Generate enhanced issue title
-        $issueTitle = "$priorityEmoji RUTOS Compatibility Fix: $(Split-Path $FilePath -Leaf)"
-        
-        # Generate enhanced issue body with intelligent labeling
-        $issueBody = @"
-# $priorityEmoji RUTOS Compatibility Issues Detected
-
-## 📄 **Target File**
-``$FilePath``
-
-## 🎯 **Objective**
-Fix all RUTOS compatibility issues in this file to ensure it works correctly on RUTX50 hardware with busybox shell environment.
-
-## ⚠️ **IMPORTANT: Scope Restriction**
+        # Generate file type-specific issue title and objective
+        $fileExtension = [System.IO.Path]::GetExtension($FilePath).ToLower()
+        if ($fileExtension -eq ".sh") {
+            $issueTitle = "$priorityEmoji RUTOS Compatibility Fix: $(Split-Path $FilePath -Leaf)"
+            $objective = "Fix all RUTOS compatibility issues in this file to ensure it works correctly on RUTX50 hardware with busybox shell environment."
+            $fileTypeDescription = "Shell Script - RUTOS Compatibility"
+            $scopeRestriction = @"
 **🎯 ONLY MODIFY THE FILE SPECIFIED ABOVE: `$FilePath`**
 
 **DO NOT commit or alter any other files including:**
@@ -768,12 +808,68 @@ Fix all RUTOS compatibility issues in this file to ensure it works correctly on 
 - ❌ Any files not explicitly identified in this issue
 
 **✅ Focus exclusively on fixing the issues in the single target file listed above.**
+"@
+        } elseif ($fileExtension -eq ".ps1") {
+            $issueTitle = "$priorityEmoji PowerShell Quality Enhancement: $(Split-Path $FilePath -Leaf)"
+            $objective = "Fix all PowerShell quality issues in this file to ensure it follows best practices, security guidelines, and automation standards."
+            $fileTypeDescription = "PowerShell Script - Automation Quality"
+            $scopeRestriction = @"
+**🎯 ONLY MODIFY THE FILE SPECIFIED ABOVE: `$FilePath`**
+
+**DO NOT commit or alter any other files including:**
+- ❌ Other PowerShell scripts or configuration files
+- ❌ Validation scripts or testing tools  
+- ❌ Documentation or README files
+- ❌ GitHub workflow files
+- ❌ Any files not explicitly identified in this issue
+
+**✅ Focus exclusively on fixing the PowerShell quality issues in the single target file listed above.**
+"@
+        } elseif ($fileExtension -eq ".md") {
+            $issueTitle = "$priorityEmoji Documentation Quality Fix: $(Split-Path $FilePath -Leaf)"
+            $objective = "Fix all documentation quality issues in this file to ensure proper formatting and clarity."
+            $fileTypeDescription = "Markdown Documentation - Quality Enhancement"
+            $scopeRestriction = @"
+**🎯 ONLY MODIFY THE FILE SPECIFIED ABOVE: `$FilePath`**
+
+**DO NOT commit or alter any other files including:**
+- ❌ Other documentation or markdown files
+- ❌ Code files or scripts
+- ❌ Configuration files
+- ❌ GitHub workflow files
+- ❌ Any files not explicitly identified in this issue
+
+**✅ Focus exclusively on fixing the documentation issues in the single target file listed above.**
+"@
+        } else {
+            $issueTitle = "$priorityEmoji Code Quality Fix: $(Split-Path $FilePath -Leaf)"
+            $objective = "Fix all code quality issues in this file."
+            $fileTypeDescription = "Code File - Quality Enhancement"
+            $scopeRestriction = @"
+**🎯 ONLY MODIFY THE FILE SPECIFIED ABOVE: `$FilePath`**
+
+**✅ Focus exclusively on fixing the issues in the single target file listed above.**
+"@
+        }
+        
+        # Generate enhanced issue body with file type-specific content
+        $issueBody = @"
+# $priorityEmoji $fileTypeDescription Issues Detected
+
+## 📄 **Target File**
+``$FilePath``
+
+## 🎯 **Objective**
+$objective
+
+## ⚠️ **IMPORTANT: Scope Restriction**
+$scopeRestriction
 
 ## 🚨 **Issues Found**
 
 ### 📊 **Issue Summary**
-- 🔴 **Critical Issues**: $($criticalIssues.Count) (Must fix - will cause hardware failures)
-- 🟡 **Major Issues**: $($majorIssues.Count) (Should fix - may cause runtime problems)  
+- 🔴 **Critical Issues**: $($criticalIssues.Count) (Must fix - will cause failures)
+- 🟡 **Major Issues**: $($majorIssues.Count) (Should fix - may cause problems)  
 - 🔵 **Minor Issues**: $($minorIssues.Count) (Best practices - improve if possible)
 
 **Total Issues**: $($Issues.Count)
@@ -782,11 +878,19 @@ Fix all RUTOS compatibility issues in this file to ensure it works correctly on 
 
         # Add critical issues section
         if ($criticalIssues.Count -gt 0) {
+            $criticalDescription = if ($fileExtension -eq ".sh") {
+                "These issues will cause failures on RUTX50 hardware and must be fixed:"
+            } elseif ($fileExtension -eq ".ps1") {
+                "These issues represent critical PowerShell problems that must be fixed:"
+            } else {
+                "These are critical issues that must be fixed:"
+            }
+            
             $issueBody += @"
 
 ### 🔴 **CRITICAL ISSUES** (Must Fix Immediately)
 
-These issues will cause failures on RUTX50 hardware and must be fixed:
+$criticalDescription
 
 "@
             foreach ($issue in $criticalIssues) {
@@ -796,11 +900,19 @@ These issues will cause failures on RUTX50 hardware and must be fixed:
         
         # Add major issues section
         if ($majorIssues.Count -gt 0) {
+            $majorDescription = if ($fileExtension -eq ".sh") {
+                "These issues may cause problems in the busybox environment:"
+            } elseif ($fileExtension -eq ".ps1") {
+                "These issues may cause PowerShell runtime problems:"
+            } else {
+                "These issues should be fixed:"
+            }
+            
             $issueBody += @"
 
 ### 🟡 **MAJOR ISSUES** (Should Fix)
 
-These issues may cause problems in the busybox environment:
+$majorDescription
 
 "@
             foreach ($issue in $majorIssues) {
@@ -810,11 +922,19 @@ These issues may cause problems in the busybox environment:
         
         # Add minor issues section
         if ($minorIssues.Count -gt 0) {
+            $minorDescription = if ($fileExtension -eq ".sh") {
+                "These issues represent best practices and portability improvements:"
+            } elseif ($fileExtension -eq ".ps1") {
+                "These issues represent PowerShell best practices:"
+            } else {
+                "These issues represent best practices:"
+            }
+            
             $issueBody += @"
 
 ### 🔵 **MINOR ISSUES** (Best Practices)
 
-These issues represent best practices and portability improvements:
+$minorDescription
 
 "@
             foreach ($issue in $minorIssues) {
@@ -836,6 +956,11 @@ $(($intelligentLabels | ForEach-Object { "- ``$_``" }) -join "`n")
 
 ## 🛠️ **Fix Guidelines**
 
+"@
+        
+        # Add file type-specific fix guidelines
+        if ($fileExtension -eq ".sh") {
+            $issueBody += @"
 ### **RUTOS Compatibility Rules**
 1. **POSIX Shell Only**: Use `#!/bin/sh` instead of `#!/bin/bash`
 2. **No Bash Arrays**: Use space-separated strings or multiple variables
@@ -845,6 +970,40 @@ $(($intelligentLabels | ForEach-Object { "- ``$_``" }) -join "`n")
 6. **Source with `.` not `source`**: Use `. script.sh` instead of `source script.sh`
 7. **No `function()` syntax**: Use `function_name() {` format
 8. **Proper printf format**: Avoid variables in format strings (SC2059)
+"@
+        } elseif ($fileExtension -eq ".ps1") {
+            $issueBody += @"
+### **PowerShell Best Practices**
+1. **Use Write-Output**: Prefer `Write-Output` over `Write-Host` for pipeline compatibility
+2. **Avoid Invoke-Expression**: Use direct calls instead of `Invoke-Expression` for security
+3. **Use Approved Verbs**: Follow PowerShell verb naming conventions (Get-, Set-, New-, etc.)
+4. **Parameter Validation**: Use proper parameter attributes for input validation
+5. **Error Handling**: Implement proper try-catch blocks and error handling
+6. **Security**: Avoid hardcoded credentials and sensitive information
+7. **PSScriptAnalyzer**: Follow all PSScriptAnalyzer recommendations
+8. **Help Documentation**: Include proper comment-based help for functions
+"@
+        } elseif ($fileExtension -eq ".md") {
+            $issueBody += @"
+### **Markdown Quality Guidelines**
+1. **Consistent Formatting**: Use consistent heading levels and formatting
+2. **Link Validation**: Ensure all links are valid and properly formatted
+3. **Table Formatting**: Use proper table syntax with aligned columns
+4. **Code Blocks**: Use appropriate language tags for syntax highlighting
+5. **Accessibility**: Include alt text for images and descriptive link text
+6. **Structure**: Maintain logical document structure and flow
+"@
+        } else {
+            $issueBody += @"
+### **General Code Quality Guidelines**
+1. **Consistency**: Maintain consistent formatting and style
+2. **Readability**: Write clear, maintainable code
+3. **Best Practices**: Follow language-specific best practices
+4. **Documentation**: Include appropriate comments and documentation
+"@
+        }
+        
+        $issueBody += @"
 
 ## 📋 **Acceptance Criteria**
 - [ ] All critical issues resolved
@@ -1151,7 +1310,7 @@ function Start-OptimizedIssueCreation {
         Write-InfoMessage "🎯 Processing single target file: $TargetFile"
         $filesToProcess = @($TargetFile)
     } else {
-        Write-StepMessage "📂 Scanning repository for shell scripts and markdown files..."
+        Write-StepMessage "📂 Scanning repository for shell scripts, PowerShell scripts, and markdown files..."
         $filesToProcess = Get-RelevantFile
     }
     

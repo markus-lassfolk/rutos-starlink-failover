@@ -1,4 +1,10 @@
 {
+  "automation/README.md": {
+    "Status": "Assigned",
+    "IssueCount": 3,
+    "CreatedAt": "2025-07-18 14:59:15",
+    "IssueNumber": "73"
+  },
   "debug-minimal.sh": {
     "Status": "Assigned",
     "IssueCount": 4,
@@ -10,11 +16,5 @@
     "IssueNumber": "79",
     "CreatedAt": "2025-07-18 15:39:51",
     "Status": "Assigned"
-  },
-  "automation/README.md": {
-    "Status": "Assigned",
-    "IssueCount": 3,
-    "CreatedAt": "2025-07-18 14:59:15",
-    "IssueNumber": "73"
   }
 }
