@@ -123,7 +123,7 @@ The system provides an overall health score based on:
 
 ## Sample Health Check Output
 
-```
+```text
 === RUTOS STARLINK FAILOVER HEALTH CHECK ===
 Health Check Version: 1.0.2
 Timestamp: 2025-07-15 14:30:15
