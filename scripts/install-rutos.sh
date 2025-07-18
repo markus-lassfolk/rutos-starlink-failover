@@ -414,8 +414,7 @@ install_scripts() {
         update-config-rutos.sh \
         upgrade-to-advanced-rutos.sh \
         test-connectivity-rutos.sh \
-        merge-config-rutos.sh
-    do
+        merge-config-rutos.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then
             cp "$script_dir/$script" "$INSTALL_DIR/scripts/$script"
