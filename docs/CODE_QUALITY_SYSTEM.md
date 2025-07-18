@@ -282,7 +282,7 @@ chmod +x .git/hooks/pre-commit
 
 ### Success Output
 
-```
+```console
 [SUCCESS] [2025-07-15 14:30:45] ✅ analysis.py passed validation
 [SUCCESS] [2025-07-15 14:30:46] ✅ script.sh passed validation
 [SUCCESS] [2025-07-15 14:30:47] ✅ README.md passed validation
@@ -291,7 +291,7 @@ chmod +x .git/hooks/pre-commit
 
 ### Failure Output
 
-```
+```console
 [ERROR] [2025-07-15 14:30:45] Black formatting issues in analysis.py
 [INFO] [2025-07-15 14:30:45] Run 'black analysis.py' to fix formatting
 [ERROR] [2025-07-15 14:30:46] ShellCheck failed for script.sh
