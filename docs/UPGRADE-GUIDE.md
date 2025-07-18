@@ -60,7 +60,7 @@ After upgrading, you'll have access to:
 
 ## Example Output
 
-```
+```text
 === Upgrade to Advanced Configuration ===
 
 ℹ Creating backup of current configuration...
