@@ -11,75 +11,75 @@ SCRIPT_VERSION="1.0.2"
 # Standard colors for consistent output (compatible with busybox)
 # CRITICAL: Use RUTOS-compatible color detection
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    # Colors enabled
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    PURPLE='\033[0;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+	# Colors enabled
+	RED='\033[0;31m'
+	GREEN='\033[0;32m'
+	YELLOW='\033[1;33m'
+	BLUE='\033[1;35m'
+	PURPLE='\033[0;35m'
+	CYAN='\033[0;36m'
+	NC='\033[0m'
 else
-    # Colors disabled
-    RED=""
-    GREEN=""
-    YELLOW=""
-    BLUE=""
-    PURPLE=""
-    CYAN=""
-    NC=""
+	# Colors disabled
+	RED=""
+	GREEN=""
+	YELLOW=""
+	BLUE=""
+	PURPLE=""
+	CYAN=""
+	NC=""
 fi
 
 # Standard logging functions with consistent colors
 log_info() {
-    printf "%s[INFO]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+	printf "%s[INFO]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
-    printf "%s[WARNING]%s [%s] %s\n" "$YELLOW" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+	printf "%s[WARNING]%s [%s] %s\n" "$YELLOW" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "%s[ERROR]%s [%s] %s\n" "$RED" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+	printf "%s[ERROR]%s [%s] %s\n" "$RED" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
-    if [ "$DEBUG" = "1" ]; then
-        printf "%s[DEBUG]%s [%s] %s\n" "$CYAN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
-    fi
+	if [ "$DEBUG" = "1" ]; then
+		printf "%s[DEBUG]%s [%s] %s\n" "$CYAN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+	fi
 }
 
 log_success() {
-    printf "%s[SUCCESS]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+	printf "%s[SUCCESS]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
-    printf "%s[STEP]%s [%s] %s\n" "$BLUE" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+	printf "%s[STEP]%s [%s] %s\n" "$BLUE" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Health check status functions
 show_health_status() {
-    status="$1"
-    component="$2"
-    message="$3"
+	status="$1"
+	component="$2"
+	message="$3"
 
-    case "$status" in
-        "healthy")
-            printf "%s✅ HEALTHY%s   | %-25s | %s\n" "$GREEN" "$NC" "$component" "$message"
-            ;;
-        "warning")
-            printf "%s⚠️  WARNING%s   | %-25s | %s\n" "$YELLOW" "$NC" "$component" "$message"
-            ;;
-        "critical")
-            printf "%s❌ CRITICAL%s  | %-25s | %s\n" "$RED" "$NC" "$component" "$message"
-            ;;
-        "unknown")
-            printf "%s❓ UNKNOWN%s    | %-25s | %s\n" "$CYAN" "$NC" "$component" "$message"
-            ;;
-        *)
-            printf "%sℹ️  INFO%s      | %-25s | %s\n" "$PURPLE" "$NC" "$component" "$message"
-            ;;
-    esac
+	case "$status" in
+	"healthy")
+		printf "%s✅ HEALTHY%s   | %-25s | %s\n" "$GREEN" "$NC" "$component" "$message"
+		;;
+	"warning")
+		printf "%s⚠️  WARNING%s   | %-25s | %s\n" "$YELLOW" "$NC" "$component" "$message"
+		;;
+	"critical")
+		printf "%s❌ CRITICAL%s  | %-25s | %s\n" "$RED" "$NC" "$component" "$message"
+		;;
+	"unknown")
+		printf "%s❓ UNKNOWN%s    | %-25s | %s\n" "$CYAN" "$NC" "$component" "$message"
+		;;
+	*)
+		printf "%sℹ️  INFO%s      | %-25s | %s\n" "$PURPLE" "$NC" "$component" "$message"
+		;;
+	esac
 }
 
 # Configuration paths
@@ -98,496 +98,496 @@ UNKNOWN_COUNT=0
 # Debug mode support
 DEBUG="${DEBUG:-0}"
 if [ "$DEBUG" = "1" ]; then
-    log_debug "==================== DEBUG MODE ENABLED ===================="
-    log_debug "Script version: $SCRIPT_VERSION"
-    log_debug "Working directory: $(pwd)"
-    log_debug "Arguments: $*"
+	log_debug "==================== DEBUG MODE ENABLED ===================="
+	log_debug "Script version: $SCRIPT_VERSION"
+	log_debug "Working directory: $(pwd)"
+	log_debug "Arguments: $*"
 fi
 
 # Function to increment health counters
 increment_counter() {
-    status="$1"
-    case "$status" in
-        "healthy") HEALTHY_COUNT=$((HEALTHY_COUNT + 1)) ;;
-        "warning") WARNING_COUNT=$((WARNING_COUNT + 1)) ;;
-        "critical") CRITICAL_COUNT=$((CRITICAL_COUNT + 1)) ;;
-        "unknown") UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1)) ;;
-    esac
+	status="$1"
+	case "$status" in
+	"healthy") HEALTHY_COUNT=$((HEALTHY_COUNT + 1)) ;;
+	"warning") WARNING_COUNT=$((WARNING_COUNT + 1)) ;;
+	"critical") CRITICAL_COUNT=$((CRITICAL_COUNT + 1)) ;;
+	"unknown") UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1)) ;;
+	esac
 }
 
 # Function to check if a service/process is running
 check_process() {
-    process_name="$1"
-    if pgrep -f "$process_name" >/dev/null 2>&1; then
-        return 0 # Running
-    else
-        return 1 # Not running
-    fi
+	process_name="$1"
+	if pgrep -f "$process_name" >/dev/null 2>&1; then
+		return 0 # Running
+	else
+		return 1 # Not running
+	fi
 }
 
 # Function to check log freshness
 check_log_freshness() {
-    log_file="$1"
-    max_age_minutes="$2"
-    component_name="$3"
+	log_file="$1"
+	max_age_minutes="$2"
+	component_name="$3"
 
-    if [ ! -f "$log_file" ]; then
-        show_health_status "critical" "$component_name" "Log file not found: $log_file"
-        increment_counter "critical"
-        return 1
-    fi
+	if [ ! -f "$log_file" ]; then
+		show_health_status "critical" "$component_name" "Log file not found: $log_file"
+		increment_counter "critical"
+		return 1
+	fi
 
-    # Get file modification time in seconds since epoch
-    file_mtime=$(stat -c %Y "$log_file" 2>/dev/null || echo "0")
-    current_time=$(date +%s)
-    age_seconds=$((current_time - file_mtime))
-    age_minutes=$((age_seconds / 60))
+	# Get file modification time in seconds since epoch
+	file_mtime=$(stat -c %Y "$log_file" 2>/dev/null || echo "0")
+	current_time=$(date +%s)
+	age_seconds=$((current_time - file_mtime))
+	age_minutes=$((age_seconds / 60))
 
-    if [ "$age_minutes" -gt "$max_age_minutes" ]; then
-        show_health_status "warning" "$component_name" "Log stale: $age_minutes minutes old (max: $max_age_minutes)"
-        increment_counter "warning"
-        return 1
-    else
-        show_health_status "healthy" "$component_name" "Log fresh: $age_minutes minutes old"
-        increment_counter "healthy"
-        return 0
-    fi
+	if [ "$age_minutes" -gt "$max_age_minutes" ]; then
+		show_health_status "warning" "$component_name" "Log stale: $age_minutes minutes old (max: $max_age_minutes)"
+		increment_counter "warning"
+		return 1
+	else
+		show_health_status "healthy" "$component_name" "Log fresh: $age_minutes minutes old"
+		increment_counter "healthy"
+		return 0
+	fi
 }
 
 # Function to check disk space
 check_disk_space() {
-    path="$1"
-    threshold_percent="$2"
-    component_name="$3"
+	path="$1"
+	threshold_percent="$2"
+	component_name="$3"
 
-    if [ ! -d "$path" ]; then
-        show_health_status "critical" "$component_name" "Directory not found: $path"
-        increment_counter "critical"
-        return 1
-    fi
+	if [ ! -d "$path" ]; then
+		show_health_status "critical" "$component_name" "Directory not found: $path"
+		increment_counter "critical"
+		return 1
+	fi
 
-    # Get disk usage percentage
-    usage=$(df "$path" | awk 'NR==2 {print $5}' | sed 's/%//')
+	# Get disk usage percentage
+	usage=$(df "$path" | awk 'NR==2 {print $5}' | sed 's/%//')
 
-    if [ "$usage" -gt "$threshold_percent" ]; then
-        show_health_status "warning" "$component_name" "Disk usage high: ${usage}% (threshold: ${threshold_percent}%)"
-        increment_counter "warning"
-        return 1
-    else
-        show_health_status "healthy" "$component_name" "Disk usage OK: ${usage}%"
-        increment_counter "healthy"
-        return 0
-    fi
+	if [ "$usage" -gt "$threshold_percent" ]; then
+		show_health_status "warning" "$component_name" "Disk usage high: ${usage}% (threshold: ${threshold_percent}%)"
+		increment_counter "warning"
+		return 1
+	else
+		show_health_status "healthy" "$component_name" "Disk usage OK: ${usage}%"
+		increment_counter "healthy"
+		return 0
+	fi
 }
 
 # Function to check system uptime
 check_system_uptime() {
-    uptime_info=$(uptime)
-    load_avg=$(echo "$uptime_info" | sed 's/.*load average: //')
+	uptime_info=$(uptime)
+	load_avg=$(echo "$uptime_info" | sed 's/.*load average: //')
 
-    show_health_status "healthy" "System Uptime" "$uptime_info"
-    show_health_status "healthy" "Load Average" "$load_avg"
-    increment_counter "healthy"
-    increment_counter "healthy"
+	show_health_status "healthy" "System Uptime" "$uptime_info"
+	show_health_status "healthy" "Load Average" "$load_avg"
+	increment_counter "healthy"
+	increment_counter "healthy"
 }
 
 # Function to check network connectivity
 check_network_connectivity() {
-    log_step "Checking network connectivity"
+	log_step "Checking network connectivity"
 
-    # Test basic internet connectivity
-    if ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1; then
-        show_health_status "healthy" "Internet Connectivity" "Can reach 8.8.8.8"
-        increment_counter "healthy"
-    else
-        show_health_status "critical" "Internet Connectivity" "Cannot reach 8.8.8.8"
-        increment_counter "critical"
-    fi
+	# Test basic internet connectivity
+	if ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1; then
+		show_health_status "healthy" "Internet Connectivity" "Can reach 8.8.8.8"
+		increment_counter "healthy"
+	else
+		show_health_status "critical" "Internet Connectivity" "Cannot reach 8.8.8.8"
+		increment_counter "critical"
+	fi
 
-    # Test DNS resolution
-    if nslookup google.com >/dev/null 2>&1; then
-        show_health_status "healthy" "DNS Resolution" "Can resolve google.com"
-        increment_counter "healthy"
-    else
-        show_health_status "critical" "DNS Resolution" "Cannot resolve google.com"
-        increment_counter "critical"
-    fi
+	# Test DNS resolution
+	if nslookup google.com >/dev/null 2>&1; then
+		show_health_status "healthy" "DNS Resolution" "Can resolve google.com"
+		increment_counter "healthy"
+	else
+		show_health_status "critical" "DNS Resolution" "Cannot resolve google.com"
+		increment_counter "critical"
+	fi
 }
 
 # Function to check Starlink connectivity
 check_starlink_connectivity() {
-    log_step "Checking Starlink connectivity"
+	log_step "Checking Starlink connectivity"
 
-    # Load configuration to get Starlink IP
-    if [ -f "$CONFIG_FILE" ]; then
-        # shellcheck disable=SC1090
-        . "$CONFIG_FILE"
-        # shellcheck disable=SC1091
-        . "$SCRIPT_DIR/placeholder-utils.sh" 2>/dev/null || true
+	# Load configuration to get Starlink IP
+	if [ -f "$CONFIG_FILE" ]; then
+		# shellcheck disable=SC1090
+		. "$CONFIG_FILE"
+		# shellcheck disable=SC1091
+		. "$SCRIPT_DIR/placeholder-utils.sh" 2>/dev/null || true
 
-        if [ -n "${STARLINK_IP:-}" ] && [ "$STARLINK_IP" != "YOUR_STARLINK_IP" ]; then
-            if ping -c 1 -W 5 "$STARLINK_IP" >/dev/null 2>&1; then
-                show_health_status "healthy" "Starlink Device" "Can reach $STARLINK_IP"
-                increment_counter "healthy"
-            else
-                show_health_status "critical" "Starlink Device" "Cannot reach $STARLINK_IP"
-                increment_counter "critical"
-            fi
+		if [ -n "${STARLINK_IP:-}" ] && [ "$STARLINK_IP" != "YOUR_STARLINK_IP" ]; then
+			if ping -c 1 -W 5 "$STARLINK_IP" >/dev/null 2>&1; then
+				show_health_status "healthy" "Starlink Device" "Can reach $STARLINK_IP"
+				increment_counter "healthy"
+			else
+				show_health_status "critical" "Starlink Device" "Cannot reach $STARLINK_IP"
+				increment_counter "critical"
+			fi
 
-            # Test grpcurl if available
-            if command -v grpcurl >/dev/null 2>&1; then
-                if grpcurl -plaintext -d '{}' "$STARLINK_IP:9200" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
-                    show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP:9200"
-                    increment_counter "healthy"
-                else
-                    show_health_status "warning" "Starlink gRPC API" "API not responding on $STARLINK_IP:9200"
-                    increment_counter "warning"
-                fi
-            else
-                show_health_status "unknown" "Starlink gRPC API" "grpcurl not available for testing"
-                increment_counter "unknown"
-            fi
-        else
-            show_health_status "warning" "Starlink Device" "Starlink IP not configured"
-            increment_counter "warning"
-        fi
-    else
-        show_health_status "critical" "Starlink Device" "Configuration file not found"
-        increment_counter "critical"
-    fi
+			# Test grpcurl if available
+			if command -v grpcurl >/dev/null 2>&1; then
+				if grpcurl -plaintext -d '{}' "$STARLINK_IP:9200" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
+					show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP:9200"
+					increment_counter "healthy"
+				else
+					show_health_status "warning" "Starlink gRPC API" "API not responding on $STARLINK_IP:9200"
+					increment_counter "warning"
+				fi
+			else
+				show_health_status "unknown" "Starlink gRPC API" "grpcurl not available for testing"
+				increment_counter "unknown"
+			fi
+		else
+			show_health_status "warning" "Starlink Device" "Starlink IP not configured"
+			increment_counter "warning"
+		fi
+	else
+		show_health_status "critical" "Starlink Device" "Configuration file not found"
+		increment_counter "critical"
+	fi
 }
 
 # Function to check configuration health
 check_configuration_health() {
-    log_step "Checking configuration health"
+	log_step "Checking configuration health"
 
-    # Run configuration validation
-    if [ -x "$SCRIPT_DIR/validate-config.sh" ]; then
-        if "$SCRIPT_DIR/validate-config.sh" --quiet >/dev/null 2>&1; then
-            show_health_status "healthy" "Configuration" "Configuration validation passed"
-            increment_counter "healthy"
-        else
-            show_health_status "warning" "Configuration" "Configuration validation failed"
-            increment_counter "warning"
-        fi
-    else
-        show_health_status "unknown" "Configuration" "validate-config.sh not found or not executable"
-        increment_counter "unknown"
-    fi
+	# Run configuration validation
+	if [ -x "$SCRIPT_DIR/validate-config.sh" ]; then
+		if "$SCRIPT_DIR/validate-config.sh" --quiet >/dev/null 2>&1; then
+			show_health_status "healthy" "Configuration" "Configuration validation passed"
+			increment_counter "healthy"
+		else
+			show_health_status "warning" "Configuration" "Configuration validation failed"
+			increment_counter "warning"
+		fi
+	else
+		show_health_status "unknown" "Configuration" "validate-config.sh not found or not executable"
+		increment_counter "unknown"
+	fi
 
-    # Check for placeholder values
-    if [ -f "$SCRIPT_DIR/placeholder-utils.sh" ]; then
-        # shellcheck disable=SC1091
-        . "$SCRIPT_DIR/placeholder-utils.sh"
-        # shellcheck disable=SC1090
-        . "$CONFIG_FILE" 2>/dev/null || true
+	# Check for placeholder values
+	if [ -f "$SCRIPT_DIR/placeholder-utils.sh" ]; then
+		# shellcheck disable=SC1091
+		. "$SCRIPT_DIR/placeholder-utils.sh"
+		# shellcheck disable=SC1090
+		. "$CONFIG_FILE" 2>/dev/null || true
 
-        if is_pushover_configured; then
-            show_health_status "healthy" "Pushover Config" "Pushover properly configured"
-            increment_counter "healthy"
-        else
-            show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
-            increment_counter "warning"
-        fi
-    fi
+		if is_pushover_configured; then
+			show_health_status "healthy" "Pushover Config" "Pushover properly configured"
+			increment_counter "healthy"
+		else
+			show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
+			increment_counter "warning"
+		fi
+	fi
 }
 
 # Function to check monitoring system health
 check_monitoring_health() {
-    log_step "Checking monitoring system health"
+	log_step "Checking monitoring system health"
 
-    # Check if monitoring script exists
-    if [ -f "$INSTALL_DIR/scripts/starlink_monitor-rutos.sh" ]; then
-        show_health_status "healthy" "Monitor Script" "Script exists and is readable"
-        increment_counter "healthy"
-    else
-        show_health_status "critical" "Monitor Script" "starlink_monitor-rutos.sh not found"
-        increment_counter "critical"
-    fi
+	# Check if monitoring script exists
+	if [ -f "$INSTALL_DIR/scripts/starlink_monitor-rutos.sh" ]; then
+		show_health_status "healthy" "Monitor Script" "Script exists and is readable"
+		increment_counter "healthy"
+	else
+		show_health_status "critical" "Monitor Script" "starlink_monitor-rutos.sh not found"
+		increment_counter "critical"
+	fi
 
-    # Check if monitoring is configured in cron
-    if crontab -l 2>/dev/null | grep -q "starlink_monitor-rutos.sh"; then
-        show_health_status "healthy" "Cron Schedule" "Monitoring scheduled in crontab"
-        increment_counter "healthy"
-    else
-        show_health_status "warning" "Cron Schedule" "Monitoring not found in crontab"
-        increment_counter "warning"
-    fi
+	# Check if monitoring is configured in cron
+	if crontab -l 2>/dev/null | grep -q "starlink_monitor-rutos.sh"; then
+		show_health_status "healthy" "Cron Schedule" "Monitoring scheduled in crontab"
+		increment_counter "healthy"
+	else
+		show_health_status "warning" "Cron Schedule" "Monitoring not found in crontab"
+		increment_counter "warning"
+	fi
 
-    # Check state files
-    if [ -f "$STATE_DIR/starlink_monitor.state" ]; then
-        state_content=$(cat "$STATE_DIR/starlink_monitor.state" 2>/dev/null || echo "unknown")
-        show_health_status "healthy" "Monitor State" "State: $state_content"
-        increment_counter "healthy"
-    else
-        show_health_status "warning" "Monitor State" "State file not found (monitoring may not have run)"
-        increment_counter "warning"
-    fi
+	# Check state files
+	if [ -f "$STATE_DIR/starlink_monitor.state" ]; then
+		state_content=$(cat "$STATE_DIR/starlink_monitor.state" 2>/dev/null || echo "unknown")
+		show_health_status "healthy" "Monitor State" "State: $state_content"
+		increment_counter "healthy"
+	else
+		show_health_status "warning" "Monitor State" "State file not found (monitoring may not have run)"
+		increment_counter "warning"
+	fi
 
-    # Check for recent monitoring activity
-    if [ -f "$LOG_DIR/starlink_monitor.log" ]; then
-        check_log_freshness "$LOG_DIR/starlink_monitor.log" 30 "Monitor Activity"
-    elif [ -f "$LOG_DIR/starlink_monitor_$(date '+%Y-%m-%d').log" ]; then
-        check_log_freshness "$LOG_DIR/starlink_monitor_$(date '+%Y-%m-%d').log" 30 "Monitor Activity"
-    else
-        show_health_status "warning" "Monitor Activity" "No monitoring log files found"
-        increment_counter "warning"
-    fi
+	# Check for recent monitoring activity
+	if [ -f "$LOG_DIR/starlink_monitor.log" ]; then
+		check_log_freshness "$LOG_DIR/starlink_monitor.log" 30 "Monitor Activity"
+	elif [ -f "$LOG_DIR/starlink_monitor_$(date '+%Y-%m-%d').log" ]; then
+		check_log_freshness "$LOG_DIR/starlink_monitor_$(date '+%Y-%m-%d').log" 30 "Monitor Activity"
+	else
+		show_health_status "warning" "Monitor Activity" "No monitoring log files found"
+		increment_counter "warning"
+	fi
 }
 
 # Function to check system resources
 check_system_resources() {
-    log_step "Checking system resources"
+	log_step "Checking system resources"
 
-    # Check system uptime and load
-    check_system_uptime
+	# Check system uptime and load
+	check_system_uptime
 
-    # Check disk space
-    check_disk_space "/" 80 "Root Filesystem"
-    check_disk_space "$INSTALL_DIR" 80 "Install Directory"
+	# Check disk space
+	check_disk_space "/" 80 "Root Filesystem"
+	check_disk_space "$INSTALL_DIR" 80 "Install Directory"
 
-    # Check memory usage
-    if command -v free >/dev/null 2>&1; then
-        mem_usage=$(free | awk 'NR==2{printf "%.0f", ($3/$2)*100}')
-        if [ "$mem_usage" -gt 80 ]; then
-            show_health_status "warning" "Memory Usage" "${mem_usage}% used (threshold: 80%)"
-            increment_counter "warning"
-        else
-            show_health_status "healthy" "Memory Usage" "${mem_usage}% used"
-            increment_counter "healthy"
-        fi
-    else
-        show_health_status "unknown" "Memory Usage" "free command not available"
-        increment_counter "unknown"
-    fi
+	# Check memory usage
+	if command -v free >/dev/null 2>&1; then
+		mem_usage=$(free | awk 'NR==2{printf "%.0f", ($3/$2)*100}')
+		if [ "$mem_usage" -gt 80 ]; then
+			show_health_status "warning" "Memory Usage" "${mem_usage}% used (threshold: 80%)"
+			increment_counter "warning"
+		else
+			show_health_status "healthy" "Memory Usage" "${mem_usage}% used"
+			increment_counter "healthy"
+		fi
+	else
+		show_health_status "unknown" "Memory Usage" "free command not available"
+		increment_counter "unknown"
+	fi
 }
 
 # Function to run integrated tests
 run_integrated_tests() {
-    log_step "Running integrated tests"
+	log_step "Running integrated tests"
 
-    # Test Pushover notifications
-    if [ -x "$SCRIPT_DIR/test-pushover.sh" ]; then
-        if "$SCRIPT_DIR/test-pushover.sh" --quiet >/dev/null 2>&1; then
-            show_health_status "healthy" "Pushover Test" "Notification test passed"
-            increment_counter "healthy"
-        else
-            show_health_status "warning" "Pushover Test" "Notification test failed (may be disabled)"
-            increment_counter "warning"
-        fi
-    else
-        show_health_status "unknown" "Pushover Test" "test-pushover.sh not found"
-        increment_counter "unknown"
-    fi
+	# Test Pushover notifications
+	if [ -x "$SCRIPT_DIR/test-pushover.sh" ]; then
+		if "$SCRIPT_DIR/test-pushover.sh" --quiet >/dev/null 2>&1; then
+			show_health_status "healthy" "Pushover Test" "Notification test passed"
+			increment_counter "healthy"
+		else
+			show_health_status "warning" "Pushover Test" "Notification test failed (may be disabled)"
+			increment_counter "warning"
+		fi
+	else
+		show_health_status "unknown" "Pushover Test" "test-pushover.sh not found"
+		increment_counter "unknown"
+	fi
 
-    # Test monitoring connectivity
-    if [ -x "$SCRIPT_DIR/test-monitoring.sh" ]; then
-        if "$SCRIPT_DIR/test-monitoring.sh" --quiet >/dev/null 2>&1; then
-            show_health_status "healthy" "Monitoring Test" "Connectivity test passed"
-            increment_counter "healthy"
-        else
-            show_health_status "warning" "Monitoring Test" "Connectivity test failed"
-            increment_counter "warning"
-        fi
-    else
-        show_health_status "unknown" "Monitoring Test" "test-monitoring.sh not found"
-        increment_counter "unknown"
-    fi
+	# Test monitoring connectivity
+	if [ -x "$SCRIPT_DIR/test-monitoring.sh" ]; then
+		if "$SCRIPT_DIR/test-monitoring.sh" --quiet >/dev/null 2>&1; then
+			show_health_status "healthy" "Monitoring Test" "Connectivity test passed"
+			increment_counter "healthy"
+		else
+			show_health_status "warning" "Monitoring Test" "Connectivity test failed"
+			increment_counter "warning"
+		fi
+	else
+		show_health_status "unknown" "Monitoring Test" "test-monitoring.sh not found"
+		increment_counter "unknown"
+	fi
 
-    # Run system status check
-    if [ -x "$SCRIPT_DIR/system-status.sh" ]; then
-        if "$SCRIPT_DIR/system-status.sh" --quiet >/dev/null 2>&1; then
-            show_health_status "healthy" "System Status" "System status check passed"
-            increment_counter "healthy"
-        else
-            show_health_status "warning" "System Status" "System status check failed"
-            increment_counter "warning"
-        fi
-    else
-        show_health_status "unknown" "System Status" "system-status.sh not found"
-        increment_counter "unknown"
-    fi
+	# Run system status check
+	if [ -x "$SCRIPT_DIR/system-status.sh" ]; then
+		if "$SCRIPT_DIR/system-status.sh" --quiet >/dev/null 2>&1; then
+			show_health_status "healthy" "System Status" "System status check passed"
+			increment_counter "healthy"
+		else
+			show_health_status "warning" "System Status" "System status check failed"
+			increment_counter "warning"
+		fi
+	else
+		show_health_status "unknown" "System Status" "system-status.sh not found"
+		increment_counter "unknown"
+	fi
 }
 
 # Function to show final health summary
 show_health_summary() {
-    echo ""
-    printf "%s╔══════════════════════════════════════════════════════════════════════════╗%s\n" "$PURPLE" "$NC"
-    printf "%s║%s                            %sHEALTH CHECK SUMMARY%s                            %s║%s\n" "$PURPLE" "$NC" "$BLUE" "$NC" "$PURPLE" "$NC"
-    printf "%s╚══════════════════════════════════════════════════════════════════════════╝%s\n" "$PURPLE" "$NC"
-    echo ""
+	echo ""
+	printf "%s╔══════════════════════════════════════════════════════════════════════════╗%s\n" "$PURPLE" "$NC"
+	printf "%s║%s                            %sHEALTH CHECK SUMMARY%s                            %s║%s\n" "$PURPLE" "$NC" "$BLUE" "$NC" "$PURPLE" "$NC"
+	printf "%s╚══════════════════════════════════════════════════════════════════════════╝%s\n" "$PURPLE" "$NC"
+	echo ""
 
-    total_checks=$((HEALTHY_COUNT + WARNING_COUNT + CRITICAL_COUNT + UNKNOWN_COUNT))
+	total_checks=$((HEALTHY_COUNT + WARNING_COUNT + CRITICAL_COUNT + UNKNOWN_COUNT))
 
-    printf "%s✅ HEALTHY:   %3d checks%s\n" "$GREEN" "$HEALTHY_COUNT" "$NC"
-    printf "%s⚠️  WARNING:   %3d checks%s\n" "$YELLOW" "$WARNING_COUNT" "$NC"
-    printf "%s❌ CRITICAL:  %3d checks%s\n" "$RED" "$CRITICAL_COUNT" "$NC"
-    printf "%s❓ UNKNOWN:    %3d checks%s\n" "$CYAN" "$UNKNOWN_COUNT" "$NC"
-    printf "%s──────────────────────%s\n" "$PURPLE" "$NC"
-    printf "%s📊 TOTAL:     %3d checks%s\n" "$BLUE" "$total_checks" "$NC"
+	printf "%s✅ HEALTHY:   %3d checks%s\n" "$GREEN" "$HEALTHY_COUNT" "$NC"
+	printf "%s⚠️  WARNING:   %3d checks%s\n" "$YELLOW" "$WARNING_COUNT" "$NC"
+	printf "%s❌ CRITICAL:  %3d checks%s\n" "$RED" "$CRITICAL_COUNT" "$NC"
+	printf "%s❓ UNKNOWN:    %3d checks%s\n" "$CYAN" "$UNKNOWN_COUNT" "$NC"
+	printf "%s──────────────────────%s\n" "$PURPLE" "$NC"
+	printf "%s📊 TOTAL:     %3d checks%s\n" "$BLUE" "$total_checks" "$NC"
 
-    echo ""
+	echo ""
 
-    # Calculate overall health percentage
-    if [ "$total_checks" -gt 0 ]; then
-        health_percentage=$(((HEALTHY_COUNT * 100) / total_checks))
+	# Calculate overall health percentage
+	if [ "$total_checks" -gt 0 ]; then
+		health_percentage=$(((HEALTHY_COUNT * 100) / total_checks))
 
-        if [ "$CRITICAL_COUNT" -gt 0 ]; then
-            printf "%s🚨 OVERALL STATUS: CRITICAL%s\n" "$RED" "$NC"
-            printf "%s   System has critical issues that need immediate attention%s\n" "$RED" "$NC"
-            exit_code=2
-        elif [ "$WARNING_COUNT" -gt 0 ]; then
-            printf "%s⚠️  OVERALL STATUS: WARNING%s\n" "$YELLOW" "$NC"
-            printf "%s   System is functional but has issues that should be addressed%s\n" "$YELLOW" "$NC"
-            exit_code=1
-        else
-            printf "%s🎉 OVERALL STATUS: HEALTHY%s\n" "$GREEN" "$NC"
-            printf "%s   System is operating normally%s\n" "$GREEN" "$NC"
-            exit_code=0
-        fi
+		if [ "$CRITICAL_COUNT" -gt 0 ]; then
+			printf "%s🚨 OVERALL STATUS: CRITICAL%s\n" "$RED" "$NC"
+			printf "%s   System has critical issues that need immediate attention%s\n" "$RED" "$NC"
+			exit_code=2
+		elif [ "$WARNING_COUNT" -gt 0 ]; then
+			printf "%s⚠️  OVERALL STATUS: WARNING%s\n" "$YELLOW" "$NC"
+			printf "%s   System is functional but has issues that should be addressed%s\n" "$YELLOW" "$NC"
+			exit_code=1
+		else
+			printf "%s🎉 OVERALL STATUS: HEALTHY%s\n" "$GREEN" "$NC"
+			printf "%s   System is operating normally%s\n" "$GREEN" "$NC"
+			exit_code=0
+		fi
 
-        printf "%s📈 HEALTH SCORE: %d%%%s\n" "$BLUE" "$health_percentage" "$NC"
-    else
-        printf "%s❌ OVERALL STATUS: NO CHECKS PERFORMED%s\n" "$RED" "$NC"
-        exit_code=3
-    fi
+		printf "%s📈 HEALTH SCORE: %d%%%s\n" "$BLUE" "$health_percentage" "$NC"
+	else
+		printf "%s❌ OVERALL STATUS: NO CHECKS PERFORMED%s\n" "$RED" "$NC"
+		exit_code=3
+	fi
 
-    echo ""
-    printf "%s💡 Recommendations:%s\n" "$CYAN" "$NC"
+	echo ""
+	printf "%s💡 Recommendations:%s\n" "$CYAN" "$NC"
 
-    if [ "$CRITICAL_COUNT" -gt 0 ]; then
-        printf "%s   • Address critical issues immediately%s\n" "$RED" "$NC"
-        printf "%s   • Check connectivity and configuration%s\n" "$RED" "$NC"
-    fi
+	if [ "$CRITICAL_COUNT" -gt 0 ]; then
+		printf "%s   • Address critical issues immediately%s\n" "$RED" "$NC"
+		printf "%s   • Check connectivity and configuration%s\n" "$RED" "$NC"
+	fi
 
-    if [ "$WARNING_COUNT" -gt 0 ]; then
-        printf "%s   • Review warning items when convenient%s\n" "$YELLOW" "$NC"
-        printf "%s   • Consider enabling optional features%s\n" "$YELLOW" "$NC"
-    fi
+	if [ "$WARNING_COUNT" -gt 0 ]; then
+		printf "%s   • Review warning items when convenient%s\n" "$YELLOW" "$NC"
+		printf "%s   • Consider enabling optional features%s\n" "$YELLOW" "$NC"
+	fi
 
-    if [ "$UNKNOWN_COUNT" -gt 0 ]; then
-        printf "%s   • Install missing testing tools%s\n" "$CYAN" "$NC"
-        printf "%s   • Run individual tests for more details%s\n" "$CYAN" "$NC"
-    fi
+	if [ "$UNKNOWN_COUNT" -gt 0 ]; then
+		printf "%s   • Install missing testing tools%s\n" "$CYAN" "$NC"
+		printf "%s   • Run individual tests for more details%s\n" "$CYAN" "$NC"
+	fi
 
-    printf "${BLUE}   • Run 'DEBUG=1 %s' for detailed troubleshooting${NC}\n" "$0"
-    printf "${BLUE}   • Check individual component logs in %s${NC}\n" "$LOG_DIR"
+	printf "${BLUE}   • Run 'DEBUG=1 %s' for detailed troubleshooting${NC}\n" "$0"
+	printf "${BLUE}   • Check individual component logs in %s${NC}\n" "$LOG_DIR"
 
-    echo ""
-    return $exit_code
+	echo ""
+	return $exit_code
 }
 
 # Function to show usage
 show_usage() {
-    echo "Usage: $0 [options]"
-    echo ""
-    echo "Options:"
-    echo "  -h, --help         Show this help message"
-    echo "  --version          Show script version"
-    echo "  --quick            Run quick health check (skip tests)"
-    echo "  --full             Run full health check (default)"
-    echo "  --connectivity     Check connectivity only"
-    echo "  --monitoring       Check monitoring system only"
-    echo "  --config           Check configuration only"
-    echo "  --resources        Check system resources only"
-    echo ""
-    echo "Environment variables:"
-    echo "  DEBUG=1            Enable detailed debug output"
-    echo ""
-    echo "Description:"
-    echo "  This script provides a comprehensive health check of the Starlink"
-    echo "  monitoring system by orchestrating all other test scripts and"
-    echo "  checking system components for proper operation."
-    echo ""
-    echo "Examples:"
-    echo "  $0                 # Full health check"
-    echo "  $0 --quick         # Quick health check"
-    echo "  $0 --connectivity  # Check connectivity only"
-    echo "  DEBUG=1 $0         # Full health check with debug output"
-    echo ""
-    echo "Exit codes:"
-    echo "  0  - All healthy"
-    echo "  1  - Warnings found"
-    echo "  2  - Critical issues found"
-    echo "  3  - No checks performed"
+	echo "Usage: $0 [options]"
+	echo ""
+	echo "Options:"
+	echo "  -h, --help         Show this help message"
+	echo "  --version          Show script version"
+	echo "  --quick            Run quick health check (skip tests)"
+	echo "  --full             Run full health check (default)"
+	echo "  --connectivity     Check connectivity only"
+	echo "  --monitoring       Check monitoring system only"
+	echo "  --config           Check configuration only"
+	echo "  --resources        Check system resources only"
+	echo ""
+	echo "Environment variables:"
+	echo "  DEBUG=1            Enable detailed debug output"
+	echo ""
+	echo "Description:"
+	echo "  This script provides a comprehensive health check of the Starlink"
+	echo "  monitoring system by orchestrating all other test scripts and"
+	echo "  checking system components for proper operation."
+	echo ""
+	echo "Examples:"
+	echo "  $0                 # Full health check"
+	echo "  $0 --quick         # Quick health check"
+	echo "  $0 --connectivity  # Check connectivity only"
+	echo "  DEBUG=1 $0         # Full health check with debug output"
+	echo ""
+	echo "Exit codes:"
+	echo "  0  - All healthy"
+	echo "  1  - Warnings found"
+	echo "  2  - Critical issues found"
+	echo "  3  - No checks performed"
 }
 
 # Main function
 main() {
-    log_info "Starting comprehensive health check v$SCRIPT_VERSION"
+	log_info "Starting comprehensive health check v$SCRIPT_VERSION"
 
-    # Validate environment
-    if [ ! -f "/etc/openwrt_release" ]; then
-        log_error "This script is designed for OpenWrt/RUTOS systems"
-        exit 1
-    fi
+	# Validate environment
+	if [ ! -f "/etc/openwrt_release" ]; then
+		log_error "This script is designed for OpenWrt/RUTOS systems"
+		exit 1
+	fi
 
-    # Check if installation exists
-    if [ ! -d "$INSTALL_DIR" ]; then
-        log_error "Starlink Monitor installation not found at $INSTALL_DIR"
-        log_error "Please run the installation script first"
-        exit 1
-    fi
+	# Check if installation exists
+	if [ ! -d "$INSTALL_DIR" ]; then
+		log_error "Starlink Monitor installation not found at $INSTALL_DIR"
+		log_error "Please run the installation script first"
+		exit 1
+	fi
 
-    # Parse command line arguments
-    run_mode="${1:-full}"
+	# Parse command line arguments
+	run_mode="${1:-full}"
 
-    echo ""
-    printf "%s╔══════════════════════════════════════════════════════════════════════════╗%s\n" "$PURPLE" "$NC"
-    printf "%s║%s                    %sSTARLINK MONITOR HEALTH CHECK%s                     %s║%s\n" "$PURPLE" "$NC" "$BLUE" "$NC" "$PURPLE" "$NC"
-    printf "%s║%s                           %sVersion %s%s                            %s║%s\n" "$PURPLE" "$NC" "$CYAN" "$SCRIPT_VERSION" "$NC" "$PURPLE" "$NC"
-    printf "%s╚══════════════════════════════════════════════════════════════════════════╝%s\n" "$PURPLE" "$NC"
-    echo ""
+	echo ""
+	printf "%s╔══════════════════════════════════════════════════════════════════════════╗%s\n" "$PURPLE" "$NC"
+	printf "%s║%s                    %sSTARLINK MONITOR HEALTH CHECK%s                     %s║%s\n" "$PURPLE" "$NC" "$BLUE" "$NC" "$PURPLE" "$NC"
+	printf "%s║%s                           %sVersion %s%s                            %s║%s\n" "$PURPLE" "$NC" "$CYAN" "$SCRIPT_VERSION" "$NC" "$PURPLE" "$NC"
+	printf "%s╚══════════════════════════════════════════════════════════════════════════╝%s\n" "$PURPLE" "$NC"
+	echo ""
 
-    printf "%s%-15s | %-25s | %s%s\n" "$BLUE" "STATUS" "COMPONENT" "DETAILS" "$NC"
-    printf "%s%-15s | %-25s | %s%s\n" "$BLUE" "===============" "=========================" "================================" "$NC"
+	printf "%s%-15s | %-25s | %s%s\n" "$BLUE" "STATUS" "COMPONENT" "DETAILS" "$NC"
+	printf "%s%-15s | %-25s | %s%s\n" "$BLUE" "===============" "=========================" "================================" "$NC"
 
-    # Run health checks based on mode
-    case "$run_mode" in
-        "--quick")
-            check_system_resources
-            check_configuration_health
-            check_monitoring_health
-            ;;
-        "--connectivity")
-            check_network_connectivity
-            check_starlink_connectivity
-            ;;
-        "--monitoring")
-            check_monitoring_health
-            ;;
-        "--config")
-            check_configuration_health
-            ;;
-        "--resources")
-            check_system_resources
-            ;;
-        "--full" | *)
-            check_system_resources
-            check_network_connectivity
-            check_starlink_connectivity
-            check_configuration_health
-            check_monitoring_health
-            run_integrated_tests
-            ;;
-    esac
+	# Run health checks based on mode
+	case "$run_mode" in
+	"--quick")
+		check_system_resources
+		check_configuration_health
+		check_monitoring_health
+		;;
+	"--connectivity")
+		check_network_connectivity
+		check_starlink_connectivity
+		;;
+	"--monitoring")
+		check_monitoring_health
+		;;
+	"--config")
+		check_configuration_health
+		;;
+	"--resources")
+		check_system_resources
+		;;
+	"--full" | *)
+		check_system_resources
+		check_network_connectivity
+		check_starlink_connectivity
+		check_configuration_health
+		check_monitoring_health
+		run_integrated_tests
+		;;
+	esac
 
-    # Show final summary
-    show_health_summary
+	# Show final summary
+	show_health_summary
 }
 
 # Handle command line arguments
 case "${1:-}" in
-    --help | -h)
-        show_usage
-        exit 0
-        ;;
-    --version)
-        echo "$SCRIPT_VERSION"
-        exit 0
-        ;;
-    *)
-        # Run main function
-        main "$@"
-        ;;
+--help | -h)
+	show_usage
+	exit 0
+	;;
+--version)
+	echo "$SCRIPT_VERSION"
+	exit 0
+	;;
+*)
+	# Run main function
+	main "$@"
+	;;
 esac

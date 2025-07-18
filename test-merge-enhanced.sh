@@ -50,9 +50,9 @@ echo ""
 
 echo "=== RUNNING MERGE ==="
 ./scripts/merge-config.sh \
-    /tmp/merge-test/config.template.sh \
-    /tmp/merge-test/config.sh \
-    /tmp/merge-test/config.sh
+	/tmp/merge-test/config.template.sh \
+	/tmp/merge-test/config.sh \
+	/tmp/merge-test/config.sh
 
 echo ""
 echo "=== AFTER MERGE ==="

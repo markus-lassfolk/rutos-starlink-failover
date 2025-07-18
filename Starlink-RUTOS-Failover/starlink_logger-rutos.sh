@@ -46,8 +46,8 @@ JQ_CMD="jq"
 
 # --- Helper Functions ---
 log() {
-    # Use -- to prevent messages starting with - from being treated as options
-    logger -t "$LOG_TAG" -- "$1"
+	# Use -- to prevent messages starting with - from being treated as options
+	logger -t "$LOG_TAG" -- "$1"
 }
 
 # --- Main Script ---
@@ -60,8 +60,8 @@ history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$ST
 
 # Exit gracefully if the API is unreachable (e.g., dish is powered off).
 if [ -z "$status_data" ] || [ -z "$history_data" ]; then
-    log "ERROR: Failed to get data from API. Dish may be offline. Skipping run."
-    exit 0
+	log "ERROR: Failed to get data from API. Dish may be offline. Skipping run."
+	exit 0
 fi
 
 # --- Data Processing ---
@@ -72,8 +72,8 @@ last_sample_index=$(cat "$LAST_SAMPLE_FILE" 2>/dev/null || echo "$((current_samp
 
 # If the current index isn't greater than the last one, there's nothing new to log.
 if [ "$current_sample_index" -le "$last_sample_index" ]; then
-    log "INFO: No new data samples to log. Finishing run."
-    exit 0
+	log "INFO: No new data samples to log. Finishing run."
+	exit 0
 fi
 
 log "INFO: Processing samples from index $last_sample_index to $current_sample_index."
@@ -88,7 +88,7 @@ now_seconds=$(date +%s)
 
 # Create the CSV file with a header row if it doesn't already exist.
 if [ ! -f "$OUTPUT_CSV" ]; then
-    echo "Timestamp,Latency (ms),Packet Loss (%),Obstruction (%)" >"$OUTPUT_CSV"
+	echo "Timestamp,Latency (ms),Packet Loss (%),Obstruction (%)" >"$OUTPUT_CSV"
 fi
 
 # --- Loop and Log ---
@@ -96,24 +96,24 @@ fi
 new_sample_count=$((current_sample_index - last_sample_index))
 i=0
 while [ "$i" -lt "$new_sample_count" ]; do
-    # The API provides samples in chronological order. We work backwards from the
-    # current time to assign an approximate but accurate timestamp to each sample.
-    sample_timestamp=$((now_seconds - (new_sample_count - 1 - i)))
-    human_readable_timestamp=$(date -d "@$sample_timestamp" '+%Y-%m-%d %H:%M:%S')
+	# The API provides samples in chronological order. We work backwards from the
+	# current time to assign an approximate but accurate timestamp to each sample.
+	sample_timestamp=$((now_seconds - (new_sample_count - 1 - i)))
+	human_readable_timestamp=$(date -d "@$sample_timestamp" '+%Y-%m-%d %H:%M:%S')
 
-    # Extract the specific latency and loss for this sample from the arrays.
-    # We use jq's --argjson flag to safely pass shell variables into the jq script.
-    latency=$(echo "$latency_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4count - 4i)] // 0" | cut -d'.' -f1)
-    loss=$(echo "$loss_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4count - 4i)] // 0")
+	# Extract the specific latency and loss for this sample from the arrays.
+	# We use jq's --argjson flag to safely pass shell variables into the jq script.
+	latency=$(echo "$latency_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4count - 4i)] // 0" | cut -d'.' -f1)
+	loss=$(echo "$loss_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4count - 4i)] // 0")
 
-    # Convert loss and obstruction ratios to percentages for easier analysis in spreadsheets.
-    loss_pct=$(awk -v val="$loss" 'BEGIN { printf "%.2f", val * 100 }')
-    obstruction_pct=$(awk -v val="$obstruction" 'BEGIN { printf "%.2f", val * 100 }')
+	# Convert loss and obstruction ratios to percentages for easier analysis in spreadsheets.
+	loss_pct=$(awk -v val="$loss" 'BEGIN { printf "%.2f", val * 100 }')
+	obstruction_pct=$(awk -v val="$obstruction" 'BEGIN { printf "%.2f", val * 100 }')
 
-    # Append the formatted data as a new line in the CSV file.
-    echo "$human_readable_timestamp,$latency,$loss_pct,$obstruction_pct" >>"$OUTPUT_CSV"
+	# Append the formatted data as a new line in the CSV file.
+	echo "$human_readable_timestamp,$latency,$loss_pct,$obstruction_pct" >>"$OUTPUT_CSV"
 
-    i=$((i + 1))
+	i=$((i + 1))
 done
 
 # Save the latest processed index so we know where to start on the next run.

@@ -27,7 +27,7 @@ jobs:
       
       - name: Convert Copilot draft PRs to ready when work is complete
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
         run: |
           set -e
           
@@ -51,6 +51,20 @@ jobs:
           else
             echo "✗ GitHub CLI authentication failed"
             exit 1
+          fi
+          
+          # Test token permissions for PR operations
+          echo "=== TESTING TOKEN PERMISSIONS ==="
+          echo "Testing repository access permissions..."
+          repo_perms=$(gh api /repos/${{ github.repository }} --jq '.permissions // "unknown"')
+          echo "Repository permissions: $repo_perms"
+          
+          # Test if we can access GraphQL API for PR operations
+          echo "Testing GraphQL access for PR operations..."
+          if gh api graphql --field query='{ viewer { login } }' --jq '.data.viewer.login' > /dev/null 2>&1; then
+            echo "✓ GraphQL API access successful"
+          else
+            echo "✗ GraphQL API access failed - may need different token"
           fi
           
           # Test basic gh CLI functionality
