@@ -56,6 +56,12 @@
 #>
 
 [CmdletBinding()]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'TestMode', Justification = 'Reserved for future test functionality')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'SkipValidation', Justification = 'Reserved for future validation skip functionality')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'ForceReprocessing', Justification = 'Reserved for future force reprocessing functionality')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'TargetFile', Justification = 'Reserved for future single file targeting functionality')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'MinIssuesPerFile', Justification = 'Reserved for future minimum issue threshold functionality')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'SortByPriority', Justification = 'Reserved for future priority sorting functionality')]
 param(
     [switch]$Production = $false,
     [int]$MaxIssues = 3,
@@ -107,7 +113,6 @@ $PURPLE = [ConsoleColor]::Magenta
 function Write-StatusMessage {
     param(
         [string]$Message,
-        [ConsoleColor]$Color = [ConsoleColor]::White,
         [string]$Level = "INFO"
     )
 
@@ -208,7 +213,7 @@ function Add-CollectedError {
 }
 
 # Display comprehensive error report
-function Show-CollectedErrors {
+function Show-CollectedError {
     if ($script:ScriptState.CollectedErrors.Count -eq 0) {
         Write-StatusMessage "✅ No errors collected during execution" -Color $GREEN
         return
@@ -259,13 +264,13 @@ function Invoke-ValidationOnFile {
         $validationCmd = "wsl bash -c `"cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$FilePath'`""
         Write-DebugMessage "Executing: $validationCmd"
 
-        $validationOutput = Start-Process "wsl" -ArgumentList @("bash", "-c", "cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '"$FilePath"'") -Wait -PassThru -RedirectStandardOutput -RedirectStandardError -NoNewWindow | ForEach-Object { $_.StandardOutput.ReadToEnd() + $_.StandardError.ReadToEnd() } 2>&1
-        $exitCode = $LASTEXITCODE
-
+        $processInfo = Start-Process -FilePath "wsl" -ArgumentList @("bash", "-c", "cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$FilePath'") -Wait -PassThru -RedirectStandardOutput -RedirectStandardError -NoNewWindow
+        $validationOutput = $processInfo.StandardOutput.ReadToEnd() + $processInfo.StandardError.ReadToEnd()
+        $exitCode = $processInfo.ExitCode
         Write-DebugMessage "Validation exit code: $exitCode"
 
         # Parse the validation output to extract issues
-        $issues = Parse-ValidationOutput -Output $validationOutput -FilePath $FilePath
+        $issues = ConvertFrom-ValidationOutput -Output $validationOutput -FilePath $FilePath
 
         return @{
             Success = $exitCode -eq 0
@@ -285,7 +290,7 @@ function Invoke-ValidationOnFile {
 }
 
 # Parse validation output for a specific file
-function Parse-ValidationOutput {
+function ConvertFrom-ValidationOutput {
     param(
         [string[]]$Output,
         [string]$FilePath
@@ -534,14 +539,17 @@ These issues represent best practices and portability improvements:
         $tempFile = [System.IO.Path]::GetTempFileName()
         $issueBody | Out-File -FilePath $tempFile -Encoding UTF8
 
-        # Build GitHub CLI command
-        $labelArgs = ($labels | ForEach-Object { "-l `"$_`"" }) -join " "
-        $ghCommand = "gh issue create -t `"$issueTitle`" -F `"$tempFile`" $labelArgs"
+        # Build GitHub CLI arguments safely
+        $ghArgs = @(
+            "issue", "create",
+            "-t", $issueTitle,
+            "-F", $tempFile
+        )
+        foreach ($label in $labels) {
+            $ghArgs += @("-l", $label)
+        }
 
-        Write-DebugMessage "Executing: $ghCommand"
-
-        # Execute GitHub CLI command
-        $result = & gh @ghArgs
+        Write-DebugMessage "Executing gh with arguments: $($ghArgs -join ' ')"
         Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
 
         if ($LASTEXITCODE -eq 0) {
@@ -729,7 +737,7 @@ function Start-OptimizedIssueCreation {
 
     # Show any collected errors
     if ($script:ScriptState.CollectedErrors.Count -gt 0) {
-        Show-CollectedErrors
+        Show-CollectedError
     } else {
         Write-SuccessMessage "✅ No errors encountered during processing"
     }
@@ -875,7 +883,7 @@ function Add-CollectedError {
 }
 
 # Display comprehensive error report
-function Show-CollectedErrors {
+function Show-CollectedError {
     if ($script:ScriptState.CollectedErrors.Count -eq 0) {
         Write-StatusMessage "✅ No errors collected during execution" -Color $GREEN
         return
@@ -972,7 +980,7 @@ function Add-CollectedError {
 }
 
 # Display comprehensive error report
-function Show-CollectedErrors {
+function Show-CollectedError {
     if ($script:ScriptState.CollectedErrors.Count -eq 0) {
         Write-StatusMessage "✅ No errors collected during execution" -Color $GREEN
         return
@@ -1014,7 +1022,7 @@ function Show-CollectedErrors {
 }
 
 # Load and save state for preventing infinite loops
-function Load-IssueState {
+function Import-IssueState {
     Write-DebugMessage "Loading issue state from: $STATE_FILE"
 
     if (Test-Path $STATE_FILE) {
@@ -1029,7 +1037,7 @@ function Load-IssueState {
             Write-DebugMessage "Loaded state for $($script:ScriptState.IssueState.Count) files"
             return $true
         } catch {
-            Add-CollectedError -ErrorMessage "Failed to load state file: $($_.Exception.Message)" -FunctionName "Load-IssueState" -Exception $_.Exception -Context "Loading issue state from $STATE_FILE" -AdditionalInfo @{StateFile = $STATE_FILE}
+            Add-CollectedError -ErrorMessage "Failed to load state file: $($_.Exception.Message)" -FunctionName "Import-IssueState" -Exception $_.Exception -Context "Loading issue state from $STATE_FILE" -AdditionalInfo @{StateFile = $STATE_FILE}
             $script:ScriptState.IssueState = @{}
             return $false
         }
@@ -1070,13 +1078,13 @@ function Invoke-ValidationOnFile {
         $validationCmd = "wsl bash -c `"cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$FilePath'`""
         Write-DebugMessage "Executing: $validationCmd"
 
-        $validationOutput = Start-Process "wsl" -ArgumentList @("bash", "-c", "cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '"$FilePath"'") -Wait -PassThru -RedirectStandardOutput -RedirectStandardError -NoNewWindow | ForEach-Object { $_.StandardOutput.ReadToEnd() + $_.StandardError.ReadToEnd() } 2>&1
-        $exitCode = $LASTEXITCODE
-
+        $processInfo = Start-Process -FilePath "wsl" -ArgumentList @("bash", "-c", "cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$FilePath'") -Wait -PassThru -RedirectStandardOutput -RedirectStandardError -NoNewWindow
+        $validationOutput = $processInfo.StandardOutput.ReadToEnd() + $processInfo.StandardError.ReadToEnd()
+        $exitCode = $processInfo.ExitCode
         Write-DebugMessage "Validation exit code: $exitCode"
 
         # Parse the validation output to extract issues
-        $issues = Parse-ValidationOutput -Output $validationOutput -FilePath $FilePath
+        $issues = ConvertFrom-ValidationOutput -Output $validationOutput -FilePath $FilePath
 
         return @{
             Success = $exitCode -eq 0
@@ -1096,7 +1104,7 @@ function Invoke-ValidationOnFile {
 }
 
 # Parse validation output for a specific file
-function Parse-ValidationOutput {
+function ConvertFrom-ValidationOutput {
     param(
         [string[]]$Output,
         [string]$FilePath
@@ -1357,14 +1365,17 @@ These issues represent best practices and portability improvements:
         $tempFile = [System.IO.Path]::GetTempFileName()
         $issueBody | Out-File -FilePath $tempFile -Encoding UTF8
 
-        # Build GitHub CLI command
-        $labelArgs = ($labels | ForEach-Object { "-l `"$_`"" }) -join " "
-        $ghCommand = "gh issue create -t `"$issueTitle`" -F `"$tempFile`" $labelArgs"
+        # Build GitHub CLI arguments safely
+        $ghArgs = @(
+            "issue", "create",
+            "-t", $issueTitle,
+            "-F", $tempFile
+        )
+        foreach ($label in $labels) {
+            $ghArgs += @("-l", $label)
+        }
 
-        Write-DebugMessage "Executing: $ghCommand"
-
-        # Execute GitHub CLI command
-        $result = & gh @ghArgs
+        Write-DebugMessage "Executing gh with arguments: $($ghArgs -join ' ')"
         Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
 
         if ($LASTEXITCODE -eq 0) {
@@ -1435,7 +1446,7 @@ function Set-CopilotAssignment {
     }
 }
 
-function Get-RelevantFiles {
+function Get-RelevantFile {
     Write-ColorMessage "🔍 Scanning for relevant files..." $BLUE
 
     # Get all shell script files
@@ -1458,7 +1469,7 @@ function Get-RelevantFiles {
     return $allFiles
 }
 
-function Test-FileHasValidationIssues {
+function Test-FileHasValidationIssue {
     param([string]$FilePath)
 
     Write-DebugMessage "Testing file: $FilePath"
@@ -1477,7 +1488,7 @@ function Test-FileHasValidationIssues {
     return $false
 }
 
-function Get-FileValidationDetails {
+function Get-FileValidationDetail {
     param([string]$FilePath)
 
     Write-DebugMessage "Getting detailed validation for: $FilePath"
@@ -1517,7 +1528,7 @@ function Get-FileValidationDetails {
     }
 }
 
-function Test-IssueExists {
+function Test-IssueExist {
     param([string]$FilePath)
 
     $fileName = Split-Path $FilePath -Leaf
@@ -1732,7 +1743,7 @@ Write-ColorMessage "   Priority Filter: $PriorityFilter" $CYAN
 Write-ColorMessage "   Debug Mode: $Debug" $CYAN
 
 # Step 1: Get all relevant files
-$allFiles = Get-RelevantFiles
+$allFiles = Get-RelevantFile
 
 # Step 2: Process files one by one
 $processedFiles = @()
@@ -1751,16 +1762,16 @@ foreach ($file in $allFiles) {
     }
 
     # Check if issue already exists
-    if (Test-IssueExists -FilePath $file.FullName) {
+    if (Test-IssueExist -FilePath $file.FullName) {
         Write-ColorMessage "⏭️  Skipping $($file.Name) - issue already exists" $GRAY
         $skippedFiles += $file
         continue
     }
 
     # Test if file has validation issues
-    if (Test-FileHasValidationIssues -FilePath $file.FullName) {
+    if (Test-FileHasValidationIssue -FilePath $file.FullName) {
         # Get detailed validation results
-        $validationResult = Get-FileValidationDetails -FilePath $file.FullName
+        $validationResult = Get-FileValidationDetail -FilePath $file.FullName
         $processedFiles += $validationResult
 
         # Check if we should process this file based on priority filter
