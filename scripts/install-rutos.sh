@@ -511,7 +511,7 @@ install_config() {
         # Create backup first
         backup_file="$INSTALL_DIR/config/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$INSTALL_DIR/config/config.sh" "$backup_file"
-        
+
         # Try to use merge script first
         merge_success=false
         if [ -f "$INSTALL_DIR/scripts/merge-config-rutos.sh" ]; then
@@ -520,15 +520,15 @@ install_config() {
                 print_status "$GREEN" "✓ Configuration merged successfully using merge script"
             fi
         fi
-        
+
         # If merge script failed or doesn't exist, do manual merge
         if [ "$merge_success" = "false" ]; then
             print_status "$BLUE" "Performing manual configuration merge..."
-            
+
             # Extract user settings from existing config
             temp_config="/tmp/config_merge.tmp"
             cp "$INSTALL_DIR/config/config.template.sh" "$temp_config"
-            
+
             # Preserve critical user settings by extracting from backup
             for setting in STARLINK_IP MWAN_IFACE MWAN_MEMBER PUSHOVER_TOKEN PUSHOVER_USER RUTOS_USERNAME RUTOS_PASSWORD RUTOS_IP; do
                 if grep -q "^${setting}=" "$backup_file" 2>/dev/null; then
@@ -538,13 +538,13 @@ install_config() {
                         if grep -q "^${setting}=" "$temp_config"; then
                             sed -i "s|^${setting}=.*|${user_value}|" "$temp_config"
                         else
-                            echo "$user_value" >> "$temp_config"
+                            echo "$user_value" >>"$temp_config"
                         fi
                         debug_msg "Preserved setting: $setting"
                     fi
                 fi
             done
-            
+
             # Replace config with merged version
             mv "$temp_config" "$INSTALL_DIR/config/config.sh"
             print_status "$GREEN" "✓ Configuration merged manually - user settings preserved"
