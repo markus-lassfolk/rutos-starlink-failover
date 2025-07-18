@@ -141,7 +141,7 @@ code fixes.
 
 ### File Structure
 
-```
+```text
 automation/
 ├── Create-RUTOS-PRs.ps1      # Main automation script
 ├── README.md                 # This documentation
@@ -182,4 +182,4 @@ gh issue list --label rutos-compatibility
 - 📈 **Scalable**: Handles multiple fixes simultaneously
 - 🛡️ **Robust**: Comprehensive error handling and recovery
 
-**Enhanced PowerShell automation v2.0 - Fully autonomous RUTOS compatibility management**
+## Enhanced PowerShell automation v2.0 - Fully autonomous RUTOS compatibility management
