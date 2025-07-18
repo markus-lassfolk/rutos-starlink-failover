@@ -181,6 +181,7 @@ uci commit azure
    ```
 
 4. **Starlink API Issues**
+
    ```bash
    # Test Starlink gRPC
    /root/grpcurl -plaintext -d '{"get_status": {}}' \
@@ -199,7 +200,7 @@ Check these locations for troubleshooting:
 
 ## File Structure
 
-```
+```text
 /root/
 ├── unified-azure-setup.sh          # Main installation script
 ├── verify-azure-setup.sh           # Comprehensive verification script
@@ -218,7 +219,7 @@ Check these locations for troubleshooting:
 
 1. Run verification weekly: `crontab -e` and add:
 
-   ```
+   ```shell
    0 2 * * 0 /root/verify-azure-setup.sh > /tmp/weekly-verification.log 2>&1
    ```
 
