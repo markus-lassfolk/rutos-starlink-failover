@@ -35,16 +35,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🔍 Checking draft PRs..."
-          PRS=$(gh pr list --repo ${{ github.repository }} --state open \
-            --json number,isDraft,headRefName \
-            --jq '.[] | select(.isDraft==true) | .number')
+          echo "🔍 Checking draft PRs (API-only)..."
+          PRS=$(gh api repos/${{ github.repository }}/pulls \
+            --jq '.[] | select(.draft==true) | .number')
+
           for PR in $PRS; do
             echo "Checking PR #$PR"
-            LAST_COMMIT=$(gh pr view $PR --repo ${{ github.repository }} \
-              --json commits --jq '.commits[-1].committedDate')
+            LAST_COMMIT=$(gh api repos/${{ github.repository }}/pulls/$PR/commits \
+              --jq '.[-1].commit.committer.date')
+
             MINUTES=$(( ( $(date +%s) - $(date -d "$LAST_COMMIT" +%s) ) / 60 ))
             echo "⏳ Last commit was $MINUTES minutes ago"
+
             if [ $MINUTES -ge 30 ]; then
               echo "✅ Marking PR #$PR ready for review"
               gh pr ready $PR --repo ${{ github.repository }}
@@ -61,6 +63,7 @@ jobs:
           echo "🔄 Checking for workflow runs needing approval..."
           RUNS=$(gh run list --repo ${{ github.repository }} \
             --json databaseId,status --jq '.[] | select(.status=="waiting") | .databaseId')
+
           for RUN_ID in $RUNS; do
             echo "✅ Approving workflow run $RUN_ID"
             gh api --method POST repos/${{ github.repository }}/actions/runs/$RUN_ID/approve
@@ -75,9 +78,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "🔍 Checking for merge conflicts..."
-          MERGEABLE=$(gh pr view ${{ github.event.number }} \
-            --repo ${{ github.repository }} \
-            --json mergeable --jq '.mergeable')
+          MERGEABLE=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} \
+            --jq '.mergeable')
+
           if [ "$MERGEABLE" = "false" ]; then
             echo "⚠️ Conflicts detected! Asking Copilot SWE Agent to resolve..."
             gh pr comment ${{ github.event.number }} \
@@ -110,4 +113,3 @@ jobs:
           echo "✅ Attempting to merge PR #${{ github.event.number }}"
           gh pr merge ${{ github.event.number }} \
             --repo ${{ github.repository }} --auto --merge
-
