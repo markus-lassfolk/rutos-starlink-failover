@@ -1,47 +1,47 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 
 <#
 .SYNOPSIS
     Enhanced RUTOS Copilot Issue Creation with Intelligent Label Assignment
-    
+
 .DESCRIPTION
     This is an enhanced version of create-copilot-issues.ps1 that uses the comprehensive
     labeling system to intelligently assign labels based on issue types, severity,
     and characteristics.
-    
+
 .PARAMETER TestMode
     Run in test mode without creating actual issues
-    
+
 .PARAMETER DryRun
     Show what would be done without making changes (DEFAULT: enabled for safety)
-    
+
 .PARAMETER MaxIssuesPerRun
     Maximum number of issues to create in a single run (DEFAULT: 3 for safety)
-    
+
 .PARAMETER Production
     Enable production mode (disables DryRun safety default)
-    
+
 .PARAMETER SkipValidation
     Skip the initial validation step (for testing)
-    
+
 .PARAMETER DebugMode
     Enable detailed debug logging
-    
+
 .PARAMETER ForceReprocessing
     Force reprocessing of previously handled files
-    
+
 .PARAMETER TargetFile
     Process only a specific file (for testing)
-    
+
 .PARAMETER PriorityFilter
     Filter issues by priority: All, Critical, Major, Minor (default: All)
-    
+
 .PARAMETER MinIssuesPerFile
     Skip files with fewer than this many issues (default: 1)
-    
+
 .PARAMETER SortByPriority
     Process files with critical issues first, then major, then minor
-    
+
 .EXAMPLE
     .\create-copilot-issues-enhanced.ps1 -Production -DebugMode
     Run in production mode with detailed label assignment logging
@@ -51,12 +51,16 @@
 param(
     [switch]$TestMode,
     [switch]$DryRun,                   # Enable dry run mode for safety
+    [ValidateRange(1, 100)]
     [int]$MaxIssuesPerRun = 3,         # DEFAULT: Maximum 3 issues for testing
     [switch]$SkipValidation,
     [switch]$DebugMode,
     [switch]$ForceReprocessing,
+    [ValidateScript({$_ -eq "" -or (Test-Path $_ -PathType Leaf)})]
     [string]$TargetFile = "",
+    [ValidateSet("All", "Critical", "Major", "Minor")]
     [string]$PriorityFilter = "All",  # All, Critical, Major, Minor
+    [ValidateRange(1, 50)]
     [int]$MinIssuesPerFile = 1,       # Skip files with fewer issues
     [switch]$SortByPriority,          # Process critical issues first
     [switch]$Production               # Enable production mode (disables DryRun)
@@ -65,29 +69,33 @@ param(
 # Production mode override - if -Production is specified, disable dry run
 if ($Production) {
     $DryRun = $false
-    Write-Host "🚀 Production mode enabled - DryRun disabled" -ForegroundColor Green
+    Write-Output "🚀 Production mode enabled - DryRun disabled"
 } else {
     # Enable dry run by default for safety
     if (-not $PSBoundParameters.ContainsKey('DryRun')) {
         $DryRun = $true
     }
-    Write-Host "🛡️  Safety mode enabled - DryRun=$DryRun, MaxIssues=$MaxIssuesPerRun" -ForegroundColor Yellow
+    Write-Output "🛡️  Safety mode enabled - DryRun=$DryRun, MaxIssues=$MaxIssuesPerRun"
 }
 
 # Enhanced label assignment function based on issue analysis
-function Get-IntelligentLabels {
+function Get-IntelligentLabel {
     param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [string]$FilePath,
+        [Parameter(Mandatory)]
+        [ValidateNotNull()]
         [array]$Issues
     )
-    
+
     $labels = @()
-    
+
     # Classify issues
     $criticalIssues = $Issues | Where-Object { $_.Type -eq "Critical" -or $_.Type -eq "Error" }
     $majorIssues = $Issues | Where-Object { $_.Type -eq "Major" }
     $minorIssues = $Issues | Where-Object { $_.Type -eq "Minor" -or $_.Type -eq "ShellCheck" }
-    
+
     # Priority labels based on highest severity present
     if ($criticalIssues.Count -gt 0) {
         $labels += "priority-critical"
@@ -96,7 +104,7 @@ function Get-IntelligentLabels {
     } else {
         $labels += "priority-minor"
     }
-    
+
     # Critical issue type labels
     foreach ($issue in $criticalIssues) {
         if ($issue.Line -match "local\s+\w+") {
@@ -115,10 +123,10 @@ function Get-IntelligentLabels {
             $labels += "critical-busybox-incompatible"
         }
     }
-    
+
     # Specific issue type labels
     $issueText = ($Issues | ForEach-Object { $_.Line }) -join " "
-    
+
     if ($issueText -match "echo\s+-e") {
         $labels += "type-echo-dash-e"
     }
@@ -140,14 +148,14 @@ function Get-IntelligentLabels {
     if ($issueText -match "set\s+-o\s+pipefail") {
         $labels += "type-pipefail"
     }
-    
+
     # Core system labels
     $labels += "rutos-compatibility"
     $labels += "copilot-fix"
     $labels += "automated"
     $labels += "autonomous-system"
     $labels += "monitoring-system"
-    
+
     # File type and scope labels
     if ($FilePath -match "\.sh$") {
         $labels += "shell-script"
@@ -171,34 +179,34 @@ function Get-IntelligentLabels {
     if ($FilePath -match "pushover") {
         $labels += "pushover-notifications"
     }
-    
+
     # Validation and compliance labels
     $labels += "posix-compliance"
     $labels += "busybox-compatibility"
     $labels += "shellcheck-issues"
-    
+
     # Add fix type labels
     if ($criticalIssues.Count -gt 0) {
         $labels += "auto-fix-needed"
     } else {
         $labels += "manual-fix-needed"
     }
-    
+
     # Scope control
     $labels += "scope-single-file"
     $labels += "scope-validated"
-    
+
     # Progress tracking
     $labels += "attempt-1"
     $labels += "created-today"
     $labels += "waiting-for-copilot"
-    
+
     # Detection method
     $labels += "detected-by-validation"
     if ($minorIssues.Count -gt 0) {
         $labels += "detected-by-shellcheck"
     }
-    
+
     # Impact assessment
     if ($criticalIssues.Count -gt 0) {
         $labels += "impact-high"
@@ -207,50 +215,54 @@ function Get-IntelligentLabels {
     } else {
         $labels += "impact-low"
     }
-    
+
     # Workflow status
     $labels += "workflow-pending"
     $labels += "validation-pending"
-    
+
     # Cost optimization
     $labels += "cost-optimized"
     $labels += "anti-loop-protection"
-    
+
     # Remove duplicates and sort
     $labels = $labels | Sort-Object -Unique
-    
+
     if ($DebugMode) {
-        Write-Host "🏷️  Intelligent Labels for $FilePath ($($Issues.Count) issues):" -ForegroundColor Cyan
-        Write-Host "   Priority: $($labels | Where-Object { $_ -match '^priority-' } | Join-String -Separator ', ')" -ForegroundColor Yellow
-        Write-Host "   Critical Types: $($labels | Where-Object { $_ -match '^critical-' } | Join-String -Separator ', ')" -ForegroundColor Red
-        Write-Host "   Issue Types: $($labels | Where-Object { $_ -match '^type-' } | Join-String -Separator ', ')" -ForegroundColor Magenta
-        Write-Host "   Scope: $($labels | Where-Object { $_ -match '^scope-' } | Join-String -Separator ', ')" -ForegroundColor Green
-        Write-Host "   Progress: $($labels | Where-Object { $_ -match '^(attempt-|created-|waiting-)' } | Join-String -Separator ', ')" -ForegroundColor Blue
-        Write-Host "   Total Labels: $($labels.Count)" -ForegroundColor White
+        Write-Output "🏷️  Intelligent Labels for $FilePath ($($Issues.Count) issues):"
+        Write-Output "   Priority: $($labels | Where-Object { $_ -match '^priority-' } | Join-String -Separator ', ')"
+        Write-Output "   Critical Types: $($labels | Where-Object { $_ -match '^critical-' } | Join-String -Separator ', ')"
+        Write-Output "   Issue Types: $($labels | Where-Object { $_ -match '^type-' } | Join-String -Separator ', ')"
+        Write-Output "   Scope: $($labels | Where-Object { $_ -match '^scope-' } | Join-String -Separator ', ')"
+        Write-Output "   Progress: $($labels | Where-Object { $_ -match '^(attempt-|created-|waiting-)' } | Join-String -Separator ', ')"
+        Write-Output "   Total Labels: $($labels.Count)"
     }
-    
+
     return $labels
 }
 
 # Enhanced issue content generation with intelligent labels
-function New-EnhancedCopilotIssueContent {
+function Get-EnhancedCopilotIssueContent {
     param(
+        [Parameter(Mandatory)]
+        [ValidateNotNullOrEmpty()]
         [string]$FilePath,
+        [Parameter(Mandatory)]
+        [ValidateNotNull()]
         [array]$Issues
     )
-    
+
     # Get intelligent labels
-    $intelligentLabels = Get-IntelligentLabels -FilePath $FilePath -Issues $Issues
-    
+    $intelligentLabels = Get-IntelligentLabel -FilePath $FilePath -Issues $Issues
+
     # Classify issues
     $criticalIssues = $Issues | Where-Object { $_.Type -eq "Critical" -or $_.Type -eq "Error" }
     $majorIssues = $Issues | Where-Object { $_.Type -eq "Major" }
     $minorIssues = $Issues | Where-Object { $_.Type -eq "Minor" -or $_.Type -eq "ShellCheck" }
-    
+
     # Generate title with priority indicator
     $priorityEmoji = if ($criticalIssues.Count -gt 0) { "🔴" } elseif ($majorIssues.Count -gt 0) { "🟡" } else { "🔵" }
     $issueTitle = "$priorityEmoji RUTOS Compatibility: Fix $($Issues.Count) issues in $(Split-Path $FilePath -Leaf)"
-    
+
     # Generate enhanced issue body
     $issueBody = @"
 # 🎯 **RUTOS Compatibility Fix Request**
@@ -269,7 +281,7 @@ This issue has been automatically tagged with $($intelligentLabels.Count) intell
 
 ### 📊 **Issue Breakdown**
 - 🔴 **Critical Issues**: $($criticalIssues.Count) (Must fix - will cause hardware failures)
-- 🟡 **Major Issues**: $($majorIssues.Count) (Should fix - may cause runtime problems)  
+- 🟡 **Major Issues**: $($majorIssues.Count) (Should fix - may cause runtime problems)
 - 🔵 **Minor Issues**: $($minorIssues.Count) (Best practices - improve if possible)
 
 ---
@@ -411,7 +423,7 @@ $($intelligentLabels | ForEach-Object { "- ``$_``" } | Join-String -Separator "`
 
 # Test the enhanced label system
 if ($args.Count -eq 0 -or $args[0] -eq "-help") {
-    Write-Host @"
+    Write-Output @"
 🏷️  Enhanced RUTOS Copilot Issue Creation with Intelligent Labels
 
 This enhanced version includes:
@@ -428,13 +440,13 @@ Usage:
   .\create-copilot-issues-enhanced.ps1 -TestMode -PriorityFilter Critical
 
 Labels Applied: 82 comprehensive labels for complete automation
-"@ -ForegroundColor Green
-    
-    Write-Host "`nTo see the complete implementation, use the original script with this enhancement." -ForegroundColor Yellow
+"@
+
+    Write-Output "`nTo see the complete implementation, use the original script with this enhancement."
     exit 0
 }
 
-Write-Host "🏷️  Enhanced RUTOS Copilot Issue Creation System Ready" -ForegroundColor Green
-Write-Host "   Labels: 82 intelligent labels available" -ForegroundColor Cyan
-Write-Host "   Features: Priority routing, scope validation, progress tracking" -ForegroundColor Yellow
-Write-Host "   Safety: Anti-loop protection, cost optimization, rate limiting" -ForegroundColor Blue
+Write-Output "🏷️  Enhanced RUTOS Copilot Issue Creation System Ready"
+Write-Output "   Labels: 82 intelligent labels available"
+Write-Output "   Features: Priority routing, scope validation, progress tracking"
+Write-Output "   Safety: Anti-loop protection, cost optimization, rate limiting"
