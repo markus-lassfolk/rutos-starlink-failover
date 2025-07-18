@@ -61,7 +61,7 @@ git push --no-#!/bin/sh
 set -eu
 
 # Script version - automatically updated from VERSION file
-SCRIPT_VERSION="2.0.0"
+SCRIPT_VERSION="2.0.1"
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="install-rutos.sh"
 
