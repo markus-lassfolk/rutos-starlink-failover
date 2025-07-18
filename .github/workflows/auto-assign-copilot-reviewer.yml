@@ -55,31 +55,31 @@ jobs:
           
           # Function to check if Copilot appears to be done working
           check_copilot_completion() {
-            local pr_num=$1
-            local pr_data=$(gh pr view "$pr_num" --json isDraft,assignees,title,body,comments)
+            pr_num=$1
+            pr_data=$(gh pr view "$pr_num" --json isDraft,assignees,title,body,comments)
             
             # Check if PR is draft and has Copilot assigned
-            local is_draft=$(echo "$pr_data" | jq -r '.isDraft')
-            local copilot_assigned=$(echo "$pr_data" | jq -r '.assignees[] | select(.login == "Copilot") | .login // empty')
+            is_draft=$(echo "$pr_data" | jq -r '.isDraft')
+            copilot_assigned=$(echo "$pr_data" | jq -r '.assignees[] | select(.login == "Copilot") | .login // empty')
             
             if [ "$is_draft" != "true" ] || [ -z "$copilot_assigned" ]; then
               echo "PR #$pr_num: Not a Copilot draft PR (skipping)"
               return 1
             fi
             
-            local pr_title=$(echo "$pr_data" | jq -r '.title')
-            local pr_body=$(echo "$pr_data" | jq -r '.body // ""')
+            pr_title=$(echo "$pr_data" | jq -r '.title')
+            pr_body=$(echo "$pr_data" | jq -r '.body // ""')
             
             echo "Analyzing PR #$pr_num: '$pr_title'"
             
             # Look for completion indicators in PR body
-            local completion_indicators="Fixes #|Closes #|Summary|Issues Fixed|Testing|Validation Results|Scope Compliance"
+            completion_indicators="Fixes #|Closes #|Summary|Issues Fixed|Testing|Validation Results|Scope Compliance"
             
             if echo "$pr_body" | grep -qE "$completion_indicators"; then
               echo "PR #$pr_num: Found completion indicators in description"
               
               # Additional check: Look for recent comments from Copilot
-              local recent_comments=$(echo "$pr_data" | jq -r '.comments[-3:] | .[] | select(.author.login == "Copilot") | .body' 2>/dev/null || echo "")
+              recent_comments=$(echo "$pr_data" | jq -r '.comments[-3:] | .[] | select(.author.login == "Copilot") | .body' 2>/dev/null || echo "")
               
               if echo "$recent_comments" | grep -qE "(completed|finished|ready|done)"; then
                 echo "PR #$pr_num: Found completion language in recent comments"
