@@ -345,9 +345,18 @@ function Parse-ValidationOutput {
     Write-DebugMessage "Parsing validation output for: $FilePath"
     
     $issues = @()
+    $lineCount = 0
     
     foreach ($line in $Output) {
         $line = $line.Trim()
+        $lineCount++
+        
+        # Skip empty lines and obvious summary lines
+        if (-not $line -or $line -match "^(Files processed|Files failed|Total|Summary|===|---|\[SUCCESS\]|\[INFO\])") {
+            continue
+        }
+        
+        Write-DebugMessage "Processing line $lineCount`: $line"
         
         # Handle the specific format: [SEVERITY] filepath:line description
         if ($line -match "^\[(CRITICAL|MAJOR|MINOR|WARNING)\]\s+(.+?):(\d+)\s+(.+)$") {
@@ -355,6 +364,8 @@ function Parse-ValidationOutput {
             $filepath = $Matches[2] -replace "^\.\/", ""
             $lineNumber = $Matches[3]
             $description = $Matches[4]
+            
+            Write-DebugMessage "Found formatted issue: [$severity] $filepath`:$lineNumber $description"
             
             # Only include issues for our target file
             if ($filepath -eq $FilePath) {
@@ -372,6 +383,9 @@ function Parse-ValidationOutput {
                     Type = $issueType
                     Severity = $severity
                 }
+                Write-DebugMessage "Added issue: Type=$issueType, Line=$lineNumber"
+            } else {
+                Write-DebugMessage "Skipped issue for different file: $filepath"
             }
         }
         # Handle ShellCheck format: filepath:line:column: note/warning/error: description
@@ -380,6 +394,8 @@ function Parse-ValidationOutput {
             $lineNumber = $Matches[2]
             $issueLevel = $Matches[4]
             $description = $Matches[5]
+            
+            Write-DebugMessage "Found ShellCheck issue: $filepath`:$lineNumber $issueLevel`: $description"
             
             if ($filepath -eq $FilePath) {
                 $issueType = switch ($issueLevel) {
@@ -395,20 +411,43 @@ function Parse-ValidationOutput {
                     Type = $issueType
                     Severity = $issueLevel
                 }
+                Write-DebugMessage "Added ShellCheck issue: Type=$issueType, Line=$lineNumber"
+            } else {
+                Write-DebugMessage "Skipped ShellCheck issue for different file: $filepath"
             }
         }
-        # Generic error patterns
-        elseif ($line -match "CRITICAL:|ERROR:|FAILED" -and $line -notmatch "SUCCESS|PASSED") {
-            $issues += @{
-                Line = "Unknown"
-                Description = $line
-                Type = "Critical"
-                Severity = "High"
+        # Generic error patterns - be more specific to avoid false positives
+        elseif ($line -match "^\s*(CRITICAL|ERROR):\s*(.+)" -and $line -notmatch "SUCCESS|PASSED|Files failed|Total|Summary") {
+            $description = $Matches[2].Trim()
+            Write-DebugMessage "Found generic error pattern: $description"
+            # Only add if it looks like a real issue description, not a summary line
+            if ($description -and $description.Length -gt 10 -and $description -notmatch "^\d+$") {
+                $issues += @{
+                    Line = "Unknown"
+                    Description = $description
+                    Type = "Critical"
+                    Severity = "High"
+                }
+                Write-DebugMessage "Added generic critical issue: $description"
+            } else {
+                Write-DebugMessage "Rejected generic pattern as summary line: $description"
             }
+        }
+        else {
+            Write-DebugMessage "Line didn't match any pattern: $line"
         }
     }
     
-    Write-DebugMessage "Found $($issues.Count) issues for file: $FilePath"
+    # Categorize issues for debugging
+    $criticalCount = ($issues | Where-Object { $_.Type -eq "Critical" }).Count
+    $majorCount = ($issues | Where-Object { $_.Type -eq "Major" }).Count  
+    $minorCount = ($issues | Where-Object { $_.Type -eq "Minor" -or $_.Type -eq "Warning" }).Count
+    
+    Write-DebugMessage "Parsing complete for $FilePath`:"
+    Write-DebugMessage "  Total issues found: $($issues.Count)"
+    Write-DebugMessage "  Critical: $criticalCount, Major: $majorCount, Minor: $minorCount"
+    Write-DebugMessage "  Lines processed: $lineCount"
+    
     return $issues
 }
 
@@ -759,56 +798,36 @@ $(($intelligentLabels | ForEach-Object { "- ``$_``" }) -join "`n")
         # Use intelligent labels instead of basic labels
         $labels = $intelligentLabels
         
-        # Create temporary file for issue body
-        $tempFile = [System.IO.Path]::GetTempFileName()
-        $issueBody | Out-File -FilePath $tempFile -Encoding UTF8
+        # Try to create the issue with automatic label creation retry
+        $issueResult = New-GitHubIssueWithLabelHandling -Title $issueTitle -Body $issueBody -Labels $labels -FilePath $FilePath
         
-        # Build GitHub CLI command
-        $labelArgs = ($labels | ForEach-Object { "-l `"$_`"" }) -join " "
-        $ghCommand = "gh issue create -t `"$issueTitle`" -F `"$tempFile`" $labelArgs"
-        
-        Write-DebugMessage "Executing: $ghCommand"
-        
-        # Execute GitHub CLI command
-        $result = Invoke-Expression $ghCommand
-        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-        
-        if ($LASTEXITCODE -eq 0) {
-            # Extract issue number from result
-            $issueNumber = ""
-            if ($result -match "https://github\.com/[^/]+/[^/]+/issues/(\d+)") {
-                $issueNumber = $Matches[1]
-            }
-            
-            Write-SuccessMessage "Created issue #$issueNumber for: $FilePath"
-            
+        if ($issueResult.Success) {
             # Update state tracking
             $global:IssueState[$FilePath] = @{
                 Status = "Created"
-                IssueNumber = $issueNumber
+                IssueNumber = $issueResult.IssueNumber
                 CreatedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
                 IssueCount = $Issues.Count
             }
             
             # Assign Copilot to the issue
             Start-Sleep -Seconds 2
-            $assignResult = Set-CopilotAssignment -IssueNumber $issueNumber
+            $assignResult = Set-CopilotAssignment -IssueNumber $issueResult.IssueNumber
             
             if ($assignResult.Success) {
-                Write-SuccessMessage "Assigned Copilot to issue #$issueNumber"
+                Write-SuccessMessage "Assigned Copilot to issue #$($issueResult.IssueNumber)"
                 $global:IssueState[$FilePath].Status = "Assigned"
             }
             
             return @{ 
                 Success = $true
-                IssueNumber = $issueNumber
+                IssueNumber = $issueResult.IssueNumber
                 FilePath = $FilePath
             }
         } else {
-            Add-CollectedError -ErrorMessage "Failed to create issue: $result" -FunctionName "New-CopilotIssue" -Context "GitHub CLI command failed for $FilePath"
             return @{ 
                 Success = $false
-                Error = "GitHub CLI command failed: $result"
+                Error = $issueResult.Error
             }
         }
         
@@ -818,6 +837,212 @@ $(($intelligentLabels | ForEach-Object { "- ``$_``" }) -join "`n")
             Success = $false
             Error = $_.Exception.Message
         }
+    }
+}
+
+# Create GitHub issue with automatic label creation and retry capability
+function New-GitHubIssueWithLabelHandling {
+    param(
+        [string]$Title,
+        [string]$Body,
+        [array]$Labels,
+        [string]$FilePath
+    )
+    
+    Write-DebugMessage "Creating GitHub issue with automatic label handling"
+    
+    try {
+        # Create temporary file for issue body
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        $Body | Out-File -FilePath $tempFile -Encoding UTF8
+        
+        # Build GitHub CLI command
+        $labelArgs = ($Labels | ForEach-Object { "-l `"$_`"" }) -join " "
+        $ghCommand = "gh issue create -t `"$Title`" -F `"$tempFile`" $labelArgs"
+        
+        Write-DebugMessage "Executing: $ghCommand"
+        
+        # Execute GitHub CLI command
+        $result = Invoke-Expression $ghCommand 2>&1
+        $exitCode = $LASTEXITCODE
+        
+        # Clean up temp file
+        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+        
+        if ($exitCode -eq 0) {
+            # Extract issue number from result
+            $issueNumber = ""
+            if ($result -match "https://github\.com/[^/]+/[^/]+/issues/(\d+)") {
+                $issueNumber = $Matches[1]
+            }
+            
+            Write-SuccessMessage "Created issue #$issueNumber for: $FilePath"
+            return @{ Success = $true; IssueNumber = $issueNumber }
+        } else {
+            # Check if the error is due to missing labels
+            $errorText = $result -join " "
+            if ($errorText -match "could not add label: '([^']+)' not found") {
+                $missingLabels = @()
+                
+                # Extract all missing labels from error message
+                $errorLines = $result | Where-Object { $_ -match "could not add label: '([^']+)' not found" }
+                foreach ($errorLine in $errorLines) {
+                    if ($errorLine -match "could not add label: '([^']+)' not found") {
+                        $missingLabels += $Matches[1]
+                    }
+                }
+                
+                Write-WarningMessage "Found $($missingLabels.Count) missing labels: $($missingLabels -join ', ')"
+                
+                # Create missing labels automatically
+                $createdLabels = @()
+                foreach ($missingLabel in $missingLabels) {
+                    $labelResult = New-MissingGitHubLabel -LabelName $missingLabel
+                    if ($labelResult.Success) {
+                        $createdLabels += $missingLabel
+                        Write-SuccessMessage "Created missing label: $missingLabel"
+                    } else {
+                        Write-ErrorMessage "Failed to create label '$missingLabel': $($labelResult.Error)"
+                    }
+                }
+                
+                # Retry issue creation if we successfully created any labels
+                if ($createdLabels.Count -gt 0) {
+                    Write-InfoMessage "Retrying issue creation with newly created labels..."
+                    Start-Sleep -Seconds 2
+                    
+                    # Retry the same command
+                    $tempFile2 = [System.IO.Path]::GetTempFileName()
+                    $Body | Out-File -FilePath $tempFile2 -Encoding UTF8
+                    
+                    $retryResult = Invoke-Expression $ghCommand 2>&1
+                    $retryExitCode = $LASTEXITCODE
+                    
+                    Remove-Item $tempFile2 -Force -ErrorAction SilentlyContinue
+                    
+                    if ($retryExitCode -eq 0) {
+                        # Extract issue number from retry result
+                        $issueNumber = ""
+                        if ($retryResult -match "https://github\.com/[^/]+/[^/]+/issues/(\d+)") {
+                            $issueNumber = $Matches[1]
+                        }
+                        
+                        Write-SuccessMessage "✅ Retry successful! Created issue #$issueNumber for: $FilePath (with $($createdLabels.Count) auto-created labels)"
+                        return @{ Success = $true; IssueNumber = $issueNumber; CreatedLabels = $createdLabels }
+                    } else {
+                        Write-ErrorMessage "Retry failed even after creating labels: $retryResult"
+                        return @{ Success = $false; Error = "Retry failed: $retryResult" }
+                    }
+                } else {
+                    Write-ErrorMessage "Could not create any missing labels"
+                    return @{ Success = $false; Error = "Could not create missing labels: $errorText" }
+                }
+            } else {
+                # Different error, not related to missing labels
+                Write-ErrorMessage "GitHub CLI command failed: $errorText"
+                return @{ Success = $false; Error = "GitHub CLI failed: $errorText" }
+            }
+        }
+        
+    } catch {
+        # Clean up temp file on exception
+        if ($tempFile -and (Test-Path $tempFile)) {
+            Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+        }
+        
+        Add-CollectedError -ErrorMessage "Error in label handling: $($_.Exception.Message)" -FunctionName "New-GitHubIssueWithLabelHandling" -Exception $_.Exception -Context "Creating issue with label handling for $FilePath"
+        return @{ Success = $false; Error = $_.Exception.Message }
+    }
+}
+
+# Create a missing GitHub label with intelligent color and description assignment
+function New-MissingGitHubLabel {
+    param([string]$LabelName)
+    
+    Write-DebugMessage "Creating missing GitHub label: $LabelName"
+    
+    try {
+        # Assign intelligent colors and descriptions based on label patterns
+        $labelColor = "6c757d"  # Default gray
+        $labelDescription = "Auto-generated label"
+        
+        # Priority labels
+        if ($LabelName -match "^priority-critical") {
+            $labelColor = "b60205"  # Red
+            $labelDescription = "Critical priority issues requiring immediate attention"
+        } elseif ($LabelName -match "^priority-major|^priority-high") {
+            $labelColor = "d93f0b"  # Orange-red
+            $labelDescription = "High priority issues that should be addressed soon"
+        } elseif ($LabelName -match "^priority-medium") {
+            $labelColor = "fbca04"  # Yellow
+            $labelDescription = "Medium priority issues"
+        } elseif ($LabelName -match "^priority-minor|^priority-low") {
+            $labelColor = "0e8a16"  # Green
+            $labelDescription = "Low priority issues"
+        }
+        
+        # Critical system labels
+        elseif ($LabelName -match "^critical-") {
+            $labelColor = "b60205"  # Red
+            $labelDescription = "Critical system compatibility issues"
+        }
+        
+        # Type-specific labels
+        elseif ($LabelName -match "^type-") {
+            $labelColor = "fef2c0"  # Light yellow
+            $labelDescription = "Specific code pattern or syntax issues"
+        }
+        
+        # Content-related labels
+        elseif ($LabelName -match "^content-") {
+            $labelColor = "1f77b4"  # Blue
+            $labelDescription = "Content quality and accuracy issues"
+        }
+        
+        # Enhancement and suggestion labels
+        elseif ($LabelName -match "suggestion|recommendation|feature-request") {
+            $labelColor = "a2eeef"  # Light blue
+            $labelDescription = "Enhancement suggestions and feature requests"
+        }
+        
+        # Automation and workflow labels
+        elseif ($LabelName -match "automated|autonomous|monitoring|workflow") {
+            $labelColor = "1f883d"  # Green
+            $labelDescription = "Automated processes and workflow management"
+        }
+        
+        # Fix-related labels
+        elseif ($LabelName -match "fix-|auto-fix|manual-fix") {
+            $labelColor = "7057ff"  # Purple
+            $labelDescription = "Issue resolution and fix management"
+        }
+        
+        # Scope and validation labels
+        elseif ($LabelName -match "scope-|validation-") {
+            $labelColor = "0052cc"  # Blue
+            $labelDescription = "Scope management and validation processes"
+        }
+        
+        # Copilot-related labels
+        elseif ($LabelName -match "copilot") {
+            $labelColor = "6f42c1"  # Purple
+            $labelDescription = "GitHub Copilot automated fixes and assignments"
+        }
+        
+        # Create the label using GitHub CLI
+        $createResult = gh label create "$LabelName" --description "$labelDescription" --color "$labelColor" 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-DebugMessage "Successfully created label '$LabelName' with color #$labelColor"
+            return @{ Success = $true; LabelName = $LabelName; Color = $labelColor; Description = $labelDescription }
+        } else {
+            Write-DebugMessage "Failed to create label '$LabelName': $createResult"
+            return @{ Success = $false; Error = $createResult }
+        }
+        
+    } catch {
+        Add-CollectedError -ErrorMessage "Error creating label '$LabelName': $($_.Exception.Message)" -FunctionName "New-MissingGitHubLabel" -Exception $_.Exception -Context "Creating missing GitHub label"
+        return @{ Success = $false; Error = $_.Exception.Message }
     }
 }
 
