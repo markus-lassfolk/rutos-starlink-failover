@@ -90,80 +90,66 @@ $SCRIPT_VERSION = "1.0.0"
 $VALIDATION_SCRIPT = "scripts/pre-commit-validation.sh"
 $STATE_FILE = "automation/.copilot-issues-state.json"
 
-# State management object to replace global variables
-class ScriptState {
-    [System.Collections.ArrayList]$CollectedErrors = @()
-    [int]$ErrorCount = 0
-    [hashtable]$IssueState = @{}
-    [System.Collections.ArrayList]$CreatedIssues = @()
-}
+# Script-scoped state variables to replace global variables
+$script:CollectedErrors = @()
+$script:ErrorCount = 0
+$script:IssueState = @{}
+$script:CreatedIssues = @()
 
-# Color definitions for consistent output
+# Color definitions for consistent output (kept for potential future use)
 $RED = [ConsoleColor]::Red
 $GREEN = [ConsoleColor]::Green
 $YELLOW = [ConsoleColor]::Yellow
 $BLUE = [ConsoleColor]::Blue
 $CYAN = [ConsoleColor]::Cyan
 $GRAY = [ConsoleColor]::Gray
-$PURPLE = [ConsoleColor]::Magenta
 
 # Enhanced logging functions
 function Write-StatusMessage {
     param(
         [string]$Message,
-        [ConsoleColor]$Color = [ConsoleColor]::White,
         [string]$Level = "INFO"
     )
 
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $levelColor = switch ($Level) {
-        "ERROR" { $RED }
-        "WARNING" { $YELLOW }
-        "SUCCESS" { $GREEN }
-        "DEBUG" { $CYAN }
-        "STEP" { $BLUE }
-        default { [ConsoleColor]::White }
-    }
-
     Write-Output "[$Level] [$timestamp] $Message"
 }
 
 function Write-DebugMessage {
     param([string]$Message)
     if ($DebugMode) {
-        Write-StatusMessage "[DEBUG] $Message" -Color $CYAN -Level "DEBUG"
+        Write-StatusMessage "[DEBUG] $Message" -Level "DEBUG"
     }
 }
 
 function Write-StepMessage {
     param([string]$Message)
-    Write-StatusMessage "[STEP] $Message" -Color $BLUE -Level "STEP"
+    Write-StatusMessage "[STEP] $Message" -Level "STEP"
 }
 
 function Write-ErrorMessage {
     param([string]$Message)
-    Write-StatusMessage "[ERROR] $Message" -Color $RED -Level "ERROR"
+    Write-StatusMessage "[ERROR] $Message" -Level "ERROR"
 }
 
 function Write-SuccessMessage {
     param([string]$Message)
-    Write-StatusMessage "[SUCCESS] $Message" -Color $GREEN -Level "SUCCESS"
+    Write-StatusMessage "[SUCCESS] $Message" -Level "SUCCESS"
 }
 
 function Write-WarningMessage {
     param([string]$Message)
-    Write-StatusMessage "[WARNING] $Message" -Color $YELLOW -Level "WARNING"
+    Write-StatusMessage "[WARNING] $Message" -Level "WARNING"
 }
 
 function Write-InfoMessage {
     param([string]$Message)
-    Write-StatusMessage "$Message" -Color White -Level "INFO"
+    Write-StatusMessage "$Message" -Level "INFO"
 }
 
 # Enhanced error collection with comprehensive information
 function Add-CollectedError {
     param(
-        [ScriptState]$State,
         [string]$ErrorMessage,
         [string]$FunctionName = "Unknown",
         [string]$Location = "Unknown",
@@ -172,7 +158,7 @@ function Add-CollectedError {
         [hashtable]$AdditionalInfo = @{}
     )
 
-    $State.ErrorCount++
+    $script:ErrorCount++
 
     # Get caller information if not provided
     if ($FunctionName -eq "Unknown" -or $Location -eq "Unknown") {
@@ -187,7 +173,7 @@ function Add-CollectedError {
     # Create comprehensive error information
     $errorInfo = @{
         Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        ErrorNumber = $State.ErrorCount
+        ErrorNumber = $script:ErrorCount
         Message = $ErrorMessage
         FunctionName = $FunctionName
         Location = $Location
@@ -200,97 +186,93 @@ function Add-CollectedError {
     }
 
     # Add to collection
-    $State.CollectedErrors.Add($errorInfo) | Out-Null
+    $script:CollectedErrors += $errorInfo
 
     # Display the error immediately for real-time feedback
-    Write-StatusMessage "❌ Error #$($State.ErrorCount) in $FunctionName`: $ErrorMessage" -Color $RED -Level "ERROR"
+    Write-StatusMessage "❌ Error #$($script:ErrorCount) in $FunctionName`: $ErrorMessage" -Level "ERROR"
 
     if ($DebugMode) {
-        Write-StatusMessage "   📍 Location: $Location" -Color $GRAY -Level "DEBUG"
+        Write-StatusMessage "   📍 Location: $Location" -Level "DEBUG"
         if ($Context) {
-            Write-StatusMessage "   📝 Context: $Context" -Color $GRAY -Level "DEBUG"
+            Write-StatusMessage "   📝 Context: $Context" -Level "DEBUG"
         }
         if ($Exception) {
-            Write-StatusMessage "   🔍 Exception: $($Exception.GetType().Name) - $($Exception.Message)" -Color $GRAY -Level "DEBUG"
+            Write-StatusMessage "   🔍 Exception: $($Exception.GetType().Name) - $($Exception.Message)" -Level "DEBUG"
         }
     }
 }
 
 # Display comprehensive error report
 function Show-CollectedError {
-    param([ScriptState]$State)
-
-    if ($State.CollectedErrors.Count -eq 0) {
-        Write-StatusMessage "✅ No errors collected during execution" -Color $GREEN
+    if ($script:CollectedErrors.Count -eq 0) {
+        Write-StatusMessage "✅ No errors collected during execution" -Level "SUCCESS"
         return
     }
 
-    Write-Output "`n" + ("=" * 100)
-    Write-Output "🚨 COMPREHENSIVE ERROR REPORT - $($State.CollectedErrors.Count) Error(s) Found"
-    Write-Output ("=" * 100)
+    Write-Output -InputObject ("`n" + ("=" * 100))
+    Write-Output -InputObject "🚨 COMPREHENSIVE ERROR REPORT - $($script:CollectedErrors.Count) Error(s) Found"
+    Write-Output -InputObject ("=" * 100)
 
-    foreach ($errorInfo in $State.CollectedErrors) {
-        Write-Output "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)"
-        Write-Output "   🎯 Function: $($errorInfo.FunctionName)"
-        Write-Output "   📍 Location: $($errorInfo.Location)"
-        Write-Output "   💬 Message: $($errorInfo.Message)"
+    foreach ($errorInfo in $script:CollectedErrors) {
+        Write-Output -InputObject "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)"
+        Write-Output -InputObject "   🎯 Function: $($errorInfo.FunctionName)"
+        Write-Output -InputObject "   📍 Location: $($errorInfo.Location)"
+        Write-Output -InputObject "   💬 Message: $($errorInfo.Message)"
 
         if ($errorInfo.Context) {
-            Write-Output "   📝 Context: $($errorInfo.Context)"
+            Write-Output -InputObject "   📝 Context: $($errorInfo.Context)"
         }
 
         if ($errorInfo.ExceptionType -ne "N/A") {
-            Write-Output "   🔍 Exception: $($errorInfo.ExceptionType) - $($errorInfo.ExceptionMessage)"
+            Write-Output -InputObject "   🔍 Exception: $($errorInfo.ExceptionType) - $($errorInfo.ExceptionMessage)"
         }
 
         if ($errorInfo.LastExitCode -ne 0) {
-            Write-Output "   🔢 Last Exit Code: $($errorInfo.LastExitCode)"
+            Write-Output -InputObject "   🔢 Last Exit Code: $($errorInfo.LastExitCode)"
         }
 
         if ($errorInfo.AdditionalInfo.Count -gt 0) {
-            Write-Output "   📊 Additional Info:"
+            Write-Output -InputObject "   📊 Additional Info:"
             foreach ($key in $errorInfo.AdditionalInfo.Keys) {
-                Write-Output "      $key`: $($errorInfo.AdditionalInfo[$key])"
+                Write-Output -InputObject "      $key`: $($errorInfo.AdditionalInfo[$key])"
             }
         }
     }
 
-    Write-Output "`n📊 ERROR SUMMARY:"
-    Write-Output "   Total Errors: $($State.CollectedErrors.Count)"
-    Write-Output "   Functions with Errors: $($State.CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count"
+    Write-Output -InputObject "`n📊 ERROR SUMMARY:"
+    Write-Output -InputObject "   Total Errors: $($script:CollectedErrors.Count)"
+    Write-Output -InputObject "   Functions with Errors: $($script:CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count"
 }
 
 # Load and save state for preventing infinite loops
 function Get-IssueState {
-    param([ScriptState]$State)
-
     Write-DebugMessage "Loading issue state from: $STATE_FILE"
 
     if (Test-Path $STATE_FILE) {
         try {
             $stateContent = Get-Content $STATE_FILE -Raw | ConvertFrom-Json
-            $State.IssueState = @{}
+            $script:IssueState = @{}
 
             foreach ($property in $stateContent.PSObject.Properties) {
-                $State.IssueState[$property.Name] = $property.Value
+                $script:IssueState[$property.Name] = $property.Value
             }
 
-            Write-DebugMessage "Loaded state for $($State.IssueState.Count) files"
+            Write-DebugMessage "Loaded state for $($script:IssueState.Count) files"
             return $true
         } catch {
-            Add-CollectedError -State $State -ErrorMessage "Failed to load state file: $($_.Exception.Message)" -FunctionName "Get-IssueState" -Exception $_.Exception -Context "Loading issue state from $STATE_FILE" -AdditionalInfo @{StateFile = $STATE_FILE}
-            $State.IssueState = @{}
+            Add-CollectedError -ErrorMessage "Failed to load state file: $($_.Exception.Message)" -FunctionName "Get-IssueState" -Exception $_.Exception -Context "Loading issue state from $STATE_FILE" -AdditionalInfo @{StateFile = $STATE_FILE}
+            $script:IssueState = @{}
             return $false
         }
     } else {
         Write-DebugMessage "No existing state file found - starting fresh"
-        $State.IssueState = @{}
+        $script:IssueState = @{}
         return $false
     }
 }
 
 function Save-IssueState {
-    param([ScriptState]$State)
+    
 
     Write-DebugMessage "Saving issue state to: $STATE_FILE"
 
@@ -302,11 +284,11 @@ function Save-IssueState {
         }
 
         # Convert to JSON and save
-        $State.IssueState | ConvertTo-Json -Depth 10 | Out-File $STATE_FILE -Encoding UTF8
+        $script:IssueState | ConvertTo-Json -Depth 10 | Out-File $STATE_FILE -Encoding UTF8
         Write-DebugMessage "State saved successfully"
         return $true
     } catch {
-        Add-CollectedError -State $State -ErrorMessage "Failed to save state: $($_.Exception.Message)" -FunctionName "Save-IssueState" -Exception $_.Exception -Context "Saving issue state to $STATE_FILE"
+        Add-CollectedError -ErrorMessage "Failed to save state: $($_.Exception.Message)" -FunctionName "Save-IssueState" -Exception $_.Exception -Context "Saving issue state to $STATE_FILE"
         return $false
     }
 }
@@ -314,7 +296,7 @@ function Save-IssueState {
 # Run validation on individual file
 function Invoke-ValidationOnFile {
     param(
-        [ScriptState]$State,
+        [ScriptState]
         [string]$FilePath
     )
 
@@ -350,7 +332,7 @@ function Invoke-ValidationOnFile {
             Output = $combinedOutput
         }
     } catch {
-        Add-CollectedError -State $State -ErrorMessage "Failed to validate file: $($_.Exception.Message)" -FunctionName "Invoke-ValidationOnFile" -Exception $_.Exception -Context "Validating file $FilePath"
+        Add-CollectedError -ErrorMessage "Failed to validate file: $($_.Exception.Message)" -FunctionName "Invoke-ValidationOnFile" -Exception $_.Exception -Context "Validating file $FilePath"
         return @{
             Success = $false
             ExitCode = -1
@@ -724,7 +706,7 @@ function Test-ShouldProcessFile {
 function New-CopilotIssue {
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [ScriptState]$State,
+        [ScriptState]
         [string]$FilePath,
         [array]$Issues
     )
@@ -1090,7 +1072,7 @@ $(($intelligentLabels | ForEach-Object { "- ``$_``" }) -join "`n")
 function New-GitHubIssueWithLabelHandling {
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [ScriptState]$State,
+        [ScriptState]
         [string]$Title,
         [string]$Body,
         [array]$Labels,
@@ -1339,7 +1321,7 @@ function Set-CopilotAssignment {
 # Main execution logic with optimized file-by-file processing
 function Start-OptimizedIssueCreation {
     [CmdletBinding(SupportsShouldProcess)]
-    param([ScriptState]$State)
+    
     Write-InfoMessage "🚀 Starting Optimized RUTOS Copilot Issue Creation System v$SCRIPT_VERSION"
 
     # Load state
@@ -1430,19 +1412,19 @@ function Start-OptimizedIssueCreation {
                 switch ($shouldProcessResult.SkipReason) {
                     "OpenIssue" {
                         $filesSkippedOpenIssue++
-                        Write-Host "   📋 Skipped: Open issue #$($shouldProcessResult.IssueNumber) exists" -ForegroundColor Yellow
+                        Write-Information "   📋 Skipped: Open issue #$($shouldProcessResult.IssueNumber) exists" -InformationAction Continue
                     }
                     "RecentlyClosed" {
                         $filesSkippedRecentlyClosed++
-                        Write-Host "   ⏰ Skipped: Recently closed issue #$($shouldProcessResult.IssueNumber) ($($shouldProcessResult.HoursAgo)h ago)" -ForegroundColor Cyan
+                        Write-Information "   ⏰ Skipped: Recently closed issue #$($shouldProcessResult.IssueNumber) ($($shouldProcessResult.HoursAgo)h ago)" -InformationAction Continue
                     }
                     "LowPriority" {
                         $filesSkippedLowPriority++
-                        Write-Host "   🎯 Skipped: Priority filter ($PriorityFilter)" -ForegroundColor Gray
+                        Write-Information "   🎯 Skipped: Priority filter ($PriorityFilter)" -InformationAction Continue
                     }
                     default {
                         $filesSkippedOther++
-                        Write-Host "   ℹ️  Skipped: $($shouldProcessResult.SkipReason)" -ForegroundColor Gray
+                        Write-Information "   ℹ️  Skipped: $($shouldProcessResult.SkipReason)" -InformationAction Continue
                     }
                 }
                 continue
@@ -1457,7 +1439,7 @@ function Start-OptimizedIssueCreation {
                 Write-SuccessMessage "✅ Created issue #$($issueResult.IssueNumber) for: $file"
 
                 # Update tracking
-                $global:CreatedIssues += @{
+                $script:CreatedIssues += @{
                     IssueNumber = $issueResult.IssueNumber
                     FilePath = $file
                     CreatedAt = Get-Date
@@ -1481,9 +1463,9 @@ function Start-OptimizedIssueCreation {
     Save-IssueState | Out-Null
 
     # Display final summary
-    Write-Host "`n" + ("=" * 80) -ForegroundColor $BLUE
-    Write-Host "📊 PROCESSING SUMMARY" -ForegroundColor $BLUE
-    Write-Host ("=" * 80) -ForegroundColor $BLUE
+    Write-Output -InputObject ("`n" + ("=" * 80))
+    Write-Output -InputObject "📊 PROCESSING SUMMARY"
+    Write-Output -InputObject ("=" * 80)
 
     Write-InfoMessage "📁 Files Processed: $filesProcessed"
     Write-InfoMessage "⏭️  Files Skipped: $filesSkipped"
@@ -1492,25 +1474,25 @@ function Start-OptimizedIssueCreation {
 
     # Show detailed skip breakdown if any files were skipped
     if ($filesSkipped -gt 0) {
-        Write-Host "`n📊 Skip Breakdown:" -ForegroundColor $CYAN
+        Write-Output "`n📊 Skip Breakdown:"
         if ($filesSkippedOpenIssue -gt 0) {
-            Write-Host "   ⚠️  Open Issues: $filesSkippedOpenIssue files (avoiding conflicts)" -ForegroundColor Yellow
+            Write-Output "   ⚠️  Open Issues: $filesSkippedOpenIssue files (avoiding conflicts)"
         }
         if ($filesSkippedRecentlyClosed -gt 0) {
-            Write-Host "   ⏰ Recently Closed: $filesSkippedRecentlyClosed files (within $RecentlyClosedHours hours)" -ForegroundColor Cyan
+            Write-Output "   ⏰ Recently Closed: $filesSkippedRecentlyClosed files (within $RecentlyClosedHours hours)"
         }
         if ($filesSkippedLowPriority -gt 0) {
-            Write-Host "   🎯 Low Priority: $filesSkippedLowPriority files (filter: $PriorityFilter)" -ForegroundColor Gray
+            Write-Output "   🎯 Low Priority: $filesSkippedLowPriority files (filter: $PriorityFilter)"
         }
         if ($filesSkippedOther -gt 0) {
-            Write-Host "   ℹ️  Other: $filesSkippedOther files (various reasons)" -ForegroundColor Gray
+            Write-Output "   ℹ️  Other: $filesSkippedOther files (various reasons)"
         }
     }
 
-    if ($global:CreatedIssues.Count -gt 0) {
-        Write-Host "`n📋 Created Issues:" -ForegroundColor $GREEN
-        foreach ($issue in $global:CreatedIssues) {
-            Write-Host "   #$($issue.IssueNumber) - $($issue.FilePath) ($($issue.IssueCount) issues)" -ForegroundColor $GREEN
+    if ($script:CreatedIssues.Count -gt 0) {
+        Write-Output "`n📋 Created Issues:"
+        foreach ($issue in $script:CreatedIssues) {
+            Write-Output "   #$($issue.IssueNumber) - $($issue.FilePath) ($($issue.IssueCount) issues)"
         }
     }
 
@@ -1576,7 +1558,7 @@ function Main {
 
     # Check GitHub authentication
     try {
-        $authStatus = gh auth status 2>&1
+        $null = gh auth status 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-ErrorMessage "❌ GitHub CLI not authenticated. Run: gh auth login"
             exit 1
@@ -1590,7 +1572,7 @@ function Main {
     # Safety check for production mode
     if ($Production -and -not $TestMode) {
         Write-WarningMessage "⚠️  PRODUCTION MODE ENABLED - Issues will be created in GitHub"
-        Write-Host "Press Ctrl+C to cancel or wait 5 seconds to continue..." -ForegroundColor $YELLOW
+        Write-Warning "Press Ctrl+C to cancel or wait 5 seconds to continue..."
         Start-Sleep -Seconds 5
     } else {
         Write-InfoMessage "🧪 Running in safe mode (no real issues will be created)"
