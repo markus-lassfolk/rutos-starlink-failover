@@ -100,15 +100,6 @@ $script:ScriptState = @{
     CreatedIssues = @()
 }
 
-# Color definitions for consistent output
-$RED = [ConsoleColor]::Red
-$GREEN = [ConsoleColor]::Green
-$YELLOW = [ConsoleColor]::Yellow
-$BLUE = [ConsoleColor]::Blue
-$CYAN = [ConsoleColor]::Cyan
-$GRAY = [ConsoleColor]::Gray
-$PURPLE = [ConsoleColor]::Magenta
-
 # Enhanced logging functions
 function Write-StatusMessage {
     param(
@@ -219,39 +210,39 @@ function Show-CollectedError {
         return
     }
 
-    Write-Host "`n" + ("=" * 100) -ForegroundColor $RED
-    Write-Host "🚨 COMPREHENSIVE ERROR REPORT - $($script:ScriptState.CollectedErrors.Count) Error(s) Found" -ForegroundColor $RED
-    Write-Host ("=" * 100) -ForegroundColor $RED
+    Write-Information "`n" + ("=" * 100) -InformationAction Continue
+    Write-Information "🚨 COMPREHENSIVE ERROR REPORT - $($script:ScriptState.CollectedErrors.Count) Error(s) Found" -InformationAction Continue
+    Write-Information ("=" * 100) -InformationAction Continue
 
     foreach ($errorInfo in $script:ScriptState.CollectedErrors) {
-        Write-Host "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)" -ForegroundColor $RED
-        Write-Host "   🎯 Function: $($errorInfo.FunctionName)" -ForegroundColor $YELLOW
-        Write-Host "   � Location: $($errorInfo.Location)" -ForegroundColor $YELLOW
-        Write-Host "   �💬 Message: $($errorInfo.Message)" -ForegroundColor White
+        Write-Information "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)" -InformationAction Continue
+        Write-Information "   🎯 Function: $($errorInfo.FunctionName)" -InformationAction Continue
+        Write-Information "   � Location: $($errorInfo.Location)" -InformationAction Continue
+        Write-Information "   �💬 Message: $($errorInfo.Message)" -InformationAction Continue
 
         if ($errorInfo.Context) {
-            Write-Host "   📝 Context: $($errorInfo.Context)" -ForegroundColor $CYAN
+            Write-Information "   📝 Context: $($errorInfo.Context)" -InformationAction Continue
         }
 
         if ($errorInfo.ExceptionType -ne "N/A") {
-            Write-Host "   🔍 Exception: $($errorInfo.ExceptionType) - $($errorInfo.ExceptionMessage)" -ForegroundColor $PURPLE
+            Write-Information "   🔍 Exception: $($errorInfo.ExceptionType) - $($errorInfo.ExceptionMessage)" -InformationAction Continue
         }
 
         if ($errorInfo.LastExitCode -ne 0) {
-            Write-Host "   🔢 Last Exit Code: $($errorInfo.LastExitCode)" -ForegroundColor $RED
+            Write-Information "   🔢 Last Exit Code: $($errorInfo.LastExitCode)" -InformationAction Continue
         }
 
         if ($errorInfo.AdditionalInfo.Count -gt 0) {
-            Write-Host "   📊 Additional Info:" -ForegroundColor $BLUE
+            Write-Information "   📊 Additional Info:" -InformationAction Continue
             foreach ($key in $errorInfo.AdditionalInfo.Keys) {
-                Write-Host "      $key`: $($errorInfo.AdditionalInfo[$key])" -ForegroundColor $GRAY
+                Write-Information "      $key`: $($errorInfo.AdditionalInfo[$key])" -InformationAction Continue
             }
         }
     }
 
-    Write-Host "`n📊 ERROR SUMMARY:" -ForegroundColor $RED
-    Write-Host "   Total Errors: $($script:ScriptState.CollectedErrors.Count)" -ForegroundColor $RED
-    Write-Host "   Functions with Errors: $($script:ScriptState.CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -ForegroundColor $YELLOW
+    Write-Information "`n📊 ERROR SUMMARY:" -InformationAction Continue
+    Write-Information "   Total Errors: $($script:ScriptState.CollectedErrors.Count)" -InformationAction Continue
+    Write-Information "   Functions with Errors: $($script:ScriptState.CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -InformationAction Continue
 }
 
 # Run validation on individual file
@@ -368,6 +359,7 @@ function ConvertFrom-ValidationOutput {
 
 # Test if file should be processed
 function Test-ShouldProcessFile {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'FilePath', Justification = 'Reserved for future file-specific processing logic')]
     param(
         [string]$FilePath,
         [array]$Issues
@@ -796,7 +788,7 @@ function Main {
 
     # Check GitHub authentication
     try {
-        $authStatus = gh auth status 2>&1
+        $null = gh auth status 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-ErrorMessage "❌ GitHub CLI not authenticated. Run: gh auth login"
             exit 1
@@ -889,39 +881,39 @@ function Show-CollectedError {
         return
     }
 
-    Write-Host "`n" + ("=" * 100) -ForegroundColor $RED
-    Write-Host "🚨 COMPREHENSIVE ERROR REPORT - $($script:ScriptState.CollectedErrors.Count) Error(s) Found" -ForegroundColor $RED
-    Write-Host ("=" * 100) -ForegroundColor $RED
+    Write-Information "`n" + ("=" * 100) -InformationAction Continue
+    Write-Information "🚨 COMPREHENSIVE ERROR REPORT - $($script:ScriptState.CollectedErrors.Count) Error(s) Found" -InformationAction Continue
+    Write-Information ("=" * 100) -InformationAction Continue
 
     foreach ($errorInfo in $script:ScriptState.CollectedErrors) {
-        Write-Host "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)" -ForegroundColor $RED
-        Write-Host "   🎯 Function: $($errorInfo.FunctionName)" -ForegroundColor $YELLOW
-        Write-Host "   📍 Location: $($errorInfo.Location)" -ForegroundColor $YELLOW
-        Write-Host "   💬 Message: $($errorInfo.Message)" -ForegroundColor White
+        Write-Information "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)" -InformationAction Continue
+        Write-Information "   🎯 Function: $($errorInfo.FunctionName)" -InformationAction Continue
+        Write-Information "   📍 Location: $($errorInfo.Location)" -InformationAction Continue
+        Write-Information "   💬 Message: $($errorInfo.Message)" -InformationAction Continue
 
         if ($errorInfo.Context) {
-            Write-Host "   📝 Context: $($errorInfo.Context)" -ForegroundColor $CYAN
+            Write-Information "   📝 Context: $($errorInfo.Context)" -InformationAction Continue
         }
 
         if ($errorInfo.ExceptionType -ne "N/A") {
-            Write-Host "   🔍 Exception: $($errorInfo.ExceptionType) - $($errorInfo.ExceptionMessage)" -ForegroundColor $PURPLE
+            Write-Information "   🔍 Exception: $($errorInfo.ExceptionType) - $($errorInfo.ExceptionMessage)" -InformationAction Continue
         }
 
         if ($errorInfo.LastExitCode -ne 0) {
-            Write-Host "   🔢 Last Exit Code: $($errorInfo.LastExitCode)" -ForegroundColor $RED
+            Write-Information "   🔢 Last Exit Code: $($errorInfo.LastExitCode)" -InformationAction Continue
         }
 
         if ($errorInfo.AdditionalInfo.Count -gt 0) {
-            Write-Host "   📊 Additional Info:" -ForegroundColor $BLUE
+            Write-Information "   📊 Additional Info:" -InformationAction Continue
             foreach ($key in $errorInfo.AdditionalInfo.Keys) {
-                Write-Host "      $key`: $($errorInfo.AdditionalInfo[$key])" -ForegroundColor $GRAY
+                Write-Information "      $key`: $($errorInfo.AdditionalInfo[$key])" -InformationAction Continue
             }
         }
     }
 
-    Write-Host "`n📊 ERROR SUMMARY:" -ForegroundColor $RED
-    Write-Host "   Total Errors: $($script:ScriptState.CollectedErrors.Count)" -ForegroundColor $RED
-    Write-Host "   Functions with Errors: $($script:ScriptState.CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -ForegroundColor $YELLOW
+    Write-Information "`n📊 ERROR SUMMARY:" -InformationAction Continue
+    Write-Information "   Total Errors: $($script:ScriptState.CollectedErrors.Count)" -InformationAction Continue
+    Write-Information "   Functions with Errors: $($script:ScriptState.CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -InformationAction Continue
 }
 
 # Enhanced error collection with comprehensive information
@@ -986,39 +978,39 @@ function Show-CollectedError {
         return
     }
 
-    Write-Host "`n" + ("=" * 100) -ForegroundColor $RED
-    Write-Host "🚨 COMPREHENSIVE ERROR REPORT - $($script:ScriptState.CollectedErrors.Count) Error(s) Found" -ForegroundColor $RED
-    Write-Host ("=" * 100) -ForegroundColor $RED
+    Write-Information "`n" + ("=" * 100) -InformationAction Continue
+    Write-Information "🚨 COMPREHENSIVE ERROR REPORT - $($script:ScriptState.CollectedErrors.Count) Error(s) Found" -InformationAction Continue
+    Write-Information ("=" * 100) -InformationAction Continue
 
     foreach ($errorInfo in $script:ScriptState.CollectedErrors) {
-        Write-Host "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)" -ForegroundColor $RED
-        Write-Host "   🎯 Function: $($errorInfo.FunctionName)" -ForegroundColor $YELLOW
-        Write-Host "   📍 Location: $($errorInfo.Location)" -ForegroundColor $YELLOW
-        Write-Host "   💬 Message: $($errorInfo.Message)" -ForegroundColor White
+        Write-Information "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)" -InformationAction Continue
+        Write-Information "   🎯 Function: $($errorInfo.FunctionName)" -InformationAction Continue
+        Write-Information "   📍 Location: $($errorInfo.Location)" -InformationAction Continue
+        Write-Information "   💬 Message: $($errorInfo.Message)" -InformationAction Continue
 
         if ($errorInfo.Context) {
-            Write-Host "   📝 Context: $($errorInfo.Context)" -ForegroundColor $CYAN
+            Write-Information "   📝 Context: $($errorInfo.Context)" -InformationAction Continue
         }
 
         if ($errorInfo.ExceptionType -ne "N/A") {
-            Write-Host "   🔍 Exception: $($errorInfo.ExceptionType) - $($errorInfo.ExceptionMessage)" -ForegroundColor $PURPLE
+            Write-Information "   🔍 Exception: $($errorInfo.ExceptionType) - $($errorInfo.ExceptionMessage)" -InformationAction Continue
         }
 
         if ($errorInfo.LastExitCode -ne 0) {
-            Write-Host "   🔢 Last Exit Code: $($errorInfo.LastExitCode)" -ForegroundColor $RED
+            Write-Information "   🔢 Last Exit Code: $($errorInfo.LastExitCode)" -InformationAction Continue
         }
 
         if ($errorInfo.AdditionalInfo.Count -gt 0) {
-            Write-Host "   📊 Additional Info:" -ForegroundColor $BLUE
+            Write-Information "   📊 Additional Info:" -InformationAction Continue
             foreach ($key in $errorInfo.AdditionalInfo.Keys) {
-                Write-Host "      $key`: $($errorInfo.AdditionalInfo[$key])" -ForegroundColor $GRAY
+                Write-Information "      $key`: $($errorInfo.AdditionalInfo[$key])" -InformationAction Continue
             }
         }
     }
 
-    Write-Host "`n📊 ERROR SUMMARY:" -ForegroundColor $RED
-    Write-Host "   Total Errors: $($script:ScriptState.CollectedErrors.Count)" -ForegroundColor $RED
-    Write-Host "   Functions with Errors: $($script:ScriptState.CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -ForegroundColor $YELLOW
+    Write-Information "`n📊 ERROR SUMMARY:" -InformationAction Continue
+    Write-Information "   Total Errors: $($script:ScriptState.CollectedErrors.Count)" -InformationAction Continue
+    Write-Information "   Functions with Errors: $($script:ScriptState.CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -InformationAction Continue
 }
 
 # Load and save state for preventing infinite loops
@@ -1476,7 +1468,7 @@ function Test-FileHasValidationIssue {
 
     # Run validation on single file
     $relativePath = (Resolve-Path $FilePath -Relative).Replace('\', '/')
-    $validationOutput = & bash scripts/pre-commit-validation.sh $relativePath 2>&1
+    $null = & bash scripts/pre-commit-validation.sh $relativePath 2>&1
 
     # Check if validation found issues
     if ($LASTEXITCODE -ne 0) {
@@ -1686,7 +1678,7 @@ Please review and fix the POSIX compliance issues in this file. Focus on:
 
                 # Now try to assign @copilot using our enhanced assignment function
                 try {
-                    $assignResult = gh issue edit $issueNumber --add-assignee "copilot"
+                    $null = gh issue edit $issueNumber --add-assignee "copilot"
                     if ($LASTEXITCODE -eq 0) {
                         Write-ColorMessage "✅ Assigned @copilot to issue #$issueNumber" $GREEN
                     } else {
