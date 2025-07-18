@@ -304,7 +304,43 @@ function Save-IssueState {
     }
 }
 
-# Run validation on individual file
+# Run full validation on all files
+function Invoke-FullValidation {
+    Write-DebugMessage "Running full validation on all files"
+    
+    try {
+        $validationCmd = "wsl bash -c `"cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT`""
+        Write-DebugMessage "Executing: $validationCmd"
+        
+        $validationOutput = Invoke-Expression $validationCmd 2>&1
+        $exitCode = $LASTEXITCODE
+        
+        Write-DebugMessage "Full validation exit code: $exitCode"
+        Write-DebugMessage "Full validation output lines: $($validationOutput.Count)"
+        
+        # Parse the validation output to extract issues for all files
+        $fileIssues = Parse-FullValidationOutput -Output $validationOutput
+        
+        return @{
+            Success = $exitCode -eq 0
+            ExitCode = $exitCode
+            FileIssues = $fileIssues
+            Output = $validationOutput
+            TotalFiles = $fileIssues.Keys.Count
+            TotalIssues = ($fileIssues.Values | ForEach-Object { $_.Issues.Count } | Measure-Object -Sum).Sum
+        }
+    } catch {
+        Add-CollectedError -ErrorMessage "Failed to run full validation: $($_.Exception.Message)" -FunctionName "Invoke-FullValidation" -Exception $_.Exception -Context "Running full validation"
+        return @{
+            Success = $false
+            ExitCode = -1
+            FileIssues = @{}
+            Error = $_.Exception.Message
+        }
+    }
+}
+
+# Run validation on individual file (kept for compatibility)
 function Invoke-ValidationOnFile {
     param([string]$FilePath)
     
@@ -339,7 +375,136 @@ function Invoke-ValidationOnFile {
     }
 }
 
-# Parse validation output for a specific file
+# Parse full validation output for all files
+function Parse-FullValidationOutput {
+    param([string[]]$Output)
+    
+    Write-DebugMessage "Parsing full validation output with $($Output.Count) lines"
+    
+    $fileIssues = @{}
+    $lineCount = 0
+    
+    foreach ($line in $Output) {
+        $line = $line.Trim()
+        $lineCount++
+        
+        # Skip empty lines and obvious summary lines  
+        if (-not $line -or $line -match "^(Files processed|Files failed|Total|Summary|===|---|\[SUCCESS\]|\[INFO\]|\[STEP\])") {
+            continue
+        }
+        
+        Write-DebugMessage "Processing line $lineCount`: $line"
+        
+        # Handle the specific format: [SEVERITY] filepath:line description
+        if ($line -match "^\[(CRITICAL|MAJOR|MINOR|WARNING)\]\s+(.+?):(\d+)\s+(.+)$") {
+            $severity = $Matches[1]
+            $filepath = $Matches[2] -replace "^\.\/", ""
+            $lineNumber = $Matches[3]
+            $description = $Matches[4]
+            
+            Write-DebugMessage "Found formatted issue: [$severity] $filepath`:$lineNumber $description"
+            
+            $issueType = switch ($severity) {
+                "CRITICAL" { "Critical" }
+                "MAJOR" { "Major" }
+                "MINOR" { "Minor" }
+                "WARNING" { "Warning" }
+                default { "Minor" }
+            }
+            
+            # Initialize file entry if not exists
+            if (-not $fileIssues.ContainsKey($filepath)) {
+                $fileIssues[$filepath] = @{
+                    Issues = @()
+                    CriticalCount = 0
+                    MajorCount = 0
+                    MinorCount = 0
+                }
+            }
+            
+            # Add issue to file
+            $fileIssues[$filepath].Issues += @{
+                Line = [int]$lineNumber
+                Description = $description
+                Type = $issueType
+                Severity = $severity
+            }
+            
+            # Update counts
+            switch ($issueType) {
+                "Critical" { $fileIssues[$filepath].CriticalCount++ }
+                "Major" { $fileIssues[$filepath].MajorCount++ }
+                "Minor" { $fileIssues[$filepath].MinorCount++ }
+                "Warning" { $fileIssues[$filepath].MinorCount++ }
+            }
+            
+            Write-DebugMessage "Added issue to $filepath`: Type=$issueType, Line=$lineNumber"
+        }
+        # Handle ShellCheck format: filepath:line:column: note/warning/error: description
+        elseif ($line -match "^(.+?):(\d+):(\d+):\s+(note|warning|error):\s+(.+)$") {
+            $filepath = $Matches[1] -replace "^\.\/", ""
+            $lineNumber = $Matches[2]
+            $issueLevel = $Matches[4]
+            $description = $Matches[5]
+            
+            Write-DebugMessage "Found ShellCheck issue: $filepath`:$lineNumber $issueLevel`: $description"
+            
+            $issueType = switch ($issueLevel) {
+                "error" { "Critical" }
+                "warning" { "Major" }
+                "note" { "Minor" }
+                default { "Minor" }
+            }
+            
+            # Initialize file entry if not exists
+            if (-not $fileIssues.ContainsKey($filepath)) {
+                $fileIssues[$filepath] = @{
+                    Issues = @()
+                    CriticalCount = 0
+                    MajorCount = 0
+                    MinorCount = 0
+                }
+            }
+            
+            # Add issue to file
+            $fileIssues[$filepath].Issues += @{
+                Line = [int]$lineNumber
+                Description = $description
+                Type = $issueType
+                Severity = $issueLevel
+            }
+            
+            # Update counts
+            switch ($issueType) {
+                "Critical" { $fileIssues[$filepath].CriticalCount++ }
+                "Major" { $fileIssues[$filepath].MajorCount++ }
+                "Minor" { $fileIssues[$filepath].MinorCount++ }
+            }
+            
+            Write-DebugMessage "Added ShellCheck issue to $filepath`: Type=$issueType, Line=$lineNumber"
+        }
+        else {
+            Write-DebugMessage "Line didn't match any pattern: $line"
+        }
+    }
+    
+    # Log summary
+    $totalFiles = $fileIssues.Keys.Count
+    $totalIssues = ($fileIssues.Values | ForEach-Object { $_.Issues.Count } | Measure-Object -Sum).Sum
+    $totalCritical = ($fileIssues.Values | ForEach-Object { $_.CriticalCount } | Measure-Object -Sum).Sum
+    $totalMajor = ($fileIssues.Values | ForEach-Object { $_.MajorCount } | Measure-Object -Sum).Sum
+    $totalMinor = ($fileIssues.Values | ForEach-Object { $_.MinorCount } | Measure-Object -Sum).Sum
+    
+    Write-DebugMessage "Full validation parsing complete:"
+    Write-DebugMessage "  Files with issues: $totalFiles"
+    Write-DebugMessage "  Total issues: $totalIssues"
+    Write-DebugMessage "  Critical: $totalCritical, Major: $totalMajor, Minor: $totalMinor"
+    Write-DebugMessage "  Lines processed: $lineCount"
+    
+    return $fileIssues
+}
+
+# Parse validation output for a specific file (kept for compatibility)
 function Parse-ValidationOutput {
     param(
         [string[]]$Output,
@@ -1139,54 +1304,54 @@ function Set-CopilotAssignment {
     }
 }
 
-# Main execution logic with optimized file-by-file processing
+# Main execution logic with optimized full validation processing
 function Start-OptimizedIssueCreation {
     Write-InfoMessage "🚀 Starting Optimized RUTOS Copilot Issue Creation System v$SCRIPT_VERSION"
     
     # Load state
     Load-IssueState | Out-Null
     
-    # Get target files to process
-    if ($TargetFile) {
-        Write-InfoMessage "🎯 Processing single target file: $TargetFile"
-        $filesToProcess = @($TargetFile)
-    } else {
-        Write-StepMessage "📂 Scanning repository for shell scripts and markdown files..."
-        $filesToProcess = Get-RelevantFile
-    }
+    # Run full validation first to get all issues
+    Write-StepMessage "🔍 Running comprehensive validation on all files..."
+    $fullValidationResult = Invoke-FullValidation
     
-    Write-InfoMessage "📊 Found $($filesToProcess.Count) potential files to process"
-    
-    if ($filesToProcess.Count -eq 0) {
-        Write-WarningMessage "❌ No files found to process"
+    if ($fullValidationResult.TotalIssues -eq 0) {
+        Write-SuccessMessage "🎉 No validation issues found - all files are clean!"
         return
     }
     
-    # Sort files by priority if requested
-    if ($SortByPriority) {
-        Write-StepMessage "📋 Sorting files by issue priority..."
-        $prioritizedFiles = @()
-        
-        foreach ($file in $filesToProcess) {
-            $validationDetails = Get-FileValidationDetail -FilePath $file
-            if ($validationDetails.HasIssues) {
-                $priority = if ($validationDetails.CriticalCount -gt 0) { 1 }
-                           elseif ($validationDetails.MajorCount -gt 0) { 2 }
-                           else { 3 }
-                
-                $prioritizedFiles += @{
-                    File = $file
-                    Priority = $priority
-                    Details = $validationDetails
-                }
+    $filesWithIssues = $fullValidationResult.FileIssues
+    Write-InfoMessage "📊 Full validation complete: Found issues in $($filesWithIssues.Keys.Count) files, total $($fullValidationResult.TotalIssues) issues"
+    
+    # Filter files based on target file if specified
+    if ($TargetFile) {
+        Write-InfoMessage "🎯 Filtering for target file: $TargetFile"
+        $originalCount = $filesWithIssues.Keys.Count
+        $filteredIssues = @{}
+        foreach ($file in $filesWithIssues.Keys) {
+            if ($file -eq $TargetFile -or $file.EndsWith($TargetFile)) {
+                $filteredIssues[$file] = $filesWithIssues[$file]
             }
         }
-        
-        $filesToProcess = ($prioritizedFiles | Sort-Object Priority | ForEach-Object { $_.File })
-        Write-InfoMessage "📊 Prioritized $($filesToProcess.Count) files with issues"
+        $filesWithIssues = $filteredIssues
+        Write-InfoMessage "📊 Filtered from $originalCount to $($filesWithIssues.Keys.Count) files for target"
     }
     
-    # Process files individually
+    # Sort files by priority if requested
+    $filesToProcess = @($filesWithIssues.Keys)
+    if ($SortByPriority) {
+        Write-StepMessage "📋 Sorting files by issue priority..."
+        $filesToProcess = $filesToProcess | Sort-Object {
+            $fileIssues = $filesWithIssues[$_]
+            # Priority: Critical = 1, Major = 2, Minor = 3
+            if ($fileIssues.CriticalCount -gt 0) { 1 }
+            elseif ($fileIssues.MajorCount -gt 0) { 2 }
+            else { 3 }
+        }
+        Write-InfoMessage "📊 Prioritized $($filesToProcess.Count) files by issue severity"
+    }
+    
+    # Process files with pre-parsed issues
     $issuesCreated = 0
     $filesProcessed = 0
     $filesSkipped = 0
@@ -1206,23 +1371,18 @@ function Start-OptimizedIssueCreation {
         $filesProcessed++
         
         try {
-            # Run validation on the individual file
-            $validationResult = Invoke-ValidationOnFile -FilePath $file
+            # Get pre-parsed validation results for this file
+            $fileIssues = $filesWithIssues[$file]
             
-            if ($validationResult.Success) {
-                Write-DebugMessage "✅ File has no issues: $file"
+            if (-not $fileIssues -or $fileIssues.Issues.Count -eq 0) {
+                Write-DebugMessage "⚠️  No issues found for file: $file"
                 continue
             }
             
-            if ($validationResult.Issues.Count -eq 0) {
-                Write-DebugMessage "ℹ️  No parseable issues found: $file"
-                continue
-            }
-            
-            Write-InfoMessage "⚠️  Found $($validationResult.Issues.Count) issues in: $file"
+            Write-InfoMessage "⚠️  Found $($fileIssues.Issues.Count) issues in: $file (Critical: $($fileIssues.CriticalCount), Major: $($fileIssues.MajorCount), Minor: $($fileIssues.MinorCount))"
             
             # Check if this file should be processed based on our criteria
-            $shouldProcessResult = Test-ShouldProcessFile -FilePath $file -Issues $validationResult.Issues
+            $shouldProcessResult = Test-ShouldProcessFile -FilePath $file -Issues $fileIssues.Issues
             if (-not $shouldProcessResult.ShouldProcess) {
                 Write-DebugMessage "⏭️  Skipping file based on processing criteria: $file (Reason: $($shouldProcessResult.SkipReason))"
                 $filesSkipped++
@@ -1249,9 +1409,9 @@ function Start-OptimizedIssueCreation {
                 continue
             }
             
-            # Create issue for this file
+            # Create issue for this file using pre-parsed issues
             Write-StepMessage "📝 Creating issue for: $file"
-            $issueResult = New-CopilotIssue -FilePath $file -Issues $validationResult.Issues
+            $issueResult = New-CopilotIssue -FilePath $file -Issues $fileIssues.Issues
             
             if ($issueResult.Success) {
                 $issuesCreated++
@@ -1262,7 +1422,7 @@ function Start-OptimizedIssueCreation {
                     IssueNumber = $issueResult.IssueNumber
                     FilePath = $file
                     CreatedAt = Get-Date
-                    IssueCount = $validationResult.Issues.Count
+                    IssueCount = $fileIssues.Issues.Count
                 }
                 
                 # Small delay to respect rate limits
