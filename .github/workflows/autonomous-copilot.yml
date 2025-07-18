@@ -137,6 +137,46 @@ jobs:
                   ;;
               esac
             fi
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.action }}" = "validation-completed" ]; then
+            echo "🎯 WORKFLOW_DISPATCH: VALIDATION COMPLETED - Processing results"
+            
+            # Get validation results from inputs
+            VALIDATION_STATUS="${{ inputs.validation_status }}"
+            PR_NUMBER="${{ inputs.pr_number }}"
+            ISSUES_FOUND="${{ inputs.issues_found }}"
+            CRITICAL_ISSUES="${{ inputs.critical_issues }}"
+            
+            echo "📊 Validation Status: $VALIDATION_STATUS"
+            echo "📋 PR Number: $PR_NUMBER"
+            echo "🔍 Issues Found: $ISSUES_FOUND"
+            echo "⚠️ Critical Issues: $CRITICAL_ISSUES"
+            
+            if [ -z "$PR_NUMBER" ]; then
+              echo "⚠️ No PR number provided in workflow_dispatch"
+              WORKFLOW_ACTION="maintenance"
+            else
+              echo "🎯 Processing validation results for PR #$PR_NUMBER"
+              
+              case "$VALIDATION_STATUS" in
+                "success")
+                  if [ "$CRITICAL_ISSUES" = "0" ]; then
+                    echo "✅ VALIDATION PASSED - No critical issues, proceeding with autonomous review and merge"
+                    WORKFLOW_ACTION="proceed-with-review"
+                  else
+                    echo "⚠️ VALIDATION PASSED but has critical issues - requesting fixes"
+                    WORKFLOW_ACTION="request-fixes"
+                  fi
+                  ;;
+                "failure")
+                  echo "❌ VALIDATION FAILED - Requesting fixes from Copilot"
+                  WORKFLOW_ACTION="request-fixes"
+                  ;;
+                *)
+                  echo "⚠️ Unexpected validation status: $VALIDATION_STATUS"
+                  WORKFLOW_ACTION="manual-review"
+                  ;;
+              esac
+            fi
           else
             echo "ℹ️  Standard autonomous workflow - checking for maintenance tasks"
             WORKFLOW_ACTION="maintenance"
