@@ -216,10 +216,10 @@ chmod +x test_monitor.sh
 # Run the test
 echo "Running monitoring logic test..."
 if ./test_monitor.sh; then
-	echo "✓ Monitoring logic test completed successfully"
+    echo "✓ Monitoring logic test completed successfully"
 else
-	echo "✗ Monitoring logic test failed"
-	exit 1
+    echo "✗ Monitoring logic test failed"
+    exit 1
 fi
 
 echo
@@ -279,10 +279,10 @@ EOF
 chmod +x test_logger.sh
 
 if ./test_logger.sh; then
-	echo "✓ Performance logging test completed successfully"
+    echo "✓ Performance logging test completed successfully"
 else
-	echo "✗ Performance logging test failed"
-	exit 1
+    echo "✗ Performance logging test failed"
+    exit 1
 fi
 
 echo
@@ -339,10 +339,10 @@ EOF
 chmod +x test_azure.sh
 
 if ./test_azure.sh; then
-	echo "✓ Azure logging test completed successfully"
+    echo "✓ Azure logging test completed successfully"
 else
-	echo "✗ Azure logging test failed"
-	exit 1
+    echo "✗ Azure logging test failed"
+    exit 1
 fi
 
 # Cleanup

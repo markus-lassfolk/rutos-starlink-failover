@@ -21,16 +21,16 @@ echo "=== TESTING EXTRACT_VARIABLE ==="
 
 # Test the extract_variable function
 extract_variable() {
-	file="$1"
-	var_name="$2"
+    file="$1"
+    var_name="$2"
 
-	if [ -f "$file" ]; then
-		# Extract exported variable value (handle both formats)
-		grep "^[[:space:]]*export[[:space:]]*${var_name}=" "$file" |
-			sed "s/^[[:space:]]*export[[:space:]]*${var_name}=[\"']\?//" |
-			sed "s/[\"']\?[[:space:]]*$//" |
-			head -n 1
-	fi
+    if [ -f "$file" ]; then
+        # Extract exported variable value (handle both formats)
+        grep "^[[:space:]]*export[[:space:]]*${var_name}=" "$file" |
+            sed "s/^[[:space:]]*export[[:space:]]*${var_name}=[\"']\?//" |
+            sed "s/[\"']\?[[:space:]]*$//" |
+            head -n 1
+    fi
 }
 
 echo "STARLINK_GRPC_HOST = '$(extract_variable /tmp/debug-test/test-config.sh STARLINK_GRPC_HOST)'"

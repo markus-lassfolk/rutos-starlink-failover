@@ -4,7 +4,7 @@
 # Centralized Pushover Notifier for mwan3
 #
 # Version: 1.0 (Public Edition)
-# Source: https://github.com/markus-lassfolk/rutos-starlink-failover/ 
+# Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script is the central "messenger" for the Starlink monitoring system.
 # Its sole purpose is to send detailed notifications via Pushover.
@@ -54,9 +54,9 @@ send_notification() {
     # Takes two arguments: title and message
     local title="$1"
     local message="$2"
-    
+
     log "Sending Pushover -> Title: '$title', Message: '$message'"
-    
+
     # Use curl to send the API request to Pushover.
     # -s for silent mode, --max-time to prevent it from hanging.
     curl -s --max-time 15 \
@@ -64,7 +64,7 @@ send_notification() {
         -F "user=$PUSHOVER_USER" \
         -F "title=$title" \
         -F "message=$message" \
-        https://api.pushover.net/1/messages.json > /dev/null
+        https://api.pushover.net/1/messages.json >/dev/null
 }
 
 # --- Main Logic ---
@@ -91,7 +91,7 @@ case "${1:-hotplug}" in
         # The ACTION and INTERFACE variables are automatically set by the system.
         # We provide empty defaults (e.g., ${ACTION:-}) for safety when testing manually.
         log "Triggered by Hotplug: ACTION=${ACTION:-}, INTERFACE=${INTERFACE:-}."
-        
+
         case "${ACTION:-}" in
             ifdown)
                 # A "hard" failure event occurred.

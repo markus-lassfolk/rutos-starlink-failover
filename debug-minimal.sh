@@ -3,25 +3,25 @@
 
 # Let's manually test the functions
 variable_exists() {
-	file="$1"
-	var_name="$2"
+    file="$1"
+    var_name="$2"
 
-	if [ -f "$file" ]; then
-		grep -q "^[[:space:]]*export[[:space:]]*${var_name}=" "$file"
-	else
-		return 1
-	fi
+    if [ -f "$file" ]; then
+        grep -q "^[[:space:]]*export[[:space:]]*${var_name}=" "$file"
+    else
+        return 1
+    fi
 }
 
 extract_variable() {
-	file="$1"
-	var_name="$2"
+    file="$1"
+    var_name="$2"
 
-	if [ -f "$file" ]; then
-		grep "^[[:space:]]*export[[:space:]]*${var_name}=" "$file" | head -1 | sed 's/^[[:space:]]*export[[:space:]]*[^=]*="\([^"]*\)".*/\1/'
-	else
-		return 1
-	fi
+    if [ -f "$file" ]; then
+        grep "^[[:space:]]*export[[:space:]]*${var_name}=" "$file" | head -1 | sed 's/^[[:space:]]*export[[:space:]]*[^=]*="\([^"]*\)".*/\1/'
+    else
+        return 1
+    fi
 }
 
 # Create test files
@@ -41,21 +41,21 @@ echo ""
 
 echo "Testing variable_exists:"
 if variable_exists "/tmp/minimal-debug/test-config.sh" "STARLINK_GRPC_HOST"; then
-	echo "STARLINK_GRPC_HOST exists: YES"
+    echo "STARLINK_GRPC_HOST exists: YES"
 else
-	echo "STARLINK_GRPC_HOST exists: NO"
+    echo "STARLINK_GRPC_HOST exists: NO"
 fi
 
 if variable_exists "/tmp/minimal-debug/test-config.sh" "MONITORING_INTERVAL"; then
-	echo "MONITORING_INTERVAL exists: YES"
+    echo "MONITORING_INTERVAL exists: YES"
 else
-	echo "MONITORING_INTERVAL exists: NO"
+    echo "MONITORING_INTERVAL exists: NO"
 fi
 
 if variable_exists "/tmp/minimal-debug/test-config.sh" "LOG_LEVEL"; then
-	echo "LOG_LEVEL exists: YES"
+    echo "LOG_LEVEL exists: YES"
 else
-	echo "LOG_LEVEL exists: NO"
+    echo "LOG_LEVEL exists: NO"
 fi
 
 echo ""
