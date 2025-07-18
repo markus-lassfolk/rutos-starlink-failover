@@ -1,14 +1,19 @@
-name: Auto-Assign Copilot as Reviewer
+name: Auto-Convert Copilot PRs from Draft
 
 on:
-  schedule:
-    # Run every minute
-    - cron: '* * * * *'
+  # Trigger when PR is synchronized (new commits) or edited (description updated)
+  pull_request:
+    types: [synchronize, edited]
+  
+  # Trigger when comments are added (Copilot often comments when done)
+  issue_comment:
+    types: [created]
+  
+  # Manual trigger for testing
   workflow_dispatch:
-    # Allow manual triggering for testing
 
 jobs:
-  auto-assign-copilot-reviewer:
+  auto-convert-copilot-drafts:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,49 +24,94 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Auto-assign Copilot as reviewer
+      - name: Convert Copilot draft PRs to ready when work is complete
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
           
-          echo "🔍 Checking for PRs where Copilot is assigned but not a reviewer..."
+          echo "🔍 Checking if Copilot has finished working on draft PRs..."
           
-          # Get all open PRs
-          open_prs=$(gh pr list --state open --json number,assignees,reviewRequests --limit 100)
-          
-          if [ "$open_prs" = "[]" ]; then
-            echo "ℹ️  No open PRs found"
-            exit 0
+          # Determine which PR to check based on trigger event
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pr_number="${{ github.event.number }}"
+            echo "📍 Triggered by PR #$pr_number event: ${{ github.event.action }}"
+          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
+            pr_number="${{ github.event.issue.number }}"
+            echo "📍 Triggered by comment on PR #$pr_number"
+          else
+            echo "📍 Manual trigger - checking all draft PRs"
+            pr_number=""
           fi
           
-          # Process each PR
-          echo "$open_prs" | jq -c '.[]' | while read -r pr; do
-            pr_number=$(echo "$pr" | jq -r '.number')
+          # Function to check if Copilot appears to be done working
+          check_copilot_completion() {
+            local pr_num=$1
+            local pr_data=$(gh pr view "$pr_num" --json isDraft,assignees,title,body,comments)
             
-            # Check if Copilot is assigned
-            copilot_assigned=$(echo "$pr" | jq -r '.assignees[] | select(.login == "Copilot") | .login // empty')
+            # Check if PR is draft and has Copilot assigned
+            local is_draft=$(echo "$pr_data" | jq -r '.isDraft')
+            local copilot_assigned=$(echo "$pr_data" | jq -r '.assignees[] | select(.login == "Copilot") | .login // empty')
             
-            # Check if Copilot is already a reviewer
-            copilot_reviewer=$(echo "$pr" | jq -r '.reviewRequests[] | select(.login == "Copilot") | .login // empty')
-            
-            if [ -n "$copilot_assigned" ] && [ -z "$copilot_reviewer" ]; then
-              echo "✅ PR #$pr_number: Copilot is assigned but not a reviewer"
-              echo "🔧 Adding Copilot as reviewer to PR #$pr_number..."
-              
-              if gh pr edit "$pr_number" --add-reviewer Copilot; then
-                echo "✅ Successfully added Copilot as reviewer to PR #$pr_number"
-                
-                # Log the action for tracking
-                echo "📝 PR #$pr_number: Auto-assigned Copilot as reviewer at $(date)"
-              else
-                echo "❌ Failed to add Copilot as reviewer to PR #$pr_number"
-              fi
-            elif [ -n "$copilot_assigned" ] && [ -n "$copilot_reviewer" ]; then
-              echo "ℹ️  PR #$pr_number: Copilot is both assigned and reviewer (no action needed)"
-            else
-              echo "ℹ️  PR #$pr_number: Copilot is not assigned (skipping)"
+            if [ "$is_draft" != "true" ] || [ -z "$copilot_assigned" ]; then
+              echo "ℹ️  PR #$pr_num: Not a Copilot draft PR (skipping)"
+              return 1
             fi
-          done
+            
+            local pr_title=$(echo "$pr_data" | jq -r '.title')
+            local pr_body=$(echo "$pr_data" | jq -r '.body // ""')
+            
+            echo "� Analyzing PR #$pr_num: '$pr_title'"
+            
+            # Look for completion indicators in PR body
+            local completion_indicators="Fixes #|Closes #|Summary|Issues Fixed|Testing|Validation Results|Scope Compliance"
+            
+            if echo "$pr_body" | grep -qE "$completion_indicators"; then
+              echo "✅ PR #$pr_num: Found completion indicators in description"
+              
+              # Additional check: Look for recent comments from Copilot
+              local recent_comments=$(echo "$pr_data" | jq -r '.comments[-3:] | .[] | select(.author.login == "Copilot") | .body' 2>/dev/null || echo "")
+              
+              if echo "$recent_comments" | grep -qE "(completed|finished|ready|done)"; then
+                echo "✅ PR #$pr_num: Found completion language in recent comments"
+                return 0
+              elif [ ${#pr_body} -gt 1000 ]; then
+                echo "✅ PR #$pr_num: Substantial PR description (${#pr_body} chars) suggests completion"
+                return 0
+              else
+                echo "⏳ PR #$pr_num: Has completion indicators but waiting for more signals"
+                return 1
+              fi
+            else
+              echo "⏳ PR #$pr_num: No completion indicators found yet"
+              return 1
+            fi
+          }
           
-          echo "🎉 Auto-assignment check completed"
+          # Check specific PR or all draft PRs
+          if [ -n "$pr_number" ]; then
+            if check_copilot_completion "$pr_number"; then
+              echo "🔧 Converting PR #$pr_number from draft to ready for review..."
+              if gh pr ready "$pr_number"; then
+                echo "✅ Successfully converted PR #$pr_number to ready for review"
+                echo "🎯 This will trigger validation workflows automatically"
+              else
+                echo "❌ Failed to convert PR #$pr_number from draft to ready"
+              fi
+            fi
+          else
+            # Manual trigger - check all draft PRs
+            draft_prs=$(gh pr list --state open --draft --json number --limit 20)
+            echo "$draft_prs" | jq -r '.[].number' | while read pr_num; do
+              if [ -n "$pr_num" ] && check_copilot_completion "$pr_num"; then
+                echo "🔧 Converting PR #$pr_num from draft to ready for review..."
+                if gh pr ready "$pr_num"; then
+                  echo "✅ Successfully converted PR #$pr_num to ready for review"
+                else
+                  echo "❌ Failed to convert PR #$pr_num from draft to ready"
+                fi
+              fi
+            done
+          fi
+          
+          echo "🎉 Copilot completion check finished"
