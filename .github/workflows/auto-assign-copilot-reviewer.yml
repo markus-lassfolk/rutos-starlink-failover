@@ -33,18 +33,13 @@ jobs:
           set -e
           
           echo "🔍 Checking if Copilot has finished working on draft PRs..."
-          echo "🔧 Event name: ${{ github.event_name }}"
-          echo "🔧 GitHub actor: ${{ github.actor }}"
-          echo "🔧 Repository: ${{ github.repository }}"
+          echo "Event name: ${{ github.event_name }}"
+          echo "GitHub actor: ${{ github.actor }}"
+          echo "Repository: ${{ github.repository }}"
           
           # Test gh CLI authentication
-          echo "🔧 Testing GitHub CLI authentication..."
-          if gh auth status; then
-            echo "✅ GitHub CLI authentication successful"
-          else
-            echo "❌ GitHub CLI authentication failed"
-            exit 1
-          fi
+          echo "Testing GitHub CLI authentication..."
+          gh auth status || exit 1
           
           # Determine which PR to check based on trigger event
           if [ "${{ github.event_name }}" = "pull_request" ]; then
