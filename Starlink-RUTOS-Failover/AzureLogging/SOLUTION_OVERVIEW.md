@@ -103,7 +103,7 @@ enterprise-grade cloud logging capabilities.
 
 ## File Organization
 
-```
+```text
 AzureLogging/
 ├── README.md                     # Complete setup documentation
 ├── SOLUTION_OVERVIEW.md          # This file
