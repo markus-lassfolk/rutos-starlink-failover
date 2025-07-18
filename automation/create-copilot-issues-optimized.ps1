@@ -3,7 +3,7 @@
 <#
 .SYNOPSIS
     Optimized Autonomous RUTOS Copilot Issue Creation System
-    
+
 .DESCRIPTION
     Optimized version that processes files individually for better performance:
     1. Scans repository for relevant files (shell scripts, PowerShell scripts, and markdown)
@@ -11,34 +11,34 @@
     3. Creates targeted issues for files with problems
     4. Stops early when reaching the maximum issues limit
     5. Comprehensive error handling and state management
-    
+
 .PARAMETER Production
     Enable production mode to create real issues (default: dry run for safety)
-    
+
 .PARAMETER MaxIssues
     Maximum number of issues to create in a single run (default: 3)
-    
+
 .PARAMETER PriorityFilter
     Filter issues by priority: All, Critical, Major, Minor (default: All)
-    
+
 .PARAMETER DebugMode
     Enable detailed debug logging
-    
+
 .PARAMETER TestMode
     Run in test mode without creating actual issues
-    
+
 .PARAMETER SkipValidation
     Skip the initial validation step (for testing)
-    
+
 .PARAMETER ForceReprocessing
     Force reprocessing of previously handled files
-    
+
 .PARAMETER TargetFile
     Process only a specific file (for testing)
-    
+
 .PARAMETER MinIssuesPerFile
     Skip files with fewer than this many issues (default: 1)
-    
+
 .PARAMETER SortByPriority
     Process files with critical issues first, then major, then minor
 
@@ -48,11 +48,11 @@
 .EXAMPLE
     .\create-copilot-issues-optimized.ps1
     Run in safe dry run mode with max 3 issues
-    
+
 .EXAMPLE
     .\create-copilot-issues-optimized.ps1 -Production -MaxIssues 5
     Production mode with maximum 5 issues
-    
+
 .EXAMPLE
     .\create-copilot-issues-optimized.ps1 -PriorityFilter Critical -DebugMode
     Focus on critical issues with debug output
@@ -77,11 +77,11 @@ param(
 $labelModulePath = Join-Path $PSScriptRoot "GitHub-Label-Management.psm1"
 if (Test-Path $labelModulePath) {
     Import-Module $labelModulePath -Force -ErrorAction SilentlyContinue
-    Write-Host "[LABELS] GitHub Label Management Module Loaded" -ForegroundColor Blue
-    Write-Host "[SUCCESS] Loaded enhanced label management system (100+ labels)" -ForegroundColor Green
+    Write-Information "[LABELS] GitHub Label Management Module Loaded" -InformationAction Continue
+    Write-Information "[SUCCESS] Loaded enhanced label management system (100+ labels)" -InformationAction Continue
     $intelligentLabelingAvailable = $true
 } else {
-    Write-Host "[WARNING] Enhanced label management module not found - using basic labels" -ForegroundColor Yellow
+    Write-Warning "[WARNING] Enhanced label management module not found - using basic labels"
     $intelligentLabelingAvailable = $false
 }
 
@@ -90,13 +90,13 @@ $SCRIPT_VERSION = "1.0.0"
 $VALIDATION_SCRIPT = "scripts/pre-commit-validation.sh"
 $STATE_FILE = "automation/.copilot-issues-state.json"
 
-# Global error collection for comprehensive reporting
-$global:CollectedErrors = @()
-$global:ErrorCount = 0
-
-# State tracking
-$global:IssueState = @{}
-$global:CreatedIssues = @()
+# State management object to replace global variables
+class ScriptState {
+    [System.Collections.ArrayList]$CollectedErrors = @()
+    [int]$ErrorCount = 0
+    [hashtable]$IssueState = @{}
+    [System.Collections.ArrayList]$CreatedIssues = @()
+}
 
 # Color definitions for consistent output
 $RED = [ConsoleColor]::Red
@@ -114,7 +114,7 @@ function Write-StatusMessage {
         [ConsoleColor]$Color = [ConsoleColor]::White,
         [string]$Level = "INFO"
     )
-    
+
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $levelColor = switch ($Level) {
         "ERROR" { $RED }
@@ -124,8 +124,8 @@ function Write-StatusMessage {
         "STEP" { $BLUE }
         default { [ConsoleColor]::White }
     }
-    
-    Write-Host "[$Level] [$timestamp] $Message" -ForegroundColor $levelColor
+
+    Write-Output "[$Level] [$timestamp] $Message"
 }
 
 function Write-DebugMessage {
@@ -163,6 +163,7 @@ function Write-InfoMessage {
 # Enhanced error collection with comprehensive information
 function Add-CollectedError {
     param(
+        [ScriptState]$State,
         [string]$ErrorMessage,
         [string]$FunctionName = "Unknown",
         [string]$Location = "Unknown",
@@ -170,9 +171,9 @@ function Add-CollectedError {
         [string]$Context = "",
         [hashtable]$AdditionalInfo = @{}
     )
-    
-    $global:ErrorCount++
-    
+
+    $State.ErrorCount++
+
     # Get caller information if not provided
     if ($FunctionName -eq "Unknown" -or $Location -eq "Unknown") {
         $callStack = Get-PSCallStack
@@ -182,11 +183,11 @@ function Add-CollectedError {
             if ($Location -eq "Unknown") { $Location = "$($caller.ScriptName):$($caller.ScriptLineNumber)" }
         }
     }
-    
+
     # Create comprehensive error information
     $errorInfo = @{
         Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        ErrorNumber = $global:ErrorCount
+        ErrorNumber = $State.ErrorCount
         Message = $ErrorMessage
         FunctionName = $FunctionName
         Location = $Location
@@ -197,13 +198,13 @@ function Add-CollectedError {
         LastExitCode = $LASTEXITCODE
         AdditionalInfo = $AdditionalInfo
     }
-    
-    # Add to global collection
-    $global:CollectedErrors += $errorInfo
-    
+
+    # Add to collection
+    $State.CollectedErrors.Add($errorInfo) | Out-Null
+
     # Display the error immediately for real-time feedback
-    Write-StatusMessage "❌ Error #$global:ErrorCount in $FunctionName`: $ErrorMessage" -Color $RED -Level "ERROR"
-    
+    Write-StatusMessage "❌ Error #$($State.ErrorCount) in $FunctionName`: $ErrorMessage" -Color $RED -Level "ERROR"
+
     if ($DebugMode) {
         Write-StatusMessage "   📍 Location: $Location" -Color $GRAY -Level "DEBUG"
         if ($Context) {
@@ -217,119 +218,139 @@ function Add-CollectedError {
 
 # Display comprehensive error report
 function Show-CollectedError {
-    if ($global:CollectedErrors.Count -eq 0) {
+    param([ScriptState]$State)
+
+    if ($State.CollectedErrors.Count -eq 0) {
         Write-StatusMessage "✅ No errors collected during execution" -Color $GREEN
         return
     }
-    
-    Write-Host "`n" + ("=" * 100) -ForegroundColor $RED
-    Write-Host "🚨 COMPREHENSIVE ERROR REPORT - $($global:CollectedErrors.Count) Error(s) Found" -ForegroundColor $RED
-    Write-Host ("=" * 100) -ForegroundColor $RED
-    
-    foreach ($errorInfo in $global:CollectedErrors) {
-        Write-Host "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)" -ForegroundColor $RED
-        Write-Host "   🎯 Function: $($errorInfo.FunctionName)" -ForegroundColor $YELLOW
-        Write-Host "   📍 Location: $($errorInfo.Location)" -ForegroundColor $YELLOW
-        Write-Host "   💬 Message: $($errorInfo.Message)" -ForegroundColor White
-        
+
+    Write-Output "`n" + ("=" * 100)
+    Write-Output "🚨 COMPREHENSIVE ERROR REPORT - $($State.CollectedErrors.Count) Error(s) Found"
+    Write-Output ("=" * 100)
+
+    foreach ($errorInfo in $State.CollectedErrors) {
+        Write-Output "`n📋 ERROR #$($errorInfo.ErrorNumber) - $($errorInfo.Timestamp)"
+        Write-Output "   🎯 Function: $($errorInfo.FunctionName)"
+        Write-Output "   📍 Location: $($errorInfo.Location)"
+        Write-Output "   💬 Message: $($errorInfo.Message)"
+
         if ($errorInfo.Context) {
-            Write-Host "   📝 Context: $($errorInfo.Context)" -ForegroundColor $CYAN
+            Write-Output "   📝 Context: $($errorInfo.Context)"
         }
-        
+
         if ($errorInfo.ExceptionType -ne "N/A") {
-            Write-Host "   🔍 Exception: $($errorInfo.ExceptionType) - $($errorInfo.ExceptionMessage)" -ForegroundColor $PURPLE
+            Write-Output "   🔍 Exception: $($errorInfo.ExceptionType) - $($errorInfo.ExceptionMessage)"
         }
-        
+
         if ($errorInfo.LastExitCode -ne 0) {
-            Write-Host "   🔢 Last Exit Code: $($errorInfo.LastExitCode)" -ForegroundColor $RED
+            Write-Output "   🔢 Last Exit Code: $($errorInfo.LastExitCode)"
         }
-        
+
         if ($errorInfo.AdditionalInfo.Count -gt 0) {
-            Write-Host "   📊 Additional Info:" -ForegroundColor $BLUE
+            Write-Output "   📊 Additional Info:"
             foreach ($key in $errorInfo.AdditionalInfo.Keys) {
-                Write-Host "      $key`: $($errorInfo.AdditionalInfo[$key])" -ForegroundColor $GRAY
+                Write-Output "      $key`: $($errorInfo.AdditionalInfo[$key])"
             }
         }
     }
-    
-    Write-Host "`n📊 ERROR SUMMARY:" -ForegroundColor $RED
-    Write-Host "   Total Errors: $($global:CollectedErrors.Count)" -ForegroundColor $RED
-    Write-Host "   Functions with Errors: $($global:CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -ForegroundColor $YELLOW
+
+    Write-Output "`n📊 ERROR SUMMARY:"
+    Write-Output "   Total Errors: $($State.CollectedErrors.Count)"
+    Write-Output "   Functions with Errors: $($State.CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count"
 }
 
 # Load and save state for preventing infinite loops
-function Load-IssueState {
+function Get-IssueState {
+    param([ScriptState]$State)
+
     Write-DebugMessage "Loading issue state from: $STATE_FILE"
-    
+
     if (Test-Path $STATE_FILE) {
         try {
             $stateContent = Get-Content $STATE_FILE -Raw | ConvertFrom-Json
-            $global:IssueState = @{}
-            
+            $State.IssueState = @{}
+
             foreach ($property in $stateContent.PSObject.Properties) {
-                $global:IssueState[$property.Name] = $property.Value
+                $State.IssueState[$property.Name] = $property.Value
             }
-            
-            Write-DebugMessage "Loaded state for $($global:IssueState.Count) files"
+
+            Write-DebugMessage "Loaded state for $($State.IssueState.Count) files"
             return $true
         } catch {
-            Add-CollectedError -ErrorMessage "Failed to load state file: $($_.Exception.Message)" -FunctionName "Load-IssueState" -Exception $_.Exception -Context "Loading issue state from $STATE_FILE" -AdditionalInfo @{StateFile = $STATE_FILE}
-            $global:IssueState = @{}
+            Add-CollectedError -State $State -ErrorMessage "Failed to load state file: $($_.Exception.Message)" -FunctionName "Get-IssueState" -Exception $_.Exception -Context "Loading issue state from $STATE_FILE" -AdditionalInfo @{StateFile = $STATE_FILE}
+            $State.IssueState = @{}
             return $false
         }
     } else {
         Write-DebugMessage "No existing state file found - starting fresh"
-        $global:IssueState = @{}
+        $State.IssueState = @{}
         return $false
     }
 }
 
 function Save-IssueState {
+    param([ScriptState]$State)
+
     Write-DebugMessage "Saving issue state to: $STATE_FILE"
-    
+
     try {
         # Ensure directory exists
         $stateDir = Split-Path $STATE_FILE -Parent
         if (-not (Test-Path $stateDir)) {
             New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
         }
-        
+
         # Convert to JSON and save
-        $global:IssueState | ConvertTo-Json -Depth 10 | Out-File $STATE_FILE -Encoding UTF8
+        $State.IssueState | ConvertTo-Json -Depth 10 | Out-File $STATE_FILE -Encoding UTF8
         Write-DebugMessage "State saved successfully"
         return $true
     } catch {
-        Add-CollectedError -ErrorMessage "Failed to save state: $($_.Exception.Message)" -FunctionName "Save-IssueState" -Exception $_.Exception -Context "Saving issue state to $STATE_FILE"
+        Add-CollectedError -State $State -ErrorMessage "Failed to save state: $($_.Exception.Message)" -FunctionName "Save-IssueState" -Exception $_.Exception -Context "Saving issue state to $STATE_FILE"
         return $false
     }
 }
 
 # Run validation on individual file
 function Invoke-ValidationOnFile {
-    param([string]$FilePath)
-    
+    param(
+        [ScriptState]$State,
+        [string]$FilePath
+    )
+
     Write-DebugMessage "Running validation on file: $FilePath"
-    
+
     try {
-        $validationCmd = "wsl bash -c `"cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$FilePath'`""
-        Write-DebugMessage "Executing: $validationCmd"
-        
-        $validationOutput = Invoke-Expression $validationCmd 2>&1
-        $exitCode = $LASTEXITCODE
-        
+        # Use Start-Process instead of Invoke-Expression for security
+        $arguments = @(
+            'bash'
+            '-c'
+            "cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$FilePath'"
+        )
+
+        Write-DebugMessage "Executing: wsl $($arguments -join ' ')"
+
+        $process = Start-Process -FilePath 'wsl' -ArgumentList $arguments -Wait -NoNewWindow -PassThru -RedirectStandardOutput -RedirectStandardError
+        $validationOutput = Get-Content $process.StandardOutput -Raw
+        $errorOutput = Get-Content $process.StandardError -Raw
+        $exitCode = $process.ExitCode
+
+        # Combine output and error streams
+        $combinedOutput = @($validationOutput, $errorOutput) | Where-Object { $_ } | ForEach-Object { $_.Split("`n") }
+
         Write-DebugMessage "Validation exit code: $exitCode"
-        
+
         # Parse the validation output to extract issues
-        $issues = Parse-ValidationOutput -Output $validationOutput -FilePath $FilePath
-        
+        $issues = ConvertFrom-ValidationOutput -Output $combinedOutput -FilePath $FilePath
+
         return @{
             Success = $exitCode -eq 0
             ExitCode = $exitCode
             Issues = $issues
-            Output = $validationOutput
+            Output = $combinedOutput
         }
     } catch {
-        Add-CollectedError -ErrorMessage "Failed to validate file: $($_.Exception.Message)" -FunctionName "Invoke-ValidationOnFile" -Exception $_.Exception -Context "Validating file $FilePath"
+        Add-CollectedError -State $State -ErrorMessage "Failed to validate file: $($_.Exception.Message)" -FunctionName "Invoke-ValidationOnFile" -Exception $_.Exception -Context "Validating file $FilePath"
         return @{
             Success = $false
             ExitCode = -1
@@ -340,37 +361,37 @@ function Invoke-ValidationOnFile {
 }
 
 # Parse validation output for a specific file
-function Parse-ValidationOutput {
+function ConvertFrom-ValidationOutput {
     param(
         [string[]]$Output,
         [string]$FilePath
     )
-    
+
     Write-DebugMessage "Parsing validation output for: $FilePath"
-    
+
     $issues = @()
     $lineCount = 0
-    
+
     foreach ($line in $Output) {
         $line = $line.Trim()
         $lineCount++
-        
+
         # Skip empty lines and obvious summary lines
         if (-not $line -or $line -match "^(Files processed|Files failed|Total|Summary|===|---|\[SUCCESS\]|\[INFO\])") {
             continue
         }
-        
+
         Write-DebugMessage "Processing line $lineCount`: $line"
-        
+
         # Handle the specific format: [SEVERITY] filepath:line description
         if ($line -match "^\[(CRITICAL|MAJOR|MINOR|WARNING)\]\s+(.+?):(\d+)\s+(.+)$") {
             $severity = $Matches[1]
             $filepath = $Matches[2] -replace "^\.\/", ""
             $lineNumber = $Matches[3]
             $description = $Matches[4]
-            
+
             Write-DebugMessage "Found formatted issue: [$severity] $filepath`:$lineNumber $description"
-            
+
             # Only include issues for our target file
             if ($filepath -eq $FilePath) {
                 $issueType = switch ($severity) {
@@ -380,7 +401,7 @@ function Parse-ValidationOutput {
                     "WARNING" { "Warning" }
                     default { "Minor" }
                 }
-                
+
                 $issues += @{
                     Line = [int]$lineNumber
                     Description = $description
@@ -398,9 +419,9 @@ function Parse-ValidationOutput {
             $lineNumber = $Matches[2]
             $issueLevel = $Matches[4]
             $description = $Matches[5]
-            
+
             Write-DebugMessage "Found ShellCheck issue: $filepath`:$lineNumber $issueLevel`: $description"
-            
+
             if ($filepath -eq $FilePath) {
                 $issueType = switch ($issueLevel) {
                     "error" { "Critical" }
@@ -408,7 +429,7 @@ function Parse-ValidationOutput {
                     "note" { "Minor" }
                     default { "Minor" }
                 }
-                
+
                 $issues += @{
                     Line = [int]$lineNumber
                     Description = $description
@@ -426,16 +447,16 @@ function Parse-ValidationOutput {
             $lineNumber = $Matches[2]
             $severity = $Matches[3]
             $message = $Matches[4]
-            
+
             Write-DebugMessage "Found PSScriptAnalyzer issue: Line $lineNumber $severity`: $ruleName - $message"
-            
+
             $issueType = switch ($severity) {
                 "Error" { "Critical" }
                 "Warning" { "Major" }
                 "Information" { "Minor" }
                 default { "Minor" }
             }
-            
+
             $issues += @{
                 Line = [int]$lineNumber
                 Description = "$ruleName - $message"
@@ -465,36 +486,36 @@ function Parse-ValidationOutput {
             Write-DebugMessage "Line didn't match any pattern: $line"
         }
     }
-    
+
     # Categorize issues for debugging
     $criticalCount = ($issues | Where-Object { $_.Type -eq "Critical" }).Count
-    $majorCount = ($issues | Where-Object { $_.Type -eq "Major" }).Count  
+    $majorCount = ($issues | Where-Object { $_.Type -eq "Major" }).Count
     $minorCount = ($issues | Where-Object { $_.Type -eq "Minor" -or $_.Type -eq "Warning" }).Count
-    
+
     Write-DebugMessage "Parsing complete for $FilePath`:"
     Write-DebugMessage "  Total issues found: $($issues.Count)"
     Write-DebugMessage "  Critical: $criticalCount, Major: $majorCount, Minor: $minorCount"
     Write-DebugMessage "  Lines processed: $lineCount"
-    
+
     return $issues
 }
 
 # Get list of relevant files to process
 function Get-RelevantFile {
     Write-DebugMessage "Getting relevant files to process"
-    
-    $filesToProcess = Get-ChildItem -Path "." -Recurse -Include "*.sh", "*.ps1", "*.md" -File | 
-                     Where-Object { 
-                         $_.Name -ne "pre-commit-validation.sh" -and 
+
+    $filesToProcess = Get-ChildItem -Path "." -Recurse -Include "*.sh", "*.ps1", "*.md" -File |
+                     Where-Object {
+                         $_.Name -ne "pre-commit-validation.sh" -and
                          $_.FullName -notmatch "\.git" -and
                          $_.FullName -notmatch "node_modules" -and
                          $_.FullName -notmatch "\.vscode" -and
                          $_.FullName -notmatch "automation\\.*\.log$"
-                     } | 
-                     ForEach-Object { 
-                         $_.FullName.Replace($PWD.Path, "").Replace("\", "/").TrimStart("/") 
+                     } |
+                     ForEach-Object {
+                         $_.FullName.Replace($PWD.Path, "").Replace("\", "/").TrimStart("/")
                      }
-    
+
     Write-DebugMessage "Found $($filesToProcess.Count) relevant files"
     return $filesToProcess
 }
@@ -502,9 +523,9 @@ function Get-RelevantFile {
 # Test if file has validation issues
 function Test-FileHasValidationIssue {
     param([string]$FilePath)
-    
+
     Write-DebugMessage "Testing if file has validation issues: $FilePath"
-    
+
     $validationResult = Invoke-ValidationOnFile -FilePath $FilePath
     return @{
         HasIssues = -not $validationResult.Success
@@ -516,11 +537,11 @@ function Test-FileHasValidationIssue {
 # Get detailed validation information for a file
 function Get-FileValidationDetail {
     param([string]$FilePath)
-    
+
     Write-DebugMessage "Getting validation details for: $FilePath"
-    
+
     $validationResult = Invoke-ValidationOnFile -FilePath $FilePath
-    
+
     if ($validationResult.Success) {
         return @{
             HasIssues = $false
@@ -529,11 +550,11 @@ function Get-FileValidationDetail {
             Details = "File passed validation"
         }
     }
-    
+
     $criticalIssues = $validationResult.Issues | Where-Object { $_.Type -eq "Critical" }
     $majorIssues = $validationResult.Issues | Where-Object { $_.Type -eq "Major" }
     $minorIssues = $validationResult.Issues | Where-Object { $_.Type -eq "Minor" -or $_.Type -eq "Warning" }
-    
+
     return @{
         HasIssues = $true
         IssuesCount = $validationResult.Issues.Count
@@ -548,17 +569,17 @@ function Get-FileValidationDetail {
 # Test if an issue already exists for a file (open or recently closed)
 function Test-IssueExist {
     param([string]$FilePath)
-    
+
     Write-DebugMessage "Checking if issue exists for: $FilePath"
-    
+
     try {
         # Calculate cutoff time for "recent" closed issues (configurable hours ago)
         $cutoffTime = (Get-Date).AddHours(-$RecentlyClosedHours).ToString("yyyy-MM-ddTHH:mm:ssZ")
         Write-DebugMessage "Checking for issues closed after: $cutoffTime ($RecentlyClosedHours hours ago)"
-        
+
         # First check for open issues
         $openResult = & gh issue list --search "$FilePath" --state "open" --json "number,title,state,updatedAt" 2>$null
-        
+
         if ($LASTEXITCODE -eq 0 -and $openResult -and $openResult.Trim()) {
             try {
                 $openIssues = $openResult | ConvertFrom-Json
@@ -566,15 +587,15 @@ function Test-IssueExist {
                 $fileName = Split-Path $FilePath -Leaf
                 $expectedTitlePatterns = @(
                     "[CRITICAL] RUTOS Compatibility Fix: $fileName",
-                    "[MAJOR] RUTOS Compatibility Fix: $fileName", 
+                    "[MAJOR] RUTOS Compatibility Fix: $fileName",
                     "[MINOR] RUTOS Compatibility Fix: $fileName"
                 )
-                
-                $existingOpenIssue = $openIssues | Where-Object { 
+
+                $existingOpenIssue = $openIssues | Where-Object {
                     $currentTitle = $_.title
                     $expectedTitlePatterns | Where-Object { $currentTitle -eq $_ }
                 } | Select-Object -First 1
-                
+
                 if ($existingOpenIssue) {
                     Write-DebugMessage "Found existing OPEN issue #$($existingOpenIssue.number) for file with exact title match: '$($existingOpenIssue.title)'"
                     return @{
@@ -589,10 +610,10 @@ function Test-IssueExist {
                 Write-DebugMessage "JSON parsing failed for open issues. Raw output: $openResult"
             }
         }
-        
+
         # Then check for recently closed issues
         $closedResult = & gh issue list --search "$FilePath" --state "closed" --json "number,title,state,closedAt" 2>$null
-        
+
         if ($LASTEXITCODE -eq 0 -and $closedResult -and $closedResult.Trim()) {
             try {
                 $closedIssues = $closedResult | ConvertFrom-Json
@@ -600,18 +621,18 @@ function Test-IssueExist {
                 $fileName = Split-Path $FilePath -Leaf
                 $expectedTitlePatterns = @(
                     "[CRITICAL] RUTOS Compatibility Fix: $fileName",
-                    "[MAJOR] RUTOS Compatibility Fix: $fileName", 
+                    "[MAJOR] RUTOS Compatibility Fix: $fileName",
                     "[MINOR] RUTOS Compatibility Fix: $fileName"
                 )
-                
-                $recentlyClosedIssue = $closedIssues | Where-Object { 
+
+                $recentlyClosedIssue = $closedIssues | Where-Object {
                     $currentTitle = $_.title
                     $matchesTitle = $expectedTitlePatterns | Where-Object { $currentTitle -eq $_ }
                     $withinTimeWindow = $_.closedAt -and ([DateTime]::Parse($_.closedAt) -gt [DateTime]::Parse($cutoffTime))
-                    
+
                     $matchesTitle -and $withinTimeWindow
                 } | Select-Object -First 1
-                
+
                 if ($recentlyClosedIssue) {
                     $timeSinceClosed = [DateTime]::Now - [DateTime]::Parse($recentlyClosedIssue.closedAt)
                     $hoursAgo = [Math]::Round($timeSinceClosed.TotalHours, 1)
@@ -630,10 +651,10 @@ function Test-IssueExist {
                 Write-DebugMessage "JSON parsing failed for closed issues. Raw output: $closedResult"
             }
         }
-        
+
         Write-DebugMessage "No existing or recently closed issues found for file"
         return @{ Exists = $false; Reason = "No conflicts found" }
-        
+
     } catch {
         Add-CollectedError -ErrorMessage "Failed to check for existing issues: $($_.Exception.Message)" -FunctionName "Test-IssueExist" -Exception $_.Exception -Context "Checking for existing issue for $FilePath"
         return @{ Exists = $false; Reason = "Error during check" }
@@ -646,32 +667,32 @@ function Test-ShouldProcessFile {
         [string]$FilePath,
         [array]$Issues
     )
-    
+
     Write-DebugMessage "Checking if file should be processed: $FilePath"
-    
+
     # Apply priority filter
     $criticalIssues = $Issues | Where-Object { $_.Type -eq "Critical" }
     $majorIssues = $Issues | Where-Object { $_.Type -eq "Major" }
     $minorIssues = $Issues | Where-Object { $_.Type -eq "Minor" -or $_.Type -eq "Warning" }
-    
+
     $passesFilter = switch ($PriorityFilter) {
         "Critical" { $criticalIssues.Count -gt 0 }
         "Major" { $majorIssues.Count -gt 0 }
         "Minor" { $minorIssues.Count -gt 0 }
         default { $true }  # "All"
     }
-    
+
     if (-not $passesFilter) {
         Write-DebugMessage "File doesn't match priority filter ($PriorityFilter) - skipping"
         return @{ ShouldProcess = $false; SkipReason = "LowPriority" }
     }
-    
+
     # Apply minimum issues filter
     if ($Issues.Count -lt $MinIssuesPerFile) {
         Write-DebugMessage "File has only $($Issues.Count) issues, minimum is $MinIssuesPerFile - skipping"
         return @{ ShouldProcess = $false; SkipReason = "InsufficientIssues" }
     }
-    
+
     # Check if already processed (unless forcing reprocessing)
     if ($global:IssueState.ContainsKey($FilePath) -and -not $ForceReprocessing) {
         $fileState = $global:IssueState[$FilePath]
@@ -680,45 +701,47 @@ function Test-ShouldProcessFile {
             return @{ ShouldProcess = $false; SkipReason = "AlreadyCompleted" }
         }
     }
-    
+
     # Check if issue already exists (open or recently closed)
     $existingIssue = Test-IssueExist -FilePath $FilePath
     if ($existingIssue.Exists -and -not $ForceReprocessing) {
         if ($existingIssue.State -eq "open") {
             Write-DebugMessage "SKIPPING: Open issue #$($existingIssue.IssueNumber) already exists for this file"
-            Write-Host "   ⚠️  CONFLICT: Open issue #$($existingIssue.IssueNumber) already exists - $($existingIssue.Reason)" -ForegroundColor Yellow
+            Write-Warning "   ⚠️  CONFLICT: Open issue #$($existingIssue.IssueNumber) already exists - $($existingIssue.Reason)"
             return @{ ShouldProcess = $false; SkipReason = "OpenIssue"; IssueNumber = $existingIssue.IssueNumber }
         } elseif ($existingIssue.State -eq "closed") {
             Write-DebugMessage "SKIPPING: Recently closed issue #$($existingIssue.IssueNumber) for this file (closed $($existingIssue.HoursAgo) hours ago)"
-            Write-Host "   ⏰ RECENT: Issue #$($existingIssue.IssueNumber) was closed $($existingIssue.HoursAgo) hours ago - avoiding conflict" -ForegroundColor Cyan
+            Write-Information "   ⏰ RECENT: Issue #$($existingIssue.IssueNumber) was closed $($existingIssue.HoursAgo) hours ago - avoiding conflict" -InformationAction Continue
             return @{ ShouldProcess = $false; SkipReason = "RecentlyClosed"; IssueNumber = $existingIssue.IssueNumber; HoursAgo = $existingIssue.HoursAgo }
         }
     }
-    
+
     Write-DebugMessage "File should be processed"
     return @{ ShouldProcess = $true; SkipReason = $null }
 }
 
 # Create GitHub issue with comprehensive content and intelligent labeling
 function New-CopilotIssue {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
+        [ScriptState]$State,
         [string]$FilePath,
         [array]$Issues
     )
-    
+
     Write-StepMessage "Creating Copilot issue for: $FilePath"
-    
+
     if ($TestMode) {
         Write-SuccessMessage "[TEST MODE] Would create issue for: $FilePath"
         return @{ Success = $true; IssueNumber = "TEST-MODE"; TestMode = $true }
     }
-    
+
     try {
         # Categorize issues by severity
         $criticalIssues = $Issues | Where-Object { $_.Type -eq "Critical" }
         $majorIssues = $Issues | Where-Object { $_.Type -eq "Major" }
         $minorIssues = $Issues | Where-Object { $_.Type -eq "Minor" -or $_.Type -eq "Warning" }
-        
+
         # Convert Issues to format for intelligent labeling
         $issuesArray = @()
         foreach ($issue in $Issues) {
@@ -728,7 +751,7 @@ function New-CopilotIssue {
                 Type = $issue.Type
             }
         }
-        
+
         # Get intelligent labels using the enhanced module system (if available)
         if ($intelligentLabelingAvailable -and (Get-Command Get-IntelligentLabels -ErrorAction SilentlyContinue)) {
             $intelligentLabels = Get-IntelligentLabels -FilePath $FilePath -Issues $issuesArray -Context "issue"
@@ -738,7 +761,7 @@ function New-CopilotIssue {
             $isShellScript = $fileExtension -eq ".sh"
             $isPowerShellScript = $fileExtension -eq ".ps1"
             $isMarkdownFile = $fileExtension -eq ".md"
-            
+
             # Base labels based on file type
             if ($isShellScript) {
                 $intelligentLabels = @("rutos-compatibility", "posix-compliance", "busybox-compatibility", "shellcheck-issues")
@@ -749,7 +772,7 @@ function New-CopilotIssue {
             } else {
                 $intelligentLabels = @("code-quality")
             }
-            
+
             if ($criticalIssues.Count -gt 0) {
                 $intelligentLabels += @("priority-critical", "auto-fix-needed")
                 if ($isShellScript) { $intelligentLabels += "critical-busybox-incompatible" }
@@ -759,7 +782,7 @@ function New-CopilotIssue {
             } else {
                 $intelligentLabels += @("priority-minor", "manual-fix-needed")
             }
-            
+
             # Add specific issue type labels
             if ($isShellScript) {
                 if ($Issues | Where-Object { $_.Description -match "busybox" }) { $intelligentLabels += "busybox-fix" }
@@ -771,10 +794,10 @@ function New-CopilotIssue {
                 if ($Issues | Where-Object { $_.Description -match "PSUseApprovedVerbs" }) { $intelligentLabels += "naming-convention" }
             }
         }
-        
+
         # Add copilot assignment label
         $intelligentLabels += "copilot-assigned"
-        
+
         # Debug output for intelligent labeling
         if ($DebugMode) {
             Write-DebugMessage "🏷️  Intelligent Labeling System Results:"
@@ -785,12 +808,12 @@ function New-CopilotIssue {
             Write-DebugMessage "   Type Labels: $(($intelligentLabels | Where-Object { $_ -match '^type-' }) -join ', ')"
             Write-DebugMessage "   All Labels: $($intelligentLabels -join ', ')"
         }
-        
+
         # Priority emoji based on highest severity
-        $priorityEmoji = if ($criticalIssues.Count -gt 0) { "[CRITICAL]" } 
-                         elseif ($majorIssues.Count -gt 0) { "[MAJOR]" } 
+        $priorityEmoji = if ($criticalIssues.Count -gt 0) { "[CRITICAL]" }
+                         elseif ($majorIssues.Count -gt 0) { "[MAJOR]" }
                          else { "[MINOR]" }
-        
+
         # Generate file type-specific issue title and objective
         $fileExtension = [System.IO.Path]::GetExtension($FilePath).ToLower()
         if ($fileExtension -eq ".sh") {
@@ -802,7 +825,7 @@ function New-CopilotIssue {
 
 **DO NOT commit or alter any other files including:**
 - ❌ Other shell scripts or configuration files
-- ❌ Validation scripts or testing tools  
+- ❌ Validation scripts or testing tools
 - ❌ Documentation or README files
 - ❌ GitHub workflow files
 - ❌ Any files not explicitly identified in this issue
@@ -818,7 +841,7 @@ function New-CopilotIssue {
 
 **DO NOT commit or alter any other files including:**
 - ❌ Other PowerShell scripts or configuration files
-- ❌ Validation scripts or testing tools  
+- ❌ Validation scripts or testing tools
 - ❌ Documentation or README files
 - ❌ GitHub workflow files
 - ❌ Any files not explicitly identified in this issue
@@ -851,7 +874,7 @@ function New-CopilotIssue {
 **✅ Focus exclusively on fixing the issues in the single target file listed above.**
 "@
         }
-        
+
         # Generate enhanced issue body with file type-specific content
         $issueBody = @"
 # $priorityEmoji $fileTypeDescription Issues Detected
@@ -869,7 +892,7 @@ $scopeRestriction
 
 ### 📊 **Issue Summary**
 - 🔴 **Critical Issues**: $($criticalIssues.Count) (Must fix - will cause failures)
-- 🟡 **Major Issues**: $($majorIssues.Count) (Should fix - may cause problems)  
+- 🟡 **Major Issues**: $($majorIssues.Count) (Should fix - may cause problems)
 - 🔵 **Minor Issues**: $($minorIssues.Count) (Best practices - improve if possible)
 
 **Total Issues**: $($Issues.Count)
@@ -885,7 +908,7 @@ $scopeRestriction
             } else {
                 "These are critical issues that must be fixed:"
             }
-            
+
             $issueBody += @"
 
 ### 🔴 **CRITICAL ISSUES** (Must Fix Immediately)
@@ -897,7 +920,7 @@ $criticalDescription
                 $issueBody += "- **Line $($issue.Line)**: $($issue.Description)`n"
             }
         }
-        
+
         # Add major issues section
         if ($majorIssues.Count -gt 0) {
             $majorDescription = if ($fileExtension -eq ".sh") {
@@ -907,7 +930,7 @@ $criticalDescription
             } else {
                 "These issues should be fixed:"
             }
-            
+
             $issueBody += @"
 
 ### 🟡 **MAJOR ISSUES** (Should Fix)
@@ -919,7 +942,7 @@ $majorDescription
                 $issueBody += "- **Line $($issue.Line)**: $($issue.Description)`n"
             }
         }
-        
+
         # Add minor issues section
         if ($minorIssues.Count -gt 0) {
             $minorDescription = if ($fileExtension -eq ".sh") {
@@ -929,7 +952,7 @@ $majorDescription
             } else {
                 "These issues represent best practices:"
             }
-            
+
             $issueBody += @"
 
 ### 🔵 **MINOR ISSUES** (Best Practices)
@@ -941,7 +964,7 @@ $minorDescription
                 $issueBody += "- **Line $($issue.Line)**: $($issue.Description)`n"
             }
         }
-        
+
         # Add fix guidelines and intelligent labeling section
         $issueBody += @"
 
@@ -957,7 +980,7 @@ $(($intelligentLabels | ForEach-Object { "- ``$_``" }) -join "`n")
 ## 🛠️ **Fix Guidelines**
 
 "@
-        
+
         # Add file type-specific fix guidelines
         if ($fileExtension -eq ".sh") {
             $issueBody += @"
@@ -1002,7 +1025,7 @@ $(($intelligentLabels | ForEach-Object { "- ``$_``" }) -join "`n")
 4. **Documentation**: Include appropriate comments and documentation
 "@
         }
-        
+
         $issueBody += @"
 
 ## 📋 **Acceptance Criteria**
@@ -1020,10 +1043,10 @@ $(($intelligentLabels | ForEach-Object { "- ``$_``" }) -join "`n")
 
         # Use intelligent labels instead of basic labels
         $labels = $intelligentLabels
-        
+
         # Try to create the issue with automatic label creation retry
         $issueResult = New-GitHubIssueWithLabelHandling -Title $issueTitle -Body $issueBody -Labels $labels -FilePath $FilePath
-        
+
         if ($issueResult.Success) {
             # Update state tracking
             $global:IssueState[$FilePath] = @{
@@ -1032,31 +1055,31 @@ $(($intelligentLabels | ForEach-Object { "- ``$_``" }) -join "`n")
                 CreatedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
                 IssueCount = $Issues.Count
             }
-            
+
             # Assign Copilot to the issue
             Start-Sleep -Seconds 2
             $assignResult = Set-CopilotAssignment -IssueNumber $issueResult.IssueNumber
-            
+
             if ($assignResult.Success) {
                 Write-SuccessMessage "Assigned Copilot to issue #$($issueResult.IssueNumber)"
                 $global:IssueState[$FilePath].Status = "Assigned"
             }
-            
-            return @{ 
+
+            return @{
                 Success = $true
                 IssueNumber = $issueResult.IssueNumber
                 FilePath = $FilePath
             }
         } else {
-            return @{ 
+            return @{
                 Success = $false
                 Error = $issueResult.Error
             }
         }
-        
+
     } catch {
         Add-CollectedError -ErrorMessage "Error creating issue: $($_.Exception.Message)" -FunctionName "New-CopilotIssue" -Exception $_.Exception -Context "Creating GitHub issue for $FilePath"
-        return @{ 
+        return @{
             Success = $false
             Error = $_.Exception.Message
         }
@@ -1065,40 +1088,45 @@ $(($intelligentLabels | ForEach-Object { "- ``$_``" }) -join "`n")
 
 # Create GitHub issue with automatic label creation and retry capability
 function New-GitHubIssueWithLabelHandling {
+    [CmdletBinding(SupportsShouldProcess)]
     param(
+        [ScriptState]$State,
         [string]$Title,
         [string]$Body,
         [array]$Labels,
         [string]$FilePath
     )
-    
+
     Write-DebugMessage "Creating GitHub issue with automatic label handling"
-    
+
     try {
         # Create temporary file for issue body
         $tempFile = [System.IO.Path]::GetTempFileName()
         $Body | Out-File -FilePath $tempFile -Encoding UTF8
-        
-        # Build GitHub CLI command
-        $labelArgs = ($Labels | ForEach-Object { "-l `"$_`"" }) -join " "
-        $ghCommand = "gh issue create -t `"$Title`" -F `"$tempFile`" $labelArgs"
-        
-        Write-DebugMessage "Executing: $ghCommand"
-        
-        # Execute GitHub CLI command
-        $result = Invoke-Expression $ghCommand 2>&1
-        $exitCode = $LASTEXITCODE
-        
-        # Clean up temp file
-        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-        
-        if ($exitCode -eq 0) {
-            # Extract issue number from result
-            $issueNumber = ""
-            if ($result -match "https://github\.com/[^/]+/[^/]+/issues/(\d+)") {
-                $issueNumber = $Matches[1]
+
+        # Build GitHub CLI arguments
+        $arguments = @('issue', 'create', '-t', $Title, '-F', $tempFile)
+        foreach ($label in $Labels) {
+            $arguments += @('-l', $label)
+        }
+
+        Write-DebugMessage "Executing: gh $($arguments -join ' ')"
+
+        if ($PSCmdlet.ShouldProcess("GitHub", "Create issue '$Title'")) {
+            # Execute GitHub CLI command
+            $result = & gh $arguments 2>&1
+            $exitCode = $LASTEXITCODE
+
+            # Clean up temp file
+            Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+
+            if ($exitCode -eq 0) {
+                # Extract issue number from result
+                $issueNumber = ""
+                if ($result -match "https://github\.com/[^/]+/[^/]+/issues/(\d+)") {
+                    $issueNumber = $Matches[1]
             }
-            
+
             Write-SuccessMessage "Created issue #$issueNumber for: $FilePath"
             return @{ Success = $true; IssueNumber = $issueNumber }
         } else {
@@ -1106,7 +1134,7 @@ function New-GitHubIssueWithLabelHandling {
             $errorText = $result -join " "
             if ($errorText -match "could not add label: '([^']+)' not found") {
                 $missingLabels = @()
-                
+
                 # Extract all missing labels from error message
                 $errorLines = $result | Where-Object { $_ -match "could not add label: '([^']+)' not found" }
                 foreach ($errorLine in $errorLines) {
@@ -1114,9 +1142,9 @@ function New-GitHubIssueWithLabelHandling {
                         $missingLabels += $Matches[1]
                     }
                 }
-                
+
                 Write-WarningMessage "Found $($missingLabels.Count) missing labels: $($missingLabels -join ', ')"
-                
+
                 # Create missing labels automatically
                 $createdLabels = @()
                 foreach ($missingLabel in $missingLabels) {
@@ -1128,28 +1156,32 @@ function New-GitHubIssueWithLabelHandling {
                         Write-ErrorMessage "Failed to create label '$missingLabel': $($labelResult.Error)"
                     }
                 }
-                
+
                 # Retry issue creation if we successfully created any labels
                 if ($createdLabels.Count -gt 0) {
                     Write-InfoMessage "Retrying issue creation with newly created labels..."
                     Start-Sleep -Seconds 2
-                    
-                    # Retry the same command
+
+                    # Retry with the same arguments
                     $tempFile2 = [System.IO.Path]::GetTempFileName()
                     $Body | Out-File -FilePath $tempFile2 -Encoding UTF8
-                    
-                    $retryResult = Invoke-Expression $ghCommand 2>&1
+
+                    # Update the temp file argument
+                    $retryArguments = $arguments.Clone()
+                    $retryArguments[5] = $tempFile2  # Replace the temp file path
+
+                    $retryResult = & gh $retryArguments 2>&1
                     $retryExitCode = $LASTEXITCODE
-                    
+
                     Remove-Item $tempFile2 -Force -ErrorAction SilentlyContinue
-                    
+
                     if ($retryExitCode -eq 0) {
                         # Extract issue number from retry result
                         $issueNumber = ""
                         if ($retryResult -match "https://github\.com/[^/]+/[^/]+/issues/(\d+)") {
                             $issueNumber = $Matches[1]
                         }
-                        
+
                         Write-SuccessMessage "✅ Retry successful! Created issue #$issueNumber for: $FilePath (with $($createdLabels.Count) auto-created labels)"
                         return @{ Success = $true; IssueNumber = $issueNumber; CreatedLabels = $createdLabels }
                     } else {
@@ -1166,13 +1198,13 @@ function New-GitHubIssueWithLabelHandling {
                 return @{ Success = $false; Error = "GitHub CLI failed: $errorText" }
             }
         }
-        
+
     } catch {
         # Clean up temp file on exception
         if ($tempFile -and (Test-Path $tempFile)) {
             Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
         }
-        
+
         Add-CollectedError -ErrorMessage "Error in label handling: $($_.Exception.Message)" -FunctionName "New-GitHubIssueWithLabelHandling" -Exception $_.Exception -Context "Creating issue with label handling for $FilePath"
         return @{ Success = $false; Error = $_.Exception.Message }
     }
@@ -1180,15 +1212,16 @@ function New-GitHubIssueWithLabelHandling {
 
 # Create a missing GitHub label with intelligent color and description assignment
 function New-MissingGitHubLabel {
+    [CmdletBinding(SupportsShouldProcess)]
     param([string]$LabelName)
-    
+
     Write-DebugMessage "Creating missing GitHub label: $LabelName"
-    
+
     try {
         # Assign intelligent colors and descriptions based on label patterns
         $labelColor = "6c757d"  # Default gray
         $labelDescription = "Auto-generated label"
-        
+
         # Priority labels
         if ($LabelName -match "^priority-critical") {
             $labelColor = "b60205"  # Red
@@ -1203,66 +1236,70 @@ function New-MissingGitHubLabel {
             $labelColor = "0e8a16"  # Green
             $labelDescription = "Low priority issues"
         }
-        
+
         # Critical system labels
         elseif ($LabelName -match "^critical-") {
             $labelColor = "b60205"  # Red
             $labelDescription = "Critical system compatibility issues"
         }
-        
+
         # Type-specific labels
         elseif ($LabelName -match "^type-") {
             $labelColor = "fef2c0"  # Light yellow
             $labelDescription = "Specific code pattern or syntax issues"
         }
-        
+
         # Content-related labels
         elseif ($LabelName -match "^content-") {
             $labelColor = "1f77b4"  # Blue
             $labelDescription = "Content quality and accuracy issues"
         }
-        
+
         # Enhancement and suggestion labels
         elseif ($LabelName -match "suggestion|recommendation|feature-request") {
             $labelColor = "a2eeef"  # Light blue
             $labelDescription = "Enhancement suggestions and feature requests"
         }
-        
+
         # Automation and workflow labels
         elseif ($LabelName -match "automated|autonomous|monitoring|workflow") {
             $labelColor = "1f883d"  # Green
             $labelDescription = "Automated processes and workflow management"
         }
-        
+
         # Fix-related labels
         elseif ($LabelName -match "fix-|auto-fix|manual-fix") {
             $labelColor = "7057ff"  # Purple
             $labelDescription = "Issue resolution and fix management"
         }
-        
+
         # Scope and validation labels
         elseif ($LabelName -match "scope-|validation-") {
             $labelColor = "0052cc"  # Blue
             $labelDescription = "Scope management and validation processes"
         }
-        
+
         # Copilot-related labels
         elseif ($LabelName -match "copilot") {
             $labelColor = "6f42c1"  # Purple
             $labelDescription = "GitHub Copilot automated fixes and assignments"
         }
-        
+
         # Create the label using GitHub CLI
-        $createResult = gh label create "$LabelName" --description "$labelDescription" --color "$labelColor" 2>&1
-        
-        if ($LASTEXITCODE -eq 0) {
-            Write-DebugMessage "Successfully created label '$LabelName' with color #$labelColor"
-            return @{ Success = $true; LabelName = $LabelName; Color = $labelColor; Description = $labelDescription }
+        if ($PSCmdlet.ShouldProcess("GitHub", "Create label '$LabelName'")) {
+            $createResult = & gh label create $LabelName --description $labelDescription --color $labelColor 2>&1
+
+            if ($LASTEXITCODE -eq 0) {
+                Write-DebugMessage "Successfully created label '$LabelName' with color #$labelColor"
+                return @{ Success = $true; LabelName = $LabelName; Color = $labelColor; Description = $labelDescription }
+            } else {
+                Write-DebugMessage "Failed to create label '$LabelName': $createResult"
+                return @{ Success = $false; Error = $createResult }
+            }
         } else {
-            Write-DebugMessage "Failed to create label '$LabelName': $createResult"
-            return @{ Success = $false; Error = $createResult }
+            return @{ Success = $false; Error = "Operation cancelled by user" }
         }
-        
+
     } catch {
         Add-CollectedError -ErrorMessage "Error creating label '$LabelName': $($_.Exception.Message)" -FunctionName "New-MissingGitHubLabel" -Exception $_.Exception -Context "Creating missing GitHub label"
         return @{ Success = $false; Error = $_.Exception.Message }
@@ -1271,19 +1308,20 @@ function New-MissingGitHubLabel {
 
 # Assign Copilot to an issue
 function Set-CopilotAssignment {
+    [CmdletBinding(SupportsShouldProcess)]
     param([string]$IssueNumber)
-    
+
     Write-DebugMessage "Assigning Copilot to issue #$IssueNumber"
-    
+
     try {
         if ($TestMode) {
             Write-SuccessMessage "[TEST MODE] Would assign Copilot to issue #$IssueNumber"
             return @{ Success = $true; TestMode = $true }
         }
-        
+
         # Assign Copilot as assignee
         $assignResult = gh issue edit $IssueNumber --add-assignee "@copilot" 2>&1
-        
+
         if ($LASTEXITCODE -eq 0) {
             Write-DebugMessage "✅ Copilot assigned successfully!"
             return @{ Success = $true }
@@ -1291,7 +1329,7 @@ function Set-CopilotAssignment {
             Add-CollectedError -ErrorMessage "Failed to assign Copilot: $assignResult" -FunctionName "Set-CopilotAssignment" -Context "Assigning Copilot to issue #$IssueNumber"
             return @{ Success = $false; Error = $assignResult }
         }
-        
+
     } catch {
         Add-CollectedError -ErrorMessage "Error assigning Copilot: $($_.Exception.Message)" -FunctionName "Set-CopilotAssignment" -Exception $_.Exception -Context "Assigning Copilot to issue #$IssueNumber"
         return @{ Success = $false; Error = $_.Exception.Message }
@@ -1300,11 +1338,13 @@ function Set-CopilotAssignment {
 
 # Main execution logic with optimized file-by-file processing
 function Start-OptimizedIssueCreation {
+    [CmdletBinding(SupportsShouldProcess)]
+    param([ScriptState]$State)
     Write-InfoMessage "🚀 Starting Optimized RUTOS Copilot Issue Creation System v$SCRIPT_VERSION"
-    
+
     # Load state
     Load-IssueState | Out-Null
-    
+
     # Get target files to process
     if ($TargetFile) {
         Write-InfoMessage "🎯 Processing single target file: $TargetFile"
@@ -1313,26 +1353,26 @@ function Start-OptimizedIssueCreation {
         Write-StepMessage "📂 Scanning repository for shell scripts, PowerShell scripts, and markdown files..."
         $filesToProcess = Get-RelevantFile
     }
-    
+
     Write-InfoMessage "📊 Found $($filesToProcess.Count) potential files to process"
-    
+
     if ($filesToProcess.Count -eq 0) {
         Write-WarningMessage "❌ No files found to process"
         return
     }
-    
+
     # Sort files by priority if requested
     if ($SortByPriority) {
         Write-StepMessage "📋 Sorting files by issue priority..."
         $prioritizedFiles = @()
-        
+
         foreach ($file in $filesToProcess) {
             $validationDetails = Get-FileValidationDetail -FilePath $file
             if ($validationDetails.HasIssues) {
                 $priority = if ($validationDetails.CriticalCount -gt 0) { 1 }
                            elseif ($validationDetails.MajorCount -gt 0) { 2 }
                            else { 3 }
-                
+
                 $prioritizedFiles += @{
                     File = $file
                     Priority = $priority
@@ -1340,11 +1380,11 @@ function Start-OptimizedIssueCreation {
                 }
             }
         }
-        
+
         $filesToProcess = ($prioritizedFiles | Sort-Object Priority | ForEach-Object { $_.File })
         Write-InfoMessage "📊 Prioritized $($filesToProcess.Count) files with issues"
     }
-    
+
     # Process files individually
     $issuesCreated = 0
     $filesProcessed = 0
@@ -1353,69 +1393,69 @@ function Start-OptimizedIssueCreation {
     $filesSkippedRecentlyClosed = 0
     $filesSkippedLowPriority = 0
     $filesSkippedOther = 0
-    
+
     foreach ($file in $filesToProcess) {
         # Check if we've reached the maximum issues limit
         if ($issuesCreated -ge $MaxIssues) {
             Write-InfoMessage "🛑 Reached maximum issues limit ($MaxIssues) - stopping"
             break
         }
-        
+
         Write-StepMessage "🔍 Processing file: $file"
         $filesProcessed++
-        
+
         try {
             # Run validation on the individual file
             $validationResult = Invoke-ValidationOnFile -FilePath $file
-            
+
             if ($validationResult.Success) {
                 Write-DebugMessage "✅ File has no issues: $file"
                 continue
             }
-            
+
             if ($validationResult.Issues.Count -eq 0) {
                 Write-DebugMessage "ℹ️  No parseable issues found: $file"
                 continue
             }
-            
+
             Write-InfoMessage "⚠️  Found $($validationResult.Issues.Count) issues in: $file"
-            
+
             # Check if this file should be processed based on our criteria
             $shouldProcessResult = Test-ShouldProcessFile -FilePath $file -Issues $validationResult.Issues
             if (-not $shouldProcessResult.ShouldProcess) {
                 Write-DebugMessage "⏭️  Skipping file based on processing criteria: $file (Reason: $($shouldProcessResult.SkipReason))"
                 $filesSkipped++
-                
+
                 # Track specific skip reasons
                 switch ($shouldProcessResult.SkipReason) {
-                    "OpenIssue" { 
+                    "OpenIssue" {
                         $filesSkippedOpenIssue++
                         Write-Host "   📋 Skipped: Open issue #$($shouldProcessResult.IssueNumber) exists" -ForegroundColor Yellow
                     }
-                    "RecentlyClosed" { 
+                    "RecentlyClosed" {
                         $filesSkippedRecentlyClosed++
                         Write-Host "   ⏰ Skipped: Recently closed issue #$($shouldProcessResult.IssueNumber) ($($shouldProcessResult.HoursAgo)h ago)" -ForegroundColor Cyan
                     }
-                    "LowPriority" { 
+                    "LowPriority" {
                         $filesSkippedLowPriority++
                         Write-Host "   🎯 Skipped: Priority filter ($PriorityFilter)" -ForegroundColor Gray
                     }
-                    default { 
+                    default {
                         $filesSkippedOther++
                         Write-Host "   ℹ️  Skipped: $($shouldProcessResult.SkipReason)" -ForegroundColor Gray
                     }
                 }
                 continue
             }
-            
+
             # Create issue for this file
             Write-StepMessage "📝 Creating issue for: $file"
             $issueResult = New-CopilotIssue -FilePath $file -Issues $validationResult.Issues
-            
+
             if ($issueResult.Success) {
                 $issuesCreated++
                 Write-SuccessMessage "✅ Created issue #$($issueResult.IssueNumber) for: $file"
-                
+
                 # Update tracking
                 $global:CreatedIssues += @{
                     IssueNumber = $issueResult.IssueNumber
@@ -1423,33 +1463,33 @@ function Start-OptimizedIssueCreation {
                     CreatedAt = Get-Date
                     IssueCount = $validationResult.Issues.Count
                 }
-                
+
                 # Small delay to respect rate limits
                 Start-Sleep -Seconds 3
             } else {
                 Write-ErrorMessage "❌ Failed to create issue for: $file - $($issueResult.Error)"
                 Add-CollectedError -ErrorMessage "Failed to create issue for $file" -FunctionName "Start-OptimizedIssueCreation" -Context "Processing file $file"
             }
-            
+
         } catch {
             Write-ErrorMessage "❌ Error processing file: $file - $($_.Exception.Message)"
             Add-CollectedError -ErrorMessage "Error processing file: $($_.Exception.Message)" -FunctionName "Start-OptimizedIssueCreation" -Exception $_.Exception -Context "Processing file $file"
         }
     }
-    
+
     # Save state
     Save-IssueState | Out-Null
-    
+
     # Display final summary
     Write-Host "`n" + ("=" * 80) -ForegroundColor $BLUE
     Write-Host "📊 PROCESSING SUMMARY" -ForegroundColor $BLUE
     Write-Host ("=" * 80) -ForegroundColor $BLUE
-    
+
     Write-InfoMessage "📁 Files Processed: $filesProcessed"
     Write-InfoMessage "⏭️  Files Skipped: $filesSkipped"
     Write-InfoMessage "📝 Issues Created: $issuesCreated"
     Write-InfoMessage "🎯 Maximum Issues: $MaxIssues"
-    
+
     # Show detailed skip breakdown if any files were skipped
     if ($filesSkipped -gt 0) {
         Write-Host "`n📊 Skip Breakdown:" -ForegroundColor $CYAN
@@ -1466,21 +1506,21 @@ function Start-OptimizedIssueCreation {
             Write-Host "   ℹ️  Other: $filesSkippedOther files (various reasons)" -ForegroundColor Gray
         }
     }
-    
+
     if ($global:CreatedIssues.Count -gt 0) {
         Write-Host "`n📋 Created Issues:" -ForegroundColor $GREEN
         foreach ($issue in $global:CreatedIssues) {
             Write-Host "   #$($issue.IssueNumber) - $($issue.FilePath) ($($issue.IssueCount) issues)" -ForegroundColor $GREEN
         }
     }
-    
+
     # Show any collected errors
     if ($global:CollectedErrors.Count -gt 0) {
         Show-CollectedError
     } else {
         Write-SuccessMessage "✅ No errors encountered during processing"
     }
-    
+
     Write-SuccessMessage "🎉 Optimized issue creation completed successfully!"
 }
 
@@ -1488,7 +1528,7 @@ function Start-OptimizedIssueCreation {
 function Main {
     Write-InfoMessage "🔧 Optimized RUTOS Copilot Issue Creation System"
     Write-InfoMessage "📅 Started at: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-    
+
     if ($DebugMode) {
         Write-DebugMessage "==================== DEBUG MODE ENABLED ===================="
         Write-DebugMessage "Script version: $SCRIPT_VERSION"
@@ -1505,22 +1545,22 @@ function Main {
         Write-DebugMessage "Intelligent labeling available: $intelligentLabelingAvailable"
         Write-DebugMessage "==========================================================="
     }
-    
+
     # Validate prerequisites
     Write-StepMessage "🔧 Validating prerequisites..."
-    
+
     # Check if we're in the right directory
     if (-not (Test-Path ".git")) {
         Write-ErrorMessage "❌ Not in a Git repository root. Please run from repository root."
         exit 1
     }
-    
+
     # Check for validation script
     if (-not $SkipValidation -and -not (Test-Path $VALIDATION_SCRIPT)) {
         Write-ErrorMessage "❌ Validation script not found: $VALIDATION_SCRIPT"
         exit 1
     }
-    
+
     # Check for GitHub CLI
     try {
         $ghVersion = gh --version 2>&1
@@ -1533,7 +1573,7 @@ function Main {
         Write-ErrorMessage "❌ GitHub CLI (gh) not available"
         exit 1
     }
-    
+
     # Check GitHub authentication
     try {
         $authStatus = gh auth status 2>&1
@@ -1546,7 +1586,7 @@ function Main {
         Write-ErrorMessage "❌ GitHub authentication check failed"
         exit 1
     }
-    
+
     # Safety check for production mode
     if ($Production -and -not $TestMode) {
         Write-WarningMessage "⚠️  PRODUCTION MODE ENABLED - Issues will be created in GitHub"
@@ -1555,9 +1595,9 @@ function Main {
     } else {
         Write-InfoMessage "🧪 Running in safe mode (no real issues will be created)"
     }
-    
+
     Write-SuccessMessage "✅ All prerequisites validated"
-    
+
     # Start the optimized issue creation process
     Start-OptimizedIssueCreation
 }
