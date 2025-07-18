@@ -1,4 +1,6 @@
-git add .; git commit -a --no-verify -m "Install script: add remote fallback for monitor & notifier"; git push --no-#!/bin/sh
+git add .
+git commit -a --no-verify -m "Install script: add remote fallback for monitor & notifier"
+git push --no-#!/bin/sh
 
 # ==============================================================================
 # Starlink Monitoring System Installation Script
