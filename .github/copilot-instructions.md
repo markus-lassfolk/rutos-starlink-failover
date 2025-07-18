@@ -170,9 +170,8 @@ printf "%s✅ HEALTHY%s   | %-25s | %s\n" "$GREEN" "$NC" "$component" "$details"
 3. **ALWAYS define ALL colors** (RED, GREEN, YELLOW, BLUE, CYAN, NC)
 4. **NEVER use `tput colors`** - Not available in busybox
 
-````
-
 ### Color Usage Examples
+
 ```bash
 # Progress tracking
 log_step "Installing dependencies"
@@ -639,7 +638,7 @@ chmod +x .git/hooks/pre-commit
 
 ### Directory Structure
 
-```
+```text
 scripts/           # All utility scripts
 config/           # Configuration templates
 Starlink-RUTOS-Failover/  # Main monitoring scripts
@@ -650,7 +649,7 @@ docs/             # Documentation
 
 ### Test Directory Organization
 
-```
+```text
 tests/
 ├── README.md                      # Test documentation
 ├── test-suite.sh                  # Main test runner
@@ -706,7 +705,7 @@ DEBUG=1 ./scripts/pre-commit-validation.sh
 
 ### Commit Message Format
 
-```
+```text
 Brief description of change
 
 - Bullet point of specific change
