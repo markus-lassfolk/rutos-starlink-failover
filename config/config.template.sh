@@ -63,12 +63,12 @@ export CHECK_INTERVAL=30
 export API_TIMEOUT=10
 
 # Directory for log files (persistent across reboots)
-export LOG_DIR="/overlay/starlink-logs"
+export LOG_DIR="/etc/starlink-logs"
 
 # Directory for runtime state files
 export STATE_DIR="/tmp/run"
 
 # --- Binary Paths (set by install script) ---
 
-export GRPCURL_CMD="/root/grpcurl" # gRPC client for Starlink API
-export JQ_CMD="/root/jq"           # JSON processor for parsing API responses
+export GRPCURL_CMD="/usr/local/starlink-monitor/grpcurl" # gRPC client for Starlink API
+export JQ_CMD="/usr/local/starlink-monitor/jq"           # JSON processor for parsing API responses

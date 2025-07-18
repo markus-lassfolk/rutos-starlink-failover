@@ -11,7 +11,7 @@
 set -eu
 
 # Script version - automatically updated from VERSION file
-SCRIPT_VERSION="1.0.2"
+SCRIPT_VERSION="2.0.0"
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="install-rutos.sh"
 
@@ -29,7 +29,7 @@ BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 # DEBUG=1
 
 # Logging configuration
-LOG_FILE="${INSTALL_DIR:-/root/starlink-monitor}/installation.log"
+LOG_FILE="${INSTALL_DIR:-/usr/local/starlink-monitor}/installation.log"
 LOG_DIR="$(dirname "$LOG_FILE")"
 
 # Create log directory if it doesn't exist
@@ -110,7 +110,8 @@ fi
 
 # Installation configuration
 # shellcheck disable=SC2034  # Variables are used throughout the script
-INSTALL_DIR="/root/starlink-monitor"
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}" # Use /usr/local for proper Unix convention
+PERSISTENT_CONFIG_DIR="/etc/starlink-config"              # Config backup in /etc for persistence
 HOTPLUG_DIR="/etc/hotplug.d/iface"
 CRON_FILE="/etc/crontabs/root" # Used throughout script
 
@@ -291,6 +292,8 @@ create_directories() {
     debug_exec mkdir -p "$INSTALL_DIR/config"
     debug_exec mkdir -p "$INSTALL_DIR/scripts"
     debug_exec mkdir -p "$INSTALL_DIR/logs"
+    debug_exec mkdir -p "/etc/starlink-logs"     # Persistent log directory
+    debug_exec mkdir -p "$PERSISTENT_CONFIG_DIR" # Persistent config backup
     debug_exec mkdir -p "/tmp/run"
     debug_exec mkdir -p "/var/log"
     debug_exec mkdir -p "$HOTPLUG_DIR"
@@ -299,6 +302,8 @@ create_directories() {
     if [ "${DEBUG:-0}" = "1" ]; then
         debug_msg "Verifying directory structure:"
         debug_exec ls -la "$INSTALL_DIR"
+        debug_exec ls -la "/etc/starlink-logs"
+        debug_exec ls -la "$PERSISTENT_CONFIG_DIR"
     fi
 
     print_status "$GREEN" "✓ Directory structure created"
@@ -573,8 +578,18 @@ install_config() {
         print_status "$YELLOW" "📋 Please edit $INSTALL_DIR/config/config.sh before using"
     fi
 
-    # Create convenience symlink
+    # Create convenience symlinks for easy access
     ln -sf "$INSTALL_DIR/config/config.sh" "/root/config.sh"
+    ln -sf "$INSTALL_DIR" "/root/starlink-monitor" # Convenience symlink to installation
+
+    # Backup configuration to persistent location
+    cp "$INSTALL_DIR/config/config.sh" "$PERSISTENT_CONFIG_DIR/config.sh"
+    cp "$INSTALL_DIR/config/config.template.sh" "$PERSISTENT_CONFIG_DIR/config.template.sh"
+
+    print_status "$BLUE" "✓ Convenience symlinks created:"
+    print_status "$BLUE" "  /root/config.sh -> $INSTALL_DIR/config/config.sh"
+    print_status "$BLUE" "  /root/starlink-monitor -> $INSTALL_DIR"
+    print_status "$BLUE" "✓ Configuration backed up to: $PERSISTENT_CONFIG_DIR"
 }
 
 # Configure cron jobs
@@ -676,16 +691,162 @@ fi
 rm -f /etc/hotplug.d/iface/99-pushover_notify*
 
 # Remove installation directory
-rm -rf /root/starlink-monitor
+rm -rf /usr/local/starlink-monitor
 
-# Remove config symlink
+# Remove persistent config backup
+rm -rf /etc/starlink-config
+
+# Remove log directory
+rm -rf /etc/starlink-logs
+
+# Remove convenience symlinks
 rm -f /root/config.sh
+rm -f /root/starlink-monitor
+
+# Remove auto-restoration init script
+rm -f /etc/init.d/starlink-restore
 
 print_status "$GREEN" "✓ Uninstall completed"
 EOF
 
     chmod +x "$INSTALL_DIR/uninstall.sh"
     print_status "$GREEN" "✓ Uninstall script created"
+}
+
+# Create auto-restoration script for firmware upgrade persistence
+create_restoration_script() {
+    print_status "$BLUE" "Creating auto-restoration script for firmware upgrade persistence..."
+
+    cat >"/etc/init.d/starlink-restore" <<'EOF'
+#!/bin/sh /etc/rc.common
+
+START=95
+STOP=05
+USE_PROCD=1
+
+INSTALL_DIR="/usr/local/starlink-monitor"
+PERSISTENT_CONFIG_DIR="/etc/starlink-config"
+GITHUB_REPO="markus-lassfolk/rutos-starlink-failover"
+GITHUB_BRANCH="main"
+BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
+RESTORE_LOG="/var/log/starlink-restore.log"
+
+# Log function for restoration process
+log_restore() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$RESTORE_LOG"
+}
+
+# Wait for network connectivity with timeout
+wait_for_network() {
+    local max_wait=300  # 5 minutes maximum wait
+    local wait_count=0
+    local sleep_interval=10
+    
+    log_restore "Waiting for network connectivity..."
+    
+    while [ $wait_count -lt $max_wait ]; do
+        # Test multiple connectivity methods
+        if ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 || \
+           ping -c 1 -W 5 1.1.1.1 >/dev/null 2>&1 || \
+           wget -q --spider --timeout=5 https://github.com >/dev/null 2>&1 || \
+           curl -fsSL --max-time 5 https://github.com >/dev/null 2>&1; then
+            log_restore "Network connectivity confirmed"
+            return 0
+        fi
+        
+        log_restore "Network not ready, waiting... ($((wait_count + sleep_interval))/${max_wait}s)"
+        sleep $sleep_interval
+        wait_count=$((wait_count + sleep_interval))
+    done
+    
+    log_restore "WARNING: Network wait timeout, attempting restoration anyway"
+    return 1
+}
+
+start() {
+    # Always ensure symlinks exist (quick operation)
+    ln -sf "$INSTALL_DIR/config/config.sh" "/root/config.sh" 2>/dev/null || true
+    ln -sf "$INSTALL_DIR" "/root/starlink-monitor" 2>/dev/null || true
+    
+    # Check if installation exists, if not and we have persistent config, restore it
+    if [ ! -d "$INSTALL_DIR" ] && [ -d "$PERSISTENT_CONFIG_DIR" ]; then
+        log_restore "=========================================="
+        log_restore "Starlink Monitor: Installation missing after firmware upgrade"
+        log_restore "Starting auto-restoration process..."
+        log_restore "=========================================="
+        
+        # Wait for network before attempting download
+        if ! wait_for_network; then
+            log_restore "Network connectivity issues, restoration may fail"
+        fi
+        
+        # Attempt restoration with detailed logging
+        log_restore "Downloading and executing installation script..."
+        if curl -fsSL "${BASE_URL}/scripts/install-rutos.sh" | sh >>"$RESTORE_LOG" 2>&1; then
+            log_restore "Installation script completed successfully"
+            
+            # Restore user configuration
+            if [ -f "$PERSISTENT_CONFIG_DIR/config.sh" ]; then
+                if [ -d "$INSTALL_DIR/config" ]; then
+                    cp "$PERSISTENT_CONFIG_DIR/config.sh" "$INSTALL_DIR/config/config.sh"
+                    log_restore "User configuration restored from persistent storage"
+                else
+                    log_restore "WARNING: Installation directory not found, config restore skipped"
+                fi
+            else
+                log_restore "No persistent configuration found to restore"
+            fi
+            
+            # Restore any additional persistent files
+            if [ -f "$PERSISTENT_CONFIG_DIR/config.template.sh" ] && [ -d "$INSTALL_DIR/config" ]; then
+                cp "$PERSISTENT_CONFIG_DIR/config.template.sh" "$INSTALL_DIR/config/config.template.sh"
+                log_restore "Configuration template restored"
+            fi
+            
+            log_restore "=========================================="
+            log_restore "Starlink Monitor: Auto-restoration completed successfully!"
+            log_restore "System will begin monitoring automatically"
+            log_restore "=========================================="
+            
+        else
+            log_restore "=========================================="
+            log_restore "ERROR: Auto-restoration failed!"
+            log_restore "Manual reinstallation required"
+            log_restore "Run: curl -fsSL ${BASE_URL}/scripts/install-rutos.sh | sh"
+            log_restore "=========================================="
+            return 1
+        fi
+        
+    elif [ -d "$INSTALL_DIR" ]; then
+        log_restore "Starlink Monitor: Installation exists, no restoration needed"
+    else
+        log_restore "Starlink Monitor: No persistent configuration found, skipping restoration"
+    fi
+}
+
+stop() {
+    # Backup current configuration to persistent storage before shutdown
+    if [ -f "$INSTALL_DIR/config/config.sh" ]; then
+        mkdir -p "$PERSISTENT_CONFIG_DIR"
+        cp "$INSTALL_DIR/config/config.sh" "$PERSISTENT_CONFIG_DIR/config.sh"
+        log_restore "Configuration backed up to persistent storage"
+    fi
+    
+    # Backup template for future use
+    if [ -f "$INSTALL_DIR/config/config.template.sh" ]; then
+        cp "$INSTALL_DIR/config/config.template.sh" "$PERSISTENT_CONFIG_DIR/config.template.sh"
+        log_restore "Configuration template backed up"
+    fi
+}
+EOF
+
+    chmod +x "/etc/init.d/starlink-restore"
+
+    # Enable the service
+    /etc/init.d/starlink-restore enable 2>/dev/null || true
+
+    print_status "$GREEN" "✓ Auto-restoration script created and enabled"
+    print_status "$BLUE" "  This will automatically restore the installation after firmware upgrades"
 }
 
 # Main installation function
@@ -713,6 +874,7 @@ main() {
     install_config
     configure_cron
     create_uninstall
+    create_restoration_script
     print_status "$GREEN" "=== Installation Complete ==="
     printf "\n"
     available_editor=""
