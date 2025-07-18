@@ -462,11 +462,11 @@ install_config() {
         backup_file="$INSTALL_DIR/config/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$INSTALL_DIR/config/config.sh" "$backup_file"
         debug_msg "Configuration backup created: $backup_file"
-        
+
         # ENHANCED MERGE LOGIC - Multiple fallback strategies
         merge_success=false
         merge_method=""
-        
+
         # Strategy 1: Try merge script if available
         if [ -f "$INSTALL_DIR/scripts/merge-config-rutos.sh" ]; then
             debug_msg "Attempting merge using merge-config-rutos.sh script"
@@ -480,12 +480,12 @@ install_config() {
         else
             debug_msg "No merge script found, proceeding to manual merge"
         fi
-        
+
         # Strategy 2: Enhanced manual merge with extensive settings preservation
         if [ "$merge_success" = "false" ]; then
             print_status "$BLUE" "Performing enhanced manual configuration merge..."
             debug_msg "Starting manual merge process"
-            
+
             # Create working copy of template
             temp_config="/tmp/config_merge.tmp"
             if ! cp "$INSTALL_DIR/config/config.template.sh" "$temp_config"; then
@@ -493,21 +493,21 @@ install_config() {
                 merge_success=false
             else
                 debug_msg "Template copied to temp file: $temp_config"
-                
+
                 # Extended list of settings to preserve - cover all user-configurable options
                 settings_to_preserve="STARLINK_IP MWAN_IFACE MWAN_MEMBER PUSHOVER_TOKEN PUSHOVER_USER RUTOS_USERNAME RUTOS_PASSWORD RUTOS_IP PING_TARGETS PING_COUNT PING_TIMEOUT PING_INTERVAL CHECK_INTERVAL FAIL_COUNT_THRESHOLD RECOVERY_COUNT_THRESHOLD INITIAL_DELAY ENABLE_LOGGING LOG_RETENTION_DAYS ENABLE_PUSHOVER_NOTIFICATIONS ENABLE_SYSLOG SYSLOG_PRIORITY ENABLE_HOTPLUG_NOTIFICATIONS ENABLE_STATUS_LOGGING ENABLE_API_MONITORING ENABLE_PING_MONITORING STARLINK_GRPC_PORT API_CHECK_INTERVAL MWAN3_POLICY MWAN3_RULE NOTIFICATION_COOLDOWN NOTIFICATION_RECOVERY_DELAY ENABLE_DETAILED_LOGGING"
-                
+
                 preserved_count=0
                 total_count=0
-                
+
                 for setting in $settings_to_preserve; do
                     total_count=$((total_count + 1))
                     debug_msg "Processing setting: $setting"
-                    
+
                     if grep -q "^${setting}=" "$backup_file" 2>/dev/null; then
                         user_value=$(grep "^${setting}=" "$backup_file" | head -1)
                         debug_msg "Found setting in backup: $user_value"
-                        
+
                         # Skip placeholder values (YOUR_, CHANGE_ME, etc.)
                         if [ -n "$user_value" ] && ! echo "$user_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)" 2>/dev/null; then
                             # Replace in template
@@ -521,7 +521,7 @@ install_config() {
                                 fi
                             else
                                 # Add new line if not in template
-                                if echo "$user_value" >> "$temp_config" 2>/dev/null; then
+                                if echo "$user_value" >>"$temp_config" 2>/dev/null; then
                                     preserved_count=$((preserved_count + 1))
                                     debug_msg "Successfully added: $setting"
                                 else
@@ -535,7 +535,7 @@ install_config() {
                         debug_msg "Setting not found in backup: $setting"
                     fi
                 done
-                
+
                 # Verify the merge worked
                 if [ -f "$temp_config" ] && [ -s "$temp_config" ]; then
                     if mv "$temp_config" "$INSTALL_DIR/config/config.sh" 2>/dev/null; then
@@ -553,7 +553,7 @@ install_config() {
                 fi
             fi
         fi
-        
+
         # Strategy 3: Last resort - copy template and warn user
         if [ "$merge_success" = "false" ]; then
             print_status "$YELLOW" "⚠ All merge strategies failed - using template as fallback"
@@ -575,19 +575,19 @@ install_config() {
                     ;;
             esac
             print_status "$BLUE" "✓ Backup created: $backup_file"
-            
+
             # Verify critical settings were preserved
             if [ "$merge_method" = "manual" ]; then
                 print_status "$BLUE" "Verifying merge results..."
                 critical_preserved=0
                 critical_total=0
-                
+
                 for critical_setting in PUSHOVER_TOKEN PUSHOVER_USER MWAN_IFACE MWAN_MEMBER; do
                     critical_total=$((critical_total + 1))
                     if grep -q "^${critical_setting}=" "$backup_file" 2>/dev/null; then
                         backup_value=$(grep "^${critical_setting}=" "$backup_file" | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
                         current_value=$(grep "^${critical_setting}=" "$INSTALL_DIR/config/config.sh" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-                        
+
                         if [ -n "$backup_value" ] && [ "$backup_value" = "$current_value" ] && ! echo "$backup_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER)" 2>/dev/null; then
                             critical_preserved=$((critical_preserved + 1))
                             debug_msg "Verified preserved: $critical_setting"
@@ -596,7 +596,7 @@ install_config() {
                         fi
                     fi
                 done
-                
+
                 if [ $critical_preserved -gt 0 ]; then
                     print_status "$GREEN" "✓ Verification: $critical_preserved/$critical_total critical settings preserved"
                 else
@@ -623,7 +623,7 @@ install_config() {
     print_status "$BLUE" "  /root/config.sh -> $INSTALL_DIR/config/config.sh"
     print_status "$BLUE" "  /root/starlink-monitor -> $INSTALL_DIR"
     print_status "$BLUE" "✓ Configuration backed up to: $PERSISTENT_CONFIG_DIR"
-    
+
     # If user settings were lost, provide quick restoration commands
     if [ -f "$backup_file" ] && [ -f "$INSTALL_DIR/config/config.sh" ]; then
         # Check if PUSHOVER_TOKEN is still a placeholder
