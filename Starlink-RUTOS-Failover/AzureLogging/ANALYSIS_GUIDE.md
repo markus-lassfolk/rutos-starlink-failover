@@ -93,7 +93,7 @@ python analyze-network-performance.py --storage-account mystorageaccount --days 
 
 The tool displays a real-time summary:
 
-```
+```text
 ============================================================
 NETWORK ANALYSIS SUMMARY
 ============================================================
