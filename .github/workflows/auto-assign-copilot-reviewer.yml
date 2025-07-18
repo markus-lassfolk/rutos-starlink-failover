@@ -32,7 +32,7 @@ jobs:
         run: |
           set -e
           
-          echo "🔍 Checking if Copilot has finished working on draft PRs..."
+          echo "Checking if Copilot has finished working on draft PRs..."
           echo "Event name: ${{ github.event_name }}"
           echo "GitHub actor: ${{ github.actor }}"
           echo "Repository: ${{ github.repository }}"
@@ -44,12 +44,12 @@ jobs:
           # Determine which PR to check based on trigger event
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             pr_number="${{ github.event.number }}"
-            echo "📍 Triggered by PR #$pr_number event: ${{ github.event.action }}"
+            echo "Triggered by PR #$pr_number event: ${{ github.event.action }}"
           elif [ "${{ github.event_name }}" = "issue_comment" ]; then
             pr_number="${{ github.event.issue.number }}"
-            echo "📍 Triggered by comment on PR #$pr_number"
+            echo "Triggered by comment on PR #$pr_number"
           else
-            echo "📍 Manual trigger - checking all draft PRs"
+            echo "Manual trigger - checking all draft PRs"
             pr_number=""
           fi
           
@@ -63,36 +63,36 @@ jobs:
             local copilot_assigned=$(echo "$pr_data" | jq -r '.assignees[] | select(.login == "Copilot") | .login // empty')
             
             if [ "$is_draft" != "true" ] || [ -z "$copilot_assigned" ]; then
-              echo "ℹ️  PR #$pr_num: Not a Copilot draft PR (skipping)"
+              echo "PR #$pr_num: Not a Copilot draft PR (skipping)"
               return 1
             fi
             
             local pr_title=$(echo "$pr_data" | jq -r '.title')
             local pr_body=$(echo "$pr_data" | jq -r '.body // ""')
             
-            echo "� Analyzing PR #$pr_num: '$pr_title'"
+            echo "Analyzing PR #$pr_num: '$pr_title'"
             
             # Look for completion indicators in PR body
             local completion_indicators="Fixes #|Closes #|Summary|Issues Fixed|Testing|Validation Results|Scope Compliance"
             
             if echo "$pr_body" | grep -qE "$completion_indicators"; then
-              echo "✅ PR #$pr_num: Found completion indicators in description"
+              echo "PR #$pr_num: Found completion indicators in description"
               
               # Additional check: Look for recent comments from Copilot
               local recent_comments=$(echo "$pr_data" | jq -r '.comments[-3:] | .[] | select(.author.login == "Copilot") | .body' 2>/dev/null || echo "")
               
               if echo "$recent_comments" | grep -qE "(completed|finished|ready|done)"; then
-                echo "✅ PR #$pr_num: Found completion language in recent comments"
+                echo "PR #$pr_num: Found completion language in recent comments"
                 return 0
               elif [ ${#pr_body} -gt 1000 ]; then
-                echo "✅ PR #$pr_num: Substantial PR description (${#pr_body} chars) suggests completion"
+                echo "PR #$pr_num: Substantial PR description (${#pr_body} chars) suggests completion"
                 return 0
               else
-                echo "⏳ PR #$pr_num: Has completion indicators but waiting for more signals"
+                echo "PR #$pr_num: Has completion indicators but waiting for more signals"
                 return 1
               fi
             else
-              echo "⏳ PR #$pr_num: No completion indicators found yet"
+              echo "PR #$pr_num: No completion indicators found yet"
               return 1
             fi
           }
@@ -100,37 +100,37 @@ jobs:
           # Check specific PR or all draft PRs
           if [ -n "$pr_number" ]; then
             if check_copilot_completion "$pr_number"; then
-              echo "🔧 Converting PR #$pr_number from draft to ready for review..."
+              echo "Converting PR #$pr_number from draft to ready for review..."
               if gh pr ready "$pr_number"; then
-                echo "✅ Successfully converted PR #$pr_number to ready for review"
-                echo "🎯 This will trigger validation workflows automatically"
+                echo "Successfully converted PR #$pr_number to ready for review"
+                echo "This will trigger validation workflows automatically"
               else
-                echo "❌ Failed to convert PR #$pr_number from draft to ready"
+                echo "Failed to convert PR #$pr_number from draft to ready"
               fi
             fi
           else
             # Manual trigger - check all draft PRs
-            echo "🔧 Fetching all draft PRs..."
+            echo "Fetching all draft PRs..."
             draft_prs=$(gh pr list --state open --draft --json number --limit 20)
-            echo "🔧 Draft PRs found: $draft_prs"
+            echo "Draft PRs found: $draft_prs"
             
             if [ "$draft_prs" = "[]" ] || [ -z "$draft_prs" ]; then
-              echo "ℹ️  No draft PRs found to process"
+              echo "No draft PRs found to process"
             else
-              echo "🔧 Processing draft PRs..."
+              echo "Processing draft PRs..."
               echo "$draft_prs" | jq -r '.[].number' | while read pr_num; do
-                echo "🔧 Checking PR #$pr_num..."
+                echo "Checking PR #$pr_num..."
                 if [ -n "$pr_num" ] && check_copilot_completion "$pr_num"; then
-                  echo "🔧 Converting PR #$pr_num from draft to ready for review..."
+                  echo "Converting PR #$pr_num from draft to ready for review..."
                   if gh pr ready "$pr_num"; then
-                    echo "✅ Successfully converted PR #$pr_num to ready for review"
+                    echo "Successfully converted PR #$pr_num to ready for review"
                   else
-                    echo "❌ Failed to convert PR #$pr_num from draft to ready"
-                    echo "🔧 Exit code: $?"
+                    echo "Failed to convert PR #$pr_num from draft to ready"
+                    echo "Exit code: $?"
                   fi
                 fi
               done
             fi
           fi
           
-          echo "🎉 Copilot completion check finished"
+          echo "Copilot completion check finished"
