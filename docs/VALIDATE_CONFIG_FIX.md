@@ -2,14 +2,14 @@
 
 ## Problem Report
 
-```
+```text
 /root/starlink-monitor/scripts/validate-config.sh
 -ash: /root/starlink-monitor/scripts/validate-config.sh: not found
 ```
 
 ## Root Cause Analysis
 
-### Primary Issues Found:
+### Primary Issues Found
 
 1. **Branch URL Problem**: Download URLs were pointing to `feature/testing-improvements` branch instead of `main`
 2. **Shell Compatibility**: `validate-config.sh` was using bash-specific features incompatible with RUTOS
@@ -143,7 +143,7 @@ ls -la /root/starlink-monitor/scripts/
 
 ## User Experience Improvements
 
-### Installation Now Includes:
+### Installation Now Includes
 
 1. All essential scripts automatically downloaded
 2. Better error messages with manual download URLs
@@ -151,7 +151,7 @@ ls -la /root/starlink-monitor/scripts/
 4. Utility scripts for system optimization
 5. Self-update capability
 
-### Next Steps After Installation:
+### Next Steps After Installation
 
 1. Edit configuration: `vi /root/starlink-monitor/config/config.sh`
 2. Validate: `/root/starlink-monitor/scripts/validate-config.sh`
