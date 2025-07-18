@@ -1,8 +1,8 @@
 #!/bin/bash
 # Pre-commit validation script for RUTOS Starlink Failover Project
-# Version: 1.0.4
-# Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility,
-#              PowerShell scripts for automation quality, and markdown files for documentation
+# Version: 1.0.3
+# Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility
+#              and markdown files for documentation quality
 #
 # NOTE: This script runs in the development environment (WSL/Linux), NOT on RUTOS,
 # so it can use modern bash features for efficiency. It validates OTHER scripts
@@ -12,7 +12,7 @@
 # and collect all validation issues before exiting
 
 # Version information
-SCRIPT_VERSION="1.0.4"
+SCRIPT_VERSION="1.0.3"
 
 # Files to exclude from validation (patterns supported)
 # Files to exclude from validation
@@ -558,18 +558,6 @@ auto_fix_formatting() {
 				fi
 			fi
 			;;
-		"ps1")
-			# Auto-fix PowerShell script formatting
-			if command_exists pwsh; then
-				log_debug "PowerShell formatting: Using pwsh for $file"
-				# PowerShell formatting will be handled in validation
-				# For now, we don't auto-fix PowerShell formatting
-			elif command_exists powershell; then
-				log_debug "PowerShell formatting: Using powershell for $file"
-				# PowerShell formatting will be handled in validation
-				# For now, we don't auto-fix PowerShell formatting
-			fi
-			;;
 		"md")
 			# Auto-fix markdown formatting with prettier
 			if command_exists prettier; then
@@ -678,147 +666,6 @@ validate_markdown_file() {
 	return $file_issues
 }
 
-# Function to run PSScriptAnalyzer validation
-run_psscriptanalyzer() {
-	local file="$1"
-	
-	# Check if PowerShell and PSScriptAnalyzer are available
-	if command_exists pwsh; then
-		log_debug "Running PSScriptAnalyzer on $file using pwsh"
-		
-		# Check if PSScriptAnalyzer module is available
-		if pwsh -Command "Get-Module -ListAvailable PSScriptAnalyzer" >/dev/null 2>&1; then
-			# Run PSScriptAnalyzer and capture output
-			pssa_output=$(pwsh -Command "Invoke-ScriptAnalyzer -Path '$file' -Severity @('Error', 'Warning', 'Information') | ForEach-Object { \"\$(\$_.Severity)|\$(\$_.RuleName)|\$(\$_.Message)|\$(\$_.Line)\" }" 2>&1)
-			
-			if [ $? -eq 0 ] && [ -n "$pssa_output" ]; then
-				# Parse PSScriptAnalyzer output
-				while IFS='|' read -r severity rule message line_num; do
-					if [ -n "$severity" ] && [ -n "$rule" ] && [ -n "$message" ] && [ -n "$line_num" ]; then
-						case "$severity" in
-							"Error")
-								report_issue "CRITICAL" "$file" "$line_num" "$rule: $message"
-								;;
-							"Warning")
-								report_issue "MAJOR" "$file" "$line_num" "$rule: $message"
-								;;
-							"Information")
-								report_issue "MINOR" "$file" "$line_num" "$rule: $message"
-								;;
-						esac
-					fi
-				done <<< "$pssa_output"
-			else
-				log_debug "✓ $file: Passes PSScriptAnalyzer validation"
-			fi
-		else
-			log_warning "PSScriptAnalyzer module not available - skipping advanced PowerShell validation"
-		fi
-	elif command_exists powershell; then
-		log_debug "PowerShell Core (pwsh) not available, trying Windows PowerShell"
-		log_warning "For best results, install PowerShell Core and PSScriptAnalyzer module"
-	else
-		log_warning "PowerShell not available - skipping PowerShell validation"
-	fi
-}
-
-# Function to run PowerShell syntax check
-run_powershell_syntax_check() {
-	local file="$1"
-	
-	if command_exists pwsh; then
-		log_debug "Running PowerShell syntax check on $file"
-		
-		# Use PowerShell's parser to check syntax
-		syntax_check=$(pwsh -Command "try { \$null = [System.Management.Automation.PSParser]::Tokenize((Get-Content '$file' -Raw), [ref]\$null); Write-Output 'SYNTAX_OK' } catch { Write-Output \"SYNTAX_ERROR: \$(\$_.Exception.Message)\" }" 2>&1)
-		
-		if [[ "$syntax_check" == "SYNTAX_OK" ]]; then
-			log_debug "✓ $file: PowerShell syntax is valid"
-		else
-			report_issue "CRITICAL" "$file" "0" "PowerShell Syntax Error: ${syntax_check#SYNTAX_ERROR: }"
-		fi
-	fi
-}
-
-# Function to check PowerShell automation patterns
-check_powershell_automation_patterns() {
-	local file="$1"
-	local line_number=0
-	
-	log_debug "Checking PowerShell automation patterns in $file"
-	
-	while IFS= read -r line; do
-		line_number=$((line_number + 1))
-		
-		# Check for hardcoded credentials
-		if echo "$line" | grep -qi "password\s*=\s*['\"][^'\"]*['\"]"; then
-			report_issue "CRITICAL" "$file" "$line_number" "Security: Hardcoded password detected"
-		fi
-		
-		# Check for hardcoded API keys
-		if echo "$line" | grep -qi "api[_-]key\s*=\s*['\"][^'\"]*['\"]"; then
-			report_issue "CRITICAL" "$file" "$line_number" "Security: Hardcoded API key detected"
-		fi
-		
-		# Check for Write-Host usage (prefer Write-Output)
-		if echo "$line" | grep -q "Write-Host"; then
-			report_issue "MINOR" "$file" "$line_number" "Best Practice: Consider using Write-Output instead of Write-Host for better pipeline support"
-		fi
-		
-		# Check for Invoke-Expression usage (security risk)
-		if echo "$line" | grep -q "Invoke-Expression\|iex"; then
-			report_issue "MAJOR" "$file" "$line_number" "Security: Invoke-Expression can be a security risk - consider alternatives"
-		fi
-		
-		# Check for cmdlet parameter validation
-		if echo "$line" | grep -q "param\s*(" && ! echo "$line" | grep -q "\[Parameter"; then
-			report_issue "MINOR" "$file" "$line_number" "Best Practice: Consider adding parameter validation attributes"
-		fi
-		
-	done < "$file"
-	
-	# Check for try blocks without catch blocks (file-level check)
-	if grep -q "try\s*{" "$file" && ! grep -q "catch" "$file"; then
-		report_issue "MAJOR" "$file" "0" "Error Handling: Try block found without corresponding catch block"
-	fi
-}
-
-# Function to validate PowerShell script file
-validate_powershell_file() {
-	local file="$1"
-	
-	log_step "Validating PowerShell script: $file"
-	
-	local initial_issues=$TOTAL_ISSUES
-	
-	# Try to auto-fix formatting issues first
-	if auto_fix_formatting "$file"; then
-		log_info "Applied auto-fixes to $file"
-	fi
-	
-	# Run PSScriptAnalyzer validation if available
-	run_psscriptanalyzer "$file"
-	
-	# Run PowerShell syntax validation
-	run_powershell_syntax_check "$file"
-	
-	# Check for common PowerShell automation issues
-	check_powershell_automation_patterns "$file"
-	
-	# Calculate issues for this file
-	local file_issues=$((TOTAL_ISSUES - initial_issues))
-	
-	if [ $file_issues -eq 0 ]; then
-		log_success "✓ $file: All checks passed"
-		PASSED_FILES=$((PASSED_FILES + 1))
-	else
-		log_error "✗ $file: $file_issues issues found"
-		FAILED_FILES=$((FAILED_FILES + 1))
-	fi
-	
-	return $file_issues
-}
-
 # Function to display issue summary by type
 display_issue_summary() {
 	if [ -z "$ISSUE_LIST" ]; then
@@ -836,7 +683,7 @@ display_issue_summary() {
 	# Write issues to temp file for processing
 	printf "%s\n" "$ISSUE_LIST" >"$temp_file"
 
-	# Group issues by ShellCheck code, PSScriptAnalyzer rule, markdown linting code, or other message types
+	# Group issues by ShellCheck code, markdown linting code, or other message types
 	while IFS='|' read -r message file_path; do
 		# Skip empty lines
 		if [ -n "$message" ]; then
@@ -864,43 +711,6 @@ display_issue_summary() {
 					;;
 				*)
 					printf "%s: %s\n" "$sc_code" "$sc_desc"
-					;;
-				esac
-			# Check if this is a PSScriptAnalyzer issue
-			elif echo "$message" | grep -q "^PS[A-Za-z]*:"; then
-				# Extract just the PSScriptAnalyzer rule name
-				ps_rule=$(echo "$message" | cut -d':' -f1)
-				# Group by PSScriptAnalyzer rule
-				case "$ps_rule" in
-				"PSAvoidUsingWriteHost")
-					printf "%s: Use Write-Output instead of Write-Host for better pipeline compatibility\n" "$ps_rule"
-					;;
-				"PSAvoidTrailingWhitespace")
-					printf "%s: Remove trailing whitespace from lines\n" "$ps_rule"
-					;;
-				"PSAvoidUsingInvokeExpression")
-					printf "%s: Avoid Invoke-Expression for security reasons\n" "$ps_rule"
-					;;
-				"PSUseApprovedVerbs")
-					printf "%s: Use approved PowerShell verbs for function names\n" "$ps_rule"
-					;;
-				"PSAvoidGlobalVars")
-					printf "%s: Avoid using global variables\n" "$ps_rule"
-					;;
-				"PSAvoidDefaultValueSwitchParameter")
-					printf "%s: Switch parameters should not have default values\n" "$ps_rule"
-					;;
-				"PSAvoidUsingEmptyCatchBlock")
-					printf "%s: Empty catch blocks should be avoided\n" "$ps_rule"
-					;;
-				"PSUseBOMForUnicodeEncodedFile")
-					printf "%s: Unicode files should have BOM encoding\n" "$ps_rule"
-					;;
-				"PSReviewUnusedParameter")
-					printf "%s: Parameters should be used in functions\n" "$ps_rule"
-					;;
-				*)
-					printf "%s: PowerShell best practice violation\n" "$ps_rule"
 					;;
 				esac
 			# Check if this is a markdown linting issue
@@ -1058,10 +868,6 @@ display_issue_summary() {
 				# For ShellCheck codes, count files that have this specific code
 				sc_code=$(echo "$message" | cut -d':' -f1)
 				unique_files=$(grep "^$sc_code:" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
-			elif echo "$message" | grep -q "^PS[A-Za-z]*:"; then
-				# For PSScriptAnalyzer rules, count files that have this specific rule
-				ps_rule=$(echo "$message" | cut -d':' -f1)
-				unique_files=$(grep "^$ps_rule:" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
 			elif echo "$message" | grep -q "^MD[0-9]*:"; then
 				# For markdown linting codes, count files that have this specific code
 				md_code=$(echo "$message" | cut -d':' -f1)
@@ -1122,26 +928,23 @@ Usage: $0 [OPTIONS] [FILES...]
 
 OPTIONS:
     --staged        Validate only staged files (for git pre-commit hook)
-    --all           Validate all shell, PowerShell and markdown files in the repository
+    --all           Validate all shell and markdown files in the repository
     --shell-only    Validate only shell script files
-    --ps1-only      Validate only PowerShell script files
     --md-only       Validate only markdown files
     --help, -h      Show this help message
 
 EXAMPLES:
-    $0                              # Validate all shell, PowerShell and markdown files
+    $0                              # Validate all shell and markdown files
     $0 --all                        # Same as above, but explicit
     $0 --staged                     # Validate only staged files (git hook mode)
     $0 --shell-only                 # Validate only shell scripts
-    $0 --ps1-only                   # Validate only PowerShell scripts
     $0 --md-only                    # Validate only markdown files
-    $0 file1.sh file2.ps1 file3.md  # Validate specific files
-    $0 scripts/*.sh automation/*.ps1 # Validate files in specific directories
+    $0 file1.sh file2.md            # Validate specific files
+    $0 scripts/*.sh                 # Validate all files in scripts directory
 
 DESCRIPTION:
-    This script validates shell scripts for RUTOS/busybox compatibility,
-    PowerShell scripts for automation quality, and markdown files for 
-    documentation quality by checking:
+    This script validates shell scripts for RUTOS/busybox compatibility and
+    markdown files for documentation quality by checking:
     
     SHELL SCRIPTS:
     - Shebang compatibility (#!/bin/sh required for RUTOS scripts)
@@ -1153,13 +956,6 @@ DESCRIPTION:
     - RUTOS naming convention compliance (*-rutos.sh for RUTOS-target scripts)
     - shfmt formatting (with auto-fix)
     
-    POWERSHELL SCRIPTS:
-    - PSScriptAnalyzer validation (Error, Warning, Information levels)
-    - PowerShell syntax validation using built-in parser
-    - Security pattern checks (hardcoded credentials, Invoke-Expression usage)
-    - Best practice validation (Write-Host vs Write-Output, error handling)
-    - Parameter validation recommendations
-    
     MARKDOWN FILES:
     - markdownlint validation
     - prettier formatting (with auto-fix)
@@ -1168,7 +964,6 @@ DESCRIPTION:
     The script automatically fixes formatting issues using:
     - shfmt for shell scripts
     - prettier for markdown files
-    - PowerShell formatting (planned for future versions)
     
     After auto-fixes are applied, the script re-validates to ensure 
     issues are resolved.
@@ -1187,13 +982,12 @@ EOF
 
 # Main function
 main() {
-	log_info "Starting RUTOS busybox compatibility, PowerShell, and markdown validation v$SCRIPT_VERSION"
+	log_info "Starting RUTOS busybox compatibility and markdown validation v$SCRIPT_VERSION"
 
 	# Skip self-validation
 	log_step "Self-validation: Skipped - this script is excluded from validation"
 
 	local shell_files=""
-	local powershell_files=""
 	local markdown_files=""
 	
 	# Check if running with specific files
@@ -1202,23 +996,21 @@ main() {
 		exit 0
 	elif [ "$1" = "--staged" ]; then
 		log_info "Running in pre-commit mode (staged files only)"
-		# Get staged shell, PowerShell and markdown files, excluding specified files
+		# Get staged shell and markdown files, excluding specified files
 		shell_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' | while read -r file; do
 			if ! is_excluded "$file"; then
 				echo "$file"
 			fi
 		done | sort)
-		powershell_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.ps1$' | sort)
 		markdown_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | sort)
 	elif [ "$1" = "--all" ]; then
-		log_info "Running in comprehensive validation mode (all shell, PowerShell and markdown files)"
-		# Get all shell, PowerShell and markdown files, excluding specified files
+		log_info "Running in comprehensive validation mode (all shell and markdown files)"
+		# Get all shell and markdown files, excluding specified files
 		shell_files=$(find . -name "*.sh" -type f | while read -r file; do
 			if ! is_excluded "$file"; then
 				echo "$file"
 			fi
 		done | sort)
-		powershell_files=$(find . -name "*.ps1" -type f | sort)
 		markdown_files=$(find . -name "*.md" -type f | sort)
 	elif [ "$1" = "--shell-only" ]; then
 		log_info "Running in shell-only validation mode"
@@ -1232,10 +1024,6 @@ main() {
 		log_info "Running in markdown-only validation mode"
 		# Get all markdown files
 		markdown_files=$(find . -name "*.md" -type f | sort)
-	elif [ "$1" = "--ps1-only" ]; then
-		log_info "Running in PowerShell-only validation mode"
-		# Get all PowerShell files
-		powershell_files=$(find . -name "*.ps1" -type f | sort)
 	elif [ $# -gt 0 ]; then
 		log_info "Running in specific file mode"
 		# Process specific files based on extension
@@ -1249,29 +1037,25 @@ main() {
 				*.md)
 					markdown_files="$markdown_files $file"
 					;;
-				*.ps1)
-					powershell_files="$powershell_files $file"
-					;;
 				*)
-					log_warning "Unsupported file type: $file (only .sh, .ps1 and .md supported)"
+					log_warning "Unsupported file type: $file (only .sh and .md supported)"
 					;;
 			esac
 		done
 	else
-		log_info "Running in full validation mode (all shell, PowerShell and markdown files)"
-		# Get all shell, PowerShell and markdown files, excluding specified files
+		log_info "Running in full validation mode (all shell and markdown files)"
+		# Get all shell and markdown files, excluding specified files
 		shell_files=$(find . -name "*.sh" -type f | while read -r file; do
 			if ! is_excluded "$file"; then
 				echo "$file"
 			fi
 		done | sort)
-		powershell_files=$(find . -name "*.ps1" -type f | sort)
 		markdown_files=$(find . -name "*.md" -type f | sort)
 	fi
 
 	# Count total files
 	local total_files=0
-	for file in $shell_files $powershell_files $markdown_files; do
+	for file in $shell_files $markdown_files; do
 		if [ -f "$file" ]; then
 			total_files=$((total_files + 1))
 		fi
@@ -1291,19 +1075,6 @@ main() {
 			if [ -f "$file" ]; then
 				TOTAL_FILES=$((TOTAL_FILES + 1))
 				validate_file "$file"
-			else
-				log_debug "Skipping non-existent file: $file"
-			fi
-		done
-	fi
-
-	# Validate PowerShell files
-	if [ -n "$powershell_files" ]; then
-		log_info "Validating PowerShell files"
-		for file in $powershell_files; do
-			if [ -f "$file" ]; then
-				TOTAL_FILES=$((TOTAL_FILES + 1))
-				validate_powershell_file "$file"
 			else
 				log_debug "Skipping non-existent file: $file"
 			fi

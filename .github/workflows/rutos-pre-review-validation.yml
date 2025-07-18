@@ -40,16 +40,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck shfmt gh
           
-          # Install PowerShell Core
-          echo "Installing PowerShell Core..."
-          wget -q https://github.com/PowerShell/PowerShell/releases/download/v7.4.0/powershell_7.4.0-1.deb_amd64.deb
-          sudo dpkg -i powershell_7.4.0-1.deb_amd64.deb
-          sudo apt-get install -f
-          
-          # Install PSScriptAnalyzer module
-          echo "Installing PSScriptAnalyzer module..."
-          pwsh -Command "Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser"
-          
       - name: Get Changed Files
         id: changed-files
         run: |
@@ -68,12 +58,11 @@ jobs:
             }
           fi
           
-          # Filter for shell scripts, PowerShell scripts and markdown files
-          grep -E '\.(sh|ps1|md)$' changed_files.txt || echo "No shell/PowerShell/markdown files changed"
+          # Filter for shell scripts and markdown files
+          grep -E '\.(sh|md)$' changed_files.txt || echo "No shell/markdown files changed"
           
           echo "FILES_CHANGED=$(cat changed_files.txt | wc -l)" >> $GITHUB_OUTPUT
           echo "SHELL_FILES=$(grep -E '\.sh$' changed_files.txt | wc -l || echo 0)" >> $GITHUB_OUTPUT
-          echo "PS1_FILES=$(grep -E '\.ps1$' changed_files.txt | wc -l || echo 0)" >> $GITHUB_OUTPUT
           echo "MD_FILES=$(grep -E '\.md$' changed_files.txt | wc -l || echo 0)" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -114,7 +103,7 @@ jobs:
           if [ ! -f changed_files.txt ]; then
             echo "No changed files to validate"
             echo "## ✅ No Files to Validate" >> validation_report.md
-            echo "No shell scripts, PowerShell scripts or markdown files were changed in this PR." >> validation_report.md
+            echo "No shell scripts or markdown files were changed in this PR." >> validation_report.md
             echo "status=success" >> $GITHUB_OUTPUT
             echo "issues-found=0" >> $GITHUB_OUTPUT
             echo "critical-issues=0" >> $GITHUB_OUTPUT
@@ -126,7 +115,7 @@ jobs:
           
           # Validate each changed file
           while IFS= read -r file; do
-            if [[ "$file" =~ \.(sh|ps1|md)$ ]] && [[ -f "$file" ]]; then
+            if [[ "$file" =~ \.(sh|md)$ ]] && [[ -f "$file" ]]; then
               echo "🔍 Validating: $file"
               echo "- \`$file\`" >> validation_report.md
               
