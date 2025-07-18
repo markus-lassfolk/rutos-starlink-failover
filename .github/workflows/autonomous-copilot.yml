@@ -9,7 +9,7 @@ on:
       - review_requested
       - synchronize
   schedule:
-    - cron: "*/10 * * * *" # Fallback check every 10 minutes
+    - cron: "*/10 * * * *"
   workflow_run:
     workflows: ["*"]
     types:
@@ -28,6 +28,9 @@ jobs:
       - name: Install gh CLI (if needed)
         run: sudo apt-get install gh -y
 
+      - name: Enable Debug Mode
+        run: set -x
+
       #########################################################
       # 1. Fallback: Mark Draft PRs Ready if Idle for 30 Minutes
       #########################################################
@@ -35,21 +38,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🔍 Checking draft PRs (API-only)..."
+          echo "🔍 Fetching draft PRs (API-only)..."
           PRS=$(gh api repos/${{ github.repository }}/pulls \
             --jq '.[] | select(.draft==true) | .number')
 
+          if [ -z "$PRS" ]; then
+            echo "✅ No draft PRs found."
+          fi
+
           for PR in $PRS; do
-            echo "Checking PR #$PR"
+            echo "🔹 Processing Draft PR #$PR"
+
             LAST_COMMIT=$(gh api repos/${{ github.repository }}/pulls/$PR/commits \
               --jq '.[-1].commit.committer.date')
 
+            echo "🕒 Last commit timestamp for PR #$PR: $LAST_COMMIT"
+
             MINUTES=$(( ( $(date +%s) - $(date -d "$LAST_COMMIT" +%s) ) / 60 ))
-            echo "⏳ Last commit was $MINUTES minutes ago"
+            echo "⏳ PR #$PR: Last commit was $MINUTES minutes ago"
 
             if [ $MINUTES -ge 30 ]; then
-              echo "✅ Marking PR #$PR ready for review"
+              echo "✅ Marking PR #$PR Ready for Review"
               gh pr ready $PR --repo ${{ github.repository }}
+            else
+              echo "⏸ Skipping PR #$PR (only $MINUTES minutes idle)"
             fi
           done
 
@@ -60,26 +72,34 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🔄 Checking for workflow runs needing approval..."
+          echo "🔄 Checking for pending workflow approvals..."
           RUNS=$(gh run list --repo ${{ github.repository }} \
-            --json databaseId,status --jq '.[] | select(.status=="waiting") | .databaseId')
+            --json databaseId,status,workflowName \
+            --jq '.[] | select(.status=="waiting") | "\(.databaseId) - \(.workflowName)"')
 
-          for RUN_ID in $RUNS; do
-            echo "✅ Approving workflow run $RUN_ID"
-            gh api --method POST repos/${{ github.repository }}/actions/runs/$RUN_ID/approve
-          done
+          if [ -z "$RUNS" ]; then
+            echo "✅ No workflows awaiting approval."
+          else
+            echo "🔹 Workflows needing approval: $RUNS"
+            for RUN_ID in $(echo "$RUNS" | awk '{print $1}'); do
+              echo "✅ Approving workflow run $RUN_ID"
+              gh api --method POST repos/${{ github.repository }}/actions/runs/$RUN_ID/approve
+            done
+          fi
 
       #########################################################
-      # 3. Resolve Merge Conflicts (Trigger Copilot SWE Agent)
+      # 3. Resolve Merge Conflicts with Copilot
       #########################################################
       - name: Resolve Merge Conflicts with Copilot
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🔍 Checking for merge conflicts..."
+          echo "🔍 Checking for merge conflicts on PR #${{ github.event.number }}..."
           MERGEABLE=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} \
             --jq '.mergeable')
+
+          echo "🔹 Mergeable status: $MERGEABLE"
 
           if [ "$MERGEABLE" = "false" ]; then
             echo "⚠️ Conflicts detected! Asking Copilot SWE Agent to resolve..."
