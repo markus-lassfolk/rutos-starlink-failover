@@ -6,13 +6,48 @@ This is a shell-based failover solution for Starlink connectivity on RUTX50 rout
 environment). The project provides automated monitoring, configuration management, and failover capabilities with Azure
 integration.
 
+## Script Types and Deployment Targets
+
+### RUTOS Production Scripts (Shell/POSIX)
+- **Target**: RUTX50 router running RUTOS (busybox sh)
+- **Files**: `*.sh` files, especially those with `-rutos.sh` suffix
+- **Requirements**: POSIX-compliant shell, busybox compatibility
+- **Deployment**: Remote installation via curl from GitHub
+- **Examples**: `starlink_monitor.sh`, `install-rutos.sh`, `validate-config.sh`
+
+### Windows Development Automation (PowerShell)
+- **Target**: Windows development machine with PowerShell 5.1+ or PowerShell Core 7+
+- **Files**: `*.ps1` files in `automation/` directory
+- **Requirements**: PowerShell with modules like PSScriptAnalyzer
+- **Purpose**: Repository management, issue creation, validation automation
+- **Examples**: `create-copilot-issues-optimized.ps1`, `Monitor-CopilotPRs.ps1`
+
+### Azure Integration Components
+- **Target**: Mixed environments (Azure cloud, Windows dev machine)
+- **Files**: Bicep templates, Python scripts, PowerShell setup scripts
+- **Location**: `AzureLogging/` directory
+- **Purpose**: Cloud logging, monitoring, and infrastructure management
+
 ## Key Project Characteristics
 
+### RUTOS Production Environment
 - **Target Environment**: RUTX50 router with RUTOS RUT5_R_00.07.09.7 (armv7l architecture)
 - **Shell Requirements**: POSIX-compliant for busybox sh (not bash)
 - **Deployment**: Remote installation via curl from GitHub
+- **Script Naming**: Use `-rutos.sh` suffix for RUTOS-specific scripts
+- **Compatibility**: Must work in limited busybox environment
+
+### Windows Development Environment  
+- **Target Environment**: Windows development machine
+- **Shell Requirements**: PowerShell 5.1+ or PowerShell Core 7+
+- **Purpose**: Repository automation, issue management, validation
+- **Script Naming**: Use `.ps1` extension, located in `automation/` directory
+- **Compatibility**: Modern PowerShell features and modules allowed
+
+### Common Characteristics
 - **Version Management**: Automatic semantic versioning with git integration
 - **Configuration**: Template-based with automatic migration system
+- **Quality Assurance**: Comprehensive validation for both shell and PowerShell scripts
 
 ## Shell Scripting Guidelines
 
@@ -81,6 +116,58 @@ CONFIG_VALUE="${CONFIG_VALUE:-default_value}"
 - `config/config.template.sh` - Base configuration template
 - `tests/` - All test scripts organized in dedicated directory
 
+## PowerShell Development Guidelines
+
+### PowerShell Script Context
+
+PowerShell scripts in this project are **Windows development machine automation tools** only. They are NOT deployed to RUTOS and do not need POSIX compatibility.
+
+### PowerShell Quality Standards
+
+1. **PSScriptAnalyzer Compliance**: All scripts must pass PSScriptAnalyzer validation
+2. **Parameter Validation**: Use `[ValidateSet()]`, `[ValidateRange()]` etc. for robust parameter handling
+3. **Pipeline Compatibility**: Use `Write-Output` instead of `Write-Host` for better pipeline behavior
+4. **Function Naming**: Use approved PowerShell verbs (Get-, Set-, New-, etc.) and singular nouns
+5. **Error Handling**: Implement proper try/catch blocks and error reporting
+6. **Help Documentation**: Include comment-based help for all functions
+
+### PowerShell Best Practices
+
+```powershell
+# Correct PowerShell function structure
+function Get-CopilotIssue {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Critical", "Major", "Minor")]
+        [string]$Severity,
+        
+        [Parameter()]
+        [ValidateRange(1, 100)]
+        [int]$MaxIssues = 10
+    )
+    
+    try {
+        # Use Write-Output instead of Write-Host
+        Write-Output "Processing $Severity issues (limit: $MaxIssues)"
+        
+        # Implementation here
+        
+    } catch {
+        Write-Error "Failed to process issues: $_"
+        throw
+    }
+}
+```
+
+### PowerShell File Organization
+
+- **Primary Location**: All PowerShell scripts should be in `automation/` directory when possible
+- **Temporary Development**: Root-level PowerShell files for testing and development are acceptable but should be moved to appropriate locations
+- **Purpose**: Repository management, issue creation, PR monitoring, validation automation
+- **Target**: Windows development machine only (not RUTOS)
+- **Dependencies**: May use PowerShell modules like PSScriptAnalyzer, GitHubCLI
+
 ### Version Management System
 
 - Format: `MAJOR.MINOR.PATCH+GIT_COUNT.GIT_COMMIT[-dirty]`
@@ -89,6 +176,20 @@ CONFIG_VALUE="${CONFIG_VALUE:-default_value}"
 - VERSION and VERSION_INFO files are auto-generated
 
 ## Code Generation Rules
+
+### Context-Aware Script Generation
+
+1. **Shell Scripts (.sh)**: 
+   - **Target**: RUTX50 router with RUTOS (busybox sh)
+   - **Requirements**: POSIX-compliant, busybox compatible
+   - **Validation**: ShellCheck with RUTOS compatibility checks
+   - **Deployment**: Remote installation via curl from GitHub
+
+2. **PowerShell Scripts (.ps1)**:
+   - **Target**: Windows development machine with PowerShell 5.1+ or Core 7+
+   - **Requirements**: PSScriptAnalyzer compliance, modern PowerShell features
+   - **Validation**: PowerShell quality and automation best practices
+   - **Purpose**: Repository automation, issue management, validation tools
 
 ### Always Include These Elements
 
@@ -519,22 +620,23 @@ sudo apt-get install shfmt
 #### Pre-Commit Quality Checklist
 
 - [ ] Run `./scripts/pre-commit-validation.sh` and fix all issues
-- [ ] All shell scripts pass ShellCheck with no errors
-- [ ] No bash-specific syntax (arrays, [[]], function() syntax)
+- [ ] **Shell Scripts (.sh)**: Pass ShellCheck with no errors, POSIX-compliant for RUTOS busybox
+- [ ] **PowerShell Scripts (.ps1)**: Pass PSScriptAnalyzer with no errors, Windows development only
+- [ ] No bash-specific syntax in shell scripts (arrays, [[]], function() syntax)
 - [ ] All functions have proper closing braces
 - [ ] Version information is consistent across scripts
 - [ ] Debug mode support is implemented
 - [ ] Error handling is comprehensive
 - [ ] Templates are clean (no ShellCheck comments)
-- [ ] Code formatting passes shfmt validation
+- [ ] Code formatting passes validation (shfmt for shell, PowerShell formatting for .ps1)
 
 #### Automated Quality Check Script
 
 ```bash
-# Run comprehensive quality checks (use in WSL/Git Bash)
+# Run comprehensive quality checks (use in WSL/Git Bash for shell scripts)
 ./scripts/pre-commit-validation.sh
 
-# On Windows PowerShell, switch to WSL first:
+# On Windows PowerShell, switch to WSL first for shell development:
 wsl
 ./scripts/pre-commit-validation.sh
 
@@ -543,16 +645,21 @@ wsl
 # - Detailed issue reporting with line numbers
 # - Comprehensive summary with pass/fail statistics
 # - Debug mode for troubleshooting validation issues
+# - Separate validation for shell scripts (RUTOS compatibility) and PowerShell scripts (Windows automation quality)
 ```
 
 #### Manual Quality Checks (if automated script fails)
 
 ```bash
-# Individual checks you can run manually
+# Shell script checks (for RUTOS deployment)
 shellcheck scripts/*.sh Starlink-RUTOS-Failover/*.sh
 grep -r "\[\[" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 grep -r "local " scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 grep -r "echo -e" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
+
+# PowerShell script checks (for Windows automation)
+# Run in PowerShell terminal:
+Invoke-ScriptAnalyzer -Path automation/*.ps1 -Recurse
 ```
 
 #### VS Code Extensions for Quality
@@ -564,8 +671,10 @@ grep -r "echo -e" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 
 ### Modern Development Workflow
 
-1. **Switch to WSL/Bash**: Better shell script development environment
-2. **Edit Scripts**: Use VS Code with ShellCheck extension
+1. **Choose Appropriate Environment**: 
+   - WSL/Git Bash for shell script development (RUTOS compatibility)
+   - PowerShell for Windows automation development (repository management)
+2. **Edit Scripts**: Use VS Code with appropriate extensions (ShellCheck for .sh, PowerShell for .ps1)
 3. **Run Pre-Commit Validation**: `./scripts/pre-commit-validation.sh`
 4. **Fix All Issues**: Address errors and warnings before commit
 5. **Test Locally**: Validate syntax and basic functionality
@@ -573,8 +682,9 @@ grep -r "echo -e" scripts/ Starlink-RUTOS-Failover/  # Should return nothing
 
 ### Development Tools Integration
 
-- **ShellCheck**: Automated syntax and compatibility validation
-- **shfmt**: Code formatting and style validation
+- **ShellCheck**: Automated syntax and compatibility validation for RUTOS scripts
+- **PSScriptAnalyzer**: PowerShell quality and best practice validation for Windows automation
+- **shfmt**: Code formatting and style validation for shell scripts
 - **Pre-commit Hooks**: Automated quality checks before commits
 - **Debug Mode**: Enhanced debugging with clean output (`DEBUG=1`)
 - **Version Management**: Automatic version tracking and updates

@@ -92,7 +92,7 @@ jobs:
           if [ -n "$pr_number" ]; then
             if check_copilot_completion "$pr_number"; then
               echo "🔧 Converting PR #$pr_number from draft to ready for review..."
-              if gh api -X PATCH "/repos/${{ github.repository }}/pulls/$pr_number" -f draft=false; then
+              if gh api -X PATCH "/repos/${{ github.repository }}/pulls/$pr_number" --field draft=false; then
                 echo "✅ Successfully converted PR #$pr_number to ready for review"
                 echo "🎯 This will trigger validation workflows automatically"
               else
@@ -105,7 +105,7 @@ jobs:
             echo "$draft_prs" | jq -r '.[].number' | while read pr_num; do
               if [ -n "$pr_num" ] && check_copilot_completion "$pr_num"; then
                 echo "🔧 Converting PR #$pr_num from draft to ready for review..."
-                if gh api -X PATCH "/repos/${{ github.repository }}/pulls/$pr_num" -f draft=false; then
+                if gh api -X PATCH "/repos/${{ github.repository }}/pulls/$pr_num" --field draft=false; then
                   echo "✅ Successfully converted PR #$pr_num to ready for review"
                 else
                   echo "❌ Failed to convert PR #$pr_num from draft to ready"
