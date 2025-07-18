@@ -10,6 +10,27 @@ param(
     [switch]$DebugMode = $false
 )
 
+param(
+    [int]$PRNumber = $null,
+    [switch]$VerboseOutput = $false,
+    [switch]$SkipValidation = $false,
+    [switch]$RequestCopilotForConflicts = $false,
+    [switch]$SkipWorkflowApproval = $false,
+    [switch]$ForceValidation = $false,
+    [switch]$MonitorOnly = $false,
+    [switch]$TestMode = $false,
+    [switch]$DebugMode = $false
+)
+
+# Import the enhanced label management module
+$labelModulePath = Join-Path $PSScriptRoot "GitHub-Label-Management.psm1"
+if (Test-Path $labelModulePath) {
+    Import-Module $labelModulePath -Force -ErrorAction SilentlyContinue
+    Write-Host "✅ Loaded enhanced label management system (100 labels)" -ForegroundColor Green
+} else {
+    Write-Host "⚠️  Enhanced label management module not found - basic functionality only" -ForegroundColor Yellow
+}
+
 # Enhanced status message function with color support
 function Write-StatusMessage {
     param(
@@ -2575,6 +2596,15 @@ function Start-CopilotPRMonitoring {
                     if ($workflowResult.Success) {
                         Write-StatusMessage "✅ PR #$prNumber workflow completed successfully" -Color $GREEN
                         
+                        # Update PR labels based on success
+                        if (Get-Command "Update-PRLabels" -ErrorAction SilentlyContinue) {
+                            try {
+                                Update-PRLabels -PRNumber $prNumber -Status "FixCompleted" -DryRun:$TestMode
+                            } catch {
+                                Write-StatusMessage "⚠️  Could not update PR labels: $($_.Exception.Message)" -Color $YELLOW
+                            }
+                        }
+                        
                         if ($workflowResult.ActionTaken -eq "Merged") {
                             Write-StatusMessage "🎉 PR #$prNumber has been successfully merged and closed!" -Color $GREEN
                             # Remove from tracking since it's completed
@@ -2582,6 +2612,15 @@ function Start-CopilotPRMonitoring {
                         }
                     } else {
                         Write-StatusMessage "❌ PR #$prNumber workflow failed: $($workflowResult.Error)" -Color $RED
+                        
+                        # Update PR labels based on failure
+                        if (Get-Command "Update-PRLabels" -ErrorAction SilentlyContinue) {
+                            try {
+                                Update-PRLabels -PRNumber $prNumber -Status "FixFailed" -DryRun:$TestMode
+                            } catch {
+                                Write-StatusMessage "⚠️  Could not update PR labels: $($_.Exception.Message)" -Color $YELLOW
+                            }
+                        }
                         
                         # Update failure count
                         $prState.ValidationAttempts++
