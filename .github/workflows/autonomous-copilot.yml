@@ -1,13 +1,21 @@
 name: Autonomous Copilot Manager
 
 on:
-  schedule:
-    - cron: "*/10 * * * *" # Check every 10 minutes
   pull_request:
-    types: [opened, reopened, ready_for_review, synchronize]
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - review_requested
+      - synchronize
+  schedule:
+    - cron: "*/10 * * * *" # Fallback: check every 10 minutes for drafts
+
   workflow_run:
     workflows: ["*"]
-    types: [requested, completed]
+    types:
+      - requested
+      - completed
 
 jobs:
   autonomous-manager:
@@ -18,23 +26,26 @@ jobs:
       actions: write
 
     steps:
-      - name: Install gh CLI
+      - name: Install gh CLI (if needed)
         run: sudo apt-get install gh -y
 
-      - name: Mark Drafts Ready If Copilot Finished
+      - name: Mark Draft PRs Ready (Fallback if No Review Requested)
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🔍 Checking draft PRs..."
-          PRS=$(gh pr list --state open --json number,isDraft,headRefName --jq '.[] | select(.isDraft==true) | .number')
+          echo "🔍 Checking draft PRs (fallback)..."
+          PRS=$(gh pr list --repo ${{ github.repository }} --state open \
+            --json number,isDraft,headRefName \
+            --jq '.[] | select(.isDraft==true) | .number')
           for PR in $PRS; do
             echo "Checking PR #$PR"
-            LAST_COMMIT=$(gh pr view $PR --json commits --jq '.commits[-1].committedDate')
+            LAST_COMMIT=$(gh pr view $PR --repo ${{ github.repository }} \
+              --json commits --jq '.commits[-1].committedDate')
             MINUTES=$(( ( $(date +%s) - $(date -d "$LAST_COMMIT" +%s) ) / 60 ))
             echo "⏳ Last commit was $MINUTES minutes ago"
             if [ $MINUTES -ge 30 ]; then
-              echo "✅ Marking PR #$PR ready for review"
-              gh pr ready $PR
+              echo "✅ Marking PR #$PR ready for review (fallback)"
+              gh pr ready $PR --repo ${{ github.repository }}
             fi
           done
 
@@ -42,24 +53,27 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          RUNS=$(gh run list --json databaseId,status --jq '.[] | select(.status=="waiting") | .databaseId')
+          echo "🔄 Checking for workflow runs that need approval..."
+          RUNS=$(gh run list --repo ${{ github.repository }} \
+            --json databaseId,status --jq '.[] | select(.status=="waiting") | .databaseId')
           for RUN_ID in $RUNS; do
             echo "✅ Approving workflow run $RUN_ID"
             gh api --method POST repos/${{ github.repository }}/actions/runs/$RUN_ID/approve
           done
 
-      - name: Approve PR (Self-Review)
-        if: github.event_name == 'pull_request'
+      - name: Approve PR on Review Request
+        if: github.event.action == 'review_requested' || github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "✅ Approving PR #${{ github.event.number }}"
-          gh pr review ${{ github.event.number }} --approve
+          gh pr review ${{ github.event.number }} --repo ${{ github.repository }} --approve
 
-      - name: Merge PR Automatically
-        if: github.event_name == 'pull_request'
+      - name: Merge PR Automatically (If Checks Pass)
+        if: github.event.action == 'review_requested' || github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "✅ Merging PR #${{ github.event.number }}"
-          gh pr merge ${{ github.event.number }} --auto --merge
+          echo "✅ Attempting to merge PR #${{ github.event.number }}"
+          gh pr merge ${{ github.event.number }} --repo ${{ github.repository }} --auto --merge
+
