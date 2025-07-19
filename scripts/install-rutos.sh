@@ -431,7 +431,8 @@ install_scripts() {
         update-config-rutos.sh \
         upgrade-to-advanced-rutos.sh \
         test-connectivity-rutos.sh \
-        test-rutos-colors.sh \
+        test-colors-rutos.sh \
+        test-method5-rutos.sh \
         merge-config-rutos.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then
@@ -979,7 +980,8 @@ main() {
     print_status "$BLUE" "• Test Pushover notifications: $INSTALL_DIR/scripts/test-pushover-rutos.sh"
     print_status "$BLUE" "• Test monitoring: $INSTALL_DIR/scripts/test-monitoring-rutos.sh"
     print_status "$BLUE" "• Test connectivity: $INSTALL_DIR/scripts/test-connectivity-rutos.sh"
-    print_status "$BLUE" "• Test color support: $INSTALL_DIR/scripts/test-rutos-colors.sh"
+    print_status "$BLUE" "• Test color support: $INSTALL_DIR/scripts/test-colors-rutos.sh"
+    print_status "$BLUE" "• Test Method 5 color format: $INSTALL_DIR/scripts/test-method5-rutos.sh"
     print_status "$BLUE" "• Update config with new options: $INSTALL_DIR/scripts/update-config-rutos.sh"
     print_status "$BLUE" "• Upgrade to advanced features: $INSTALL_DIR/scripts/upgrade-to-advanced-rutos.sh"
     printf "\n"
@@ -988,7 +990,8 @@ main() {
     print_status "$BLUE" "  • Test monitoring: ./scripts/test-monitoring-rutos.sh"
     print_status "$BLUE" "  • Test Pushover: ./scripts/test-pushover-rutos.sh"
     print_status "$BLUE" "  • Test connectivity: ./scripts/test-connectivity-rutos.sh"
-    print_status "$BLUE" "  • Test colors (for troubleshooting): ./scripts/test-rutos-colors.sh"
+    print_status "$BLUE" "  • Test colors (for troubleshooting): ./scripts/test-colors-rutos.sh"
+    print_status "$BLUE" "  • Test Method 5 colors: ./scripts/test-method5-rutos.sh"
     print_status "$BLUE" "  • Validate config: ./scripts/validate-config-rutos.sh"
     print_status "$BLUE" "  • Upgrade to advanced: ./scripts/upgrade-to-advanced-rutos.sh"
     print_status "$BLUE" "Installation directory: $INSTALL_DIR"
