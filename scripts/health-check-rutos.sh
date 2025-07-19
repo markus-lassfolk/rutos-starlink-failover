@@ -82,12 +82,30 @@ show_health_status() {
     esac
 }
 
-# Configuration paths
-INSTALL_DIR="/root/starlink-monitor"
-CONFIG_FILE="$INSTALL_DIR/config/config.sh"
-SCRIPT_DIR="$INSTALL_DIR/scripts"
-LOG_DIR="$INSTALL_DIR/logs"
-STATE_DIR="$INSTALL_DIR/state"
+# Configuration paths - set defaults first
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
+CONFIG_FILE="${CONFIG_FILE:-$INSTALL_DIR/config/config.sh}"
+
+# Load configuration from config file if available
+if [ -f "$CONFIG_FILE" ]; then
+    # Source the configuration file
+    # shellcheck source=/dev/null
+    . "$CONFIG_FILE"
+fi
+
+# Set derived paths (these can also be overridden in config.sh)
+SCRIPT_DIR="${SCRIPT_DIR:-$INSTALL_DIR/scripts}"
+LOG_DIR="${LOG_DIR:-$INSTALL_DIR/logs}"
+STATE_DIR="${STATE_DIR:-$INSTALL_DIR/state}"
+
+# Configuration variables with fallback defaults
+STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+PUSHOVER_TOKEN="${PUSHOVER_TOKEN:-YOUR_PUSHOVER_API_TOKEN}"
+PUSHOVER_USER="${PUSHOVER_USER:-YOUR_PUSHOVER_USER_KEY}"
+GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
+JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
+API_TIMEOUT="${API_TIMEOUT:-10}"
+CHECK_INTERVAL="${CHECK_INTERVAL:-30}"
 
 # Global health counters
 HEALTHY_COUNT=0
