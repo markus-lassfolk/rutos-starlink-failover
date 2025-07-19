@@ -638,7 +638,7 @@ show_health_summary() {
     echo ""
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility  
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${PURPLE}║${NC}                            ${BLUE}HEALTH CHECK SUMMARY${NC}                            ${PURPLE}║${NC}\n"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"

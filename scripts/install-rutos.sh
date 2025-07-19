@@ -839,6 +839,22 @@ EOF
 create_restoration_script() {
     print_status "$BLUE" "Creating auto-restoration script for firmware upgrade persistence..."
 
+    # Check if restoration service already exists and is working
+    if [ -f "/etc/init.d/starlink-restore" ]; then
+        # Check if it's enabled
+        if /etc/init.d/starlink-restore enabled 2>/dev/null; then
+            print_status "$GREEN" "✓ Auto-restoration service already exists and is enabled"
+            print_status "$BLUE" "  Skipping recreation to avoid duplication"
+            return 0
+        else
+            print_status "$YELLOW" "⚠ Auto-restoration service exists but is not enabled"
+            print_status "$BLUE" "  Re-enabling existing service"
+            /etc/init.d/starlink-restore enable 2>/dev/null || true
+            print_status "$GREEN" "✓ Auto-restoration service re-enabled"
+            return 0
+        fi
+    fi
+
     cat >"/etc/init.d/starlink-restore" <<'EOF'
 #!/bin/sh /etc/rc.common
 
