@@ -11,7 +11,7 @@
 set -eu
 
 # Script version information
-SCRIPT_VERSION="1.0.2"
+SCRIPT_VERSION="2.4.0"
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="validate-config-rutos.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"

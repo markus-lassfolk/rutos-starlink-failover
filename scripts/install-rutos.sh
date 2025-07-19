@@ -11,7 +11,7 @@
 set -eu
 
 # Script version - automatically updated from VERSION file
-SCRIPT_VERSION="2.0.4"
+SCRIPT_VERSION="2.4.0"
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="install-rutos.sh"
 
@@ -747,13 +747,14 @@ configure_cron() {
     if grep -q "CONFIG_FILE=.*/config/config.sh" "$CRON_FILE" 2>/dev/null; then
         # Check if they contain the old pattern (not /etc/starlink-config)
         if grep -q "CONFIG_FILE=.*/config/config.sh" "$CRON_FILE" 2>/dev/null && ! grep -q "CONFIG_FILE=/etc/starlink-config/config.sh" "$CRON_FILE" 2>/dev/null; then
+            # shellcheck disable=SC2034  # Variable tracks cleanup status for logging/debugging
             old_entries_found=1
             print_status "$YELLOW" "🧹 Removing old cron entries with deprecated CONFIG_FILE path..."
-            
+
             # Create temporary file without old entries - remove entries with old pattern but keep /etc/starlink-config ones
             temp_cron="/tmp/crontab_update_$$.tmp"
-            grep -v "CONFIG_FILE=.*/starlink-monitor/config/config.sh" "$CRON_FILE" > "$temp_cron" 2>/dev/null || touch "$temp_cron"
-            
+            grep -v "CONFIG_FILE=.*/starlink-monitor/config/config.sh" "$CRON_FILE" >"$temp_cron" 2>/dev/null || touch "$temp_cron"
+
             # Update crontab
             if crontab "$temp_cron" 2>/dev/null; then
                 rm -f "$temp_cron"
@@ -762,10 +763,10 @@ configure_cron() {
                 rm -f "$temp_cron"
                 print_status "$YELLOW" "⚠ Warning: Could not clean old cron entries"
             fi
-            
+
             # Reload cron file
             CRON_FILE="/tmp/crontab_current_$$.tmp"
-            crontab -l > "$CRON_FILE" 2>/dev/null || touch "$CRON_FILE"
+            crontab -l >"$CRON_FILE" 2>/dev/null || touch "$CRON_FILE"
         fi
     fi
 

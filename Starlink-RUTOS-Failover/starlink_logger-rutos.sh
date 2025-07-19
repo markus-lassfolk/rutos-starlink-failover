@@ -3,7 +3,7 @@
 # ==============================================================================
 # Starlink Performance Data Logger for OpenWrt/RUTOS
 #
-# Version: 1.0 (Public Edition)
+# Version: 2.4.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 #
 # This script runs periodically via cron to gather real-time performance data

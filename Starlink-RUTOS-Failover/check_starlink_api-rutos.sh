@@ -4,7 +4,7 @@
 # ==============================================================================
 # Starlink API Version Monitor
 #
-# Version: 1.0 (Public Edition)
+# Version: 2.4.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script runs periodically (ideally once per day via cron) to check if the

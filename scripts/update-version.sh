@@ -91,9 +91,23 @@ update_version_in_files() {
         sed -i "/^SCRIPT_VERSION=/a\\# Build: $build_info" "$PROJECT_ROOT/scripts/validate-config.sh"
     fi
 
-    # Update other scripts
+    # Update other scripts in scripts/ directory
     for script in "$PROJECT_ROOT/scripts"/*.sh; do
         if [ -f "$script" ] && [ "$script" != "$PROJECT_ROOT/scripts/install-rutos.sh" ] && [ "$script" != "$PROJECT_ROOT/scripts/validate-config-rutos.sh" ]; then
+            if grep -q "^SCRIPT_VERSION=" "$script" 2>/dev/null; then
+                sed -i "s/^SCRIPT_VERSION=.*/SCRIPT_VERSION=\"$version\"/" "$script"
+            fi
+        fi
+    done
+
+    # Update RUTOS scripts in Starlink-RUTOS-Failover/ directory
+    for script in "$PROJECT_ROOT/Starlink-RUTOS-Failover"/*-rutos.sh; do
+        if [ -f "$script" ]; then
+            # Update comment-based version info (# Version: X.X format)
+            if grep -q "^# Version:" "$script" 2>/dev/null; then
+                sed -i "s/^# Version:.*/# Version: $version/" "$script"
+            fi
+            # Also update SCRIPT_VERSION if it exists
             if grep -q "^SCRIPT_VERSION=" "$script" 2>/dev/null; then
                 sed -i "s/^SCRIPT_VERSION=.*/SCRIPT_VERSION=\"$version\"/" "$script"
             fi
@@ -171,7 +185,8 @@ main() {
     echo "- VERSION_INFO"
     echo "- scripts/install-rutos.sh"
     echo "- scripts/validate-config-rutos.sh"
-    echo "- Other scripts with SCRIPT_VERSION"
+    echo "- Other scripts with SCRIPT_VERSION in scripts/"
+    echo "- All RUTOS scripts in Starlink-RUTOS-Failover/"
 }
 
 # Run main function

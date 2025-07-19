@@ -3,7 +3,7 @@
 # ==============================================================================
 # Update Cron Configuration Path Script
 #
-# This script updates existing cron entries to use the new persistent 
+# This script updates existing cron entries to use the new persistent
 # configuration path /etc/starlink-config/config.sh instead of the old
 # path in the installation directory.
 #
@@ -12,21 +12,25 @@
 set -e
 
 # Script version
-SCRIPT_VERSION="1.0.2"
+SCRIPT_VERSION="2.4.0"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-NC='\033[0m'
-
-# Check if we're in a terminal that supports colors
-if [ ! -t 1 ] || [ "${NO_COLOR:-}" = "1" ]; then
+# Color definitions for output formatting (compatible with busybox)
+# CRITICAL: Use RUTOS-compatible color detection
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # Colors enabled
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+else
+    # Colors disabled
     RED=""
     GREEN=""
     YELLOW=""
     BLUE=""
+    CYAN=""
     NC=""
 fi
 
@@ -50,7 +54,7 @@ fi
 
 # Get current crontab
 temp_cron="/tmp/crontab_current_$$.tmp"
-crontab -l > "$temp_cron" 2>/dev/null || touch "$temp_cron"
+crontab -l >"$temp_cron" 2>/dev/null || touch "$temp_cron"
 
 # Check if we have any old entries
 old_entries=$(grep -c "CONFIG_FILE=.*/starlink-monitor/config/config.sh" "$temp_cron" 2>/dev/null || echo "0")
@@ -71,7 +75,7 @@ print_status "$BLUE" "🔄 Updating cron entries to use persistent configuration
 
 # Create updated crontab
 temp_new_cron="/tmp/crontab_updated_$$.tmp"
-sed 's|CONFIG_FILE=.*/starlink-monitor/config/config.sh|CONFIG_FILE=/etc/starlink-config/config.sh|g' "$temp_cron" > "$temp_new_cron"
+sed 's|CONFIG_FILE=.*/starlink-monitor/config/config.sh|CONFIG_FILE=/etc/starlink-config/config.sh|g' "$temp_cron" >"$temp_new_cron"
 
 # Show the changes
 print_status "$GREEN" "📋 Updated entries will be:"
@@ -84,16 +88,16 @@ printf "Continue with update? [y/N]: "
 read -r response
 
 case "$response" in
-    [yY]|[yY][eE][sS])
+    [yY] | [yY][eE][sS])
         if crontab "$temp_new_cron" 2>/dev/null; then
             print_status "$GREEN" "✅ Successfully updated crontab"
             print_status "$GREEN" "✅ All cron entries now use persistent configuration path"
-            
+
             # Restart cron to ensure changes take effect
             /etc/init.d/cron restart >/dev/null 2>&1 || {
                 print_status "$YELLOW" "⚠️  Warning: Could not restart cron service"
             }
-            
+
             print_status "$BLUE" "ℹ️  Cron service restarted to apply changes"
         else
             print_status "$RED" "❌ Failed to update crontab"

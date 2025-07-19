@@ -3,7 +3,7 @@
 # ==============================================================================
 # Starlink Proactive Quality Monitor for OpenWrt/RUTOS
 #
-# Version: 2.0 (Enhanced Edition)
+# Version: 2.4.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 #
 # This script proactively monitors the quality of a Starlink internet connection

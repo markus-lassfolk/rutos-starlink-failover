@@ -6,7 +6,7 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.2"
+SCRIPT_VERSION="2.4.0"
 
 # Standard colors for consistent output (compatible with busybox)
 # CRITICAL: Use RUTOS-compatible color detection
@@ -324,14 +324,14 @@ check_log_freshness() {
     # Get file modification time in seconds since epoch
     file_mtime=$(stat -c %Y "$log_file" 2>/dev/null || echo "0")
     current_time=$(date +%s)
-    
+
     # Validate that we got valid numbers
     if [ -z "$file_mtime" ] || [ "$file_mtime" = "0" ] || [ -z "$current_time" ]; then
         show_health_status "unknown" "$component_name" "Cannot determine log age (stat/date issue)"
         increment_counter "unknown"
         return 1
     fi
-    
+
     age_seconds=$((current_time - file_mtime))
     age_minutes=$((age_seconds / 60))
 
@@ -532,7 +532,7 @@ check_configuration_health() {
             validation_output=$("$SCRIPT_DIR/validate-config-rutos.sh" --quiet 2>&1)
             validation_exit_code=$?
         fi
-        
+
         if [ $validation_exit_code -eq 0 ]; then
             show_health_status "healthy" "Configuration" "Configuration validation passed"
             increment_counter "healthy"
@@ -544,7 +544,7 @@ check_configuration_health() {
             error_summary=$(echo "$validation_output" | head -n1 | cut -c1-60)
             show_health_status "warning" "Configuration" "Validation failed: $error_summary"
             increment_counter "warning"
-            
+
             # Log full details for debugging
             if [ "${DEBUG:-0}" = "1" ]; then
                 log_debug "Full configuration validation output:"
