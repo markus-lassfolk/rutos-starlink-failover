@@ -128,6 +128,11 @@ load_config() {
     printf "%b\n" "${GREEN}Loading configuration from: $CONFIG_FILE${NC}"
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
+    
+    # Set default values for directories if not defined in config
+    LOG_DIR="${LOG_DIR:-/etc/starlink-logs}"
+    STATE_DIR="${STATE_DIR:-/tmp/run}"
+    DATA_DIR="${DATA_DIR:-/usr/local/starlink-monitor/logs}"  # Define missing DATA_DIR
 }
 
 # Check required binaries
@@ -163,19 +168,22 @@ check_binaries() {
     printf "%b\n" "${GREEN}✓ All required binaries found${NC}"
 }
 
-# Check network connectivity
+# Check network connectivity - basic system connectivity only
 check_network() {
-    printf "%b\n" "${GREEN}Checking network connectivity...${NC}"
+    printf "%b\n" "${GREEN}Checking basic network connectivity...${NC}"
 
-    # Check Starlink API
-    if ! timeout 5 nc -z "$(echo "$STARLINK_IP" | cut -d: -f1)" "$(echo "$STARLINK_IP" | cut -d: -f2)" 2>/dev/null; then
-        printf "%b\n" "${YELLOW}Warning: Cannot reach Starlink API at $STARLINK_IP${NC}"
-        printf "%b\n" "${YELLOW}This may be normal if Starlink is not currently active${NC}"
+    # Check if we have basic network connectivity (ping gateway or common DNS)
+    if ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 || ping -c 1 -W 5 1.1.1.1 >/dev/null 2>&1; then
+        printf "%b\n" "${GREEN}✓ Basic network connectivity available${NC}"
     else
-        printf "%b\n" "${GREEN}✓ Starlink API reachable${NC}"
+        printf "%b\n" "${YELLOW}Warning: Basic network connectivity test failed${NC}"
+        printf "%b\n" "${YELLOW}This may affect script downloads and updates${NC}"
     fi
 
-    # Check RUTOS API if configured
+    # Note: Starlink API and service connectivity testing moved to test-connectivity-rutos.sh
+    printf "%b\n" "${BLUE}ℹ For detailed connectivity testing, run: test-connectivity-rutos.sh${NC}"
+
+    # Check RUTOS API if configured  
     if [ -n "${RUTOS_IP:-}" ]; then
         if ! timeout 5 nc -z "$RUTOS_IP" 80 2>/dev/null; then
             printf "%b\n" "${YELLOW}Warning: Cannot reach RUTOS API at $RUTOS_IP${NC}"
@@ -246,16 +254,12 @@ check_config_values() {
     printf "%b\n" "${GREEN}✓ Configuration values checked${NC}"
 }
 
-# Test Starlink API
+# Test Starlink API - MOVED TO test-connectivity-rutos.sh
+# This function has been moved to test-connectivity-rutos.sh for proper separation of concerns
+# Configuration validation should focus on config completeness, not service connectivity
 test_starlink_api() {
-    printf "%b\n" "${GREEN}Testing Starlink API...${NC}"
-
-    if timeout "$API_TIMEOUT" "$GRPCURL_CMD" -plaintext -max-time "$API_TIMEOUT" -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
-        printf "%b\n" "${GREEN}✓ Starlink API test successful${NC}"
-    else
-        printf "%b\n" "${YELLOW}Warning: Starlink API test failed${NC}"
-        printf "%b\n" "${YELLOW}This may be normal if Starlink is not currently active${NC}"
-    fi
+    printf "%b\n" "${BLUE}ℹ Starlink API testing moved to test-connectivity-rutos.sh${NC}"
+    printf "%b\n" "${BLUE}  Run 'test-connectivity-rutos.sh' for comprehensive connectivity testing${NC}"
 }
 
 # Extract variable names from template
@@ -318,9 +322,14 @@ check_config_completeness() {
     printf "%b\n" "${BLUE}Determining configuration template type...${NC}"
 
     # Count variables in config (handle both export and non-export formats)
-    config_var_count=$(grep -c "^export [A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || echo 0)
-    config_var_count_alt=$(grep -c "^[A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || echo 0)
-    if [ "$config_var_count_alt" -gt "$config_var_count" ]; then
+    config_var_count=$(grep -c "^export [A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || printf "0")
+    config_var_count_alt=$(grep -c "^[A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || printf "0")
+    
+    # Ensure we have numeric values
+    config_var_count="${config_var_count:-0}"
+    config_var_count_alt="${config_var_count_alt:-0}"
+    
+    if [ "$config_var_count_alt" -gt "$config_var_count" ] 2>/dev/null; then
         config_var_count="$config_var_count_alt"
     fi
 
