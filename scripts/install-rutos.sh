@@ -74,6 +74,23 @@ debug_msg() {
     fi
 }
 
+# Function to print config-specific debug messages
+config_debug() {
+    if [ "${CONFIG_DEBUG:-0}" = "1" ] || [ "${DEBUG:-0}" = "1" ]; then
+        timestamp=$(get_timestamp)
+        printf "${CYAN}[%s] CONFIG DEBUG: %s${NC}\n" "$timestamp" "$1" >&2
+        log_message "CONFIG_DEBUG" "$1"
+    fi
+}
+
+# Enhanced debug_log function (consistent with other scripts)
+debug_log() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        log_message "DEBUG" "$1"
+    fi
+}
+
 # Function to execute commands with debug output
 debug_exec() {
     if [ "${DEBUG:-0}" = "1" ]; then
@@ -82,6 +99,33 @@ debug_exec() {
         log_message "DEBUG_EXEC" "$*"
     fi
     "$@"
+}
+
+# Enhanced error handling with detailed logging
+safe_exec() {
+    cmd="$1"
+    description="$2"
+    
+    debug_log "EXECUTING: $cmd"
+    debug_log "DESCRIPTION: $description"
+    
+    # Execute command and capture both stdout and stderr
+    if [ "${DEBUG:-0}" = "1" ]; then
+        # In debug mode, show all output
+        eval "$cmd"
+        exit_code=$?
+        debug_log "COMMAND EXIT CODE: $exit_code"
+        return $exit_code
+    else
+        # In normal mode, suppress output but capture errors
+        eval "$cmd" 2>/tmp/install_error.log
+        exit_code=$?
+        if [ $exit_code -ne 0 ] && [ -f /tmp/install_error.log ]; then
+            print_status "$RED" "ERROR in $description: $(cat /tmp/install_error.log)"
+            rm -f /tmp/install_error.log
+        fi
+        return $exit_code
+    fi
 }
 
 # Version and compatibility
@@ -260,8 +304,12 @@ check_root() {
 
 # Check system compatibility
 check_system() {
+    debug_log "FUNCTION: check_system"
+    debug_log "SYSTEM CHECK: Starting system compatibility validation"
     print_status "$BLUE" "Checking system compatibility..."
+    
     arch=""
+    debug_log "ARCH CHECK: Getting system architecture"
     if [ "${DEBUG:-0}" = "1" ]; then
         debug_msg "Executing: uname -m"
         arch=$(uname -m)
@@ -269,18 +317,27 @@ check_system() {
     else
         arch=$(uname -m)
     fi
+    
+    debug_log "ARCH CHECK: Detected architecture: $arch"
     if [ "$arch" != "armv7l" ]; then
+        debug_log "ARCH CHECK: Non-standard architecture detected"
         print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
         print_status "$YELLOW" "Your architecture: $arch"
         print_status "$YELLOW" "You may need to adjust binary URLs"
         printf "Continue anyway? (y/N): "
         read -r answer
+        debug_log "ARCH CHECK: User response: $answer"
         if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
+            debug_log "ARCH CHECK: User declined to continue with non-standard architecture"
             exit 1
         fi
+        debug_log "ARCH CHECK: User chose to continue despite architecture mismatch"
     else
+        debug_log "ARCH CHECK: Architecture validation passed"
         debug_msg "Architecture check passed: $arch matches expected armv7l"
     fi
+    
+    debug_log "SYSTEM CHECK: Checking for OpenWrt/RUTOS system files"
     debug_msg "Checking for OpenWrt/RUTOS system files"
     if [ ! -f "/etc/openwrt_version" ] && [ ! -f "/etc/rutos_version" ]; then
         print_status "$YELLOW" "Warning: This doesn't appear to be OpenWrt/RUTOS"
@@ -330,26 +387,36 @@ create_directories() {
 
 # Download and install binaries
 install_binaries() {
+    debug_log "FUNCTION: install_binaries"
+    debug_log "BINARY INSTALLATION: Starting binary installation process"
     print_status "$BLUE" "Installing required binaries..."
 
     # Install grpcurl
+    debug_log "GRPCURL INSTALL: Checking for existing grpcurl at $INSTALL_DIR/grpcurl"
     if [ ! -f "$INSTALL_DIR/grpcurl" ]; then
+        debug_log "GRPCURL INSTALL: Not found, downloading from $GRPCURL_URL"
         print_status "$YELLOW" "Downloading grpcurl..."
         if curl -fL --progress-bar "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz; then
+            debug_log "GRPCURL INSTALL: Download successful, extracting archive"
             tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl
             chmod +x "$INSTALL_DIR/grpcurl"
             rm /tmp/grpcurl.tar.gz
+            debug_log "GRPCURL INSTALL: Installation completed successfully"
             print_status "$GREEN" "✓ grpcurl installed"
         else
+            debug_log "GRPCURL INSTALL: Download failed"
             print_status "$RED" "Error: Failed to download grpcurl"
             exit 1
         fi
     else
+        debug_log "GRPCURL INSTALL: Already exists, skipping download"
         print_status "$GREEN" "✓ grpcurl already installed"
     fi
 
     # Install jq
+    debug_log "JQ INSTALL: Checking for existing jq at $INSTALL_DIR/jq"
     if [ ! -f "$INSTALL_DIR/jq" ]; then
+        debug_log "JQ INSTALL: Not found, downloading from $JQ_URL"
         print_status "$YELLOW" "Downloading jq..."
         if curl -fL --progress-bar "$JQ_URL" -o "$INSTALL_DIR/jq"; then
             chmod +x "$INSTALL_DIR/jq"
@@ -502,103 +569,227 @@ install_config() {
 
     # NEW LOGIC: Check for existing persistent configuration
     primary_config="$PERSISTENT_CONFIG_DIR/config.sh"
+    config_debug "=== CONFIG MERGE DEBUG START ==="
+    config_debug "Looking for existing config at: $primary_config"
+    config_debug "File exists: $([ -f "$primary_config" ] && echo 'yes' || echo 'no')"
 
     if [ -f "$primary_config" ]; then
+        config_debug "Found existing persistent configuration at $primary_config"
+        config_debug "File size: $(wc -c < "$primary_config" 2>/dev/null || echo 'unknown') bytes"
+        config_debug "File permissions: $(ls -la "$primary_config" 2>/dev/null || echo 'unknown')"
         print_status "$BLUE" "Found existing persistent configuration at $primary_config"
+
+        # Show first few lines of existing config for debugging
+        if [ "${CONFIG_DEBUG:-0}" = "1" ]; then
+            config_debug "First 10 lines of existing config:"
+            head -10 "$primary_config" 2>/dev/null | while IFS= read -r line; do
+                case "$line" in
+                    *TOKEN*|*PASSWORD*|*USER*)
+                        config_debug "  $(echo "$line" | sed 's/=.*/=***/')"
+                        ;;
+                    *)
+                        config_debug "  $line"
+                        ;;
+                esac
+            done || config_debug "  (Cannot read config file)"
+        fi
 
         # Detect configuration type (basic vs advanced)
         config_type="basic"
+        config_debug "Starting config type detection..."
         # Look for advanced-only variables to detect advanced config
         if grep -qE "^(ENABLE_DETAILED_LOGGING|NOTIFICATION_COOLDOWN|API_CHECK_INTERVAL|MWAN3_POLICY)" "$primary_config" 2>/dev/null; then
             config_type="advanced"
+            config_debug "Advanced markers found in config"
+        else
+            config_debug "No advanced markers found, assuming basic config"
         fi
 
+        config_debug "Detected configuration type: $config_type"
         print_status "$BLUE" "Detected $config_type configuration type"
 
         # Select appropriate template
         if [ "$config_type" = "advanced" ]; then
             selected_template="$temp_advanced_template"
+            config_debug "Selected advanced template: $selected_template"
         else
             selected_template="$temp_basic_template"
+            config_debug "Selected basic template: $selected_template"
         fi
+        
+        config_debug "Template file exists: $([ -f "$selected_template" ] && echo 'yes' || echo 'no')"
+        config_debug "Template file size: $(wc -c < "$selected_template" 2>/dev/null || echo 'unknown') bytes"
 
         # Create timestamped backup of existing config
         backup_timestamp=$(date +%Y%m%d_%H%M%S)
         backup_file="$PERSISTENT_CONFIG_DIR/config.sh.backup.$backup_timestamp"
+        config_debug "Creating backup: $backup_file"
         if cp "$primary_config" "$backup_file"; then
+            config_debug "Backup created successfully"
+            config_debug "Backup file size: $(wc -c < "$backup_file" 2>/dev/null || echo 'unknown') bytes"
             print_status "$GREEN" "✓ Configuration backed up to: $backup_file"
         else
+            config_debug "BACKUP FAILED!"
             print_status "$RED" "✗ Failed to backup existing configuration!"
             exit 1
         fi
 
         # Perform intelligent merge
+        config_debug "=== STARTING INTELLIGENT MERGE ==="
         print_status "$BLUE" "Merging settings from existing configuration..."
         temp_merged_config="/tmp/config_merged.sh.$$"
+        config_debug "Temp merged config file: $temp_merged_config"
 
         if ! cp "$selected_template" "$temp_merged_config"; then
+            config_debug "MERGE PREP FAILED! Could not copy template to temp file"
             print_status "$RED" "✗ Failed to prepare template for merge"
             exit 1
         fi
+        
+        config_debug "Template copied to temp file successfully"
+        config_debug "Temp file size after copy: $(wc -c < "$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
 
         # Enhanced settings preservation
         settings_to_preserve="STARLINK_IP MWAN_IFACE MWAN_MEMBER PUSHOVER_TOKEN PUSHOVER_USER RUTOS_USERNAME RUTOS_PASSWORD RUTOS_IP PING_TARGETS PING_COUNT PING_TIMEOUT PING_INTERVAL CHECK_INTERVAL FAIL_COUNT_THRESHOLD RECOVERY_COUNT_THRESHOLD INITIAL_DELAY ENABLE_LOGGING LOG_RETENTION_DAYS ENABLE_PUSHOVER_NOTIFICATIONS ENABLE_SYSLOG SYSLOG_PRIORITY ENABLE_HOTPLUG_NOTIFICATIONS ENABLE_STATUS_LOGGING ENABLE_API_MONITORING ENABLE_PING_MONITORING STARLINK_GRPC_PORT API_CHECK_INTERVAL MWAN3_POLICY MWAN3_RULE NOTIFICATION_COOLDOWN NOTIFICATION_RECOVERY_DELAY ENABLE_DETAILED_LOGGING"
 
         preserved_count=0
         total_count=0
+        config_debug "=== PROCESSING INDIVIDUAL SETTINGS ==="
+        config_debug "Settings to check: $(echo $settings_to_preserve | wc -w)"
 
         for setting in $settings_to_preserve; do
             total_count=$((total_count + 1))
+            config_debug "--- Processing setting $total_count: $setting ---"
             debug_msg "Processing setting: $setting"
 
+            # Check if setting exists in existing config
+            config_debug "Checking for setting in existing config..."
             if grep -q "^${setting}=" "$primary_config" 2>/dev/null; then
                 user_value=$(grep "^${setting}=" "$primary_config" | head -1)
+                config_debug "Found in existing config: $setting"
+                
+                # Mask sensitive values in debug output
+                case "$setting" in
+                    *TOKEN*|*PASSWORD*|*USER*)
+                        config_debug "Value: $(echo "$user_value" | sed 's/=.*/=***/')"
+                        ;;
+                    *)
+                        config_debug "Value: $user_value"
+                        ;;
+                esac
+                
                 debug_msg "Found setting in existing config: $user_value"
 
                 # Skip placeholder values
+                config_debug "Checking if value is placeholder..."
                 if [ -n "$user_value" ] && ! echo "$user_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)" 2>/dev/null; then
-                    # Replace in template
+                    config_debug "Value is not a placeholder, proceeding with merge"
+                    
+                    # Check if setting exists in template
                     if grep -q "^${setting}=" "$temp_merged_config" 2>/dev/null; then
+                        config_debug "Setting exists in template, replacing..."
                         # Replace existing line
                         if sed -i "s|^${setting}=.*|${user_value}|" "$temp_merged_config" 2>/dev/null; then
                             preserved_count=$((preserved_count + 1))
+                            config_debug "✓ Successfully replaced: $setting"
                             debug_msg "Successfully preserved: $setting"
                         else
+                            config_debug "✗ Failed to replace: $setting"
                             debug_msg "Failed to replace setting: $setting"
                         fi
                     else
+                        config_debug "Setting not in template, adding as new line..."
                         # Add new line if not in template
                         if echo "$user_value" >>"$temp_merged_config" 2>/dev/null; then
                             preserved_count=$((preserved_count + 1))
+                            config_debug "✓ Successfully added: $setting"
                             debug_msg "Successfully added: $setting"
                         else
+                            config_debug "✗ Failed to add: $setting"
                             debug_msg "Failed to add setting: $setting"
                         fi
                     fi
                 else
+                    config_debug "⚠ Skipping placeholder value: $setting"
                     debug_msg "Skipping placeholder value for: $setting"
                 fi
             else
+                config_debug "⚠ Setting not found in existing config: $setting"
                 debug_msg "Setting not found in existing config: $setting"
             fi
         done
 
+        config_debug "=== MERGE PROCESSING COMPLETE ==="
+        config_debug "Total settings processed: $total_count"
+        config_debug "Settings preserved: $preserved_count"
+        config_debug "Merged file size: $(wc -c < "$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
+
         # Replace the primary config with merged version
+        config_debug "=== FINALIZING MERGE ==="
+        config_debug "Checking merged config file..."
         if [ -f "$temp_merged_config" ] && [ -s "$temp_merged_config" ]; then
+            config_debug "Merged config file exists and is not empty"
+            config_debug "Final merged file size: $(wc -c < "$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
+            
+            # Show sample of merged config for debugging
+            if [ "${CONFIG_DEBUG:-0}" = "1" ]; then
+                config_debug "First 15 lines of merged config:"
+                head -15 "$temp_merged_config" 2>/dev/null | while IFS= read -r line; do
+                    case "$line" in
+                        *TOKEN*|*PASSWORD*|*USER*)
+                            config_debug "  $(echo "$line" | sed 's/=.*/=***/')"
+                            ;;
+                        *)
+                            config_debug "  $line"
+                            ;;
+                    esac
+                done || config_debug "  (Cannot read merged config file)"
+            fi
+            
+            config_debug "Replacing primary config with merged version..."
             if mv "$temp_merged_config" "$primary_config" 2>/dev/null; then
+                config_debug "✓ Primary config replacement successful"
+                config_debug "Final config file size: $(wc -c < "$primary_config" 2>/dev/null || echo 'unknown') bytes"
                 print_status "$GREEN" "✓ Configuration merged successfully: $preserved_count/$total_count settings preserved"
                 print_status "$GREEN" "✓ Updated persistent configuration: $primary_config"
             else
+                config_debug "✗ FAILED to replace primary config!"
                 print_status "$RED" "✗ Failed to update primary configuration!"
                 # Restore backup
                 mv "$backup_file" "$primary_config" 2>/dev/null
                 exit 1
             fi
         else
-            print_status "$RED" "✗ Merge failed - configuration file corrupted!"
+            config_debug "✗ Merged config file is missing or empty!"
+            config_debug "Temp merged config file: $temp_merged_config"
+            [ -f "$temp_merged_config" ] && config_debug "File exists but size: $(wc -c < "$temp_merged_config" 2>/dev/null || echo 'unknown') bytes" || config_debug "File does not exist"
+            print_status "$RED" "✗ Merged configuration is empty or missing!"
+            print_status "$RED" "  This usually indicates a problem with the merge process"
             # Restore backup
             mv "$backup_file" "$primary_config" 2>/dev/null
             exit 1
+        fi
+        
+        config_debug "=== CONFIG INSTALLATION COMPLETE ==="
+        config_debug "Final validation of installed config..."
+        if [ -f "$primary_config" ]; then
+            config_debug "✓ Primary config file exists: $primary_config"
+            config_debug "✓ Final config size: $(wc -c < "$primary_config" 2>/dev/null || echo 'unknown') bytes"
+            
+            # Quick validation of critical settings
+            config_critical_count=0
+            for setting in "PUSHOVER_APP_TOKEN" "PUSHOVER_USER_KEY" "STARLINK_CHECK_INTERVAL"; do
+                if grep -q "^${setting}=" "$primary_config" 2>/dev/null; then
+                    config_critical_count=$((config_critical_count + 1))
+                    config_debug "✓ Critical setting found: $setting"
+                else
+                    config_debug "⚠ Critical setting missing: $setting"
+                fi
+            done
+            config_debug "Critical settings found: $config_critical_count/3"
+        else
+            config_debug "✗ Primary config file missing after installation!"
+            return 1
         fi
 
     else
@@ -988,7 +1179,42 @@ EOF
 
 # Main installation function
 main() {
-    if [ "${DEBUG:-0}" = "1" ]; then
+    # Add test mode for troubleshooting
+    if [ "${TEST_MODE:-0}" = "1" ]; then
+        debug_log "TEST MODE ENABLED: Running in test mode"
+        DEBUG=1  # Force debug mode in test mode
+        set -x   # Enable command tracing
+        debug_log "TEST MODE: All commands will be traced"
+    fi
+
+    # Enhanced debug mode with detailed startup logging
+    DEBUG="${DEBUG:-0}"
+    if [ "$DEBUG" = "1" ]; then
+        debug_log "==================== INSTALL SCRIPT DEBUG MODE ENABLED ===================="
+        debug_log "Script version: $SCRIPT_VERSION"
+        debug_log "Script build: $BUILD_INFO"
+        debug_log "Script name: $SCRIPT_NAME"
+        debug_log "Current working directory: $(pwd)"
+        debug_log "Script path: $0"
+        debug_log "Process ID: $$"
+        debug_log "User: $(whoami 2>/dev/null || echo 'unknown')"
+        debug_log "Arguments: $*"
+        debug_log "Environment DEBUG: ${DEBUG:-0}"
+        debug_log "Environment TEST_MODE: ${TEST_MODE:-0}"
+        
+        debug_log "CONFIGURATION PATHS:"
+        debug_log "  GITHUB_REPO=$GITHUB_REPO"
+        debug_log "  GITHUB_BRANCH=$GITHUB_BRANCH"
+        debug_log "  BASE_URL=$BASE_URL"
+        debug_log "  LOG_FILE=$LOG_FILE"
+        debug_log "  LOG_DIR=$LOG_DIR"
+        
+        debug_log "RUNTIME ENVIRONMENT:"
+        debug_log "  OpenWRT Release: $(cat /etc/openwrt_release 2>/dev/null | head -3 | tr '\n' ' ' || echo 'not found')"
+        debug_log "  Available disk space: $(df -h /tmp 2>/dev/null | tail -1 | awk '{print $4}' || echo 'unknown')"
+        debug_log "  Available memory: $(free -m 2>/dev/null | grep Mem | awk '{print $7"M available"}' || echo 'unknown')"
+        debug_log "  Network connectivity: $(ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 && echo 'online' || echo 'offline/limited')"
+
         show_version
         printf "\n"
         if remote_version=$(detect_remote_version); then
@@ -1002,16 +1228,39 @@ main() {
     fi
     print_status "$GREEN" "=== Starlink Monitoring System Installer ==="
     printf "\n"
+    
+    debug_log "==================== INSTALLATION START ===================="
+    debug_log "Starting installation process"
     debug_msg "Starting installation process"
+    
+    debug_log "STEP 1: Checking root privileges and system compatibility"
     check_root
+    
+    debug_log "STEP 2: Validating system requirements"
     check_system
+    
+    debug_log "STEP 3: Creating directory structure"
     create_directories
+    
+    debug_log "STEP 4: Installing binary dependencies"
     install_binaries
+    
+    debug_log "STEP 5: Installing monitoring scripts"
     install_scripts
+    
+    debug_log "STEP 6: Installing configuration files"
     install_config
+    
+    debug_log "STEP 7: Configuring cron jobs"
     configure_cron
+    
+    debug_log "STEP 8: Creating uninstall script"
     create_uninstall
+    
+    debug_log "STEP 9: Setting up auto-restoration"
     create_restoration_script
+    
+    debug_log "==================== INSTALLATION COMPLETE ===================="
     print_status "$GREEN" "=== Installation Complete ==="
     printf "\n"
 
@@ -1083,6 +1332,7 @@ main() {
     fi
 
     # Log successful completion
+    debug_log "INSTALLATION: Completing successfully"
     log_message "INFO" "============================================="
     log_message "INFO" "Installation completed successfully!"
     log_message "INFO" "Installation directory: $INSTALL_DIR"
@@ -1091,6 +1341,11 @@ main() {
 
     printf "\n"
     print_status "$GREEN" "📋 Installation log saved to: $LOG_FILE"
+    
+    debug_log "==================== INSTALLATION SCRIPT COMPLETE ===================="
+    debug_log "Final status: SUCCESS"
+    debug_log "Script execution completed normally"
+    debug_log "Exit code: 0"
 }
 
 # Error handling function
@@ -1106,4 +1361,6 @@ handle_error() {
 trap handle_error INT TERM
 
 # Run main function
+debug_log "==================== INSTALL SCRIPT EXECUTION START ===================="
 main "$@"
+debug_log "==================== INSTALL SCRIPT EXECUTION END ===================="
