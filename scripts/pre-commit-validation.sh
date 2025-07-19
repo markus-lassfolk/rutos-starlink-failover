@@ -330,10 +330,10 @@ validate_color_codes() {
     if [[ "$file" == *"-rutos.sh" ]]; then
         # Check for the broken format that shows literal escape codes in RUTOS
         # Method 3 patterns to detect: printf "%s%s%s\n" "$BLUE" "text" "$NC"
-        if grep -n 'printf.*"%.*%s.*%.*s.*".*\$[A-Z_]*' "$file" >/dev/null 2>&1; then
+        if grep -n 'printf.*"%.*%s.*%.*s.*".*\$\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)' "$file" >/dev/null 2>&1; then
             while IFS=: read -r line_num line_content; do
                 report_issue "CRITICAL" "$file" "$line_num" "RUTOS INCOMPATIBLE: Uses Method 3 printf format that shows escape codes. Use Method 5: printf \"\\\${COLOR}text\\\${NC}\" instead of printf \"%stext%s\" \"\\\$COLOR\" \"\\\$NC\""
-            done < <(grep -n 'printf.*"%.*%s.*%.*s.*".*\$[A-Z_]*' "$file" 2>/dev/null)
+            done < <(grep -n 'printf.*"%.*%s.*%.*s.*".*\$\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)' "$file" 2>/dev/null)
         fi
 
         # Check if RUTOS script has proper Method 5 format examples
@@ -341,29 +341,29 @@ validate_color_codes() {
             log_debug "✓ $file: Uses Method 5 color format (RUTOS compatible)"
         elif grep -q 'printf.*".*%b.*"' "$file"; then
             log_debug "✓ $file: Uses %b format (install script compatible)"
-        elif grep -q 'printf.*%s.*\$[A-Z_]*' "$file"; then
+        elif grep -q 'printf.*%s.*\$\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)' "$file"; then
             report_issue "MAJOR" "$file" "0" "RUTOS script should use Method 5 format: printf \"\\\${COLOR}text\\\${NC}\" for proper color display"
         fi
     fi
 
     # Check for problematic printf patterns with color variables but missing proper format
-    if grep -n "printf.*\\\${[A-Z_]*}.*%s.*\\\${[A-Z_]*}" "$file" >/dev/null 2>&1; then
+    if grep -n "printf.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}.*%s.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}" "$file" >/dev/null 2>&1; then
         while IFS=: read -r line_num line_content; do
             # Only flag if it looks like color codes might be getting literal output
-            if echo "$line_content" | grep -q 'printf.*"[^"]*\\\${[A-Z_]*}[^"]*".*[^%]s'; then
+            if echo "$line_content" | grep -q 'printf.*"[^"]*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}[^"]*".*[^%]s'; then
                 report_issue "MINOR" "$file" "$line_num" "Complex printf with colors - verify format string handles colors correctly"
             fi
-        done < <(grep -n "printf.*\\\${[A-Z_]*}.*%s.*\\\${[A-Z_]*}" "$file" 2>/dev/null)
+        done < <(grep -n "printf.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}.*%s.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}" "$file" 2>/dev/null)
     fi
 
     # Check for printf without proper format when using color variables
-    if grep -n "printf.*\\\${[A-Z_]*}.*[^%][^s]\"" "$file" >/dev/null 2>&1; then
+    if grep -n "printf.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}.*[^%][^s]\"" "$file" >/dev/null 2>&1; then
         while IFS=: read -r line_num line_content; do
             # Check if it's a printf that ends with a variable (not a format string)
-            if echo "$line_content" | grep -q 'printf.*\\\${[A-Z_]*}$'; then
+            if echo "$line_content" | grep -q 'printf.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}$'; then
                 report_issue "MAJOR" "$file" "$line_num" "printf ending with color variable - missing format string or text"
             fi
-        done < <(grep -n "printf.*\\\${[A-Z_]*}.*[^%][^s]\"" "$file" 2>/dev/null)
+        done < <(grep -n "printf.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}.*[^%][^s]\"" "$file" 2>/dev/null)
     fi
 
     # Check for proper color detection logic and completeness
