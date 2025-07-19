@@ -324,6 +324,14 @@ check_log_freshness() {
     # Get file modification time in seconds since epoch
     file_mtime=$(stat -c %Y "$log_file" 2>/dev/null || echo "0")
     current_time=$(date +%s)
+    
+    # Validate that we got valid numbers
+    if [ -z "$file_mtime" ] || [ "$file_mtime" = "0" ] || [ -z "$current_time" ]; then
+        show_health_status "unknown" "$component_name" "Cannot determine log age (stat/date issue)"
+        increment_counter "unknown"
+        return 1
+    fi
+    
     age_seconds=$((current_time - file_mtime))
     age_minutes=$((age_seconds / 60))
 
@@ -439,8 +447,10 @@ check_system_uptime() {
 # Function to check network connectivity
 check_network_connectivity() {
     log_step "Checking network connectivity"
+    log_debug "Starting network connectivity checks..."
+    log_debug "Testing basic internet connectivity..."
 
-    # Test basic internet connectivity
+    # Basic internet connectivity test
     if ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1; then
         show_health_status "healthy" "Internet Connectivity" "Can reach 8.8.8.8"
         increment_counter "healthy"
@@ -462,6 +472,9 @@ check_network_connectivity() {
 # Function to check Starlink connectivity
 check_starlink_connectivity() {
     log_step "Checking Starlink connectivity"
+    log_debug "Starting Starlink connectivity checks..."
+    log_debug "STARLINK_IP: $STARLINK_IP"
+    log_debug "GRPCURL_CMD: $GRPCURL_CMD"
 
     # Load configuration to get Starlink IP
     if [ -f "$CONFIG_FILE" ]; then
@@ -483,7 +496,8 @@ check_starlink_connectivity() {
 
             # Test grpcurl if available (use configured GRPCURL_CMD and full STARLINK_IP)
             if [ -x "$GRPCURL_CMD" ]; then
-                if "$GRPCURL_CMD" -plaintext -d '{}' "$STARLINK_IP" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
+                # Use the same endpoint as the API check script for consistency
+                if "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
                     show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP"
                     increment_counter "healthy"
                 else
@@ -510,12 +524,24 @@ check_configuration_health() {
 
     # Run configuration validation
     if [ -x "$SCRIPT_DIR/validate-config-rutos.sh" ]; then
-        if "$SCRIPT_DIR/validate-config-rutos.sh" --quiet >/dev/null 2>&1; then
+        # Capture the validation output to show specific issues
+        validation_output=$("$SCRIPT_DIR/validate-config-rutos.sh" --quiet 2>&1)
+        validation_exit_code=$?
+        
+        if [ $validation_exit_code -eq 0 ]; then
             show_health_status "healthy" "Configuration" "Configuration validation passed"
             increment_counter "healthy"
         else
-            show_health_status "warning" "Configuration" "Configuration validation failed"
+            # Extract first line of error for concise display
+            error_summary=$(echo "$validation_output" | head -n1 | cut -c1-60)
+            show_health_status "warning" "Configuration" "Validation failed: $error_summary"
             increment_counter "warning"
+            
+            # Log full details for debugging
+            if [ "${DEBUG:-0}" = "1" ]; then
+                log_debug "Full configuration validation output:"
+                log_debug "$validation_output"
+            fi
         fi
     else
         show_health_status "unknown" "Configuration" "validate-config-rutos.sh not found or not executable"
@@ -619,13 +645,23 @@ check_monitoring_health() {
     # Comprehensive cron monitoring checks
     check_cron_configuration
 
-    # Check state files
-    if [ -f "$STATE_DIR/starlink_monitor.state" ]; then
-        state_content=$(cat "$STATE_DIR/starlink_monitor.state" 2>/dev/null || echo "unknown")
-        show_health_status "healthy" "Monitor State" "State: $state_content"
+    # Check state files to see if monitoring has run
+    monitor_state_file="$STATE_DIR/starlink_monitor.state"
+    if [ -f "$monitor_state_file" ]; then
+        state_content=$(cat "$monitor_state_file" 2>/dev/null || echo "unknown")
+        case "$state_content" in
+            "up") show_health_status "healthy" "Monitor State" "Starlink connection: UP" ;;
+            "down") show_health_status "warning" "Monitor State" "Starlink connection: DOWN" ;;
+            *) show_health_status "unknown" "Monitor State" "State: $state_content" ;;
+        esac
         increment_counter "healthy"
     else
-        show_health_status "warning" "Monitor State" "State file not found (monitoring may not have run)"
+        # Check if state directory exists
+        if [ ! -d "$STATE_DIR" ]; then
+            show_health_status "warning" "Monitor State" "State directory missing: $STATE_DIR"
+        else
+            show_health_status "warning" "Monitor State" "State file not found (monitoring may not have run yet)"
+        fi
         increment_counter "warning"
     fi
 
@@ -643,6 +679,7 @@ check_monitoring_health() {
 # Function to check system resources
 check_system_resources() {
     log_step "Checking system resources"
+    log_debug "Starting system resource checks..."
 
     # Check system uptime and load
     check_system_uptime
