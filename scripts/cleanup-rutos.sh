@@ -43,9 +43,31 @@ print_status "$BLUE" "==== Cleanup: Removing Starlink Monitor artifacts ===="
 CRON_FILE="/etc/crontabs/root"
 if [ -f "$CRON_FILE" ]; then
     print_status "$YELLOW" "Commenting Starlink cron entries in $CRON_FILE"
-    sed -i.bak "/starlink_monitor-rutos.sh\|starlink_logger-rutos.sh\|check_starlink_api/r s/^/# /" "$CRON_FILE" || true
+    
+    # Create backup
+    cp "$CRON_FILE" "${CRON_FILE}.cleanup.backup.$(date +%Y%m%d_%H%M%S)" || true
+    
+    # Comment out starlink entries and clean up blank lines
+    temp_cron="/tmp/crontab_cleanup.tmp"
+    sed 's|^\([^#].*\(starlink_monitor-rutos\.sh\|starlink_logger-rutos\.sh\|check_starlink_api\).*\)|# CLEANUP COMMENTED: \1|g' "$CRON_FILE" > "$temp_cron"
+    
+    # Remove excessive blank lines (more than 1 consecutive blank line)
+    awk '
+    BEGIN { blank_count = 0 }
+    /^$/ { 
+        blank_count++
+        if (blank_count <= 1) print
+    }
+    /^./ { 
+        blank_count = 0
+        print 
+    }
+    ' "$temp_cron" > "${temp_cron}.clean" && mv "${temp_cron}.clean" "$temp_cron"
+    
+    # Apply the cleaned crontab
+    mv "$temp_cron" "$CRON_FILE" || true
     /etc/init.d/cron restart >/dev/null 2>&1 || true
-    print_status "$GREEN" "Cron entries commented"
+    print_status "$GREEN" "Cron entries commented and blank lines normalized"
 fi
 
 # Disable and remove auto-restore service

@@ -76,11 +76,18 @@ create_test_crontab() {
     cat >"$TEST_CRON_FILE" <<'EOF'
 # Existing system cron entries (should be preserved)
 0 0 * * * /usr/bin/system-backup
+
+
 30 2 * * 0 /usr/bin/weekly-update
+
+
 
 # Starlink monitoring system - Added by install script 2025-07-18
 * * * * * CONFIG_FILE=/usr/local/starlink-monitor/config/config.sh /usr/local/starlink-monitor/scripts/starlink_monitor-rutos.sh
+
 * * * * * CONFIG_FILE=/usr/local/starlink-monitor/config/config.sh /usr/local/starlink-monitor/scripts/starlink_logger-rutos.sh
+
+
 0 6 * * * CONFIG_FILE=/usr/local/starlink-monitor/config/config.sh /usr/local/starlink-monitor/scripts/check_starlink_api-rutos.sh
 
 # Custom timing for starlink (should be preserved)
@@ -122,6 +129,20 @@ test_cleanup() {
     # Clean up previously commented entries
     log_debug "Removing previously commented entries"
     sed -i '/^# COMMENTED BY INSTALL SCRIPT.*starlink/d' "$temp_cron" 2>/dev/null || true
+
+    # Remove excessive blank lines (more than 1 consecutive blank line)
+    log_debug "Removing excessive blank lines"
+    awk '
+    BEGIN { blank_count = 0 }
+    /^$/ { 
+        blank_count++
+        if (blank_count <= 1) print
+    }
+    /^./ { 
+        blank_count = 0
+        print 
+    }
+    ' "$temp_cron" > "${temp_cron}.clean" && mv "${temp_cron}.clean" "$temp_cron"
 
     log_info "Cleanup completed, result has $(wc -l <"$temp_cron") lines"
 

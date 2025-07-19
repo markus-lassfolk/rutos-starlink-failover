@@ -2,7 +2,7 @@
 
 ## Background
 
-During testing on RUTOS (RUTX50 router), we discovered that most printf color formats showed literal escape codes 
+During testing on RUTOS (RUTX50 router), we discovered that most printf color formats showed literal escape codes
 instead of actual colors. Through comprehensive testing, we identified that Method 5 format works correctly in RUTOS.
 
 ## Working Format (Method 5)

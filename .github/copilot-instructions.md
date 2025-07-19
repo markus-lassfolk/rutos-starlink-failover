@@ -166,7 +166,7 @@ printf "%s✅ HEALTHY%s   | %-25s | %s\n" "$GREEN" "$NC" "$component" "$details"
 printf "%bError: %s%b\n" "$RED" "$message" "$NC"
 ```
 
-**Key Discovery**: RUTOS busybox printf only processes color variables correctly when embedded in the format 
+**Key Discovery**: RUTOS busybox printf only processes color variables correctly when embedded in the format
 string, not when passed as separate arguments.
 
 ### CRITICAL Color Detection Rules

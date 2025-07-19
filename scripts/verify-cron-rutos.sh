@@ -299,9 +299,9 @@ check_script_files() {
 # Function to show verification summary
 show_summary() {
     echo ""
-    printf "%s%s%s\n" "$BLUE" "╔══════════════════════════════════════════════════════════════════════════╗" "$NC"
-    printf "%s║%s                           %sVERIFICATION SUMMARY%s                            %s║%s\n" "$BLUE" "$NC" "$CYAN" "$NC" "$BLUE" "$NC"
-    printf "%s%s%s\n" "$BLUE" "╚══════════════════════════════════════════════════════════════════════════╝" "$NC"
+    printf "${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
+    printf "${BLUE}║${NC}                           ${CYAN}VERIFICATION SUMMARY${NC}                            ${BLUE}║${NC}\n"
+    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
     echo ""
 
     total_checks=$((OK_COUNT + WARNING_COUNT + ERROR_COUNT))
@@ -317,37 +317,37 @@ show_summary() {
     if [ "$ERROR_COUNT" -gt 0 ]; then
         log_error "Critical issues found! Automated monitoring may not work properly"
         echo ""
-        printf "%sRecommended actions:%s\n" "$YELLOW" "$NC"
-        printf "%s• Fix critical errors before relying on automated monitoring%s\n" "$CYAN" "$NC"
-        printf "%s• Re-run install-rutos.sh to restore proper configuration%s\n" "$CYAN" "$NC"
-        printf "%s• Check cron service: /etc/init.d/cron status%s\n" "$CYAN" "$NC"
+        printf "${YELLOW}Recommended actions:${NC}\n"
+        printf "${CYAN}• Fix critical errors before relying on automated monitoring${NC}\n"
+        printf "${CYAN}• Re-run install-rutos.sh to restore proper configuration${NC}\n"
+        printf "${CYAN}• Check cron service: /etc/init.d/cron status${NC}\n"
     elif [ "$WARNING_COUNT" -gt 0 ]; then
         log_warning "Some issues found, but monitoring should still work"
         echo ""
-        printf "%sOptional improvements:%s\n" "$YELLOW" "$NC"
-        printf "%s• Clean up commented entries for tidier crontab%s\n" "$CYAN" "$NC"
-        printf "%s• Remove duplicate entries to avoid conflicts%s\n" "$CYAN" "$NC"
+        printf "${YELLOW}Optional improvements:${NC}\n"
+        printf "${CYAN}• Clean up commented entries for tidier crontab${NC}\n"
+        printf "${CYAN}• Remove duplicate entries to avoid conflicts${NC}\n"
     else
         log_success "All checks passed! Cron configuration is healthy"
         echo ""
-        printf "%sYour automated monitoring is properly configured!%s\n" "$GREEN" "$NC"
+        printf "${GREEN}Your automated monitoring is properly configured!${NC}\n"
     fi
 }
 
 # Show usage information
 show_usage() {
-    printf "%sUsage:%s %s [OPTIONS]\n" "$YELLOW" "$NC" "$0"
+    printf "${YELLOW}Usage:${NC} %s [OPTIONS]\n" "$0"
     echo ""
-    printf "%sOptions:%s\n" "$YELLOW" "$NC"
+    printf "${YELLOW}Options:${NC}\n"
     printf "  -v, --verbose    Enable verbose output\n"
     printf "  -d, --debug      Enable debug mode\n"
     printf "  -h, --help       Show this help message\n"
     echo ""
-    printf "%sDescription:%s\n" "$YELLOW" "$NC"
+    printf "${YELLOW}Description:${NC}\n"
     printf "  Verifies that Starlink monitoring cron jobs are properly configured\n"
     printf "  and will run automatically. Checks for common configuration issues.\n"
     echo ""
-    printf "%sExamples:%s\n" "$YELLOW" "$NC"
+    printf "${YELLOW}Examples:${NC}\n"
     printf "  %s                     # Basic verification\n" "$0"
     printf "  DEBUG=1 %s            # With debug output\n" "$0"
     printf "  %s --verbose          # With verbose output\n" "$0"
@@ -358,9 +358,9 @@ main() {
     log_info "Starting cron verification v$SCRIPT_VERSION"
     echo ""
 
-    printf "%s%s%s\n" "$BLUE" "╔══════════════════════════════════════════════════════════════════════════╗" "$NC"
-    printf "%s║%s                    %sSTARLINK MONITORING CRON VERIFICATION%s                   %s║%s\n" "$BLUE" "$NC" "$CYAN" "$NC" "$BLUE" "$NC"
-    printf "%s%s%s\n" "$BLUE" "╚══════════════════════════════════════════════════════════════════════════╝" "$NC"
+    printf "${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
+    printf "${BLUE}║${NC}                    ${CYAN}STARLINK MONITORING CRON VERIFICATION${NC}                   ${BLUE}║${NC}\n"
+    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
     echo ""
 
     # Check if running on RUTOS/OpenWrt

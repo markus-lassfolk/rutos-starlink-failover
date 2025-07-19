@@ -59,7 +59,7 @@ print_status() {
     message="$2"
 
     # Print to console using Method 5 format (the one that works!)
-    printf "%b[%s] %s%b\n" "$color" "$(get_timestamp)" "$message" "$NC"
+    printf "${color}[%s] %s${NC}\n" "$(get_timestamp)" "$message"
 
     # Log to file (without color codes)
     log_message "INFO" "$message"
@@ -69,7 +69,7 @@ print_status() {
 debug_msg() {
     if [ "${DEBUG:-0}" = "1" ]; then
         timestamp=$(get_timestamp)
-        printf "%b[%s] DEBUG: %s%b\n" "$BLUE" "$timestamp" "$1" "$NC" >&2
+        printf "${BLUE}[%s] DEBUG: %s${NC}\n" "$timestamp" "$1" >&2
         log_message "DEBUG" "$1"
     fi
 }
@@ -78,7 +78,7 @@ debug_msg() {
 debug_exec() {
     if [ "${DEBUG:-0}" = "1" ]; then
         timestamp=$(get_timestamp)
-        printf "%b[%s] DEBUG EXEC: %s%b\n" "$CYAN" "$timestamp" "$*" "$NC" >&2
+        printf "${CYAN}[%s] DEBUG EXEC: %s${NC}\n" "$timestamp" "$*" >&2
         log_message "DEBUG_EXEC" "$*"
     fi
     "$@"
@@ -700,9 +700,24 @@ configure_cron() {
         # Also clean up any previously commented entries from old install script behavior
         sed -i '/^# COMMENTED BY INSTALL SCRIPT.*starlink/d' "$temp_cron" 2>/dev/null || true
 
+        # Remove excessive blank lines (more than 1 consecutive blank line)
+        # This keeps single blank lines for readability but removes excessive gaps
+        debug_msg "Removing excessive blank lines from crontab"
+        awk '
+        BEGIN { blank_count = 0 }
+        /^$/ { 
+            blank_count++
+            if (blank_count <= 1) print
+        }
+        /^./ { 
+            blank_count = 0
+            print 
+        }
+        ' "$temp_cron" >"${temp_cron}.clean" && mv "${temp_cron}.clean" "$temp_cron"
+
         # Replace the crontab with cleaned version
         if mv "$temp_cron" "$CRON_FILE" 2>/dev/null; then
-            debug_msg "Crontab cleaned successfully"
+            debug_msg "Crontab cleaned successfully and blank lines normalized"
         else
             # If move failed, ensure we don't lose the original
             debug_msg "Failed to update crontab, preserving original"
@@ -763,7 +778,7 @@ CRON_FILE="/etc/crontabs/root"
 print_status() {
     color="$1"
     message="$2"
-    printf "%b%s%b\n" "$color" "$message" "$NC"
+    printf "${color}%s${NC}\n" "$message"
 }
 
 print_status "$RED" "Uninstalling Starlink monitoring system..."

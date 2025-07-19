@@ -329,10 +329,11 @@ validate_color_codes() {
     # Broken format: printf "%stext%s" "$COLOR" "$NC" (shows escape codes)
     if [[ "$file" == *"-rutos.sh" ]]; then
         # Check for the broken format that shows literal escape codes in RUTOS
-        if grep -n 'printf "%s.*%s".*"\$[A-Z_]*".*"\$[A-Z_]*"' "$file" >/dev/null 2>&1; then
+        # Method 3 patterns to detect: printf "%s%s%s\n" "$BLUE" "text" "$NC"
+        if grep -n 'printf.*"%.*%s.*%.*s.*".*\$[A-Z_]*' "$file" >/dev/null 2>&1; then
             while IFS=: read -r line_num line_content; do
-                report_issue "CRITICAL" "$file" "$line_num" "RUTOS INCOMPATIBLE: Uses broken printf format that shows escape codes. Use Method 5: printf \"\\\${COLOR}text\\\${NC}\" instead of printf \"%stext%s\" \"\\\$COLOR\" \"\\\$NC\""
-            done < <(grep -n 'printf "%s.*%s".*"\$[A-Z_]*".*"\$[A-Z_]*"' "$file" 2>/dev/null)
+                report_issue "CRITICAL" "$file" "$line_num" "RUTOS INCOMPATIBLE: Uses Method 3 printf format that shows escape codes. Use Method 5: printf \"\\\${COLOR}text\\\${NC}\" instead of printf \"%stext%s\" \"\\\$COLOR\" \"\\\$NC\""
+            done < <(grep -n 'printf.*"%.*%s.*%.*s.*".*\$[A-Z_]*' "$file" 2>/dev/null)
         fi
 
         # Check if RUTOS script has proper Method 5 format examples
@@ -594,7 +595,9 @@ validate_file() {
     initial_issues=$TOTAL_ISSUES
 
     # Try to auto-fix formatting issues first
-    if auto_fix_formatting "$file"; then
+    auto_fix_formatting "$file"
+    fix_result=$?
+    if [ $fix_result -eq 1 ]; then
         log_info "Applied auto-fixes to $file"
     fi
 
@@ -1115,25 +1118,25 @@ main() {
         markdown_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | sort)
     elif [ "$1" = "--all" ]; then
         log_info "Running in comprehensive validation mode (all shell and markdown files)"
-        # Get all shell and markdown files, excluding specified files
-        shell_files=$(find . -name "*.sh" -type f | while read -r file; do
+        # Get all shell and markdown files, excluding specified files and directories
+        shell_files=$(find . -name "*.sh" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | while read -r file; do
             if ! is_excluded "$file"; then
                 echo "$file"
             fi
         done | sort)
-        markdown_files=$(find . -name "*.md" -type f | sort)
+        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | sort)
     elif [ "$1" = "--shell-only" ]; then
         log_info "Running in shell-only validation mode"
-        # Get all shell files, excluding specified files
-        shell_files=$(find . -name "*.sh" -type f | while read -r file; do
+        # Get all shell files, excluding specified files and directories
+        shell_files=$(find . -name "*.sh" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | while read -r file; do
             if ! is_excluded "$file"; then
                 echo "$file"
             fi
         done | sort)
     elif [ "$1" = "--md-only" ]; then
         log_info "Running in markdown-only validation mode"
-        # Get all markdown files
-        markdown_files=$(find . -name "*.md" -type f | sort)
+        # Get all markdown files, excluding directories
+        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | sort)
     elif [ $# -gt 0 ]; then
         log_info "Running in specific file mode"
         # Process specific files based on extension
@@ -1154,13 +1157,13 @@ main() {
         done
     else
         log_info "Running in full validation mode (all shell and markdown files)"
-        # Get all shell and markdown files, excluding specified files
-        shell_files=$(find . -name "*.sh" -type f | while read -r file; do
+        # Get all shell and markdown files, excluding specified files and directories
+        shell_files=$(find . -name "*.sh" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | while read -r file; do
             if ! is_excluded "$file"; then
                 echo "$file"
             fi
         done | sort)
-        markdown_files=$(find . -name "*.md" -type f | sort)
+        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | sort)
     fi
 
     # Count total files
