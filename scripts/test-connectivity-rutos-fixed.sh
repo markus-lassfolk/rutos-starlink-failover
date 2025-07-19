@@ -60,9 +60,9 @@ log_step() {
 run_test() {
     test_function="$1"
     test_name="$2"
-    
+
     log_step "Testing: $test_name"
-    
+
     if "$test_function"; then
         log_success "$test_name - PASSED"
         return 0
@@ -75,12 +75,12 @@ run_test() {
 # Load configuration
 load_config() {
     CONFIG_FILE="${CONFIG_FILE:-$INSTALL_DIR/config/config.sh}"
-    
+
     if [ ! -f "$CONFIG_FILE" ]; then
         log_error "Configuration file not found: $CONFIG_FILE"
         exit 1
     fi
-    
+
     . "$CONFIG_FILE"
     log_success "Configuration loaded successfully"
 }
@@ -88,27 +88,27 @@ load_config() {
 # Test 1: System requirements
 test_system_requirements() {
     log_debug "Testing system requirements"
-    
+
     # Check for required commands
     missing_commands=""
-    
+
     for cmd in ping curl nc; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             missing_commands="$missing_commands $cmd"
         fi
     done
-    
+
     if [ -n "$missing_commands" ]; then
         log_error "Missing required commands:$missing_commands"
         return 1
     fi
-    
+
     # Check if grpcurl is available
     if ! command -v grpcurl >/dev/null 2>&1 && [ ! -f "$INSTALL_DIR/grpcurl" ]; then
         log_error "grpcurl not found in system PATH or $INSTALL_DIR/"
         return 1
     fi
-    
+
     log_debug "System requirements test passed"
     return 0
 }
@@ -116,18 +116,18 @@ test_system_requirements() {
 # Test 2: Basic network connectivity
 test_network_connectivity() {
     log_debug "Testing basic network connectivity"
-    
+
     # Test DNS resolution and internet connectivity
     if ! ping -c 2 -W 5 8.8.8.8 >/dev/null 2>&1; then
         log_error "Cannot reach Google DNS (8.8.8.8)"
         return 1
     fi
-    
+
     if ! ping -c 2 -W 5 1.1.1.1 >/dev/null 2>&1; then
         log_error "Cannot reach Cloudflare DNS (1.1.1.1)"
         return 1
     fi
-    
+
     log_debug "Network connectivity test passed"
     return 0
 }
@@ -403,7 +403,7 @@ main() {
 
 # Parse command line arguments
 case "${1:-}" in
-    --help|-h)
+    --help | -h)
         show_help
         exit 0
         ;;
