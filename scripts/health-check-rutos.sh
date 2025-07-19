@@ -699,8 +699,8 @@ run_integrated_tests() {
     fi
 
     # Run system status check
-    if [ -x "$SCRIPT_DIR/system-status.sh" ]; then
-        if "$SCRIPT_DIR/system-status.sh" --quiet >/dev/null 2>&1; then
+    if [ -x "$SCRIPT_DIR/system-status-rutos.sh" ]; then
+        if "$SCRIPT_DIR/system-status-rutos.sh" --quiet >/dev/null 2>&1; then
             show_health_status "healthy" "System Status" "System status check passed"
             increment_counter "healthy"
         else
@@ -708,7 +708,7 @@ run_integrated_tests() {
             increment_counter "warning"
         fi
     else
-        show_health_status "unknown" "System Status" "system-status.sh not found"
+        show_health_status "unknown" "System Status" "system-status-rutos.sh not found"
         increment_counter "unknown"
     fi
 }
