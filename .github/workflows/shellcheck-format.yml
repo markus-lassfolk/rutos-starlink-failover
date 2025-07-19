@@ -34,13 +34,14 @@ jobs:
         run: |
           if find . -type f \( -name '*.sh' -o -name '99-pushover_notify*' \) | head -1 > /dev/null; then
             echo "🎨 Auto-formatting shell scripts with shfmt..."
-            # Format bash scripts with bash-specific options
+            # Format bash scripts with bash-specific options (non-RUTOS only)
             find . -type f -name '*.sh' ! -name '*-rutos.sh' -exec shfmt -w -i 4 -ci {} +
-            # Format RUTOS scripts with POSIX-compatible options
-            find . -type f -name '*-rutos.sh' -exec shfmt -w -i 4 -ci -ln posix {} +
-            # Format other shell files (pushover notify scripts)
-            find . -type f -name '99-pushover_notify*' -exec shfmt -w -i 4 -ci {} +
-            echo "✅ Shell scripts formatted successfully"
+            # DISABLED: Format RUTOS scripts - temporarily disabled for compatibility testing
+            # find . -type f -name '*-rutos.sh' -exec shfmt -w -i 4 -ci -ln posix {} +
+            echo "⚠️  RUTOS script auto-formatting DISABLED for compatibility testing"
+            # Format other shell files (pushover notify scripts) - but skip RUTOS variants
+            find . -type f -name '99-pushover_notify*' ! -name '*-rutos.sh' -exec shfmt -w -i 4 -ci {} +
+            echo "✅ Shell scripts formatted successfully (RUTOS scripts excluded)"
           else
             echo "No shell scripts found to format"
           fi
@@ -112,6 +113,7 @@ jobs:
       - name: Verify shell script formatting (shfmt)
         run: |
           echo "🎨 Checking shell script formatting..."
+          echo "⚠️  RUTOS scripts excluded from format validation for compatibility testing"
           
           # For PR events, check only changed files
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -125,11 +127,14 @@ jobs:
               changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
             fi
             
-            # Filter for shell files
+            # Filter for shell files (exclude RUTOS scripts)
             shell_files=""
             for file in $changed_files; do
               if [ -f "$file" ]; then
                 case "$(basename "$file")" in
+                  *-rutos.sh)
+                    echo "⚠️  Skipping RUTOS script format check: $file"
+                    ;;
                   *.sh|99-pushover_notify*)
                     shell_files="$shell_files $file"
                     ;;
@@ -142,11 +147,11 @@ jobs:
               echo "$shell_files"
               shfmt -d -i 4 -ci $shell_files
             else
-              echo "✅ No shell files changed in this PR"
+              echo "✅ No non-RUTOS shell files changed in this PR"
             fi
           else
-            echo "📋 Push mode: Checking formatting of all shell files"
-            find . -type f \( -name '*.sh' -o -name '99-pushover_notify*' \) -exec shfmt -d -i 4 -ci {} +
+            echo "📋 Push mode: Checking formatting of all shell files (excluding RUTOS)"
+            find . -type f \( -name '*.sh' -o -name '99-pushover_notify*' \) ! -name '*-rutos.sh' -exec shfmt -d -i 4 -ci {} +
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

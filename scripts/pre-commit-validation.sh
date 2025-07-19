@@ -473,9 +473,10 @@ run_shfmt() {
     # Determine shfmt options based on script type (match GitHub Action settings)
     shfmt_options="-i 4 -ci"
     if echo "$file" | grep -q '\-rutos\.sh$'; then
-        # RUTOS scripts need POSIX-compatible formatting
+        # RUTOS scripts need POSIX-compatible formatting for local validation
         shfmt_options="-i 4 -ci -ln posix"
-        log_debug "Using POSIX formatting for RUTOS script: $file"
+        log_debug "Using POSIX formatting validation for RUTOS script: $file"
+        log_debug "Note: Server-side auto-formatting disabled, but local validation active"
     fi
 
     # Run shfmt to check formatting
