@@ -130,7 +130,7 @@ fi
 # Installation configuration
 # shellcheck disable=SC2034  # Variables are used throughout the script
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}" # Use /usr/local for proper Unix convention
-PERSISTENT_CONFIG_DIR="/etc/starlink-config"              # Config backup in /etc for persistence
+PERSISTENT_CONFIG_DIR="/etc/starlink-config"              # Primary persistent config location
 HOTPLUG_DIR="/etc/hotplug.d/iface"
 CRON_FILE="/etc/crontabs/root" # Used throughout script
 
@@ -461,206 +461,177 @@ install_config() {
     print_status "$BLUE" "Installing configuration..."
     config_dir="$(dirname "$0")/../config"
 
+    # Ensure persistent configuration directory exists first
+    mkdir -p "$PERSISTENT_CONFIG_DIR" 2>/dev/null || {
+        print_status "$RED" "✗ Failed to create persistent config directory: $PERSISTENT_CONFIG_DIR"
+        exit 1
+    }
+
+    # Download/copy templates to temporary location first
+    temp_basic_template="/tmp/config.template.sh.$$"
+    temp_advanced_template="/tmp/config.advanced.template.sh.$$"
+    
     # Handle both local and remote installation
     if [ -f "$config_dir/config.template.sh" ]; then
-        cp "$config_dir/config.template.sh" "$INSTALL_DIR/config/"
-        print_status "$GREEN" "✓ Configuration template installed"
+        cp "$config_dir/config.template.sh" "$temp_basic_template"
+        cp "$config_dir/config.advanced.template.sh" "$temp_advanced_template" 2>/dev/null || {
+            print_status "$YELLOW" "⚠ Advanced template not found locally, downloading..."
+            download_file "$BASE_URL/config/config.advanced.template.sh" "$temp_advanced_template" || {
+                print_status "$YELLOW" "⚠ Could not download advanced template, using basic only"
+                cp "$temp_basic_template" "$temp_advanced_template"
+            }
+        }
+        print_status "$GREEN" "✓ Configuration templates loaded locally"
     else
         # Download from repository
-        print_status "$BLUE" "Downloading configuration template..."
-        if download_file "$BASE_URL/config/config.template.sh" "$INSTALL_DIR/config/config.template.sh"; then
-            print_status "$GREEN" "✓ Configuration template installed"
+        print_status "$BLUE" "Downloading configuration templates..."
+        if download_file "$BASE_URL/config/config.template.sh" "$temp_basic_template"; then
+            print_status "$GREEN" "✓ Basic configuration template downloaded"
         else
-            print_status "$RED" "✗ Failed to download configuration template"
+            print_status "$RED" "✗ Failed to download basic configuration template"
+            exit 1
+        fi
+        
+        if download_file "$BASE_URL/config/config.advanced.template.sh" "$temp_advanced_template"; then
+            print_status "$GREEN" "✓ Advanced configuration template downloaded"
+        else
+            print_status "$YELLOW" "⚠ Advanced template not available, using basic template"
+            cp "$temp_basic_template" "$temp_advanced_template"
+        fi
+    fi
+
+    # NEW LOGIC: Check for existing persistent configuration
+    primary_config="$PERSISTENT_CONFIG_DIR/config.sh"
+    
+    if [ -f "$primary_config" ]; then
+        print_status "$BLUE" "Found existing persistent configuration at $primary_config"
+        
+        # Detect configuration type (basic vs advanced)
+        config_type="basic"
+        # Look for advanced-only variables to detect advanced config
+        if grep -qE "^(ENABLE_DETAILED_LOGGING|NOTIFICATION_COOLDOWN|API_CHECK_INTERVAL|MWAN3_POLICY)" "$primary_config" 2>/dev/null; then
+            config_type="advanced"
+        fi
+        
+        print_status "$BLUE" "Detected $config_type configuration type"
+        
+        # Select appropriate template
+        if [ "$config_type" = "advanced" ]; then
+            selected_template="$temp_advanced_template"
+        else
+            selected_template="$temp_basic_template"
+        fi
+        
+        # Create timestamped backup of existing config
+        backup_timestamp=$(date +%Y%m%d_%H%M%S)
+        backup_file="$PERSISTENT_CONFIG_DIR/config.sh.backup.$backup_timestamp"
+        if cp "$primary_config" "$backup_file"; then
+            print_status "$GREEN" "✓ Configuration backed up to: $backup_file"
+        else
+            print_status "$RED" "✗ Failed to backup existing configuration!"
+            exit 1
+        fi
+        
+        # Perform intelligent merge
+        print_status "$BLUE" "Merging settings from existing configuration..."
+        temp_merged_config="/tmp/config_merged.sh.$$"
+        
+        if ! cp "$selected_template" "$temp_merged_config"; then
+            print_status "$RED" "✗ Failed to prepare template for merge"
+            exit 1
+        fi
+        
+        # Enhanced settings preservation
+        settings_to_preserve="STARLINK_IP MWAN_IFACE MWAN_MEMBER PUSHOVER_TOKEN PUSHOVER_USER RUTOS_USERNAME RUTOS_PASSWORD RUTOS_IP PING_TARGETS PING_COUNT PING_TIMEOUT PING_INTERVAL CHECK_INTERVAL FAIL_COUNT_THRESHOLD RECOVERY_COUNT_THRESHOLD INITIAL_DELAY ENABLE_LOGGING LOG_RETENTION_DAYS ENABLE_PUSHOVER_NOTIFICATIONS ENABLE_SYSLOG SYSLOG_PRIORITY ENABLE_HOTPLUG_NOTIFICATIONS ENABLE_STATUS_LOGGING ENABLE_API_MONITORING ENABLE_PING_MONITORING STARLINK_GRPC_PORT API_CHECK_INTERVAL MWAN3_POLICY MWAN3_RULE NOTIFICATION_COOLDOWN NOTIFICATION_RECOVERY_DELAY ENABLE_DETAILED_LOGGING"
+
+        preserved_count=0
+        total_count=0
+
+        for setting in $settings_to_preserve; do
+            total_count=$((total_count + 1))
+            debug_msg "Processing setting: $setting"
+
+            if grep -q "^${setting}=" "$primary_config" 2>/dev/null; then
+                user_value=$(grep "^${setting}=" "$primary_config" | head -1)
+                debug_msg "Found setting in existing config: $user_value"
+
+                # Skip placeholder values
+                if [ -n "$user_value" ] && ! echo "$user_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)" 2>/dev/null; then
+                    # Replace in template
+                    if grep -q "^${setting}=" "$temp_merged_config" 2>/dev/null; then
+                        # Replace existing line
+                        if sed -i "s|^${setting}=.*|${user_value}|" "$temp_merged_config" 2>/dev/null; then
+                            preserved_count=$((preserved_count + 1))
+                            debug_msg "Successfully preserved: $setting"
+                        else
+                            debug_msg "Failed to replace setting: $setting"
+                        fi
+                    else
+                        # Add new line if not in template
+                        if echo "$user_value" >>"$temp_merged_config" 2>/dev/null; then
+                            preserved_count=$((preserved_count + 1))
+                            debug_msg "Successfully added: $setting"
+                        else
+                            debug_msg "Failed to add setting: $setting"
+                        fi
+                    fi
+                else
+                    debug_msg "Skipping placeholder value for: $setting"
+                fi
+            else
+                debug_msg "Setting not found in existing config: $setting"
+            fi
+        done
+        
+        # Replace the primary config with merged version
+        if [ -f "$temp_merged_config" ] && [ -s "$temp_merged_config" ]; then
+            if mv "$temp_merged_config" "$primary_config" 2>/dev/null; then
+                print_status "$GREEN" "✓ Configuration merged successfully: $preserved_count/$total_count settings preserved"
+                print_status "$GREEN" "✓ Updated persistent configuration: $primary_config"
+            else
+                print_status "$RED" "✗ Failed to update primary configuration!"
+                # Restore backup
+                mv "$backup_file" "$primary_config" 2>/dev/null
+                exit 1
+            fi
+        else
+            print_status "$RED" "✗ Merge failed - configuration file corrupted!"
+            # Restore backup
+            mv "$backup_file" "$primary_config" 2>/dev/null
+            exit 1
+        fi
+        
+    else
+        # First time installation - no existing config
+        print_status "$BLUE" "First time installation - creating new configuration"
+        
+        # Use basic template by default
+        if cp "$temp_basic_template" "$primary_config"; then
+            print_status "$GREEN" "✓ Initial configuration created from template"
+            print_status "$YELLOW" "📋 Please edit $primary_config with your settings"
+        else
+            print_status "$RED" "✗ Failed to create initial configuration"
             exit 1
         fi
     fi
 
-    # Intelligent configuration management - preserve user settings
-    if [ -f "$INSTALL_DIR/config/config.sh" ]; then
-        print_status "$BLUE" "Existing configuration detected - performing intelligent merge"
+    # Copy final config to install directory for backwards compatibility
+    mkdir -p "$INSTALL_DIR/config" 2>/dev/null
+    cp "$primary_config" "$INSTALL_DIR/config/config.sh" 2>/dev/null || true
+    cp "$temp_basic_template" "$INSTALL_DIR/config/config.template.sh" 2>/dev/null || true
+    cp "$temp_advanced_template" "$INSTALL_DIR/config/config.advanced.template.sh" 2>/dev/null || true
 
-        # Create backup first
-        backup_file="$INSTALL_DIR/config/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
-        cp "$INSTALL_DIR/config/config.sh" "$backup_file"
-        debug_msg "Configuration backup created: $backup_file"
+    # Create convenience symlinks pointing to persistent config
+    ln -sf "$primary_config" "/root/config.sh" 2>/dev/null || true
+    ln -sf "$INSTALL_DIR" "/root/starlink-monitor" 2>/dev/null || true
 
-        # ENHANCED MERGE LOGIC - Multiple fallback strategies
-        merge_success=false
-        merge_method=""
+    print_status "$GREEN" "✓ Configuration system initialized"
+    print_status "$BLUE" "  Primary config: $primary_config"
+    print_status "$BLUE" "  Convenience link: /root/config.sh -> $primary_config" 
+    print_status "$BLUE" "  Installation link: /root/starlink-monitor -> $INSTALL_DIR"
 
-        # Strategy 1: Try merge script if available
-        if [ -f "$INSTALL_DIR/scripts/merge-config-rutos.sh" ]; then
-            debug_msg "Attempting merge using merge-config-rutos.sh script"
-            if "$INSTALL_DIR/scripts/merge-config-rutos.sh" "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh" 2>/dev/null; then
-                merge_success=true
-                merge_method="script"
-                debug_msg "Merge script succeeded"
-            else
-                debug_msg "Merge script failed, trying manual merge"
-            fi
-        else
-            debug_msg "No merge script found, proceeding to manual merge"
-        fi
-
-        # Strategy 2: Enhanced manual merge with extensive settings preservation
-        if [ "$merge_success" = "false" ]; then
-            print_status "$BLUE" "Performing enhanced manual configuration merge..."
-            debug_msg "Starting manual merge process"
-
-            # Create working copy of template
-            temp_config="/tmp/config_merge.tmp"
-            if ! cp "$INSTALL_DIR/config/config.template.sh" "$temp_config"; then
-                debug_msg "Failed to copy template to temp file"
-                merge_success=false
-            else
-                debug_msg "Template copied to temp file: $temp_config"
-
-                # Extended list of settings to preserve - cover all user-configurable options
-                settings_to_preserve="STARLINK_IP MWAN_IFACE MWAN_MEMBER PUSHOVER_TOKEN PUSHOVER_USER RUTOS_USERNAME RUTOS_PASSWORD RUTOS_IP PING_TARGETS PING_COUNT PING_TIMEOUT PING_INTERVAL CHECK_INTERVAL FAIL_COUNT_THRESHOLD RECOVERY_COUNT_THRESHOLD INITIAL_DELAY ENABLE_LOGGING LOG_RETENTION_DAYS ENABLE_PUSHOVER_NOTIFICATIONS ENABLE_SYSLOG SYSLOG_PRIORITY ENABLE_HOTPLUG_NOTIFICATIONS ENABLE_STATUS_LOGGING ENABLE_API_MONITORING ENABLE_PING_MONITORING STARLINK_GRPC_PORT API_CHECK_INTERVAL MWAN3_POLICY MWAN3_RULE NOTIFICATION_COOLDOWN NOTIFICATION_RECOVERY_DELAY ENABLE_DETAILED_LOGGING"
-
-                preserved_count=0
-                total_count=0
-
-                for setting in $settings_to_preserve; do
-                    total_count=$((total_count + 1))
-                    debug_msg "Processing setting: $setting"
-
-                    if grep -q "^${setting}=" "$backup_file" 2>/dev/null; then
-                        user_value=$(grep "^${setting}=" "$backup_file" | head -1)
-                        debug_msg "Found setting in backup: $user_value"
-
-                        # Skip placeholder values (YOUR_, CHANGE_ME, etc.)
-                        if [ -n "$user_value" ] && ! echo "$user_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)" 2>/dev/null; then
-                            # Replace in template
-                            if grep -q "^${setting}=" "$temp_config" 2>/dev/null; then
-                                # Replace existing line
-                                if sed -i "s|^${setting}=.*|${user_value}|" "$temp_config" 2>/dev/null; then
-                                    preserved_count=$((preserved_count + 1))
-                                    debug_msg "Successfully preserved: $setting"
-                                else
-                                    debug_msg "Failed to replace setting: $setting"
-                                fi
-                            else
-                                # Add new line if not in template
-                                if echo "$user_value" >>"$temp_config" 2>/dev/null; then
-                                    preserved_count=$((preserved_count + 1))
-                                    debug_msg "Successfully added: $setting"
-                                else
-                                    debug_msg "Failed to add setting: $setting"
-                                fi
-                            fi
-                        else
-                            debug_msg "Skipping placeholder value for: $setting"
-                        fi
-                    else
-                        debug_msg "Setting not found in backup: $setting"
-                    fi
-                done
-
-                # Verify the merge worked
-                if [ -f "$temp_config" ] && [ -s "$temp_config" ]; then
-                    if mv "$temp_config" "$INSTALL_DIR/config/config.sh" 2>/dev/null; then
-                        merge_success=true
-                        merge_method="manual"
-                        debug_msg "Manual merge completed successfully"
-                        print_status "$GREEN" "✓ Manual merge completed: $preserved_count/$total_count settings preserved"
-                    else
-                        debug_msg "Failed to move temp config to final location"
-                        merge_success=false
-                    fi
-                else
-                    debug_msg "Temp config file is missing or empty"
-                    merge_success=false
-                fi
-            fi
-        fi
-
-        # Strategy 3: Last resort - copy template and warn user
-        if [ "$merge_success" = "false" ]; then
-            print_status "$YELLOW" "⚠ All merge strategies failed - using template as fallback"
-            if cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh" 2>/dev/null; then
-                print_status "$YELLOW" "⚠ Configuration replaced with template (backup: $backup_file)"
-                print_status "$YELLOW" "📋 Please restore your settings from the backup manually"
-                print_status "$YELLOW" "   Example: grep '^PUSHOVER_TOKEN=' '$backup_file'"
-            else
-                print_status "$RED" "✗ CRITICAL: Failed to create config file!"
-                exit 1
-            fi
-        else
-            case "$merge_method" in
-                "script")
-                    print_status "$GREEN" "✓ Configuration merged successfully using merge script"
-                    ;;
-                "manual")
-                    print_status "$GREEN" "✓ Configuration merged manually - user settings preserved"
-                    ;;
-            esac
-            print_status "$BLUE" "✓ Backup created: $backup_file"
-
-            # Verify critical settings were preserved
-            if [ "$merge_method" = "manual" ]; then
-                print_status "$BLUE" "Verifying merge results..."
-                critical_preserved=0
-                critical_total=0
-
-                for critical_setting in PUSHOVER_TOKEN PUSHOVER_USER MWAN_IFACE MWAN_MEMBER; do
-                    critical_total=$((critical_total + 1))
-                    if grep -q "^${critical_setting}=" "$backup_file" 2>/dev/null; then
-                        backup_value=$(grep "^${critical_setting}=" "$backup_file" | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-                        current_value=$(grep "^${critical_setting}=" "$INSTALL_DIR/config/config.sh" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-
-                        if [ -n "$backup_value" ] && [ "$backup_value" = "$current_value" ] && ! echo "$backup_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER)" 2>/dev/null; then
-                            critical_preserved=$((critical_preserved + 1))
-                            debug_msg "Verified preserved: $critical_setting"
-                        else
-                            debug_msg "Failed verification for: $critical_setting (backup: '$backup_value', current: '$current_value')"
-                        fi
-                    fi
-                done
-
-                if [ $critical_preserved -gt 0 ]; then
-                    print_status "$GREEN" "✓ Verification: $critical_preserved/$critical_total critical settings preserved"
-                else
-                    print_status "$YELLOW" "⚠ Verification: No critical settings preserved - check backup manually"
-                fi
-            fi
-        fi
-    else
-        # First time installation
-        cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
-        print_status "$GREEN" "✓ Configuration file created from template"
-        print_status "$YELLOW" "📋 Please edit $INSTALL_DIR/config/config.sh before using"
-    fi
-
-    # Create convenience symlinks for easy access
-    ln -sf "$INSTALL_DIR/config/config.sh" "/root/config.sh"
-    ln -sf "$INSTALL_DIR" "/root/starlink-monitor" # Convenience symlink to installation
-
-    # Backup configuration to persistent location
-    cp "$INSTALL_DIR/config/config.sh" "$PERSISTENT_CONFIG_DIR/config.sh"
-    cp "$INSTALL_DIR/config/config.template.sh" "$PERSISTENT_CONFIG_DIR/config.template.sh"
-
-    print_status "$BLUE" "✓ Convenience symlinks created:"
-    print_status "$BLUE" "  /root/config.sh -> $INSTALL_DIR/config/config.sh"
-    print_status "$BLUE" "  /root/starlink-monitor -> $INSTALL_DIR"
-    print_status "$BLUE" "✓ Configuration backed up to: $PERSISTENT_CONFIG_DIR"
-
-    # If user settings were lost, provide quick restoration commands
-    if [ -f "$backup_file" ] && [ -f "$INSTALL_DIR/config/config.sh" ]; then
-        # Check if PUSHOVER_TOKEN is still a placeholder
-        current_pushover=$(grep "^PUSHOVER_TOKEN=" "$INSTALL_DIR/config/config.sh" 2>/dev/null | head -1)
-        if echo "$current_pushover" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER)" 2>/dev/null; then
-            backup_pushover=$(grep "^PUSHOVER_TOKEN=" "$backup_file" 2>/dev/null | head -1)
-            if [ -n "$backup_pushover" ] && ! echo "$backup_pushover" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER)" 2>/dev/null; then
-                print_status "$YELLOW" "🔧 QUICK FIX: Your Pushover token was reset. To restore:"
-                print_status "$YELLOW" "   grep '^PUSHOVER_TOKEN=' '$backup_file'"
-                print_status "$YELLOW" "   grep '^PUSHOVER_USER=' '$backup_file'"
-                print_status "$YELLOW" "   Then edit: $INSTALL_DIR/config/config.sh"
-                print_status "$YELLOW" "   Or use: $INSTALL_DIR/scripts/restore-config-rutos.sh"
-            fi
-        fi
-    fi
+    # Cleanup temporary files
+    rm -f "$temp_basic_template" "$temp_advanced_template" "$temp_merged_config" 2>/dev/null || true
 }
 
 # Configure cron jobs
