@@ -275,7 +275,13 @@ download_file() {
     # Try wget first, then curl
     if command -v wget >/dev/null 2>&1; then
         if [ "${DEBUG:-0}" = "1" ]; then
-            debug_exec wget -O "$output" "$url"
+            if debug_exec wget -O "$output" "$url"; then
+                log_message "INFO" "Download successful: $output"
+                return 0
+            else
+                log_message "ERROR" "Download failed with wget: $url"
+                return 1
+            fi
         else
             if wget -q -O "$output" "$url" 2>/dev/null; then
                 log_message "INFO" "Download successful: $output"
@@ -287,7 +293,13 @@ download_file() {
         fi
     elif command -v curl >/dev/null 2>&1; then
         if [ "${DEBUG:-0}" = "1" ]; then
-            debug_exec curl -fL -o "$output" "$url"
+            if debug_exec curl -fL -o "$output" "$url"; then
+                log_message "INFO" "Download successful: $output"
+                return 0
+            else
+                log_message "ERROR" "Download failed with curl: $url"
+                return 1
+            fi
         else
             if curl -fsSL -o "$output" "$url" 2>/dev/null; then
                 log_message "INFO" "Download successful: $output"
@@ -300,6 +312,274 @@ download_file() {
     else
         log_message "ERROR" "Neither wget nor curl available for downloads"
         print_status "$RED" "Error: Neither wget nor curl available for downloads"
+        return 1
+    fi
+}
+
+# Function to perform intelligent config merge using improved approach
+# This implements the user's suggested logic:
+# 1. Read every value in template, find corresponding value in current config
+# 2. Any value missing in config.sh keeps the default from template
+# 3. Copy any entries from config.sh that are missing in template (preserve custom settings)
+# 4. Add comments and descriptions for preserved settings
+intelligent_config_merge() {
+    template_file="$1"
+    current_config="$2"
+    output_config="$3"
+
+    config_debug "=== INTELLIGENT CONFIG MERGE START ==="
+    config_debug "Template: $template_file"
+    config_debug "Current config: $current_config"
+    config_debug "Output: $output_config"
+
+    # Step 1: Create temporary working files
+    temp_template_vars="/tmp/template_vars.$$"
+    temp_current_vars="/tmp/current_vars.$$"
+    temp_merged_config="/tmp/merged_config.$$"
+    temp_extra_vars="/tmp/extra_vars.$$"
+
+    config_debug "=== STEP 1: EXTRACT VARIABLES FROM TEMPLATE ==="
+    # Extract all variable assignments from template (both export and standard)
+    grep -E "^(export )?[A-Za-z_][A-Za-z0-9_]*=" "$template_file" 2>/dev/null >"$temp_template_vars" || touch "$temp_template_vars"
+    template_count=$(wc -l <"$temp_template_vars" 2>/dev/null || echo 0)
+    config_debug "Found $template_count variables in template"
+
+    if [ "${CONFIG_DEBUG:-0}" = "1" ] && [ "$template_count" -gt 0 ]; then
+        config_debug "Template variables (first 10):"
+        head -10 "$temp_template_vars" | while IFS= read -r line; do
+            config_debug "  $line"
+        done
+        if [ "$template_count" -gt 10 ]; then
+            config_debug "  ... and $((template_count - 10)) more"
+        fi
+    fi
+
+    config_debug "=== STEP 2: EXTRACT VARIABLES FROM CURRENT CONFIG ==="
+    # Extract all variable assignments from current config
+    if [ -f "$current_config" ]; then
+        grep -E "^(export )?[A-Za-z_][A-Za-z0-9_]*=" "$current_config" 2>/dev/null >"$temp_current_vars" || touch "$temp_current_vars"
+        current_count=$(wc -l <"$temp_current_vars" 2>/dev/null || echo 0)
+        config_debug "Found $current_count variables in current config"
+
+        if [ "${CONFIG_DEBUG:-0}" = "1" ] && [ "$current_count" -gt 0 ]; then
+            config_debug "Current config variables (first 10, sensitive values masked):"
+            head -10 "$temp_current_vars" | while IFS= read -r line; do
+                case "$line" in
+                    *TOKEN* | *PASSWORD* | *USER*)
+                        config_debug "  $(echo "$line" | sed 's/=.*/=***/')"
+                        ;;
+                    *)
+                        config_debug "  $line"
+                        ;;
+                esac
+            done
+            if [ "$current_count" -gt 10 ]; then
+                config_debug "  ... and $((current_count - 10)) more"
+            fi
+        fi
+    else
+        touch "$temp_current_vars"
+        current_count=0
+        config_debug "Current config file not found, treating as new installation"
+    fi
+
+    config_debug "=== STEP 3: START WITH TEMPLATE AS BASE ==="
+    # Start with the complete template (preserves structure, comments, formatting)
+    if cp "$template_file" "$temp_merged_config"; then
+        config_debug "Template copied as base for merged config"
+    else
+        config_debug "✗ FAILED to copy template as base"
+        rm -f "$temp_template_vars" "$temp_current_vars" "$temp_extra_vars" 2>/dev/null
+        return 1
+    fi
+
+    config_debug "=== STEP 4: PROCESS TEMPLATE VARIABLES ==="
+    # Process each variable in the template
+    preserved_count=0
+    kept_default_count=0
+
+    while IFS= read -r template_line; do
+        if [ -z "$template_line" ]; then
+            continue
+        fi
+
+        # Extract variable name from template line
+        var_name=""
+        if echo "$template_line" | grep -q "^export "; then
+            var_name=$(echo "$template_line" | sed 's/^export \([^=]*\)=.*/\1/')
+        else
+            var_name=$(echo "$template_line" | sed 's/^\([^=]*\)=.*/\1/')
+        fi
+
+        if [ -n "$var_name" ]; then
+            config_debug "--- Processing template variable: $var_name ---"
+
+            # Look for this variable in current config (both formats)
+            current_value=""
+            if grep -q "^export ${var_name}=" "$current_config" 2>/dev/null; then
+                current_line=$(grep "^export ${var_name}=" "$current_config" | head -1)
+                current_value=$(echo "$current_line" | sed 's/^export [^=]*=//; s/^"//; s/"$//')
+                config_debug "Found current value (export format): $var_name = $current_value"
+            elif grep -q "^${var_name}=" "$current_config" 2>/dev/null; then
+                current_line=$(grep "^${var_name}=" "$current_config" | head -1)
+                current_value=$(echo "$current_line" | sed 's/^[^=]*=//; s/^"//; s/"$//')
+                config_debug "Found current value (standard format): $var_name = $current_value"
+            else
+                config_debug "Variable not found in current config: $var_name (will keep template default)"
+            fi
+
+            # Decide whether to use current value or keep template default
+            if [ -n "$current_value" ] && ! echo "$current_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)" 2>/dev/null; then
+                # Use current value (preserve user setting)
+                case "$var_name" in
+                    *TOKEN* | *PASSWORD* | *USER*)
+                        config_debug "Preserving user value: $var_name = ***"
+                        ;;
+                    *)
+                        config_debug "Preserving user value: $var_name = $current_value"
+                        ;;
+                esac
+
+                # Replace in merged config (preserve template format)
+                if echo "$template_line" | grep -q "^export "; then
+                    replacement="export ${var_name}=\"${current_value}\""
+                else
+                    replacement="${var_name}=\"${current_value}\""
+                fi
+
+                # Replace the line in merged config
+                if sed -i "s|^export ${var_name}=.*|$replacement|" "$temp_merged_config" 2>/dev/null ||
+                    sed -i "s|^${var_name}=.*|$replacement|" "$temp_merged_config" 2>/dev/null; then
+                    preserved_count=$((preserved_count + 1))
+                    config_debug "✓ Successfully preserved: $var_name"
+                else
+                    config_debug "✗ Failed to replace: $var_name"
+                fi
+            else
+                # Keep template default
+                kept_default_count=$((kept_default_count + 1))
+                config_debug "Keeping template default: $var_name"
+            fi
+        fi
+    done <"$temp_template_vars"
+
+    config_debug "=== STEP 5: FIND EXTRA USER SETTINGS ==="
+    # Find settings in current config that are NOT in template
+    true >"$temp_extra_vars" # Clear file
+    extra_count=0
+
+    if [ -f "$current_config" ] && [ "$current_count" -gt 0 ]; then
+        while IFS= read -r current_line; do
+            if [ -z "$current_line" ]; then
+                continue
+            fi
+
+            # Extract variable name from current config line
+            var_name=""
+            if echo "$current_line" | grep -q "^export "; then
+                var_name=$(echo "$current_line" | sed 's/^export \([^=]*\)=.*/\1/')
+            else
+                var_name=$(echo "$current_line" | sed 's/^\([^=]*\)=.*/\1/')
+            fi
+
+            if [ -n "$var_name" ]; then
+                # Check if this variable exists in template
+                if ! grep -q "^export ${var_name}=" "$temp_template_vars" 2>/dev/null &&
+                    ! grep -q "^${var_name}=" "$temp_template_vars" 2>/dev/null; then
+                    # This is an extra setting not in template
+                    config_debug "Found extra user setting: $var_name"
+                    echo "$current_line" >>"$temp_extra_vars"
+                    extra_count=$((extra_count + 1))
+                fi
+            fi
+        done <"$temp_current_vars"
+    fi
+
+    config_debug "Found $extra_count extra user settings not in template"
+
+    config_debug "=== STEP 6: ADD EXTRA SETTINGS TO MERGED CONFIG ==="
+    if [ "$extra_count" -gt 0 ]; then
+        config_debug "Adding extra user settings to merged config"
+
+        # Add a section header for extra settings
+        cat >>"$temp_merged_config" <<EOF
+
+# ==============================================================================
+# Additional User Settings (not in template)
+# These settings were found in your existing config but are not part of the
+# standard template. They are preserved here to maintain your customizations.
+# ==============================================================================
+EOF
+
+        # Add each extra setting with some context
+        while IFS= read -r extra_line; do
+            if [ -n "$extra_line" ]; then
+                # Extract variable name for comment
+                var_name=""
+                if echo "$extra_line" | grep -q "^export "; then
+                    var_name=$(echo "$extra_line" | sed 's/^export \([^=]*\)=.*/\1/')
+                else
+                    var_name=$(echo "$extra_line" | sed 's/^\([^=]*\)=.*/\1/')
+                fi
+
+                {
+                    echo "# Custom setting: $var_name (preserved from existing config)"
+                    echo "$extra_line"
+                    echo ""
+                } >>"$temp_merged_config"
+
+                config_debug "Added extra setting: $var_name"
+            fi
+        done <"$temp_extra_vars"
+    fi
+
+    config_debug "=== STEP 7: FINALIZE MERGE ==="
+    # Copy merged config to final destination
+    if cp "$temp_merged_config" "$output_config" 2>/dev/null; then
+        config_debug "✓ Merged config successfully written to: $output_config"
+
+        # Generate summary
+        total_template_vars=$template_count
+        total_preserved=$preserved_count
+        total_defaults=$kept_default_count
+        total_extra=$extra_count
+
+        config_debug "=== MERGE SUMMARY ==="
+        config_debug "Template variables: $total_template_vars"
+        config_debug "User values preserved: $total_preserved"
+        config_debug "Template defaults kept: $total_defaults"
+        config_debug "Extra user settings: $total_extra"
+        config_debug "Final config size: $(wc -c <"$output_config" 2>/dev/null || echo 'unknown') bytes"
+
+        # Show notification settings specifically
+        config_debug "=== NOTIFICATION SETTINGS VERIFICATION ==="
+        for notify_setting in "NOTIFY_ON_CRITICAL" "NOTIFY_ON_HARD_FAIL" "NOTIFY_ON_RECOVERY" "NOTIFY_ON_SOFT_FAIL" "NOTIFY_ON_INFO"; do
+            if grep -q "^export ${notify_setting}=" "$output_config" 2>/dev/null; then
+                notify_value=$(grep "^export ${notify_setting}=" "$output_config" | head -1)
+                config_debug "✓ $notify_value"
+            elif grep -q "^${notify_setting}=" "$output_config" 2>/dev/null; then
+                notify_value=$(grep "^${notify_setting}=" "$output_config" | head -1)
+                config_debug "✓ $notify_value"
+            else
+                config_debug "✗ MISSING: $notify_setting"
+            fi
+        done
+
+        cleanup_result=0
+    else
+        config_debug "✗ FAILED to write merged config to: $output_config"
+        cleanup_result=1
+    fi
+
+    # Cleanup temporary files
+    rm -f "$temp_template_vars" "$temp_current_vars" "$temp_merged_config" "$temp_extra_vars" 2>/dev/null
+
+    if [ "$cleanup_result" = 0 ]; then
+        config_debug "=== INTELLIGENT CONFIG MERGE COMPLETE ==="
+        print_status "$GREEN" "✓ Configuration merged successfully: $total_preserved values preserved, $total_extra custom settings preserved"
+        return 0
+    else
+        config_debug "=== INTELLIGENT CONFIG MERGE FAILED ==="
         return 1
     fi
 }
@@ -377,6 +657,7 @@ create_directories() {
     debug_exec mkdir -p "$INSTALL_DIR"
     debug_exec mkdir -p "$INSTALL_DIR/config"
     debug_exec mkdir -p "$INSTALL_DIR/scripts"
+    debug_exec mkdir -p "$INSTALL_DIR/scripts/tests" # Subdirectory for test scripts
     debug_exec mkdir -p "$INSTALL_DIR/logs"
     debug_exec mkdir -p "/etc/starlink-logs"     # Persistent log directory
     debug_exec mkdir -p "$PERSISTENT_CONFIG_DIR" # Persistent config backup
@@ -489,6 +770,122 @@ install_binaries() {
     fi
 }
 
+# Create documentation for installed scripts
+create_script_documentation() {
+    print_status "$BLUE" "Creating script documentation..."
+
+    doc_file="$INSTALL_DIR/INSTALLED_SCRIPTS.md"
+
+    cat >"$doc_file" <<'EOF'
+# Starlink Monitor - Installed Scripts
+
+This document lists all scripts installed by the Starlink monitoring system.
+
+## Installation Directory Structure
+```
+/usr/local/starlink-monitor/
+├── scripts/                 # Main utility scripts
+│   ├── tests/              # Test and debug scripts  
+│   └── [utility scripts]
+├── config/                 # Configuration files
+└── logs/                   # Log files
+```
+
+## Core Monitoring Scripts
+
+### Main Scripts (in Starlink-RUTOS-Failover/)
+- `starlink_monitor-rutos.sh` - Main monitoring daemon
+- `starlink_logger-rutos.sh` - Logging system
+- `check_starlink_api-rutos.sh` - API connectivity checker
+- `99-pushover_notify-rutos.sh` - Hotplug notification handler
+
+### Utility Scripts (in scripts/)
+- `validate-config-rutos.sh` - Configuration validation
+- `system-status-rutos.sh` - System status checker
+- `health-check-rutos.sh` - Health monitoring  
+- `update-config-rutos.sh` - Configuration updater
+- `upgrade-to-advanced-rutos.sh` - Config upgrade tool
+- `merge-config-rutos.sh` - Configuration merger
+- `restore-config-rutos.sh` - Configuration restore
+- `cleanup-rutos.sh` - System cleanup utility
+- `self-update-rutos.sh` - Self-update system
+- `uci-optimizer-rutos.sh` - UCI configuration optimizer
+- `verify-cron-rutos.sh` - Cron job verifier
+- `update-cron-config-path-rutos.sh` - Cron path updater
+- `upgrade-rutos.sh` - System upgrade helper
+- `placeholder-utils.sh` - Utility functions library
+
+### Test Scripts (in scripts/tests/)
+- `test-pushover-rutos.sh` - Test Pushover notifications
+- `test-monitoring-rutos.sh` - Test monitoring system
+- `test-connectivity-rutos.sh` - Test network connectivity
+- `test-colors-rutos.sh` - Test color output
+- `test-method5-rutos.sh` - Test Method5 format compatibility
+- `test-cron-cleanup-rutos.sh` - Test cron cleanup
+- `test-notification-merge-rutos.sh` - Test notification merging
+- `debug-notification-merge-rutos.sh` - Debug notification settings
+
+## Usage Examples
+
+### Running Tests
+```bash
+# Test all functionality
+/usr/local/starlink-monitor/scripts/tests/test-monitoring-rutos.sh
+
+# Test Pushover notifications
+/usr/local/starlink-monitor/scripts/tests/test-pushover-rutos.sh
+
+# Test configuration merge
+/usr/local/starlink-monitor/scripts/tests/test-notification-merge-rutos.sh
+```
+
+### System Management  
+```bash
+# Check system status
+/usr/local/starlink-monitor/scripts/system-status-rutos.sh
+
+# Validate configuration
+/usr/local/starlink-monitor/scripts/validate-config-rutos.sh
+
+# Perform health check
+/usr/local/starlink-monitor/scripts/health-check-rutos.sh
+```
+
+### Configuration Management
+```bash
+# Update configuration
+/usr/local/starlink-monitor/scripts/update-config-rutos.sh
+
+# Merge configurations
+/usr/local/starlink-monitor/scripts/merge-config-rutos.sh
+
+# Restore from backup
+/usr/local/starlink-monitor/scripts/restore-config-rutos.sh
+```
+
+## Debug Mode
+
+Most scripts support debug mode by setting `DEBUG=1`:
+
+```bash
+DEBUG=1 /usr/local/starlink-monitor/scripts/test-monitoring-rutos.sh
+```
+
+## Configuration Debug
+
+For configuration-related debugging, use `CONFIG_DEBUG=1`:
+
+```bash
+CONFIG_DEBUG=1 /usr/local/starlink-monitor/scripts/validate-config-rutos.sh
+```
+
+---
+Generated by install-rutos.sh on $(date)
+EOF
+
+    print_status "$GREEN" "✓ Script documentation created: $doc_file"
+}
+
 # Install scripts
 install_scripts() {
     print_status "$BLUE" "Installing monitoring scripts..."
@@ -546,21 +943,23 @@ install_scripts() {
         fi
     done
 
-    # All scripts must use the *-rutos.sh naming convention
+    # Install all utility and test scripts with *-rutos.sh naming convention
+    # Core utility scripts
     for script in \
         validate-config-rutos.sh \
-        placeholder-utils.sh \
         system-status-rutos.sh \
-        test-pushover-rutos.sh \
-        test-monitoring-rutos.sh \
         health-check-rutos.sh \
         update-config-rutos.sh \
         upgrade-to-advanced-rutos.sh \
-        test-connectivity-rutos.sh \
-        test-colors-rutos.sh \
-        test-method5-rutos.sh \
         merge-config-rutos.sh \
-        verify-cron-rutos.sh; do
+        restore-config-rutos.sh \
+        cleanup-rutos.sh \
+        self-update-rutos.sh \
+        uci-optimizer-rutos.sh \
+        verify-cron-rutos.sh \
+        update-cron-config-path-rutos.sh \
+        upgrade-rutos.sh \
+        placeholder-utils.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then
             cp "$script_dir/$script" "$INSTALL_DIR/scripts/$script"
@@ -580,6 +979,65 @@ install_scripts() {
             fi
         fi
     done
+
+    # Install test and debug scripts (separate section for better organization)
+    print_status "$BLUE" "Installing test and debug scripts..."
+    for script in \
+        test-pushover-rutos.sh \
+        test-monitoring-rutos.sh \
+        test-connectivity-rutos.sh \
+        test-colors-rutos.sh \
+        test-method5-rutos.sh \
+        test-cron-cleanup-rutos.sh \
+        test-notification-merge-rutos.sh \
+        debug-notification-merge-rutos.sh; do
+        # Try local script first
+        if [ -f "$script_dir/$script" ]; then
+            cp "$script_dir/$script" "$INSTALL_DIR/scripts/tests/$script"
+            chmod +x "$INSTALL_DIR/scripts/tests/$script"
+            print_status "$GREEN" "✓ $script installed (tests/)"
+        elif [ -f "$script_dir/../scripts/$script" ]; then
+            cp "$script_dir/../scripts/$script" "$INSTALL_DIR/scripts/tests/$script"
+            chmod +x "$INSTALL_DIR/scripts/tests/$script"
+            print_status "$GREEN" "✓ $script installed (tests/)"
+        else
+            print_status "$BLUE" "Downloading $script..."
+            if download_file "$BASE_URL/scripts/$script" "$INSTALL_DIR/scripts/tests/$script"; then
+                chmod +x "$INSTALL_DIR/scripts/tests/$script"
+                print_status "$GREEN" "✓ $script downloaded and installed (tests/)"
+            else
+                print_status "$YELLOW" "⚠ Warning: Could not download $script"
+            fi
+        fi
+    done
+
+    print_status "$GREEN" "✓ All scripts installation completed"
+
+    # Create script documentation
+    create_script_documentation
+
+    # Verify installation completeness
+    print_status "$BLUE" "Verifying script installation..."
+
+    utility_count=$(find "$INSTALL_DIR/scripts" -name "*-rutos.sh" -type f | wc -l)
+    test_count=$(find "$INSTALL_DIR/scripts/tests" -name "*-rutos.sh" -type f 2>/dev/null | wc -l)
+
+    print_status "$GREEN" "✓ Installation verification complete:"
+    print_status "$BLUE" "  - Utility scripts installed: $utility_count"
+    print_status "$BLUE" "  - Test scripts installed: $test_count"
+    print_status "$BLUE" "  - Documentation: $INSTALL_DIR/INSTALLED_SCRIPTS.md"
+
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "Detailed script listing:"
+        debug_msg "Utility scripts:"
+        find "$INSTALL_DIR/scripts" -name "*-rutos.sh" -type f | sort | while IFS= read -r script; do
+            debug_msg "  $(basename "$script")"
+        done
+        debug_msg "Test scripts:"
+        find "$INSTALL_DIR/scripts/tests" -name "*-rutos.sh" -type f 2>/dev/null | sort | while IFS= read -r script; do
+            debug_msg "  $(basename "$script")"
+        done || debug_msg "  (No test scripts directory or scripts found)"
+    fi
 }
 
 # Install configuration
@@ -693,281 +1151,22 @@ install_config() {
             exit 1
         fi
 
-        # Perform intelligent merge
+        # Use the new intelligent merge system
         config_debug "=== STARTING INTELLIGENT MERGE ==="
         print_status "$BLUE" "Merging settings from existing configuration..."
-        temp_merged_config="/tmp/config_merged.sh.$$"
-        config_debug "Temp merged config file: $temp_merged_config"
 
-        if ! cp "$selected_template" "$temp_merged_config"; then
-            config_debug "MERGE PREP FAILED! Could not copy template to temp file"
-            print_status "$RED" "✗ Failed to prepare template for merge"
-            exit 1
-        fi
-
-        config_debug "Template copied to temp file successfully"
-        config_debug "Temp file size after copy: $(wc -c <"$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
-
-        # Enhanced settings preservation
-        settings_to_preserve="STARLINK_IP MWAN_IFACE MWAN_MEMBER PUSHOVER_TOKEN PUSHOVER_USER RUTOS_USERNAME RUTOS_PASSWORD RUTOS_IP PING_TARGETS PING_COUNT PING_TIMEOUT PING_INTERVAL CHECK_INTERVAL FAIL_COUNT_THRESHOLD RECOVERY_COUNT_THRESHOLD INITIAL_DELAY ENABLE_LOGGING LOG_RETENTION_DAYS ENABLE_PUSHOVER_NOTIFICATIONS ENABLE_SYSLOG SYSLOG_PRIORITY ENABLE_HOTPLUG_NOTIFICATIONS ENABLE_STATUS_LOGGING ENABLE_API_MONITORING ENABLE_PING_MONITORING STARLINK_GRPC_PORT API_CHECK_INTERVAL MWAN3_POLICY MWAN3_RULE NOTIFICATION_COOLDOWN NOTIFICATION_RECOVERY_DELAY ENABLE_DETAILED_LOGGING"
-
-        preserved_count=0
-        total_count=0
-        config_debug "=== PROCESSING INDIVIDUAL SETTINGS ==="
-        config_debug "Settings to check: $(echo "$settings_to_preserve" | wc -w)"
-
-        # Show what settings actually exist in the current config
-        if [ "${CONFIG_DEBUG:-0}" = "1" ]; then
-            config_debug "=== CURRENT CONFIG FILE ANALYSIS ==="
-            config_debug "All lines with '=' assignments found in existing config:"
-            grep "^[A-Za-z_][A-Za-z0-9_]*=" "$primary_config" 2>/dev/null | while IFS= read -r line; do
-                case "$line" in
-                    *TOKEN* | *PASSWORD* | *USER*)
-                        config_debug "  $(echo "$line" | sed 's/=.*/=***/')"
-                        ;;
-                    *)
-                        config_debug "  $line"
-                        ;;
-                esac
-            done || config_debug "  (No variable assignments found)"
-            config_debug "=== END CONFIG FILE ANALYSIS ==="
-        fi
-
-        for setting in $settings_to_preserve; do
-            total_count=$((total_count + 1))
-            config_debug "--- Processing setting $total_count: $setting ---"
-            debug_msg "Processing setting: $setting"
-
-            # Check if setting exists in existing config
-            config_debug "Checking for setting in existing config..."
-            config_debug "SEARCH PATTERN: '^${setting}=' in $primary_config"
-
-            # Enhanced debugging: show what we're looking for and what's similar
-            if [ "${CONFIG_DEBUG:-0}" = "1" ]; then
-                # Show lines that might match (for debugging)
-                matching_lines=$(grep -i "$setting" "$primary_config" 2>/dev/null || true)
-                if [ -n "$matching_lines" ]; then
-                    config_debug "SIMILAR LINES FOUND (case-insensitive):"
-                    echo "$matching_lines" | while IFS= read -r line; do
-                        config_debug "  $line"
-                    done
-                else
-                    config_debug "NO SIMILAR LINES FOUND for '$setting'"
-                fi
-
-                # Show exact pattern match attempt
-                exact_matches=$(grep "^${setting}=" "$primary_config" 2>/dev/null || true)
-                if [ -n "$exact_matches" ]; then
-                    config_debug "EXACT PATTERN MATCHES:"
-                    echo "$exact_matches" | while IFS= read -r line; do
-                        config_debug "  $line"
-                    done
-                else
-                    config_debug "NO EXACT PATTERN MATCHES for '^${setting}='"
-                fi
-            fi
-
-            # Try to find the setting with or without export prefix
-            if grep -q "^${setting}=" "$primary_config" 2>/dev/null; then
-                user_value=$(grep "^${setting}=" "$primary_config" | head -1)
-                config_debug "Found setting without export prefix: $setting"
-            elif grep -q "^export ${setting}=" "$primary_config" 2>/dev/null; then
-                user_value=$(grep "^export ${setting}=" "$primary_config" | head -1)
-                config_debug "Found setting with export prefix: $setting"
-            else
-                user_value=""
-            fi
-
-            if [ -n "$user_value" ]; then
-                config_debug "Found in existing config: $setting"
-
-                # Mask sensitive values in debug output
-                case "$setting" in
-                    *TOKEN* | *PASSWORD* | *USER*)
-                        config_debug "Value: $(echo "$user_value" | sed 's/=.*/=***/')"
-                        ;;
-                    *)
-                        config_debug "Value: $user_value"
-                        ;;
-                esac
-
-                debug_msg "Found setting in existing config: $user_value"
-
-                # Skip placeholder values
-                config_debug "Checking if value is placeholder..."
-
-                # Extract just the value part (handle both export and non-export formats)
-                if echo "$user_value" | grep -q "^export "; then
-                    # Extract value from: export VAR="value"
-                    actual_value=$(echo "$user_value" | sed 's/^export [^=]*=//; s/^"//; s/"$//')
-                    config_debug "Extracted value from export format: '$actual_value'"
-                else
-                    # Extract value from: VAR="value"
-                    actual_value=$(echo "$user_value" | sed 's/^[^=]*=//; s/^"//; s/"$//')
-                    config_debug "Extracted value from standard format: '$actual_value'"
-                fi
-
-                if [ -n "$actual_value" ] && ! echo "$actual_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)" 2>/dev/null; then
-                    config_debug "Value is not a placeholder, proceeding with merge"
-
-                    # Check if setting exists in template
-                    if grep -q "^export ${setting}=" "$temp_merged_config" 2>/dev/null; then
-                        config_debug "Setting exists in template with export, replacing..."
-                        # Create the replacement line in export format to match template
-                        replacement_line="export ${setting}=\"${actual_value}\""
-                        # Replace existing line
-                        if sed -i "s|^export ${setting}=.*|${replacement_line}|" "$temp_merged_config" 2>/dev/null; then
-                            preserved_count=$((preserved_count + 1))
-                            config_debug "✓ Successfully replaced export: $setting with value '$actual_value'"
-                            debug_msg "Successfully preserved: $setting"
-                        else
-                            config_debug "✗ Failed to replace export: $setting"
-                            debug_msg "Failed to replace setting: $setting"
-                        fi
-                    elif grep -q "^${setting}=" "$temp_merged_config" 2>/dev/null; then
-                        config_debug "Setting exists in template without export, replacing..."
-                        # Create the replacement line in standard format
-                        replacement_line="${setting}=\"${actual_value}\""
-                        # Replace existing line
-                        if sed -i "s|^${setting}=.*|${replacement_line}|" "$temp_merged_config" 2>/dev/null; then
-                            preserved_count=$((preserved_count + 1))
-                            config_debug "✓ Successfully replaced: $setting with value '$actual_value'"
-                            debug_msg "Successfully preserved: $setting"
-                        else
-                            config_debug "✗ Failed to replace: $setting"
-                            debug_msg "Failed to replace setting: $setting"
-                        fi
-                    else
-                        config_debug "Setting not in template, adding as new line..."
-                        # Add new line if not in template (use export format to match template style)
-                        replacement_line="export ${setting}=\"${actual_value}\""
-                        if echo "$replacement_line" >>"$temp_merged_config" 2>/dev/null; then
-                            preserved_count=$((preserved_count + 1))
-                            config_debug "✓ Successfully added: $setting with value '$actual_value'"
-                            debug_msg "Successfully added: $setting"
-                        else
-                            config_debug "✗ Failed to add: $setting"
-                            debug_msg "Failed to add setting: $setting"
-                        fi
-                    fi
-                else
-                    config_debug "⚠ Skipping placeholder value: $setting"
-                    debug_msg "Skipping placeholder value for: $setting"
-                fi
-            else
-                config_debug "⚠ Setting not found in existing config: $setting"
-                debug_msg "Setting not found in existing config: $setting"
-            fi
-        done
-
-        config_debug "=== MERGE PROCESSING COMPLETE ==="
-        config_debug "Total settings processed: $total_count"
-        config_debug "Settings preserved: $preserved_count"
-        config_debug "Merged file size: $(wc -c <"$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
-
-        # Clean up duplicate variables (remove non-export duplicates of export variables)
-        config_debug "=== CLEANING UP DUPLICATE VARIABLES ==="
-        temp_cleaned_config="/tmp/config_cleaned.sh.$$"
-
-        # Create a list of export variables in the file
-        export_vars=$(grep "^export [A-Za-z_][A-Za-z0-9_]*=" "$temp_merged_config" 2>/dev/null | sed 's/^export \([^=]*\)=.*/\1/' || true)
-
-        if [ -n "$export_vars" ]; then
-            config_debug "Found export variables to check for duplicates:"
-            echo "$export_vars" | while read -r var; do
-                [ -n "$var" ] && config_debug "  $var"
-            done || true
-
-            # Copy file and remove non-export duplicates of export variables
-            cp "$temp_merged_config" "$temp_cleaned_config"
-
-            # For each export variable, remove any non-export duplicate
-            echo "$export_vars" | while read -r var; do
-                if [ -n "$var" ]; then
-                    config_debug "Removing non-export duplicates of: $var"
-                    # Remove lines that match: VAR="value" but not: export VAR="value"
-                    sed -i "/^${var}=/d" "$temp_cleaned_config" 2>/dev/null || true
-                fi
-            done
-
-            # Update the merged config with cleaned version
-            mv "$temp_cleaned_config" "$temp_merged_config"
-            config_debug "Duplicate cleanup completed"
-            config_debug "Cleaned file size: $(wc -c <"$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
+        # Call the new intelligent config merge function
+        if intelligent_config_merge "$selected_template" "$primary_config" "$backup_file"; then
+            print_status "$GREEN" "✓ Configuration merged successfully using intelligent merge"
+            print_status "$GREEN" "✓ Updated persistent configuration: $primary_config"
         else
-            config_debug "No export variables found, skipping duplicate cleanup"
-        fi
-
-        # Replace the primary config with merged version
-        config_debug "=== FINALIZING MERGE ==="
-        config_debug "Checking merged config file..."
-        if [ -f "$temp_merged_config" ] && [ -s "$temp_merged_config" ]; then
-            config_debug "Merged config file exists and is not empty"
-            config_debug "Final merged file size: $(wc -c <"$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
-
-            # Show sample of merged config for debugging
-            if [ "${CONFIG_DEBUG:-0}" = "1" ]; then
-                config_debug "First 15 lines of merged config:"
-                head -15 "$temp_merged_config" 2>/dev/null | while IFS= read -r line; do
-                    case "$line" in
-                        *TOKEN* | *PASSWORD* | *USER*)
-                            config_debug "  $(echo "$line" | sed 's/=.*/=***/')"
-                            ;;
-                        *)
-                            config_debug "  $line"
-                            ;;
-                    esac
-                done || config_debug "  (Cannot read merged config file)"
-            fi
-
-            config_debug "Replacing primary config with merged version..."
-            if mv "$temp_merged_config" "$primary_config" 2>/dev/null; then
-                config_debug "✓ Primary config replacement successful"
-                config_debug "Final config file size: $(wc -c <"$primary_config" 2>/dev/null || echo 'unknown') bytes"
-                print_status "$GREEN" "✓ Configuration merged successfully: $preserved_count/$total_count settings preserved"
-                print_status "$GREEN" "✓ Updated persistent configuration: $primary_config"
-            else
-                config_debug "✗ FAILED to replace primary config!"
-                print_status "$RED" "✗ Failed to update primary configuration!"
-                # Restore backup
-                mv "$backup_file" "$primary_config" 2>/dev/null
-                exit 1
-            fi
-        else
-            config_debug "✗ Merged config file is missing or empty!"
-            config_debug "Temp merged config file: $temp_merged_config"
-            if [ -f "$temp_merged_config" ]; then
-                config_debug "File exists but size: $(wc -c <"$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
-            else
-                config_debug "File does not exist"
-            fi
-            print_status "$RED" "✗ Merged configuration is empty or missing!"
-            print_status "$RED" "  This usually indicates a problem with the merge process"
+            print_status "$RED" "✗ Intelligent merge failed!"
             # Restore backup
-            mv "$backup_file" "$primary_config" 2>/dev/null
+            if [ -f "$backup_file" ]; then
+                mv "$backup_file" "$primary_config" 2>/dev/null
+                print_status "$YELLOW" "✓ Configuration restored from backup"
+            fi
             exit 1
-        fi
-
-        config_debug "=== CONFIG INSTALLATION COMPLETE ==="
-        config_debug "Final validation of installed config..."
-        if [ -f "$primary_config" ]; then
-            config_debug "✓ Primary config file exists: $primary_config"
-            config_debug "✓ Final config size: $(wc -c <"$primary_config" 2>/dev/null || echo 'unknown') bytes"
-
-            # Quick validation of critical settings
-            config_critical_count=0
-            for setting in "PUSHOVER_APP_TOKEN" "PUSHOVER_USER_KEY" "STARLINK_CHECK_INTERVAL"; do
-                if grep -q "^${setting}=" "$primary_config" 2>/dev/null; then
-                    config_critical_count=$((config_critical_count + 1))
-                    config_debug "✓ Critical setting found: $setting"
-                else
-                    config_debug "⚠ Critical setting missing: $setting"
-                fi
-            done
-            config_debug "Critical settings found: $config_critical_count/3"
-        else
-            config_debug "✗ Primary config file missing after installation!"
-            return 1
         fi
 
     else
