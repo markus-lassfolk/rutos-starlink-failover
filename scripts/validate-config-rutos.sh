@@ -965,5 +965,47 @@ main() {
     print_status "$CYAN" "• Re-run this validator: $SCRIPT_NAME"
 }
 
+# Parse command line arguments
+QUIET_MODE=0
+FORCE_MIGRATION="false"
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --quiet|-q)
+            QUIET_MODE=1
+            shift
+            ;;
+        --migrate)
+            FORCE_MIGRATION="true"
+            shift
+            ;;
+        --help|-h)
+            show_usage
+            exit 0
+            ;;
+        *)
+            printf "%b\n" "${RED}Unknown option: $1${NC}" >&2
+            show_usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Override print_status function in quiet mode
+if [ "$QUIET_MODE" = "1" ]; then
+    print_status() {
+        # In quiet mode, only output errors to stderr
+        if [ "$1" = "$RED" ]; then
+            printf "%b\n" "$2" >&2
+        fi
+    }
+    debug_msg() {
+        # Suppress debug messages in quiet mode unless DEBUG=1
+        if [ "${DEBUG:-0}" = "1" ]; then
+            printf "[DEBUG] %s\n" "$1" >&2
+        fi
+    }
+fi
+
 # Run main function
 main

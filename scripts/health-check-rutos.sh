@@ -3,6 +3,9 @@
 # Version: 1.0.2
 # Description: Comprehensive system health check that orchestrates all other test scripts
 
+# RUTOS Compatibility - Using Method 5 printf format for proper color display
+# shellcheck disable=SC2059  # Method 5 printf format required for RUTOS color support
+
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
