@@ -752,9 +752,22 @@ install_config() {
                     config_debug "Value is not a placeholder, proceeding with merge"
                     
                     # Check if setting exists in template
-                    if grep -q "^${setting}=" "$temp_merged_config" 2>/dev/null; then
-                        config_debug "Setting exists in template, replacing..."
-                        # Create the replacement line in standard format (no export)
+                    if grep -q "^export ${setting}=" "$temp_merged_config" 2>/dev/null; then
+                        config_debug "Setting exists in template with export, replacing..."
+                        # Create the replacement line in export format to match template
+                        replacement_line="export ${setting}=\"${actual_value}\""
+                        # Replace existing line
+                        if sed -i "s|^export ${setting}=.*|${replacement_line}|" "$temp_merged_config" 2>/dev/null; then
+                            preserved_count=$((preserved_count + 1))
+                            config_debug "✓ Successfully replaced export: $setting with value '$actual_value'"
+                            debug_msg "Successfully preserved: $setting"
+                        else
+                            config_debug "✗ Failed to replace export: $setting"
+                            debug_msg "Failed to replace setting: $setting"
+                        fi
+                    elif grep -q "^${setting}=" "$temp_merged_config" 2>/dev/null; then
+                        config_debug "Setting exists in template without export, replacing..."
+                        # Create the replacement line in standard format
                         replacement_line="${setting}=\"${actual_value}\""
                         # Replace existing line
                         if sed -i "s|^${setting}=.*|${replacement_line}|" "$temp_merged_config" 2>/dev/null; then
@@ -767,8 +780,8 @@ install_config() {
                         fi
                     else
                         config_debug "Setting not in template, adding as new line..."
-                        # Add new line if not in template (use standard format)
-                        replacement_line="${setting}=\"${actual_value}\""
+                        # Add new line if not in template (use export format to match template style)
+                        replacement_line="export ${setting}=\"${actual_value}\""
                         if echo "$replacement_line" >>"$temp_merged_config" 2>/dev/null; then
                             preserved_count=$((preserved_count + 1))
                             config_debug "✓ Successfully added: $setting with value '$actual_value'"
@@ -792,6 +805,39 @@ install_config() {
         config_debug "Total settings processed: $total_count"
         config_debug "Settings preserved: $preserved_count"
         config_debug "Merged file size: $(wc -c < "$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
+
+        # Clean up duplicate variables (remove non-export duplicates of export variables)
+        config_debug "=== CLEANING UP DUPLICATE VARIABLES ==="
+        temp_cleaned_config="/tmp/config_cleaned.sh.$$"
+        
+        # Create a list of export variables in the file
+        export_vars=$(grep "^export [A-Za-z_][A-Za-z0-9_]*=" "$temp_merged_config" 2>/dev/null | sed 's/^export \([^=]*\)=.*/\1/' || true)
+        
+        if [ -n "$export_vars" ]; then
+            config_debug "Found export variables to check for duplicates:"
+            echo "$export_vars" | while read -r var; do
+                [ -n "$var" ] && config_debug "  $var"
+            done || true
+            
+            # Copy file and remove non-export duplicates of export variables
+            cp "$temp_merged_config" "$temp_cleaned_config"
+            
+            # For each export variable, remove any non-export duplicate
+            echo "$export_vars" | while read -r var; do
+                if [ -n "$var" ]; then
+                    config_debug "Removing non-export duplicates of: $var"
+                    # Remove lines that match: VAR="value" but not: export VAR="value"
+                    sed -i "/^${var}=/d" "$temp_cleaned_config" 2>/dev/null || true
+                fi
+            done
+            
+            # Update the merged config with cleaned version
+            mv "$temp_cleaned_config" "$temp_merged_config"
+            config_debug "Duplicate cleanup completed"
+            config_debug "Cleaned file size: $(wc -c < "$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
+        else
+            config_debug "No export variables found, skipping duplicate cleanup"
+        fi
 
         # Replace the primary config with merged version
         config_debug "=== FINALIZING MERGE ==="
