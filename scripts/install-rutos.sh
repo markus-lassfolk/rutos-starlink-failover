@@ -656,6 +656,23 @@ install_config() {
         total_count=0
         config_debug "=== PROCESSING INDIVIDUAL SETTINGS ==="
         config_debug "Settings to check: $(echo $settings_to_preserve | wc -w)"
+        
+        # Show what settings actually exist in the current config
+        if [ "${CONFIG_DEBUG:-0}" = "1" ]; then
+            config_debug "=== CURRENT CONFIG FILE ANALYSIS ==="
+            config_debug "All lines with '=' assignments found in existing config:"
+            grep "^[A-Za-z_][A-Za-z0-9_]*=" "$primary_config" 2>/dev/null | while IFS= read -r line; do
+                case "$line" in
+                    *TOKEN*|*PASSWORD*|*USER*)
+                        config_debug "  $(echo "$line" | sed 's/=.*/=***/')"
+                        ;;
+                    *)
+                        config_debug "  $line"
+                        ;;
+                esac
+            done || config_debug "  (No variable assignments found)"
+            config_debug "=== END CONFIG FILE ANALYSIS ==="
+        fi
 
         for setting in $settings_to_preserve; do
             total_count=$((total_count + 1))
@@ -664,6 +681,33 @@ install_config() {
 
             # Check if setting exists in existing config
             config_debug "Checking for setting in existing config..."
+            config_debug "SEARCH PATTERN: '^${setting}=' in $primary_config"
+            
+            # Enhanced debugging: show what we're looking for and what's similar
+            if [ "${CONFIG_DEBUG:-0}" = "1" ]; then
+                # Show lines that might match (for debugging)
+                matching_lines=$(grep -i "$setting" "$primary_config" 2>/dev/null || true)
+                if [ -n "$matching_lines" ]; then
+                    config_debug "SIMILAR LINES FOUND (case-insensitive):"
+                    echo "$matching_lines" | while IFS= read -r line; do
+                        config_debug "  $line"
+                    done
+                else
+                    config_debug "NO SIMILAR LINES FOUND for '$setting'"
+                fi
+                
+                # Show exact pattern match attempt
+                exact_matches=$(grep "^${setting}=" "$primary_config" 2>/dev/null || true)
+                if [ -n "$exact_matches" ]; then
+                    config_debug "EXACT PATTERN MATCHES:"
+                    echo "$exact_matches" | while IFS= read -r line; do
+                        config_debug "  $line"
+                    done
+                else
+                    config_debug "NO EXACT PATTERN MATCHES for '^${setting}='"
+                fi
+            fi
+            
             if grep -q "^${setting}=" "$primary_config" 2>/dev/null; then
                 user_value=$(grep "^${setting}=" "$primary_config" | head -1)
                 config_debug "Found in existing config: $setting"
