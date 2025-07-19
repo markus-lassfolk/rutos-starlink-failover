@@ -971,7 +971,7 @@ FORCE_MIGRATION="false"
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --quiet|-q)
+        --quiet | -q)
             QUIET_MODE=1
             shift
             ;;
@@ -979,7 +979,7 @@ while [ $# -gt 0 ]; do
             FORCE_MIGRATION="true"
             shift
             ;;
-        --help|-h)
+        --help | -h)
             show_usage
             exit 0
             ;;
