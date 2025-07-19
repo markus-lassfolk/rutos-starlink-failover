@@ -742,12 +742,39 @@ configure_cron() {
 
     # Add our default cron entries only if none exist
     print_status "$BLUE" "Adding default cron entries..."
+    # Clean up any old cron entries using the old CONFIG_FILE path
+    old_entries_found=0
+    if grep -q "CONFIG_FILE=.*/config/config.sh" "$CRON_FILE" 2>/dev/null; then
+        # Check if they contain the old pattern (not /etc/starlink-config)
+        if grep -q "CONFIG_FILE=.*/config/config.sh" "$CRON_FILE" 2>/dev/null && ! grep -q "CONFIG_FILE=/etc/starlink-config/config.sh" "$CRON_FILE" 2>/dev/null; then
+            old_entries_found=1
+            print_status "$YELLOW" "🧹 Removing old cron entries with deprecated CONFIG_FILE path..."
+            
+            # Create temporary file without old entries - remove entries with old pattern but keep /etc/starlink-config ones
+            temp_cron="/tmp/crontab_update_$$.tmp"
+            grep -v "CONFIG_FILE=.*/starlink-monitor/config/config.sh" "$CRON_FILE" > "$temp_cron" 2>/dev/null || touch "$temp_cron"
+            
+            # Update crontab
+            if crontab "$temp_cron" 2>/dev/null; then
+                rm -f "$temp_cron"
+                print_status "$GREEN" "✓ Cleaned up old cron entries"
+            else
+                rm -f "$temp_cron"
+                print_status "$YELLOW" "⚠ Warning: Could not clean old cron entries"
+            fi
+            
+            # Reload cron file
+            CRON_FILE="/tmp/crontab_current_$$.tmp"
+            crontab -l > "$CRON_FILE" 2>/dev/null || touch "$CRON_FILE"
+        fi
+    fi
+
     cat >>"$CRON_FILE" <<EOF
 
 # Starlink monitoring system - Added by install script $(date +%Y-%m-%d)
-* * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_monitor-rutos.sh
-* * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_logger-rutos.sh
-0 6 * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/check_starlink_api-rutos.sh
+* * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_monitor-rutos.sh
+* * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_logger-rutos.sh
+0 6 * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/check_starlink_api-rutos.sh
 EOF
 
     # Restart cron service
