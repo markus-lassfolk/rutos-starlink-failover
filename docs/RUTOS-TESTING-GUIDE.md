@@ -109,7 +109,7 @@ echo "SSH_CLIENT: $SSH_CLIENT"
 1. **Check config file exists**:
 
    ```bash
-   ls -la /usr/local/starlink-monitor/config/config.sh
+   ls -la /etc/starlink-config/config.sh
    ```
 
 2. **Verify permissions**:
@@ -213,7 +213,7 @@ If something goes wrong:
 chmod +x /usr/local/starlink-monitor/scripts/*.sh
 
 # Reload configuration
-. /usr/local/starlink-monitor/config/config.sh
+. /etc/starlink-config/config.sh
 
 # Restart networking (if needed)
 /etc/init.d/network restart

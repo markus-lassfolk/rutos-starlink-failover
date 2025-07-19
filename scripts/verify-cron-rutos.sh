@@ -3,6 +3,9 @@
 # Version: 2.0.4
 # Description: Standalone cron configuration verification for Starlink monitoring
 
+# RUTOS Compatibility - Using Method 5 printf format for proper color display
+# shellcheck disable=SC2059  # Method 5 printf format required for RUTOS color support
+
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
@@ -288,7 +291,7 @@ check_script_files() {
     done
 
     # Check configuration file
-    config_path="$INSTALL_DIR/config/config.sh"
+    config_path="/etc/starlink-config/config.sh"
     if [ -f "$config_path" ]; then
         show_result "ok" "Config File" "Configuration exists"
     else

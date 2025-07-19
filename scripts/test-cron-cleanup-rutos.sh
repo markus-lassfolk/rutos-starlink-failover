@@ -91,12 +91,20 @@ create_test_crontab() {
 0 6 * * * CONFIG_FILE=/usr/local/starlink-monitor/config/config.sh /usr/local/starlink-monitor/scripts/check_starlink_api-rutos.sh
 
 # Custom timing for starlink (should be preserved)
-*/5 * * * * CONFIG_FILE=/usr/local/starlink-monitor/config/config.sh /usr/local/starlink-monitor/scripts/starlink_monitor-rutos.sh >/dev/null 2>&1
+*/5 * * * * CONFIG_FILE=/etc/starlink-config/config.sh /usr/local/starlink-monitor/scripts/starlink_monitor-rutos.sh >/dev/null 2>&1
+
+# Second set of cron entries (duplicates with different timing)
+* * * * * CONFIG_FILE=/etc/starlink-config/config.sh /usr/local/starlink-monitor/scripts/starlink_monitor-rutos.sh
+* * * * * CONFIG_FILE=/etc/starlink-config/config.sh /usr/local/starlink-monitor/scripts/starlink_logger-rutos.sh
+0 6 * * * CONFIG_FILE=/etc/starlink-config/config.sh /usr/local/starlink-monitor/scripts/check_starlink_api-rutos.sh
+
+# COMMENTED BY INSTALL SCRIPT 2025-07-17: * * * * * CONFIG_FILE=/etc/starlink-config/config.sh /usr/local/starlink-monitor/scripts/starlink_monitor-rutos.sh
+# COMMENTED BY INSTALL SCRIPT 2025-07-17: 0 6 * * * CONFIG_FILE=/etc/starlink-config/config.sh /usr/local/starlink-monitor/scripts/check_starlink_api-rutos.sh
 
 # Starlink monitoring system - Added by install script 2025-07-19
-* * * * * CONFIG_FILE=/usr/local/starlink-monitor/config/config.sh /usr/local/starlink-monitor/scripts/starlink_monitor-rutos.sh
-* * * * * CONFIG_FILE=/usr/local/starlink-monitor/config/config.sh /usr/local/starlink-monitor/scripts/starlink_logger-rutos.sh
-0 6 * * * CONFIG_FILE=/usr/local/starlink-monitor/config/config.sh /usr/local/starlink-monitor/scripts/check_starlink_api-rutos.sh
+* * * * * CONFIG_FILE=/etc/starlink-config/config.sh /usr/local/starlink-monitor/scripts/starlink_monitor-rutos.sh
+* * * * * CONFIG_FILE=/etc/starlink-config/config.sh /usr/local/starlink-monitor/scripts/starlink_logger-rutos.sh
+0 6 * * * CONFIG_FILE=/etc/starlink-config/config.sh /usr/local/starlink-monitor/scripts/check_starlink_api-rutos.sh
 
 # COMMENTED BY INSTALL SCRIPT 2025-07-17: * * * * * CONFIG_FILE=/usr/local/starlink-monitor/config/config.sh /usr/local/starlink-monitor/scripts/starlink_monitor-rutos.sh
 # COMMENTED BY INSTALL SCRIPT 2025-07-17: 0 6 * * * CONFIG_FILE=/usr/local/starlink-monitor/config/config.sh /usr/local/starlink-monitor/scripts/check_starlink_api-rutos.sh

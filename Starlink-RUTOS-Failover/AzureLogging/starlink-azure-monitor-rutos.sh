@@ -5,9 +5,10 @@
 # It collects performance data in CSV format and ships it to Azure alongside system logs
 
 # Source the main config if it exists
-if [ -f "/root/starlink-monitor/config/config.sh" ]; then
-    # shellcheck disable=SC1091  # Config file path is dynamic and may not exist
-    . "/root/starlink-monitor/config/config.sh"
+if [ -f "/etc/starlink-config/config.sh" ]; then
+    # Load configuration from persistent location
+    # shellcheck disable=SC1091  # Don't follow dynamic config file
+    . "/etc/starlink-config/config.sh"
 fi
 
 # --- AZURE INTEGRATION CONFIGURATION ---

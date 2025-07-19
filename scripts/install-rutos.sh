@@ -1023,7 +1023,7 @@ main() {
         fi
     done
     print_status "$YELLOW" "Next steps:"
-    print_status "$YELLOW" "1. Edit basic configuration: $available_editor $INSTALL_DIR/config/config.sh"
+    print_status "$YELLOW" "1. Edit basic configuration: $available_editor $PERSISTENT_CONFIG_DIR/config.sh"
     print_status "$YELLOW" "   - Update network settings (MWAN_IFACE, MWAN_MEMBER)"
     print_status "$YELLOW" "   - Configure Pushover notifications (optional)"
     print_status "$YELLOW" "   - Adjust failover thresholds if needed"
@@ -1063,7 +1063,7 @@ main() {
     print_status "$BLUE" "  • Validate config: ./scripts/validate-config-rutos.sh"
     print_status "$BLUE" "  • Upgrade to advanced: ./scripts/upgrade-to-advanced-rutos.sh"
     print_status "$BLUE" "Installation directory: $INSTALL_DIR"
-    print_status "$BLUE" "Configuration file: $INSTALL_DIR/config/config.sh"
+    print_status "$BLUE" "Configuration file: $PERSISTENT_CONFIG_DIR/config.sh"
     print_status "$BLUE" "Uninstall script: $INSTALL_DIR/uninstall.sh"
     print_status "$BLUE" "Scripts downloaded from: https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
     printf "\n"

@@ -3,6 +3,9 @@
 # Version: 1.0.2
 # Description: Show system status with graceful degradation information
 
+# RUTOS Compatibility - Using Method 5 printf format for proper color display
+# shellcheck disable=SC2059  # Method 5 printf format required for RUTOS color support
+
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
@@ -110,7 +113,7 @@ show_status() {
 }
 
 # Configuration paths
-CONFIG_FILE="/root/starlink-monitor/config/config.sh"
+CONFIG_FILE="/etc/starlink-config/config.sh"
 INSTALL_DIR="/root/starlink-monitor"
 
 # Debug mode support

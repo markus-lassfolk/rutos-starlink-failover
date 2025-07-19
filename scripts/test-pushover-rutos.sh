@@ -3,6 +3,11 @@
 # Version: 1.0.2
 # Description: Simple Pushover notification test script
 
+# RUTOS Compatibility - Dynamic sourcing and intentional variables
+# shellcheck disable=SC1090  # Can't follow dynamic source - this is intentional
+# shellcheck disable=SC1091  # Don't follow dynamic source files
+# shellcheck disable=SC2034  # Variables may appear unused but are referenced dynamically
+
 set -e # Exit on error
 
 # Script version - automatically updated by update-version.sh
@@ -49,7 +54,7 @@ log_step() {
 load_config() {
     # Default installation directory
     INSTALL_DIR="/root/starlink-monitor"
-    CONFIG_FILE="$INSTALL_DIR/config/config.sh"
+    CONFIG_FILE="/etc/starlink-config/config.sh"
 
     # Allow override via environment variable
     if [ -n "${CONFIG_FILE:-}" ]; then

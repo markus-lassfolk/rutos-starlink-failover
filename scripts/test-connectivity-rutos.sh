@@ -121,7 +121,7 @@ run_test() {
 
 # Load configuration
 load_config() {
-    CONFIG_FILE="${CONFIG_FILE:-$INSTALL_DIR/config/config.sh}"
+    CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
 
     if [ ! -f "$CONFIG_FILE" ]; then
         log_error "Configuration file not found: $CONFIG_FILE"
@@ -474,7 +474,7 @@ Options:
     --debug              Enable debug output
 
 Environment Variables:
-    CONFIG_FILE          Path to configuration file (default: $INSTALL_DIR/config/config.sh)
+    CONFIG_FILE          Path to configuration file (default: /etc/starlink-config/config.sh)
     DEBUG                Enable debug output (set to 1)
     INSTALL_DIR          Installation directory (default: auto-detected)
     FORCE_COLOR          Force color output (set to 1, useful for RUTOS testing)

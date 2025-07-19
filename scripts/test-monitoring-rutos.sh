@@ -3,6 +3,10 @@
 # Version: 1.0.2
 # Description: Test monitoring system connectivity and configuration
 
+# RUTOS Compatibility - Dynamic sourcing patterns
+# shellcheck disable=SC1090  # Can't follow dynamic source - this is intentional
+# shellcheck disable=SC1091  # Don't follow dynamic source files
+
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
@@ -48,7 +52,7 @@ log_step() {
 
 # Configuration paths
 INSTALL_DIR="/root/starlink-monitor"
-CONFIG_FILE="$INSTALL_DIR/config/config.sh"
+CONFIG_FILE="/etc/starlink-config/config.sh"
 
 # Debug mode support
 DEBUG="${DEBUG:-0}"
