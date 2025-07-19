@@ -197,6 +197,19 @@ debug_log "  latency_array length: $(echo "$latency_array" | $JQ_CMD -r 'length 
 debug_log "  loss_array length: $(echo "$loss_array" | $JQ_CMD -r 'length // 0')"
 debug_log "  obstruction value: $obstruction"
 
+# Validate arrays are not empty or null
+if [ "$latency_array" = "null" ] || [ -z "$latency_array" ]; then
+    log "ERROR: latency_array is null or empty"
+    debug_log "VALIDATION ERROR: latency_array=$latency_array"
+    exit 1
+fi
+
+if [ "$loss_array" = "null" ] || [ -z "$loss_array" ]; then
+    log "ERROR: loss_array is null or empty"
+    debug_log "VALIDATION ERROR: loss_array=$loss_array"
+    exit 1
+fi
+
 # Get the current system time to work backwards from for timestamping each sample.
 now_seconds=$(date +%s)
 
@@ -208,17 +221,29 @@ fi
 # --- Loop and Log ---
 # Calculate how many new samples we need to process.
 new_sample_count=$((current_sample_index - last_sample_index))
+debug_log "LOOP SETUP: new_sample_count=$new_sample_count"
+debug_log "LOOP SETUP: Starting processing loop"
+
 i=0
 while [ "$i" -lt "$new_sample_count" ]; do
+    debug_log "LOOP ITERATION: Processing iteration $i"
     # The API provides samples in chronological order. We work backwards from the
     # current time to assign an approximate but accurate timestamp to each sample.
     sample_timestamp=$((now_seconds - (new_sample_count - 1 - i)))
     human_readable_timestamp=$(date -d "@$sample_timestamp" '+%Y-%m-%d %H:%M:%S')
+    debug_log "TIMESTAMP: $human_readable_timestamp (epoch: $sample_timestamp)"
 
     # Extract the specific latency and loss for this sample from the arrays.
     # We use jq's --argjson flag to safely pass shell variables into the jq script.
+    debug_log "SAMPLE EXTRACTION: Processing sample $i of $new_sample_count"
+    debug_log "JQ VARIABLES: i=$i, count=$new_sample_count"
+    debug_log "JQ EXPRESSION: .[length - (4*\$count - 4*\$i)] // 0"
+    
     latency=$(echo "$latency_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4*\$count - 4*\$i)] // 0" | cut -d'.' -f1)
+    debug_log "EXTRACTED LATENCY: $latency"
+    
     loss=$(echo "$loss_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4*\$count - 4*\$i)] // 0")
+    debug_log "EXTRACTED LOSS: $loss"
 
     # Convert loss and obstruction ratios to percentages for easier analysis in spreadsheets.
     loss_pct=$(awk -v val="$loss" 'BEGIN { printf "%.2f", val * 100 }')
