@@ -522,15 +522,23 @@ check_starlink_connectivity() {
 check_configuration_health() {
     log_step "Checking configuration health"
 
-    # Run configuration validation
+    # Run configuration validation with timeout to prevent hanging
     if [ -x "$SCRIPT_DIR/validate-config-rutos.sh" ]; then
-        # Capture the validation output to show specific issues
-        validation_output=$("$SCRIPT_DIR/validate-config-rutos.sh" --quiet 2>&1)
-        validation_exit_code=$?
+        # Use timeout command if available, otherwise rely on the script's own timeout
+        if command -v timeout >/dev/null 2>&1; then
+            validation_output=$(timeout 30 "$SCRIPT_DIR/validate-config-rutos.sh" --quiet 2>&1)
+            validation_exit_code=$?
+        else
+            validation_output=$("$SCRIPT_DIR/validate-config-rutos.sh" --quiet 2>&1)
+            validation_exit_code=$?
+        fi
         
         if [ $validation_exit_code -eq 0 ]; then
             show_health_status "healthy" "Configuration" "Configuration validation passed"
             increment_counter "healthy"
+        elif [ $validation_exit_code -eq 124 ]; then
+            show_health_status "warning" "Configuration" "Validation timed out (>30s)"
+            increment_counter "warning"
         else
             # Extract first line of error for concise display
             error_summary=$(echo "$validation_output" | head -n1 | cut -c1-60)

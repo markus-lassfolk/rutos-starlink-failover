@@ -22,34 +22,7 @@ BUILD_INFO=$(grep "# Build:" "$0" | head -1 | sed 's/# Build: //' || echo "unkno
 # Debug mode - set to 1 to enable debug output
 DEBUG="${DEBUG:-0}"
 
-# Function to get timestamp
-get_timestamp() {
-    date '+%Y-%m-%d %H:%M:%S'
-}
-
-# Function to print colored output with timestamp
-print_status() {
-    color="$1"
-    message="$2"
-    # Use Method 5 format that works in RUTOS (embed variables in format string)
-    case "$color" in
-        "$RED") printf "${RED}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
-        "$GREEN") printf "${GREEN}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
-        "$YELLOW") printf "${YELLOW}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
-        "$BLUE") printf "${BLUE}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
-        "$CYAN") printf "${CYAN}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
-        *) printf "[%s] %s\n" "$(get_timestamp)" "$message" ;;
-    esac
-}
-
-# Debug output function
-debug_msg() {
-    if [ "$DEBUG" = "1" ]; then
-        print_status "$BLUE" "DEBUG: $1"
-    fi
-}
-
-# Colors for output
+# Colors for output - MUST be defined before functions that use them
 # RUTOS-compatible color detection - Use same working approach as install script
 # shellcheck disable=SC2034
 RED=""
@@ -79,10 +52,37 @@ elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
             NC="\033[0m" # No Color
             ;;
         *)
-            # Unknown or limited terminal - stay safe with no colors
+            # Unknown terminal - disable colors
             ;;
     esac
 fi
+
+# Function to get timestamp
+get_timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+# Function to print colored output with timestamp
+print_status() {
+    color="$1"
+    message="$2"
+    # Use Method 5 format that works in RUTOS (embed variables in format string)
+    case "$color" in
+        "$RED") printf "${RED}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
+        "$GREEN") printf "${GREEN}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
+        "$YELLOW") printf "${YELLOW}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
+        "$BLUE") printf "${BLUE}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
+        "$CYAN") printf "${CYAN}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
+        *) printf "[%s] %s\n" "$(get_timestamp)" "$message" ;;
+    esac
+}
+
+# Debug output function
+debug_msg() {
+    if [ "$DEBUG" = "1" ]; then
+        print_status "$BLUE" "DEBUG: $1"
+    fi
+}
 
 # Installation directory path
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
