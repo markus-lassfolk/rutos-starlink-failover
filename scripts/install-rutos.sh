@@ -90,22 +90,41 @@ VERSION_URL="${BASE_URL}/VERSION"
 MIN_COMPATIBLE_VERSION="1.0.0" # Used for compatibility checks in future
 
 # Colors for output
-# Check if terminal supports colors (simplified for RUTOS compatibility)
-if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+# RUTOS-compatible color detection (ultra-conservative busybox approach)
+# Default to NO COLORS for maximum RUTOS compatibility
+RED=""
+GREEN=""
+YELLOW=""
+BLUE=""
+CYAN=""
+NC=""
+
+# Only enable colors if explicitly requested or in very specific conditions
+if [ "${FORCE_COLOR:-}" = "1" ]; then
+    # Only enable if user explicitly forces colors
     RED="\033[0;31m"
     GREEN="\033[0;32m"
     YELLOW="\033[1;33m"
     BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
     CYAN="\033[0;36m"
     NC="\033[0m" # No Color
-else
-    # Fallback to no colors if terminal doesn't support them
-    RED=""
-    GREEN=""
-    YELLOW=""
-    BLUE=""
-    CYAN=""
-    NC=""
+elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
+    # Additional conservative check: only if stdout is a terminal and TERM is set properly
+    # But still be very conservative about RUTOS
+    case "${TERM:-}" in
+        xterm* | screen* | tmux* | linux*)
+            # Known terminal types that support colors
+            RED="\033[0;31m"
+            GREEN="\033[0;32m"
+            YELLOW="\033[1;33m"
+            BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
+            CYAN="\033[0;36m"
+            NC="\033[0m" # No Color
+            ;;
+        *)
+            # Unknown or limited terminal - stay safe with no colors
+            ;;
+    esac
 fi
 
 # Installation configuration
@@ -412,6 +431,7 @@ install_scripts() {
         update-config-rutos.sh \
         upgrade-to-advanced-rutos.sh \
         test-connectivity-rutos.sh \
+        test-rutos-colors.sh \
         merge-config-rutos.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then
@@ -958,6 +978,8 @@ main() {
     print_status "$BLUE" "• Check system status: $INSTALL_DIR/scripts/system-status-rutos.sh"
     print_status "$BLUE" "• Test Pushover notifications: $INSTALL_DIR/scripts/test-pushover-rutos.sh"
     print_status "$BLUE" "• Test monitoring: $INSTALL_DIR/scripts/test-monitoring-rutos.sh"
+    print_status "$BLUE" "• Test connectivity: $INSTALL_DIR/scripts/test-connectivity-rutos.sh"
+    print_status "$BLUE" "• Test color support: $INSTALL_DIR/scripts/test-rutos-colors.sh"
     print_status "$BLUE" "• Update config with new options: $INSTALL_DIR/scripts/update-config-rutos.sh"
     print_status "$BLUE" "• Upgrade to advanced features: $INSTALL_DIR/scripts/upgrade-to-advanced-rutos.sh"
     printf "\n"
@@ -965,6 +987,8 @@ main() {
     # Print recommended actions with correct filenames
     print_status "$BLUE" "  • Test monitoring: ./scripts/test-monitoring-rutos.sh"
     print_status "$BLUE" "  • Test Pushover: ./scripts/test-pushover-rutos.sh"
+    print_status "$BLUE" "  • Test connectivity: ./scripts/test-connectivity-rutos.sh"
+    print_status "$BLUE" "  • Test colors (for troubleshooting): ./scripts/test-rutos-colors.sh"
     print_status "$BLUE" "  • Validate config: ./scripts/validate-config-rutos.sh"
     print_status "$BLUE" "  • Upgrade to advanced: ./scripts/upgrade-to-advanced-rutos.sh"
     print_status "$BLUE" "Installation directory: $INSTALL_DIR"

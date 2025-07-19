@@ -12,8 +12,8 @@ SCRIPT_VERSION="1.0.2"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="${INSTALL_DIR:-$(dirname "$SCRIPT_DIR")}"
 
-# RUTOS-compatible color detection (conservative busybox approach)
-# Start with colors disabled for maximum compatibility
+# RUTOS-compatible color detection (SSH-aware approach - like install script)
+# This method has been proven to work well with RUTOS via SSH
 RED=""
 GREEN=""
 YELLOW=""
@@ -21,39 +21,41 @@ BLUE=""
 CYAN=""
 NC=""
 
-# Only enable colors if we're confident they'll work in RUTOS
-# Most RUTOS systems support basic ANSI colors when connected via SSH
-if [ "${NO_COLOR:-}" != "1" ]; then
-    # Enable colors only in known-good scenarios
-    if [ "${FORCE_COLOR:-}" = "1" ] || [ -n "${SSH_CLIENT:-}" ] || [ -n "${SSH_TTY:-}" ]; then
-        RED='\033[0;31m'
-        GREEN='\033[0;32m'
-        YELLOW='\033[1;33m'
-        BLUE='\033[1;35m'
-        CYAN='\033[0;36m'
-        NC='\033[0m'
-    fi
+# Enable colors if terminal supports them (same logic as successful install script)
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+fi
+
+# Override: Force colors if explicitly requested
+if [ "${FORCE_COLOR:-}" = "1" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
 fi
 
 # Debug color support
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] Environment detection:\n"
+    printf "[DEBUG] RUTOS Color Detection:\n"
     printf "[DEBUG]   TERM: %s\n" "${TERM:-unset}"
     printf "[DEBUG]   NO_COLOR: %s\n" "${NO_COLOR:-unset}"
     printf "[DEBUG]   FORCE_COLOR: %s\n" "${FORCE_COLOR:-unset}"
-    printf "[DEBUG]   SSH_CLIENT: %s\n" "${SSH_CLIENT:-unset}"
-    printf "[DEBUG]   SSH_TTY: %s\n" "${SSH_TTY:-unset}"
+    printf "[DEBUG]   Terminal check [-t 1]: %s\n" "$([ -t 1 ] && echo "yes" || echo "no")"
+    printf "[DEBUG]   Color decision: %s\n" "$([ -n "$RED" ] && echo "ENABLED" || echo "DISABLED")"
     if [ -n "$RED" ]; then
-        printf "[DEBUG] Colors enabled\n"
-        # Simple color test that should work in RUTOS
-        printf "[DEBUG] Color test: "
-        printf "%sRED%s " "$RED" "$NC"
-        printf "%sGREEN%s " "$GREEN" "$NC"
-        printf "%sYELLOW%s " "$YELLOW" "$NC"
-        printf "%sBLUE%s " "$BLUE" "$NC"
-        printf "%sCYAN%s\n" "$CYAN" "$NC"
+        printf "[DEBUG] Color validation test: "
+        printf "%sOK%s\n" "$GREEN" "$NC"
+        printf "[DEBUG] Note: If you see escape codes above, colors aren't working properly\n"
     else
-        printf "[DEBUG] Colors disabled for maximum RUTOS compatibility\n"
+        printf "[DEBUG] Colors disabled - using plain text for maximum RUTOS compatibility\n"
+        printf "[DEBUG] To force colors: export FORCE_COLOR=1\n"
     fi
 fi
 

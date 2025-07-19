@@ -42,8 +42,17 @@ debug_msg() {
 }
 
 # Colors for output
-# Check if terminal supports colors (simplified for RUTOS compatibility)
+# RUTOS-compatible color detection (SSH-aware approach - like install script)
+# This method has been proven to work well with RUTOS via SSH
 # shellcheck disable=SC2034
+RED=""
+GREEN=""
+YELLOW=""
+BLUE=""
+CYAN=""
+NC=""
+
+# Enable colors if terminal supports them (same logic as successful install script)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -51,14 +60,16 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     BLUE='\033[1;35m' # Bright magenta instead of dark blue for better readability
     CYAN='\033[0;36m'
     NC='\033[0m' # No Color
-else
-    # Fallback to no colors if terminal doesn't support them
-    RED=''
-    GREEN=''
-    YELLOW=''
-    BLUE=''
-    CYAN=''
-    NC=''
+fi
+
+# Override: Force colors if explicitly requested
+if [ "${FORCE_COLOR:-}" = "1" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m' # Bright magenta instead of dark blue for better readability
+    CYAN='\033[0;36m'
+    NC='\033[0m' # No Color
 fi
 
 # Installation directory path
