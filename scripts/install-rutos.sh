@@ -433,7 +433,8 @@ install_scripts() {
         test-connectivity-rutos.sh \
         test-colors-rutos.sh \
         test-method5-rutos.sh \
-        merge-config-rutos.sh; do
+        merge-config-rutos.sh \
+        verify-cron-rutos.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then
             cp "$script_dir/$script" "$INSTALL_DIR/scripts/$script"
@@ -665,6 +666,8 @@ install_config() {
 # Configure cron jobs
 configure_cron() {
     print_status "$BLUE" "Configuring cron jobs..."
+
+    # Create backup of existing crontab
     if [ -f "$CRON_FILE" ]; then
         backup_file="$CRON_FILE.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$CRON_FILE" "$backup_file"
@@ -676,31 +679,60 @@ configure_cron() {
         touch "$CRON_FILE"
     fi
 
-    # Remove existing starlink monitoring entries (comment them out instead of deleting)
+    # Remove any existing entries added by this install script to prevent duplicates
+    # Only remove entries that match our exact pattern (default install script entries)
     if [ -f "$CRON_FILE" ]; then
-        # Create temp file with old starlink entries commented out
-        date_stamp=$(date +%Y-%m-%d)
+        debug_msg "Cleaning up previous install script entries"
 
-        # Use basic sed to comment out matching lines (more portable)
-        sed "s|^\([^#].*starlink_monitor\.sh.*\)|# COMMENTED BY INSTALL SCRIPT $date_stamp: \1|g; \
-             s|^\([^#].*starlink_logger\.sh.*\)|# COMMENTED BY INSTALL SCRIPT $date_stamp: \1|g; \
-             s|^\([^#].*check_starlink_api\.sh.*\)|# COMMENTED BY INSTALL SCRIPT $date_stamp: \1|g" \
-            "$CRON_FILE" >"$CRON_FILE.tmp" 2>/dev/null || {
-            # If sed fails, preserve existing content
-            cat "$CRON_FILE" >"$CRON_FILE.tmp" 2>/dev/null || touch "$CRON_FILE.tmp"
-        }
+        # Create temp file for clean crontab
+        temp_cron="/tmp/crontab_clean.tmp"
 
-        mv "$CRON_FILE.tmp" "$CRON_FILE"
-        print_status "$BLUE" "ℹ Old Starlink cron entries commented out (not deleted)"
+        # Remove lines that match our default install patterns, but preserve custom ones
+        # Look for the specific comment marker and the exact default entries
+        grep -v "# Starlink monitoring system - Added by install script" "$CRON_FILE" >"$temp_cron" || true
+
+        # Remove the exact default entries (in case comment is missing)
+        # But be very specific to avoid removing custom timing configurations
+        sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_monitor-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
+        sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_logger-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
+        sed -i '/^0 6 \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/check_starlink_api.*\.sh$/d' "$temp_cron" 2>/dev/null || true
+
+        # Also clean up any previously commented entries from old install script behavior
+        sed -i '/^# COMMENTED BY INSTALL SCRIPT.*starlink/d' "$temp_cron" 2>/dev/null || true
+
+        # Replace the crontab with cleaned version
+        if mv "$temp_cron" "$CRON_FILE" 2>/dev/null; then
+            debug_msg "Crontab cleaned successfully"
+        else
+            # If move failed, ensure we don't lose the original
+            debug_msg "Failed to update crontab, preserving original"
+            rm -f "$temp_cron" 2>/dev/null || true
+        fi
     fi
 
-    # Add new cron entries with proper spacing
+    # Check if our scripts already have cron entries (possibly with custom timing)
+    existing_monitor=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    existing_logger=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    existing_api_check=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
+
+    if [ "$existing_monitor" -gt 0 ] || [ "$existing_logger" -gt 0 ] || [ "$existing_api_check" -gt 0 ]; then
+        print_status "$YELLOW" "⚠ Found existing cron entries for our scripts:"
+        print_status "$YELLOW" "  starlink_monitor-rutos.sh: $existing_monitor entries"
+        print_status "$YELLOW" "  starlink_logger-rutos.sh: $existing_logger entries"
+        print_status "$YELLOW" "  check_starlink_api: $existing_api_check entries"
+        print_status "$YELLOW" "📋 Preserving existing custom timing - not adding default entries"
+        print_status "$BLUE" "✓ Custom cron configuration preserved"
+        return 0
+    fi
+
+    # Add our default cron entries only if none exist
+    print_status "$BLUE" "Adding default cron entries..."
     cat >>"$CRON_FILE" <<EOF
 
 # Starlink monitoring system - Added by install script $(date +%Y-%m-%d)
 * * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_monitor-rutos.sh
 * * * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/starlink_logger-rutos.sh
-0 6 * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/check_starlink_api.sh
+0 6 * * * CONFIG_FILE=$INSTALL_DIR/config/config.sh $INSTALL_DIR/scripts/check_starlink_api-rutos.sh
 EOF
 
     # Restart cron service
@@ -710,7 +742,12 @@ EOF
 
     print_status "$GREEN" "✓ Cron jobs configured"
     print_status "$BLUE" "ℹ Previous crontab backed up before modification"
-    print_status "$YELLOW" "ℹ To restore commented entries: sed -i 's/^# COMMENTED BY INSTALL SCRIPT [0-9-]*: //' \"$CRON_FILE\""
+
+    # Show current cron status for verification
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "Current cron entries for our scripts:"
+        grep -n "starlink.*rutos\|check_starlink_api" "$CRON_FILE" 2>/dev/null || debug_msg "No entries found"
+    fi
 }
 
 # Create uninstall script
@@ -977,6 +1014,7 @@ main() {
     print_status "$BLUE" "Available tools:"
     print_status "$BLUE" "• Comprehensive health check: $INSTALL_DIR/scripts/health-check-rutos.sh"
     print_status "$BLUE" "• Check system status: $INSTALL_DIR/scripts/system-status-rutos.sh"
+    print_status "$BLUE" "• Verify cron scheduling: $INSTALL_DIR/scripts/verify-cron-rutos.sh"
     print_status "$BLUE" "• Test Pushover notifications: $INSTALL_DIR/scripts/test-pushover-rutos.sh"
     print_status "$BLUE" "• Test monitoring: $INSTALL_DIR/scripts/test-monitoring-rutos.sh"
     print_status "$BLUE" "• Test connectivity: $INSTALL_DIR/scripts/test-connectivity-rutos.sh"

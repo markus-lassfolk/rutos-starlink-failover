@@ -115,6 +115,172 @@ increment_counter() {
     esac
 }
 
+# Function to comprehensively check cron configuration
+check_cron_configuration() {
+    log_debug "Starting comprehensive cron configuration check"
+
+    # RUTOS uses /etc/crontabs/root instead of user crontabs
+    CRON_FILE="/etc/crontabs/root"
+
+    # Check if cron file exists
+    if [ ! -f "$CRON_FILE" ]; then
+        show_health_status "critical" "Cron File" "Cron file $CRON_FILE does not exist"
+        increment_counter "critical"
+        return
+    fi
+
+    # Check if cron service is running
+    if pgrep crond >/dev/null 2>&1; then
+        show_health_status "healthy" "Cron Service" "Cron daemon (crond) is running"
+        increment_counter "healthy"
+    else
+        show_health_status "critical" "Cron Service" "Cron daemon (crond) is not running"
+        increment_counter "critical"
+    fi
+
+    # Count our starlink monitoring entries
+    monitor_entries=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
+
+    total_entries=$((monitor_entries + logger_entries + api_check_entries))
+
+    if [ "$total_entries" -eq 0 ]; then
+        show_health_status "critical" "Cron Entries" "No Starlink monitoring entries found"
+        increment_counter "critical"
+        log_debug "No monitoring entries found in crontab"
+    else
+        show_health_status "healthy" "Cron Entries" "Found $total_entries monitoring entries"
+        increment_counter "healthy"
+        log_debug "Found $total_entries total monitoring entries"
+    fi
+
+    # Detailed analysis of each script type
+    if [ "$monitor_entries" -gt 0 ]; then
+        if [ "$monitor_entries" -eq 1 ]; then
+            # Extract the timing for the monitor entry
+            monitor_schedule=$(grep "starlink_monitor-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+            show_health_status "healthy" "Monitor Schedule" "Monitor: $monitor_schedule ($monitor_entries entry)"
+            increment_counter "healthy"
+        else
+            show_health_status "warning" "Monitor Schedule" "Multiple monitor entries ($monitor_entries) - may cause conflicts"
+            increment_counter "warning"
+            if [ "${DEBUG:-0}" = "1" ]; then
+                log_debug "Monitor entries found:"
+                grep "starlink_monitor-rutos.sh" "$CRON_FILE" | while IFS= read -r line; do
+                    log_debug "  $line"
+                done
+            fi
+        fi
+    else
+        show_health_status "warning" "Monitor Schedule" "No monitor entries found"
+        increment_counter "warning"
+    fi
+
+    if [ "$logger_entries" -gt 0 ]; then
+        if [ "$logger_entries" -eq 1 ]; then
+            logger_schedule=$(grep "starlink_logger-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+            show_health_status "healthy" "Logger Schedule" "Logger: $logger_schedule ($logger_entries entry)"
+            increment_counter "healthy"
+        else
+            show_health_status "warning" "Logger Schedule" "Multiple logger entries ($logger_entries) - may cause conflicts"
+            increment_counter "warning"
+        fi
+    else
+        show_health_status "warning" "Logger Schedule" "No logger entries found"
+        increment_counter "warning"
+    fi
+
+    if [ "$api_check_entries" -gt 0 ]; then
+        if [ "$api_check_entries" -eq 1 ]; then
+            api_schedule=$(grep "check_starlink_api" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+            show_health_status "healthy" "API Check Schedule" "API Check: $api_schedule ($api_check_entries entry)"
+            increment_counter "healthy"
+        else
+            show_health_status "warning" "API Check Schedule" "Multiple API check entries ($api_check_entries)"
+            increment_counter "warning"
+        fi
+    else
+        show_health_status "warning" "API Check Schedule" "No API check entries found"
+        increment_counter "warning"
+    fi
+
+    # Check for duplicate/conflicting entries
+    duplicate_lines=$(grep -E "(starlink_monitor-rutos\.sh|starlink_logger-rutos\.sh|check_starlink_api)" "$CRON_FILE" | sort | uniq -d | wc -l)
+    if [ "$duplicate_lines" -gt 0 ]; then
+        show_health_status "warning" "Duplicate Entries" "Found $duplicate_lines duplicate cron lines"
+        increment_counter "warning"
+    else
+        show_health_status "healthy" "Duplicate Check" "No duplicate entries detected"
+        increment_counter "healthy"
+    fi
+
+    # Check for commented out entries (from old install scripts)
+    commented_entries=$(grep -c "# COMMENTED BY.*starlink" "$CRON_FILE" 2>/dev/null || echo "0")
+    if [ "$commented_entries" -gt 0 ]; then
+        show_health_status "warning" "Commented Entries" "Found $commented_entries commented entries (cleanup recommended)"
+        increment_counter "warning"
+    else
+        show_health_status "healthy" "Clean Crontab" "No commented monitoring entries"
+        increment_counter "healthy"
+    fi
+
+    # Validate cron syntax (basic check)
+    if [ -f "$CRON_FILE" ] && [ -s "$CRON_FILE" ]; then
+        # Count invalid cron lines (very basic validation)
+        invalid_lines=0
+        while IFS= read -r line; do
+            # Skip empty lines and comments
+            case "$line" in
+                "" | \#*) continue ;;
+                *)
+                    # Basic validation: should have at least 6 fields (5 time fields + command)
+                    field_count=$(echo "$line" | awk '{print NF}')
+                    if [ "$field_count" -lt 6 ]; then
+                        invalid_lines=$((invalid_lines + 1))
+                        log_debug "Potentially invalid cron line: $line"
+                    fi
+                    ;;
+            esac
+        done <"$CRON_FILE"
+
+        if [ "$invalid_lines" -gt 0 ]; then
+            show_health_status "warning" "Cron Syntax" "Found $invalid_lines potentially invalid cron lines"
+            increment_counter "warning"
+        else
+            show_health_status "healthy" "Cron Syntax" "Cron syntax appears valid"
+            increment_counter "healthy"
+        fi
+    else
+        show_health_status "warning" "Cron File" "Cron file is empty or cannot be read"
+        increment_counter "warning"
+    fi
+
+    # Check if CONFIG_FILE is properly set in cron entries
+    config_missing=0
+    if [ "$total_entries" -gt 0 ]; then
+        while IFS= read -r line; do
+            case "$line" in
+                *starlink*rutos.sh*)
+                    if ! echo "$line" | grep -q "CONFIG_FILE="; then
+                        config_missing=$((config_missing + 1))
+                    fi
+                    ;;
+            esac
+        done <"$CRON_FILE"
+
+        if [ "$config_missing" -gt 0 ]; then
+            show_health_status "warning" "Config Environment" "Found $config_missing entries without CONFIG_FILE variable"
+            increment_counter "warning"
+        else
+            show_health_status "healthy" "Config Environment" "All entries have CONFIG_FILE properly set"
+            increment_counter "healthy"
+        fi
+    fi
+
+    log_debug "Cron configuration check completed"
+}
+
 # Function to check if a service/process is running
 check_process() {
     process_name="$1"
@@ -305,14 +471,8 @@ check_monitoring_health() {
         increment_counter "critical"
     fi
 
-    # Check if monitoring is configured in cron
-    if crontab -l 2>/dev/null | grep -q "starlink_monitor-rutos.sh"; then
-        show_health_status "healthy" "Cron Schedule" "Monitoring scheduled in crontab"
-        increment_counter "healthy"
-    else
-        show_health_status "warning" "Cron Schedule" "Monitoring not found in crontab"
-        increment_counter "warning"
-    fi
+    # Comprehensive cron monitoring checks
+    check_cron_configuration
 
     # Check state files
     if [ -f "$STATE_DIR/starlink_monitor.state" ]; then

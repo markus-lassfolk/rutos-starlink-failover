@@ -94,6 +94,99 @@ if [ "$DEBUG" = "1" ]; then
     log_debug "Arguments: $*"
 fi
 
+# Function to check cron scheduling status
+check_cron_status() {
+    CRON_FILE="/etc/crontabs/root"
+
+    # Check if cron service is running
+    if pgrep crond >/dev/null 2>&1; then
+        show_status "ok" "Cron service is running"
+    else
+        show_status "error" "Cron service (crond) is not running"
+        return
+    fi
+
+    # Check if cron file exists
+    if [ ! -f "$CRON_FILE" ]; then
+        show_status "error" "Cron file ($CRON_FILE) does not exist"
+        return
+    fi
+
+    # Count monitoring entries
+    monitor_entries=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
+
+    # Show detailed scheduling information
+    if [ "$monitor_entries" -gt 0 ]; then
+        monitor_schedule=$(grep "starlink_monitor-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+        show_status "ok" "Monitor scheduled: $monitor_schedule ($monitor_entries entries)"
+
+        if [ "$monitor_entries" -gt 1 ]; then
+            show_status "warn" "Multiple monitor entries may cause conflicts"
+        fi
+    else
+        show_status "error" "Starlink monitor not scheduled in cron"
+    fi
+
+    if [ "$logger_entries" -gt 0 ]; then
+        logger_schedule=$(grep "starlink_logger-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+        show_status "ok" "Logger scheduled: $logger_schedule ($logger_entries entries)"
+
+        if [ "$logger_entries" -gt 1 ]; then
+            show_status "warn" "Multiple logger entries may cause conflicts"
+        fi
+    else
+        show_status "warn" "Starlink logger not scheduled in cron"
+    fi
+
+    if [ "$api_check_entries" -gt 0 ]; then
+        api_schedule=$(grep "check_starlink_api" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+        show_status "ok" "API check scheduled: $api_schedule ($api_check_entries entries)"
+
+        if [ "$api_check_entries" -gt 1 ]; then
+            show_status "warn" "Multiple API check entries may cause conflicts"
+        fi
+    else
+        show_status "warn" "API check not scheduled in cron"
+    fi
+
+    # Check for commented entries
+    commented_entries=$(grep -c "# COMMENTED BY.*starlink" "$CRON_FILE" 2>/dev/null || echo "0")
+    if [ "$commented_entries" -gt 0 ]; then
+        show_status "warn" "Found $commented_entries commented monitoring entries (cleanup recommended)"
+        printf "%s  → Run: sed -i '/# COMMENTED BY.*starlink/d' %s%s\n" "$CYAN" "$CRON_FILE" "$NC"
+    fi
+
+    # Show total entries summary
+    total_entries=$((monitor_entries + logger_entries + api_check_entries))
+    if [ "$total_entries" -eq 0 ]; then
+        show_status "error" "No monitoring entries found in cron - system will not monitor automatically"
+        printf "%s  → Fix by re-running: install-rutos.sh%s\n" "$CYAN" "$NC"
+    elif [ "$total_entries" -gt 3 ]; then
+        show_status "warn" "Found $total_entries total entries - duplicates may exist"
+    else
+        show_status "ok" "Cron configuration looks good ($total_entries total entries)"
+    fi
+
+    # Check for CONFIG_FILE environment variable
+    config_missing=0
+    while IFS= read -r line; do
+        case "$line" in
+            *starlink*rutos.sh*)
+                if ! echo "$line" | grep -q "CONFIG_FILE="; then
+                    config_missing=$((config_missing + 1))
+                fi
+                ;;
+        esac
+    done <"$CRON_FILE"
+
+    if [ "$config_missing" -gt 0 ]; then
+        show_status "warn" "$config_missing entries missing CONFIG_FILE environment variable"
+        printf "%s  → This may cause configuration loading issues%s\n" "$CYAN" "$NC"
+    fi
+}
+
 # Function to check system status
 check_system_status() {
     log_step "Checking system status"
@@ -124,6 +217,7 @@ check_system_status() {
     # Load placeholder utilities
     script_dir="$(dirname "$0")"
     if [ -f "$script_dir/placeholder-utils.sh" ]; then
+        # shellcheck disable=SC1091
         . "$script_dir/placeholder-utils.sh"
         show_status "ok" "Placeholder utilities loaded"
     else
@@ -133,6 +227,7 @@ check_system_status() {
     fi
 
     # Load configuration
+    # shellcheck source=/dev/null
     . "$CONFIG_FILE"
 
     echo ""
@@ -225,6 +320,15 @@ check_system_status() {
         printf "%s  4. Replace placeholder values with real tokens%s\n" "$BLUE" "$NC"
         printf "%s  5. Test with: ./scripts/test-pushover-rutos.sh%s\n" "$BLUE" "$NC"
     fi
+
+    echo ""
+    printf "%s╔══════════════════════════════════════════════════════════════════════════╗%s\n" "$PURPLE" "$NC"
+    printf "%s║%s                             %sCRON SCHEDULE STATUS%s                            %s║%s\n" "$PURPLE" "$NC" "$BLUE" "$NC" "$PURPLE" "$NC"
+    printf "%s╚══════════════════════════════════════════════════════════════════════════╝%s\n" "$PURPLE" "$NC"
+    echo ""
+
+    # Check cron configuration
+    check_cron_status
 
     echo ""
     printf "%s╔══════════════════════════════════════════════════════════════════════════╗%s\n" "$PURPLE" "$NC"

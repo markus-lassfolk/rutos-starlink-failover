@@ -159,14 +159,15 @@ printf "${GREEN}✅ HEALTHY${NC}   | %-25s | %s\n" "$component" "$details"
 
 # BROKEN FORMAT (Shows escape codes in RUTOS) ❌
 printf "%sError: %s%s\n" "$RED" "$message" "$NC"
-printf "%s[INFO]%s [%s] %s\n" "$GREEN" "$NC" "$timestamp" "$message"  
+printf "%s[INFO]%s [%s] %s\n" "$GREEN" "$NC" "$timestamp" "$message"
 printf "%s✅ HEALTHY%s   | %-25s | %s\n" "$GREEN" "$NC" "$component" "$details"
 
 # INSTALL SCRIPT FORMAT (Also works) ✅
 printf "%bError: %s%b\n" "$RED" "$message" "$NC"
 ```
 
-**Key Discovery**: RUTOS busybox printf only processes color variables correctly when embedded in the format string, not when passed as separate arguments.
+**Key Discovery**: RUTOS busybox printf only processes color variables correctly when embedded in the format 
+string, not when passed as separate arguments.
 
 ### CRITICAL Color Detection Rules
 

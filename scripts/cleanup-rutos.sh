@@ -6,16 +6,35 @@
 set -eu
 
 # Standard colors for output (RUTOS compatible)
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-NC='\033[0m'
+# CRITICAL: Use RUTOS-compatible color detection
+# shellcheck disable=SC2034  # CYAN may not be used but should be defined for consistency
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+else
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    CYAN=""
+    NC=""
+fi
 
 print_status() {
     color="$1"
-    shift
-    printf "%s%s%s\n" "$color" "$*" "$NC"
+    message="$2"
+    # Use Method 5 format that works in RUTOS (embed variables in format string)
+    case "$color" in
+        "$RED") printf "${RED}%s${NC}\n" "$message" ;;
+        "$GREEN") printf "${GREEN}%s${NC}\n" "$message" ;;
+        "$YELLOW") printf "${YELLOW}%s${NC}\n" "$message" ;;
+        "$BLUE") printf "${BLUE}%s${NC}\n" "$message" ;;
+        *) printf "%s\n" "$message" ;;
+    esac
 }
 
 print_status "$BLUE" "==== Cleanup: Removing Starlink Monitor artifacts ===="
