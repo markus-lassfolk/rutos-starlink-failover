@@ -149,7 +149,6 @@ release_lock() {
 update_health_status() {
     status="$1"
     message="$2"
-    timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     cat >"$HEALTH_FILE" <<EOF
