@@ -279,11 +279,11 @@ check_bash_syntax() {
         done < <(grep -n "echo -e" "$file" 2>/dev/null)
     fi
 
-    # Check for source command (but not in echo statements)
+    # Check for source command (but not in echo statements or comments)
     if grep -n "source " "$file" >/dev/null 2>&1; then
         while IFS=: read -r line_num line_content; do
-            # Skip if it's within an echo statement (documentation)
-            if ! echo "$line_content" | grep -q "echo.*source"; then
+            # Skip if it's within an echo statement (documentation) or comment lines
+            if ! echo "$line_content" | grep -q "echo.*source" && ! echo "$line_content" | grep -q "^[[:space:]]*#.*source"; then
                 report_issue "MAJOR" "$file" "$line_num" "Uses 'source' command - use '.' (dot) for busybox"
             fi
         done < <(grep -n "source " "$file" 2>/dev/null)
