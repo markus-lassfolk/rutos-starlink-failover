@@ -346,6 +346,67 @@ check_disk_space() {
     fi
 }
 
+# Function to check RUTOS-specific disk space
+check_rutos_disk_space() {
+    # Check overlay filesystem (where user data and configs are stored)
+    if df | grep -q "/overlay"; then
+        overlay_usage=$(df /overlay | awk 'NR==2 {print $5}' | sed 's/%//')
+        if [ "$overlay_usage" -gt 80 ]; then
+            show_health_status "critical" "Overlay Filesystem" "Disk usage critical: ${overlay_usage}% (threshold: 80%)"
+            increment_counter "critical"
+        elif [ "$overlay_usage" -gt 60 ]; then
+            show_health_status "warning" "Overlay Filesystem" "Disk usage high: ${overlay_usage}% (threshold: 60%)"
+            increment_counter "warning"
+        else
+            show_health_status "healthy" "Overlay Filesystem" "Disk usage OK: ${overlay_usage}%"
+            increment_counter "healthy"
+        fi
+    else
+        show_health_status "unknown" "Overlay Filesystem" "Overlay filesystem not found"
+        increment_counter "unknown"
+    fi
+
+    # Check /tmp filesystem (memory-based, can affect performance)
+    if df | grep -q "tmpfs.*tmp"; then
+        tmp_usage=$(df /tmp | awk 'NR==2 {print $5}' | sed 's/%//')
+        if [ "$tmp_usage" -gt 90 ]; then
+            show_health_status "warning" "Temp Filesystem" "Memory usage high: ${tmp_usage}% (threshold: 90%)"
+            increment_counter "warning"
+        else
+            show_health_status "healthy" "Temp Filesystem" "Memory usage OK: ${tmp_usage}%"
+            increment_counter "healthy"
+        fi
+    fi
+
+    # Check /log filesystem (can fill up with logs)
+    if df | grep -q "/log"; then
+        log_usage=$(df /log | awk 'NR==2 {print $5}' | sed 's/%//')
+        if [ "$log_usage" -gt 85 ]; then
+            show_health_status "warning" "Log Filesystem" "Disk usage high: ${log_usage}% (threshold: 85%)"
+            increment_counter "warning"
+        else
+            show_health_status "healthy" "Log Filesystem" "Disk usage OK: ${log_usage}%"
+            increment_counter "healthy"
+        fi
+    fi
+
+    # Root filesystem note - explain why it might be 100% (this is normal in RUTOS)
+    root_usage=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+    if [ "$root_usage" -gt 95 ]; then
+        show_health_status "info" "Root Filesystem" "Read-only root at ${root_usage}% (normal for RUTOS)"
+    else
+        show_health_status "healthy" "Root Filesystem" "Usage: ${root_usage}%"
+        increment_counter "healthy"
+    fi
+
+    # Check install directory specifically if it exists
+    if [ -d "$INSTALL_DIR" ]; then
+        # The install directory is typically on the overlay, so this gives us specific info
+        install_usage=$(df "$INSTALL_DIR" | awk 'NR==2 {print $5}' | sed 's/%//')
+        show_health_status "info" "Install Directory" "Usage: ${install_usage}% (on overlay)"
+    fi
+}
+
 # Function to check system uptime
 check_system_uptime() {
     uptime_info=$(uptime)
@@ -566,9 +627,8 @@ check_system_resources() {
     # Check system uptime and load
     check_system_uptime
 
-    # Check disk space
-    check_disk_space "/" 80 "Root Filesystem"
-    check_disk_space "$INSTALL_DIR" 80 "Install Directory"
+    # Check disk space - RUTOS-specific filesystem monitoring
+    check_rutos_disk_space
 
     # Check memory usage
     if command -v free >/dev/null 2>&1; then
