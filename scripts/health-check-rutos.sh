@@ -84,7 +84,7 @@ show_health_status() {
 
 # Configuration paths - set defaults first
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
-CONFIG_FILE="${CONFIG_FILE:-$INSTALL_DIR/config/config.sh}"
+CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
 
 # Load configuration from config file if available
 if [ -f "$CONFIG_FILE" ]; then

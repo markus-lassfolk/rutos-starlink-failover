@@ -44,7 +44,7 @@ else
 fi
 
 # --- Configuration Loading ---
-CONFIG_FILE="${CONFIG_FILE:-/root/config.sh}"
+CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
 if [ -f "$CONFIG_FILE" ]; then
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"

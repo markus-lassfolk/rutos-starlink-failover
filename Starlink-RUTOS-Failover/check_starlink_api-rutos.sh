@@ -29,7 +29,7 @@ set -eu
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
 
 # Load configuration from config file if available
-CONFIG_FILE="${CONFIG_FILE:-$INSTALL_DIR/config/config.sh}"
+CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
 if [ -f "$CONFIG_FILE" ]; then
     # Source the configuration file
     # shellcheck source=/dev/null
