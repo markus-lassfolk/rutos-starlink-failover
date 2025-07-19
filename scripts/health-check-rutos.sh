@@ -60,11 +60,92 @@ log_step() {
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
+# Enhanced debug functions for development
+debug_exec() {
+    if [ "$DEBUG" = "1" ]; then
+        log_debug "EXECUTING: $*"
+    fi
+    "$@"
+}
+
+debug_var() {
+    if [ "$DEBUG" = "1" ]; then
+        log_debug "VARIABLE: $1 = $2"
+    fi
+}
+
+debug_func() {
+    if [ "$DEBUG" = "1" ]; then
+        log_debug "FUNCTION: $1"
+    fi
+}
+
+# Enhanced error handling with detailed logging
+safe_exec() {
+    cmd="$1"
+    description="$2"
+    
+    debug_exec echo "Starting: $description"
+    
+    # Execute command and capture both stdout and stderr
+    if [ "${DEBUG:-0}" = "1" ]; then
+        # In debug mode, show all output
+        log_debug "EXECUTING: $cmd"
+        log_debug "DESCRIPTION: $description"
+        eval "$cmd"
+        exit_code=$?
+        log_debug "COMMAND EXIT CODE: $exit_code"
+        return $exit_code
+    else
+        # In normal mode, suppress output but capture errors
+        eval "$cmd" 2>/tmp/health_check_error.log
+        exit_code=$?
+        if [ $exit_code -ne 0 ] && [ -f /tmp/health_check_error.log ]; then
+            log_debug "ERROR in $description: $(cat /tmp/health_check_error.log)"
+            rm -f /tmp/health_check_error.log
+        fi
+        return $exit_code
+    fi
+}
+
+# Validate binary with detailed logging
+validate_binary() {
+    binary_path="$1"
+    binary_name="$2"
+    
+    debug_func "validate_binary"
+    log_debug "VALIDATING BINARY: $binary_name at $binary_path"
+    
+    if [ ! -f "$binary_path" ]; then
+        log_debug "FILE CHECK FAILED: $binary_path does not exist"
+        return 1
+    fi
+    
+    if [ ! -x "$binary_path" ]; then
+        log_debug "PERMISSION CHECK FAILED: $binary_path is not executable"
+        log_debug "FILE PERMISSIONS: $(ls -la "$binary_path" 2>/dev/null || echo 'Cannot read permissions')"
+        return 1
+    fi
+    
+    # Test if binary actually works
+    log_debug "TESTING BINARY: $binary_path --help"
+    if ! "$binary_path" --help >/dev/null 2>&1; then
+        log_debug "BINARY TEST FAILED: $binary_path --help returned non-zero"
+    else
+        log_debug "BINARY TEST PASSED: $binary_name is functional"
+    fi
+    
+    return 0
+}
+
 # Health check status functions
 show_health_status() {
     status="$1"
     component="$2"
     message="$3"
+
+    debug_func "show_health_status"
+    log_debug "HEALTH STATUS: $status | $component | $message"
 
     case "$status" in
         "healthy")
@@ -83,6 +164,9 @@ show_health_status() {
             printf "${PURPLE}ℹ️  INFO${NC}      | %-25s | %s\n" "$component" "$message"
             ;;
     esac
+    
+    # Log the status change for debugging
+    log_debug "STATUS RECORDED: $component -> $status"
 }
 
 # Configuration paths - set defaults first
@@ -118,22 +202,91 @@ UNKNOWN_COUNT=0
 
 # Debug mode support
 DEBUG="${DEBUG:-0}"
+
+# Add test mode for troubleshooting
+if [ "${TEST_MODE:-0}" = "1" ]; then
+    log_debug "TEST MODE ENABLED: Running in test mode"
+    DEBUG=1  # Force debug mode in test mode
+    set -x   # Enable command tracing
+    log_debug "TEST MODE: All commands will be traced"
+fi
+
 if [ "$DEBUG" = "1" ]; then
-    log_debug "==================== DEBUG MODE ENABLED ===================="
+    log_debug "==================== HEALTH CHECK DEBUG MODE ENABLED ===================="
     log_debug "Script version: $SCRIPT_VERSION"
     log_debug "Working directory: $(pwd)"
+    log_debug "Script path: $0"
+    log_debug "Process ID: $$"
+    log_debug "User: $(whoami 2>/dev/null || echo 'unknown')"
     log_debug "Arguments: $*"
+    log_debug "Environment DEBUG: ${DEBUG:-0}"
+    log_debug "Environment TEST_MODE: ${TEST_MODE:-0}"
+    
+    log_debug "CONFIGURATION PATHS:"
+    log_debug "  INSTALL_DIR=$INSTALL_DIR"
+    log_debug "  CONFIG_FILE=$CONFIG_FILE"
+    log_debug "  SCRIPT_DIR=$SCRIPT_DIR"
+    log_debug "  LOG_DIR=$LOG_DIR"
+    log_debug "  STATE_DIR=$STATE_DIR"
+    
+    log_debug "CONFIGURATION VALUES:"
+    log_debug "  STARLINK_IP=$STARLINK_IP"
+    log_debug "  PUSHOVER_TOKEN=$(printf "%.10s..." "$PUSHOVER_TOKEN")"
+    log_debug "  PUSHOVER_USER=$(printf "%.10s..." "$PUSHOVER_USER")"
+    log_debug "  GRPCURL_CMD=$GRPCURL_CMD"
+    log_debug "  JQ_CMD=$JQ_CMD"
+    log_debug "  API_TIMEOUT=$API_TIMEOUT"
+    log_debug "  CHECK_INTERVAL=$CHECK_INTERVAL"
+    
+    # Check if configuration file was loaded
+    if [ -f "$CONFIG_FILE" ]; then
+        log_debug "CONFIG FILE: Successfully loaded from $CONFIG_FILE"
+        if [ "${DEBUG:-0}" = "1" ]; then
+            log_debug "CONFIG FILE CONTENTS:"
+            while IFS= read -r line; do
+                # Don't log sensitive information in full
+                case "$line" in
+                    *PUSHOVER_TOKEN*|*PUSHOVER_USER*)
+                        log_debug "  $(echo "$line" | sed 's/=.*/=***/')"
+                        ;;
+                    *)
+                        log_debug "  $line"
+                        ;;
+                esac
+            done < "$CONFIG_FILE" 2>/dev/null || log_debug "  (Cannot read config file contents)"
+        fi
+    else
+        log_debug "CONFIG FILE: Not found at $CONFIG_FILE - using defaults"
+    fi
 fi
 
 # Function to increment health counters
 increment_counter() {
     status="$1"
+    debug_func "increment_counter"
+    log_debug "COUNTER INCREMENT: $status"
+    
     case "$status" in
-        "healthy") HEALTHY_COUNT=$((HEALTHY_COUNT + 1)) ;;
-        "warning") WARNING_COUNT=$((WARNING_COUNT + 1)) ;;
-        "critical") CRITICAL_COUNT=$((CRITICAL_COUNT + 1)) ;;
-        "unknown") UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1)) ;;
+        "healthy") 
+            HEALTHY_COUNT=$((HEALTHY_COUNT + 1)) 
+            log_debug "COUNTER UPDATE: HEALTHY_COUNT now $HEALTHY_COUNT"
+            ;;
+        "warning") 
+            WARNING_COUNT=$((WARNING_COUNT + 1)) 
+            log_debug "COUNTER UPDATE: WARNING_COUNT now $WARNING_COUNT"
+            ;;
+        "critical") 
+            CRITICAL_COUNT=$((CRITICAL_COUNT + 1)) 
+            log_debug "COUNTER UPDATE: CRITICAL_COUNT now $CRITICAL_COUNT"
+            ;;
+        "unknown") 
+            UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1)) 
+            log_debug "COUNTER UPDATE: UNKNOWN_COUNT now $UNKNOWN_COUNT"
+            ;;
     esac
+    
+    total_checks=$((HEALTHY_COUNT + WARNING_COUNT + CRITICAL_COUNT + UNKNOWN_COUNT))
+    log_debug "COUNTER TOTAL: $total_checks checks total"
 }
 
 # Function to comprehensively check cron configuration
@@ -450,103 +603,193 @@ check_system_uptime() {
 # Function to check network connectivity
 check_network_connectivity() {
     log_step "Checking network connectivity"
+    debug_func "check_network_connectivity"
     log_debug "Starting network connectivity checks..."
     log_debug "Testing basic internet connectivity..."
 
     # Basic internet connectivity test
+    log_debug "PING TEST: Testing connectivity to 8.8.8.8"
     if ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1; then
         show_health_status "healthy" "Internet Connectivity" "Can reach 8.8.8.8"
         increment_counter "healthy"
+        log_debug "PING TEST: SUCCESS - 8.8.8.8 is reachable"
     else
         show_health_status "critical" "Internet Connectivity" "Cannot reach 8.8.8.8"
         increment_counter "critical"
+        log_debug "PING TEST: FAILED - 8.8.8.8 is not reachable"
+        
+        # Additional debugging for ping failure
+        if [ "${DEBUG:-0}" = "1" ]; then
+            log_debug "PING DEBUG: Attempting ping with verbose output..."
+            ping_output=$(ping -c 1 -W 5 8.8.8.8 2>&1 || echo "ping command failed")
+            log_debug "PING OUTPUT: $ping_output"
+        fi
     fi
 
     # Test DNS resolution
+    log_debug "DNS TEST: Testing DNS resolution for google.com"
     if nslookup google.com >/dev/null 2>&1; then
         show_health_status "healthy" "DNS Resolution" "Can resolve google.com"
         increment_counter "healthy"
+        log_debug "DNS TEST: SUCCESS - google.com resolved"
     else
         show_health_status "critical" "DNS Resolution" "Cannot resolve google.com"
         increment_counter "critical"
+        log_debug "DNS TEST: FAILED - google.com cannot be resolved"
+        
+        # Additional debugging for DNS failure
+        if [ "${DEBUG:-0}" = "1" ]; then
+            log_debug "DNS DEBUG: Attempting nslookup with verbose output..."
+            dns_output=$(nslookup google.com 2>&1 || echo "nslookup command failed")
+            log_debug "DNS OUTPUT: $dns_output"
+            
+            # Check if DNS servers are configured
+            log_debug "DNS SERVERS: Checking /etc/resolv.conf"
+            if [ -f /etc/resolv.conf ]; then
+                log_debug "RESOLV.CONF CONTENTS:"
+                while IFS= read -r line; do
+                    log_debug "  $line"
+                done < /etc/resolv.conf
+            else
+                log_debug "RESOLV.CONF: File not found"
+            fi
+        fi
     fi
+    
+    log_debug "Network connectivity checks completed"
 }
 
 # Function to check Starlink connectivity
 check_starlink_connectivity() {
     log_step "Checking Starlink connectivity"
+    debug_func "check_starlink_connectivity"
     log_debug "Starting Starlink connectivity checks..."
     log_debug "STARLINK_IP: $STARLINK_IP"
     log_debug "GRPCURL_CMD: $GRPCURL_CMD"
 
     # Load configuration to get Starlink IP
     if [ -f "$CONFIG_FILE" ]; then
+        log_debug "CONFIG FILE: Loading configuration from $CONFIG_FILE"
         # shellcheck disable=SC1090
         . "$CONFIG_FILE"
         # shellcheck disable=SC1091
-        . "$SCRIPT_DIR/placeholder-utils.sh" 2>/dev/null || true
+        . "$SCRIPT_DIR/placeholder-utils.sh" 2>/dev/null || log_debug "placeholder-utils.sh not found"
+
+        log_debug "POST-CONFIG STARLINK_IP: $STARLINK_IP"
 
         if [ -n "${STARLINK_IP:-}" ] && [ "$STARLINK_IP" != "YOUR_STARLINK_IP" ]; then
             # Extract IP without port for ping test
             STARLINK_HOST=$(echo "$STARLINK_IP" | cut -d: -f1)
+            log_debug "STARLINK HOST: Extracted $STARLINK_HOST from $STARLINK_IP"
+            
+            log_debug "PING TEST: Testing connectivity to Starlink device at $STARLINK_HOST"
             if ping -c 1 -W 5 "$STARLINK_HOST" >/dev/null 2>&1; then
                 show_health_status "healthy" "Starlink Device" "Can reach $STARLINK_HOST"
                 increment_counter "healthy"
+                log_debug "STARLINK PING: SUCCESS - Device is reachable"
             else
                 show_health_status "critical" "Starlink Device" "Cannot reach $STARLINK_HOST"
                 increment_counter "critical"
+                log_debug "STARLINK PING: FAILED - Device is not reachable"
+                
+                # Additional debugging for Starlink ping failure
+                if [ "${DEBUG:-0}" = "1" ]; then
+                    ping_output=$(ping -c 1 -W 5 "$STARLINK_HOST" 2>&1 || echo "ping command failed")
+                    log_debug "STARLINK PING OUTPUT: $ping_output"
+                fi
             fi
 
             # Test grpcurl if available (use configured GRPCURL_CMD and full STARLINK_IP)
-            if [ -x "$GRPCURL_CMD" ]; then
+            log_debug "GRPC TEST: Checking if grpcurl is available"
+            if validate_binary "$GRPCURL_CMD" "grpcurl"; then
+                log_debug "GRPC TEST: grpcurl validated, testing API connection"
+                log_debug "GRPC COMMAND: $GRPCURL_CMD -plaintext -max-time 10 -d '{\"get_device_info\":{}}' $STARLINK_IP SpaceX.API.Device.Device/Handle"
+                
                 # Use the same endpoint as the API check script for consistency
-                if "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
-                    show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP"
-                    increment_counter "healthy"
+                if [ "${DEBUG:-0}" = "1" ]; then
+                    # In debug mode, capture and log the response
+                    grpc_output=$("$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>&1)
+                    grpc_exit=$?
+                    log_debug "GRPC EXIT CODE: $grpc_exit"
+                    log_debug "GRPC OUTPUT (first 200 chars): $(echo "$grpc_output" | cut -c1-200)$([ ${#grpc_output} -gt 200 ] && echo '...')"
+                    
+                    if [ $grpc_exit -eq 0 ]; then
+                        show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP"
+                        increment_counter "healthy"
+                        log_debug "GRPC TEST: SUCCESS - API is responding"
+                    else
+                        show_health_status "warning" "Starlink gRPC API" "API not responding on $STARLINK_IP"
+                        increment_counter "warning"
+                        log_debug "GRPC TEST: FAILED - API is not responding"
+                    fi
                 else
-                    show_health_status "warning" "Starlink gRPC API" "API not responding on $STARLINK_IP"
-                    increment_counter "warning"
+                    # Normal mode (less verbose)
+                    if "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
+                        show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP"
+                        increment_counter "healthy"
+                    else
+                        show_health_status "warning" "Starlink gRPC API" "API not responding on $STARLINK_IP"
+                        increment_counter "warning"
+                    fi
                 fi
             else
                 show_health_status "unknown" "Starlink gRPC API" "grpcurl not available for testing"
                 increment_counter "unknown"
+                log_debug "GRPC TEST: SKIPPED - grpcurl not available or not executable"
             fi
         else
             show_health_status "warning" "Starlink Device" "Starlink IP not configured"
             increment_counter "warning"
+            log_debug "STARLINK CONFIG: IP not configured or using placeholder value"
         fi
     else
         show_health_status "critical" "Starlink Device" "Configuration file not found"
         increment_counter "critical"
+        log_debug "CONFIG FILE: Not found at $CONFIG_FILE"
     fi
+    
+    log_debug "Starlink connectivity checks completed"
 }
 
 # Function to check configuration health
 check_configuration_health() {
     log_step "Checking configuration health"
+    debug_func "check_configuration_health"
 
     # Run configuration validation with timeout to prevent hanging
-    if [ -x "$SCRIPT_DIR/validate-config-rutos.sh" ]; then
+    validation_script="$SCRIPT_DIR/validate-config-rutos.sh"
+    log_debug "CONFIG VALIDATION: Checking for validation script at $validation_script"
+    
+    if [ -x "$validation_script" ]; then
+        log_debug "CONFIG VALIDATION: Script found and executable"
+        
         # Use timeout command if available, otherwise rely on the script's own timeout
         if command -v timeout >/dev/null 2>&1; then
-            validation_output=$(timeout 30 "$SCRIPT_DIR/validate-config-rutos.sh" --quiet 2>&1)
+            log_debug "CONFIG VALIDATION: Using timeout command (30 seconds)"
+            validation_output=$(timeout 30 "$validation_script" --quiet 2>&1)
             validation_exit_code=$?
         else
-            validation_output=$("$SCRIPT_DIR/validate-config-rutos.sh" --quiet 2>&1)
+            log_debug "CONFIG VALIDATION: No timeout command available, relying on script timeout"
+            validation_output=$("$validation_script" --quiet 2>&1)
             validation_exit_code=$?
         fi
 
+        log_debug "CONFIG VALIDATION: Exit code: $validation_exit_code"
+        
         if [ $validation_exit_code -eq 0 ]; then
             show_health_status "healthy" "Configuration" "Configuration validation passed"
             increment_counter "healthy"
+            log_debug "CONFIG VALIDATION: SUCCESS"
         elif [ $validation_exit_code -eq 124 ]; then
             show_health_status "warning" "Configuration" "Validation timed out (>30s)"
             increment_counter "warning"
+            log_debug "CONFIG VALIDATION: TIMEOUT - validation took longer than 30 seconds"
         else
             # Extract first line of error for concise display
             error_summary=$(echo "$validation_output" | head -n1 | cut -c1-60)
             show_health_status "warning" "Configuration" "Validation failed: $error_summary"
             increment_counter "warning"
+            log_debug "CONFIG VALIDATION: FAILED - $error_summary"
 
             # Log full details for debugging
             if [ "${DEBUG:-0}" = "1" ]; then
@@ -557,23 +800,51 @@ check_configuration_health() {
     else
         show_health_status "unknown" "Configuration" "validate-config-rutos.sh not found or not executable"
         increment_counter "unknown"
+        log_debug "CONFIG VALIDATION: Script not found or not executable at $validation_script"
+        
+        if [ "${DEBUG:-0}" = "1" ]; then
+            log_debug "VALIDATION SCRIPT DEBUG:"
+            if [ -f "$validation_script" ]; then
+                log_debug "  File exists but not executable"
+                log_debug "  Permissions: $(ls -la "$validation_script")"
+            else
+                log_debug "  File does not exist"
+                log_debug "  Directory contents: $(ls -la "$SCRIPT_DIR" | grep validate || echo 'No validate scripts found')"
+            fi
+        fi
     fi
 
     # Check for placeholder values
-    if [ -f "$SCRIPT_DIR/placeholder-utils.sh" ]; then
+    placeholder_script="$SCRIPT_DIR/placeholder-utils.sh"
+    log_debug "PLACEHOLDER CHECK: Checking for placeholder utils at $placeholder_script"
+    
+    if [ -f "$placeholder_script" ]; then
+        log_debug "PLACEHOLDER CHECK: Utils script found, loading..."
         # shellcheck disable=SC1091
-        . "$SCRIPT_DIR/placeholder-utils.sh"
+        . "$placeholder_script"
         # shellcheck disable=SC1090
-        . "$CONFIG_FILE" 2>/dev/null || true
+        . "$CONFIG_FILE" 2>/dev/null || log_debug "Could not source config file for placeholder check"
 
+        log_debug "PUSHOVER CHECK: Testing if Pushover is configured properly"
         if is_pushover_configured; then
             show_health_status "healthy" "Pushover Config" "Pushover properly configured"
             increment_counter "healthy"
+            log_debug "PUSHOVER CHECK: SUCCESS - properly configured"
         else
             show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
             increment_counter "warning"
+            log_debug "PUSHOVER CHECK: WARNING - using placeholder values"
+            
+            if [ "${DEBUG:-0}" = "1" ]; then
+                log_debug "PUSHOVER DEBUG: Token check: $([ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] && echo "using placeholder" || echo "appears configured")"
+                log_debug "PUSHOVER DEBUG: User check: $([ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ] && echo "using placeholder" || echo "appears configured")"
+            fi
         fi
+    else
+        log_debug "PLACEHOLDER CHECK: Utils script not found, skipping placeholder validation"
     fi
+    
+    log_debug "Configuration health checks completed"
 }
 
 # Function to check firmware upgrade persistence
@@ -848,6 +1119,7 @@ show_usage() {
     echo ""
     echo "Environment variables:"
     echo "  DEBUG=1            Enable detailed debug output"
+    echo "  TEST_MODE=1        Enable test mode with command tracing"
     echo ""
     echo "Description:"
     echo "  This script provides a comprehensive health check of the Starlink"
@@ -859,6 +1131,11 @@ show_usage() {
     echo "  $0 --quick         # Quick health check"
     echo "  $0 --connectivity  # Check connectivity only"
     echo "  DEBUG=1 $0         # Full health check with debug output"
+    echo "  TEST_MODE=1 $0     # Full health check with command tracing"
+    echo ""
+    echo "Debug modes:"
+    echo "  DEBUG=1            - Detailed logging and error information"
+    echo "  TEST_MODE=1        - Maximum debugging with command tracing (set -x)"
     echo ""
     echo "Exit codes:"
     echo "  0  - All healthy"
@@ -869,23 +1146,36 @@ show_usage() {
 
 # Main function
 main() {
+    debug_func "main"
+    log_debug "==================== HEALTH CHECK START ===================="
+    log_debug "Starting main health check function"
+    log_debug "Startup environment validation beginning..."
+    
     log_info "Starting comprehensive health check v$SCRIPT_VERSION"
 
     # Validate environment
+    log_debug "ENVIRONMENT CHECK: Validating RUTOS/OpenWrt environment"
     if [ ! -f "/etc/openwrt_release" ]; then
         log_error "This script is designed for OpenWrt/RUTOS systems"
+        log_debug "ENVIRONMENT CHECK: /etc/openwrt_release not found"
         exit 1
     fi
+    log_debug "ENVIRONMENT CHECK: OpenWrt release file found"
 
     # Check if installation exists
+    log_debug "INSTALLATION CHECK: Validating installation directory $INSTALL_DIR"
     if [ ! -d "$INSTALL_DIR" ]; then
         log_error "Starlink Monitor installation not found at $INSTALL_DIR"
         log_error "Please run the installation script first"
+        log_debug "INSTALLATION CHECK: Installation directory not found"
         exit 1
     fi
+    log_debug "INSTALLATION CHECK: Installation directory found"
 
     # Parse command line arguments
     run_mode="${1:-full}"
+    log_debug "RUN MODE: $run_mode"
+    debug_var "run_mode" "$run_mode"
 
     echo ""
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
@@ -903,29 +1193,42 @@ main() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${BLUE}%-15s | %-25s | %s${NC}\n" "===============" "=========================" "================================"
 
+    # Initialize counters
+    log_debug "COUNTER INIT: Resetting all health counters"
+    HEALTHY_COUNT=0
+    WARNING_COUNT=0
+    CRITICAL_COUNT=0
+    UNKNOWN_COUNT=0
+
     # Run health checks based on mode
     case "$run_mode" in
         "--quick")
+            log_debug "QUICK MODE: Running essential checks only"
             check_system_resources
             check_configuration_health
             check_monitoring_health
             check_firmware_persistence
             ;;
         "--connectivity")
+            log_debug "CONNECTIVITY MODE: Running connectivity checks only"
             check_network_connectivity
             check_starlink_connectivity
             ;;
         "--monitoring")
+            log_debug "MONITORING MODE: Running monitoring system checks only"
             check_monitoring_health
             ;;
         "--config")
+            log_debug "CONFIG MODE: Running configuration checks only"
             check_configuration_health
             ;;
         "--resources")
+            log_debug "RESOURCES MODE: Running system resource checks only"
             check_system_resources
             check_firmware_persistence
             ;;
         "--full" | *)
+            log_debug "FULL MODE: Running comprehensive health checks"
             check_system_resources
             check_network_connectivity
             check_starlink_connectivity
@@ -936,8 +1239,24 @@ main() {
             ;;
     esac
 
+    log_debug "HEALTH CHECKS COMPLETED: All requested checks have been run"
+    log_debug "FINAL COUNTERS: H:$HEALTHY_COUNT W:$WARNING_COUNT C:$CRITICAL_COUNT U:$UNKNOWN_COUNT"
+
     # Show final summary
+    log_debug "SUMMARY: Displaying health summary and determining exit code"
     show_health_summary
+    exit_code=$?
+    
+    log_debug "EXIT CODE: Determined exit code: $exit_code"
+    log_debug "==================== HEALTH CHECK COMPLETE ===================="
+    
+    # Clean up any temporary files
+    if [ -f /tmp/health_check_error.log ]; then
+        log_debug "CLEANUP: Removing temporary error log"
+        rm -f /tmp/health_check_error.log
+    fi
+    
+    return $exit_code
 }
 
 # Handle command line arguments
