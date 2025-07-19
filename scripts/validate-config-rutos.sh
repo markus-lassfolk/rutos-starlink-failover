@@ -94,13 +94,13 @@ show_usage() {
     print_status "$BLUE" "  -h, --help      Show this help message"
     print_status "$BLUE" "  -m, --migrate   Force migration of outdated config template"
     printf "%b\n" "${BLUE}Arguments:${NC}"
-    printf "%b\n" "${BLUE}  config_file     Path to configuration file (default: ./config.sh)${NC}"
+    printf "%b\n" "${BLUE}  config_file     Path to configuration file (default: \$INSTALL_DIR/config/config.sh)${NC}"
     printf "%b\n" ""
     printf "%b\n" "${BLUE}Environment Variables:${NC}"
     printf "%b\n" "${BLUE}  DEBUG=1         Enable debug output for troubleshooting${NC}"
     printf "%b\n" ""
     printf "%b\n" "${BLUE}Examples:${NC}"
-    printf "%b\n" "${BLUE}  $SCRIPT_NAME                    # Validate default config.sh${NC}"
+    printf "%b\n" "${BLUE}  $SCRIPT_NAME                    # Validate default config in \$INSTALL_DIR/config/config.sh${NC}"
     printf "%b\n" "${BLUE}  $SCRIPT_NAME /path/to/config.sh # Validate specific config${NC}"
     printf "%b\n" "${BLUE}  $SCRIPT_NAME --migrate          # Force migration of outdated template${NC}"
     printf "%b\n" "${BLUE}  DEBUG=1 $SCRIPT_NAME            # Run with debug output${NC}"
@@ -108,7 +108,8 @@ show_usage() {
 
 # Parse command line arguments
 FORCE_MIGRATION=false
-CONFIG_FILE="./config.sh"
+# Use the same default configuration path as other scripts
+CONFIG_FILE="$INSTALL_DIR/config/config.sh"
 
 while [ $# -gt 0 ]; do
     case $1 in
