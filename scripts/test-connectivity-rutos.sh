@@ -12,44 +12,77 @@ SCRIPT_VERSION="1.0.2"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="${INSTALL_DIR:-$(dirname "$SCRIPT_DIR")}"
 
-# RUTOS-compatible color detection (simplified for busybox)
-if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
-else
-    RED=""
-    GREEN=""
-    YELLOW=""
-    BLUE=""
-    CYAN=""
-    NC=""
+# RUTOS-compatible color detection (conservative busybox approach)
+# Start with colors disabled for maximum compatibility
+RED=""
+GREEN=""
+YELLOW=""
+BLUE=""
+CYAN=""
+NC=""
+
+# Only enable colors if we're confident they'll work in RUTOS
+# Most RUTOS systems support basic ANSI colors when connected via SSH
+if [ "${NO_COLOR:-}" != "1" ]; then
+    # Enable colors only in known-good scenarios
+    if [ "${FORCE_COLOR:-}" = "1" ] || [ -n "${SSH_CLIENT:-}" ] || [ -n "${SSH_TTY:-}" ]; then
+        RED='\033[0;31m'
+        GREEN='\033[0;32m'
+        YELLOW='\033[1;33m'
+        BLUE='\033[1;35m'
+        CYAN='\033[0;36m'
+        NC='\033[0m'
+    fi
 fi
 
-# Logging functions with consistent timestamp format
+# Debug color support
+if [ "${DEBUG:-0}" = "1" ]; then
+    printf "[DEBUG] Environment detection:\n"
+    printf "[DEBUG]   TERM: %s\n" "${TERM:-unset}"
+    printf "[DEBUG]   NO_COLOR: %s\n" "${NO_COLOR:-unset}"
+    printf "[DEBUG]   FORCE_COLOR: %s\n" "${FORCE_COLOR:-unset}"
+    printf "[DEBUG]   SSH_CLIENT: %s\n" "${SSH_CLIENT:-unset}"
+    printf "[DEBUG]   SSH_TTY: %s\n" "${SSH_TTY:-unset}"
+    if [ -n "$RED" ]; then
+        printf "[DEBUG] Colors enabled\n"
+        # Simple color test that should work in RUTOS
+        printf "[DEBUG] Color test: "
+        printf "%sRED%s " "$RED" "$NC"
+        printf "%sGREEN%s " "$GREEN" "$NC"
+        printf "%sYELLOW%s " "$YELLOW" "$NC"
+        printf "%sBLUE%s " "$BLUE" "$NC"
+        printf "%sCYAN%s\n" "$CYAN" "$NC"
+    else
+        printf "[DEBUG] Colors disabled for maximum RUTOS compatibility\n"
+    fi
+fi
+
+# Logging functions with consistent timestamp format (RUTOS-compatible printf)
 log_info() {
-    printf "%s[INFO]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    printf "%s[INFO]%s [%s] %s\n" "$GREEN" "$NC" "$timestamp" "$1"
 }
 
 log_warning() {
-    printf "%s[WARNING]%s [%s] %s\n" "$YELLOW" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    printf "%s[WARNING]%s [%s] %s\n" "$YELLOW" "$NC" "$timestamp" "$1"
 }
 
 log_error() {
-    printf "%s[ERROR]%s [%s] %s\n" "$RED" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    printf "%s[ERROR]%s [%s] %s\n" "$RED" "$NC" "$timestamp" "$1" >&2
 }
 
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
-        printf "%s[DEBUG]%s [%s] %s\n" "$CYAN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+        printf "%s[DEBUG]%s [%s] %s\n" "$CYAN" "$NC" "$timestamp" "$1" >&2
     fi
 }
 
 log_success() {
-    printf "%s[SUCCESS]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    printf "%s[SUCCESS]%s [%s] %s\n" "$GREEN" "$NC" "$timestamp" "$1"
 }
 
 log_step() {
@@ -81,6 +114,7 @@ load_config() {
         exit 1
     fi
 
+    # shellcheck source=/dev/null
     . "$CONFIG_FILE"
     log_success "Configuration loaded successfully"
 }
@@ -254,10 +288,23 @@ test_starlink_api() {
         grpcurl_cmd="grpcurl"
     fi
 
-    if ! timeout 10 "$grpcurl_cmd" -plaintext -d '{}' "$STARLINK_IP" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
-        log_error "Starlink gRPC API call failed"
+    # Test gRPC API call using GetStatus
+    log_debug "Testing gRPC GetStatus call to $STARLINK_IP"
+
+    if ! timeout 10 "$grpcurl_cmd" -plaintext -d '{}' "$starlink_host:$starlink_port" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
+        log_error "Starlink gRPC GetStatus API call failed"
         log_error "Check if Starlink dish is online and API is accessible"
-        return 1
+        log_debug "Trying alternative gRPC API call format..."
+
+        # Try alternative API call format
+        if ! timeout 10 "$grpcurl_cmd" -plaintext -d '{"get_status":{}}' "$starlink_host:$starlink_port" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
+            log_error "Alternative Starlink gRPC API call also failed"
+            return 1
+        else
+            log_success "Alternative gRPC API call succeeded"
+        fi
+    else
+        log_success "Starlink gRPC GetStatus API call succeeded"
     fi
 
     log_debug "Starlink API connectivity test passed"
@@ -362,6 +409,8 @@ Environment Variables:
     CONFIG_FILE          Path to configuration file (default: $INSTALL_DIR/config/config.sh)
     DEBUG                Enable debug output (set to 1)
     INSTALL_DIR          Installation directory (default: auto-detected)
+    FORCE_COLOR          Force color output (set to 1, useful for RUTOS testing)
+    NO_COLOR             Disable color output (set to 1)
 
 Tests Performed:
     1. System Requirements    - Check for required commands
@@ -372,9 +421,20 @@ Tests Performed:
     6. mwan3 Configuration    - Check mwan3 setup (if available)
 
 Examples:
-    $0                       # Run all tests
-    $0 --debug              # Run with debug output
-    CONFIG_FILE=/path/to/config.sh $0  # Use custom config file
+    $0                                          # Run all tests
+    $0 --debug                                 # Run with debug output
+    CONFIG_FILE=/path/to/config.sh $0          # Use custom config file
+    FORCE_COLOR=1 $0                           # Force colors (RUTOS testing)
+
+RUTOS Usage:
+    # On RUTOS router via SSH (colors auto-detected):
+    ./test-connectivity-rutos.sh
+
+    # Force colors if needed:
+    FORCE_COLOR=1 ./test-connectivity-rutos.sh
+
+    # Debug mode for troubleshooting:
+    DEBUG=1 ./test-connectivity-rutos.sh
 
 EOF
 }
@@ -382,6 +442,18 @@ EOF
 # Main function
 main() {
     log_info "Starting Starlink Monitor Connectivity Tests v$SCRIPT_VERSION"
+
+    # Debug information
+    if [ "$DEBUG" = "1" ]; then
+        log_debug "=== ENVIRONMENT DEBUG INFO ==="
+        log_debug "INSTALL_DIR: ${INSTALL_DIR:-unset}"
+        log_debug "CONFIG_FILE: ${CONFIG_FILE:-unset}"
+        log_debug "Shell: $(ps -p $$ -o comm= 2>/dev/null || echo "unknown")"
+        log_debug "Terminal type: ${TERM:-unset}"
+        log_debug "PWD: $(pwd)"
+        log_debug "============================="
+    fi
+
     echo ""
 
     # Load configuration first

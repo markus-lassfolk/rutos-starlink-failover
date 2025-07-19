@@ -192,7 +192,7 @@ fi
 # Debug information
 log_debug "Configuration file path: $CONFIG_FILE"
 log_debug "Current working directory: $(pwd)"
-````
+```
 
 ### Standard Script Template
 

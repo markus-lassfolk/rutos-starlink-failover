@@ -1,0 +1,22 @@
+{
+  "name": "rutos-starlink-failover-tools",
+  "version": "1.0.0",
+  "description": "Development tools for RUTOS Starlink Failover project",
+  "private": true,
+  "scripts": {
+    "lint:markdown": "markdownlint \"**/*.md\" --ignore node_modules --fix",
+    "format:markdown": "prettier --write \"**/*.md\" --ignore-path .gitignore",
+    "check:markdown": "markdownlint \"**/*.md\" --ignore node_modules && prettier --check \"**/*.md\" --ignore-path .gitignore"
+  },
+  "devDependencies": {
+    "markdownlint-cli": "^0.37.0",
+    "prettier": "^3.0.0"
+  },
+  "keywords": [
+    "rutos",
+    "starlink",
+    "router",
+    "failover",
+    "monitoring"
+  ]
+}

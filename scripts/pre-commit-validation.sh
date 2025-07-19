@@ -7,6 +7,11 @@
 # NOTE: This script runs in the development environment (WSL/Linux), NOT on RUTOS,
 # so it can use modern bash features for efficiency. It validates OTHER scripts
 # for RUTOS compatibility but is excluded from its own validation checks.
+#
+# VALIDATION APPROACH:
+# - RUTOS scripts (ending in -rutos.sh): Validated for POSIX/busybox compatibility
+# - Development scripts: Can use modern bash features (arrays, local, [[]], etc.)
+# - This validation script itself: Uses bash features for efficiency
 
 # NOTE: We don't use 'set -e' here because we want to continue processing all files
 # and collect all validation issues before exiting
@@ -15,11 +20,9 @@
 SCRIPT_VERSION="1.0.3"
 
 # Files to exclude from validation (patterns supported)
-# Files to exclude from validation
+# Only exclude files that genuinely shouldn't be shell-validated
 EXCLUDED_FILES=(
-    "scripts/pre-commit-validation.sh"
-    "scripts/setup-code-quality-tools.sh"
-    "scripts/comprehensive-validation.sh"
+    "scripts/setup-dev-tools.ps1" # PowerShell script, not shell script
 )
 
 # Standard colors for consistent output
@@ -92,17 +95,17 @@ MINOR_ISSUES=0
 ISSUE_LIST=""
 
 # Function to check if a file should be excluded
-# Function to check if a file should be excluded
+# Function to check if a file should be excluded from validation
 is_excluded() {
     local file="$1"
     local pattern
 
-    # Normalize path to handle both relative and absolute paths
+    # Get relative path for pattern matching
     local normalized_path
-    normalized_path=$(echo "$file" | sed 's|^\./||' | sed 's|\\|/|g')
+    normalized_path="$(echo "$file" | sed 's|^./||' | sed 's|\\|/|g')"
 
-    # Check if file is in excluded list
-    for pattern in "${EXCLUDED_FILES[@]}"; do
+    # Check each exclusion pattern
+    for pattern in $EXCLUSION_PATTERNS; do
         if [[ "$normalized_path" == *"$pattern"* ]]; then
             return 0 # File is excluded
         fi
@@ -114,6 +117,55 @@ is_excluded() {
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+# Function to check development tools and suggest installation
+check_dev_tools() {
+    local missing_tools=()
+    local suggestions=()
+
+    # Check for Node.js tools
+    if ! command_exists markdownlint; then
+        missing_tools+=("markdownlint")
+    fi
+
+    if ! command_exists prettier; then
+        missing_tools+=("prettier")
+    fi
+
+    # Check for shell tools
+    if ! command_exists shellcheck; then
+        missing_tools+=("shellcheck")
+    fi
+
+    if ! command_exists shfmt; then
+        missing_tools+=("shfmt")
+    fi
+
+    # If tools are missing, provide helpful suggestions
+    if [ ${#missing_tools[@]} -gt 0 ]; then
+        log_info "Some development tools are missing:"
+        for tool in "${missing_tools[@]}"; do
+            printf "  %s✗ %s%s not available\n" "$YELLOW" "$tool" "$NC"
+        done
+
+        echo ""
+        log_info "💡 Quick setup options:"
+        log_info "  • Run setup script: ./scripts/setup-dev-tools.sh"
+        log_info "  • Manual Node.js tools: npm install -g markdownlint-cli prettier"
+        log_info "  • Manual shell tools: sudo apt install shellcheck && go install mvdan.cc/sh/v3/cmd/shfmt@latest"
+        echo ""
+        log_info "🚀 Full setup with configurations:"
+        if [ -f "./scripts/setup-dev-tools.sh" ]; then
+            log_info "  bash ./scripts/setup-dev-tools.sh"
+        fi
+        if [ -f "./scripts/setup-dev-tools.ps1" ]; then
+            log_info "  .\\scripts\\setup-dev-tools.ps1    # Windows PowerShell"
+        fi
+        echo ""
+    else
+        log_debug "All development tools are available"
+    fi
 }
 
 # Function to report an issue
@@ -149,10 +201,16 @@ ${message}|${file}"
     TOTAL_ISSUES=$((TOTAL_ISSUES + 1))
 }
 
-# Function to check shebang compatibility
+# Function to check shebang compatibility (only for RUTOS scripts)
 check_shebang() {
-    file="$1"
-    shebang=$(head -1 "$file")
+    local file="$1"
+    local shebang=$(head -1 "$file")
+
+    # Only enforce POSIX shebang for RUTOS scripts
+    if [[ ! "$file" == *-rutos.sh ]]; then
+        log_debug "Skipping shebang check for non-RUTOS script: $file"
+        return 0
+    fi
 
     case "$shebang" in
         "#!/bin/sh")
@@ -160,23 +218,28 @@ check_shebang() {
             return 0
             ;;
         "#!/bin/bash")
-            report_issue "MAJOR" "$file" "1" "Uses bash shebang - should use #!/bin/sh for RUTOS compatibility"
+            report_issue "CRITICAL" "$file" "1" "RUTOS script uses bash shebang - should use #!/bin/sh for RUTOS compatibility"
             return 1
             ;;
         *)
             if [ -n "$shebang" ]; then
-                report_issue "CRITICAL" "$file" "1" "Unknown shebang: $shebang"
+                report_issue "CRITICAL" "$file" "1" "RUTOS script has unknown shebang: $shebang (should be #!/bin/sh)"
             else
-                report_issue "CRITICAL" "$file" "1" "Missing shebang"
+                report_issue "CRITICAL" "$file" "1" "RUTOS script missing shebang (should be #!/bin/sh)"
             fi
             return 1
             ;;
     esac
 }
 
-# Function to check bash-specific syntax (simplified version)
+# Function to check bash-specific syntax (only for RUTOS scripts)
 check_bash_syntax() {
-    file="$1"
+    local file="$1"
+
+    # Only apply POSIX/busybox validation to RUTOS scripts
+    if [[ ! "$file" == *-rutos.sh ]]; then
+        return 0 # Skip validation for non-RUTOS scripts
+    fi
 
     # Check for double brackets (bash-style conditions, not regex patterns)
     if grep -n "if[[:space:]]*\[\[.*\]\]" "$file" >/dev/null 2>&1; then
@@ -414,7 +477,7 @@ run_shfmt() {
 
 # Function to check for undefined variables (especially color variables)
 check_undefined_variables() {
-    file="$1"
+    local file="$1"
 
     # Check for common color variables that might be undefined
     local color_vars="RED GREEN YELLOW BLUE PURPLE CYAN NC"
@@ -565,7 +628,7 @@ auto_fix_formatting() {
                     # RUTOS scripts need POSIX-compatible formatting
                     shfmt_options="-i 4 -ci -ln posix"
                 fi
-                
+
                 if ! shfmt $shfmt_options -d "$file" >/dev/null 2>&1; then
                     log_info "Auto-fixing shell script formatting: $file (options: $shfmt_options)"
                     shfmt $shfmt_options -w "$file"
@@ -595,6 +658,7 @@ run_markdownlint() {
 
     if ! command_exists markdownlint; then
         log_warning "markdownlint not available - skipping markdown validation"
+        log_warning "💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'"
         return 0
     fi
 
@@ -634,6 +698,7 @@ run_prettier_markdown() {
 
     if ! command_exists prettier; then
         log_warning "prettier not available - skipping markdown formatting validation"
+        log_warning "💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'"
         return 0
     fi
 
@@ -962,7 +1027,11 @@ DESCRIPTION:
     markdown files for documentation quality by checking:
     
     SHELL SCRIPTS:
-    - Shebang compatibility (#!/bin/sh required for RUTOS scripts)
+    - RUTOS scripts (*-rutos.sh): Validated for POSIX/busybox compatibility
+      * Shebang compatibility (#!/bin/sh required)
+      * No bash-specific syntax (local, [[]], arrays, etc.)
+    - Development scripts: Can use modern bash features
+    - This validation script itself: Uses bash for efficiency
     - Bash-specific syntax (arrays, double brackets, etc.) for RUTOS scripts
     - Echo -e usage (should use printf instead) for RUTOS scripts
     - Source command usage (should use . instead) for RUTOS scripts
@@ -1001,6 +1070,11 @@ main() {
 
     # Skip self-validation
     log_step "Self-validation: Skipped - this script is excluded from validation"
+
+    # Check for available development tools and suggest installation if missing
+    if [ "${DEBUG:-0}" = "1" ]; then
+        check_dev_tools
+    fi
 
     local shell_files=""
     local markdown_files=""
