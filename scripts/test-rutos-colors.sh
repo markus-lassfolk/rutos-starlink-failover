@@ -33,7 +33,7 @@ if [ "${FORCE_COLOR:-}" = "1" ]; then
     NC1='\033[0m'
 elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     case "${TERM:-}" in
-        xterm*|screen*|tmux*|linux*)
+        xterm* | screen* | tmux* | linux*)
             RED1='\033[0;31m'
             GREEN1='\033[0;32m'
             YELLOW1='\033[1;33m'
@@ -106,7 +106,7 @@ NC3=""
 if [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     case "${TERM:-}" in
         xterm* | screen* | tmux* | linux*)
-            RED3="\033[0;31m"    # Double quotes like install script
+            RED3="\033[0;31m" # Double quotes like install script
             GREEN3="\033[0;32m"
             YELLOW3="\033[1;33m"
             BLUE3="\033[1;35m"
@@ -135,7 +135,7 @@ NC4=""
 if [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     case "${TERM:-}" in
         xterm* | screen* | tmux* | linux*)
-            RED4='\033[0;31m'    # Single quotes
+            RED4='\033[0;31m' # Single quotes
             GREEN4='\033[0;32m'
             YELLOW4='\033[1;33m'
             BLUE4='\033[1;35m'
