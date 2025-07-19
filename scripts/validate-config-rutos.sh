@@ -61,6 +61,9 @@ else
     NC=''
 fi
 
+# Installation directory path
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
+
 # Show usage information
 show_usage() {
     print_status "$BLUE" "Usage: $SCRIPT_NAME [options] [config_file]"
