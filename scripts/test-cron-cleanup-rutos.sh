@@ -142,7 +142,7 @@ test_cleanup() {
         blank_count = 0
         print 
     }
-    ' "$temp_cron" > "${temp_cron}.clean" && mv "${temp_cron}.clean" "$temp_cron"
+    ' "$temp_cron" >"${temp_cron}.clean" && mv "${temp_cron}.clean" "$temp_cron"
 
     log_info "Cleanup completed, result has $(wc -l <"$temp_cron") lines"
 
