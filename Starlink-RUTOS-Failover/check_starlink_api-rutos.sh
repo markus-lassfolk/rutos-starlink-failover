@@ -1,4 +1,5 @@
 #!/bin/sh
+# VALIDATION_SKIP_COLOR_CHECK: This script uses syslog only, no color output needed
 
 # ==============================================================================
 # Starlink API Version Monitor
@@ -40,8 +41,8 @@ fi
 PUSHOVER_TOKEN="${PUSHOVER_TOKEN:-YOUR_PUSHOVER_API_TOKEN}"
 
 # Your Pushover User Key.
-# Replace this placeholder with your actual key.
-PUSHOVER_USER="YOUR_PUSHOVER_USER_KEY"
+# This will be loaded from config file, fallback to placeholder
+PUSHOVER_USER="${PUSHOVER_USER:-YOUR_PUSHOVER_USER_KEY}"
 
 # The tag used for logging messages to the system log (syslog/logread).
 LOG_TAG="StarlinkApiCheck"
@@ -58,7 +59,6 @@ KNOWN_API_VERSION_FILE="/root/starlink_api_version.txt"
 
 # Location of binaries - use installation directory paths
 # These are installed by the install-rutos.sh script
-INSTALL_DIR="/usr/local/starlink-monitor"
 GRPCURL_CMD="$INSTALL_DIR/grpcurl"
 JQ_CMD="$INSTALL_DIR/jq"
 
@@ -66,6 +66,16 @@ JQ_CMD="$INSTALL_DIR/jq"
 log() {
     # Use -- to prevent messages starting with - from being treated as options
     logger -t "$LOG_TAG" -- "$1"
+    # Also output to stderr if DEBUG is enabled
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[%s] %s\n" "$LOG_TAG" "$1" >&2
+    fi
+}
+
+debug_log() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[DEBUG] %s\n" "$1" >&2
+    fi
 }
 
 send_notification() {
@@ -81,6 +91,28 @@ send_notification() {
 }
 
 # --- Main Script ---
+debug_log "Starting API version check script"
+debug_log "INSTALL_DIR=$INSTALL_DIR"
+debug_log "CONFIG_FILE=$CONFIG_FILE"
+# Use POSIX-compliant method to show partial token/user (first 10 chars equivalent)
+# shellcheck disable=SC3057  # POSIX compliance: using printf instead of string slicing
+debug_log "PUSHOVER_TOKEN=$(printf "%.10s..." "$PUSHOVER_TOKEN")"
+debug_log "PUSHOVER_USER=$(printf "%.10s..." "$PUSHOVER_USER")"
+debug_log "STARLINK_IP=$STARLINK_IP"
+debug_log "GRPCURL_CMD=$GRPCURL_CMD"
+debug_log "JQ_CMD=$JQ_CMD"
+
+# Validate required binaries exist
+if [ ! -x "$GRPCURL_CMD" ]; then
+    log "ERROR: grpcurl not found or not executable at $GRPCURL_CMD"
+    exit 1
+fi
+
+if [ ! -x "$JQ_CMD" ]; then
+    log "ERROR: jq not found or not executable at $JQ_CMD"
+    exit 1
+fi
+
 log "--- Starting API version check ---"
 
 # Get the last known version from the file, defaulting to "0" if the file doesn't exist.
