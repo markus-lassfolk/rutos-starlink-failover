@@ -64,7 +64,7 @@ main() {
     log_error "This should show in RED with proper color codes"
     log_debug "This should show in CYAN with proper color codes"
     log_success "This should show in GREEN with SUCCESS label"
-    
+
     echo ""
     echo "Direct printf tests using Method 5 format:"
     printf "${GREEN}✓ GREEN${NC} - This should be green\n"
@@ -79,7 +79,7 @@ main() {
     echo "SSH_TTY: ${SSH_TTY:-<not set>}"
     echo "Terminal test: $([ -t 1 ] && echo "TTY detected" || echo "No TTY")"
     echo "Colors: $([ -n "$RED" ] && echo "ENABLED" || echo "DISABLED")"
-    
+
     echo ""
     log_success "Method 5 format validation complete"
     echo ""
