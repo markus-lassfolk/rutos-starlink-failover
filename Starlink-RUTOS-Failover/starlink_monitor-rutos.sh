@@ -299,10 +299,29 @@ main() {
 
     # --- Data Processing ---
     # Extract metrics from API responses
+    debug_log "STEP: Extracting metrics from API responses"
+    debug_log "RAW API DATA: status_data length=${#status_data}, history_data length=${#history_data}"
+    
     obstruction=$(echo "$status_data" | "$JQ_CMD" -r '.obstructionStats.fractionObstructed // 0' 2>/dev/null) # Fraction of time obstructed
     latency=$(echo "$status_data" | "$JQ_CMD" -r '.popPingLatencyMs // 0' 2>/dev/null)                        # Latency in ms
     # shellcheck disable=SC1087  # This is a jq JSON path, not a shell array
     loss=$(echo "$history_data" | "$JQ_CMD" -r '.popPingDropRate[-1] // 0' 2>/dev/null) # Most recent packet loss
+
+    debug_log "EXTRACTED RAW VALUES:"
+    debug_log "  obstruction (raw)=$obstruction"
+    debug_log "  latency (raw)=$latency"
+    debug_log "  loss (raw)=$loss"
+    
+    # Show sample of recent loss data from history to verify we're getting real data
+    if [ "${DEBUG:-0}" = "1" ]; then
+        recent_loss_samples=$(echo "$history_data" | "$JQ_CMD" -r '.popPingDropRate[-5:] // []' 2>/dev/null | tr -d '[]," ')
+        debug_log "RECENT LOSS SAMPLES (last 5): $recent_loss_samples"
+        
+        # Show some status fields to verify API connectivity  
+        uptime=$(echo "$status_data" | "$JQ_CMD" -r '.deviceState.uptimeS // "unknown"' 2>/dev/null)
+        software_version=$(echo "$status_data" | "$JQ_CMD" -r '.softwareVersion // "unknown"' 2>/dev/null)
+        debug_log "API VERIFICATION: uptime=${uptime}s, software_version=$software_version"
+    fi
 
     # Validate extracted data; if missing, treat as error
     if [ -z "$obstruction" ] || [ -z "$latency" ] || [ -z "$loss" ]; then
