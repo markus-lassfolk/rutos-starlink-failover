@@ -179,18 +179,15 @@ HOTPLUG_DIR="/etc/hotplug.d/iface"
 CRON_FILE="/etc/crontabs/root" # Used throughout script
 
 # Binary URLs for ARMv7 (RUTX50)
-# Latest release URLs (preferred) - GitHub redirects to actual latest
-# The script tries latest versions first, then falls back to known stable versions
-GRPCURL_LATEST_URL="https://github.com/fullstorydev/grpcurl/releases/latest/download/grpcurl_linux_armv7.tar.gz"
-JQ_LATEST_URL="https://github.com/jqlang/jq/releases/latest/download/jq-linux-armhf"
+# Using known working versions as primary URLs - more reliable than latest redirects
+# grpcurl - latest stable release for ARMv7 (correct filename pattern)
+GRPCURL_URL="https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz"
+# jq - latest stable release for ARM
+JQ_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
 
-# Fallback URLs (known working versions) - used if latest fails
-GRPCURL_FALLBACK_URL="https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz"
-JQ_FALLBACK_URL="https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf"
-
-# Set primary URLs to latest (we'll try fallback if these fail)
-GRPCURL_URL="$GRPCURL_LATEST_URL"
-JQ_URL="$JQ_LATEST_URL"
+# Alternative URLs (if primary fails) - using different versions with correct filenames
+GRPCURL_FALLBACK_URL="https://github.com/fullstorydev/grpcurl/releases/download/v1.9.1/grpcurl_1.9.1_linux_armv7.tar.gz"
+JQ_FALLBACK_URL="https://github.com/jqlang/jq/releases/download/jq-1.6/jq-linux32"
 
 # Early debug detection - show immediately if DEBUG is set
 if [ "${DEBUG:-0}" = "1" ]; then
@@ -262,6 +259,73 @@ version_compare() {
 
     # For now, just return equal (can be enhanced later)
     return 0
+}
+
+# Function to detect latest grpcurl version dynamically
+detect_latest_grpcurl_version() {
+    debug_msg "Attempting to detect latest grpcurl version..."
+    
+    # Try to get latest version from GitHub API
+    latest_version=""
+    if command -v curl >/dev/null 2>&1; then
+        # GitHub API returns JSON with tag_name field
+        latest_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/fullstorydev/grpcurl/releases/latest" 2>/dev/null | 
+                        grep -o '"tag_name":[[:space:]]*"[^"]*"' | 
+                        sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' | 
+                        head -1)
+    elif command -v wget >/dev/null 2>&1; then
+        latest_version=$(wget -qO- --timeout=10 "https://api.github.com/repos/fullstorydev/grpcurl/releases/latest" 2>/dev/null | 
+                        grep -o '"tag_name":[[:space:]]*"[^"]*"' | 
+                        sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' | 
+                        head -1)
+    fi
+    
+    # Validate the version format (should be like "v1.9.3")
+    if [ -n "$latest_version" ] && echo "$latest_version" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+        # Remove the 'v' prefix for filename construction
+        version_number=$(echo "$latest_version" | sed 's/^v//')
+        dynamic_url="https://github.com/fullstorydev/grpcurl/releases/download/${latest_version}/grpcurl_${version_number}_linux_armv7.tar.gz"
+        debug_msg "Detected latest grpcurl version: $latest_version"
+        debug_msg "Constructed dynamic URL: $dynamic_url"
+        printf "%s" "$dynamic_url"
+        return 0
+    else
+        debug_msg "Failed to detect latest grpcurl version or invalid format: '$latest_version'"
+        return 1
+    fi
+}
+
+# Function to detect latest jq version dynamically
+detect_latest_jq_version() {
+    debug_msg "Attempting to detect latest jq version..."
+    
+    # Try to get latest version from GitHub API
+    latest_version=""
+    if command -v curl >/dev/null 2>&1; then
+        # GitHub API returns JSON with tag_name field
+        latest_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/jqlang/jq/releases/latest" 2>/dev/null | 
+                        grep -o '"tag_name":[[:space:]]*"[^"]*"' | 
+                        sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' | 
+                        head -1)
+    elif command -v wget >/dev/null 2>&1; then
+        latest_version=$(wget -qO- --timeout=10 "https://api.github.com/repos/jqlang/jq/releases/latest" 2>/dev/null | 
+                        grep -o '"tag_name":[[:space:]]*"[^"]*"' | 
+                        sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' | 
+                        head -1)
+    fi
+    
+    # Validate the version format (should be like "jq-1.7.1")
+    if [ -n "$latest_version" ] && echo "$latest_version" | grep -qE '^jq-[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+        # Construct the dynamic URL for ARM binary
+        dynamic_url="https://github.com/jqlang/jq/releases/download/${latest_version}/jq-linux-armhf"
+        debug_msg "Detected latest jq version: $latest_version"
+        debug_msg "Constructed dynamic URL: $dynamic_url"
+        printf "%s" "$dynamic_url"
+        return 0
+    else
+        debug_msg "Failed to detect latest jq version or invalid format: '$latest_version'"
+        return 1
+    fi
 }
 
 # Function to download files with fallback
@@ -685,38 +749,92 @@ install_binaries() {
     # Install grpcurl
     debug_log "GRPCURL INSTALL: Checking for existing grpcurl at $INSTALL_DIR/grpcurl"
     if [ ! -f "$INSTALL_DIR/grpcurl" ]; then
-        debug_log "GRPCURL INSTALL: Not found, trying latest version from $GRPCURL_URL"
-        print_status "$YELLOW" "Downloading grpcurl (latest version)..."
-
-        # Try latest version first
-        if curl -fL --progress-bar "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz; then
-            debug_log "GRPCURL INSTALL: Latest version download successful, extracting archive"
-            if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
-                chmod +x "$INSTALL_DIR/grpcurl"
-                rm /tmp/grpcurl.tar.gz
-                debug_log "GRPCURL INSTALL: Latest version installation completed successfully"
-                print_status "$GREEN" "✓ grpcurl installed (latest version)"
-            else
-                debug_log "GRPCURL INSTALL: Latest version extraction failed, trying fallback"
-                rm -f /tmp/grpcurl.tar.gz
-                print_status "$YELLOW" "Latest version failed, trying known stable version..."
-
-                # Fallback to known working version
-                if curl -fL --progress-bar "$GRPCURL_FALLBACK_URL" -o /tmp/grpcurl.tar.gz; then
-                    tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl
+        # Try to detect latest version dynamically first
+        print_status "$YELLOW" "Detecting latest grpcurl version..."
+        dynamic_grpcurl_url=""
+        if dynamic_grpcurl_url=$(detect_latest_grpcurl_version); then
+            debug_log "GRPCURL INSTALL: Dynamic detection successful, trying latest version"
+            print_status "$YELLOW" "Downloading grpcurl (latest detected version)..."
+            
+            if curl -fL --progress-bar "$dynamic_grpcurl_url" -o /tmp/grpcurl.tar.gz; then
+                debug_log "GRPCURL INSTALL: Latest version download successful, extracting archive"
+                if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
                     chmod +x "$INSTALL_DIR/grpcurl"
                     rm /tmp/grpcurl.tar.gz
-                    debug_log "GRPCURL INSTALL: Fallback version installation completed successfully"
-                    print_status "$GREEN" "✓ grpcurl installed (stable version v1.9.3)"
+                    debug_log "GRPCURL INSTALL: Latest version installation completed successfully"
+                    # Get version for display
+                    grpcurl_version=$("$INSTALL_DIR/grpcurl" --version 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
+                    print_status "$GREEN" "✓ grpcurl installed (latest: $grpcurl_version)"
                 else
-                    print_status "$RED" "Error: Failed to download grpcurl (both latest and fallback)"
+                    debug_log "GRPCURL INSTALL: Latest version extraction failed, trying fallback to stable version"
+                    rm -f /tmp/grpcurl.tar.gz
+                    print_status "$YELLOW" "Latest version extraction failed, trying stable version..."
+                    # Fall through to stable version logic below
+                    dynamic_grpcurl_url=""
+                fi
+            else
+                debug_log "GRPCURL INSTALL: Latest version download failed, trying fallback to stable version"
+                print_status "$YELLOW" "Latest version download failed, trying stable version..."
+                # Fall through to stable version logic below
+                dynamic_grpcurl_url=""
+            fi
+        else
+            debug_log "GRPCURL INSTALL: Dynamic detection failed, trying stable version"
+            print_status "$YELLOW" "Could not detect latest version, using stable version..."
+        fi
+        
+        # If dynamic detection failed, use our known stable version
+        if [ -z "$dynamic_grpcurl_url" ]; then
+            debug_log "GRPCURL INSTALL: Using stable version from $GRPCURL_URL"
+            print_status "$YELLOW" "Downloading grpcurl (stable version v1.9.3)..."
+
+            # Try primary stable version
+            if curl -fL --progress-bar "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz; then
+                debug_log "GRPCURL INSTALL: Stable version download successful, extracting archive"
+                if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
+                    chmod +x "$INSTALL_DIR/grpcurl"
+                    rm /tmp/grpcurl.tar.gz
+                    debug_log "GRPCURL INSTALL: Stable version installation completed successfully"
+                    print_status "$GREEN" "✓ grpcurl installed (stable v1.9.3)"
+                else
+                    debug_log "GRPCURL INSTALL: Stable version extraction failed, trying fallback"
+                    rm -f /tmp/grpcurl.tar.gz
+                    print_status "$YELLOW" "Stable version failed, trying alternative version..."
+
+                    # Fallback to alternative version
+                    if curl -fL --progress-bar "$GRPCURL_FALLBACK_URL" -o /tmp/grpcurl.tar.gz; then
+                        tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl
+                        chmod +x "$INSTALL_DIR/grpcurl"
+                        rm /tmp/grpcurl.tar.gz
+                        debug_log "GRPCURL INSTALL: Fallback version installation completed successfully"
+                        print_status "$GREEN" "✓ grpcurl installed (fallback version v1.9.1)"
+                    else
+                        print_status "$RED" "Error: Failed to download grpcurl (all versions tried)"
+                        return 1
+                    fi
+                fi
+            else
+                debug_log "GRPCURL INSTALL: Stable version download failed, trying fallback"
+                print_status "$YELLOW" "Stable version download failed, trying alternative version..."
+                
+                # Try fallback version
+                if curl -fL --progress-bar "$GRPCURL_FALLBACK_URL" -o /tmp/grpcurl.tar.gz; then
+                    if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
+                        chmod +x "$INSTALL_DIR/grpcurl"
+                        rm /tmp/grpcurl.tar.gz
+                        debug_log "GRPCURL INSTALL: Fallback version installation completed successfully"
+                        print_status "$GREEN" "✓ grpcurl installed (fallback version v1.9.1)"
+                    else
+                        rm -f /tmp/grpcurl.tar.gz
+                        print_status "$RED" "Error: Failed to extract grpcurl fallback version"
+                        return 1
+                    fi
+                else
+                    debug_log "GRPCURL INSTALL: All download attempts failed"
+                    print_status "$RED" "Error: Failed to download grpcurl (all versions tried)"
                     return 1
                 fi
             fi
-        else
-            debug_log "GRPCURL INSTALL: Download failed"
-            print_status "$RED" "Error: Failed to download grpcurl"
-            exit 1
         fi
     else
         debug_log "GRPCURL INSTALL: Already exists, skipping download"
@@ -726,43 +844,89 @@ install_binaries() {
     # Install jq
     debug_log "JQ INSTALL: Checking for existing jq at $INSTALL_DIR/jq"
     if [ ! -f "$INSTALL_DIR/jq" ]; then
-        debug_log "JQ INSTALL: Not found, trying latest version from $JQ_URL"
-        print_status "$YELLOW" "Downloading jq (latest version)..."
-
-        # Try latest version first
-        if curl -fL --progress-bar "$JQ_URL" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
-            if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
-                debug_log "JQ INSTALL: Latest version installation completed successfully"
-                jq_version=$("$INSTALL_DIR/jq" --version 2>/dev/null || echo "unknown")
-                print_status "$GREEN" "✓ jq installed (latest version: $jq_version)"
-            else
-                debug_log "JQ INSTALL: Latest version validation failed, trying fallback"
-                rm -f "$INSTALL_DIR/jq"
-                print_status "$YELLOW" "Latest version failed validation, trying known stable version..."
-
-                # Fallback to known working version
-                if curl -fL --progress-bar "$JQ_FALLBACK_URL" -o "$INSTALL_DIR/jq"; then
-                    chmod +x "$INSTALL_DIR/jq"
-                    debug_log "JQ INSTALL: Fallback version installation completed successfully"
-                    print_status "$GREEN" "✓ jq installed (stable version v1.7.1)"
+        # Try to detect latest version dynamically first
+        print_status "$YELLOW" "Detecting latest jq version..."
+        dynamic_jq_url=""
+        if dynamic_jq_url=$(detect_latest_jq_version); then
+            debug_log "JQ INSTALL: Dynamic detection successful, trying latest version"
+            print_status "$YELLOW" "Downloading jq (latest detected version)..."
+            
+            if curl -fL --progress-bar "$dynamic_jq_url" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
+                if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
+                    debug_log "JQ INSTALL: Latest version installation completed successfully"
+                    # Get version for display
+                    jq_version=$("$INSTALL_DIR/jq" --version 2>/dev/null || echo "unknown")
+                    print_status "$GREEN" "✓ jq installed (latest: $jq_version)"
                 else
-                    print_status "$RED" "Error: Failed to download jq (both latest and fallback)"
-                    return 1
+                    debug_log "JQ INSTALL: Latest version validation failed, trying fallback to stable version"
+                    rm -f "$INSTALL_DIR/jq"
+                    print_status "$YELLOW" "Latest version validation failed, trying stable version..."
+                    # Fall through to stable version logic below
+                    dynamic_jq_url=""
                 fi
+            else
+                debug_log "JQ INSTALL: Latest version download failed, trying fallback to stable version"
+                rm -f "$INSTALL_DIR/jq"
+                print_status "$YELLOW" "Latest version download failed, trying stable version..."
+                # Fall through to stable version logic below
+                dynamic_jq_url=""
             fi
         else
-            debug_log "JQ INSTALL: Latest version download failed, trying fallback"
-            rm -f "$INSTALL_DIR/jq"
-            print_status "$YELLOW" "Latest version download failed, trying known stable version..."
+            debug_log "JQ INSTALL: Dynamic detection failed, trying stable version"
+            print_status "$YELLOW" "Could not detect latest version, using stable version..."
+        fi
+        
+        # If dynamic detection failed, use our known stable version
+        if [ -z "$dynamic_jq_url" ]; then
+            debug_log "JQ INSTALL: Using stable version from $JQ_URL"
+            print_status "$YELLOW" "Downloading jq (stable version v1.7.1)..."
 
-            # Fallback to known working version
-            if curl -fL --progress-bar "$JQ_FALLBACK_URL" -o "$INSTALL_DIR/jq"; then
-                chmod +x "$INSTALL_DIR/jq"
-                debug_log "JQ INSTALL: Fallback version installation completed successfully"
-                print_status "$GREEN" "✓ jq installed (stable version v1.7.1)"
+            # Try primary stable version first
+            if curl -fL --progress-bar "$JQ_URL" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
+                if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
+                    debug_log "JQ INSTALL: Stable version installation completed successfully"
+                    jq_version=$("$INSTALL_DIR/jq" --version 2>/dev/null || echo "unknown")
+                    print_status "$GREEN" "✓ jq installed (stable: $jq_version)"
+                else
+                    debug_log "JQ INSTALL: Stable version validation failed, trying fallback"
+                    rm -f "$INSTALL_DIR/jq"
+                    print_status "$YELLOW" "Stable version failed validation, trying alternative version..."
+
+                    # Fallback to alternative version
+                    if curl -fL --progress-bar "$JQ_FALLBACK_URL" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
+                        if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
+                            debug_log "JQ INSTALL: Fallback version installation completed successfully"
+                            print_status "$GREEN" "✓ jq installed (fallback version v1.6)"
+                        else
+                            debug_log "JQ INSTALL: Fallback version validation failed"
+                            print_status "$RED" "Error: Fallback jq version failed validation"
+                            return 1
+                        fi
+                    else
+                        print_status "$RED" "Error: Failed to download jq fallback version"
+                        return 1
+                    fi
+                fi
             else
-                print_status "$RED" "Error: Failed to download jq (both latest and fallback)"
-                return 1
+                debug_log "JQ INSTALL: Stable version download failed, trying fallback"
+                rm -f "$INSTALL_DIR/jq"
+                print_status "$YELLOW" "Stable version download failed, trying alternative version..."
+
+                # Try fallback version
+                if curl -fL --progress-bar "$JQ_FALLBACK_URL" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
+                    if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
+                        debug_log "JQ INSTALL: Fallback version installation completed successfully"
+                        print_status "$GREEN" "✓ jq installed (fallback version v1.6)"
+                    else
+                        debug_log "JQ INSTALL: Fallback version validation failed"
+                        print_status "$RED" "Error: Fallback jq version failed validation"
+                        return 1
+                    fi
+                else
+                    debug_log "JQ INSTALL: All download attempts failed"
+                    print_status "$RED" "Error: Failed to download jq (all versions tried)"
+                    return 1
+                fi
             fi
         fi
     else
