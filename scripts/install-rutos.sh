@@ -470,7 +470,7 @@ install_config() {
     # Download/copy templates to temporary location first
     temp_basic_template="/tmp/config.template.sh.$$"
     temp_advanced_template="/tmp/config.advanced.template.sh.$$"
-    
+
     # Handle both local and remote installation
     if [ -f "$config_dir/config.template.sh" ]; then
         cp "$config_dir/config.template.sh" "$temp_basic_template"
@@ -491,7 +491,7 @@ install_config() {
             print_status "$RED" "✗ Failed to download basic configuration template"
             exit 1
         fi
-        
+
         if download_file "$BASE_URL/config/config.advanced.template.sh" "$temp_advanced_template"; then
             print_status "$GREEN" "✓ Advanced configuration template downloaded"
         else
@@ -502,26 +502,26 @@ install_config() {
 
     # NEW LOGIC: Check for existing persistent configuration
     primary_config="$PERSISTENT_CONFIG_DIR/config.sh"
-    
+
     if [ -f "$primary_config" ]; then
         print_status "$BLUE" "Found existing persistent configuration at $primary_config"
-        
+
         # Detect configuration type (basic vs advanced)
         config_type="basic"
         # Look for advanced-only variables to detect advanced config
         if grep -qE "^(ENABLE_DETAILED_LOGGING|NOTIFICATION_COOLDOWN|API_CHECK_INTERVAL|MWAN3_POLICY)" "$primary_config" 2>/dev/null; then
             config_type="advanced"
         fi
-        
+
         print_status "$BLUE" "Detected $config_type configuration type"
-        
+
         # Select appropriate template
         if [ "$config_type" = "advanced" ]; then
             selected_template="$temp_advanced_template"
         else
             selected_template="$temp_basic_template"
         fi
-        
+
         # Create timestamped backup of existing config
         backup_timestamp=$(date +%Y%m%d_%H%M%S)
         backup_file="$PERSISTENT_CONFIG_DIR/config.sh.backup.$backup_timestamp"
@@ -531,16 +531,16 @@ install_config() {
             print_status "$RED" "✗ Failed to backup existing configuration!"
             exit 1
         fi
-        
+
         # Perform intelligent merge
         print_status "$BLUE" "Merging settings from existing configuration..."
         temp_merged_config="/tmp/config_merged.sh.$$"
-        
+
         if ! cp "$selected_template" "$temp_merged_config"; then
             print_status "$RED" "✗ Failed to prepare template for merge"
             exit 1
         fi
-        
+
         # Enhanced settings preservation
         settings_to_preserve="STARLINK_IP MWAN_IFACE MWAN_MEMBER PUSHOVER_TOKEN PUSHOVER_USER RUTOS_USERNAME RUTOS_PASSWORD RUTOS_IP PING_TARGETS PING_COUNT PING_TIMEOUT PING_INTERVAL CHECK_INTERVAL FAIL_COUNT_THRESHOLD RECOVERY_COUNT_THRESHOLD INITIAL_DELAY ENABLE_LOGGING LOG_RETENTION_DAYS ENABLE_PUSHOVER_NOTIFICATIONS ENABLE_SYSLOG SYSLOG_PRIORITY ENABLE_HOTPLUG_NOTIFICATIONS ENABLE_STATUS_LOGGING ENABLE_API_MONITORING ENABLE_PING_MONITORING STARLINK_GRPC_PORT API_CHECK_INTERVAL MWAN3_POLICY MWAN3_RULE NOTIFICATION_COOLDOWN NOTIFICATION_RECOVERY_DELAY ENABLE_DETAILED_LOGGING"
 
@@ -582,7 +582,7 @@ install_config() {
                 debug_msg "Setting not found in existing config: $setting"
             fi
         done
-        
+
         # Replace the primary config with merged version
         if [ -f "$temp_merged_config" ] && [ -s "$temp_merged_config" ]; then
             if mv "$temp_merged_config" "$primary_config" 2>/dev/null; then
@@ -600,11 +600,11 @@ install_config() {
             mv "$backup_file" "$primary_config" 2>/dev/null
             exit 1
         fi
-        
+
     else
         # First time installation - no existing config
         print_status "$BLUE" "First time installation - creating new configuration"
-        
+
         # Use basic template by default
         if cp "$temp_basic_template" "$primary_config"; then
             print_status "$GREEN" "✓ Initial configuration created from template"
@@ -627,7 +627,7 @@ install_config() {
 
     print_status "$GREEN" "✓ Configuration system initialized"
     print_status "$BLUE" "  Primary config: $primary_config"
-    print_status "$BLUE" "  Convenience link: /root/config.sh -> $primary_config" 
+    print_status "$BLUE" "  Convenience link: /root/config.sh -> $primary_config"
     print_status "$BLUE" "  Installation link: /root/starlink-monitor -> $INSTALL_DIR"
 
     # Cleanup temporary files
