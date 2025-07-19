@@ -24,9 +24,17 @@ set -eu
 
 # --- User Configuration ---
 
+# Load configuration from config file if available
+CONFIG_FILE="${CONFIG_FILE:-$INSTALL_DIR/config/config.sh}"
+if [ -f "$CONFIG_FILE" ]; then
+    # Source the configuration file
+    # shellcheck source=/dev/null
+    . "$CONFIG_FILE"
+fi
+
 # Your Pushover Application API Token/Key.
-# Replace this placeholder with your actual token.
-PUSHOVER_TOKEN="YOUR_PUSHOVER_API_TOKEN"
+# This will be loaded from config file, fallback to placeholder
+PUSHOVER_TOKEN="${PUSHOVER_TOKEN:-YOUR_PUSHOVER_API_TOKEN}"
 
 # Your Pushover User Key.
 # Replace this placeholder with your actual key.
@@ -37,17 +45,19 @@ LOG_TAG="StarlinkApiCheck"
 
 # --- System Configuration (Advanced) ---
 
-# The IP address and port for the Starlink gRPC API. This is standard.
-STARLINK_IP="192.168.100.1:9200"
+# The IP address and port for the Starlink gRPC API.
+# This will be loaded from config file, fallback to standard
+STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
 
 # The file used to store the last known API version.
 # /root/ is a persistent location on RUTOS/OpenWrt.
 KNOWN_API_VERSION_FILE="/root/starlink_api_version.txt"
 
-# Location of binaries. Assumes they are in the system's PATH.
-# If you placed them in /root/, change these to /root/grpcurl and /root/jq.
-GRPCURL_CMD="grpcurl"
-JQ_CMD="jq"
+# Location of binaries - use installation directory paths
+# These are installed by the install-rutos.sh script
+INSTALL_DIR="/usr/local/starlink-monitor"
+GRPCURL_CMD="$INSTALL_DIR/grpcurl"
+JQ_CMD="$INSTALL_DIR/jq"
 
 # --- Helper Functions ---
 log() {
