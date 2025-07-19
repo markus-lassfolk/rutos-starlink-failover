@@ -777,7 +777,7 @@ check_configuration_health() {
         # Use timeout command if available, otherwise rely on the script's own timeout
         if command -v timeout >/dev/null 2>&1; then
             log_debug "CONFIG VALIDATION: Using timeout command (30 seconds)"
-            log_debug "CONFIG VALIDATION: Executing timeout 30 $validation_script --quiet"
+            log_debug "CONFIG VALIDATION: Executing timeout 30 $validation_script"
             
             # Test if timeout command works with a simple command first
             log_debug "CONFIG VALIDATION: Testing timeout command functionality..."
@@ -786,7 +786,7 @@ check_configuration_health() {
             else
                 log_debug "CONFIG VALIDATION: Timeout command test failed, falling back to direct execution"
                 # Skip timeout and go directly to fallback
-                validation_output=$("$validation_script" --quiet 2>&1 || echo "Script execution failed")
+                validation_output=$("$validation_script" 2>&1 || echo "Script execution failed")
                 validation_exit_code=$?
                 validation_end_time=$(date '+%s')
                 validation_duration=$((validation_end_time - validation_start_time))
@@ -853,8 +853,8 @@ check_configuration_health() {
                 rm -f "$temp_output" "$temp_error"
                 
                 # Execute the validation script directly with file redirection
-                log_debug "CONFIG VALIDATION: Executing: timeout 30 $validation_script --quiet >$temp_output 2>$temp_error"
-                timeout 30 "$validation_script" --quiet >"$temp_output" 2>"$temp_error"
+                log_debug "CONFIG VALIDATION: Executing: timeout 30 $validation_script >$temp_output 2>$temp_error"
+                timeout 30 "$validation_script" >"$temp_output" 2>"$temp_error"
                 validation_exit_code=$?
                 
                 log_debug "CONFIG VALIDATION: Command completed with exit code: $validation_exit_code"
@@ -884,14 +884,14 @@ check_configuration_health() {
                 log_debug "CONFIG VALIDATION: Running in normal mode with simple execution"
                 # Even in normal mode, avoid command substitution with timeout
                 temp_output="/tmp/health_check_validation_simple.out"
-                timeout 30 "$validation_script" --quiet >"$temp_output" 2>&1
+                timeout 30 "$validation_script" >"$temp_output" 2>&1
                 validation_exit_code=$?
                 validation_output=$(cat "$temp_output" 2>/dev/null || echo "")
                 rm -f "$temp_output"
             fi
         else
             log_debug "CONFIG VALIDATION: No timeout command available, using manual timeout approach"
-            log_debug "CONFIG VALIDATION: Executing $validation_script --quiet with background monitoring"
+            log_debug "CONFIG VALIDATION: Executing $validation_script with background monitoring"
             
             # Create temporary files for output
             temp_output="/tmp/health_check_validation_bg.out"
@@ -906,7 +906,7 @@ check_configuration_health() {
                 log_debug "CONFIG VALIDATION: Starting background process with manual timeout"
                 
                 # Start validation script in background
-                ("$validation_script" --quiet >"$temp_output" 2>"$temp_error"; echo $? >"/tmp/health_check_validation_exit.code") &
+                ("$validation_script" >"$temp_output" 2>"$temp_error"; echo $? >"/tmp/health_check_validation_exit.code") &
                 bg_pid=$!
                 echo $bg_pid > "$temp_pid"
                 log_debug "CONFIG VALIDATION: Background process started with PID $bg_pid"
@@ -962,7 +962,7 @@ check_configuration_health() {
                 
             else
                 # Fallback to simple execution without timeout in normal mode
-                validation_output=$("$validation_script" --quiet 2>&1)
+                validation_output=$("$validation_script" 2>&1)
                 validation_exit_code=$?
             fi
         fi
@@ -1187,7 +1187,7 @@ run_integrated_tests() {
 
     # Test Pushover notifications
     if [ -x "$SCRIPT_DIR/test-pushover-rutos.sh" ]; then
-        if "$SCRIPT_DIR/test-pushover-rutos.sh" --quiet >/dev/null 2>&1; then
+        if "$SCRIPT_DIR/test-pushover-rutos.sh" >/dev/null 2>&1; then
             show_health_status "healthy" "Pushover Test" "Notification test passed"
             increment_counter "healthy"
         else
@@ -1201,7 +1201,7 @@ run_integrated_tests() {
 
     # Test monitoring connectivity
     if [ -x "$SCRIPT_DIR/test-monitoring-rutos.sh" ]; then
-        if "$SCRIPT_DIR/test-monitoring-rutos.sh" --quiet >/dev/null 2>&1; then
+        if "$SCRIPT_DIR/test-monitoring-rutos.sh" >/dev/null 2>&1; then
             show_health_status "healthy" "Monitoring Test" "Connectivity test passed"
             increment_counter "healthy"
         else
@@ -1215,7 +1215,7 @@ run_integrated_tests() {
 
     # Run system status check
     if [ -x "$SCRIPT_DIR/system-status-rutos.sh" ]; then
-        if "$SCRIPT_DIR/system-status-rutos.sh" --quiet >/dev/null 2>&1; then
+        if "$SCRIPT_DIR/system-status-rutos.sh" >/dev/null 2>&1; then
             show_health_status "healthy" "System Status" "System status check passed"
             increment_counter "healthy"
         else
