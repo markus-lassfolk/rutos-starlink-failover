@@ -217,8 +217,8 @@ while [ "$i" -lt "$new_sample_count" ]; do
 
     # Extract the specific latency and loss for this sample from the arrays.
     # We use jq's --argjson flag to safely pass shell variables into the jq script.
-    latency=$(echo "$latency_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4count - 4i)] // 0" | cut -d'.' -f1)
-    loss=$(echo "$loss_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4count - 4i)] // 0")
+    latency=$(echo "$latency_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4*\$count - 4*\$i)] // 0" | cut -d'.' -f1)
+    loss=$(echo "$loss_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" "")
 
     # Convert loss and obstruction ratios to percentages for easier analysis in spreadsheets.
     loss_pct=$(awk -v val="$loss" 'BEGIN { printf "%.2f", val * 100 }')
