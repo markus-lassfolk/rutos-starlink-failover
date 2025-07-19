@@ -471,21 +471,23 @@ check_starlink_connectivity() {
         . "$SCRIPT_DIR/placeholder-utils.sh" 2>/dev/null || true
 
         if [ -n "${STARLINK_IP:-}" ] && [ "$STARLINK_IP" != "YOUR_STARLINK_IP" ]; then
-            if ping -c 1 -W 5 "$STARLINK_IP" >/dev/null 2>&1; then
-                show_health_status "healthy" "Starlink Device" "Can reach $STARLINK_IP"
+            # Extract IP without port for ping test
+            STARLINK_HOST=$(echo "$STARLINK_IP" | cut -d: -f1)
+            if ping -c 1 -W 5 "$STARLINK_HOST" >/dev/null 2>&1; then
+                show_health_status "healthy" "Starlink Device" "Can reach $STARLINK_HOST"
                 increment_counter "healthy"
             else
-                show_health_status "critical" "Starlink Device" "Cannot reach $STARLINK_IP"
+                show_health_status "critical" "Starlink Device" "Cannot reach $STARLINK_HOST"
                 increment_counter "critical"
             fi
 
-            # Test grpcurl if available
-            if command -v grpcurl >/dev/null 2>&1; then
-                if grpcurl -plaintext -d '{}' "$STARLINK_IP:9200" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
-                    show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP:9200"
+            # Test grpcurl if available (use configured GRPCURL_CMD and full STARLINK_IP)
+            if [ -x "$GRPCURL_CMD" ]; then
+                if "$GRPCURL_CMD" -plaintext -d '{}' "$STARLINK_IP" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
+                    show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP"
                     increment_counter "healthy"
                 else
-                    show_health_status "warning" "Starlink gRPC API" "API not responding on $STARLINK_IP:9200"
+                    show_health_status "warning" "Starlink gRPC API" "API not responding on $STARLINK_IP"
                     increment_counter "warning"
                 fi
             else
