@@ -264,22 +264,22 @@ version_compare() {
 # Function to detect latest grpcurl version dynamically
 detect_latest_grpcurl_version() {
     debug_msg "Attempting to detect latest grpcurl version..."
-    
+
     # Try to get latest version from GitHub API
     latest_version=""
     if command -v curl >/dev/null 2>&1; then
         # GitHub API returns JSON with tag_name field
-        latest_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/fullstorydev/grpcurl/releases/latest" 2>/dev/null | 
-                        grep -o '"tag_name":[[:space:]]*"[^"]*"' | 
-                        sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' | 
-                        head -1)
+        latest_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/fullstorydev/grpcurl/releases/latest" 2>/dev/null |
+            grep -o '"tag_name":[[:space:]]*"[^"]*"' |
+            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' |
+            head -1)
     elif command -v wget >/dev/null 2>&1; then
-        latest_version=$(wget -qO- --timeout=10 "https://api.github.com/repos/fullstorydev/grpcurl/releases/latest" 2>/dev/null | 
-                        grep -o '"tag_name":[[:space:]]*"[^"]*"' | 
-                        sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' | 
-                        head -1)
+        latest_version=$(wget -qO- --timeout=10 "https://api.github.com/repos/fullstorydev/grpcurl/releases/latest" 2>/dev/null |
+            grep -o '"tag_name":[[:space:]]*"[^"]*"' |
+            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' |
+            head -1)
     fi
-    
+
     # Validate the version format (should be like "v1.9.3")
     if [ -n "$latest_version" ] && echo "$latest_version" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
         # Remove the 'v' prefix for filename construction
@@ -298,22 +298,22 @@ detect_latest_grpcurl_version() {
 # Function to detect latest jq version dynamically
 detect_latest_jq_version() {
     debug_msg "Attempting to detect latest jq version..."
-    
+
     # Try to get latest version from GitHub API
     latest_version=""
     if command -v curl >/dev/null 2>&1; then
         # GitHub API returns JSON with tag_name field
-        latest_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/jqlang/jq/releases/latest" 2>/dev/null | 
-                        grep -o '"tag_name":[[:space:]]*"[^"]*"' | 
-                        sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' | 
-                        head -1)
+        latest_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/jqlang/jq/releases/latest" 2>/dev/null |
+            grep -o '"tag_name":[[:space:]]*"[^"]*"' |
+            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' |
+            head -1)
     elif command -v wget >/dev/null 2>&1; then
-        latest_version=$(wget -qO- --timeout=10 "https://api.github.com/repos/jqlang/jq/releases/latest" 2>/dev/null | 
-                        grep -o '"tag_name":[[:space:]]*"[^"]*"' | 
-                        sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' | 
-                        head -1)
+        latest_version=$(wget -qO- --timeout=10 "https://api.github.com/repos/jqlang/jq/releases/latest" 2>/dev/null |
+            grep -o '"tag_name":[[:space:]]*"[^"]*"' |
+            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' |
+            head -1)
     fi
-    
+
     # Validate the version format (should be like "jq-1.7.1")
     if [ -n "$latest_version" ] && echo "$latest_version" | grep -qE '^jq-[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
         # Construct the dynamic URL for ARM binary
@@ -755,7 +755,7 @@ install_binaries() {
         if dynamic_grpcurl_url=$(detect_latest_grpcurl_version); then
             debug_log "GRPCURL INSTALL: Dynamic detection successful, trying latest version"
             print_status "$YELLOW" "Downloading grpcurl (latest detected version)..."
-            
+
             if curl -fL --progress-bar "$dynamic_grpcurl_url" -o /tmp/grpcurl.tar.gz; then
                 debug_log "GRPCURL INSTALL: Latest version download successful, extracting archive"
                 if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
@@ -782,7 +782,7 @@ install_binaries() {
             debug_log "GRPCURL INSTALL: Dynamic detection failed, trying stable version"
             print_status "$YELLOW" "Could not detect latest version, using stable version..."
         fi
-        
+
         # If dynamic detection failed, use our known stable version
         if [ -z "$dynamic_grpcurl_url" ]; then
             debug_log "GRPCURL INSTALL: Using stable version from $GRPCURL_URL"
@@ -816,7 +816,7 @@ install_binaries() {
             else
                 debug_log "GRPCURL INSTALL: Stable version download failed, trying fallback"
                 print_status "$YELLOW" "Stable version download failed, trying alternative version..."
-                
+
                 # Try fallback version
                 if curl -fL --progress-bar "$GRPCURL_FALLBACK_URL" -o /tmp/grpcurl.tar.gz; then
                     if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
@@ -850,7 +850,7 @@ install_binaries() {
         if dynamic_jq_url=$(detect_latest_jq_version); then
             debug_log "JQ INSTALL: Dynamic detection successful, trying latest version"
             print_status "$YELLOW" "Downloading jq (latest detected version)..."
-            
+
             if curl -fL --progress-bar "$dynamic_jq_url" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
                 if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
                     debug_log "JQ INSTALL: Latest version installation completed successfully"
@@ -875,7 +875,7 @@ install_binaries() {
             debug_log "JQ INSTALL: Dynamic detection failed, trying stable version"
             print_status "$YELLOW" "Could not detect latest version, using stable version..."
         fi
-        
+
         # If dynamic detection failed, use our known stable version
         if [ -z "$dynamic_jq_url" ]; then
             debug_log "JQ INSTALL: Using stable version from $JQ_URL"
