@@ -128,11 +128,11 @@ load_config() {
     printf "%b\n" "${GREEN}Loading configuration from: $CONFIG_FILE${NC}"
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
-    
+
     # Set default values for directories if not defined in config
     LOG_DIR="${LOG_DIR:-/etc/starlink-logs}"
     STATE_DIR="${STATE_DIR:-/tmp/run}"
-    DATA_DIR="${DATA_DIR:-/usr/local/starlink-monitor/logs}"  # Define missing DATA_DIR
+    DATA_DIR="${DATA_DIR:-/usr/local/starlink-monitor/logs}" # Define missing DATA_DIR
 }
 
 # Check required binaries
@@ -183,7 +183,7 @@ check_network() {
     # Note: Starlink API and service connectivity testing moved to test-connectivity-rutos.sh
     printf "%b\n" "${BLUE}ℹ For detailed connectivity testing, run: test-connectivity-rutos.sh${NC}"
 
-    # Check RUTOS API if configured  
+    # Check RUTOS API if configured
     if [ -n "${RUTOS_IP:-}" ]; then
         if ! timeout 5 nc -z "$RUTOS_IP" 80 2>/dev/null; then
             printf "%b\n" "${YELLOW}Warning: Cannot reach RUTOS API at $RUTOS_IP${NC}"
@@ -324,11 +324,11 @@ check_config_completeness() {
     # Count variables in config (handle both export and non-export formats)
     config_var_count=$(grep -c "^export [A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || printf "0")
     config_var_count_alt=$(grep -c "^[A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || printf "0")
-    
+
     # Ensure we have numeric values
     config_var_count="${config_var_count:-0}"
     config_var_count_alt="${config_var_count_alt:-0}"
-    
+
     if [ "$config_var_count_alt" -gt "$config_var_count" ] 2>/dev/null; then
         config_var_count="$config_var_count_alt"
     fi
