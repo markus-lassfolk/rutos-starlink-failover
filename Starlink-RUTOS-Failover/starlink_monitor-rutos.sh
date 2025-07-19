@@ -70,26 +70,35 @@ LOCK_FILE="${STATE_DIR}/starlink_monitor.lock"
 
 # --- Helper Functions ---
 
+debug_log() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
+
 ##
 # log(level, message)
 # Enhanced logging with severity levels. Logs to syslog, file, and optionally console.
 log() {
     level="$1"
     message="$2"
-    timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     # Log to syslog
     logger -t "$LOG_TAG" -p "daemon.$level" -- "$message"
 
     # Log to file with rotation
-    log_file
     log_file="${LOG_DIR}/starlink_monitor_$(date '+%Y-%m-%d').log"
     echo "$timestamp [$level] $message" >>"$log_file"
 
     # Console output for manual runs
     if [ -t 1 ]; then
         echo "[$level] $message"
+    fi
+    
+    # Also output to stderr if DEBUG is enabled
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[%s] [%s] %s\n" "$LOG_TAG" "$level" "$message" >&2
     fi
 }
 
@@ -180,33 +189,97 @@ trap cleanup EXIT INT TERM
 
 # --- Main Logic ---
 
+# Add test mode for troubleshooting
+if [ "${TEST_MODE:-0}" = "1" ]; then
+    debug_log "TEST MODE ENABLED: Running in test mode"
+    DEBUG=1  # Force debug mode in test mode
+    set -x   # Enable command tracing
+    debug_log "TEST MODE: All commands will be traced"
+fi
+
+# Enhanced debug mode with detailed startup logging
+DEBUG="${DEBUG:-0}"
+if [ "$DEBUG" = "1" ]; then
+    debug_log "==================== STARLINK MONITOR DEBUG MODE ENABLED ===================="
+    debug_log "Script version: 2.4.0"
+    debug_log "Current working directory: $(pwd)"
+    debug_log "Script path: $0"
+    debug_log "Process ID: $$"
+    debug_log "User: $(whoami 2>/dev/null || echo 'unknown')"
+    debug_log "Arguments: $*"
+    debug_log "Environment DEBUG: ${DEBUG:-0}"
+    debug_log "Environment TEST_MODE: ${TEST_MODE:-0}"
+    
+    debug_log "CONFIGURATION PATHS:"
+    debug_log "  CONFIG_FILE=${CONFIG_FILE:-not_set}"
+    debug_log "  STATE_DIR=${STATE_DIR:-not_set}"
+    debug_log "  LOG_DIR=${LOG_DIR:-not_set}"
+    debug_log "  STATE_FILE=${STATE_FILE:-not_set}"
+    debug_log "  STABILITY_FILE=${STABILITY_FILE:-not_set}"
+    debug_log "  HEALTH_FILE=${HEALTH_FILE:-not_set}"
+    debug_log "  LOCK_FILE=${LOCK_FILE:-not_set}"
+    
+    debug_log "CONFIGURATION VALUES:"
+    debug_log "  STARLINK_IP=${STARLINK_IP:-not_set}"
+    debug_log "  GRPCURL_CMD=${GRPCURL_CMD:-not_set}"
+    debug_log "  JQ_CMD=${JQ_CMD:-not_set}"
+    debug_log "  LOG_TAG=${LOG_TAG:-not_set}"
+    debug_log "  PUSHOVER_TOKEN=$(printf "%.10s..." "${PUSHOVER_TOKEN:-not_set}")"
+    debug_log "  PUSHOVER_USER=$(printf "%.10s..." "${PUSHOVER_USER:-not_set}")"
+fi
+
 ##
 # main()
 # Main monitoring logic: rotates logs, acquires lock, gathers Starlink API data, analyzes quality, manages failover/failback, updates health, and notifies as needed.
 main() {
+    debug_log "FUNCTION: main"
+    debug_log "==================== STARLINK MONITOR START ===================="
+    debug_log "Starting main monitoring function"
     log "info" "Starting Starlink monitor check"
 
     # Rotate logs and acquire lock
+    debug_log "STEP: Rotating logs and acquiring lock"
     rotate_logs
     acquire_lock
 
     # Read current state from files and mwan3 config
+    debug_log "STEP: Reading current state from files and mwan3 config"
     last_state=$(cat "$STATE_FILE" 2>/dev/null || echo "up")                                    # up or down
     stability_count=$(cat "$STABILITY_FILE" 2>/dev/null || echo "0")                            # consecutive good checks
     current_metric=$(uci -q get mwan3."$MWAN_MEMBER".metric 2>/dev/null || echo "$METRIC_GOOD") # current routing metric
 
+    debug_log "STATE VALUES:"
+    debug_log "  last_state=$last_state (from $STATE_FILE)"
+    debug_log "  stability_count=$stability_count (from $STABILITY_FILE)"
+    debug_log "  current_metric=$current_metric (from mwan3.$MWAN_MEMBER.metric)"
+    debug_log "  MWAN_MEMBER=${MWAN_MEMBER:-not_set}"
+    debug_log "  METRIC_GOOD=${METRIC_GOOD:-not_set}"
+
     log "info" "Current state: $last_state, Stability: $stability_count, Metric: $current_metric"
 
     # --- Data Gathering ---
+    debug_log "STEP: Gathering data from Starlink API"
     log "debug" "Gathering data from Starlink API"
 
     # Query Starlink API for current status and history (with retry)
+    debug_log "API CALL: Calling get_status"
     status_data=$(call_starlink_api "get_status" | "$JQ_CMD" -r '.dishGetStatus // empty' 2>/dev/null)
+    status_exit=$?
+    debug_log "API RESULT: get_status exit code: $status_exit"
+    debug_log "API RESULT: status_data length: ${#status_data}"
+    
+    debug_log "API CALL: Calling get_history"
     history_data=$(call_starlink_api "get_history" | "$JQ_CMD" -r '.dishGetHistory // empty' 2>/dev/null)
+    history_exit=$?
+    debug_log "API RESULT: get_history exit code: $history_exit"
+    debug_log "API RESULT: history_data length: ${#history_data}"
 
     # Check if API calls were successful; if not, log and update health, but do not change state
     if [ -z "$status_data" ] || [ -z "$history_data" ]; then
         log "error" "Failed to retrieve data from Starlink API"
+        debug_log "API ERROR: One or both API calls returned empty data"
+        debug_log "API ERROR: status_data empty: $([ -z "$status_data" ] && echo 'yes' || echo 'no')"
+        debug_log "API ERROR: history_data empty: $([ -z "$history_data" ] && echo 'yes' || echo 'no')"
         update_health_status "error" "API communication failed"
 
         # If we can't get data, maintain current state but log the issue
@@ -331,8 +404,15 @@ main() {
     fi
 
     log "info" "Monitor check completed"
+    debug_log "STARLINK MONITOR: Completing successfully"
+    debug_log "==================== STARLINK MONITOR COMPLETE ===================="
+    debug_log "Final status: SUCCESS"
+    debug_log "Script execution completed normally"
+    debug_log "Exit code: 0"
     return 0
 }
 
 # Run main function
+debug_log "==================== SCRIPT EXECUTION START ===================="
 main
+debug_log "==================== SCRIPT EXECUTION END ===================="
