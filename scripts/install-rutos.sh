@@ -937,7 +937,7 @@ install_config() {
             config_debug "✗ Merged config file is missing or empty!"
             config_debug "Temp merged config file: $temp_merged_config"
             if [ -f "$temp_merged_config" ]; then
-                config_debug "File exists but size: $(wc -c < "$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
+                config_debug "File exists but size: $(wc -c <"$temp_merged_config" 2>/dev/null || echo 'unknown') bytes"
             else
                 config_debug "File does not exist"
             fi
