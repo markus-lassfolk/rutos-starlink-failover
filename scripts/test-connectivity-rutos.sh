@@ -12,8 +12,8 @@ SCRIPT_VERSION="1.0.2"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="${INSTALL_DIR:-$(dirname "$SCRIPT_DIR")}"
 
-# RUTOS-compatible color detection (SSH-aware approach - like install script)
-# This method has been proven to work well with RUTOS via SSH
+# Standard colors for consistent output (RUTOS-compatible)
+# Use same working approach as install script that showed colors successfully
 RED=""
 GREEN=""
 YELLOW=""
@@ -21,24 +21,28 @@ BLUE=""
 CYAN=""
 NC=""
 
-# Enable colors if terminal supports them (same logic as successful install script)
-if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
-fi
-
-# Override: Force colors if explicitly requested
+# Match install script logic exactly (this approach worked!)
 if [ "${FORCE_COLOR:-}" = "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED="\033[0;31m"
+    GREEN="\033[0;32m"
+    YELLOW="\033[1;33m"
+    BLUE="\033[1;35m"
+    CYAN="\033[0;36m"
+    NC="\033[0m"
+elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
+    case "${TERM:-}" in
+        xterm* | screen* | tmux* | linux*)
+            RED="\033[0;31m"
+            GREEN="\033[0;32m"
+            YELLOW="\033[1;33m"
+            BLUE="\033[1;35m"
+            CYAN="\033[0;36m"
+            NC="\033[0m"
+            ;;
+        *)
+            # Unknown or limited terminal - stay safe with no colors
+            ;;
+    esac
 fi
 
 # Debug color support

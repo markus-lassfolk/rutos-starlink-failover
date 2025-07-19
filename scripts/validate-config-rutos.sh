@@ -42,8 +42,7 @@ debug_msg() {
 }
 
 # Colors for output
-# RUTOS-compatible color detection (SSH-aware approach - like install script)
-# This method has been proven to work well with RUTOS via SSH
+# RUTOS-compatible color detection - Use same working approach as install script
 # shellcheck disable=SC2034
 RED=""
 GREEN=""
@@ -52,24 +51,29 @@ BLUE=""
 CYAN=""
 NC=""
 
-# Enable colors if terminal supports them (same logic as successful install script)
-if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m' # Bright magenta instead of dark blue for better readability
-    CYAN='\033[0;36m'
-    NC='\033[0m' # No Color
-fi
-
-# Override: Force colors if explicitly requested
+# Match install script logic exactly (this approach worked!)
 if [ "${FORCE_COLOR:-}" = "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m' # Bright magenta instead of dark blue for better readability
-    CYAN='\033[0;36m'
-    NC='\033[0m' # No Color
+    RED="\033[0;31m"
+    GREEN="\033[0;32m"
+    YELLOW="\033[1;33m"
+    BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
+    CYAN="\033[0;36m"
+    NC="\033[0m" # No Color
+elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
+    case "${TERM:-}" in
+        xterm* | screen* | tmux* | linux*)
+            # Known terminal types that support colors
+            RED="\033[0;31m"
+            GREEN="\033[0;32m"
+            YELLOW="\033[1;33m"
+            BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
+            CYAN="\033[0;36m"
+            NC="\033[0m" # No Color
+            ;;
+        *)
+            # Unknown or limited terminal - stay safe with no colors
+            ;;
+    esac
 fi
 
 # Installation directory path

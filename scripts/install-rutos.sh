@@ -90,8 +90,8 @@ VERSION_URL="${BASE_URL}/VERSION"
 MIN_COMPATIBLE_VERSION="1.0.0" # Used for compatibility checks in future
 
 # Colors for output
-# RUTOS-compatible color detection (ultra-conservative busybox approach)
-# Default to NO COLORS for maximum RUTOS compatibility
+# RUTOS-compatible color detection - RESTORED TO WORKING VERSION
+# This approach showed colors successfully in user testing
 RED=""
 GREEN=""
 YELLOW=""
