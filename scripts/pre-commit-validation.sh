@@ -385,15 +385,23 @@ run_shfmt() {
         return 0
     fi
 
-    # Run shfmt to check formatting (use 4 spaces and case indentation to match repository standard)
-    if ! shfmt -i 4 -ci -d "$file" >/dev/null 2>&1; then
+    # Determine shfmt options based on script type (match GitHub Action settings)
+    shfmt_options="-i 4 -ci"
+    if echo "$file" | grep -q '\-rutos\.sh$'; then
+        # RUTOS scripts need POSIX-compatible formatting
+        shfmt_options="-i 4 -ci -ln posix"
+        log_debug "Using POSIX formatting for RUTOS script: $file"
+    fi
+
+    # Run shfmt to check formatting
+    if ! shfmt $shfmt_options -d "$file" >/dev/null 2>&1; then
         log_debug "shfmt found formatting issues in $file"
 
         # Count the number of formatting issues (lines of diff output)
-        diff_lines=$(shfmt -i 4 -ci -d "$file" 2>/dev/null | wc -l)
+        diff_lines=$(shfmt $shfmt_options -d "$file" 2>/dev/null | wc -l)
 
         if [ "$diff_lines" -gt 0 ]; then
-            report_issue "MAJOR" "$file" "0" "shfmt formatting issues - run 'shfmt -i 4 -ci -w $file' to fix"
+            report_issue "MAJOR" "$file" "0" "shfmt formatting issues - run 'shfmt $shfmt_options -w $file' to fix"
             return 1
         fi
     else
@@ -549,11 +557,18 @@ auto_fix_formatting() {
 
     case "$file_extension" in
         "sh")
-            # Auto-fix shell script formatting with shfmt (use 4 spaces and case indentation to match repository standard)
+            # Auto-fix shell script formatting with shfmt (match GitHub Action settings)
             if command_exists shfmt; then
-                if ! shfmt -i 4 -ci -d "$file" >/dev/null 2>&1; then
-                    log_info "Auto-fixing shell script formatting: $file"
-                    shfmt -i 4 -ci -w "$file"
+                # Determine shfmt options based on script type
+                shfmt_options="-i 4 -ci"
+                if echo "$file" | grep -q '\-rutos\.sh$'; then
+                    # RUTOS scripts need POSIX-compatible formatting
+                    shfmt_options="-i 4 -ci -ln posix"
+                fi
+                
+                if ! shfmt $shfmt_options -d "$file" >/dev/null 2>&1; then
+                    log_info "Auto-fixing shell script formatting: $file (options: $shfmt_options)"
+                    shfmt $shfmt_options -w "$file"
                     fixes_applied=1
                 fi
             fi
