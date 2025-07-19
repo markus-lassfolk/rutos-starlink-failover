@@ -147,7 +147,7 @@ check_cron_status() {
 
     # Show detailed scheduling information
     if [ "$monitor_entries" -gt 0 ]; then
-        monitor_schedule=$(grep "starlink_monitor-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+        monitor_schedule=$(grep "starlink_monitor-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1 " " $2 " " $3 " " $4 " " $5}')
         show_status "ok" "Monitor scheduled: $monitor_schedule ($monitor_entries entries)"
 
         if [ "$monitor_entries" -gt 1 ]; then
@@ -158,7 +158,7 @@ check_cron_status() {
     fi
 
     if [ "$logger_entries" -gt 0 ]; then
-        logger_schedule=$(grep "starlink_logger-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+        logger_schedule=$(grep "starlink_logger-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1 " " $2 " " $3 " " $4 " " $5}')
         show_status "ok" "Logger scheduled: $logger_schedule ($logger_entries entries)"
 
         if [ "$logger_entries" -gt 1 ]; then
@@ -169,7 +169,9 @@ check_cron_status() {
     fi
 
     if [ "$api_check_entries" -gt 0 ]; then
-        api_schedule=$(grep "check_starlink_api" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+        log_debug "Processing API check schedule for $api_check_entries entries"
+        api_schedule=$(grep "check_starlink_api" "$CRON_FILE" | head -1 | awk '{print $1 " " $2 " " $3 " " $4 " " $5}' 2>/dev/null || echo "unknown")
+        log_debug "API schedule extracted: $api_schedule"
         show_status "ok" "API check scheduled: $api_schedule ($api_check_entries entries)"
 
         if [ "$api_check_entries" -gt 1 ]; then
@@ -191,6 +193,7 @@ check_cron_status() {
     total_entries=$((monitor_entries + logger_entries + api_check_entries))
     if [ "$total_entries" -eq 0 ]; then
         show_status "error" "No monitoring entries found in cron - system will not monitor automatically"
+        # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
         printf "${CYAN}  → Fix by re-running: install-rutos.sh${NC}\n"
     elif [ "$total_entries" -gt 3 ]; then
         show_status "warn" "Found $total_entries total entries - duplicates may exist"
@@ -212,6 +215,7 @@ check_cron_status() {
 
     if [ "$config_missing" -gt 0 ]; then
         show_status "warn" "$config_missing entries missing CONFIG_FILE environment variable"
+        # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
         printf "${CYAN}  → This may cause configuration loading issues${NC}\n"
     fi
 }
@@ -303,16 +307,6 @@ check_system_status() {
         show_status "warn" "Pushover notifications: Disabled (placeholder tokens)"
         printf "${CYAN}  → This is normal for basic installations${NC}\n"
         printf "${CYAN}  → Monitoring will work without notifications${NC}\n"
-    fi
-
-    # Check notification script
-    # Only warn about notification script if notifications are enabled and pushover is configured
-    if is_pushover_configured && { [ "${NOTIFY_ON_CRITICAL:-0}" = "1" ] || [ "${NOTIFY_ON_HARD_FAIL:-0}" = "1" ] || [ "${NOTIFY_ON_RECOVERY:-0}" = "1" ] || [ "${NOTIFY_ON_SOFT_FAIL:-0}" = "1" ] || [ "${NOTIFY_ON_INFO:-0}" = "1" ]; }; then
-        if [ -n "${NOTIFIER_SCRIPT:-}" ] && [ -x "$NOTIFIER_SCRIPT" ]; then
-            show_status "ok" "Notification script: $NOTIFIER_SCRIPT"
-        else
-            show_status "warn" "Notification delivery script (internal): Not found or not executable. This is not your Pushover API config. If you see this warning but Pushover is enabled above, please re-run the installer or check for missing files in /usr/local/starlink-monitor/scripts."
-        fi
     fi
 
     # Check logging configuration

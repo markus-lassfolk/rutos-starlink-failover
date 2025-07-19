@@ -24,6 +24,9 @@ set -eu
 
 # --- User Configuration ---
 
+# Set default installation directory if not already set
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
+
 # Load configuration from config file if available
 CONFIG_FILE="${CONFIG_FILE:-$INSTALL_DIR/config/config.sh}"
 if [ -f "$CONFIG_FILE" ]; then
