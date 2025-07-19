@@ -26,23 +26,36 @@ set -eu
 
 # --- User Configuration ---
 
-# The IP address and port for the Starlink gRPC API. This is standard.
-STARLINK_IP="192.168.100.1:9200"
+# Set default installation directory if not already set
+INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
 
-# The tag used for logging messages to the system log (syslog/logread).
-LOG_TAG="StarlinkLogger"
+# Load configuration from config file if available
+CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
+if [ -f "$CONFIG_FILE" ]; then
+    # shellcheck source=/dev/null
+    . "$CONFIG_FILE"
+fi
 
-# The full path where the final CSV log file will be stored.
-OUTPUT_CSV="/root/starlink_performance_log.csv"
+# Set defaults for variables that may not be in config
+STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+LOG_TAG="${LOG_TAG:-StarlinkLogger}"
+OUTPUT_CSV="${OUTPUT_CSV:-/root/starlink_performance_log.csv}"
+STATE_DIR="${STATE_DIR:-/tmp/run}"
+LAST_SAMPLE_FILE="${LAST_SAMPLE_FILE:-${STATE_DIR}/starlink_last_sample.ts}"
+
+# Binary paths - use installation directory (override any config values)
+GRPCURL_CMD="$INSTALL_DIR/grpcurl"
+JQ_CMD="$INSTALL_DIR/jq"
+
+# Create necessary directories
+mkdir -p "$STATE_DIR" "$(dirname "$OUTPUT_CSV")" 2>/dev/null || true
 
 # --- System Configuration (Advanced) ---
-# Location of state files. /tmp/run/ is recommended as it's a tmpfs.
-LAST_SAMPLE_FILE="/tmp/run/starlink_last_sample.ts"
 
 # Location of binaries. Assumes they are in the system's PATH.
 # If you placed them in /root/, change these to /root/grpcurl and /root/jq.
-GRPCURL_CMD="grpcurl"
-JQ_CMD="jq"
+# Binary commands are now properly configured above from config file or defaults
+# GRPCURL_CMD and JQ_CMD are set with full paths during config loading
 
 # --- Helper Functions ---
 log() {

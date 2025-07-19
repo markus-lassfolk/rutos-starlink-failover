@@ -68,6 +68,12 @@ export LOG_DIR="/etc/starlink-logs"
 # Directory for runtime state files
 export STATE_DIR="/tmp/run"
 
+# Log retention in days (how long to keep log files)
+export LOG_RETENTION_DAYS=7
+
+# Syslog tag for log messages (shown in system logs)
+export LOG_TAG="StarlinkMonitor"
+
 # --- Binary Paths (set by install script) ---
 
 export GRPCURL_CMD="/usr/local/starlink-monitor/grpcurl" # gRPC client for Starlink API

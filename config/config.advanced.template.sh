@@ -115,6 +115,7 @@ HEALTH_CHECK_FAILURES=60 # 60 failures before action (your retry)
 ENABLE_PERFORMANCE_LOGGING=1 # Log performance metrics
 LOG_RETENTION_DAYS=7         # Keep logs for 7 days
 LOG_ROTATION_SIZE="10M"      # Rotate logs at 10MB
+LOG_TAG="StarlinkMonitor"    # Syslog tag for identification
 
 # --- Integration Settings ---
 

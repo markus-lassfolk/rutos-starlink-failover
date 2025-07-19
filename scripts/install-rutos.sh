@@ -708,8 +708,18 @@ install_config() {
                 fi
             fi
             
+            # Try to find the setting with or without export prefix
             if grep -q "^${setting}=" "$primary_config" 2>/dev/null; then
                 user_value=$(grep "^${setting}=" "$primary_config" | head -1)
+                config_debug "Found setting without export prefix: $setting"
+            elif grep -q "^export ${setting}=" "$primary_config" 2>/dev/null; then
+                user_value=$(grep "^export ${setting}=" "$primary_config" | head -1)
+                config_debug "Found setting with export prefix: $setting"
+            else
+                user_value=""
+            fi
+            
+            if [ -n "$user_value" ]; then
                 config_debug "Found in existing config: $setting"
                 
                 # Mask sensitive values in debug output
@@ -726,16 +736,30 @@ install_config() {
 
                 # Skip placeholder values
                 config_debug "Checking if value is placeholder..."
-                if [ -n "$user_value" ] && ! echo "$user_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)" 2>/dev/null; then
+                
+                # Extract just the value part (handle both export and non-export formats)
+                if echo "$user_value" | grep -q "^export "; then
+                    # Extract value from: export VAR="value"
+                    actual_value=$(echo "$user_value" | sed 's/^export [^=]*=//; s/^"//; s/"$//')
+                    config_debug "Extracted value from export format: '$actual_value'"
+                else
+                    # Extract value from: VAR="value"
+                    actual_value=$(echo "$user_value" | sed 's/^[^=]*=//; s/^"//; s/"$//')
+                    config_debug "Extracted value from standard format: '$actual_value'"
+                fi
+                
+                if [ -n "$actual_value" ] && ! echo "$actual_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)" 2>/dev/null; then
                     config_debug "Value is not a placeholder, proceeding with merge"
                     
                     # Check if setting exists in template
                     if grep -q "^${setting}=" "$temp_merged_config" 2>/dev/null; then
                         config_debug "Setting exists in template, replacing..."
+                        # Create the replacement line in standard format (no export)
+                        replacement_line="${setting}=\"${actual_value}\""
                         # Replace existing line
-                        if sed -i "s|^${setting}=.*|${user_value}|" "$temp_merged_config" 2>/dev/null; then
+                        if sed -i "s|^${setting}=.*|${replacement_line}|" "$temp_merged_config" 2>/dev/null; then
                             preserved_count=$((preserved_count + 1))
-                            config_debug "✓ Successfully replaced: $setting"
+                            config_debug "✓ Successfully replaced: $setting with value '$actual_value'"
                             debug_msg "Successfully preserved: $setting"
                         else
                             config_debug "✗ Failed to replace: $setting"
@@ -743,10 +767,11 @@ install_config() {
                         fi
                     else
                         config_debug "Setting not in template, adding as new line..."
-                        # Add new line if not in template
-                        if echo "$user_value" >>"$temp_merged_config" 2>/dev/null; then
+                        # Add new line if not in template (use standard format)
+                        replacement_line="${setting}=\"${actual_value}\""
+                        if echo "$replacement_line" >>"$temp_merged_config" 2>/dev/null; then
                             preserved_count=$((preserved_count + 1))
-                            config_debug "✓ Successfully added: $setting"
+                            config_debug "✓ Successfully added: $setting with value '$actual_value'"
                             debug_msg "Successfully added: $setting"
                         else
                             config_debug "✗ Failed to add: $setting"

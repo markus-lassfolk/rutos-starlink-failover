@@ -62,6 +62,15 @@ else
     echo "Warning: placeholder-utils.sh not found. Pushover notifications may not work gracefully."
 fi
 
+# Set default values for variables that may not be in config
+LOG_TAG="${LOG_TAG:-StarlinkMonitor}"
+LOG_RETENTION_DAYS="${LOG_RETENTION_DAYS:-7}"
+STATE_DIR="${STATE_DIR:-/tmp/run}"
+LOG_DIR="${LOG_DIR:-/etc/starlink-logs}"
+
+# Create necessary directories
+mkdir -p "$STATE_DIR" "$LOG_DIR" 2>/dev/null || true
+
 # --- Derived Configuration ---
 STATE_FILE="${STATE_DIR}/starlink_monitor.state"
 STABILITY_FILE="${STATE_DIR}/starlink_monitor.stability"
