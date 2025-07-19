@@ -36,25 +36,25 @@ log_info() {
 }
 
 log_warning() {
-    printf "%s[WARNING]%s [%s] %s\n" "$YELLOW" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "%s[ERROR]%s [%s] %s\n" "$RED" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
-        printf "%s[DEBUG]%s [%s] %s\n" "$CYAN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_success() {
-    printf "%s[SUCCESS]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
-    printf "%s[STEP]%s [%s] %s\n" "$BLUE" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Health check status functions
@@ -65,19 +65,19 @@ show_health_status() {
 
     case "$status" in
         "healthy")
-            printf "%s✅ HEALTHY%s   | %-25s | %s\n" "$GREEN" "$NC" "$component" "$message"
+            printf "${GREEN}✅ HEALTHY${NC}   | %-25s | %s\n" "$component" "$message"
             ;;
         "warning")
-            printf "%s⚠️  WARNING%s   | %-25s | %s\n" "$YELLOW" "$NC" "$component" "$message"
+            printf "${YELLOW}⚠️  WARNING${NC}   | %-25s | %s\n" "$component" "$message"
             ;;
         "critical")
-            printf "%s❌ CRITICAL%s  | %-25s | %s\n" "$RED" "$NC" "$component" "$message"
+            printf "${RED}❌ CRITICAL${NC}  | %-25s | %s\n" "$component" "$message"
             ;;
         "unknown")
-            printf "%s❓ UNKNOWN%s    | %-25s | %s\n" "$CYAN" "$NC" "$component" "$message"
+            printf "${CYAN}❓ UNKNOWN${NC}    | %-25s | %s\n" "$component" "$message"
             ;;
         *)
-            printf "%sℹ️  INFO%s      | %-25s | %s\n" "$PURPLE" "$NC" "$component" "$message"
+            printf "${PURPLE}ℹ️  INFO${NC}      | %-25s | %s\n" "$component" "$message"
             ;;
     esac
 }
@@ -428,8 +428,8 @@ check_configuration_health() {
     log_step "Checking configuration health"
 
     # Run configuration validation
-    if [ -x "$SCRIPT_DIR/validate-config.sh" ]; then
-        if "$SCRIPT_DIR/validate-config.sh" --quiet >/dev/null 2>&1; then
+    if [ -x "$SCRIPT_DIR/validate-config-rutos.sh" ]; then
+        if "$SCRIPT_DIR/validate-config-rutos.sh" --quiet >/dev/null 2>&1; then
             show_health_status "healthy" "Configuration" "Configuration validation passed"
             increment_counter "healthy"
         else
@@ -437,7 +437,7 @@ check_configuration_health() {
             increment_counter "warning"
         fi
     else
-        show_health_status "unknown" "Configuration" "validate-config.sh not found or not executable"
+        show_health_status "unknown" "Configuration" "validate-config-rutos.sh not found or not executable"
         increment_counter "unknown"
     fi
 
@@ -455,6 +455,70 @@ check_configuration_health() {
             show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
             increment_counter "warning"
         fi
+    fi
+}
+
+# Function to check firmware upgrade persistence
+check_firmware_persistence() {
+    log_step "Checking firmware upgrade persistence"
+
+    # Check if restoration service exists
+    if [ -f "/etc/init.d/starlink-restore" ]; then
+        show_health_status "healthy" "Restore Service" "Service file exists"
+        increment_counter "healthy"
+
+        # Check if service is executable
+        if [ -x "/etc/init.d/starlink-restore" ]; then
+            show_health_status "healthy" "Restore Service" "Service is executable"
+            increment_counter "healthy"
+        else
+            show_health_status "warning" "Restore Service" "Service exists but not executable"
+            increment_counter "warning"
+        fi
+
+        # Check if service is enabled
+        if /etc/init.d/starlink-restore enabled 2>/dev/null; then
+            show_health_status "healthy" "Restore Service" "Service is enabled for startup"
+            increment_counter "healthy"
+        else
+            show_health_status "critical" "Restore Service" "Service NOT enabled - won't survive firmware upgrade"
+            increment_counter "critical"
+        fi
+    else
+        show_health_status "critical" "Restore Service" "Restoration service not found"
+        show_health_status "critical" "Firmware Upgrade" "System won't survive firmware upgrades"
+        increment_counter "critical"
+        increment_counter "critical"
+    fi
+
+    # Check if persistent config backup exists
+    if [ -d "/etc/starlink-config" ]; then
+        if [ -f "/etc/starlink-config/config.sh" ]; then
+            show_health_status "healthy" "Config Backup" "Persistent configuration backup exists"
+            increment_counter "healthy"
+        else
+            show_health_status "warning" "Config Backup" "Backup directory exists but no config.sh"
+            increment_counter "warning"
+        fi
+    else
+        show_health_status "critical" "Config Backup" "No persistent config backup - settings will be lost"
+        increment_counter "critical"
+    fi
+
+    # Check restoration log if available
+    if [ -f "/var/log/starlink-restore.log" ]; then
+        # Check if log is recent (within last 30 days, indicating recent restoration activity)
+        if [ -n "$(find "/var/log/starlink-restore.log" -mtime -30 2>/dev/null)" ]; then
+            log_lines=$(wc -l <"/var/log/starlink-restore.log" 2>/dev/null || echo "0")
+            show_health_status "healthy" "Restore Activity" "Recent activity logged ($log_lines lines)"
+            increment_counter "healthy"
+        else
+            show_health_status "warning" "Restore Activity" "Restore log exists but no recent activity"
+            increment_counter "warning"
+        fi
+    else
+        show_health_status "warning" "Restore Activity" "No restoration activity logged yet"
+        increment_counter "warning"
     fi
 }
 
@@ -527,8 +591,8 @@ run_integrated_tests() {
     log_step "Running integrated tests"
 
     # Test Pushover notifications
-    if [ -x "$SCRIPT_DIR/test-pushover.sh" ]; then
-        if "$SCRIPT_DIR/test-pushover.sh" --quiet >/dev/null 2>&1; then
+    if [ -x "$SCRIPT_DIR/test-pushover-rutos.sh" ]; then
+        if "$SCRIPT_DIR/test-pushover-rutos.sh" --quiet >/dev/null 2>&1; then
             show_health_status "healthy" "Pushover Test" "Notification test passed"
             increment_counter "healthy"
         else
@@ -536,13 +600,13 @@ run_integrated_tests() {
             increment_counter "warning"
         fi
     else
-        show_health_status "unknown" "Pushover Test" "test-pushover.sh not found"
+        show_health_status "unknown" "Pushover Test" "test-pushover-rutos.sh not found"
         increment_counter "unknown"
     fi
 
     # Test monitoring connectivity
-    if [ -x "$SCRIPT_DIR/test-monitoring.sh" ]; then
-        if "$SCRIPT_DIR/test-monitoring.sh" --quiet >/dev/null 2>&1; then
+    if [ -x "$SCRIPT_DIR/test-monitoring-rutos.sh" ]; then
+        if "$SCRIPT_DIR/test-monitoring-rutos.sh" --quiet >/dev/null 2>&1; then
             show_health_status "healthy" "Monitoring Test" "Connectivity test passed"
             increment_counter "healthy"
         else
@@ -550,7 +614,7 @@ run_integrated_tests() {
             increment_counter "warning"
         fi
     else
-        show_health_status "unknown" "Monitoring Test" "test-monitoring.sh not found"
+        show_health_status "unknown" "Monitoring Test" "test-monitoring-rutos.sh not found"
         increment_counter "unknown"
     fi
 
@@ -572,9 +636,12 @@ run_integrated_tests() {
 # Function to show final health summary
 show_health_summary() {
     echo ""
-    printf "%s╔══════════════════════════════════════════════════════════════════════════╗%s\n" "$PURPLE" "$NC"
-    printf "%s║%s                            %sHEALTH CHECK SUMMARY%s                            %s║%s\n" "$PURPLE" "$NC" "$BLUE" "$NC" "$PURPLE" "$NC"
-    printf "%s╚══════════════════════════════════════════════════════════════════════════╝%s\n" "$PURPLE" "$NC"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility  
+    printf "${PURPLE}║${NC}                            ${BLUE}HEALTH CHECK SUMMARY${NC}                            ${PURPLE}║${NC}\n"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
     echo ""
 
     total_checks=$((HEALTHY_COUNT + WARNING_COUNT + CRITICAL_COUNT + UNKNOWN_COUNT))
@@ -693,14 +760,20 @@ main() {
     run_mode="${1:-full}"
 
     echo ""
-    printf "%s╔══════════════════════════════════════════════════════════════════════════╗%s\n" "$PURPLE" "$NC"
-    printf "%s║%s                    %sSTARLINK MONITOR HEALTH CHECK%s                     %s║%s\n" "$PURPLE" "$NC" "$BLUE" "$NC" "$PURPLE" "$NC"
-    printf "%s║%s                           %sVersion %s%s                            %s║%s\n" "$PURPLE" "$NC" "$CYAN" "$SCRIPT_VERSION" "$NC" "$PURPLE" "$NC"
-    printf "%s╚══════════════════════════════════════════════════════════════════════════╝%s\n" "$PURPLE" "$NC"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${PURPLE}║${NC}                    ${BLUE}STARLINK MONITOR HEALTH CHECK${NC}                     ${PURPLE}║${NC}\n"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${PURPLE}║${NC}                           ${CYAN}Version ${SCRIPT_VERSION}${NC}                            ${PURPLE}║${NC}\n"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
     echo ""
 
-    printf "%s%-15s | %-25s | %s%s\n" "$BLUE" "STATUS" "COMPONENT" "DETAILS" "$NC"
-    printf "%s%-15s | %-25s | %s%s\n" "$BLUE" "===============" "=========================" "================================" "$NC"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${BLUE}%-15s | %-25s | %s${NC}\n" "STATUS" "COMPONENT" "DETAILS"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${BLUE}%-15s | %-25s | %s${NC}\n" "===============" "=========================" "================================"
 
     # Run health checks based on mode
     case "$run_mode" in
@@ -708,6 +781,7 @@ main() {
             check_system_resources
             check_configuration_health
             check_monitoring_health
+            check_firmware_persistence
             ;;
         "--connectivity")
             check_network_connectivity
@@ -721,6 +795,7 @@ main() {
             ;;
         "--resources")
             check_system_resources
+            check_firmware_persistence
             ;;
         "--full" | *)
             check_system_resources
@@ -728,6 +803,7 @@ main() {
             check_starlink_connectivity
             check_configuration_health
             check_monitoring_health
+            check_firmware_persistence
             run_integrated_tests
             ;;
     esac

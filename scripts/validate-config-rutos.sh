@@ -13,7 +13,7 @@ set -eu
 # Script version information
 SCRIPT_VERSION="1.0.2"
 # Build: 1.0.2+198.38fb60b-dirty
-SCRIPT_NAME="validate-config.sh"
+SCRIPT_NAME="validate-config-rutos.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"
 
 # Extract build info from comment above
@@ -649,9 +649,12 @@ migrate_config_to_template() {
     backup_suffix="backup.$(date +%Y%m%d_%H%M%S)"
     config_backup="${CONFIG_FILE}.${backup_suffix}"
 
-    printf "%s🔄 Migrating configuration to updated template...%s\n" "$YELLOW" "$NC"
-    printf "%sTemplate: %s%s\n" "$BLUE" "$template_file" "$NC"
-    printf "%sConfig: %s%s\n" "$BLUE" "$CONFIG_FILE" "$NC"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${YELLOW}[MIGRATE] Migrating configuration to updated template...${NC}\n"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility  
+    printf "${BLUE}Template: %s${NC}\n" "$template_file"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${BLUE}Config: %s${NC}\n" "$CONFIG_FILE"
 
     # Create backup of current config
     if ! cp "$CONFIG_FILE" "$config_backup"; then
@@ -957,7 +960,7 @@ main() {
     fi
     echo ""
     print_status "$CYAN" "💡 Pro tip: Test your configuration changes with:"
-    print_status "$CYAN" "• Run connectivity tests: $INSTALL_DIR/scripts/test-connectivity.sh"
+    print_status "$CYAN" "• Run connectivity tests: $INSTALL_DIR/scripts/test-connectivity-rutos.sh"
     print_status "$CYAN" "• Re-run this validator: $SCRIPT_NAME"
 }
 

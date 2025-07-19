@@ -56,6 +56,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
     if [ -n "$RED" ]; then
         printf "[DEBUG] Color validation test: "
         # Use Method 5 format (embed variables - this works in RUTOS!)
+        # shellcheck disable=SC2059  # Method 5 format is required for RUTOS compatibility
         printf "${GREEN}OK${NC}\n"
         printf "[DEBUG] Note: If you see escape codes above, colors aren't working properly\n"
     else
@@ -130,6 +131,47 @@ load_config() {
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
     log_success "Configuration loaded successfully"
+}
+
+# Detect if we're running basic configuration setup
+is_basic_config() {
+    # Basic config indicators: minimal advanced features configured
+    # Count advanced features that are configured
+    advanced_features=0
+
+    # Check for RUTOS admin features
+    if [ -n "${RUTOS_USERNAME:-}" ] && [ -n "${RUTOS_PASSWORD:-}" ] && [ -n "${RUTOS_IP:-}" ]; then
+        advanced_features=$((advanced_features + 1))
+    fi
+
+    # Check for Azure logging features
+    if [ -n "${AZURE_WORKSPACE_ID:-}" ] && [ -n "${AZURE_WORKSPACE_KEY:-}" ]; then
+        advanced_features=$((advanced_features + 1))
+    fi
+
+    # Check for GPS tracking
+    if [ "${ENABLE_GPS_TRACKING:-0}" = "1" ]; then
+        advanced_features=$((advanced_features + 1))
+    fi
+
+    # Check for cellular backup configuration
+    if [ -n "${CELLULAR_PRIMARY_IFACE:-}" ] && [ -n "${CELLULAR_PRIMARY_MEMBER:-}" ]; then
+        advanced_features=$((advanced_features + 1))
+    fi
+
+    # Check for advanced thresholds (more than basic ones)
+    if [ -n "${PACKET_LOSS_CRITICAL:-}" ] && [ -n "${OBSTRUCTION_CRITICAL:-}" ]; then
+        advanced_features=$((advanced_features + 1))
+    fi
+
+    # If 2 or fewer advanced features are configured, consider it basic setup
+    if [ $advanced_features -le 2 ]; then
+        log_debug "Detected basic configuration setup (advanced features: $advanced_features)"
+        return 0
+    else
+        log_debug "Detected advanced configuration setup (advanced features: $advanced_features)"
+        return 1
+    fi
 }
 
 # Test 1: System requirements
@@ -330,7 +372,14 @@ test_rutos_credentials() {
 
     # Check if RUTOS credentials are configured
     if [ -z "${RUTOS_USERNAME:-}" ] || [ -z "${RUTOS_PASSWORD:-}" ] || [ -z "${RUTOS_IP:-}" ]; then
-        log_warning "RUTOS credentials not configured - skipping RUTOS admin test"
+        # Check if this appears to be a basic configuration setup
+        if is_basic_config; then
+            log_info "RUTOS admin credentials not configured (expected for basic setup)"
+            log_info "💡 Tip: Run './scripts/upgrade-to-advanced-rutos.sh' to enable RUTOS admin features"
+        else
+            log_warning "RUTOS credentials not configured - skipping RUTOS admin test"
+            log_warning "For advanced setup, configure RUTOS_USERNAME, RUTOS_PASSWORD, and RUTOS_IP"
+        fi
         return 0
     fi
 
@@ -352,7 +401,13 @@ test_pushover() {
 
     # Check if Pushover is configured
     if [ -z "${PUSHOVER_TOKEN:-}" ] || [ -z "${PUSHOVER_USER:-}" ]; then
-        log_warning "Pushover credentials not configured - skipping Pushover test"
+        if is_basic_config; then
+            log_info "Pushover notifications not configured (optional for basic setup)"
+            log_info "💡 Tip: Configure PUSHOVER_TOKEN and PUSHOVER_USER for notifications"
+        else
+            log_warning "Pushover credentials not configured - skipping Pushover test"
+            log_warning "For advanced setup, configure PUSHOVER_TOKEN and PUSHOVER_USER"
+        fi
         return 0
     fi
 
