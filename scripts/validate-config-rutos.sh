@@ -31,7 +31,15 @@ get_timestamp() {
 print_status() {
     color="$1"
     message="$2"
-    printf "%b[%s] %s%b\n" "$color" "$(get_timestamp)" "$message" "$NC"
+    # Use Method 5 format that works in RUTOS (embed variables in format string)
+    case "$color" in
+        "$RED")    printf "${RED}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
+        "$GREEN")  printf "${GREEN}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
+        "$YELLOW") printf "${YELLOW}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
+        "$BLUE")   printf "${BLUE}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
+        "$CYAN")   printf "${CYAN}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
+        *)         printf "[%s] %s\n" "$(get_timestamp)" "$message" ;;
+    esac
 }
 
 # Debug output function

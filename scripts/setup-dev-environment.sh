@@ -26,11 +26,11 @@ else
 fi
 
 log_info() {
-    printf "%s[INFO]%s %s\n" "$GREEN" "$NC" "$1"
+    printf "${GREEN}[INFO]${NC} %s\n" "$1"
 }
 
 log_warning() {
-    printf "%s[WARNING]%s %s\n" "$YELLOW" "$NC" "$1"
+    printf "${YELLOW}[WARNING]${NC} %s\n" "$1"
 }
 
 log_error() {

@@ -324,6 +324,27 @@ validate_color_codes() {
         done < <(grep -n "echo.*\\\\033\[" "$file" 2>/dev/null)
     fi
 
+    # CRITICAL: Check for Method 5 color format for RUTOS scripts
+    # Method 5 format: printf "${COLOR}text${NC}" (WORKS in RUTOS)
+    # Broken format: printf "%stext%s" "$COLOR" "$NC" (shows escape codes)
+    if [[ "$file" == *"-rutos.sh" ]]; then
+        # Check for the broken format that shows literal escape codes in RUTOS
+        if grep -n 'printf "%s.*%s".*"\$[A-Z_]*".*"\$[A-Z_]*"' "$file" >/dev/null 2>&1; then
+            while IFS=: read -r line_num line_content; do
+                report_issue "CRITICAL" "$file" "$line_num" "RUTOS INCOMPATIBLE: Uses broken printf format that shows escape codes. Use Method 5: printf \"\\\${COLOR}text\\\${NC}\" instead of printf \"%stext%s\" \"\\\$COLOR\" \"\\\$NC\""
+            done < <(grep -n 'printf "%s.*%s".*"\$[A-Z_]*".*"\$[A-Z_]*"' "$file" 2>/dev/null)
+        fi
+
+        # Check if RUTOS script has proper Method 5 format examples
+        if grep -q 'printf.*".*\${[A-Z_]*}.*\${[A-Z_]*}.*"' "$file"; then
+            log_debug "✓ $file: Uses Method 5 color format (RUTOS compatible)"
+        elif grep -q 'printf.*".*%b.*"' "$file"; then
+            log_debug "✓ $file: Uses %b format (install script compatible)"
+        elif grep -q 'printf.*%s.*\$[A-Z_]*' "$file"; then
+            report_issue "MAJOR" "$file" "0" "RUTOS script should use Method 5 format: printf \"\\\${COLOR}text\\\${NC}\" for proper color display"
+        fi
+    fi
+
     # Check for problematic printf patterns with color variables but missing proper format
     if grep -n "printf.*\\\${[A-Z_]*}.*%s.*\\\${[A-Z_]*}" "$file" >/dev/null 2>&1; then
         while IFS=: read -r line_num line_content; do

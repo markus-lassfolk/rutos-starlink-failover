@@ -32,7 +32,7 @@ fi
 
 # Standard logging functions with consistent colors
 log_info() {
-    printf "%s[INFO]%s [%s] %s\n" "$GREEN" "$NC" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {

@@ -12,93 +12,47 @@ SCRIPT_VERSION="1.0.2"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="${INSTALL_DIR:-$(dirname "$SCRIPT_DIR")}"
 
-# Standard colors for consistent output (RUTOS-compatible)
-# Use same working approach as install script that showed colors successfully
-RED=""
-GREEN=""
-YELLOW=""
-BLUE=""
-CYAN=""
-NC=""
-
-# Match install script logic exactly (this approach worked!)
-if [ "${FORCE_COLOR:-}" = "1" ]; then
-    RED="\033[0;31m"
-    GREEN="\033[0;32m"
-    YELLOW="\033[1;33m"
-    BLUE="\033[1;35m"
-    CYAN="\033[0;36m"
-    NC="\033[0m"
-elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
-    case "${TERM:-}" in
-        xterm* | screen* | tmux* | linux*)
-            RED="\033[0;31m"
-            GREEN="\033[0;32m"
-            YELLOW="\033[1;33m"
-            BLUE="\033[1;35m"
-            CYAN="\033[0;36m"
-            NC="\033[0m"
-            ;;
-        *)
-            # Unknown or limited terminal - stay safe with no colors
-            ;;
-    esac
+# RUTOS-compatible color detection (simplified for busybox)
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+else
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    CYAN=""
+    NC=""
 fi
 
-# Debug color support
-if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] RUTOS Color Detection:\n"
-    printf "[DEBUG]   TERM: %s\n" "${TERM:-unset}"
-    printf "[DEBUG]   NO_COLOR: %s\n" "${NO_COLOR:-unset}"
-    printf "[DEBUG]   FORCE_COLOR: %s\n" "${FORCE_COLOR:-unset}"
-    printf "[DEBUG]   Terminal check [-t 1]: %s\n" "$([ -t 1 ] && echo "yes" || echo "no")"
-    printf "[DEBUG]   Color decision: %s\n" "$([ -n "$RED" ] && echo "ENABLED" || echo "DISABLED")"
-    if [ -n "$RED" ]; then
-        printf "[DEBUG] Color validation test: "
-        # Use Method 5 format (embed variables - this works in RUTOS!)
-        printf "${GREEN}OK${NC}\n"
-        printf "[DEBUG] Note: If you see escape codes above, colors aren't working properly\n"
-    else
-        printf "[DEBUG] Colors disabled - using plain text for maximum RUTOS compatibility\n"
-        printf "[DEBUG] To force colors: export FORCE_COLOR=1\n"
-    fi
-fi
-
-# Logging functions with consistent timestamp format (RUTOS-compatible printf)
+# Logging functions with consistent timestamp format
 log_info() {
-    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-    # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$timestamp" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
-    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-    # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$timestamp" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-    # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$timestamp" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
-        timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-        # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$timestamp" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_success() {
-    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-    # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$timestamp" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
-    # Use Method 5 format (embed variables in format string - this works in RUTOS!)
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
@@ -106,9 +60,9 @@ log_step() {
 run_test() {
     test_function="$1"
     test_name="$2"
-
+    
     log_step "Testing: $test_name"
-
+    
     if "$test_function"; then
         log_success "$test_name - PASSED"
         return 0
@@ -121,13 +75,12 @@ run_test() {
 # Load configuration
 load_config() {
     CONFIG_FILE="${CONFIG_FILE:-$INSTALL_DIR/config/config.sh}"
-
+    
     if [ ! -f "$CONFIG_FILE" ]; then
         log_error "Configuration file not found: $CONFIG_FILE"
         exit 1
     fi
-
-    # shellcheck source=/dev/null
+    
     . "$CONFIG_FILE"
     log_success "Configuration loaded successfully"
 }
@@ -135,27 +88,27 @@ load_config() {
 # Test 1: System requirements
 test_system_requirements() {
     log_debug "Testing system requirements"
-
+    
     # Check for required commands
     missing_commands=""
-
+    
     for cmd in ping curl nc; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             missing_commands="$missing_commands $cmd"
         fi
     done
-
+    
     if [ -n "$missing_commands" ]; then
         log_error "Missing required commands:$missing_commands"
         return 1
     fi
-
+    
     # Check if grpcurl is available
     if ! command -v grpcurl >/dev/null 2>&1 && [ ! -f "$INSTALL_DIR/grpcurl" ]; then
         log_error "grpcurl not found in system PATH or $INSTALL_DIR/"
         return 1
     fi
-
+    
     log_debug "System requirements test passed"
     return 0
 }
@@ -163,18 +116,18 @@ test_system_requirements() {
 # Test 2: Basic network connectivity
 test_network_connectivity() {
     log_debug "Testing basic network connectivity"
-
+    
     # Test DNS resolution and internet connectivity
     if ! ping -c 2 -W 5 8.8.8.8 >/dev/null 2>&1; then
         log_error "Cannot reach Google DNS (8.8.8.8)"
         return 1
     fi
-
+    
     if ! ping -c 2 -W 5 1.1.1.1 >/dev/null 2>&1; then
         log_error "Cannot reach Cloudflare DNS (1.1.1.1)"
         return 1
     fi
-
+    
     log_debug "Network connectivity test passed"
     return 0
 }
@@ -301,23 +254,10 @@ test_starlink_api() {
         grpcurl_cmd="grpcurl"
     fi
 
-    # Test gRPC API call using GetStatus
-    log_debug "Testing gRPC GetStatus call to $STARLINK_IP"
-
-    if ! timeout 10 "$grpcurl_cmd" -plaintext -d '{}' "$starlink_host:$starlink_port" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
-        log_error "Starlink gRPC GetStatus API call failed"
+    if ! timeout 10 "$grpcurl_cmd" -plaintext -d '{}' "$STARLINK_IP" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
+        log_error "Starlink gRPC API call failed"
         log_error "Check if Starlink dish is online and API is accessible"
-        log_debug "Trying alternative gRPC API call format..."
-
-        # Try alternative API call format
-        if ! timeout 10 "$grpcurl_cmd" -plaintext -d '{"get_status":{}}' "$starlink_host:$starlink_port" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
-            log_error "Alternative Starlink gRPC API call also failed"
-            return 1
-        else
-            log_success "Alternative gRPC API call succeeded"
-        fi
-    else
-        log_success "Starlink gRPC GetStatus API call succeeded"
+        return 1
     fi
 
     log_debug "Starlink API connectivity test passed"
@@ -422,8 +362,6 @@ Environment Variables:
     CONFIG_FILE          Path to configuration file (default: $INSTALL_DIR/config/config.sh)
     DEBUG                Enable debug output (set to 1)
     INSTALL_DIR          Installation directory (default: auto-detected)
-    FORCE_COLOR          Force color output (set to 1, useful for RUTOS testing)
-    NO_COLOR             Disable color output (set to 1)
 
 Tests Performed:
     1. System Requirements    - Check for required commands
@@ -434,20 +372,9 @@ Tests Performed:
     6. mwan3 Configuration    - Check mwan3 setup (if available)
 
 Examples:
-    $0                                          # Run all tests
-    $0 --debug                                 # Run with debug output
-    CONFIG_FILE=/path/to/config.sh $0          # Use custom config file
-    FORCE_COLOR=1 $0                           # Force colors (RUTOS testing)
-
-RUTOS Usage:
-    # On RUTOS router via SSH (colors auto-detected):
-    ./test-connectivity-rutos.sh
-
-    # Force colors if needed:
-    FORCE_COLOR=1 ./test-connectivity-rutos.sh
-
-    # Debug mode for troubleshooting:
-    DEBUG=1 ./test-connectivity-rutos.sh
+    $0                       # Run all tests
+    $0 --debug              # Run with debug output
+    CONFIG_FILE=/path/to/config.sh $0  # Use custom config file
 
 EOF
 }
@@ -455,18 +382,6 @@ EOF
 # Main function
 main() {
     log_info "Starting Starlink Monitor Connectivity Tests v$SCRIPT_VERSION"
-
-    # Debug information
-    if [ "$DEBUG" = "1" ]; then
-        log_debug "=== ENVIRONMENT DEBUG INFO ==="
-        log_debug "INSTALL_DIR: ${INSTALL_DIR:-unset}"
-        log_debug "CONFIG_FILE: ${CONFIG_FILE:-unset}"
-        log_debug "Shell: $(ps -p $$ -o comm= 2>/dev/null || echo "unknown")"
-        log_debug "Terminal type: ${TERM:-unset}"
-        log_debug "PWD: $(pwd)"
-        log_debug "============================="
-    fi
-
     echo ""
 
     # Load configuration first
@@ -488,7 +403,7 @@ main() {
 
 # Parse command line arguments
 case "${1:-}" in
-    --help | -h)
+    --help|-h)
         show_help
         exit 0
         ;;

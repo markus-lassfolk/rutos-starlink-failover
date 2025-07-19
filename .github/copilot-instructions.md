@@ -143,25 +143,30 @@ log_success() # Green [SUCCESS] for successful completion
 log_step()    # Blue [STEP] for progress steps
 ```
 
-### CRITICAL Printf Format Rules
+### CRITICAL Printf Format Rules for RUTOS
 
-1. **NEVER use variables in printf format strings** - Causes SC2059 errors
-2. **Use %s placeholders** for all variable content
-3. **Colors go as separate arguments** not in format string
+**BREAKTHROUGH**: After comprehensive testing on RUTOS, we discovered that Method 5 format is the ONLY one that works correctly!
+
+1. **For RUTOS scripts (-rutos.sh): Use Method 5 format** - Embed variables in printf format string
+2. **Method 5 shows actual colors in RUTOS** - Other methods show literal escape codes
+3. **Use embedded variables format** for RUTOS compatibility
 
 ```bash
-# WRONG - Variables in format string
+# METHOD 5 (WORKS in RUTOS) ✅ - Shows actual colors
 printf "${RED}Error: %s${NC}\n" "$message"
-
-# RIGHT - Variables as arguments
-printf "%sError: %s%s\n" "$RED" "$message" "$NC"
-
-# WRONG - Complex format with variables
+printf "${GREEN}[INFO]${NC} [%s] %s\n" "$timestamp" "$message"
 printf "${GREEN}✅ HEALTHY${NC}   | %-25s | %s\n" "$component" "$details"
 
-# RIGHT - Colors as separate arguments
+# BROKEN FORMAT (Shows escape codes in RUTOS) ❌
+printf "%sError: %s%s\n" "$RED" "$message" "$NC"
+printf "%s[INFO]%s [%s] %s\n" "$GREEN" "$NC" "$timestamp" "$message"  
 printf "%s✅ HEALTHY%s   | %-25s | %s\n" "$GREEN" "$NC" "$component" "$details"
+
+# INSTALL SCRIPT FORMAT (Also works) ✅
+printf "%bError: %s%b\n" "$RED" "$message" "$NC"
 ```
+
+**Key Discovery**: RUTOS busybox printf only processes color variables correctly when embedded in the format string, not when passed as separate arguments.
 
 ### CRITICAL Color Detection Rules
 

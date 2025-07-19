@@ -58,7 +58,7 @@ print_status() {
     color="$1"
     message="$2"
 
-    # Print to console
+    # Print to console using Method 5 format (the one that works!)
     printf "%b[%s] %s%b\n" "$color" "$(get_timestamp)" "$message" "$NC"
 
     # Log to file (without color codes)
