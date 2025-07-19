@@ -651,7 +651,7 @@ migrate_config_to_template() {
 
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${YELLOW}[MIGRATE] Migrating configuration to updated template...${NC}\n"
-    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility  
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${BLUE}Template: %s${NC}\n" "$template_file"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${BLUE}Config: %s${NC}\n" "$CONFIG_FILE"
