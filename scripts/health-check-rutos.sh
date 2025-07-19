@@ -726,12 +726,12 @@ show_health_summary() {
 
     total_checks=$((HEALTHY_COUNT + WARNING_COUNT + CRITICAL_COUNT + UNKNOWN_COUNT))
 
-    printf "%s✅ HEALTHY:   %3d checks%s\n" "$GREEN" "$HEALTHY_COUNT" "$NC"
-    printf "%s⚠️  WARNING:   %3d checks%s\n" "$YELLOW" "$WARNING_COUNT" "$NC"
-    printf "%s❌ CRITICAL:  %3d checks%s\n" "$RED" "$CRITICAL_COUNT" "$NC"
-    printf "%s❓ UNKNOWN:    %3d checks%s\n" "$CYAN" "$UNKNOWN_COUNT" "$NC"
-    printf "%s──────────────────────%s\n" "$PURPLE" "$NC"
-    printf "%s📊 TOTAL:     %3d checks%s\n" "$BLUE" "$total_checks" "$NC"
+    printf "${GREEN}✅ HEALTHY:   %3d checks${NC}\n" "$HEALTHY_COUNT"
+    printf "${YELLOW}⚠️  WARNING:   %3d checks${NC}\n" "$WARNING_COUNT"
+    printf "${RED}❌ CRITICAL:  %3d checks${NC}\n" "$CRITICAL_COUNT"
+    printf "${CYAN}❓ UNKNOWN:    %3d checks${NC}\n" "$UNKNOWN_COUNT"
+    printf "${PURPLE}──────────────────────${NC}\n"
+    printf "${BLUE}📊 TOTAL:     %3d checks${NC}\n" "$total_checks"
 
     echo ""
 
@@ -740,41 +740,41 @@ show_health_summary() {
         health_percentage=$(((HEALTHY_COUNT * 100) / total_checks))
 
         if [ "$CRITICAL_COUNT" -gt 0 ]; then
-            printf "%s🚨 OVERALL STATUS: CRITICAL%s\n" "$RED" "$NC"
-            printf "%s   System has critical issues that need immediate attention%s\n" "$RED" "$NC"
+            printf "${RED}🚨 OVERALL STATUS: CRITICAL${NC}\n"
+            printf "${RED}   System has critical issues that need immediate attention${NC}\n"
             exit_code=2
         elif [ "$WARNING_COUNT" -gt 0 ]; then
-            printf "%s⚠️  OVERALL STATUS: WARNING%s\n" "$YELLOW" "$NC"
-            printf "%s   System is functional but has issues that should be addressed%s\n" "$YELLOW" "$NC"
+            printf "${YELLOW}⚠️  OVERALL STATUS: WARNING${NC}\n"
+            printf "${YELLOW}   System is functional but has issues that should be addressed${NC}\n"
             exit_code=1
         else
-            printf "%s🎉 OVERALL STATUS: HEALTHY%s\n" "$GREEN" "$NC"
-            printf "%s   System is operating normally%s\n" "$GREEN" "$NC"
+            printf "${GREEN}🎉 OVERALL STATUS: HEALTHY${NC}\n"
+            printf "${GREEN}   System is operating normally${NC}\n"
             exit_code=0
         fi
 
-        printf "%s📈 HEALTH SCORE: %d%%%s\n" "$BLUE" "$health_percentage" "$NC"
+        printf "${BLUE}📈 HEALTH SCORE: %d%%${NC}\n" "$health_percentage"
     else
-        printf "%s❌ OVERALL STATUS: NO CHECKS PERFORMED%s\n" "$RED" "$NC"
+        printf "${RED}❌ OVERALL STATUS: NO CHECKS PERFORMED${NC}\n"
         exit_code=3
     fi
 
     echo ""
-    printf "%s💡 Recommendations:%s\n" "$CYAN" "$NC"
+    printf "${CYAN}💡 Recommendations:${NC}\n"
 
     if [ "$CRITICAL_COUNT" -gt 0 ]; then
-        printf "%s   • Address critical issues immediately%s\n" "$RED" "$NC"
-        printf "%s   • Check connectivity and configuration%s\n" "$RED" "$NC"
+        printf "${RED}   • Address critical issues immediately${NC}\n"
+        printf "${RED}   • Check connectivity and configuration${NC}\n"
     fi
 
     if [ "$WARNING_COUNT" -gt 0 ]; then
-        printf "%s   • Review warning items when convenient%s\n" "$YELLOW" "$NC"
-        printf "%s   • Consider enabling optional features%s\n" "$YELLOW" "$NC"
+        printf "${YELLOW}   • Review warning items when convenient${NC}\n"
+        printf "${YELLOW}   • Consider enabling optional features${NC}\n"
     fi
 
     if [ "$UNKNOWN_COUNT" -gt 0 ]; then
-        printf "%s   • Install missing testing tools%s\n" "$CYAN" "$NC"
-        printf "%s   • Run individual tests for more details%s\n" "$CYAN" "$NC"
+        printf "${CYAN}   • Install missing testing tools${NC}\n"
+        printf "${CYAN}   • Run individual tests for more details${NC}\n"
     fi
 
     printf "${BLUE}   • Run 'DEBUG=1 %s' for detailed troubleshooting${NC}\n" "$0"
