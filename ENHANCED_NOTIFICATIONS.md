@@ -2,7 +2,8 @@
 
 ## Overview
 
-The system maintenance script now provides real-time Pushover notifications for every maintenance action, giving you complete visibility into your RUTX50's health.
+The system maintenance script now provides real-time Pushover notifications for every maintenance action,
+giving you complete visibility into your RUTX50's health.
 
 ## Notification Types
 
@@ -83,7 +84,7 @@ MAINTENANCE_PRIORITY_FOUND=-1             # Low priority for found issues (reduc
 
 ### Successful Database Fix
 
-```
+```text
 Title: ✅ System Fixed - RUTX50
 Message: ✅ Fixed database optimization spam
 
@@ -93,7 +94,7 @@ Message: ✅ Fixed database optimization spam
 
 ### Failed Service Restart
 
-```
+```text
 Title: ❌ Fix Failed - RUTX50
 Message: ❌ Fix Failed: Failed to restart lighttpd service
 
@@ -105,7 +106,7 @@ Message: ❌ Fix Failed: Failed to restart lighttpd service
 
 ### Critical System Issue
 
-```
+```text
 Title: 🚨 CRITICAL Issue - RUTX50
 Message: 🚨 CRITICAL: System reboot scheduled
 
@@ -191,4 +192,5 @@ MAINTENANCE_MAX_NOTIFICATIONS_PER_RUN=15  # Higher limit for comprehensive monit
 2. Check `MAINTENANCE_PRIORITY_CRITICAL=2` for emergency priority
 3. Ensure `MAINTENANCE_CRITICAL_THRESHOLD=1` for immediate alerts
 
-This enhanced notification system keeps you informed about your system's health in real-time while preventing notification spam through intelligent rate limiting and priority management.
+This enhanced notification system keeps you informed about your system's health in real-time while
+preventing notification spam through intelligent rate limiting and priority management.
