@@ -461,6 +461,7 @@ intelligent_config_merge() {
     # Process each variable in the template
     preserved_count=0
     kept_default_count=0
+    new_variables_added=0
 
     while IFS= read -r template_line; do
         if [ -z "$template_line" ]; then
@@ -489,7 +490,7 @@ intelligent_config_merge() {
                 current_value=$(echo "$current_line" | sed 's/^[^=]*=//; s/^"//; s/"$//')
                 config_debug "Found current value (standard format): $var_name = $current_value"
             else
-                config_debug "Variable not found in current config: $var_name (will keep template default)"
+                config_debug "Variable not found in current config: $var_name (will add new template variable)"
             fi
 
             # Decide whether to use current value or keep template default
@@ -520,9 +521,16 @@ intelligent_config_merge() {
                     config_debug "✗ Failed to replace: $var_name"
                 fi
             else
-                # Keep template default
-                kept_default_count=$((kept_default_count + 1))
-                config_debug "Keeping template default: $var_name"
+                # Check if this is a new variable not in current config
+                if [ ! -f "$current_config" ] || ! grep -q "^export ${var_name}=" "$current_config" 2>/dev/null && ! grep -q "^${var_name}=" "$current_config" 2>/dev/null; then
+                    # This is a new template variable - it's already in merged config from template copy
+                    new_variables_added=$((new_variables_added + 1))
+                    config_debug "✓ New template variable added: $var_name"
+                else
+                    # Keep template default for existing variable with placeholder value
+                    kept_default_count=$((kept_default_count + 1))
+                    config_debug "Keeping template default: $var_name"
+                fi
             fi
         fi
     done <"$temp_template_vars"
@@ -606,12 +614,14 @@ EOF
         total_template_vars=$template_count
         total_preserved=$preserved_count
         total_defaults=$kept_default_count
+        total_new_added=$new_variables_added
         total_extra=$extra_count
 
         config_debug "=== MERGE SUMMARY ==="
         config_debug "Template variables: $total_template_vars"
         config_debug "User values preserved: $total_preserved"
         config_debug "Template defaults kept: $total_defaults"
+        config_debug "New variables added: $total_new_added"
         config_debug "Extra user settings: $total_extra"
         config_debug "Final config size: $(wc -c <"$output_config" 2>/dev/null || echo 'unknown') bytes"
 
@@ -629,6 +639,20 @@ EOF
             fi
         done
 
+        # Show maintenance settings specifically  
+        config_debug "=== MAINTENANCE SETTINGS VERIFICATION ==="
+        for maintenance_setting in "MAINTENANCE_PUSHOVER_ENABLED" "MAINTENANCE_NOTIFY_ON_START" "MAINTENANCE_NOTIFY_ON_COMPLETION" "MAINTENANCE_AUTO_FIX_ENABLED"; do
+            if grep -q "^export ${maintenance_setting}=" "$output_config" 2>/dev/null; then
+                maintenance_value=$(grep "^export ${maintenance_setting}=" "$output_config" | head -1)
+                config_debug "✓ $maintenance_value"
+            elif grep -q "^${maintenance_setting}=" "$output_config" 2>/dev/null; then
+                maintenance_value=$(grep "^${maintenance_setting}=" "$output_config" | head -1)
+                config_debug "✓ $maintenance_value"
+            else
+                config_debug "✗ MISSING: $maintenance_setting"
+            fi
+        done
+
         cleanup_result=0
     else
         config_debug "✗ FAILED to write merged config to: $output_config"
@@ -640,7 +664,7 @@ EOF
 
     if [ "$cleanup_result" = 0 ]; then
         config_debug "=== INTELLIGENT CONFIG MERGE COMPLETE ==="
-        print_status "$GREEN" "✓ Configuration merged successfully: $total_preserved values preserved, $total_extra custom settings preserved"
+        print_status "$GREEN" "✓ Configuration merged successfully: $total_preserved values preserved, $total_new_added new variables added, $total_extra custom settings preserved"
         return 0
     else
         config_debug "=== INTELLIGENT CONFIG MERGE FAILED ==="
@@ -1467,25 +1491,76 @@ configure_cron() {
         fi
     fi
 
-    # Check if our scripts already have cron entries (possibly with custom timing)
+    # Check if our scripts already have cron entries (check each script individually)
     existing_monitor=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_logger=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_api_check=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_maintenance=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
 
-    if [ "$existing_monitor" -gt 0 ] || [ "$existing_logger" -gt 0 ] || [ "$existing_api_check" -gt 0 ] || [ "$existing_maintenance" -gt 0 ]; then
-        print_status "$YELLOW" "⚠ Found existing cron entries for our scripts:"
-        print_status "$YELLOW" "  starlink_monitor-rutos.sh: $existing_monitor entries"
-        print_status "$YELLOW" "  starlink_logger-rutos.sh: $existing_logger entries"
-        print_status "$YELLOW" "  check_starlink_api: $existing_api_check entries"
-        print_status "$YELLOW" "  system-maintenance-rutos.sh: $existing_maintenance entries"
-        print_status "$YELLOW" "📋 Preserving existing custom timing - not adding default entries"
-        print_status "$BLUE" "✓ Custom cron configuration preserved"
-        return 0
+    print_status "$BLUE" "Checking existing cron entries:"
+    print_status "$BLUE" "  starlink_monitor-rutos.sh: $existing_monitor entries"
+    print_status "$BLUE" "  starlink_logger-rutos.sh: $existing_logger entries"  
+    print_status "$BLUE" "  check_starlink_api: $existing_api_check entries"
+    print_status "$BLUE" "  system-maintenance-rutos.sh: $existing_maintenance entries"
+
+    # Add cron entries for scripts that don't have any entries yet
+    entries_added=0
+
+    # Add monitoring script if not present
+    if [ "$existing_monitor" -eq 0 ]; then
+        print_status "$BLUE" "Adding starlink_monitor cron entry..."
+        cat >>"$CRON_FILE" <<EOF
+# Starlink monitor - Added by install script $(date +%Y-%m-%d)
+* * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_monitor-rutos.sh
+EOF
+        entries_added=$((entries_added + 1))
+    else
+        print_status "$YELLOW" "⚠ Preserving existing starlink_monitor cron configuration"
     fi
 
-    # Add our default cron entries only if none exist
-    print_status "$BLUE" "Adding default cron entries..."
+    # Add logger script if not present
+    if [ "$existing_logger" -eq 0 ]; then
+        print_status "$BLUE" "Adding starlink_logger cron entry..."
+        cat >>"$CRON_FILE" <<EOF
+# Starlink logger - Added by install script $(date +%Y-%m-%d)
+* * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_logger-rutos.sh
+EOF
+        entries_added=$((entries_added + 1))
+    else
+        print_status "$YELLOW" "⚠ Preserving existing starlink_logger cron configuration"
+    fi
+
+    # Add API check script if not present
+    if [ "$existing_api_check" -eq 0 ]; then
+        print_status "$BLUE" "Adding check_starlink_api cron entry..."
+        cat >>"$CRON_FILE" <<EOF
+# Starlink API check - Added by install script $(date +%Y-%m-%d)
+0 6 * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/check_starlink_api-rutos.sh
+EOF
+        entries_added=$((entries_added + 1))
+    else
+        print_status "$YELLOW" "⚠ Preserving existing check_starlink_api cron configuration"
+    fi
+
+    # Add maintenance script if not present
+    if [ "$existing_maintenance" -eq 0 ]; then
+        print_status "$BLUE" "Adding system-maintenance cron entry..."
+        cat >>"$CRON_FILE" <<EOF
+# System maintenance - Added by install script $(date +%Y-%m-%d) - runs every 6 hours to check and fix common issues
+0 */6 * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/system-maintenance-rutos.sh auto
+EOF
+        entries_added=$((entries_added + 1))
+    else
+        print_status "$YELLOW" "⚠ Preserving existing system-maintenance cron configuration"
+    fi
+
+    # Report summary
+    if [ "$entries_added" -gt 0 ]; then
+        print_status "$GREEN" "✓ Added $entries_added new cron entries"
+    else
+        print_status "$BLUE" "✓ All scripts already have cron entries - preserved existing configuration"
+    fi
+
     # Clean up any old cron entries using the old CONFIG_FILE path
     old_entries_found=0
     if grep -q "CONFIG_FILE=.*/config/config.sh" "$CRON_FILE" 2>/dev/null; then
@@ -1513,16 +1588,6 @@ configure_cron() {
             crontab -l >"$CRON_FILE" 2>/dev/null || touch "$CRON_FILE"
         fi
     fi
-
-    cat >>"$CRON_FILE" <<EOF
-
-# Starlink monitoring system - Added by install script $(date +%Y-%m-%d)
-* * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_monitor-rutos.sh
-* * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_logger-rutos.sh
-0 6 * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/check_starlink_api-rutos.sh
-# System maintenance - runs every 6 hours to check and fix common issues
-0 */6 * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/system-maintenance-rutos.sh auto
-EOF
 
     # Restart cron service
     /etc/init.d/cron restart >/dev/null 2>&1 || {
