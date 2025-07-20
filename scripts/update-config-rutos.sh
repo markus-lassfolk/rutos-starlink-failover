@@ -308,13 +308,30 @@ main() {
     # Merge configurations
     merge_configs "$CURRENT_CONFIG" "$template_file" "$CURRENT_CONFIG"
 
+    # Automatically validate and repair configuration formatting after merge
+    if [ "$DRY_RUN" = false ]; then
+        print_info "Validating and repairing configuration formatting..."
+        validate_script="$INSTALL_DIR/scripts/validate-config-rutos.sh"
+        if [ -f "$validate_script" ]; then
+            if "$validate_script" "$CURRENT_CONFIG" --repair; then
+                print_success "✓ Configuration validation and repair completed"
+            else
+                print_warning "Configuration validation completed with warnings"
+            fi
+        else
+            print_warning "Validation script not found, skipping automatic repair"
+        fi
+    fi
+
     print_success "Configuration update complete!"
 
     if [ "$DRY_RUN" = false ]; then
         print_info "Next steps:"
         print_info "1. Review your configuration: vi $CURRENT_CONFIG"
-        print_info "2. Validate configuration: $INSTALL_DIR/scripts/validate-config.sh"
-        print_info "3. Test the system: systemctl restart starlink-monitor"
+        print_info "2. Test the system: systemctl restart starlink-monitor"
+        print_info ""
+        print_info "Configuration has been automatically validated and repaired."
+        print_info "To re-run validation manually: $INSTALL_DIR/scripts/validate-config-rutos.sh"
     fi
 }
 

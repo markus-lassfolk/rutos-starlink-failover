@@ -1424,6 +1424,30 @@ install_config() {
         fi
     fi
 
+    # Validate and repair configuration formatting after merge/creation
+    print_status "$BLUE" "Validating and repairing configuration formatting..."
+    
+    # Check if we have the validation script available
+    validate_script_path=""
+    if [ -f "$INSTALL_DIR/scripts/validate-config-rutos.sh" ]; then
+        validate_script_path="$INSTALL_DIR/scripts/validate-config-rutos.sh"
+    elif [ -f "$(dirname "$0")/validate-config-rutos.sh" ]; then
+        validate_script_path="$(dirname "$0")/validate-config-rutos.sh"
+    fi
+
+    if [ -n "$validate_script_path" ]; then
+        # Run validation with repair to fix quote formatting and trailing spaces
+        if "$validate_script_path" "$primary_config" --repair; then
+            print_status "$GREEN" "✓ Configuration validation and repair completed"
+        else
+            print_status "$YELLOW" "⚠ Configuration validation completed with warnings"
+            print_status "$YELLOW" "  Check the configuration manually if needed"
+        fi
+    else
+        print_status "$YELLOW" "⚠ Validation script not found, skipping automatic repair"
+        print_status "$BLUE" "  You can run validation later with: validate-config-rutos.sh --repair"
+    fi
+
     # Copy final config to install directory for backwards compatibility
     mkdir -p "$INSTALL_DIR/config" 2>/dev/null
     cp "$primary_config" "$INSTALL_DIR/config/config.sh" 2>/dev/null || true
