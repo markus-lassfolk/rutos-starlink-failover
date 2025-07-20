@@ -12,7 +12,7 @@ else
     echo "✅ CORRECT: Basic template detected as BASIC"
 fi
 
-# Test with advanced template  
+# Test with advanced template
 echo "Testing advanced template detection:"
 if grep -qE "^(DEBUG_MODE|DRY_RUN|CELLULAR_.*_MEMBER|BACKUP_DIR|DATA_LIMIT_.*_THRESHOLD|ENABLE_PERFORMANCE_LOGGING|CELLULAR_BACKUP_IFACE)" config/config.advanced.template.sh 2>/dev/null; then
     echo "✅ CORRECT: Advanced template detected as ADVANCED"
