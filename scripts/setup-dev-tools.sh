@@ -8,13 +8,24 @@ SCRIPT_VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Standard colors for consistent output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+# Standard colors for consistent output (RUTOS compatible)
+# CRITICAL: Use RUTOS-compatible color detection
+# shellcheck disable=SC2034  # CYAN may not be used but should be defined for consistency
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+else
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    CYAN=""
+    NC=""
+fi
 
 # Logging functions
 log_info() {
