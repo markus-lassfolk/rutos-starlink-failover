@@ -147,11 +147,11 @@ load_config() {
 
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
-    
+
     # Set binary paths from configuration variables with fallback defaults
     GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
     JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
-    
+
     log_success "Configuration loaded successfully"
 }
 
@@ -314,7 +314,7 @@ test_starlink_api_device_info() {
     log_debug "Testing Starlink gRPC Device/Handle API (get_device_info)"
     starlink_host=$(echo "$STARLINK_IP" | cut -d':' -f1)
     starlink_port=$(echo "$STARLINK_IP" | cut -d':' -f2)
-    
+
     # Use configured grpcurl command
     if ! command -v grpcurl >/dev/null 2>&1; then
         if [ ! -f "$GRPCURL_CMD" ]; then
@@ -325,7 +325,7 @@ test_starlink_api_device_info() {
     else
         grpcurl_cmd="grpcurl"
     fi
-    
+
     # Use the provided payload for get_device_info
     payload='{"get_device_info":{}}'
     if response=$(timeout 10 "$grpcurl_cmd" -plaintext -d "$payload" "$starlink_host:$starlink_port" SpaceX.API.Device.Device/Handle 2>/dev/null); then

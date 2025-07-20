@@ -756,81 +756,50 @@ check_configuration_health() {
     log_step "Checking configuration health"
     debug_func "check_configuration_health"
 
-    # Run configuration validation with timeout to prevent hanging
-    validation_script="$SCRIPT_DIR/validate-config-rutos.sh"
-    log_debug "CONFIG VALIDATION: Checking for validation script at $validation_script"
-
-    if [ -x "$validation_script" ]; then
-        log_debug "CONFIG VALIDATION: Script found and executable"
-
-        # Test if the script can be executed at all
-        log_debug "CONFIG VALIDATION: Testing script execution capability..."
-        if ! "$validation_script" --help >/dev/null 2>&1; then
-            log_debug "CONFIG VALIDATION: WARNING - Script --help test failed, may have execution issues"
-        else
-            log_debug "CONFIG VALIDATION: Script responds to --help, appears functional"
-        fi
-
-        # Add a progress indicator
-        log_debug "CONFIG VALIDATION: Starting validation process..."
-
-        # Simplified timeout detection - avoid Windows timeout.exe compatibility issues
-        log_debug "CONFIG VALIDATION: Checking for Unix-style timeout command compatibility..."
-        if command -v timeout >/dev/null 2>&1; then
-            # Test if it's actually Unix timeout (not Windows timeout.exe)
-            if timeout 1 echo "test" >/dev/null 2>&1; then
-                log_debug "CONFIG VALIDATION: Unix timeout command verified working"
+    # Perform basic configuration validation inline (avoid hanging on interactive validate-config-rutos.sh)
+    log_debug "CONFIG VALIDATION: Performing basic configuration checks inline"
+    
+    # Check if config file exists and is readable
+    log_debug "CONFIG VALIDATION: Checking config file at $CONFIG_FILE"
+    if [ ! -f "$CONFIG_FILE" ]; then
+        show_health_status "critical" "Configuration" "Config file not found: $CONFIG_FILE"
+        increment_counter "critical"
+        log_debug "CONFIG VALIDATION: CRITICAL - Config file missing"
+    elif [ ! -r "$CONFIG_FILE" ]; then
+        show_health_status "critical" "Configuration" "Config file not readable: $CONFIG_FILE"
+        increment_counter "critical"
+        log_debug "CONFIG VALIDATION: CRITICAL - Config file not readable"
+    else
+        log_debug "CONFIG VALIDATION: Config file exists and is readable"
+        
+        # Check for required variables in config
+        missing_vars=""
+        required_vars="STARLINK_IP CHECK_INTERVAL API_TIMEOUT PUSHOVER_TOKEN PUSHOVER_USER"
+        
+        for var in $required_vars; do
+            log_debug "CONFIG VALIDATION: Checking for required variable: $var"
+            if ! grep -q "^${var}=" "$CONFIG_FILE" 2>/dev/null; then
+                if [ -z "$missing_vars" ]; then
+                    missing_vars="$var"
+                else
+                    missing_vars="$missing_vars, $var"
+                fi
+                log_debug "CONFIG VALIDATION: Missing variable: $var"
             else
-                log_debug "CONFIG VALIDATION: timeout command found but not Unix-compatible (likely Windows timeout.exe)"
+                log_debug "CONFIG VALIDATION: Found variable: $var"
             fi
-        else
-            log_debug "CONFIG VALIDATION: No timeout command available"
-        fi
-
-        # Use direct execution without timeout to avoid Windows/Unix compatibility issues
-        log_debug "CONFIG VALIDATION: Using direct execution approach for maximum compatibility"
-        validation_start_time=$(date '+%s')
-
-        # Use simple direct execution to avoid command substitution and timeout issues
-        temp_output="/tmp/health_check_validation.out"
-        temp_error="/tmp/health_check_validation.err"
-
-        # Clean any existing temp files
-        rm -f "$temp_output" "$temp_error" 2>/dev/null || true
-
-        # Execute validation script directly
-        log_debug "CONFIG VALIDATION: Executing $validation_script directly"
-        "$validation_script" >"$temp_output" 2>"$temp_error"
-        validation_exit_code=$?
-
-        # Read output
-        validation_output=""
-        if [ -f "$temp_output" ]; then
-            validation_output=$(cat "$temp_output" 2>/dev/null || echo "")
-        fi
-        if [ -f "$temp_error" ] && [ -s "$temp_error" ]; then
-            error_content=$(cat "$temp_error" 2>/dev/null || echo "")
-            validation_output="${validation_output}${error_content}"
-        fi
-
-        # Clean up temp files
-        rm -f "$temp_output" "$temp_error" 2>/dev/null || true
-
-        validation_end_time=$(date '+%s')
-        validation_duration=$((validation_end_time - validation_start_time))
-        log_debug "CONFIG VALIDATION: Completed in ${validation_duration} seconds with exit code $validation_exit_code"
-
-        # Process results
-        if [ $validation_exit_code -eq 0 ]; then
-            show_health_status "healthy" "Configuration" "Configuration validation passed"
-            increment_counter "healthy"
-            log_debug "CONFIG VALIDATION: SUCCESS"
-        else
-            error_summary=$(echo "$validation_output" | head -n1 | cut -c1-60)
-            show_health_status "warning" "Configuration" "Validation failed: $error_summary"
+        done
+        
+        if [ -n "$missing_vars" ]; then
+            show_health_status "warning" "Configuration" "Missing variables: $missing_vars"
             increment_counter "warning"
-            log_debug "CONFIG VALIDATION: FAILED - $error_summary"
+            log_debug "CONFIG VALIDATION: WARNING - Missing variables: $missing_vars"
+        else
+            show_health_status "healthy" "Configuration" "Essential configuration variables present"
+            increment_counter "healthy"
+            log_debug "CONFIG VALIDATION: SUCCESS - All essential variables found"
         fi
+    fi
 
         # Continue to placeholder check section...
         placeholder_script="$SCRIPT_DIR/placeholder-utils.sh"
@@ -858,23 +827,6 @@ check_configuration_health() {
         fi
 
         log_debug "Configuration health checks completed"
-
-    else
-        show_health_status "unknown" "Configuration" "validate-config-rutos.sh not found or not executable"
-        increment_counter "unknown"
-        log_debug "CONFIG VALIDATION: Script not found or not executable at $validation_script"
-
-        if [ "${DEBUG:-0}" = "1" ]; then
-            log_debug "VALIDATION SCRIPT DEBUG:"
-            if [ -f "$validation_script" ]; then
-                log_debug "  File exists but not executable"
-                log_debug "  Permissions: $(ls -la "$validation_script")"
-            else
-                log_debug "  File does not exist"
-                log_debug "  Directory contents: $(find "$SCRIPT_DIR" -name "*validate*" -type f 2>/dev/null | head -5 || echo 'No validate scripts found')"
-            fi
-        fi
-    fi
 }
 
 # Function to check firmware upgrade persistence
