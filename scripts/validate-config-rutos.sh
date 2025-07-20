@@ -1004,9 +1004,6 @@ repair_config_quotes() {
             # Third pass: Remove stray quotes at end of comments
             if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="[^"]*"[[:space:]]*#.*\)"[[:space:]]*$/\1/' "$temp_file2" >"$temp_file3"; then
 
-            # Third pass: Remove stray quotes at end of comments
-            if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="[^"]*"[[:space:]]*#.*\)"[[:space:]]*$/\1/' "$temp_file2" >"$temp_file3"; then
-
                 # Check if any changes were made in any pass
                 if ! cmp -s "$config_file" "$temp_file3"; then
                     changes_made=""
