@@ -193,21 +193,21 @@ bicep:Azure Bicep CLI"
     temp_dir="/tmp"
     available_file="$temp_dir/available_count_$$"
     total_file="$temp_dir/total_count_$$"
-    
-    echo "0" > "$available_file"
-    echo "0" > "$total_file"
+
+    echo "0" >"$available_file"
+    echo "0" >"$total_file"
 
     # Process each tool
     echo "$tools_list" | while IFS=':' read -r tool_name tool_description; do
         total_count=$(cat "$total_file")
         total_count=$((total_count + 1))
-        echo "$total_count" > "$total_file"
-        
+        echo "$total_count" >"$total_file"
+
         if command_exists "$tool_name"; then
             log_info "✅ $tool_name ($tool_description) - Available"
             available_count=$(cat "$available_file")
             available_count=$((available_count + 1))
-            echo "$available_count" > "$available_file"
+            echo "$available_count" >"$available_file"
         else
             log_warning "❌ $tool_name ($tool_description) - Not available"
         fi
@@ -216,10 +216,10 @@ bicep:Azure Bicep CLI"
     # Read final counts
     available_count=$(cat "$available_file")
     total_count=$(cat "$total_file")
-    
+
     # Clean up temporary files
     rm -f "$available_file" "$total_file"
-    
+
     log_info "Tool availability: $available_count/$total_count tools available"
 
     if [ "$available_count" -eq "$total_count" ]; then
