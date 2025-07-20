@@ -53,14 +53,14 @@ This solution offers a suite of advanced features to create a truly resilient mo
 
 Before setting up these scripts, ensure your router meets the following requirements:
 
-1.  **Hardware:** A Teltonika RUTX50 or a similar OpenWrt-based router with sufficient processing power and an **ARMv7**
-    architecture. While developed on a RUTX50, the principles are adaptable.
+1. **Hardware:** A Teltonika RUTX50 or a similar OpenWrt-based router with sufficient processing power and an **ARMv7**
+   architecture. While developed on a RUTX50, the principles are adaptable.
 
-2.  **Starlink:** A Starlink dish running in **Bypass Mode**. This is essential as it allows the router to receive the
-    WAN IP address directly from Starlink and manage the connection.
+2. **Starlink:** A Starlink dish running in **Bypass Mode**. This is essential as it allows the router to receive the
+   WAN IP address directly from Starlink and manage the connection.
 
-3.  **Packages & Binaries:** You will need to install several command-line tools on the router via SSH, as they are not
-    included in the default RUTOS firmware.
+3. **Packages & Binaries:** You will need to install several command-line tools on the router via SSH, as they are not
+   included in the default RUTOS firmware.
 
     ```sh
     # 1. Install grpcurl (32-bit ARMv7 version for RUTX50)
@@ -76,8 +76,8 @@ Before setting up these scripts, ensure your router meets the following requirem
     # 3. The scripts use 'awk' and 'logger', which are included in the default BusyBox suite on RUTOS.
     ```
 
-4.  **Pushover:** Register a free account at https://pushover.net/ and create an application so you get both a User and
-    Application API-Key. Then install the Pushover application on your mobile device and login with your account.
+4. **Pushover:** Register a free account at <https://pushover.net/> and create an application so you get both a User and
+   Application API-Key. Then install the Pushover application on your mobile device and login with your account.
 
 ## Core Components (The Scripts)
 
@@ -217,7 +217,7 @@ uci commit uhttpd
 **Enhanced Configuration Management:** The default scripts now support centralized configuration through a config file
 system. You have two options:
 
-**Option 1: Centralized Configuration (Recommended)**
+### Option 1: Centralized Configuration (Recommended)
 
 1. Copy `config/config.template.sh` to `/root/config.sh`
 2. Edit `/root/config.sh` with your settings (Pushover API keys, thresholds, etc.)
@@ -246,9 +246,9 @@ chmod +x /root/check_starlink_api.sh
 chmod +x /root/generate_api_docs.sh
 ```
 
-4. Apply UCI Changes: Run the commands in the Configuration section above to set up mwan3 and the necessary static
+1. Apply UCI Changes: Run the commands in the Configuration section above to set up mwan3 and the necessary static
    route.
-5. Set up Cron Jobs: Run `crontab -e` to open the cron editor and add the following lines to schedule the scripts.
+2. Set up Cron Jobs: Run `crontab -e` to open the cron editor and add the following lines to schedule the scripts.
 
    ```cron
    # Run the main quality monitor every minute
