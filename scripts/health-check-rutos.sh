@@ -774,226 +774,91 @@ check_configuration_health() {
         # Add a progress indicator
         log_debug "CONFIG VALIDATION: Starting validation process..."
 
-        # Use timeout command if available, otherwise rely on the script's own timeout
+        # Simplified timeout detection - avoid Windows timeout.exe compatibility issues
+        log_debug "CONFIG VALIDATION: Checking for Unix-style timeout command compatibility..."
         if command -v timeout >/dev/null 2>&1; then
-            log_debug "CONFIG VALIDATION: Using timeout command (30 seconds)"
-            log_debug "CONFIG VALIDATION: Executing timeout 30 $validation_script"
-
-            # Test if timeout command works with a simple command first
-            log_debug "CONFIG VALIDATION: Testing timeout command functionality..."
-            if timeout 5 echo "timeout test" >/dev/null 2>&1; then
-                log_debug "CONFIG VALIDATION: Timeout command test successful"
+            # Test if it's actually Unix timeout (not Windows timeout.exe)
+            if timeout 1 echo "test" >/dev/null 2>&1; then
+                log_debug "CONFIG VALIDATION: Unix timeout command verified working"
             else
-                log_debug "CONFIG VALIDATION: Timeout command test failed, falling back to direct execution"
-                # Skip timeout and go directly to fallback
-                validation_output=$("$validation_script" 2>&1 || echo "Script execution failed")
-                validation_exit_code=$?
-                validation_end_time=$(date '+%s')
-                validation_duration=$((validation_end_time - validation_start_time))
-                log_debug "CONFIG VALIDATION: Direct execution completed in ${validation_duration} seconds"
-                log_debug "CONFIG VALIDATION: Exit code: $validation_exit_code"
-                log_debug "CONFIG VALIDATION: Output length: ${#validation_output} characters"
-
-                # Skip the rest of the timeout logic
-                if [ $validation_exit_code -eq 0 ]; then
-                    show_health_status "healthy" "Configuration" "Configuration validation passed"
-                    increment_counter "healthy"
-                    log_debug "CONFIG VALIDATION: SUCCESS"
-                else
-                    error_summary=$(echo "$validation_output" | head -n1 | cut -c1-60)
-                    show_health_status "warning" "Configuration" "Validation failed: $error_summary"
-                    increment_counter "warning"
-                    log_debug "CONFIG VALIDATION: FAILED - $error_summary"
-                fi
-
-                log_debug "CONFIG VALIDATION: Proceeding to placeholder check"
-                # Continue to placeholder check section...
-                placeholder_script="$SCRIPT_DIR/placeholder-utils.sh"
-                log_debug "PLACEHOLDER CHECK: Checking for placeholder utils at $placeholder_script"
-
-                if [ -f "$placeholder_script" ]; then
-                    log_debug "PLACEHOLDER CHECK: Utils script found, loading..."
-                    # shellcheck disable=SC1091,SC1090
-                    . "$placeholder_script"
-                    # shellcheck disable=SC1090
-                    . "$CONFIG_FILE" 2>/dev/null || log_debug "Could not load config file for placeholder check"
-
-                    log_debug "PUSHOVER CHECK: Testing if Pushover is configured properly"
-                    if is_pushover_configured; then
-                        show_health_status "healthy" "Pushover Config" "Pushover properly configured"
-                        increment_counter "healthy"
-                        log_debug "PUSHOVER CHECK: SUCCESS - properly configured"
-                    else
-                        show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
-                        increment_counter "warning"
-                        log_debug "PUSHOVER CHECK: WARNING - using placeholder values"
-                    fi
-                else
-                    log_debug "PLACEHOLDER CHECK: Utils script not found, skipping placeholder validation"
-                fi
-
-                log_debug "Configuration health checks completed"
-                return # Exit the function here
-            fi
-
-            # Execute with detailed debugging - avoid command substitution in busybox
-            if [ "${DEBUG:-0}" = "1" ]; then
-                log_debug "CONFIG VALIDATION: Running in debug mode, will capture full output"
-                validation_start_time=$(date '+%s')
-
-                # Use a completely different approach - run script and capture to file
-                temp_output="/tmp/health_check_validation_direct.out"
-                temp_error="/tmp/health_check_validation_direct.err"
-
-                log_debug "CONFIG VALIDATION: Using direct file capture approach"
-                log_debug "CONFIG VALIDATION: Output file: $temp_output"
-                log_debug "CONFIG VALIDATION: Error file: $temp_error"
-
-                # Clean up any existing temp files
-                rm -f "$temp_output" "$temp_error"
-
-                # Execute the validation script directly with file redirection
-                log_debug "CONFIG VALIDATION: Executing: timeout 30 $validation_script >$temp_output 2>$temp_error"
-                timeout 30 "$validation_script" >"$temp_output" 2>"$temp_error"
-                validation_exit_code=$?
-
-                log_debug "CONFIG VALIDATION: Command completed with exit code: $validation_exit_code"
-
-                # Read output from files
-                validation_output=""
-                if [ -f "$temp_output" ]; then
-                    validation_output=$(cat "$temp_output" 2>/dev/null || echo "")
-                    output_size=$(wc -c <"$temp_output" 2>/dev/null || echo "0")
-                    log_debug "CONFIG VALIDATION: Read ${output_size} bytes from stdout"
-                fi
-
-                if [ -f "$temp_error" ] && [ -s "$temp_error" ]; then
-                    error_content=$(cat "$temp_error" 2>/dev/null || echo "")
-                    error_size=$(wc -c <"$temp_error" 2>/dev/null || echo "0")
-                    log_debug "CONFIG VALIDATION: Read ${error_size} bytes from stderr"
-                    validation_output="${validation_output}${error_content}"
-                fi
-
-                # Clean up temp files
-                rm -f "$temp_output" "$temp_error"
-
-                validation_end_time=$(date '+%s')
-                validation_duration=$((validation_end_time - validation_start_time))
-                log_debug "CONFIG VALIDATION: Completed in ${validation_duration} seconds"
-            else
-                log_debug "CONFIG VALIDATION: Running in normal mode with simple execution"
-                # Even in normal mode, avoid command substitution with timeout
-                temp_output="/tmp/health_check_validation_simple.out"
-                timeout 30 "$validation_script" >"$temp_output" 2>&1
-                validation_exit_code=$?
-                validation_output=$(cat "$temp_output" 2>/dev/null || echo "")
-                rm -f "$temp_output"
+                log_debug "CONFIG VALIDATION: timeout command found but not Unix-compatible (likely Windows timeout.exe)"
             fi
         else
-            log_debug "CONFIG VALIDATION: No timeout command available, using manual timeout approach"
-            log_debug "CONFIG VALIDATION: Executing $validation_script with background monitoring"
-
-            # Create temporary files for output
-            temp_output="/tmp/health_check_validation_bg.out"
-            temp_error="/tmp/health_check_validation_bg.err"
-            temp_pid="/tmp/health_check_validation_bg.pid"
-
-            # Clean up any existing temp files
-            rm -f "$temp_output" "$temp_error" "$temp_pid"
-
-            if [ "${DEBUG:-0}" = "1" ]; then
-                validation_start_time=$(date '+%s')
-                log_debug "CONFIG VALIDATION: Starting background process with manual timeout"
-
-                # Start validation script in background
-                (
-                    "$validation_script" >"$temp_output" 2>"$temp_error"
-                    echo $? >"/tmp/health_check_validation_exit.code"
-                ) &
-                bg_pid=$!
-                echo $bg_pid >"$temp_pid"
-                log_debug "CONFIG VALIDATION: Background process started with PID $bg_pid"
-
-                # Monitor the process with timeout
-                timeout_seconds=30
-                elapsed=0
-                while [ $elapsed -lt $timeout_seconds ]; do
-                    if ! kill -0 "$bg_pid" 2>/dev/null; then
-                        log_debug "CONFIG VALIDATION: Background process completed after ${elapsed} seconds"
-                        break
-                    fi
-                    sleep 1
-                    elapsed=$((elapsed + 1))
-                    if [ $((elapsed % 10)) -eq 0 ]; then
-                        log_debug "CONFIG VALIDATION: Still running... ${elapsed}s elapsed"
-                    fi
-                done
-
-                # Check if process is still running (timed out)
-                if kill -0 "$bg_pid" 2>/dev/null; then
-                    log_debug "CONFIG VALIDATION: Process timed out, terminating..."
-                    kill "$bg_pid" 2>/dev/null || true
-                    sleep 1
-                    kill -9 "$bg_pid" 2>/dev/null || true
-                    validation_exit_code=124 # timeout exit code
-                    validation_output="Validation script timed out after ${timeout_seconds} seconds"
-                else
-                    # Process completed normally
-                    if [ -f "/tmp/health_check_validation_exit.code" ]; then
-                        validation_exit_code=$(cat "/tmp/health_check_validation_exit.code" 2>/dev/null || echo "1")
-                        rm -f "/tmp/health_check_validation_exit.code"
-                    else
-                        validation_exit_code=1
-                    fi
-
-                    validation_output=""
-                    if [ -f "$temp_output" ]; then
-                        validation_output=$(cat "$temp_output" 2>/dev/null)
-                    fi
-                    if [ -f "$temp_error" ] && [ -s "$temp_error" ]; then
-                        error_content=$(cat "$temp_error" 2>/dev/null)
-                        validation_output="${validation_output}${error_content}"
-                    fi
-                fi
-
-                validation_end_time=$(date '+%s')
-                validation_duration=$((validation_end_time - validation_start_time))
-                log_debug "CONFIG VALIDATION: Manual timeout process completed in ${validation_duration} seconds"
-
-                # Clean up temp files
-                rm -f "$temp_output" "$temp_error" "$temp_pid"
-
-            else
-                # Fallback to simple execution without timeout in normal mode
-                validation_output=$("$validation_script" 2>&1)
-                validation_exit_code=$?
-            fi
+            log_debug "CONFIG VALIDATION: No timeout command available"
         fi
 
-        log_debug "CONFIG VALIDATION: Exit code: $validation_exit_code"
-        log_debug "CONFIG VALIDATION: Output length: ${#validation_output} characters"
+        # Use direct execution without timeout to avoid Windows/Unix compatibility issues
+        log_debug "CONFIG VALIDATION: Using direct execution approach for maximum compatibility"
+        validation_start_time=$(date '+%s')
 
-        if [ "$validation_exit_code" -eq 0 ]; then
+        # Use simple direct execution to avoid command substitution and timeout issues
+        temp_output="/tmp/health_check_validation.out"
+        temp_error="/tmp/health_check_validation.err"
+
+        # Clean any existing temp files
+        rm -f "$temp_output" "$temp_error" 2>/dev/null || true
+
+        # Execute validation script directly
+        log_debug "CONFIG VALIDATION: Executing $validation_script directly"
+        "$validation_script" >"$temp_output" 2>"$temp_error"
+        validation_exit_code=$?
+
+        # Read output
+        validation_output=""
+        if [ -f "$temp_output" ]; then
+            validation_output=$(cat "$temp_output" 2>/dev/null || echo "")
+        fi
+        if [ -f "$temp_error" ] && [ -s "$temp_error" ]; then
+            error_content=$(cat "$temp_error" 2>/dev/null || echo "")
+            validation_output="${validation_output}${error_content}"
+        fi
+
+        # Clean up temp files
+        rm -f "$temp_output" "$temp_error" 2>/dev/null || true
+
+        validation_end_time=$(date '+%s')
+        validation_duration=$((validation_end_time - validation_start_time))
+        log_debug "CONFIG VALIDATION: Completed in ${validation_duration} seconds with exit code $validation_exit_code"
+
+        # Process results
+        if [ $validation_exit_code -eq 0 ]; then
             show_health_status "healthy" "Configuration" "Configuration validation passed"
             increment_counter "healthy"
             log_debug "CONFIG VALIDATION: SUCCESS"
-        elif [ "$validation_exit_code" -eq 124 ]; then
-            show_health_status "warning" "Configuration" "Validation timed out (>30s)"
-            increment_counter "warning"
-            log_debug "CONFIG VALIDATION: TIMEOUT - validation took longer than 30 seconds"
         else
-            # Extract first line of error for concise display
             error_summary=$(echo "$validation_output" | head -n1 | cut -c1-60)
             show_health_status "warning" "Configuration" "Validation failed: $error_summary"
             increment_counter "warning"
             log_debug "CONFIG VALIDATION: FAILED - $error_summary"
-
-            # Log full details for debugging
-            if [ "${DEBUG:-0}" = "1" ]; then
-                log_debug "CONFIG VALIDATION: Full output (first 1000 chars):"
-                log_debug "$(echo "$validation_output" | cut -c1-1000)$([ ${#validation_output} -gt 1000 ] && echo '...')"
-            fi
         fi
+
+        # Continue to placeholder check section...
+        placeholder_script="$SCRIPT_DIR/placeholder-utils.sh"
+        log_debug "PLACEHOLDER CHECK: Checking for placeholder utils at $placeholder_script"
+
+        if [ -f "$placeholder_script" ]; then
+            log_debug "PLACEHOLDER CHECK: Utils script found, loading..."
+            # shellcheck disable=SC1091,SC1090
+            . "$placeholder_script"
+            # shellcheck disable=SC1090
+            . "$CONFIG_FILE" 2>/dev/null || log_debug "Could not load config file for placeholder check"
+
+            log_debug "PUSHOVER CHECK: Testing if Pushover is configured properly"
+            if is_pushover_configured; then
+                show_health_status "healthy" "Pushover Config" "Pushover properly configured"
+                increment_counter "healthy"
+                log_debug "PUSHOVER CHECK: SUCCESS - properly configured"
+            else
+                show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
+                increment_counter "warning"
+                log_debug "PUSHOVER CHECK: WARNING - using placeholder values"
+            fi
+        else
+            log_debug "PLACEHOLDER CHECK: Utils script not found, skipping placeholder validation"
+        fi
+
+        log_debug "Configuration health checks completed"
+
     else
         show_health_status "unknown" "Configuration" "validate-config-rutos.sh not found or not executable"
         increment_counter "unknown"
@@ -1010,40 +875,6 @@ check_configuration_health() {
             fi
         fi
     fi
-
-    log_debug "CONFIG VALIDATION: Proceeding to placeholder check"
-
-    # Check for placeholder values
-    placeholder_script="$SCRIPT_DIR/placeholder-utils.sh"
-    log_debug "PLACEHOLDER CHECK: Checking for placeholder utils at $placeholder_script"
-
-    if [ -f "$placeholder_script" ]; then
-        log_debug "PLACEHOLDER CHECK: Utils script found, loading..."
-        # shellcheck disable=SC1091,SC1090
-        . "$placeholder_script"
-        # shellcheck disable=SC1090
-        . "$CONFIG_FILE" 2>/dev/null || log_debug "Could not load config file for placeholder check"
-
-        log_debug "PUSHOVER CHECK: Testing if Pushover is configured properly"
-        if is_pushover_configured; then
-            show_health_status "healthy" "Pushover Config" "Pushover properly configured"
-            increment_counter "healthy"
-            log_debug "PUSHOVER CHECK: SUCCESS - properly configured"
-        else
-            show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
-            increment_counter "warning"
-            log_debug "PUSHOVER CHECK: WARNING - using placeholder values"
-
-            if [ "${DEBUG:-0}" = "1" ]; then
-                log_debug "PUSHOVER DEBUG: Token check: $([ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] && echo "using placeholder" || echo "appears configured")"
-                log_debug "PUSHOVER DEBUG: User check: $([ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ] && echo "using placeholder" || echo "appears configured")"
-            fi
-        fi
-    else
-        log_debug "PLACEHOLDER CHECK: Utils script not found, skipping placeholder validation"
-    fi
-
-    log_debug "Configuration health checks completed"
 }
 
 # Function to check firmware upgrade persistence
