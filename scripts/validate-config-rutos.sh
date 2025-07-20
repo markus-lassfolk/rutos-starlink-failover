@@ -609,7 +609,10 @@ validate_config_format() {
     # Check for quotes in wrong position - value starts with quote but closing quote is after hash
     quotes_in_comments=$(grep -n '^[[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="[^"]*#.*"' "$CONFIG_FILE" 2>/dev/null || true)
 
-    if [ -n "$unmatched_quotes" ] || [ -n "$quotes_in_comments" ]; then
+    # Check for trailing spaces within quoted values
+    trailing_spaces=$(grep -n '^[[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="[^"]*[[:space:]][[:space:]]*"' "$CONFIG_FILE" 2>/dev/null || true)
+
+    if [ -n "$unmatched_quotes" ] || [ -n "$quotes_in_comments" ] || [ -n "$trailing_spaces" ]; then
         printf "%b\n" "${RED}❌ Found lines with quote formatting issues:${NC}"
 
         if [ -n "$unmatched_quotes" ]; then
@@ -628,6 +631,18 @@ validate_config_format() {
                 content=$(echo "$line" | cut -d: -f2-)
                 printf "%b\n" "${RED}     Line $line_num: $content${NC}"
                 printf "%b\n" "${YELLOW}     Should be: $(echo "$content" | sed 's/="\([^#]*\)#\(.*\)"/="\1" #\2/')"
+            done
+        fi
+
+        if [ -n "$trailing_spaces" ]; then
+            printf "%b\n" "${RED}   Trailing spaces within quoted values:${NC}"
+            echo "$trailing_spaces" | while IFS= read -r line; do
+                line_num=$(echo "$line" | cut -d: -f1)
+                content=$(echo "$line" | cut -d: -f2-)
+                printf "%b\n" "${RED}     Line $line_num: $content${NC}"
+                # Show what it should look like by removing trailing spaces
+                fixed_content=$(echo "$content" | sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*[^[:space:]]\)[[:space:]]*"/\1\2"/')
+                printf "%b\n" "${YELLOW}     Should be: $fixed_content${NC}"
             done
         fi
 
@@ -957,36 +972,68 @@ repair_config_quotes() {
         return 1
     fi
 
-    # Fix quotes incorrectly positioned in comments
-    # Pattern: export VAR="value # comment" -> export VAR="value" # comment"
+    # Fix quotes incorrectly positioned in comments and trailing spaces in quoted values
+    # Pattern 1: export VAR="value # comment" -> export VAR="value" # comment"
+    # Pattern 2: export VAR="value   " -> export VAR="value"
     temp_file=$(mktemp)
+    temp_file2=$(mktemp)
 
-    # Use sed to fix the quote positioning
+    # First pass: Fix quote positioning
     if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*\)\(#.*\)"/\1\2" \3/' "$config_file" >"$temp_file"; then
 
-        # Check if any changes were made
-        if ! cmp -s "$config_file" "$temp_file"; then
-            printf "%b\n" "${GREEN}✅ Fixed quote positioning issues${NC}"
+        # Second pass: Remove trailing spaces within quotes
+        if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*[^[:space:]]\)[[:space:]]*"/\1\2"/' "$temp_file" >"$temp_file2"; then
 
-            # Show what was changed
-            printf "%b\n" "${CYAN}Changes made:${NC}"
-            diff -u "$config_file" "$temp_file" | grep -E "^[\+\-]export" | head -10 || true
+            # Check if any changes were made in either pass
+            if ! cmp -s "$config_file" "$temp_file2"; then
+                changes_made=""
 
-            # Apply the changes
-            mv "$temp_file" "$config_file"
+                # Check what type of fixes were made
+                if ! cmp -s "$config_file" "$temp_file"; then
+                    changes_made="quote positioning"
+                fi
+                if ! cmp -s "$temp_file" "$temp_file2"; then
+                    if [ -n "$changes_made" ]; then
+                        changes_made="$changes_made and trailing spaces"
+                    else
+                        changes_made="trailing spaces in quoted values"
+                    fi
+                fi
 
-            printf "%b\n" "${GREEN}✅ Configuration file repaired successfully${NC}"
-            printf "%b\n" "${YELLOW}💡 Backup saved as: $backup_file${NC}"
+                printf "%b\n" "${GREEN}✅ Fixed $changes_made${NC}"
 
-            return 0
+                # Count and show what was changed
+                printf "%b\n" "${CYAN}Changes made:${NC}"
+                if command -v diff >/dev/null 2>&1; then
+                    diff -u "$config_file" "$temp_file2" | grep -E "^[\+\-]export" | head -10 || true
+                else
+                    # Alternative: count the fixes made
+                    fix_count=$(grep -c "^export.*=" "$temp_file2" 2>/dev/null || echo "unknown")
+                    printf "%b\n" "${YELLOW}Quote formatting fixes applied to configuration${NC}"
+                    printf "%b\n" "${CYAN}Total export statements processed: $fix_count${NC}"
+                fi
+
+                # Apply the changes
+                mv "$temp_file2" "$config_file"
+                rm -f "$temp_file" 2>/dev/null || true
+
+                printf "%b\n" "${GREEN}✅ Configuration file repaired successfully${NC}"
+                printf "%b\n" "${YELLOW}💡 Backup saved as: $backup_file${NC}"
+
+                return 0
+            else
+                printf "%b\n" "${BLUE}ℹ️  No quote formatting issues found to repair${NC}"
+                rm -f "$temp_file" "$temp_file2" 2>/dev/null || true
+                return 0
+            fi
         else
-            printf "%b\n" "${BLUE}ℹ️  No quote formatting issues found to repair${NC}"
-            rm -f "$temp_file"
-            return 0
+            printf "%b\n" "${RED}❌ Failed to process configuration file (second pass)${NC}"
+            rm -f "$temp_file" "$temp_file2" 2>/dev/null || true
+            return 1
         fi
     else
-        printf "%b\n" "${RED}❌ Failed to process configuration file${NC}"
-        rm -f "$temp_file"
+        printf "%b\n" "${RED}❌ Failed to process configuration file (first pass)${NC}"
+        rm -f "$temp_file" 2>/dev/null || true
         return 1
     fi
 }
