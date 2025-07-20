@@ -75,7 +75,15 @@ done
 print_status() {
     color="$1"
     message="$2"
-    printf "%s%s%s\n" "$color" "$message" "$NC"
+    # Use Method 5 format that works in RUTOS (embed variables in format string)
+    case "$color" in
+        "$RED") printf "${RED}%s${NC}\n" "$message" ;;
+        "$GREEN") printf "${GREEN}%s${NC}\n" "$message" ;;
+        "$YELLOW") printf "${YELLOW}%s${NC}\n" "$message" ;;
+        "$BLUE") printf "${BLUE}%s${NC}\n" "$message" ;;
+        "$CYAN") printf "${CYAN}%s${NC}\n" "$message" ;;
+        *) printf "%s\n" "$message" ;;
+    esac
 }
 
 print_error() {
