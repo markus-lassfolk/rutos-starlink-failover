@@ -83,11 +83,50 @@ export MAINTENANCE_PUSHOVER_ENABLED="true" # Uses PUSHOVER_TOKEN/PUSHOVER_USER i
 export MAINTENANCE_PUSHOVER_TOKEN="" # Leave empty to use PUSHOVER_TOKEN
 export MAINTENANCE_PUSHOVER_USER=""  # Leave empty to use PUSHOVER_USER
 
-# Number of critical issues before sending notification (default: 3)
-export MAINTENANCE_CRITICAL_THRESHOLD=3
+# =============================================================================
+# ENHANCED MAINTENANCE NOTIFICATION CONTROL
+# =============================================================================
 
-# Notification cooldown in seconds - prevents spam (default: 3600 = 1 hour)
-export MAINTENANCE_NOTIFICATION_COOLDOWN=3600
+# Notification levels - control what gets sent via Pushover
+export MAINTENANCE_NOTIFY_ON_FIXES="true"    # Send notification for each successful fix (recommended)
+export MAINTENANCE_NOTIFY_ON_FAILURES="true" # Send notification for each failed fix attempt (recommended)
+export MAINTENANCE_NOTIFY_ON_CRITICAL="true" # Send notification for critical issues (always recommended)
+export MAINTENANCE_NOTIFY_ON_FOUND="false"   # Send notification for issues found but not fixed (can be noisy)
+
+# Notification thresholds and timing
+export MAINTENANCE_CRITICAL_THRESHOLD=1         # Send critical notification if 1+ critical issues (lowered for better monitoring)
+export MAINTENANCE_NOTIFICATION_COOLDOWN=1800   # Cooldown between notifications (30 minutes to reduce spam but stay informed)
+export MAINTENANCE_MAX_NOTIFICATIONS_PER_RUN=10 # Maximum individual notifications per maintenance run
+
+# Notification priorities (Pushover priority levels: -2=lowest, -1=low, 0=normal, 1=high, 2=emergency)
+export MAINTENANCE_PRIORITY_FIXED=0    # Normal priority for successful fixes
+export MAINTENANCE_PRIORITY_FAILED=1   # High priority for failed fixes
+export MAINTENANCE_PRIORITY_CRITICAL=2 # Emergency priority for critical issues
+export MAINTENANCE_PRIORITY_FOUND=0    # Normal priority for found issues
+
+# =============================================================================
+# SYSTEM MAINTENANCE BEHAVIOR CONTROL
+# =============================================================================
+
+# Control automatic fix behavior
+export MAINTENANCE_AUTO_FIX_ENABLED=true # Allow maintenance script to fix issues automatically (true/false)
+
+# Control automatic reboot behavior
+export MAINTENANCE_AUTO_REBOOT_ENABLED=false # Allow maintenance script to reboot system for critical issues (true/false)
+export MAINTENANCE_REBOOT_THRESHOLD=5        # Number of consecutive critical maintenance runs before considering reboot
+
+# Service restart control
+export MAINTENANCE_SERVICE_RESTART_ENABLED=true # Allow service restarts during maintenance (true/false)
+
+# Database fix control
+export MAINTENANCE_DATABASE_FIX_ENABLED=true # Allow database reset/recreation during maintenance (true/false)
+
+# Maintenance mode override (empty = use default from command line)
+export MAINTENANCE_MODE_OVERRIDE="" # Force specific mode: auto, check, fix, report (empty = use default)
+
+# Safety controls
+export MAINTENANCE_MAX_FIXES_PER_RUN=10     # Maximum number of fixes to attempt in single run
+export MAINTENANCE_COOLDOWN_AFTER_FIXES=300 # Cooldown period (seconds) after performing fixes
 
 # --- Binary Paths (set by install script) ---
 

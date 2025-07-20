@@ -120,11 +120,54 @@ LOG_TAG="StarlinkMonitor"    # Syslog tag for identification
 # --- System Maintenance Configuration ---
 
 # Advanced maintenance settings - inherits from main config but allows overrides
-MAINTENANCE_PUSHOVER_ENABLED=1         # Enable maintenance notifications
-MAINTENANCE_PUSHOVER_TOKEN=""          # Leave empty to use main PUSHOVER_TOKEN
-MAINTENANCE_PUSHOVER_USER=""           # Leave empty to use main PUSHOVER_USER
-MAINTENANCE_CRITICAL_THRESHOLD=2       # Lower threshold for advanced monitoring (2 vs 3)
-MAINTENANCE_NOTIFICATION_COOLDOWN=1800 # 30 minutes cooldown (more frequent for advanced)
+MAINTENANCE_PUSHOVER_ENABLED=1 # Enable maintenance notifications
+MAINTENANCE_PUSHOVER_TOKEN=""  # Leave empty to use main PUSHOVER_TOKEN
+MAINTENANCE_PUSHOVER_USER=""   # Leave empty to use main PUSHOVER_USER
+
+# =============================================================================
+# ADVANCED MAINTENANCE NOTIFICATION CONTROL (More Detailed for Power Users)
+# =============================================================================
+
+# Advanced notification levels - more comprehensive monitoring for power users
+MAINTENANCE_NOTIFY_ON_FIXES=true    # Send notification for each successful fix
+MAINTENANCE_NOTIFY_ON_FAILURES=true # Send notification for each failed fix attempt
+MAINTENANCE_NOTIFY_ON_CRITICAL=true # Send notification for critical issues
+MAINTENANCE_NOTIFY_ON_FOUND=true    # Send notification for issues found (more verbose for advanced users)
+
+# Advanced thresholds and timing (more aggressive monitoring)
+MAINTENANCE_CRITICAL_THRESHOLD=1         # Send critical notification immediately (1 vs 3 in basic)
+MAINTENANCE_NOTIFICATION_COOLDOWN=900    # 15 minutes cooldown (more frequent updates for advanced users)
+MAINTENANCE_MAX_NOTIFICATIONS_PER_RUN=15 # Higher notification limit for advanced monitoring
+
+# Advanced notification priorities (more granular control)
+MAINTENANCE_PRIORITY_FIXED=0    # Normal priority for successful fixes
+MAINTENANCE_PRIORITY_FAILED=1   # High priority for failed fixes
+MAINTENANCE_PRIORITY_CRITICAL=2 # Emergency priority for critical issues
+MAINTENANCE_PRIORITY_FOUND=-1   # Low priority for found issues (to reduce noise while staying informed)
+
+# =============================================================================
+# ADVANCED SYSTEM MAINTENANCE BEHAVIOR CONTROL
+# =============================================================================
+
+# Control automatic fix behavior (more aggressive defaults for advanced users)
+MAINTENANCE_AUTO_FIX_ENABLED=true # Allow maintenance script to fix issues automatically (true/false)
+
+# Control automatic reboot behavior (enabled for advanced users with lower threshold)
+MAINTENANCE_AUTO_REBOOT_ENABLED=true # Allow maintenance script to reboot system for critical issues (true/false)
+MAINTENANCE_REBOOT_THRESHOLD=3       # Lower threshold for advanced monitoring (3 vs 5 in basic)
+
+# Service restart control
+MAINTENANCE_SERVICE_RESTART_ENABLED=true # Allow service restarts during maintenance (true/false)
+
+# Database fix control
+MAINTENANCE_DATABASE_FIX_ENABLED=true # Allow database reset/recreation during maintenance (true/false)
+
+# Maintenance mode override (advanced users can force modes)
+MAINTENANCE_MODE_OVERRIDE="" # Force specific mode: auto, check, fix, report (empty = use default)
+
+# Advanced safety controls (more aggressive for advanced users)
+MAINTENANCE_MAX_FIXES_PER_RUN=15     # Higher limit for advanced users (15 vs 10 in basic)
+MAINTENANCE_COOLDOWN_AFTER_FIXES=180 # Shorter cooldown for advanced users (3 min vs 5 min)
 
 # --- Integration Settings ---
 

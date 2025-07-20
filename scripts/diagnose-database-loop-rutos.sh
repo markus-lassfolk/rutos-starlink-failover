@@ -28,7 +28,7 @@ printf "${BLUE}1. Checking for database loop pattern in logs:${NC}\n"
 recent_errors=$(logread | tail -100 | grep -c "Unable to reduce max rows\|Unable to optimize database\|Failed to restore database" 2>/dev/null || echo "0")
 if [ "$recent_errors" -gt 0 ]; then
     printf "${RED}   ✗ FOUND: %d database optimization errors in recent logs${NC}\n" "$recent_errors"
-    
+
     # Show the pattern
     printf "${YELLOW}   Recent error pattern:${NC}\n"
     logread | tail -20 | grep "Unable to reduce max rows\|Unable to optimize database\|Failed to restore database" | tail -5 | while IFS= read -r line; do

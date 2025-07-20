@@ -102,9 +102,33 @@ MAINTENANCE_CRITICAL_THRESHOLD="${MAINTENANCE_CRITICAL_THRESHOLD:-3}"          #
 MAINTENANCE_NOTIFICATION_COOLDOWN="${MAINTENANCE_NOTIFICATION_COOLDOWN:-3600}" # 1 hour cooldown
 MAINTENANCE_LAST_NOTIFICATION_FILE="/tmp/maintenance_last_notification"
 
-# Function to record maintenance actions
+# Enhanced notification configuration with defaults
+MAINTENANCE_NOTIFY_ON_FIXES="${MAINTENANCE_NOTIFY_ON_FIXES:-true}"                   # Notify on successful fixes
+MAINTENANCE_NOTIFY_ON_FAILURES="${MAINTENANCE_NOTIFY_ON_FAILURES:-true}"             # Notify on failed fixes
+MAINTENANCE_NOTIFY_ON_CRITICAL="${MAINTENANCE_NOTIFY_ON_CRITICAL:-true}"             # Notify on critical issues
+MAINTENANCE_NOTIFY_ON_FOUND="${MAINTENANCE_NOTIFY_ON_FOUND:-false}"                  # Notify on issues found
+MAINTENANCE_MAX_NOTIFICATIONS_PER_RUN="${MAINTENANCE_MAX_NOTIFICATIONS_PER_RUN:-10}" # Max notifications per run
+MAINTENANCE_PRIORITY_FIXED="${MAINTENANCE_PRIORITY_FIXED:-0}"                        # Priority for fix notifications
+MAINTENANCE_PRIORITY_FAILED="${MAINTENANCE_PRIORITY_FAILED:-1}"                      # Priority for failure notifications
+MAINTENANCE_PRIORITY_CRITICAL="${MAINTENANCE_PRIORITY_CRITICAL:-2}"                  # Priority for critical notifications
+MAINTENANCE_PRIORITY_FOUND="${MAINTENANCE_PRIORITY_FOUND:-0}"                        # Priority for found notifications
+MAINTENANCE_NOTIFICATIONS_SENT=0
+
+# Enhanced maintenance behavior configuration with defaults
+MAINTENANCE_AUTO_FIX_ENABLED="${MAINTENANCE_AUTO_FIX_ENABLED:-true}"               # Allow automatic fixes
+MAINTENANCE_AUTO_REBOOT_ENABLED="${MAINTENANCE_AUTO_REBOOT_ENABLED:-false}"        # Allow system reboots
+MAINTENANCE_REBOOT_THRESHOLD="${MAINTENANCE_REBOOT_THRESHOLD:-5}"                  # Reboot threshold
+MAINTENANCE_SERVICE_RESTART_ENABLED="${MAINTENANCE_SERVICE_RESTART_ENABLED:-true}" # Allow service restarts
+MAINTENANCE_DATABASE_FIX_ENABLED="${MAINTENANCE_DATABASE_FIX_ENABLED:-true}"       # Allow database fixes
+MAINTENANCE_MODE_OVERRIDE="${MAINTENANCE_MODE_OVERRIDE:-}"                         # Mode override
+MAINTENANCE_MAX_FIXES_PER_RUN="${MAINTENANCE_MAX_FIXES_PER_RUN:-10}"               # Max fixes per run
+MAINTENANCE_COOLDOWN_AFTER_FIXES="${MAINTENANCE_COOLDOWN_AFTER_FIXES:-300}"        # Cooldown after fixes
+MAINTENANCE_REBOOT_TRACKING_FILE="/tmp/maintenance_reboot_count"
+MAINTENANCE_FIXES_THIS_RUN=0
+
+# Function to record maintenance actions with enhanced notifications
 record_action() {
-    action_type="$1" # FIXED, FOUND, CHECK, CRITICAL
+    action_type="$1" # FIXED, FOUND, CHECK, CRITICAL, FAILED
     issue_description="$2"
     fix_description="${3:-N/A}"
 
@@ -115,15 +139,35 @@ record_action() {
         "FIXED")
             ISSUES_FIXED_COUNT=$((ISSUES_FIXED_COUNT + 1))
             log_success "FIXED: $issue_description"
+            # Send notification for successful fix
+            if [ "$MAINTENANCE_NOTIFY_ON_FIXES" = "true" ]; then
+                send_maintenance_notification "FIXED" "✅ $issue_description" "Solution: $fix_description" "$MAINTENANCE_PRIORITY_FIXED"
+            fi
             ;;
         "FOUND")
             ISSUES_FOUND_COUNT=$((ISSUES_FOUND_COUNT + 1))
             log_warning "FOUND: $issue_description"
+            # Send notification for found issue (if enabled)
+            if [ "$MAINTENANCE_NOTIFY_ON_FOUND" = "true" ]; then
+                send_maintenance_notification "FOUND" "⚠️ $issue_description" "Action needed: $fix_description" "$MAINTENANCE_PRIORITY_FOUND"
+            fi
+            ;;
+        "FAILED")
+            ISSUES_FOUND_COUNT=$((ISSUES_FOUND_COUNT + 1))
+            log_error "FAILED: $issue_description"
+            # Send notification for failed fix attempt
+            if [ "$MAINTENANCE_NOTIFY_ON_FAILURES" = "true" ]; then
+                send_maintenance_notification "FAILED" "❌ Fix Failed: $issue_description" "Attempted: $fix_description" "$MAINTENANCE_PRIORITY_FAILED"
+            fi
             ;;
         "CRITICAL")
             CRITICAL_ISSUES_COUNT=$((CRITICAL_ISSUES_COUNT + 1))
             ISSUES_FOUND_COUNT=$((ISSUES_FOUND_COUNT + 1))
             log_error "CRITICAL: $issue_description"
+            # Send notification for critical issue
+            if [ "$MAINTENANCE_NOTIFY_ON_CRITICAL" = "true" ]; then
+                send_maintenance_notification "CRITICAL" "🚨 CRITICAL: $issue_description" "Action: $fix_description" "$MAINTENANCE_PRIORITY_CRITICAL"
+            fi
             ;;
         "CHECK")
             log_debug "CHECK: $issue_description"
@@ -188,6 +232,242 @@ send_critical_notification() {
     fi
 }
 
+# Enhanced notification function for individual maintenance actions
+send_maintenance_notification() {
+    notification_type="$1" # FIXED, FOUND, FAILED, CRITICAL
+    issue_title="$2"       # Brief title for the issue
+    issue_details="$3"     # Detailed description
+    priority="${4:-0}"     # Pushover priority (-2 to 2)
+
+    # Check if we've hit the notification limit for this run
+    if [ "$MAINTENANCE_NOTIFICATIONS_SENT" -ge "$MAINTENANCE_MAX_NOTIFICATIONS_PER_RUN" ]; then
+        log_debug "Maximum notifications per run reached ($MAINTENANCE_MAX_NOTIFICATIONS_PER_RUN) - skipping"
+        return 0
+    fi
+
+    # Check if Pushover is configured and enabled
+    if [ "$MAINTENANCE_PUSHOVER_ENABLED" != "true" ] || [ -z "$MAINTENANCE_PUSHOVER_TOKEN" ] || [ -z "$MAINTENANCE_PUSHOVER_USER" ]; then
+        log_debug "Pushover not configured or disabled - skipping notification"
+        return 0
+    fi
+
+    # Skip cooldown for individual notifications to get real-time updates
+    # The notification limit per run prevents spam instead
+
+    log_debug "Sending $notification_type notification via Pushover"
+
+    # Create descriptive message
+    hostname=$(uname -n 2>/dev/null || echo "RUTX50")
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+    case "$notification_type" in
+        "FIXED")
+            title="✅ System Fixed - $hostname"
+            message="$issue_title%0A%0AFixed at: $timestamp%0A$issue_details"
+            sound="magic"
+            ;;
+        "FAILED")
+            title="❌ Fix Failed - $hostname"
+            message="$issue_title%0A%0AFailed at: $timestamp%0A$issue_details%0A%0AManual intervention may be required."
+            sound="siren"
+            ;;
+        "CRITICAL")
+            title="🚨 CRITICAL Issue - $hostname"
+            message="$issue_title%0A%0ADetected at: $timestamp%0A$issue_details%0A%0AIMMEDIATE ATTENTION REQUIRED!"
+            sound="alien"
+            ;;
+        "FOUND")
+            title="⚠️ Issue Detected - $hostname"
+            message="$issue_title%0A%0AFound at: $timestamp%0A$issue_details"
+            sound="pushover"
+            ;;
+        *)
+            title="📋 Maintenance - $hostname"
+            message="$issue_title%0A%0ATime: $timestamp%0A$issue_details"
+            sound="pushover"
+            ;;
+    esac
+
+    # Prepare notification payload
+    payload="token=$MAINTENANCE_PUSHOVER_TOKEN"
+    payload="$payload&user=$MAINTENANCE_PUSHOVER_USER"
+    payload="$payload&title=$title"
+    payload="$payload&message=$message"
+    payload="$payload&priority=$priority"
+    payload="$payload&sound=$sound"
+
+    # Add retry and expire for high priority notifications
+    if [ "$priority" -ge 1 ]; then
+        payload="$payload&retry=60&expire=3600" # Retry every minute for 1 hour
+    fi
+
+    # Send notification
+    success=false
+    if command -v curl >/dev/null 2>&1; then
+        if curl -s -d "$payload" https://api.pushover.net/1/messages.json >/dev/null 2>&1; then
+            success=true
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if wget -q -O- --post-data="$payload" https://api.pushover.net/1/messages.json >/dev/null 2>&1; then
+            success=true
+        fi
+    fi
+
+    if [ "$success" = "true" ]; then
+        MAINTENANCE_NOTIFICATIONS_SENT=$((MAINTENANCE_NOTIFICATIONS_SENT + 1))
+        log_debug "$notification_type notification sent successfully ($MAINTENANCE_NOTIFICATIONS_SENT/$MAINTENANCE_MAX_NOTIFICATIONS_PER_RUN)"
+        logger -t "SystemMaintenance" -p user.info "NOTIFICATION_SENT: $notification_type - $issue_title"
+    else
+        log_warning "Failed to send $notification_type notification"
+        logger -t "SystemMaintenance" -p user.warning "NOTIFICATION_FAILED: $notification_type - $issue_title"
+    fi
+}
+
+# =============================================================================
+# ENHANCED MAINTENANCE CONTROL FUNCTIONS
+# =============================================================================
+
+# Determine effective run mode based on configuration
+determine_effective_mode() {
+    # Use config override if specified, otherwise use command line parameter
+    if [ -n "$MAINTENANCE_MODE_OVERRIDE" ]; then
+        EFFECTIVE_MODE="$MAINTENANCE_MODE_OVERRIDE"
+        log_info "Using config override mode: $EFFECTIVE_MODE"
+    else
+        EFFECTIVE_MODE="${RUN_MODE:-auto}"
+        log_debug "Using default/parameter mode: $EFFECTIVE_MODE"
+    fi
+
+    # If auto-fix is disabled, downgrade auto to check
+    if [ "$MAINTENANCE_AUTO_FIX_ENABLED" != "true" ] && [ "$EFFECTIVE_MODE" = "auto" ]; then
+        EFFECTIVE_MODE="check"
+        log_warning "Auto-fix disabled - running in check-only mode"
+    fi
+}
+
+# Check if fixes are allowed and within limits
+should_attempt_fix() {
+    fix_type="$1" # service, database, system
+
+    # Check if we've hit the fix limit
+    if [ "$MAINTENANCE_FIXES_THIS_RUN" -ge "$MAINTENANCE_MAX_FIXES_PER_RUN" ]; then
+        log_warning "Maximum fixes per run reached ($MAINTENANCE_MAX_FIXES_PER_RUN) - skipping $fix_type fix"
+        return 1
+    fi
+
+    # Check mode allows fixes
+    if [ "$EFFECTIVE_MODE" != "fix" ] && [ "$EFFECTIVE_MODE" != "auto" ]; then
+        log_debug "Fix mode disabled - skipping $fix_type fix"
+        return 1
+    fi
+
+    # Check specific fix type permissions
+    case "$fix_type" in
+        "service")
+            if [ "$MAINTENANCE_SERVICE_RESTART_ENABLED" != "true" ]; then
+                log_debug "Service restart disabled by configuration"
+                return 1
+            fi
+            ;;
+        "database")
+            if [ "$MAINTENANCE_DATABASE_FIX_ENABLED" != "true" ]; then
+                log_debug "Database fix disabled by configuration"
+                return 1
+            fi
+            ;;
+        "system")
+            if [ "$MAINTENANCE_AUTO_FIX_ENABLED" != "true" ]; then
+                log_debug "System fix disabled by configuration"
+                return 1
+            fi
+            ;;
+    esac
+
+    return 0
+}
+
+# Increment fix counter
+increment_fix_counter() {
+    MAINTENANCE_FIXES_THIS_RUN=$((MAINTENANCE_FIXES_THIS_RUN + 1))
+    log_debug "Fixes this run: $MAINTENANCE_FIXES_THIS_RUN/$MAINTENANCE_MAX_FIXES_PER_RUN"
+}
+
+# Consider system reboot for persistent critical issues
+consider_system_reboot() {
+    # Check if reboots are enabled
+    if [ "$MAINTENANCE_AUTO_REBOOT_ENABLED" != "true" ]; then
+        log_debug "System reboot disabled by configuration"
+        return 1
+    fi
+
+    # Check if we have critical issues to warrant reboot consideration
+    if [ "$CRITICAL_ISSUES_COUNT" -eq 0 ]; then
+        log_debug "No critical issues - reboot not needed"
+        return 1
+    fi
+
+    # Track consecutive critical runs
+    current_count=1
+    if [ -f "$MAINTENANCE_REBOOT_TRACKING_FILE" ]; then
+        current_count=$(cat "$MAINTENANCE_REBOOT_TRACKING_FILE" 2>/dev/null || echo "1")
+        current_count=$((current_count + 1))
+    fi
+    echo "$current_count" >"$MAINTENANCE_REBOOT_TRACKING_FILE"
+
+    log_debug "Consecutive critical maintenance runs: $current_count/$MAINTENANCE_REBOOT_THRESHOLD"
+
+    # Check if we've reached reboot threshold
+    if [ "$current_count" -ge "$MAINTENANCE_REBOOT_THRESHOLD" ]; then
+        # Check reboot cooldown to prevent loops
+        reboot_cooldown_file="/tmp/last_maintenance_reboot"
+        if [ -f "$reboot_cooldown_file" ]; then
+            last_reboot=$(cat "$reboot_cooldown_file" 2>/dev/null || echo "0")
+            current_time=$(date +%s)
+            time_since_reboot=$((current_time - last_reboot))
+
+            # Require at least 1 hour between reboots
+            if [ "$time_since_reboot" -lt 3600 ]; then
+                log_warning "Reboot attempted recently (${time_since_reboot}s ago) - skipping (cooldown)"
+                return 1
+            fi
+        fi
+
+        log_error "Critical issues persist after $current_count maintenance runs - scheduling reboot"
+
+        # Reset counter and record reboot time
+        echo "0" >"$MAINTENANCE_REBOOT_TRACKING_FILE"
+        echo "$(date +%s)" >"$reboot_cooldown_file"
+
+        # Record and notify
+        record_action "CRITICAL" "System reboot scheduled" "Persistent critical issues: $CRITICAL_ISSUES_COUNT"
+        send_critical_notification "SYSTEM REBOOT" "Rebooting due to persistent maintenance issues after $current_count runs" "2"
+
+        # Schedule reboot in 60 seconds to allow notification
+        log_warning "System will reboot in 60 seconds due to persistent critical issues"
+        (
+            sleep 60
+            reboot
+        ) &
+
+        return 0
+    else
+        # Reset counter if we have no critical issues for a run
+        if [ "$CRITICAL_ISSUES_COUNT" -eq 0 ]; then
+            echo "0" >"$MAINTENANCE_REBOOT_TRACKING_FILE"
+            log_debug "No critical issues - reset reboot counter"
+        fi
+        return 1
+    fi
+}
+
+# Apply cooldown after fixes
+apply_fix_cooldown() {
+    if [ "$MAINTENANCE_FIXES_THIS_RUN" -gt 0 ] && [ "$MAINTENANCE_COOLDOWN_AFTER_FIXES" -gt 0 ]; then
+        log_info "Applied $MAINTENANCE_FIXES_THIS_RUN fixes - cooling down for ${MAINTENANCE_COOLDOWN_AFTER_FIXES}s"
+        sleep "$MAINTENANCE_COOLDOWN_AFTER_FIXES"
+    fi
+}
+
 # =============================================================================
 # MAINTENANCE CHECKS - Add new checks here
 # =============================================================================
@@ -199,14 +479,18 @@ check_var_lock_directory() {
     if [ ! -d "/var/lock" ]; then
         record_action "FOUND" "Missing /var/lock directory" "Create directory with proper permissions"
 
-        if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
+        if should_attempt_fix "system"; then
             if mkdir -p /var/lock 2>/dev/null; then
                 # Set proper permissions for lock directory
-                chmod 755 /var/lock 2>/dev/null || true
-                record_action "FIXED" "Created missing /var/lock directory" "mkdir -p /var/lock && chmod 755"
+                if chmod 755 /var/lock 2>/dev/null; then
+                    record_action "FIXED" "Created missing /var/lock directory" "mkdir -p /var/lock && chmod 755"
+                    increment_fix_counter
+                else
+                    record_action "FAILED" "Created /var/lock but failed to set permissions" "chmod 755 /var/lock failed"
+                fi
             else
                 log_error "Failed to create /var/lock directory"
-                record_action "CRITICAL" "Failed to create /var/lock directory - system may have permission or filesystem issues" "Manual intervention required"
+                record_action "FAILED" "Failed to create /var/lock directory" "mkdir -p /var/lock failed - check filesystem and permissions"
             fi
         fi
     else
@@ -222,13 +506,17 @@ check_var_run_directory() {
     if [ ! -d "/var/run" ]; then
         record_action "FOUND" "Missing /var/run directory" "Create directory with proper permissions"
 
-        if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
+        if should_attempt_fix "system"; then
             if mkdir -p /var/run 2>/dev/null; then
-                chmod 755 /var/run 2>/dev/null || true
-                record_action "FIXED" "Created missing /var/run directory" "mkdir -p /var/run && chmod 755"
+                if chmod 755 /var/run 2>/dev/null; then
+                    record_action "FIXED" "Created missing /var/run directory" "mkdir -p /var/run && chmod 755"
+                    increment_fix_counter
+                else
+                    record_action "FAILED" "Created /var/run but failed to set permissions" "chmod 755 /var/run failed"
+                fi
             else
                 log_error "Failed to create /var/run directory"
-                record_action "CRITICAL" "Failed to create /var/run directory - system may have permission or filesystem issues" "Manual intervention required"
+                record_action "FAILED" "Failed to create /var/run directory" "mkdir -p /var/run failed - check filesystem and permissions"
             fi
         fi
     else
@@ -368,7 +656,7 @@ check_database_optimization_loop() {
     if [ "$log_spam_count" -ge 5 ]; then
         record_action "FOUND" "Database optimization loop detected" "Found $log_spam_count error messages - services may be stuck"
 
-        if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
+        if should_attempt_fix "database"; then
             log_info "Attempting to fix database optimization loop"
 
             # Stop services that might be causing the loop
@@ -440,6 +728,7 @@ check_database_optimization_loop() {
                 # Success - build detailed action message
                 action_details="Reset databases:$databases_fixed. Restarted:$services_restarted$ubus_restarted. Backup: $backup_dir"
                 record_action "FIXED" "Database optimization loop resolved" "$action_details"
+                increment_fix_counter
                 log_success "Database optimization loop appears to be resolved"
             else
                 # Still having issues
@@ -473,7 +762,7 @@ check_cant_open_database_spam() {
     if [ "$cant_open_errors" -ge 5 ]; then
         record_action "FOUND" "Can't open database spam detected" "Found $cant_open_errors error messages - database corruption likely"
 
-        if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
+        if should_attempt_fix "database"; then
             log_info "Attempting to fix 'Can't open database' spam using user's proven solution"
 
             # Stop services that might be causing the issue
@@ -557,6 +846,7 @@ check_cant_open_database_spam() {
                 # Success - build detailed action message
                 action_details="Cleaned /log filesystem. Fixed databases:$databases_fixed. Restarted:$services_restarted$ubus_restarted."
                 record_action "FIXED" "'Can't open database' spam resolved" "$action_details"
+                increment_fix_counter
                 log_success "'Can't open database' spam appears to be resolved"
             else
                 # Still having issues
@@ -890,14 +1180,23 @@ main() {
     log_info "Starting RUTOS System Maintenance v$SCRIPT_VERSION"
     log_info "Run mode: $RUN_MODE"
 
+    # Determine effective mode based on configuration
+    determine_effective_mode "$RUN_MODE"
+
+    if [ "$EFFECTIVE_MODE" != "$RUN_MODE" ]; then
+        log_info "Effective mode after configuration: $EFFECTIVE_MODE"
+    fi
+
     # Initialize maintenance environment
     initialize_maintenance
 
-    case "$RUN_MODE" in
+    case "$EFFECTIVE_MODE" in
         "auto" | "fix")
             log_info "Running automatic maintenance (check and fix issues)"
             run_all_checks
+            apply_fix_cooldown
             generate_report
+            consider_system_reboot
             ;;
         "check")
             log_info "Running check-only mode (no fixes applied)"
@@ -913,7 +1212,7 @@ main() {
             exit 0
             ;;
         *)
-            log_error "Unknown mode: $RUN_MODE"
+            log_error "Unknown mode: $EFFECTIVE_MODE"
             show_usage
             exit 1
             ;;

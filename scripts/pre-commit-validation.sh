@@ -959,11 +959,12 @@ display_issue_summary() {
             elif echo "$message" | grep -q "prettier formatting issues"; then
                 printf "prettier: Markdown formatting issues detected\n"
             else
-                # Other issues - show as is
-                printf "%s\n" "$message"
+                # Other issues - show as is (strip any color codes for sorting)
+                clean_message=$(printf "%s\n" "$message" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/\$[A-Z_]*//g')
+                printf "%s\n" "$clean_message"
             fi
         fi
-    done <"$temp_file" | sort | uniq -c | sort -nr >"${temp_file}.counts"
+    done <"$temp_file" | LC_ALL=C sort | uniq -c | LC_ALL=C sort -nr >"${temp_file}.counts"
 
     # Display grouped results
     while read -r count message; do
@@ -972,17 +973,17 @@ display_issue_summary() {
             if echo "$message" | grep -q "^SC[0-9]*:"; then
                 # For ShellCheck codes, count files that have this specific code
                 sc_code=$(echo "$message" | cut -d':' -f1)
-                unique_files=$(grep "^$sc_code:" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
+                unique_files=$(grep "^$sc_code:" "$temp_file" | cut -d'|' -f2 | LC_ALL=C sort -u | wc -l)
             elif echo "$message" | grep -q "^MD[0-9]*:"; then
                 # For markdown linting codes, count files that have this specific code
                 md_code=$(echo "$message" | cut -d':' -f1)
-                unique_files=$(grep "^$md_code:" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
+                unique_files=$(grep "^$md_code:" "$temp_file" | cut -d'|' -f2 | LC_ALL=C sort -u | wc -l)
             elif echo "$message" | grep -q "^prettier:"; then
                 # For prettier issues, count files with prettier formatting issues
-                unique_files=$(grep -F "prettier formatting issues" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
+                unique_files=$(grep -F "prettier formatting issues" "$temp_file" | cut -d'|' -f2 | LC_ALL=C sort -u | wc -l)
             else
                 # For other issues, count normally
-                unique_files=$(grep -F "$message|" "$temp_file" | cut -d'|' -f2 | sort -u | wc -l)
+                unique_files=$(grep -F "$message|" "$temp_file" | cut -d'|' -f2 | LC_ALL=C sort -u | wc -l)
             fi
             printf "${YELLOW}%dx${NC} / ${CYAN}%d files${NC}: %s\n" "$count" "$unique_files" "$message"
         fi
@@ -1115,8 +1116,8 @@ main() {
             if ! is_excluded "$file"; then
                 echo "$file"
             fi
-        done | sort)
-        markdown_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | sort)
+        done | LC_ALL=C sort)
+        markdown_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | LC_ALL=C sort)
     elif [ "$1" = "--all" ]; then
         log_info "Running in comprehensive validation mode (all shell and markdown files)"
         # Get all shell and markdown files, excluding specified files and directories
@@ -1124,8 +1125,8 @@ main() {
             if ! is_excluded "$file"; then
                 echo "$file"
             fi
-        done | sort)
-        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | sort)
+        done | LC_ALL=C sort)
+        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | LC_ALL=C sort)
     elif [ "$1" = "--shell-only" ]; then
         log_info "Running in shell-only validation mode"
         # Get all shell files, excluding specified files and directories
@@ -1133,11 +1134,11 @@ main() {
             if ! is_excluded "$file"; then
                 echo "$file"
             fi
-        done | sort)
+        done | LC_ALL=C sort)
     elif [ "$1" = "--md-only" ]; then
         log_info "Running in markdown-only validation mode"
         # Get all markdown files, excluding directories
-        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | sort)
+        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | LC_ALL=C sort)
     elif [ $# -gt 0 ]; then
         log_info "Running in specific file mode"
         # Process specific files based on extension
@@ -1163,8 +1164,8 @@ main() {
             if ! is_excluded "$file"; then
                 echo "$file"
             fi
-        done | sort)
-        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | sort)
+        done | LC_ALL=C sort)
+        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | LC_ALL=C sort)
     fi
 
     # Count total files

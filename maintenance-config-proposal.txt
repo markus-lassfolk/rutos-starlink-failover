@@ -1,0 +1,52 @@
+# Enhanced Maintenance Configuration Controls
+# Configuration additions for config.template.sh and config.advanced.template.sh
+
+# =============================================================================
+# SYSTEM MAINTENANCE BEHAVIOR CONTROL
+# =============================================================================
+
+# Control automatic fix behavior
+MAINTENANCE_AUTO_FIX_ENABLED="${MAINTENANCE_AUTO_FIX_ENABLED:-true}"           # Allow maintenance script to fix issues automatically (true/false)
+
+# Control automatic reboot behavior
+MAINTENANCE_AUTO_REBOOT_ENABLED="${MAINTENANCE_AUTO_REBOOT_ENABLED:-false}"    # Allow maintenance script to reboot system for critical issues (true/false)
+MAINTENANCE_REBOOT_THRESHOLD="${MAINTENANCE_REBOOT_THRESHOLD:-5}"              # Number of consecutive critical maintenance runs before considering reboot
+
+# Service restart control
+MAINTENANCE_SERVICE_RESTART_ENABLED="${MAINTENANCE_SERVICE_RESTART_ENABLED:-true}"  # Allow service restarts during maintenance (true/false)
+
+# Database fix control
+MAINTENANCE_DATABASE_FIX_ENABLED="${MAINTENANCE_DATABASE_FIX_ENABLED:-true}"   # Allow database reset/recreation during maintenance (true/false)
+
+# Maintenance mode override
+MAINTENANCE_MODE_OVERRIDE="${MAINTENANCE_MODE_OVERRIDE:-}"                     # Force specific mode: auto, check, fix, report (empty = use default)
+
+# Safety controls
+MAINTENANCE_MAX_FIXES_PER_RUN="${MAINTENANCE_MAX_FIXES_PER_RUN:-10}"           # Maximum number of fixes to attempt in single run
+MAINTENANCE_COOLDOWN_AFTER_FIXES="${MAINTENANCE_COOLDOWN_AFTER_FIXES:-300}"   # Cooldown period (seconds) after performing fixes
+
+# Examples:
+# Conservative setup (monitoring only):
+# MAINTENANCE_AUTO_FIX_ENABLED="false"
+# MAINTENANCE_AUTO_REBOOT_ENABLED="false" 
+# MAINTENANCE_MODE_OVERRIDE="check"
+# MAINTENANCE_NOTIFY_ON_FIXES="false"
+# MAINTENANCE_NOTIFY_ON_FOUND="false"
+
+# Aggressive setup (full automation):
+# MAINTENANCE_AUTO_FIX_ENABLED="true"
+# MAINTENANCE_AUTO_REBOOT_ENABLED="true"
+# MAINTENANCE_REBOOT_THRESHOLD="3"
+# MAINTENANCE_SERVICE_RESTART_ENABLED="true"
+# MAINTENANCE_DATABASE_FIX_ENABLED="true"
+# MAINTENANCE_NOTIFY_ON_FIXES="true"
+# MAINTENANCE_NOTIFY_ON_FAILURES="true"
+# MAINTENANCE_NOTIFY_ON_CRITICAL="true"
+
+# Balanced setup (recommended):
+# MAINTENANCE_AUTO_FIX_ENABLED="true"
+# MAINTENANCE_AUTO_REBOOT_ENABLED="false" 
+# MAINTENANCE_NOTIFY_ON_FIXES="true"
+# MAINTENANCE_NOTIFY_ON_FAILURES="true"
+# MAINTENANCE_NOTIFY_ON_CRITICAL="true"
+# MAINTENANCE_NOTIFY_ON_FOUND="false"
