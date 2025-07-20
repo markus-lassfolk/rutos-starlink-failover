@@ -79,6 +79,7 @@ nano /root/starlink-monitor/config/config.sh
    ```
 
 4. **Deploy scripts**
+
    ```bash
    cp Starlink-RUTOS-Failover/starlink_monitor.sh /root/
    cp Starlink-RUTOS-Failover/99-pushover_notify /etc/hotplug.d/iface/99-pushover_notify
@@ -261,7 +262,7 @@ cat /root/starlink_performance_log.csv
 
 ### Project Structure
 
-```
+```text
 ├── .github/workflows/          # CI/CD workflows
 ├── config/                     # Configuration templates
 │   ├── config.template.sh      # Basic configuration template
