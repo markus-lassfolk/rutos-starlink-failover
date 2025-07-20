@@ -165,6 +165,19 @@ done
 
 # Apply the restored configuration
 if mv "$temp_config" "$INSTALL_DIR/config/config.sh" 2>/dev/null; then
+    # Validate and repair the restored configuration
+    print_status "$BLUE" "Validating and repairing restored configuration..."
+    validate_script="$INSTALL_DIR/scripts/validate-config-rutos.sh"
+    if [ -f "$validate_script" ]; then
+        if "$validate_script" "$INSTALL_DIR/config/config.sh" --repair; then
+            print_status "$GREEN" "✓ Configuration validation and repair completed"
+        else
+            print_status "$YELLOW" "Configuration validation completed with warnings"
+        fi
+    else
+        print_status "$YELLOW" "Validation script not found, skipping automatic repair"
+    fi
+
     print_status "$GREEN" "=== Restoration Complete ==="
     print_status "$GREEN" "Settings restored: $restored_count/$total_settings"
     print_status "$BLUE" "Current config backup: $current_backup"

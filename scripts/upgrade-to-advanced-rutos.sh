@@ -241,6 +241,20 @@ main() {
     # Migrate configuration
     migrate_config "$BASIC_CONFIG" "$ADVANCED_TEMPLATE" "$BASIC_CONFIG"
 
+    # Automatically validate and repair configuration formatting after migration
+    print_info "Validating and repairing configuration formatting..."
+    validate_script="$INSTALL_DIR/scripts/validate-config-rutos.sh"
+    if [ -f "$validate_script" ]; then
+        if "$validate_script" "$BASIC_CONFIG" --repair; then
+            print_success "✓ Configuration validation and repair completed"
+        else
+            print_status "$YELLOW" "⚠ Configuration validation completed with warnings"
+        fi
+    else
+        print_status "$YELLOW" "⚠ Validation script not found, skipping automatic repair"
+        print_info "You can run validation later with: validate-config-rutos.sh --repair"
+    fi
+
     print_success "Configuration successfully upgraded to advanced!"
     print_info "Backup of original config: $BACKUP_CONFIG"
 
@@ -252,11 +266,12 @@ main() {
     print_status "$GREEN" "🎉 Upgrade Complete!"
     print_info "Next steps:"
     print_info "1. Edit configuration: vi $CONFIG_DIR/config.sh"
-    print_info "2. Validate configuration: $INSTALL_DIR/scripts/validate-config.sh"
-    print_info "3. Restart monitoring: systemctl restart starlink-monitor (if running)"
-    print_info "4. Test the system manually"
-
+    print_info "2. Restart monitoring: systemctl restart starlink-monitor (if running)"
+    print_info "3. Test the system manually"
+    
     echo
+    print_info "Configuration has been automatically validated and repaired."
+    print_info "To re-run validation manually: $INSTALL_DIR/scripts/validate-config-rutos.sh"
     print_info "To revert to basic config: cp $BACKUP_CONFIG $BASIC_CONFIG"
 }
 

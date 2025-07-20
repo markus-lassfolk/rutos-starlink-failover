@@ -1426,7 +1426,7 @@ install_config() {
 
     # Validate and repair configuration formatting after merge/creation
     print_status "$BLUE" "Validating and repairing configuration formatting..."
-    
+
     # Check if we have the validation script available
     validate_script_path=""
     if [ -f "$INSTALL_DIR/scripts/validate-config-rutos.sh" ]; then
