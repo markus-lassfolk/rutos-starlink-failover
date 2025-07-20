@@ -1352,9 +1352,13 @@ install_config() {
         config_type="basic"
         config_debug "Starting config type detection..."
         # Look for advanced-only variables to detect advanced config
-        if grep -qE "^(ENABLE_DETAILED_LOGGING|NOTIFICATION_COOLDOWN|API_CHECK_INTERVAL|MWAN3_POLICY)" "$primary_config" 2>/dev/null; then
+        if grep -qE "^(DEBUG_MODE|DRY_RUN|CELLULAR_.*_MEMBER|BACKUP_DIR|DATA_LIMIT_.*_THRESHOLD|ENABLE_PERFORMANCE_LOGGING|CELLULAR_BACKUP_IFACE)" "$primary_config" 2>/dev/null; then
             config_type="advanced"
             config_debug "Advanced markers found in config"
+            if [ "$DEBUG" = "1" ]; then
+                advanced_markers=$(grep -E "^(DEBUG_MODE|DRY_RUN|CELLULAR_.*_MEMBER|BACKUP_DIR|DATA_LIMIT_.*_THRESHOLD|ENABLE_PERFORMANCE_LOGGING|CELLULAR_BACKUP_IFACE)" "$primary_config" 2>/dev/null | head -3)
+                config_debug "Advanced markers detected: $advanced_markers"
+            fi
         else
             config_debug "No advanced markers found, assuming basic config"
         fi
