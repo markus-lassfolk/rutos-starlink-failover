@@ -758,7 +758,7 @@ check_configuration_health() {
 
     # Perform basic configuration validation inline (avoid hanging on interactive validate-config-rutos.sh)
     log_debug "CONFIG VALIDATION: Performing basic configuration checks inline"
-    
+
     # Check if config file exists and is readable
     log_debug "CONFIG VALIDATION: Checking config file at $CONFIG_FILE"
     if [ ! -f "$CONFIG_FILE" ]; then
@@ -771,11 +771,11 @@ check_configuration_health() {
         log_debug "CONFIG VALIDATION: CRITICAL - Config file not readable"
     else
         log_debug "CONFIG VALIDATION: Config file exists and is readable"
-        
+
         # Check for required variables in config
         missing_vars=""
         required_vars="STARLINK_IP CHECK_INTERVAL API_TIMEOUT PUSHOVER_TOKEN PUSHOVER_USER"
-        
+
         for var in $required_vars; do
             log_debug "CONFIG VALIDATION: Checking for required variable: $var"
             if ! grep -q "^${var}=" "$CONFIG_FILE" 2>/dev/null; then
@@ -789,7 +789,7 @@ check_configuration_health() {
                 log_debug "CONFIG VALIDATION: Found variable: $var"
             fi
         done
-        
+
         if [ -n "$missing_vars" ]; then
             show_health_status "warning" "Configuration" "Missing variables: $missing_vars"
             increment_counter "warning"
@@ -801,32 +801,32 @@ check_configuration_health() {
         fi
     fi
 
-        # Continue to placeholder check section...
-        placeholder_script="$SCRIPT_DIR/placeholder-utils.sh"
-        log_debug "PLACEHOLDER CHECK: Checking for placeholder utils at $placeholder_script"
+    # Continue to placeholder check section...
+    placeholder_script="$SCRIPT_DIR/placeholder-utils.sh"
+    log_debug "PLACEHOLDER CHECK: Checking for placeholder utils at $placeholder_script"
 
-        if [ -f "$placeholder_script" ]; then
-            log_debug "PLACEHOLDER CHECK: Utils script found, loading..."
-            # shellcheck disable=SC1091,SC1090
-            . "$placeholder_script"
-            # shellcheck disable=SC1090
-            . "$CONFIG_FILE" 2>/dev/null || log_debug "Could not load config file for placeholder check"
+    if [ -f "$placeholder_script" ]; then
+        log_debug "PLACEHOLDER CHECK: Utils script found, loading..."
+        # shellcheck disable=SC1091,SC1090
+        . "$placeholder_script"
+        # shellcheck disable=SC1090
+        . "$CONFIG_FILE" 2>/dev/null || log_debug "Could not load config file for placeholder check"
 
-            log_debug "PUSHOVER CHECK: Testing if Pushover is configured properly"
-            if is_pushover_configured; then
-                show_health_status "healthy" "Pushover Config" "Pushover properly configured"
-                increment_counter "healthy"
-                log_debug "PUSHOVER CHECK: SUCCESS - properly configured"
-            else
-                show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
-                increment_counter "warning"
-                log_debug "PUSHOVER CHECK: WARNING - using placeholder values"
-            fi
+        log_debug "PUSHOVER CHECK: Testing if Pushover is configured properly"
+        if is_pushover_configured; then
+            show_health_status "healthy" "Pushover Config" "Pushover properly configured"
+            increment_counter "healthy"
+            log_debug "PUSHOVER CHECK: SUCCESS - properly configured"
         else
-            log_debug "PLACEHOLDER CHECK: Utils script not found, skipping placeholder validation"
+            show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
+            increment_counter "warning"
+            log_debug "PUSHOVER CHECK: WARNING - using placeholder values"
         fi
+    else
+        log_debug "PLACEHOLDER CHECK: Utils script not found, skipping placeholder validation"
+    fi
 
-        log_debug "Configuration health checks completed"
+    log_debug "Configuration health checks completed"
 }
 
 # Function to check firmware upgrade persistence
