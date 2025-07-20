@@ -981,8 +981,8 @@ repair_config_quotes() {
     # First pass: Fix quote positioning
     if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*\)\(#.*\)"/\1\2" \3/' "$config_file" >"$temp_file"; then
 
-        # Second pass: Remove trailing spaces within quotes
-        if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*[^[:space:]]\)[[:space:]]*"/\1\2"/' "$temp_file" >"$temp_file2"; then
+        # Second pass: Remove trailing spaces within quotes - Fixed pattern
+        if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*\)[[:space:]]*"/\1\2"/' "$temp_file" >"$temp_file2"; then
 
             # Check if any changes were made in either pass
             if ! cmp -s "$config_file" "$temp_file2"; then
