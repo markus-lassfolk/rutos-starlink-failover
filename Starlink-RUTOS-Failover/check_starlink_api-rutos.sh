@@ -1,6 +1,25 @@
 #!/bin/sh
 # VALIDATION_SKIP_COLOR_CHECK: This script uses syslog only, no color output needed
 
+# Standard colors for consistent output (compatible with busybox)
+# shellcheck disable=SC2034
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Check if we're in a terminal that supports colors
+if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    CYAN=""
+    NC=""
+fi
+
 # ==============================================================================
 # Starlink API Version Monitor
 #
@@ -78,32 +97,6 @@ debug_log() {
     fi
 }
 
-# Enhanced error handling with detailed logging
-safe_exec() {
-    cmd="$1"
-    description="$2"
-
-    debug_log "EXECUTING: $cmd"
-    debug_log "DESCRIPTION: $description"
-
-    # Execute command and capture both stdout and stderr
-    if [ "${DEBUG:-0}" = "1" ]; then
-        # In debug mode, show all output
-        eval "$cmd"
-        exit_code=$?
-        debug_log "COMMAND EXIT CODE: $exit_code"
-        return $exit_code
-    else
-        # In normal mode, suppress output but capture errors
-        eval "$cmd" 2>/tmp/api_check_error.log
-        exit_code=$?
-        if [ $exit_code -ne 0 ] && [ -f /tmp/api_check_error.log ]; then
-            log "ERROR in $description: $(cat /tmp/api_check_error.log)"
-            rm -f /tmp/api_check_error.log
-        fi
-        return $exit_code
-    fi
-}
 
 # Validate binary with detailed logging
 validate_binary() {
