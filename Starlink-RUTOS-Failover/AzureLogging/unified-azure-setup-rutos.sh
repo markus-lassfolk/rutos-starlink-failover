@@ -55,22 +55,22 @@ fi
 
 # --- HELPER FUNCTIONS ---
 log() {
-    printf "%s[$(date '+%Y-%m-%d %H:%M:%S')] %s%s\n" "$BLUE" "$1" "$NC"
+    printf "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] %s${NC}\n" "$1"
     logger -t "$LOG_TAG" "$1"
 }
 
 log_success() {
-    printf "%s✓ %s%s\n" "$GREEN" "$1" "$NC"
+    printf "${GREEN}✓ %s${NC}\n" "$1"
     logger -t "$LOG_TAG" "SUCCESS: $1"
 }
 
 log_warn() {
-    printf "%s⚠ %s%s\n" "$YELLOW" "$1" "$NC"
+    printf "${YELLOW}⚠ %s${NC}\n" "$1"
     logger -t "$LOG_TAG" "WARNING: $1"
 }
 
 log_error() {
-    printf "%s✗ %s%s\n" "$RED" "$1" "$NC"
+    printf "${RED}✗ %s${NC}\n" "$1"
     logger -t "$LOG_TAG" "ERROR: $1"
 }
 
