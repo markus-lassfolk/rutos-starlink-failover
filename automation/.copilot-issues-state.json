@@ -23,11 +23,23 @@
     "IssueCount": 346,
     "Status": "Assigned"
   },
+  "scripts/pre-commit-validation.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-20 16:51:48",
+    "IssueNumber": "133",
+    "IssueCount": 23
+  },
   "automation/create-copilot-issues.ps1": {
     "IssueNumber": "89",
     "CreatedAt": "2025-07-18 18:43:45",
     "IssueCount": 373,
     "Status": "Assigned"
+  },
+  "scripts/test-colors-rutos.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-20 16:52:17",
+    "IssueNumber": "135",
+    "IssueCount": 14
   },
   "automation/create-copilot-issues-optimized-BROKEN-BACKUP.ps1": {
     "IssueNumber": "83",
@@ -35,17 +47,17 @@
     "IssueCount": 421,
     "Status": "Assigned"
   },
-  "debug-minimal.sh": {
-    "Status": "Assigned",
-    "IssueCount": 4,
-    "CreatedAt": "2025-07-18 15:34:02",
-    "IssueNumber": "75"
-  },
   "Starlink-RUTOS-Failover/AzureLogging/README.md": {
     "Status": "Assigned",
     "IssueCount": 2,
     "CreatedAt": "2025-07-18 23:00:44",
     "IssueNumber": "127"
+  },
+  "CLEANUP_SUMMARY.md": {
+    "Status": "Assigned",
+    "IssueCount": 2,
+    "CreatedAt": "2025-07-18 21:49:52",
+    "IssueNumber": "117"
   },
   "automation/create-copilot-issues-enhanced.ps1": {
     "IssueNumber": "81",
@@ -101,11 +113,11 @@
     "CreatedAt": "2025-07-18 21:48:55",
     "IssueNumber": "111"
   },
-  "CLEANUP_SUMMARY.md": {
+  "debug-minimal.sh": {
     "Status": "Assigned",
-    "IssueCount": 2,
-    "CreatedAt": "2025-07-18 21:49:52",
-    "IssueNumber": "117"
+    "IssueCount": 4,
+    "CreatedAt": "2025-07-18 15:34:02",
+    "IssueNumber": "75"
   },
   "INSTALLATION_STATUS.md": {
     "Status": "Assigned",
@@ -118,5 +130,11 @@
     "CreatedAt": "2025-07-18 18:42:08",
     "IssueCount": 257,
     "Status": "Assigned"
+  },
+  "scripts/diagnose-database-loop-rutos.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-20 16:51:16",
+    "IssueNumber": "131",
+    "IssueCount": 38
   }
 }
