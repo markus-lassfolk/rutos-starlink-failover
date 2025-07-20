@@ -980,7 +980,7 @@ This document lists all scripts installed by the Starlink monitoring system.
 - `placeholder-utils.sh` - Utility functions library
 - `fix-database-loop-rutos.sh` - Database loop repair tool
 - `diagnose-database-loop-rutos.sh` - Database loop diagnostic
-- `fix-database-spam-rutos.sh` - Fix database optimization spam issue
+- `fix-database-spam-rutos.sh` - Fix database spam issues including "Can't open database" and optimization loops
 - `system-maintenance-rutos.sh` - Generic system maintenance and issue fixing
 
 ### Test Scripts (in scripts/tests/)
