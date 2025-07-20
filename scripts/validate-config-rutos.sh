@@ -605,13 +605,13 @@ validate_config_format() {
 
     # Check for unmatched quotes - classic pattern (no closing quote)
     unmatched_quotes=$(grep -n '^[[:space:]]*export.*=[^=]*"[^"]*$' "$CONFIG_FILE" 2>/dev/null || true)
-    
+
     # Check for quotes in wrong position - value starts with quote but closing quote is after hash
     quotes_in_comments=$(grep -n '^[[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="[^"]*#.*"' "$CONFIG_FILE" 2>/dev/null || true)
-    
+
     if [ -n "$unmatched_quotes" ] || [ -n "$quotes_in_comments" ]; then
         printf "%b\n" "${RED}❌ Found lines with quote formatting issues:${NC}"
-        
+
         if [ -n "$unmatched_quotes" ]; then
             printf "%b\n" "${RED}   Missing closing quotes:${NC}"
             echo "$unmatched_quotes" | while IFS= read -r line; do
@@ -620,7 +620,7 @@ validate_config_format() {
                 printf "%b\n" "${RED}     Line $line_num: $content${NC}"
             done
         fi
-        
+
         if [ -n "$quotes_in_comments" ]; then
             printf "%b\n" "${RED}   Quotes incorrectly positioned in comments:${NC}"
             echo "$quotes_in_comments" | while IFS= read -r line; do
@@ -630,7 +630,7 @@ validate_config_format() {
                 printf "%b\n" "${YELLOW}     Should be: $(echo "$content" | sed 's/="\([^#]*\)#\(.*\)"/="\1" #\2/')"
             done
         fi
-        
+
         format_errors=$((format_errors + 1))
     fi
 
@@ -945,9 +945,9 @@ show_overall_status() {
 # Function to repair common configuration format issues
 repair_config_quotes() {
     config_file="$1"
-    
+
     printf "%b\n" "${BLUE}Attempting to repair quote formatting issues...${NC}"
-    
+
     # Create backup
     backup_file="${config_file}.backup-$(date +%Y%m%d-%H%M%S)"
     if cp "$config_file" "$backup_file"; then
@@ -956,28 +956,28 @@ repair_config_quotes() {
         printf "%b\n" "${RED}❌ Failed to create backup. Aborting repair.${NC}"
         return 1
     fi
-    
+
     # Fix quotes incorrectly positioned in comments
     # Pattern: export VAR="value # comment" -> export VAR="value" # comment"
     temp_file=$(mktemp)
-    
+
     # Use sed to fix the quote positioning
-    if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*\)\(#.*\)"/\1\2" \3/' "$config_file" > "$temp_file"; then
-        
+    if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*\)\(#.*\)"/\1\2" \3/' "$config_file" >"$temp_file"; then
+
         # Check if any changes were made
         if ! cmp -s "$config_file" "$temp_file"; then
             printf "%b\n" "${GREEN}✅ Fixed quote positioning issues${NC}"
-            
+
             # Show what was changed
             printf "%b\n" "${CYAN}Changes made:${NC}"
             diff -u "$config_file" "$temp_file" | grep -E "^[\+\-]export" | head -10 || true
-            
+
             # Apply the changes
             mv "$temp_file" "$config_file"
-            
+
             printf "%b\n" "${GREEN}✅ Configuration file repaired successfully${NC}"
             printf "%b\n" "${YELLOW}💡 Backup saved as: $backup_file${NC}"
-            
+
             return 0
         else
             printf "%b\n" "${BLUE}ℹ️  No quote formatting issues found to repair${NC}"
@@ -1014,7 +1014,7 @@ main() {
     if [ "$REPAIR_MODE" = "true" ]; then
         printf "%b\n" "${YELLOW}Repair mode enabled - attempting to fix configuration format issues${NC}"
         echo ""
-        
+
         if repair_config_quotes "$CONFIG_FILE"; then
             printf "%b\n" "${GREEN}✅ Configuration repair completed successfully${NC}"
             printf "%b\n" "${BLUE}💡 Please re-run validation to verify the fixes${NC}"
