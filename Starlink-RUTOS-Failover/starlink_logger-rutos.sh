@@ -77,10 +77,10 @@ debug_log() {
 safe_exec() {
     cmd="$1"
     description="$2"
-    
+
     debug_log "EXECUTING: $cmd"
     debug_log "DESCRIPTION: $description"
-    
+
     # Execute command and capture both stdout and stderr
     if [ "${DEBUG:-0}" = "1" ]; then
         # In debug mode, show all output
@@ -105,8 +105,8 @@ safe_exec() {
 # Add test mode for troubleshooting
 if [ "${TEST_MODE:-0}" = "1" ]; then
     debug_log "TEST MODE ENABLED: Running in test mode"
-    DEBUG=1  # Force debug mode in test mode
-    set -x   # Enable command tracing
+    DEBUG=1 # Force debug mode in test mode
+    set -x  # Enable command tracing
     debug_log "TEST MODE: All commands will be traced"
 fi
 
@@ -122,7 +122,7 @@ if [ "$DEBUG" = "1" ]; then
     debug_log "Arguments: $*"
     debug_log "Environment DEBUG: ${DEBUG:-0}"
     debug_log "Environment TEST_MODE: ${TEST_MODE:-0}"
-    
+
     debug_log "CONFIGURATION VALUES:"
     debug_log "  STARLINK_IP=$STARLINK_IP"
     debug_log "  OUTPUT_CSV=$OUTPUT_CSV"
@@ -238,10 +238,10 @@ while [ "$i" -lt "$new_sample_count" ]; do
     debug_log "SAMPLE EXTRACTION: Processing sample $i of $new_sample_count"
     debug_log "JQ VARIABLES: i=$i, count=$new_sample_count"
     debug_log "JQ EXPRESSION: .[length - (4*\$count - 4*\$i)] // 0"
-    
+
     latency=$(echo "$latency_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4*\$count - 4*\$i)] // 0" | cut -d'.' -f1)
     debug_log "EXTRACTED LATENCY: $latency"
-    
+
     loss=$(echo "$loss_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4*\$count - 4*\$i)] // 0")
     debug_log "EXTRACTED LOSS: $loss"
 

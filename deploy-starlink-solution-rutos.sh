@@ -1209,26 +1209,26 @@ TESTS_WARNED=0
 
 # Logging functions
 log_test() {
-    printf "%s[TEST]%s %s\n" "$BLUE" "$NC" "$1"
+    printf "${BLUE}[TEST]${NC} %s\n" "$1"
 }
 
 log_pass() {
-    printf "%s[PASS]%s %s\n" "$GREEN" "$NC" "$1"
+    printf "${GREEN}[PASS]${NC} %s\n" "$1"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 }
 
 log_fail() {
-    printf "%s[FAIL]%s %s\n" "$RED" "$NC" "$1"
+    printf "${RED}[FAIL]${NC} %s\n" "$1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
 log_warn() {
-    printf "%s[WARN]%s %s\n" "$YELLOW" "$NC" "$1"
+    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
     TESTS_WARNED=$((TESTS_WARNED + 1))
 }
 
 log_info() {
-    printf "%s[INFO]%s %s\n" "$BLUE" "$NC" "$1"
+    printf "${BLUE}[INFO]${NC} %s\n" "$1"
 }
 
 # Test functions

@@ -104,7 +104,7 @@ log() {
     if [ -t 1 ]; then
         echo "[$level] $message"
     fi
-    
+
     # Also output to stderr if DEBUG is enabled
     if [ "${DEBUG:-0}" = "1" ]; then
         printf "[%s] [%s] %s\n" "$LOG_TAG" "$level" "$message" >&2
@@ -200,8 +200,8 @@ trap cleanup EXIT INT TERM
 # Add test mode for troubleshooting
 if [ "${TEST_MODE:-0}" = "1" ]; then
     debug_log "TEST MODE ENABLED: Running in test mode"
-    DEBUG=1  # Force debug mode in test mode
-    set -x   # Enable command tracing
+    DEBUG=1 # Force debug mode in test mode
+    set -x  # Enable command tracing
     debug_log "TEST MODE: All commands will be traced"
 fi
 
@@ -217,7 +217,7 @@ if [ "$DEBUG" = "1" ]; then
     debug_log "Arguments: $*"
     debug_log "Environment DEBUG: ${DEBUG:-0}"
     debug_log "Environment TEST_MODE: ${TEST_MODE:-0}"
-    
+
     debug_log "CONFIGURATION PATHS:"
     debug_log "  CONFIG_FILE=${CONFIG_FILE:-not_set}"
     debug_log "  STATE_DIR=${STATE_DIR:-not_set}"
@@ -226,7 +226,7 @@ if [ "$DEBUG" = "1" ]; then
     debug_log "  STABILITY_FILE=${STABILITY_FILE:-not_set}"
     debug_log "  HEALTH_FILE=${HEALTH_FILE:-not_set}"
     debug_log "  LOCK_FILE=${LOCK_FILE:-not_set}"
-    
+
     debug_log "CONFIGURATION VALUES:"
     debug_log "  STARLINK_IP=${STARLINK_IP:-not_set}"
     debug_log "  GRPCURL_CMD=${GRPCURL_CMD:-not_set}"
@@ -275,7 +275,7 @@ main() {
     status_exit=$?
     debug_log "API RESULT: get_status exit code: $status_exit"
     debug_log "API RESULT: status_data length: ${#status_data}"
-    
+
     debug_log "API CALL: Calling get_history"
     history_data=$(call_starlink_api "get_history" | "$JQ_CMD" -r '.dishGetHistory // empty' 2>/dev/null)
     history_exit=$?
@@ -301,7 +301,7 @@ main() {
     # Extract metrics from API responses
     debug_log "STEP: Extracting metrics from API responses"
     debug_log "RAW API DATA: status_data length=${#status_data}, history_data length=${#history_data}"
-    
+
     obstruction=$(echo "$status_data" | "$JQ_CMD" -r '.obstructionStats.fractionObstructed // 0' 2>/dev/null) # Fraction of time obstructed
     latency=$(echo "$status_data" | "$JQ_CMD" -r '.popPingLatencyMs // 0' 2>/dev/null)                        # Latency in ms
     # shellcheck disable=SC1087  # This is a jq JSON path, not a shell array
@@ -311,13 +311,13 @@ main() {
     debug_log "  obstruction (raw)=$obstruction"
     debug_log "  latency (raw)=$latency"
     debug_log "  loss (raw)=$loss"
-    
+
     # Show sample of recent loss data from history to verify we're getting real data
     if [ "${DEBUG:-0}" = "1" ]; then
         recent_loss_samples=$(echo "$history_data" | "$JQ_CMD" -r '.popPingDropRate[-5:] // []' 2>/dev/null | tr -d '[]," ')
         debug_log "RECENT LOSS SAMPLES (last 5): $recent_loss_samples"
-        
-        # Show some status fields to verify API connectivity  
+
+        # Show some status fields to verify API connectivity
         uptime=$(echo "$status_data" | "$JQ_CMD" -r '.deviceState.uptimeS // "unknown"' 2>/dev/null)
         software_version=$(echo "$status_data" | "$JQ_CMD" -r '.softwareVersion // "unknown"' 2>/dev/null)
         debug_log "API VERIFICATION: uptime=${uptime}s, software_version=$software_version"

@@ -84,9 +84,9 @@ debug_func() {
 safe_exec() {
     cmd="$1"
     description="$2"
-    
+
     debug_exec echo "Starting: $description"
-    
+
     # Execute command and capture both stdout and stderr
     if [ "${DEBUG:-0}" = "1" ]; then
         # In debug mode, show all output
@@ -112,21 +112,21 @@ safe_exec() {
 validate_binary() {
     binary_path="$1"
     binary_name="$2"
-    
+
     debug_func "validate_binary"
     log_debug "VALIDATING BINARY: $binary_name at $binary_path"
-    
+
     if [ ! -f "$binary_path" ]; then
         log_debug "FILE CHECK FAILED: $binary_path does not exist"
         return 1
     fi
-    
+
     if [ ! -x "$binary_path" ]; then
         log_debug "PERMISSION CHECK FAILED: $binary_path is not executable"
         log_debug "FILE PERMISSIONS: $(ls -la "$binary_path" 2>/dev/null || echo 'Cannot read permissions')"
         return 1
     fi
-    
+
     # Test if binary actually works
     log_debug "TESTING BINARY: $binary_path --help"
     if ! "$binary_path" --help >/dev/null 2>&1; then
@@ -134,7 +134,7 @@ validate_binary() {
     else
         log_debug "BINARY TEST PASSED: $binary_name is functional"
     fi
-    
+
     return 0
 }
 
@@ -164,7 +164,7 @@ show_health_status() {
             printf "${PURPLE}ℹ️  INFO${NC}      | %-25s | %s\n" "$component" "$message"
             ;;
     esac
-    
+
     # Log the status change for debugging
     log_debug "STATUS RECORDED: $component -> $status"
 }
@@ -206,8 +206,8 @@ DEBUG="${DEBUG:-0}"
 # Add test mode for troubleshooting
 if [ "${TEST_MODE:-0}" = "1" ]; then
     log_debug "TEST MODE ENABLED: Running in test mode"
-    DEBUG=1  # Force debug mode in test mode
-    set -x   # Enable command tracing
+    DEBUG=1 # Force debug mode in test mode
+    set -x  # Enable command tracing
     log_debug "TEST MODE: All commands will be traced"
 fi
 
@@ -221,14 +221,14 @@ if [ "$DEBUG" = "1" ]; then
     log_debug "Arguments: $*"
     log_debug "Environment DEBUG: ${DEBUG:-0}"
     log_debug "Environment TEST_MODE: ${TEST_MODE:-0}"
-    
+
     log_debug "CONFIGURATION PATHS:"
     log_debug "  INSTALL_DIR=$INSTALL_DIR"
     log_debug "  CONFIG_FILE=$CONFIG_FILE"
     log_debug "  SCRIPT_DIR=$SCRIPT_DIR"
     log_debug "  LOG_DIR=$LOG_DIR"
     log_debug "  STATE_DIR=$STATE_DIR"
-    
+
     log_debug "CONFIGURATION VALUES:"
     log_debug "  STARLINK_IP=$STARLINK_IP"
     log_debug "  PUSHOVER_TOKEN=$(printf "%.10s..." "$PUSHOVER_TOKEN")"
@@ -237,7 +237,7 @@ if [ "$DEBUG" = "1" ]; then
     log_debug "  JQ_CMD=$JQ_CMD"
     log_debug "  API_TIMEOUT=$API_TIMEOUT"
     log_debug "  CHECK_INTERVAL=$CHECK_INTERVAL"
-    
+
     # Check if configuration file was loaded
     if [ -f "$CONFIG_FILE" ]; then
         log_debug "CONFIG FILE: Successfully loaded from $CONFIG_FILE"
@@ -246,14 +246,14 @@ if [ "$DEBUG" = "1" ]; then
             while IFS= read -r line; do
                 # Don't log sensitive information in full
                 case "$line" in
-                    *PUSHOVER_TOKEN*|*PUSHOVER_USER*)
+                    *PUSHOVER_TOKEN* | *PUSHOVER_USER*)
                         log_debug "  $(echo "$line" | sed 's/=.*/=***/')"
                         ;;
                     *)
                         log_debug "  $line"
                         ;;
                 esac
-            done < "$CONFIG_FILE" 2>/dev/null || log_debug "  (Cannot read config file contents)"
+            done <"$CONFIG_FILE" 2>/dev/null || log_debug "  (Cannot read config file contents)"
         fi
     else
         log_debug "CONFIG FILE: Not found at $CONFIG_FILE - using defaults"
@@ -265,26 +265,26 @@ increment_counter() {
     status="$1"
     debug_func "increment_counter"
     log_debug "COUNTER INCREMENT: $status"
-    
+
     case "$status" in
-        "healthy") 
-            HEALTHY_COUNT=$((HEALTHY_COUNT + 1)) 
+        "healthy")
+            HEALTHY_COUNT=$((HEALTHY_COUNT + 1))
             log_debug "COUNTER UPDATE: HEALTHY_COUNT now $HEALTHY_COUNT"
             ;;
-        "warning") 
-            WARNING_COUNT=$((WARNING_COUNT + 1)) 
+        "warning")
+            WARNING_COUNT=$((WARNING_COUNT + 1))
             log_debug "COUNTER UPDATE: WARNING_COUNT now $WARNING_COUNT"
             ;;
-        "critical") 
-            CRITICAL_COUNT=$((CRITICAL_COUNT + 1)) 
+        "critical")
+            CRITICAL_COUNT=$((CRITICAL_COUNT + 1))
             log_debug "COUNTER UPDATE: CRITICAL_COUNT now $CRITICAL_COUNT"
             ;;
-        "unknown") 
-            UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1)) 
+        "unknown")
+            UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1))
             log_debug "COUNTER UPDATE: UNKNOWN_COUNT now $UNKNOWN_COUNT"
             ;;
     esac
-    
+
     total_checks=$((HEALTHY_COUNT + WARNING_COUNT + CRITICAL_COUNT + UNKNOWN_COUNT))
     log_debug "COUNTER TOTAL: $total_checks checks total"
 }
@@ -617,7 +617,7 @@ check_network_connectivity() {
         show_health_status "critical" "Internet Connectivity" "Cannot reach 8.8.8.8"
         increment_counter "critical"
         log_debug "PING TEST: FAILED - 8.8.8.8 is not reachable"
-        
+
         # Additional debugging for ping failure
         if [ "${DEBUG:-0}" = "1" ]; then
             log_debug "PING DEBUG: Attempting ping with verbose output..."
@@ -636,26 +636,26 @@ check_network_connectivity() {
         show_health_status "critical" "DNS Resolution" "Cannot resolve google.com"
         increment_counter "critical"
         log_debug "DNS TEST: FAILED - google.com cannot be resolved"
-        
+
         # Additional debugging for DNS failure
         if [ "${DEBUG:-0}" = "1" ]; then
             log_debug "DNS DEBUG: Attempting nslookup with verbose output..."
             dns_output=$(nslookup google.com 2>&1 || echo "nslookup command failed")
             log_debug "DNS OUTPUT: $dns_output"
-            
+
             # Check if DNS servers are configured
             log_debug "DNS SERVERS: Checking /etc/resolv.conf"
             if [ -f /etc/resolv.conf ]; then
                 log_debug "RESOLV.CONF CONTENTS:"
                 while IFS= read -r line; do
                     log_debug "  $line"
-                done < /etc/resolv.conf
+                done </etc/resolv.conf
             else
                 log_debug "RESOLV.CONF: File not found"
             fi
         fi
     fi
-    
+
     log_debug "Network connectivity checks completed"
 }
 
@@ -681,7 +681,7 @@ check_starlink_connectivity() {
             # Extract IP without port for ping test
             STARLINK_HOST=$(echo "$STARLINK_IP" | cut -d: -f1)
             log_debug "STARLINK HOST: Extracted $STARLINK_HOST from $STARLINK_IP"
-            
+
             log_debug "PING TEST: Testing connectivity to Starlink device at $STARLINK_HOST"
             if ping -c 1 -W 5 "$STARLINK_HOST" >/dev/null 2>&1; then
                 show_health_status "healthy" "Starlink Device" "Can reach $STARLINK_HOST"
@@ -691,7 +691,7 @@ check_starlink_connectivity() {
                 show_health_status "critical" "Starlink Device" "Cannot reach $STARLINK_HOST"
                 increment_counter "critical"
                 log_debug "STARLINK PING: FAILED - Device is not reachable"
-                
+
                 # Additional debugging for Starlink ping failure
                 if [ "${DEBUG:-0}" = "1" ]; then
                     ping_output=$(ping -c 1 -W 5 "$STARLINK_HOST" 2>&1 || echo "ping command failed")
@@ -704,7 +704,7 @@ check_starlink_connectivity() {
             if validate_binary "$GRPCURL_CMD" "grpcurl"; then
                 log_debug "GRPC TEST: grpcurl validated, testing API connection"
                 log_debug "GRPC COMMAND: $GRPCURL_CMD -plaintext -max-time 10 -d '{\"get_device_info\":{}}' $STARLINK_IP SpaceX.API.Device.Device/Handle"
-                
+
                 # Use the same endpoint as the API check script for consistency
                 if [ "${DEBUG:-0}" = "1" ]; then
                     # In debug mode, capture and log the response
@@ -712,7 +712,7 @@ check_starlink_connectivity() {
                     grpc_exit=$?
                     log_debug "GRPC EXIT CODE: $grpc_exit"
                     log_debug "GRPC OUTPUT (first 200 chars): $(echo "$grpc_output" | cut -c1-200)$([ ${#grpc_output} -gt 200 ] && echo '...')"
-                    
+
                     if [ $grpc_exit -eq 0 ]; then
                         show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP"
                         increment_counter "healthy"
@@ -747,7 +747,7 @@ check_starlink_connectivity() {
         increment_counter "critical"
         log_debug "CONFIG FILE: Not found at $CONFIG_FILE"
     fi
-    
+
     log_debug "Starlink connectivity checks completed"
 }
 
@@ -759,10 +759,10 @@ check_configuration_health() {
     # Run configuration validation with timeout to prevent hanging
     validation_script="$SCRIPT_DIR/validate-config-rutos.sh"
     log_debug "CONFIG VALIDATION: Checking for validation script at $validation_script"
-    
+
     if [ -x "$validation_script" ]; then
         log_debug "CONFIG VALIDATION: Script found and executable"
-        
+
         # Test if the script can be executed at all
         log_debug "CONFIG VALIDATION: Testing script execution capability..."
         if ! "$validation_script" --help >/dev/null 2>&1; then
@@ -770,15 +770,15 @@ check_configuration_health() {
         else
             log_debug "CONFIG VALIDATION: Script responds to --help, appears functional"
         fi
-        
+
         # Add a progress indicator
         log_debug "CONFIG VALIDATION: Starting validation process..."
-        
+
         # Use timeout command if available, otherwise rely on the script's own timeout
         if command -v timeout >/dev/null 2>&1; then
             log_debug "CONFIG VALIDATION: Using timeout command (30 seconds)"
             log_debug "CONFIG VALIDATION: Executing timeout 30 $validation_script"
-            
+
             # Test if timeout command works with a simple command first
             log_debug "CONFIG VALIDATION: Testing timeout command functionality..."
             if timeout 5 echo "timeout test" >/dev/null 2>&1; then
@@ -793,7 +793,7 @@ check_configuration_health() {
                 log_debug "CONFIG VALIDATION: Direct execution completed in ${validation_duration} seconds"
                 log_debug "CONFIG VALIDATION: Exit code: $validation_exit_code"
                 log_debug "CONFIG VALIDATION: Output length: ${#validation_output} characters"
-                
+
                 # Skip the rest of the timeout logic
                 if [ $validation_exit_code -eq 0 ]; then
                     show_health_status "healthy" "Configuration" "Configuration validation passed"
@@ -805,12 +805,12 @@ check_configuration_health() {
                     increment_counter "warning"
                     log_debug "CONFIG VALIDATION: FAILED - $error_summary"
                 fi
-                
+
                 log_debug "CONFIG VALIDATION: Proceeding to placeholder check"
                 # Continue to placeholder check section...
                 placeholder_script="$SCRIPT_DIR/placeholder-utils.sh"
                 log_debug "PLACEHOLDER CHECK: Checking for placeholder utils at $placeholder_script"
-                
+
                 if [ -f "$placeholder_script" ]; then
                     log_debug "PLACEHOLDER CHECK: Utils script found, loading..."
                     # shellcheck disable=SC1091
@@ -831,52 +831,52 @@ check_configuration_health() {
                 else
                     log_debug "PLACEHOLDER CHECK: Utils script not found, skipping placeholder validation"
                 fi
-                
+
                 log_debug "Configuration health checks completed"
-                return  # Exit the function here
+                return # Exit the function here
             fi
-            
+
             # Execute with detailed debugging - avoid command substitution in busybox
             if [ "${DEBUG:-0}" = "1" ]; then
                 log_debug "CONFIG VALIDATION: Running in debug mode, will capture full output"
                 validation_start_time=$(date '+%s')
-                
+
                 # Use a completely different approach - run script and capture to file
                 temp_output="/tmp/health_check_validation_direct.out"
                 temp_error="/tmp/health_check_validation_direct.err"
-                
+
                 log_debug "CONFIG VALIDATION: Using direct file capture approach"
                 log_debug "CONFIG VALIDATION: Output file: $temp_output"
                 log_debug "CONFIG VALIDATION: Error file: $temp_error"
-                
+
                 # Clean up any existing temp files
                 rm -f "$temp_output" "$temp_error"
-                
+
                 # Execute the validation script directly with file redirection
                 log_debug "CONFIG VALIDATION: Executing: timeout 30 $validation_script >$temp_output 2>$temp_error"
                 timeout 30 "$validation_script" >"$temp_output" 2>"$temp_error"
                 validation_exit_code=$?
-                
+
                 log_debug "CONFIG VALIDATION: Command completed with exit code: $validation_exit_code"
-                
+
                 # Read output from files
                 validation_output=""
                 if [ -f "$temp_output" ]; then
                     validation_output=$(cat "$temp_output" 2>/dev/null || echo "")
-                    output_size=$(wc -c < "$temp_output" 2>/dev/null || echo "0")
+                    output_size=$(wc -c <"$temp_output" 2>/dev/null || echo "0")
                     log_debug "CONFIG VALIDATION: Read ${output_size} bytes from stdout"
                 fi
-                
+
                 if [ -f "$temp_error" ] && [ -s "$temp_error" ]; then
                     error_content=$(cat "$temp_error" 2>/dev/null || echo "")
-                    error_size=$(wc -c < "$temp_error" 2>/dev/null || echo "0") 
+                    error_size=$(wc -c <"$temp_error" 2>/dev/null || echo "0")
                     log_debug "CONFIG VALIDATION: Read ${error_size} bytes from stderr"
                     validation_output="${validation_output}${error_content}"
                 fi
-                
+
                 # Clean up temp files
                 rm -f "$temp_output" "$temp_error"
-                
+
                 validation_end_time=$(date '+%s')
                 validation_duration=$((validation_end_time - validation_start_time))
                 log_debug "CONFIG VALIDATION: Completed in ${validation_duration} seconds"
@@ -892,25 +892,28 @@ check_configuration_health() {
         else
             log_debug "CONFIG VALIDATION: No timeout command available, using manual timeout approach"
             log_debug "CONFIG VALIDATION: Executing $validation_script with background monitoring"
-            
+
             # Create temporary files for output
             temp_output="/tmp/health_check_validation_bg.out"
             temp_error="/tmp/health_check_validation_bg.err"
             temp_pid="/tmp/health_check_validation_bg.pid"
-            
+
             # Clean up any existing temp files
             rm -f "$temp_output" "$temp_error" "$temp_pid"
-            
+
             if [ "${DEBUG:-0}" = "1" ]; then
                 validation_start_time=$(date '+%s')
                 log_debug "CONFIG VALIDATION: Starting background process with manual timeout"
-                
+
                 # Start validation script in background
-                ("$validation_script" >"$temp_output" 2>"$temp_error"; echo $? >"/tmp/health_check_validation_exit.code") &
+                (
+                    "$validation_script" >"$temp_output" 2>"$temp_error"
+                    echo $? >"/tmp/health_check_validation_exit.code"
+                ) &
                 bg_pid=$!
-                echo $bg_pid > "$temp_pid"
+                echo $bg_pid >"$temp_pid"
                 log_debug "CONFIG VALIDATION: Background process started with PID $bg_pid"
-                
+
                 # Monitor the process with timeout
                 timeout_seconds=30
                 elapsed=0
@@ -925,14 +928,14 @@ check_configuration_health() {
                         log_debug "CONFIG VALIDATION: Still running... ${elapsed}s elapsed"
                     fi
                 done
-                
+
                 # Check if process is still running (timed out)
                 if kill -0 "$bg_pid" 2>/dev/null; then
                     log_debug "CONFIG VALIDATION: Process timed out, terminating..."
                     kill "$bg_pid" 2>/dev/null || true
                     sleep 1
                     kill -9 "$bg_pid" 2>/dev/null || true
-                    validation_exit_code=124  # timeout exit code
+                    validation_exit_code=124 # timeout exit code
                     validation_output="Validation script timed out after ${timeout_seconds} seconds"
                 else
                     # Process completed normally
@@ -942,7 +945,7 @@ check_configuration_health() {
                     else
                         validation_exit_code=1
                     fi
-                    
+
                     validation_output=""
                     if [ -f "$temp_output" ]; then
                         validation_output=$(cat "$temp_output" 2>/dev/null)
@@ -952,14 +955,14 @@ check_configuration_health() {
                         validation_output="${validation_output}${error_content}"
                     fi
                 fi
-                
+
                 validation_end_time=$(date '+%s')
                 validation_duration=$((validation_end_time - validation_start_time))
                 log_debug "CONFIG VALIDATION: Manual timeout process completed in ${validation_duration} seconds"
-                
+
                 # Clean up temp files
                 rm -f "$temp_output" "$temp_error" "$temp_pid"
-                
+
             else
                 # Fallback to simple execution without timeout in normal mode
                 validation_output=$("$validation_script" 2>&1)
@@ -969,7 +972,7 @@ check_configuration_health() {
 
         log_debug "CONFIG VALIDATION: Exit code: $validation_exit_code"
         log_debug "CONFIG VALIDATION: Output length: ${#validation_output} characters"
-        
+
         if [ $validation_exit_code -eq 0 ]; then
             show_health_status "healthy" "Configuration" "Configuration validation passed"
             increment_counter "healthy"
@@ -995,7 +998,7 @@ check_configuration_health() {
         show_health_status "unknown" "Configuration" "validate-config-rutos.sh not found or not executable"
         increment_counter "unknown"
         log_debug "CONFIG VALIDATION: Script not found or not executable at $validation_script"
-        
+
         if [ "${DEBUG:-0}" = "1" ]; then
             log_debug "VALIDATION SCRIPT DEBUG:"
             if [ -f "$validation_script" ]; then
@@ -1013,7 +1016,7 @@ check_configuration_health() {
     # Check for placeholder values
     placeholder_script="$SCRIPT_DIR/placeholder-utils.sh"
     log_debug "PLACEHOLDER CHECK: Checking for placeholder utils at $placeholder_script"
-    
+
     if [ -f "$placeholder_script" ]; then
         log_debug "PLACEHOLDER CHECK: Utils script found, loading..."
         # shellcheck disable=SC1091
@@ -1030,7 +1033,7 @@ check_configuration_health() {
             show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
             increment_counter "warning"
             log_debug "PUSHOVER CHECK: WARNING - using placeholder values"
-            
+
             if [ "${DEBUG:-0}" = "1" ]; then
                 log_debug "PUSHOVER DEBUG: Token check: $([ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] && echo "using placeholder" || echo "appears configured")"
                 log_debug "PUSHOVER DEBUG: User check: $([ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ] && echo "using placeholder" || echo "appears configured")"
@@ -1039,7 +1042,7 @@ check_configuration_health() {
     else
         log_debug "PLACEHOLDER CHECK: Utils script not found, skipping placeholder validation"
     fi
-    
+
     log_debug "Configuration health checks completed"
 }
 
@@ -1346,7 +1349,7 @@ main() {
     log_debug "==================== HEALTH CHECK START ===================="
     log_debug "Starting main health check function"
     log_debug "Startup environment validation beginning..."
-    
+
     log_info "Starting comprehensive health check v$SCRIPT_VERSION"
 
     # Validate environment
@@ -1442,16 +1445,16 @@ main() {
     log_debug "SUMMARY: Displaying health summary and determining exit code"
     show_health_summary
     exit_code=$?
-    
+
     log_debug "EXIT CODE: Determined exit code: $exit_code"
     log_debug "==================== HEALTH CHECK COMPLETE ===================="
-    
+
     # Clean up any temporary files
     if [ -f /tmp/health_check_error.log ]; then
         log_debug "CLEANUP: Removing temporary error log"
         rm -f /tmp/health_check_error.log
     fi
-    
+
     return $exit_code
 }
 

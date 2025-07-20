@@ -82,10 +82,10 @@ debug_log() {
 safe_exec() {
     cmd="$1"
     description="$2"
-    
+
     debug_log "EXECUTING: $cmd"
     debug_log "DESCRIPTION: $description"
-    
+
     # Execute command and capture both stdout and stderr
     if [ "${DEBUG:-0}" = "1" ]; then
         # In debug mode, show all output
@@ -109,22 +109,22 @@ safe_exec() {
 validate_binary() {
     binary_path="$1"
     binary_name="$2"
-    
+
     debug_log "VALIDATING BINARY: $binary_name at $binary_path"
-    
+
     if [ ! -f "$binary_path" ]; then
         log "ERROR: $binary_name not found at $binary_path"
         debug_log "FILE CHECK FAILED: $binary_path does not exist"
         return 1
     fi
-    
+
     if [ ! -x "$binary_path" ]; then
         log "ERROR: $binary_name not executable at $binary_path"
         debug_log "PERMISSION CHECK FAILED: $binary_path is not executable"
         debug_log "FILE PERMISSIONS: $(ls -la "$binary_path" 2>/dev/null || echo 'Cannot read permissions')"
         return 1
     fi
-    
+
     # Test if binary actually works
     debug_log "TESTING BINARY: $binary_path --help"
     if ! "$binary_path" --help >/dev/null 2>&1; then
@@ -133,38 +133,38 @@ validate_binary() {
     else
         debug_log "BINARY TEST PASSED: $binary_name is functional"
     fi
-    
+
     return 0
 }
 
 send_notification() {
     title="$1"
     message="$2"
-    
+
     debug_log "NOTIFICATION START: Preparing to send Pushover notification"
     debug_log "NOTIFICATION TITLE: '$title'"
     debug_log "NOTIFICATION MESSAGE: '$message'"
     debug_log "PUSHOVER_TOKEN: $(printf "%.10s..." "$PUSHOVER_TOKEN")"
     debug_log "PUSHOVER_USER: $(printf "%.10s..." "$PUSHOVER_USER")"
-    
+
     log "Sending Pushover -> Title: '$title', Message: '$message'"
-    
+
     # Validate that we have credentials
     if [ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] || [ -z "$PUSHOVER_TOKEN" ]; then
         log "ERROR: PUSHOVER_TOKEN not configured properly"
         debug_log "NOTIFICATION FAILED: Invalid or missing PUSHOVER_TOKEN"
         return 1
     fi
-    
+
     if [ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ] || [ -z "$PUSHOVER_USER" ]; then
         log "ERROR: PUSHOVER_USER not configured properly"
         debug_log "NOTIFICATION FAILED: Invalid or missing PUSHOVER_USER"
         return 1
     fi
-    
+
     # Execute curl with detailed logging
     debug_log "CURL COMMAND: curl -s --max-time 15 -F 'token=***' -F 'user=***' -F 'title=$title' -F 'message=$message' https://api.pushover.net/1/messages.json"
-    
+
     if [ "${DEBUG:-0}" = "1" ]; then
         # In debug mode, show curl output
         response=$(curl -s --max-time 15 \
@@ -176,7 +176,7 @@ send_notification() {
         curl_exit=$?
         debug_log "CURL EXIT CODE: $curl_exit"
         debug_log "CURL RESPONSE: $response"
-        
+
         if [ $curl_exit -eq 0 ]; then
             log "Pushover notification sent successfully"
             debug_log "NOTIFICATION SUCCESS: Pushover API responded"
@@ -204,8 +204,8 @@ send_notification() {
 # Add test mode for troubleshooting
 if [ "${TEST_MODE:-0}" = "1" ]; then
     debug_log "TEST MODE ENABLED: Running in test mode"
-    DEBUG=1  # Force debug mode in test mode
-    set -x   # Enable command tracing
+    DEBUG=1 # Force debug mode in test mode
+    set -x  # Enable command tracing
     debug_log "TEST MODE: All commands will be traced"
 fi
 
@@ -237,14 +237,14 @@ if [ -f "$CONFIG_FILE" ]; then
         while IFS= read -r line; do
             # Don't log sensitive information in full
             case "$line" in
-                *PUSHOVER_TOKEN*|*PUSHOVER_USER*)
+                *PUSHOVER_TOKEN* | *PUSHOVER_USER*)
                     debug_log "  $(echo "$line" | sed 's/=.*/=***/')"
                     ;;
                 *)
                     debug_log "  $line"
                     ;;
             esac
-        done < "$CONFIG_FILE" 2>/dev/null || debug_log "  (Cannot read config file contents)"
+        done <"$CONFIG_FILE" 2>/dev/null || debug_log "  (Cannot read config file contents)"
     fi
 else
     debug_log "CONFIG FILE: Not found at $CONFIG_FILE - using defaults"
@@ -299,7 +299,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
     grpc_exit=$?
     debug_log "GRPC EXIT CODE: $grpc_exit"
     debug_log "GRPC RAW OUTPUT (first 500 chars): $(echo "$grpc_output" | cut -c1-500)$([ ${#grpc_output} -gt 500 ] && echo '...')"
-    
+
     if [ $grpc_exit -ne 0 ]; then
         log "ERROR: gRPC call failed with exit code $grpc_exit"
         debug_log "GRPC ERROR: Full output: $grpc_output"
@@ -307,12 +307,12 @@ if [ "${DEBUG:-0}" = "1" ]; then
     else
         debug_log "GRPC SUCCESS: Processing JSON response with jq"
         debug_log "JQ COMMAND: echo \"\$grpc_output\" | $JQ_CMD -r '.apiVersion // \"0\"'"
-        
+
         current_version=$(echo "$grpc_output" | $JQ_CMD -r '.apiVersion // "0"' 2>&1)
         jq_exit=$?
         debug_log "JQ EXIT CODE: $jq_exit"
         debug_log "JQ OUTPUT: '$current_version'"
-        
+
         if [ $jq_exit -ne 0 ]; then
             log "ERROR: Failed to parse JSON response with jq"
             debug_log "JQ ERROR: Failed to extract apiVersion"
@@ -347,10 +347,10 @@ if [ "$current_version" != "$known_version" ]; then
     # --- API VERSION HAS CHANGED ---
     log "WARN: API version has changed from $known_version to $current_version. Sending notification."
     debug_log "VERSION CHANGE DETECTED: From '$known_version' to '$current_version'"
-    
+
     MESSAGE="Starlink API version has changed from $known_version to $current_version. Please check if monitoring scripts need updates."
     TITLE="Starlink API Alert"
-    
+
     debug_log "NOTIFICATION: Preparing to send alert"
     debug_log "NOTIFICATION TITLE: '$TITLE'"
     debug_log "NOTIFICATION MESSAGE: '$MESSAGE'"
@@ -365,11 +365,11 @@ if [ "$current_version" != "$known_version" ]; then
 
     # Update the known version file with the new version for the next check.
     debug_log "VERSION FILE UPDATE: Writing '$current_version' to $KNOWN_API_VERSION_FILE"
-    
-    if echo "$current_version" > "$KNOWN_API_VERSION_FILE" 2>/dev/null; then
+
+    if echo "$current_version" >"$KNOWN_API_VERSION_FILE" 2>/dev/null; then
         log "INFO: Updated known version file to $current_version."
         debug_log "VERSION FILE UPDATE: Successfully wrote to file"
-        
+
         # Verify the write was successful
         if [ "${DEBUG:-0}" = "1" ]; then
             written_version=$(cat "$KNOWN_API_VERSION_FILE" 2>/dev/null || echo "FAILED_TO_READ")
