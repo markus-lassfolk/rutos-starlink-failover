@@ -93,6 +93,8 @@ show_usage() {
     print_status "$BLUE" "Options:"
     print_status "$BLUE" "  -h, --help      Show this help message"
     print_status "$BLUE" "  -m, --migrate   Force migration of outdated config template"
+    print_status "$BLUE" "  -q, --quiet     Suppress output except errors"
+    print_status "$BLUE" "  --repair        Repair common configuration format issues"
     printf "%b\n" "${BLUE}Arguments:${NC}"
     printf "%b\n" "${BLUE}  config_file     Path to configuration file (default: /etc/starlink-config/config.sh)${NC}"
     printf "%b\n" ""
@@ -103,6 +105,7 @@ show_usage() {
     printf "%b\n" "${BLUE}  $SCRIPT_NAME                    # Validate default config in /etc/starlink-config/config.sh${NC}"
     printf "%b\n" "${BLUE}  $SCRIPT_NAME /path/to/config.sh # Validate specific config${NC}"
     printf "%b\n" "${BLUE}  $SCRIPT_NAME --migrate          # Force migration of outdated template${NC}"
+    printf "%b\n" "${BLUE}  $SCRIPT_NAME --repair           # Fix common configuration format issues${NC}"
     printf "%b\n" "${BLUE}  DEBUG=1 $SCRIPT_NAME            # Run with debug output${NC}"
 }
 
@@ -110,28 +113,6 @@ show_usage() {
 FORCE_MIGRATION=false
 # Use the persistent configuration directory as agreed
 CONFIG_FILE="/etc/starlink-config/config.sh"
-
-while [ $# -gt 0 ]; do
-    case $1 in
-        -h | --help)
-            show_usage
-            exit 0
-            ;;
-        -m | --migrate)
-            FORCE_MIGRATION=true
-            shift
-            ;;
-        -*)
-            printf "%b\n" "${RED}Error: Unknown option: $1${NC}"
-            show_usage
-            exit 1
-            ;;
-        *)
-            CONFIG_FILE="$1"
-            shift
-            ;;
-    esac
-done
 
 # Check if running as root
 check_root() {
@@ -622,15 +603,34 @@ validate_config_format() {
         format_errors=$((format_errors + 1))
     fi
 
-    # Check for unmatched quotes
+    # Check for unmatched quotes - classic pattern (no closing quote)
     unmatched_quotes=$(grep -n '^[[:space:]]*export.*=[^=]*"[^"]*$' "$CONFIG_FILE" 2>/dev/null || true)
-    if [ -n "$unmatched_quotes" ]; then
-        printf "%b\n" "${RED}❌ Found lines with unmatched quotes:${NC}"
-        echo "$unmatched_quotes" | while IFS= read -r line; do
-            line_num=$(echo "$line" | cut -d: -f1)
-            content=$(echo "$line" | cut -d: -f2-)
-            printf "%b\n" "${RED}   Line $line_num: $content${NC}"
-        done
+    
+    # Check for quotes in wrong position - value starts with quote but closing quote is after hash
+    quotes_in_comments=$(grep -n '^[[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="[^"]*#.*"' "$CONFIG_FILE" 2>/dev/null || true)
+    
+    if [ -n "$unmatched_quotes" ] || [ -n "$quotes_in_comments" ]; then
+        printf "%b\n" "${RED}❌ Found lines with quote formatting issues:${NC}"
+        
+        if [ -n "$unmatched_quotes" ]; then
+            printf "%b\n" "${RED}   Missing closing quotes:${NC}"
+            echo "$unmatched_quotes" | while IFS= read -r line; do
+                line_num=$(echo "$line" | cut -d: -f1)
+                content=$(echo "$line" | cut -d: -f2-)
+                printf "%b\n" "${RED}     Line $line_num: $content${NC}"
+            done
+        fi
+        
+        if [ -n "$quotes_in_comments" ]; then
+            printf "%b\n" "${RED}   Quotes incorrectly positioned in comments:${NC}"
+            echo "$quotes_in_comments" | while IFS= read -r line; do
+                line_num=$(echo "$line" | cut -d: -f1)
+                content=$(echo "$line" | cut -d: -f2-)
+                printf "%b\n" "${RED}     Line $line_num: $content${NC}"
+                printf "%b\n" "${YELLOW}     Should be: $(echo "$content" | sed 's/="\([^#]*\)#\(.*\)"/="\1" #\2/')"
+            done
+        fi
+        
         format_errors=$((format_errors + 1))
     fi
 
@@ -942,6 +942,55 @@ show_overall_status() {
     fi
 }
 
+# Function to repair common configuration format issues
+repair_config_quotes() {
+    config_file="$1"
+    
+    printf "%b\n" "${BLUE}Attempting to repair quote formatting issues...${NC}"
+    
+    # Create backup
+    backup_file="${config_file}.backup-$(date +%Y%m%d-%H%M%S)"
+    if cp "$config_file" "$backup_file"; then
+        printf "%b\n" "${GREEN}✅ Created backup: $backup_file${NC}"
+    else
+        printf "%b\n" "${RED}❌ Failed to create backup. Aborting repair.${NC}"
+        return 1
+    fi
+    
+    # Fix quotes incorrectly positioned in comments
+    # Pattern: export VAR="value # comment" -> export VAR="value" # comment"
+    temp_file=$(mktemp)
+    
+    # Use sed to fix the quote positioning
+    if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*\)\(#.*\)"/\1\2" \3/' "$config_file" > "$temp_file"; then
+        
+        # Check if any changes were made
+        if ! cmp -s "$config_file" "$temp_file"; then
+            printf "%b\n" "${GREEN}✅ Fixed quote positioning issues${NC}"
+            
+            # Show what was changed
+            printf "%b\n" "${CYAN}Changes made:${NC}"
+            diff -u "$config_file" "$temp_file" | grep -E "^[\+\-]export" | head -10 || true
+            
+            # Apply the changes
+            mv "$temp_file" "$config_file"
+            
+            printf "%b\n" "${GREEN}✅ Configuration file repaired successfully${NC}"
+            printf "%b\n" "${YELLOW}💡 Backup saved as: $backup_file${NC}"
+            
+            return 0
+        else
+            printf "%b\n" "${BLUE}ℹ️  No quote formatting issues found to repair${NC}"
+            rm -f "$temp_file"
+            return 0
+        fi
+    else
+        printf "%b\n" "${RED}❌ Failed to process configuration file${NC}"
+        rm -f "$temp_file"
+        return 1
+    fi
+}
+
 # Main function
 main() {
     print_status "$GREEN" "=== Starlink System Configuration Validator ==="
@@ -960,6 +1009,21 @@ main() {
     check_root
     check_config_file
     load_config
+
+    # Handle repair mode option
+    if [ "$REPAIR_MODE" = "true" ]; then
+        printf "%b\n" "${YELLOW}Repair mode enabled - attempting to fix configuration format issues${NC}"
+        echo ""
+        
+        if repair_config_quotes "$CONFIG_FILE"; then
+            printf "%b\n" "${GREEN}✅ Configuration repair completed successfully${NC}"
+            printf "%b\n" "${BLUE}💡 Please re-run validation to verify the fixes${NC}"
+            exit 0
+        else
+            printf "%b\n" "${RED}❌ Configuration repair failed${NC}"
+            exit 1
+        fi
+    fi
 
     # Handle force migration option
     if [ "$FORCE_MIGRATION" = "true" ]; then
@@ -1073,6 +1137,7 @@ main() {
 # Parse command line arguments
 QUIET_MODE=0
 FORCE_MIGRATION="false"
+REPAIR_MODE="false"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -1084,14 +1149,23 @@ while [ $# -gt 0 ]; do
             FORCE_MIGRATION="true"
             shift
             ;;
+        --repair)
+            REPAIR_MODE="true"
+            shift
+            ;;
         --help | -h)
             show_usage
             exit 0
             ;;
-        *)
+        -*)
             printf "%b\n" "${RED}Unknown option: $1${NC}" >&2
             show_usage >&2
             exit 1
+            ;;
+        *)
+            # Treat remaining arguments as config file path
+            CONFIG_FILE="$1"
+            shift
             ;;
     esac
 done
