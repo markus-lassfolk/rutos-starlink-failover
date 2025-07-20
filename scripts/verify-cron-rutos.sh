@@ -155,6 +155,7 @@ check_monitoring_entries() {
     monitor_entries=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
+    maintenance_entries=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
 
     # Monitor script analysis
     if [ "$monitor_entries" -eq 0 ]; then
@@ -192,8 +193,18 @@ check_monitoring_entries() {
         show_result "warn" "API Check Schedule" "$api_check_entries entries (duplicates may conflict)"
     fi
 
+    # System maintenance script analysis
+    if [ "$maintenance_entries" -eq 0 ]; then
+        show_result "error" "Maintenance Schedule" "No maintenance entries found - MISSING REQUIRED JOB!"
+    elif [ "$maintenance_entries" -eq 1 ]; then
+        maintenance_schedule=$(grep "system-maintenance-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+        show_result "ok" "Maintenance Schedule" "$maintenance_schedule"
+    else
+        show_result "warn" "Maintenance Schedule" "$maintenance_entries entries (duplicates may conflict)"
+    fi
+
     # Total entry summary
-    total_entries=$((monitor_entries + logger_entries + api_check_entries))
+    total_entries=$((monitor_entries + logger_entries + api_check_entries + maintenance_entries))
     if [ "$total_entries" -eq 0 ]; then
         show_result "error" "Total Entries" "No monitoring entries found"
     else
@@ -211,7 +222,12 @@ check_entry_quality() {
 
     # Check for duplicate entries
     duplicate_count=0
-    duplicate_count=$(grep -E "(starlink_monitor-rutos\.sh|starlink_logger-rutos\.sh|check_starlink_api)" "$CRON_FILE" | sort | uniq -d | wc -l)
+    if [ -f "$CRON_FILE" ]; then
+        duplicate_count=$(grep -E "(starlink_monitor-rutos\.sh|starlink_logger-rutos\.sh|check_starlink_api|system-maintenance-rutos\.sh)" "$CRON_FILE" 2>/dev/null | sort | uniq -d | wc -l 2>/dev/null || echo "0")
+        # Clean any whitespace/newlines from the count
+        duplicate_count=$(echo "$duplicate_count" | tr -d '\n\r' | sed 's/[^0-9]//g')
+        duplicate_count=${duplicate_count:-0}
+    fi
 
     if [ "$duplicate_count" -gt 0 ]; then
         show_result "warn" "Duplicate Entries" "$duplicate_count exact duplicate lines found"
@@ -274,7 +290,7 @@ check_script_files() {
     log_step "Checking script files"
 
     # Check if scripts exist and are executable
-    scripts_to_check="starlink_monitor-rutos.sh starlink_logger-rutos.sh check_starlink_api-rutos.sh"
+    scripts_to_check="starlink_monitor-rutos.sh starlink_logger-rutos.sh check_starlink_api-rutos.sh system-maintenance-rutos.sh"
 
     for script in $scripts_to_check; do
         script_path="$INSTALL_DIR/scripts/$script"

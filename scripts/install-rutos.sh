@@ -659,6 +659,17 @@ EOF
         cleanup_result=1
     fi
 
+    # If merge was successful, copy the merged config back to the primary location
+    if [ "$cleanup_result" = 0 ]; then
+        config_debug "Copying merged config from backup location to primary config..."
+        if cp "$output_config" "$current_config" 2>/dev/null; then
+            config_debug "✓ Merged config successfully restored to: $current_config"
+        else
+            config_debug "✗ Failed to restore merged config to primary location"
+            cleanup_result=1
+        fi
+    fi
+
     # Cleanup temporary files
     rm -f "$temp_template_vars" "$temp_current_vars" "$temp_merged_config" "$temp_extra_vars" 2>/dev/null
 
@@ -1496,6 +1507,18 @@ configure_cron() {
     existing_logger=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_api_check=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_maintenance=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+
+    # Clean any whitespace/newlines from the counts (fix for RUTOS busybox grep -c behavior)
+    existing_monitor=$(echo "$existing_monitor" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    existing_logger=$(echo "$existing_logger" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    existing_api_check=$(echo "$existing_api_check" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    existing_maintenance=$(echo "$existing_maintenance" | tr -d '\n\r' | sed 's/[^0-9]//g')
+
+    # Ensure we have valid numbers (default to 0 if empty)
+    existing_monitor=${existing_monitor:-0}
+    existing_logger=${existing_logger:-0}
+    existing_api_check=${existing_api_check:-0}
+    existing_maintenance=${existing_maintenance:-0}
 
     print_status "$BLUE" "Checking existing cron entries:"
     print_status "$BLUE" "  starlink_monitor-rutos.sh: $existing_monitor entries"
