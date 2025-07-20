@@ -159,6 +159,7 @@ If you get "command not found" errors after installation:
    ```
 
 3. **Use npx** (alternative):
+
    ```bash
    npx markdownlint "**/*.md"
    npx prettier --check "**/*.md"
