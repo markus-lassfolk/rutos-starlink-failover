@@ -153,6 +153,26 @@ check_config_file() {
 # Load configuration
 load_config() {
     printf "%b\n" "${GREEN}Loading configuration from: $CONFIG_FILE${NC}"
+
+    # First validate the shell syntax before attempting to load
+    printf "%b\n" "${BLUE}Validating shell syntax...${NC}"
+    if ! sh -n "$CONFIG_FILE" 2>/dev/null; then
+        printf "%b\n" "${RED}❌ CRITICAL: Configuration file has shell syntax errors!${NC}"
+        printf "%b\n" "${RED}   Please check for:${NC}"
+        printf "%b\n" "${RED}   - Missing quotes around values${NC}"
+        printf "%b\n" "${RED}   - Unescaped special characters${NC}"
+        printf "%b\n" "${RED}   - Malformed export statements${NC}"
+        printf "%b\n" ""
+        printf "%b\n" "${YELLOW}Syntax check output:${NC}"
+        sh -n "$CONFIG_FILE" 2>&1 | head -10 | while IFS= read -r line; do
+            printf "%b\n" "${RED}   $line${NC}"
+        done
+        printf "%b\n" ""
+        return 1
+    fi
+    printf "%b\n" "${GREEN}✅ Shell syntax validation passed${NC}"
+
+    # Now safely load the configuration
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
 
@@ -580,6 +600,74 @@ check_placeholder_values() {
     return "$placeholders_found"
 }
 
+# Validate configuration file format and common issues
+validate_config_format() {
+    printf "%b\n" "${GREEN}Validating configuration file format...${NC}"
+
+    format_errors=0
+
+    # Check for common syntax issues in the configuration file
+    printf "%b\n" "${BLUE}Checking for common configuration format issues...${NC}"
+
+    # Check for missing quotes on export lines
+    unquoted_exports=$(grep -n '^[[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*=[^"'"'"'].*[[:space:]]' "$CONFIG_FILE" 2>/dev/null || true)
+    if [ -n "$unquoted_exports" ]; then
+        printf "%b\n" "${RED}⚠️  Found potentially unquoted values (may cause issues):${NC}"
+        echo "$unquoted_exports" | while IFS= read -r line; do
+            line_num=$(echo "$line" | cut -d: -f1)
+            content=$(echo "$line" | cut -d: -f2-)
+            printf "%b\n" "${RED}   Line $line_num: $content${NC}"
+        done
+        printf "%b\n" "${YELLOW}   Recommendation: Enclose values in double quotes${NC}"
+        format_errors=$((format_errors + 1))
+    fi
+
+    # Check for unmatched quotes
+    unmatched_quotes=$(grep -n '^[[:space:]]*export.*=[^=]*"[^"]*$' "$CONFIG_FILE" 2>/dev/null || true)
+    if [ -n "$unmatched_quotes" ]; then
+        printf "%b\n" "${RED}❌ Found lines with unmatched quotes:${NC}"
+        echo "$unmatched_quotes" | while IFS= read -r line; do
+            line_num=$(echo "$line" | cut -d: -f1)
+            content=$(echo "$line" | cut -d: -f2-)
+            printf "%b\n" "${RED}   Line $line_num: $content${NC}"
+        done
+        format_errors=$((format_errors + 1))
+    fi
+
+    # Check for malformed export statements
+    malformed_exports=$(grep -n '^[[:space:]]*export[[:space:]]*[^A-Z_]' "$CONFIG_FILE" 2>/dev/null || true)
+    if [ -n "$malformed_exports" ]; then
+        printf "%b\n" "${RED}❌ Found malformed export statements:${NC}"
+        echo "$malformed_exports" | while IFS= read -r line; do
+            line_num=$(echo "$line" | cut -d: -f1)
+            content=$(echo "$line" | cut -d: -f2-)
+            printf "%b\n" "${RED}   Line $line_num: $content${NC}"
+        done
+        format_errors=$((format_errors + 1))
+    fi
+
+    # Check for lines that look like exports but are missing the export keyword
+    missing_export=$(grep -n '^[[:space:]]*[A-Z_][A-Z0-9_]*=' "$CONFIG_FILE" | grep -v '^[[:space:]]*export' 2>/dev/null || true)
+    if [ -n "$missing_export" ]; then
+        printf "%b\n" "${YELLOW}⚠️  Found variable assignments without 'export' keyword:${NC}"
+        echo "$missing_export" | while IFS= read -r line; do
+            line_num=$(echo "$line" | cut -d: -f1)
+            content=$(echo "$line" | cut -d: -f2-)
+            printf "%b\n" "${YELLOW}   Line $line_num: $content${NC}"
+        done
+        printf "%b\n" "${YELLOW}   These variables may not be available to other scripts${NC}"
+    fi
+
+    if [ "$format_errors" -eq 0 ]; then
+        printf "%b\n" "${GREEN}✅ Configuration format validation passed${NC}"
+    else
+        printf "%b\n" "${RED}❌ Found $format_errors configuration format issues${NC}"
+        printf "%b\n" "${RED}   These issues may prevent proper script operation${NC}"
+    fi
+
+    return "$format_errors"
+}
+
 # Validate configuration value ranges and formats
 validate_config_values() {
     printf "%b\n" "${GREEN}Validating configuration values...${NC}"
@@ -798,23 +886,26 @@ show_overall_status() {
     structure_ok="$1"
     placeholders_found="$2"
     validation_errors="$3"
+    format_errors="${4:-0}"
 
     echo ""
-    if [ "$structure_ok" -eq 0 ] && [ "$placeholders_found" -eq 0 ] && [ "$validation_errors" -eq 0 ]; then
+    if [ "$structure_ok" -eq 0 ] && [ "$placeholders_found" -eq 0 ] && [ "$validation_errors" -eq 0 ] && [ "$format_errors" -eq 0 ]; then
         print_status "$GREEN" "=== CONFIGURATION STATUS: READY FOR DEPLOYMENT ==="
         print_status "$GREEN" "✓ All configuration variables are properly set"
         print_status "$GREEN" "✓ No placeholder values detected"
         print_status "$GREEN" "✓ All values are valid"
+        print_status "$GREEN" "✓ Configuration format is correct"
         return 0
     else
         # Check if we only have minor issues (structure OK but placeholders/validation errors)
-        if [ "$structure_ok" -eq 0 ] && [ "$placeholders_found" -eq 0 ] && [ "$validation_errors" -eq 0 ]; then
+        if [ "$structure_ok" -eq 0 ] && [ "$placeholders_found" -eq 0 ] && [ "$validation_errors" -eq 0 ] && [ "$format_errors" -eq 0 ]; then
             print_status "$GREEN" "=== CONFIGURATION STATUS: READY FOR DEPLOYMENT ==="
             return 0
-        elif [ "$structure_ok" -eq 0 ] && [ "$placeholders_found" -eq 0 ] && [ "$validation_errors" -gt 0 ]; then
+        elif [ "$structure_ok" -eq 0 ] && [ "$placeholders_found" -eq 0 ] && [ "$validation_errors" -gt 0 ] && [ "$format_errors" -eq 0 ]; then
             print_status "$YELLOW" "=== CONFIGURATION STATUS: MINOR ISSUES DETECTED ==="
             print_status "$YELLOW" "✓ Configuration structure is valid"
             print_status "$YELLOW" "✓ No placeholder values detected"
+            print_status "$YELLOW" "✓ Configuration format is correct"
             print_status "$YELLOW" "⚠ Configuration contains $validation_errors validation errors"
             return 1
         else
@@ -824,6 +915,13 @@ show_overall_status() {
                 print_status "$RED" "✗ Configuration structure has issues"
             else
                 print_status "$GREEN" "✓ Configuration structure is valid"
+            fi
+
+            if [ "$format_errors" -gt 0 ]; then
+                print_status "$RED" "✗ Configuration format contains $format_errors syntax issues"
+                print_status "$RED" "  This will prevent scripts from loading the configuration!"
+            else
+                print_status "$GREEN" "✓ Configuration format is correct"
             fi
 
             if [ "$placeholders_found" -gt 0 ]; then
@@ -905,6 +1003,13 @@ main() {
     fi
     echo ""
 
+    # Validate configuration file format
+    if ! validate_config_format; then
+        format_errors=$?
+        config_issues=$((config_issues + 1))
+    fi
+    echo ""
+
     # Validate configuration values
     if ! validate_config_values; then
         validation_errors=$?
@@ -913,7 +1018,7 @@ main() {
     echo ""
 
     # Show overall configuration status
-    show_overall_status "$structure_ok" "$placeholders_found" "$validation_errors"
+    show_overall_status "$structure_ok" "$placeholders_found" "$validation_errors" "$format_errors"
     echo ""
 
     # Original validation checks

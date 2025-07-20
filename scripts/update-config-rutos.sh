@@ -235,15 +235,19 @@ merge_configs() {
 
         if [ -n "$current_value" ]; then
             if grep -q "^${var}=" "$temp_file"; then
-                # Update existing variable with user's value
-                sed -i "s|^${var}=.*|${var}=\"${current_value}\"|" "$temp_file"
+                # Update existing variable with user's value (properly escape special characters)
+                # Escape backslashes and quotes in the value for sed
+                escaped_value=$(printf '%s' "$current_value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/|/\\|/g')
+                sed -i "s|^${var}=.*|${var}=\"${escaped_value}\"|" "$temp_file"
                 print_success "Preserved $var: $current_value"
             else
                 # Variable no longer exists in template, comment it out at the end
+                # Properly escape the value for printf
+                escaped_value=$(printf '%s' "$current_value" | sed 's/\\/\\\\/g; s/"/\\"/g')
                 {
                     printf "\n"
                     printf "# Obsolete setting (kept for reference):\n"
-                    printf "# %s=\"%s\"\n" "$var" "$current_value"
+                    printf "# %s=\"%s\"\n" "$var" "$escaped_value"
                 } >>"$temp_file"
                 print_warning "Obsolete setting commented out: $var"
             fi
