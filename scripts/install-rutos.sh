@@ -980,6 +980,7 @@ This document lists all scripts installed by the Starlink monitoring system.
 - `placeholder-utils.sh` - Utility functions library
 - `fix-database-loop-rutos.sh` - Database loop repair tool
 - `diagnose-database-loop-rutos.sh` - Database loop diagnostic
+- `fix-database-spam-rutos.sh` - Fix database optimization spam issue
 - `system-maintenance-rutos.sh` - Generic system maintenance and issue fixing
 
 ### Test Scripts (in scripts/tests/)
@@ -1037,6 +1038,9 @@ This document lists all scripts installed by the Starlink monitoring system.
 
 # Fix database optimization loops
 /usr/local/starlink-monitor/scripts/fix-database-loop-rutos.sh
+
+# Fix database spam issue (enhanced user solution)
+/usr/local/starlink-monitor/scripts/fix-database-spam-rutos.sh
 
 # Check system status only
 /usr/local/starlink-monitor/scripts/fix-database-loop-rutos.sh status
@@ -1156,6 +1160,7 @@ install_scripts() {
         placeholder-utils.sh \
         fix-database-loop-rutos.sh \
         diagnose-database-loop-rutos.sh \
+        fix-database-spam-rutos.sh \
         system-maintenance-rutos.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then

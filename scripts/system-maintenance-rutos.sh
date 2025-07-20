@@ -349,7 +349,112 @@ check_memory_usage() {
     fi
 }
 
-# Check 7: Network interface issues
+# Check 7: Database optimization loop (RUTOS-specific issue)
+check_database_optimization_loop() {
+    log_debug "Checking for database optimization loop spam"
+    
+    # Check for recent database optimization errors in system log
+    log_spam_count=0
+    if command -v logread >/dev/null 2>&1; then
+        # Look for the specific error pattern from the last 5 minutes
+        recent_log=$(logread -l 100 2>/dev/null | tail -n 50 || true)
+        if [ -n "$recent_log" ]; then
+            # Count database optimization errors
+            log_spam_count=$(echo "$recent_log" | grep -c "Unable to optimize database\|Failed to restore database\|Unable to reduce max rows" 2>/dev/null || echo "0")
+        fi
+    fi
+    
+    log_debug "Found $log_spam_count database optimization error messages"
+    
+    # If we find more than 5 database errors, this indicates a loop
+    if [ "$log_spam_count" -ge 5 ]; then
+        record_action "FOUND" "Database optimization loop detected" "Found $log_spam_count error messages - services may be stuck"
+        
+        if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
+            log_info "Attempting to fix database optimization loop"
+            
+            # Stop services that might be causing the loop
+            services_stopped=""
+            for service in nlbwmon ip_block collectd statistics; do
+                if pgrep "$service" >/dev/null 2>&1; then
+                    log_debug "Stopping service: $service"
+                    if /etc/init.d/"$service" stop >/dev/null 2>&1 || killall "$service" >/dev/null 2>&1; then
+                        services_stopped="$services_stopped $service"
+                        sleep 1
+                    fi
+                fi
+            done
+            
+            # Create backup directory
+            backup_dir="/tmp/db_maintenance_backup_$(date +%Y%m%d_%H%M%S)"
+            mkdir -p "$backup_dir" 2>/dev/null || true
+            
+            # Reset problematic databases
+            databases_fixed=""
+            db_paths="/usr/local/share/nlbwmon/data.db /usr/local/share/ip_block/attempts.db /tmp/dhcp.leases.db"
+            
+            for db_path in $db_paths; do
+                if [ -f "$db_path" ]; then
+                    log_debug "Backing up and resetting database: $db_path"
+                    # Backup original
+                    cp "$db_path" "$backup_dir/$(basename "$db_path").backup" 2>/dev/null || true
+                    # Remove problematic database (will be recreated)
+                    if rm -f "$db_path" 2>/dev/null; then
+                        databases_fixed="$databases_fixed $(basename "$db_path")"
+                    fi
+                fi
+            done
+            
+            # Check and restart ubus if needed
+            ubus_restarted=""
+            if ! ubus list >/dev/null 2>&1; then
+                log_debug "ubus not responding, attempting restart"
+                if pidof ubusd >/dev/null; then
+                    killall ubusd 2>/dev/null || true
+                    sleep 2
+                fi
+                ubusd >/dev/null 2>&1 &
+                sleep 2
+                if ubus list >/dev/null 2>&1; then
+                    ubus_restarted=" ubus"
+                fi
+            fi
+            
+            # Restart services
+            services_restarted=""
+            for service in $services_stopped; do
+                if /etc/init.d/"$service" start >/dev/null 2>&1; then
+                    services_restarted="$services_restarted $service"
+                fi
+            done
+            
+            # Wait and check if loop is resolved
+            sleep 10
+            new_spam_count=0
+            if command -v logread >/dev/null 2>&1; then
+                recent_check=$(logread -l 20 2>/dev/null | tail -n 10 || true)
+                if [ -n "$recent_check" ]; then
+                    new_spam_count=$(echo "$recent_check" | grep -c "Unable to optimize database\|Failed to restore database" 2>/dev/null || echo "0")
+                fi
+            fi
+            
+            if [ "$new_spam_count" -lt 2 ]; then
+                # Success - build detailed action message
+                action_details="Reset databases:$databases_fixed. Restarted:$services_restarted$ubus_restarted. Backup: $backup_dir"
+                record_action "FIXED" "Database optimization loop resolved" "$action_details"
+                log_success "Database optimization loop appears to be resolved"
+            else
+                # Still having issues
+                record_action "CRITICAL" "Database optimization loop persists after repair attempt" "Manual investigation required - backup saved to $backup_dir"
+                log_error "Database loop persists after attempted fix"
+            fi
+        fi
+    else
+        log_debug "No database optimization loop detected"
+    fi
+}
+
+# Check 8: Network interface issues
 check_network_interfaces() {
     log_debug "Checking network interfaces"
     
@@ -373,7 +478,7 @@ check_network_interfaces() {
     fi
 }
 
-# Check 8: System service health
+# Check 9: System service health
 check_system_services() {
     log_debug "Checking system services"
     
@@ -401,7 +506,7 @@ check_system_services() {
     done
 }
 
-# Check 9: Disk space monitoring
+# Check 10: Disk space monitoring
 check_disk_space() {
     log_debug "Checking disk space usage"
     
@@ -436,7 +541,7 @@ check_disk_space() {
     fi
 }
 
-# Check 10: Permission issues on critical files
+# Check 11: Permission issues on critical files
 check_critical_permissions() {
     log_debug "Checking permissions on critical files and directories"
     
@@ -495,6 +600,7 @@ run_all_checks() {
     check_log_file_sizes
     check_temporary_files
     check_memory_usage
+    check_database_optimization_loop
     check_network_interfaces
     check_system_services
     check_disk_space
@@ -631,6 +737,7 @@ Examples:
 
 Current Issues Detected:
   - Missing /var/lock directory (qmimux.lock error) ✅ FIXED
+  - Database optimization loops (nlbwmon/ip_block spam) ✅ FIXED  
   - Large log files requiring rotation
   - Old temporary files cleanup
   - High memory/disk usage monitoring
