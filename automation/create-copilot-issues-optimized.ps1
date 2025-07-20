@@ -557,6 +557,37 @@ function Parse-ValidationOutput {
                 Write-DebugMessage "Skipped issue for different file: $filepath"
             }
         }
+        # Handle ShellCheck format from pre-commit script: [SEVERITY] filepath: ShellCheck_Code: description
+        elseif ($line -match "^\[(CRITICAL|MAJOR|MINOR|WARNING)\]\s+(.+?):\s+(SC\d+):\s+(.+)$") {
+            $severity = $Matches[1]
+            $filepath = $Matches[2] -replace "^\.\/", ""
+            $shellCheckCode = $Matches[3]
+            $description = $Matches[4]
+            
+            Write-DebugMessage "Found ShellCheck formatted issue: [$severity] $filepath`: $shellCheckCode`: $description"
+            
+            # Only include issues for our target file
+            if ($filepath -eq $FilePath) {
+                $issueType = switch ($severity) {
+                    "CRITICAL" { "Critical" }
+                    "MAJOR" { "Major" }
+                    "MINOR" { "Minor" }
+                    "WARNING" { "Warning" }
+                    default { "Minor" }
+                }
+                
+                $issues += @{
+                    Line = 0  # ShellCheck format doesn't always have line numbers in this context
+                    Description = "$shellCheckCode`: $description".Trim()
+                    Type = $issueType
+                    Severity = $severity
+                }
+                
+                Write-DebugMessage "Added ShellCheck issue: Type=$issueType, Code=$shellCheckCode"
+            } else {
+                Write-DebugMessage "ShellCheck issue not for target file ($FilePath): $filepath"
+            }
+        }
         # Handle ShellCheck format: filepath:line:column: note/warning/error: description
         elseif ($line -match "^(.+?):(\d+):(\d+):\s+(note|warning|error):\s+(.+)$") {
             $filepath = $Matches[1] -replace "^\.\/", ""
@@ -1311,30 +1342,37 @@ function Start-OptimizedIssueCreation {
     # Load state
     Load-IssueState | Out-Null
     
-    # Run full validation first to get all issues
-    Write-StepMessage "🔍 Running comprehensive validation on all files..."
-    $fullValidationResult = Invoke-FullValidation
-    
-    if ($fullValidationResult.TotalIssues -eq 0) {
-        Write-SuccessMessage "🎉 No validation issues found - all files are clean!"
-        return
-    }
-    
-    $filesWithIssues = $fullValidationResult.FileIssues
-    Write-InfoMessage "📊 Full validation complete: Found issues in $($filesWithIssues.Keys.Count) files, total $($fullValidationResult.TotalIssues) issues"
-    
-    # Filter files based on target file if specified
+    # Run validation - either on target file only or all files
     if ($TargetFile) {
-        Write-InfoMessage "🎯 Filtering for target file: $TargetFile"
-        $originalCount = $filesWithIssues.Keys.Count
-        $filteredIssues = @{}
-        foreach ($file in $filesWithIssues.Keys) {
-            if ($file -eq $TargetFile -or $file.EndsWith($TargetFile)) {
-                $filteredIssues[$file] = $filesWithIssues[$file]
+        Write-StepMessage "🔍 Running validation on target file: $TargetFile..."
+        $targetValidationResult = Invoke-ValidationOnFile -FilePath $TargetFile
+        
+        if ($targetValidationResult.Issues.Count -eq 0) {
+            Write-SuccessMessage "🎉 No validation issues found in target file!"
+            return
+        }
+        
+        # Convert single file result to same format as full validation
+        $filesWithIssues = @{
+            $TargetFile = @{
+                Issues = $targetValidationResult.Issues
+                Critical = ($targetValidationResult.Issues | Where-Object { $_.Severity -eq 'CRITICAL' }).Count
+                Major = ($targetValidationResult.Issues | Where-Object { $_.Severity -eq 'MAJOR' }).Count
+                Minor = ($targetValidationResult.Issues | Where-Object { $_.Severity -eq 'MINOR' }).Count
             }
         }
-        $filesWithIssues = $filteredIssues
-        Write-InfoMessage "📊 Filtered from $originalCount to $($filesWithIssues.Keys.Count) files for target"
+        Write-InfoMessage "📊 Target file validation complete: Found $($targetValidationResult.Issues.Count) issues in $TargetFile"
+    } else {
+        Write-StepMessage "🔍 Running comprehensive validation on all files..."
+        $fullValidationResult = Invoke-FullValidation
+        
+        if ($fullValidationResult.TotalIssues -eq 0) {
+            Write-SuccessMessage "🎉 No validation issues found - all files are clean!"
+            return
+        }
+        
+        $filesWithIssues = $fullValidationResult.FileIssues
+        Write-InfoMessage "📊 Full validation complete: Found issues in $($filesWithIssues.Keys.Count) files, total $($fullValidationResult.TotalIssues) issues"
     }
     
     # Sort files by priority if requested
