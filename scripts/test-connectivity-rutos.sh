@@ -24,8 +24,10 @@ else
     log_debug "System configuration not found at $SYSTEM_CONFIG_FILE, using defaults"
 fi
 
-# Binary paths - now dynamic from system config
-GRPCURL_PATH="${INSTALL_DIR}/grpcurl"
+# Binary paths - will be set after loading main config file
+# Default fallbacks if not set in config
+GRPCURL_CMD=""
+JQ_CMD=""
 
 # Standard colors for consistent output (RUTOS-compatible)
 # Use same working approach as install script that showed colors successfully
@@ -145,6 +147,11 @@ load_config() {
 
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
+    
+    # Set binary paths from configuration variables with fallback defaults
+    GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
+    JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
+    
     log_success "Configuration loaded successfully"
 }
 
@@ -207,18 +214,20 @@ test_system_requirements() {
         return 1
     fi
 
-    # Check if grpcurl is available (check both system PATH and our installation)
-    if ! command -v grpcurl >/dev/null 2>&1 && [ ! -f "$GRPCURL_PATH" ]; then
-        log_error "grpcurl not found in system PATH or $GRPCURL_PATH"
-        log_debug "Checked locations: system PATH, $GRPCURL_PATH"
+    # Check if grpcurl is available (check both system PATH and configured location)
+    if ! command -v grpcurl >/dev/null 2>&1 && [ ! -f "$GRPCURL_CMD" ]; then
+        log_error "grpcurl not found in system PATH or $GRPCURL_CMD"
+        log_debug "Checked locations: system PATH, $GRPCURL_CMD"
         return 1
     fi
 
     # Set grpcurl command based on availability
     if command -v grpcurl >/dev/null 2>&1; then
+        grpcurl_cmd="grpcurl"
         log_debug "Using system grpcurl from PATH"
     else
-        log_debug "Using local grpcurl from $GRPCURL_PATH"
+        grpcurl_cmd="$GRPCURL_CMD"
+        log_debug "Using configured grpcurl from $GRPCURL_CMD"
     fi
 
     log_debug "System requirements test passed"
@@ -305,15 +314,18 @@ test_starlink_api_device_info() {
     log_debug "Testing Starlink gRPC Device/Handle API (get_device_info)"
     starlink_host=$(echo "$STARLINK_IP" | cut -d':' -f1)
     starlink_port=$(echo "$STARLINK_IP" | cut -d':' -f2)
-    grpcurl_cmd="$INSTALL_DIR/grpcurl"
+    
+    # Use configured grpcurl command
     if ! command -v grpcurl >/dev/null 2>&1; then
-        if [ ! -f "$grpcurl_cmd" ]; then
-            log_error "grpcurl not found"
+        if [ ! -f "$GRPCURL_CMD" ]; then
+            log_error "grpcurl not found at configured location: $GRPCURL_CMD"
             return 1
         fi
+        grpcurl_cmd="$GRPCURL_CMD"
     else
         grpcurl_cmd="grpcurl"
     fi
+    
     # Use the provided payload for get_device_info
     payload='{"get_device_info":{}}'
     if response=$(timeout 10 "$grpcurl_cmd" -plaintext -d "$payload" "$starlink_host:$starlink_port" SpaceX.API.Device.Device/Handle 2>/dev/null); then
@@ -356,12 +368,13 @@ test_starlink_api() {
     fi
 
     # Test gRPC API call
-    grpcurl_cmd="$INSTALL_DIR/grpcurl"
+    # Use configured grpcurl command
     if ! command -v grpcurl >/dev/null 2>&1; then
-        if [ ! -f "$grpcurl_cmd" ]; then
-            log_error "grpcurl not found"
+        if [ ! -f "$GRPCURL_CMD" ]; then
+            log_error "grpcurl not found at configured location: $GRPCURL_CMD"
             return 1
         fi
+        grpcurl_cmd="$GRPCURL_CMD"
     else
         grpcurl_cmd="grpcurl"
     fi
