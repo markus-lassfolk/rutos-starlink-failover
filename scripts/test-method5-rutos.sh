@@ -52,11 +52,11 @@ log_step() {
 
 # Main test function
 main() {
-    echo "=========================================="
-    echo "Method 5 Format Final Validation Test"
-    echo "Script Version: $SCRIPT_VERSION"
-    echo "=========================================="
-    echo ""
+    printf "==========================================\n"
+    printf "Method 5 Format Final Validation Test\n"
+    printf "Script Version: %s\n" "$SCRIPT_VERSION"
+    printf "==========================================\n"
+    printf "\n"
 
     log_step "Testing Method 5 color format (the working format)"
     log_info "This should show in GREEN with proper color codes"
@@ -65,27 +65,32 @@ main() {
     log_debug "This should show in CYAN with proper color codes"
     log_success "This should show in GREEN with SUCCESS label"
 
-    echo ""
-    echo "Direct printf tests using Method 5 format:"
+    printf "\n"
+    printf "Direct printf tests using Method 5 format:\n"
+    # shellcheck disable=SC2059
     printf "${GREEN}✓ GREEN${NC} - This should be green\n"
+    # shellcheck disable=SC2059
     printf "${YELLOW}⚠ YELLOW${NC} - This should be yellow\n"
+    # shellcheck disable=SC2059
     printf "${RED}✗ RED${NC} - This should be red\n"
+    # shellcheck disable=SC2059
     printf "${BLUE}▶ BLUE${NC} - This should be blue\n"
+    # shellcheck disable=SC2059
     printf "${CYAN}ℹ CYAN${NC} - This should be cyan\n"
 
-    echo ""
-    echo "Environment Detection:"
-    echo "TERM: ${TERM:-<not set>}"
-    echo "SSH_TTY: ${SSH_TTY:-<not set>}"
-    echo "Terminal test: $([ -t 1 ] && echo "TTY detected" || echo "No TTY")"
-    echo "Colors: $([ -n "$RED" ] && echo "ENABLED" || echo "DISABLED")"
+    printf "\n"
+    printf "Environment Detection:\n"
+    printf "TERM: %s\n" "${TERM:-<not set>}"
+    printf "SSH_TTY: %s\n" "${SSH_TTY:-<not set>}"
+    printf "Terminal test: %s\n" "$([ -t 1 ] && echo "TTY detected" || echo "No TTY")"
+    printf "Colors: %s\n" "$([ -n "$RED" ] && echo "ENABLED" || echo "DISABLED")"
 
-    echo ""
+    printf "\n"
     log_success "Method 5 format validation complete"
-    echo ""
-    echo "If you see actual colors (not escape codes like \\033[0;32m),"
-    echo "then Method 5 format is working correctly in your environment!"
-    echo "=========================================="
+    printf "\n"
+    printf "If you see actual colors (not raw escape codes),\n"
+    printf "then Method 5 format is working correctly in your environment!\n"
+    printf "==========================================\n"
 }
 
 # Execute main function
