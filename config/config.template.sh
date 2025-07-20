@@ -74,6 +74,21 @@ export LOG_RETENTION_DAYS=7
 # Syslog tag for log messages (shown in system logs)
 export LOG_TAG="StarlinkMonitor"
 
+# --- System Maintenance Configuration ---
+
+# Enable Pushover notifications for critical maintenance issues
+export MAINTENANCE_PUSHOVER_ENABLED="true"  # Uses PUSHOVER_TOKEN/PUSHOVER_USER if not overridden
+
+# Optional: Override Pushover credentials specifically for maintenance (leave empty to use main settings)
+export MAINTENANCE_PUSHOVER_TOKEN=""  # Leave empty to use PUSHOVER_TOKEN
+export MAINTENANCE_PUSHOVER_USER=""   # Leave empty to use PUSHOVER_USER
+
+# Number of critical issues before sending notification (default: 3)
+export MAINTENANCE_CRITICAL_THRESHOLD=3
+
+# Notification cooldown in seconds - prevents spam (default: 3600 = 1 hour)
+export MAINTENANCE_NOTIFICATION_COOLDOWN=3600
+
 # --- Binary Paths (set by install script) ---
 
 export GRPCURL_CMD="/usr/local/starlink-monitor/grpcurl" # gRPC client for Starlink API

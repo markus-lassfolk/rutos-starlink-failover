@@ -978,6 +978,9 @@ This document lists all scripts installed by the Starlink monitoring system.
 - `update-cron-config-path-rutos.sh` - Cron path updater
 - `upgrade-rutos.sh` - System upgrade helper
 - `placeholder-utils.sh` - Utility functions library
+- `fix-database-loop-rutos.sh` - Database loop repair tool
+- `diagnose-database-loop-rutos.sh` - Database loop diagnostic
+- `system-maintenance-rutos.sh` - Generic system maintenance and issue fixing
 
 ### Test Scripts (in scripts/tests/)
 - `test-pushover-rutos.sh` - Test Pushover notifications
@@ -1025,6 +1028,33 @@ This document lists all scripts installed by the Starlink monitoring system.
 
 # Restore from backup
 /usr/local/starlink-monitor/scripts/restore-config-rutos.sh
+```
+
+### Database Troubleshooting
+```bash
+# Diagnose database loop issues
+/usr/local/starlink-monitor/scripts/diagnose-database-loop-rutos.sh
+
+# Fix database optimization loops
+/usr/local/starlink-monitor/scripts/fix-database-loop-rutos.sh
+
+# Check system status only
+/usr/local/starlink-monitor/scripts/fix-database-loop-rutos.sh status
+```
+
+### System Maintenance
+```bash
+# Run automatic system maintenance (check and fix issues)
+/usr/local/starlink-monitor/scripts/system-maintenance-rutos.sh
+
+# Check for issues only (no fixes)
+/usr/local/starlink-monitor/scripts/system-maintenance-rutos.sh check
+
+# Generate maintenance report
+/usr/local/starlink-monitor/scripts/system-maintenance-rutos.sh report
+
+# Run with debug output
+DEBUG=1 /usr/local/starlink-monitor/scripts/system-maintenance-rutos.sh
 ```
 
 ## Debug Mode
@@ -1123,7 +1153,10 @@ install_scripts() {
         verify-cron-rutos.sh \
         update-cron-config-path-rutos.sh \
         upgrade-rutos.sh \
-        placeholder-utils.sh; do
+        placeholder-utils.sh \
+        fix-database-loop-rutos.sh \
+        diagnose-database-loop-rutos.sh \
+        system-maintenance-rutos.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then
             cp "$script_dir/$script" "$INSTALL_DIR/scripts/$script"
@@ -1399,6 +1432,7 @@ configure_cron() {
         sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_monitor-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
         sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_logger-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
         sed -i '/^0 6 \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/check_starlink_api.*\.sh$/d' "$temp_cron" 2>/dev/null || true
+        sed -i '/^0 \*\/6 \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/system-maintenance-rutos\.sh auto$/d' "$temp_cron" 2>/dev/null || true
 
         # Also clean up any previously commented entries from old install script behavior
         sed -i '/^# COMMENTED BY INSTALL SCRIPT.*starlink/d' "$temp_cron" 2>/dev/null || true
@@ -1432,12 +1466,14 @@ configure_cron() {
     existing_monitor=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_logger=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_api_check=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
+    existing_maintenance=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
 
-    if [ "$existing_monitor" -gt 0 ] || [ "$existing_logger" -gt 0 ] || [ "$existing_api_check" -gt 0 ]; then
+    if [ "$existing_monitor" -gt 0 ] || [ "$existing_logger" -gt 0 ] || [ "$existing_api_check" -gt 0 ] || [ "$existing_maintenance" -gt 0 ]; then
         print_status "$YELLOW" "⚠ Found existing cron entries for our scripts:"
         print_status "$YELLOW" "  starlink_monitor-rutos.sh: $existing_monitor entries"
         print_status "$YELLOW" "  starlink_logger-rutos.sh: $existing_logger entries"
         print_status "$YELLOW" "  check_starlink_api: $existing_api_check entries"
+        print_status "$YELLOW" "  system-maintenance-rutos.sh: $existing_maintenance entries"
         print_status "$YELLOW" "📋 Preserving existing custom timing - not adding default entries"
         print_status "$BLUE" "✓ Custom cron configuration preserved"
         return 0
@@ -1479,6 +1515,8 @@ configure_cron() {
 * * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_monitor-rutos.sh
 * * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_logger-rutos.sh
 0 6 * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/check_starlink_api-rutos.sh
+# System maintenance - runs every 6 hours to check and fix common issues
+0 */6 * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/system-maintenance-rutos.sh auto
 EOF
 
     # Restart cron service
@@ -1529,6 +1567,7 @@ if [ -f "$CRON_FILE" ]; then
     sed "s|^\([^#].*starlink_monitor\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
          s|^\([^#].*starlink_logger\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
          s|^\([^#].*check_starlink_api\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
+         s|^\([^#].*system-maintenance-rutos\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
          s|^\([^#].*Starlink monitoring system.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g" \
         "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || {
         # If sed fails, preserve the file
