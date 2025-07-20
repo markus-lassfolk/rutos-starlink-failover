@@ -8,12 +8,24 @@ set -e
 # Version information
 SCRIPT_VERSION="1.0.2"
 
-# Standard colors for consistent output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Standard colors for consistent output (RUTOS-compatible)
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    # shellcheck disable=SC2034
+    CYAN='\033[0;36m'
+    NC='\033[0m' # No Color
+else
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    # shellcheck disable=SC2034
+    CYAN=""
+    NC=""
+fi
 
 # Standard logging functions
 log_info() {
@@ -76,9 +88,9 @@ install_python_tools() {
     pip3 install --user black flake8 pylint mypy isort bandit yamllint
 
     # Add user bin to PATH if not already there
-    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
         log_info "Adding ~/.local/bin to PATH"
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >>~/.bashrc
+        echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >>"$HOME/.bashrc"
         export PATH="$HOME/.local/bin:$PATH"
     fi
 }
@@ -147,9 +159,9 @@ install_go_tools() {
 
     # Add GOPATH/bin to PATH if not already there
     GOPATH=$(go env GOPATH)
-    if [[ ":$PATH:" != *":$GOPATH/bin:"* ]]; then
+    if ! echo "$PATH" | grep -q "$GOPATH/bin"; then
         log_info "Adding $GOPATH/bin to PATH"
-        echo "export PATH=\"$GOPATH/bin:\$PATH\"" >>~/.bashrc
+        echo "export PATH=\"$GOPATH/bin:\$PATH\"" >>"$HOME/.bashrc"
         export PATH="$GOPATH/bin:$PATH"
     fi
 }
@@ -158,39 +170,59 @@ install_go_tools() {
 verify_installations() {
     log_step "Verifying installations"
 
-    local tools=(
-        "shellcheck:Shell script linting"
-        "shfmt:Shell script formatting"
-        "black:Python code formatting"
-        "flake8:Python style guide enforcement"
-        "pylint:Python comprehensive linting"
-        "mypy:Python type checking"
-        "isort:Python import sorting"
-        "bandit:Python security scanning"
-        "markdownlint:Markdown linting"
-        "prettier:Code formatting"
-        "jq:JSON processing"
-        "yamllint:YAML linting"
-        "pwsh:PowerShell Core"
-        "bicep:Azure Bicep CLI"
-    )
+    # POSIX-compatible approach using a multi-line string
+    tools_list="shellcheck:Shell script linting
+shfmt:Shell script formatting
+black:Python code formatting
+flake8:Python style guide enforcement
+pylint:Python comprehensive linting
+mypy:Python type checking
+isort:Python import sorting
+bandit:Python security scanning
+markdownlint:Markdown linting
+prettier:Code formatting
+jq:JSON processing
+yamllint:YAML linting
+pwsh:PowerShell Core
+bicep:Azure Bicep CLI"
 
-    local available_count=0
-    local total_count=${#tools[@]}
+    available_count=0
+    total_count=0
 
-    for tool_info in "${tools[@]}"; do
-        IFS=":" read -r tool_name tool_description <<<"$tool_info"
+    # Create temporary files for counting in POSIX way
+    temp_dir="/tmp"
+    available_file="$temp_dir/available_count_$$"
+    total_file="$temp_dir/total_count_$$"
+    
+    echo "0" > "$available_file"
+    echo "0" > "$total_file"
+
+    # Process each tool
+    echo "$tools_list" | while IFS=':' read -r tool_name tool_description; do
+        total_count=$(cat "$total_file")
+        total_count=$((total_count + 1))
+        echo "$total_count" > "$total_file"
+        
         if command_exists "$tool_name"; then
             log_info "✅ $tool_name ($tool_description) - Available"
+            available_count=$(cat "$available_file")
             available_count=$((available_count + 1))
+            echo "$available_count" > "$available_file"
         else
             log_warning "❌ $tool_name ($tool_description) - Not available"
         fi
     done
 
+    # Read final counts
+    available_count=$(cat "$available_file")
+    total_count=$(cat "$total_file")
+    
+    # Clean up temporary files
+    rm -f "$available_file" "$total_file"
+    
     log_info "Tool availability: $available_count/$total_count tools available"
 
-    if [ $available_count -eq $total_count ]; then
+    if [ "$available_count" -eq "$total_count" ]; then
         log_info "🎉 All tools successfully installed!"
         return 0
     else
@@ -262,8 +294,8 @@ EOF
 create_validation_alias() {
     log_step "Creating convenient validation alias"
 
-    local alias_line="alias validate-code='$(pwd)/scripts/comprehensive-validation.sh'"
-    local bashrc_file="$HOME/.bashrc"
+    alias_line="alias validate-code='$(pwd)/scripts/comprehensive-validation.sh'"
+    bashrc_file="$HOME/.bashrc"
 
     if [ -f "$bashrc_file" ]; then
         if ! grep -q "validate-code" "$bashrc_file"; then
@@ -274,7 +306,7 @@ create_validation_alias() {
             log_info "Alias 'validate-code' already exists in ~/.bashrc"
         fi
     else
-        log_warning "~/.bashrc not found. You can manually add: $alias_line"
+        log_warning "$HOME/.bashrc not found. You can manually add: $alias_line"
     fi
 }
 
@@ -307,18 +339,18 @@ EOF
 
 # Main function
 main() {
-    local install_system=false
-    local install_python=false
-    local install_nodejs=false
-    local install_powershell=false
-    local install_bicep=false
-    local install_go=false
-    local verify_only=false
-    local show_manual=false
-    local install_all=true
+    install_system=false
+    install_python=false
+    install_nodejs=false
+    install_powershell=false
+    install_bicep=false
+    install_go=false
+    verify_only=false
+    show_manual=false
+    install_all=true
 
     # Parse command line arguments
-    while [[ $# -gt 0 ]]; do
+    while [ $# -gt 0 ]; do
         case $1 in
             --system)
                 install_system=true
