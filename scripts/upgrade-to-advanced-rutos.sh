@@ -268,7 +268,7 @@ main() {
     print_info "1. Edit configuration: vi $CONFIG_DIR/config.sh"
     print_info "2. Restart monitoring: systemctl restart starlink-monitor (if running)"
     print_info "3. Test the system manually"
-    
+
     echo
     print_info "Configuration has been automatically validated and repaired."
     print_info "To re-run validation manually: $INSTALL_DIR/scripts/validate-config-rutos.sh"
