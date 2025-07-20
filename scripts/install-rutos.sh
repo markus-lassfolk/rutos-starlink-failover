@@ -639,7 +639,7 @@ EOF
             fi
         done
 
-        # Show maintenance settings specifically  
+        # Show maintenance settings specifically
         config_debug "=== MAINTENANCE SETTINGS VERIFICATION ==="
         for maintenance_setting in "MAINTENANCE_PUSHOVER_ENABLED" "MAINTENANCE_NOTIFY_ON_START" "MAINTENANCE_NOTIFY_ON_COMPLETION" "MAINTENANCE_AUTO_FIX_ENABLED"; do
             if grep -q "^export ${maintenance_setting}=" "$output_config" 2>/dev/null; then
@@ -1499,7 +1499,7 @@ configure_cron() {
 
     print_status "$BLUE" "Checking existing cron entries:"
     print_status "$BLUE" "  starlink_monitor-rutos.sh: $existing_monitor entries"
-    print_status "$BLUE" "  starlink_logger-rutos.sh: $existing_logger entries"  
+    print_status "$BLUE" "  starlink_logger-rutos.sh: $existing_logger entries"
     print_status "$BLUE" "  check_starlink_api: $existing_api_check entries"
     print_status "$BLUE" "  system-maintenance-rutos.sh: $existing_maintenance entries"
 
