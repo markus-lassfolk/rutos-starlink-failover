@@ -47,7 +47,7 @@ BACKUP_CONFIG="$CONFIG_DIR/config.sh.backup.$(date +%Y%m%d_%H%M%S)"
 print_status() {
     color="$1"
     message="$2"
-    printf "%s%s%s\n" "$color" "$message" "$NC"
+    printf "${color}%s${NC}\n" "$message"
 }
 
 print_error() {
