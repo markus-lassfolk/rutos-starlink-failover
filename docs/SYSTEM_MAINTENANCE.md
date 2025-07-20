@@ -2,7 +2,8 @@
 
 ## Overview
 
-The `system-maintenance-rutos.sh` script is a generic system health checker and issue resolver for RUTOS systems. It automatically detects common problems and can fix them without manual intervention.
+The `system-maintenance-rutos.sh` script is a generic system health checker and issue resolver for RUTOS systems.
+It automatically detects common problems and can fix them without manual intervention.
 
 ## Features
 
@@ -29,7 +30,8 @@ The `system-maintenance-rutos.sh` script is a generic system health checker and 
 
 ## Configuration Controls
 
-The maintenance script behavior can be controlled through configuration variables in your `config.sh` file. These controls allow you to customize how aggressive the maintenance system should be:
+The maintenance script behavior can be controlled through configuration variables in your `config.sh` file.
+These controls allow you to customize how aggressive the maintenance system should be:
 
 ### Basic Configuration Controls
 
@@ -114,7 +116,7 @@ DEBUG=1 /usr/local/starlink-monitor/scripts/system-maintenance-rutos.sh
 
 The script is automatically scheduled to run every 6 hours:
 
-```
+```cron
 0 */6 * * * /usr/local/starlink-monitor/scripts/system-maintenance-rutos.sh auto
 ```
 
@@ -130,37 +132,37 @@ To add a new maintenance check, follow this pattern:
 
 1. Create a new function in the script following the naming convention `check_*`:
 
-```bash
-# Check [N]: [Description]
-check_new_issue() {
-    log_debug "Checking for [describe what you're checking]"
+   ```bash
+   # Check [N]: [Description]
+   check_new_issue() {
+       log_debug "Checking for [describe what you're checking]"
 
-    if [ condition_indicating_problem ]; then
-        record_action "FOUND" "[Issue description]" "[Fix description]"
+       if [ condition_indicating_problem ]; then
+           record_action "FOUND" "[Issue description]" "[Fix description]"
 
-        if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
-            if fix_command_here; then
-                record_action "FIXED" "[Issue description]" "[Command used to fix]"
-            else
-                log_error "Failed to fix [issue]"
-            fi
-        fi
-    else
-        log_debug "[Normal state message]"
-        record_action "CHECK" "[What was checked]" "No action needed"
-    fi
-}
-```
+           if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
+               if fix_command_here; then
+                   record_action "FIXED" "[Issue description]" "[Command used to fix]"
+               else
+                   log_error "Failed to fix [issue]"
+               fi
+           fi
+       else
+           log_debug "[Normal state message]"
+           record_action "CHECK" "[What was checked]" "No action needed"
+       fi
+   }
+   ```
 
 2. Add your function to the `run_all_checks()` function:
 
-```bash
-run_all_checks() {
-    # ... existing checks ...
-    check_new_issue
-    # Add more checks here in the future
-}
-```
+   ```bash
+   run_all_checks() {
+       # ... existing checks ...
+       check_new_issue
+       # Add more checks here in the future
+   }
+   ```
 
 ## Example: The Original Issue
 
@@ -168,7 +170,7 @@ The script was created to fix this specific issue:
 
 **Problem**:
 
-```
+```text
 daemon.notice netifd: mob1s1a1 (10544): ./wwan.sh: eval: line 133: can't create /var/lock/qmimux.lock: nonexistent directory
 ```
 
@@ -287,6 +289,7 @@ If the maintenance script isn't working:
    ```
 
 4. Run manually with debug:
+
    ```bash
    DEBUG=1 /usr/local/starlink-monitor/scripts/system-maintenance-rutos.sh check
    ```
