@@ -1430,6 +1430,16 @@ install_config() {
     cp "$temp_basic_template" "$INSTALL_DIR/config/config.template.sh" 2>/dev/null || true
     cp "$temp_advanced_template" "$INSTALL_DIR/config/config.advanced.template.sh" 2>/dev/null || true
 
+    # Install system configuration for dynamic testing and validation
+    if [ -f "$config_dir/system-config.sh" ]; then
+        cp "$config_dir/system-config.sh" "$INSTALL_DIR/config/system-config.sh" 2>/dev/null || true
+        print_status "$GREEN" "✓ System configuration installed for dynamic testing"
+    elif download_file "$BASE_URL/config/system-config.sh" "$INSTALL_DIR/config/system-config.sh" 2>/dev/null; then
+        print_status "$GREEN" "✓ System configuration downloaded and installed"
+    else
+        print_status "$YELLOW" "⚠ System configuration not available (tests will use defaults)"
+    fi
+
     # Create convenience symlinks pointing to persistent config
     ln -sf "$primary_config" "/root/config.sh" 2>/dev/null || true
     ln -sf "$INSTALL_DIR" "/root/starlink-monitor" 2>/dev/null || true
@@ -1955,7 +1965,7 @@ main() {
     print_status "$YELLOW" "   - Adjust maintenance behavior (MAINTENANCE_AUTO_FIX_ENABLED, etc.)"
     print_status "$YELLOW" "   - Adjust failover thresholds if needed"
     print_status "$YELLOW" "2. Validate configuration: $INSTALL_DIR/scripts/validate-config-rutos.sh"
-    print_status "$YELLOW" "3. Test connectivity: $INSTALL_DIR/scripts/test-connectivity-rutos.sh"
+    print_status "$YELLOW" "3. Test connectivity: $INSTALL_DIR/scripts/tests/test-connectivity-rutos.sh"
     print_status "$YELLOW" "4. Check system status: $INSTALL_DIR/scripts/system-status-rutos.sh"
     print_status "$YELLOW" "5. Run health check: $INSTALL_DIR/scripts/health-check-rutos.sh"
     print_status "$YELLOW" "6. Test system maintenance: $INSTALL_DIR/scripts/system-maintenance-rutos.sh check"
@@ -1977,7 +1987,7 @@ main() {
     print_status "$BLUE" "• Verify cron scheduling: $INSTALL_DIR/scripts/verify-cron-rutos.sh"
     print_status "$BLUE" "• Test Pushover notifications: $INSTALL_DIR/scripts/test-pushover-rutos.sh"
     print_status "$BLUE" "• Test monitoring: $INSTALL_DIR/scripts/test-monitoring-rutos.sh"
-    print_status "$BLUE" "• Test connectivity: $INSTALL_DIR/scripts/test-connectivity-rutos.sh"
+    print_status "$BLUE" "• Test connectivity: $INSTALL_DIR/scripts/tests/test-connectivity-rutos.sh"
     print_status "$BLUE" "• Test color support: $INSTALL_DIR/scripts/test-colors-rutos.sh"
     print_status "$BLUE" "• Test Method 5 color format: $INSTALL_DIR/scripts/test-method5-rutos.sh"
     print_status "$BLUE" "• Update config with new options: $INSTALL_DIR/scripts/update-config-rutos.sh"
@@ -1987,7 +1997,7 @@ main() {
     # Print recommended actions with correct filenames
     print_status "$BLUE" "  • Test monitoring: ./scripts/test-monitoring-rutos.sh"
     print_status "$BLUE" "  • Test Pushover: ./scripts/test-pushover-rutos.sh"
-    print_status "$BLUE" "  • Test connectivity: ./scripts/test-connectivity-rutos.sh"
+    print_status "$BLUE" "  • Test connectivity: ./scripts/tests/test-connectivity-rutos.sh"
     print_status "$BLUE" "  • Test colors (for troubleshooting): ./scripts/test-colors-rutos.sh"
     print_status "$BLUE" "  • Test Method 5 colors: ./scripts/test-method5-rutos.sh"
     print_status "$BLUE" "  • Validate config: ./scripts/validate-config-rutos.sh"

@@ -68,6 +68,7 @@ log_error() {
 }
 
 log_debug() {
+    # shellcheck disable=SC2317  # Function is called conditionally based on DEBUG environment variable
     if [ "$DEBUG" = "1" ]; then
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
         printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
@@ -114,7 +115,27 @@ show_status() {
 
 # Configuration paths
 CONFIG_FILE="/etc/starlink-config/config.sh"
-INSTALL_DIR="/root/starlink-monitor"
+# Directory paths - dynamic detection
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+INSTALL_DIR="${INSTALL_DIR:-$(dirname "$SCRIPT_DIR")}"
+
+# Load system configuration for dynamic testing
+SYSTEM_CONFIG_FILE="$INSTALL_DIR/config/system-config.sh"
+if [ -f "$SYSTEM_CONFIG_FILE" ]; then
+    # shellcheck source=/dev/null
+    . "$SYSTEM_CONFIG_FILE"
+    log_debug() { [ "${DEBUG:-0}" = "1" ] && echo "[DEBUG] $*" >&2; }
+    log_debug "System configuration loaded from $SYSTEM_CONFIG_FILE"
+else
+    log_debug() { [ "${DEBUG:-0}" = "1" ] && echo "[DEBUG] $*" >&2; }
+    log_debug "System configuration not found at $SYSTEM_CONFIG_FILE, using defaults"
+fi
+
+# Fallback to symlink location if main installation not found
+if [ ! -d "$INSTALL_DIR" ] && [ -d "/root/starlink-monitor" ]; then
+    INSTALL_DIR="/root/starlink-monitor"
+    log_debug "Using symlink installation directory: $INSTALL_DIR"
+fi
 
 # Debug mode support
 DEBUG="${DEBUG:-0}"
@@ -143,10 +164,23 @@ check_cron_status() {
         return
     fi
 
-    # Count monitoring entries
+    # Count monitoring entries - check ALL expected scripts dynamically
     monitor_entries=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
+    maintenance_entries=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+
+    # Clean counts (handle RUTOS busybox grep -c malformed output)
+    monitor_entries=$(echo "$monitor_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    logger_entries=$(echo "$logger_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    api_check_entries=$(echo "$api_check_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    maintenance_entries=$(echo "$maintenance_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
+
+    # Ensure valid numbers
+    monitor_entries=${monitor_entries:-0}
+    logger_entries=${logger_entries:-0}
+    api_check_entries=${api_check_entries:-0}
+    maintenance_entries=${maintenance_entries:-0}
 
     # Show detailed scheduling information
     if [ "$monitor_entries" -gt 0 ]; then
@@ -184,6 +218,20 @@ check_cron_status() {
         show_status "warn" "API check not scheduled in cron"
     fi
 
+    # Check maintenance scheduling
+    if [ "$maintenance_entries" -gt 0 ]; then
+        maintenance_schedule=$(grep "system-maintenance-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1 " " $2 " " $3 " " $4 " " $5}' 2>/dev/null || echo "unknown")
+        show_status "ok" "Maintenance scheduled: $maintenance_schedule ($maintenance_entries entries)"
+
+        if [ "$maintenance_entries" -gt 1 ]; then
+            show_status "warn" "Multiple maintenance entries may cause conflicts"
+        fi
+    else
+        show_status "error" "System maintenance not scheduled in cron - MISSING REQUIRED JOB!"
+        # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+        printf "${YELLOW}  → Add maintenance job: 0 */6 * * * CONFIG_FILE=/etc/starlink-config/config.sh %s/scripts/system-maintenance-rutos.sh auto${NC}\n" "${INSTALL_DIR:-/usr/local/starlink-monitor}"
+    fi
+
     # Check for commented entries
     commented_entries=$(grep -c "# COMMENTED BY.*starlink" "$CRON_FILE" 2>/dev/null || echo "0")
     if [ "$commented_entries" -gt 0 ]; then
@@ -193,7 +241,7 @@ check_cron_status() {
     fi
 
     # Show total entries summary
-    total_entries=$((monitor_entries + logger_entries + api_check_entries))
+    total_entries=$((monitor_entries + logger_entries + api_check_entries + maintenance_entries))
     if [ "$total_entries" -eq 0 ]; then
         show_status "error" "No monitoring entries found in cron - system will not monitor automatically"
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility

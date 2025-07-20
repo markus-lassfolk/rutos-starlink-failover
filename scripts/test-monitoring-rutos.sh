@@ -115,12 +115,14 @@ test_monitoring_config() {
         return 1
     fi
 
-    # Load placeholder utilities
+    # Load placeholder utilities - check both current dir and parent dir (for tests/ subdirectory)
     script_dir="$(dirname "$0")"
     if [ -f "$script_dir/placeholder-utils.sh" ]; then
         . "$script_dir/placeholder-utils.sh"
+    elif [ -f "$script_dir/../placeholder-utils.sh" ]; then
+        . "$script_dir/../placeholder-utils.sh"
     else
-        log_error "Required placeholder-utils.sh not found"
+        log_error "Required placeholder-utils.sh not found in $script_dir or $script_dir/.."
         return 1
     fi
 

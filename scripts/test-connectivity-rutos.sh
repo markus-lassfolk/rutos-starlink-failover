@@ -12,6 +12,21 @@ SCRIPT_VERSION="1.0.2"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="${INSTALL_DIR:-$(dirname "$SCRIPT_DIR")}"
 
+# Load system configuration for dynamic testing
+SYSTEM_CONFIG_FILE="$INSTALL_DIR/config/system-config.sh"
+if [ -f "$SYSTEM_CONFIG_FILE" ]; then
+    # shellcheck source=/dev/null
+    . "$SYSTEM_CONFIG_FILE"
+    log_debug() { [ "${DEBUG:-0}" = "1" ] && echo "[DEBUG] $*" >&2; }
+    log_debug "System configuration loaded from $SYSTEM_CONFIG_FILE"
+else
+    log_debug() { [ "${DEBUG:-0}" = "1" ] && echo "[DEBUG] $*" >&2; }
+    log_debug "System configuration not found at $SYSTEM_CONFIG_FILE, using defaults"
+fi
+
+# Binary paths - now dynamic from system config
+GRPCURL_PATH="${INSTALL_DIR}/grpcurl"
+
 # Standard colors for consistent output (RUTOS-compatible)
 # Use same working approach as install script that showed colors successfully
 RED=""
@@ -192,10 +207,18 @@ test_system_requirements() {
         return 1
     fi
 
-    # Check if grpcurl is available
-    if ! command -v grpcurl >/dev/null 2>&1 && [ ! -f "$INSTALL_DIR/grpcurl" ]; then
-        log_error "grpcurl not found in system PATH or $INSTALL_DIR/"
+    # Check if grpcurl is available (check both system PATH and our installation)
+    if ! command -v grpcurl >/dev/null 2>&1 && [ ! -f "$GRPCURL_PATH" ]; then
+        log_error "grpcurl not found in system PATH or $GRPCURL_PATH"
+        log_debug "Checked locations: system PATH, $GRPCURL_PATH"
         return 1
+    fi
+
+    # Set grpcurl command based on availability
+    if command -v grpcurl >/dev/null 2>&1; then
+        log_debug "Using system grpcurl from PATH"
+    else
+        log_debug "Using local grpcurl from $GRPCURL_PATH"
     fi
 
     log_debug "System requirements test passed"
