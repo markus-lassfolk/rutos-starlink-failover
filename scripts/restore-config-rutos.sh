@@ -11,6 +11,7 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[1;35m'
+    # shellcheck disable=SC2034  # CYAN is not used but may be needed for consistency
     CYAN='\033[0;36m'
     NC='\033[0m'
 else
@@ -18,6 +19,7 @@ else
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # CYAN is not used but may be needed for consistency
     CYAN=""
     NC=""
 fi
@@ -25,11 +27,19 @@ fi
 # Installation directory
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
 
-# Function to print colored output
+# Function to print colored output (Method 5 format for RUTOS compatibility)
 print_status() {
     color="$1"
     message="$2"
-    printf "%b[%s] %s%b\n" "$color" "$(date '+%Y-%m-%d %H:%M:%S')" "$message" "$NC"
+    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    # Use Method 5 format that works in RUTOS (embed variables in format string)
+    case "$color" in
+        "$RED") printf "${RED}[%s] %s${NC}\n" "$timestamp" "$message" ;;
+        "$GREEN") printf "${GREEN}[%s] %s${NC}\n" "$timestamp" "$message" ;;
+        "$YELLOW") printf "${YELLOW}[%s] %s${NC}\n" "$timestamp" "$message" ;;
+        "$BLUE") printf "${BLUE}[%s] %s${NC}\n" "$timestamp" "$message" ;;
+        *) printf "[%s] %s\n" "$timestamp" "$message" ;;
+    esac
 }
 
 print_status "$GREEN" "=== Configuration Restoration Utility ==="
