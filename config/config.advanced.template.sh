@@ -120,11 +120,11 @@ LOG_TAG="StarlinkMonitor"    # Syslog tag for identification
 # --- System Maintenance Configuration ---
 
 # Advanced maintenance settings - inherits from main config but allows overrides
-MAINTENANCE_PUSHOVER_ENABLED=1    # Enable maintenance notifications
-MAINTENANCE_PUSHOVER_TOKEN=""     # Leave empty to use main PUSHOVER_TOKEN
-MAINTENANCE_PUSHOVER_USER=""      # Leave empty to use main PUSHOVER_USER
-MAINTENANCE_CRITICAL_THRESHOLD=2  # Lower threshold for advanced monitoring (2 vs 3)
-MAINTENANCE_NOTIFICATION_COOLDOWN=1800  # 30 minutes cooldown (more frequent for advanced)
+MAINTENANCE_PUSHOVER_ENABLED=1         # Enable maintenance notifications
+MAINTENANCE_PUSHOVER_TOKEN=""          # Leave empty to use main PUSHOVER_TOKEN
+MAINTENANCE_PUSHOVER_USER=""           # Leave empty to use main PUSHOVER_USER
+MAINTENANCE_CRITICAL_THRESHOLD=2       # Lower threshold for advanced monitoring (2 vs 3)
+MAINTENANCE_NOTIFICATION_COOLDOWN=1800 # 30 minutes cooldown (more frequent for advanced)
 
 # --- Integration Settings ---
 

@@ -77,11 +77,11 @@ export LOG_TAG="StarlinkMonitor"
 # --- System Maintenance Configuration ---
 
 # Enable Pushover notifications for critical maintenance issues
-export MAINTENANCE_PUSHOVER_ENABLED="true"  # Uses PUSHOVER_TOKEN/PUSHOVER_USER if not overridden
+export MAINTENANCE_PUSHOVER_ENABLED="true" # Uses PUSHOVER_TOKEN/PUSHOVER_USER if not overridden
 
 # Optional: Override Pushover credentials specifically for maintenance (leave empty to use main settings)
-export MAINTENANCE_PUSHOVER_TOKEN=""  # Leave empty to use PUSHOVER_TOKEN
-export MAINTENANCE_PUSHOVER_USER=""   # Leave empty to use PUSHOVER_USER
+export MAINTENANCE_PUSHOVER_TOKEN="" # Leave empty to use PUSHOVER_TOKEN
+export MAINTENANCE_PUSHOVER_USER=""  # Leave empty to use PUSHOVER_USER
 
 # Number of critical issues before sending notification (default: 3)
 export MAINTENANCE_CRITICAL_THRESHOLD=3
