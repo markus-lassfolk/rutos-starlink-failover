@@ -813,10 +813,10 @@ check_configuration_health() {
 
                 if [ -f "$placeholder_script" ]; then
                     log_debug "PLACEHOLDER CHECK: Utils script found, loading..."
-                    # shellcheck disable=SC1091
+                    # shellcheck disable=SC1091,SC1090
                     . "$placeholder_script"
                     # shellcheck disable=SC1090
-                    . "$CONFIG_FILE" 2>/dev/null || log_debug "Could not source config file for placeholder check"
+                    . "$CONFIG_FILE" 2>/dev/null || log_debug "Could not load config file for placeholder check"
 
                     log_debug "PUSHOVER CHECK: Testing if Pushover is configured properly"
                     if is_pushover_configured; then
@@ -973,11 +973,11 @@ check_configuration_health() {
         log_debug "CONFIG VALIDATION: Exit code: $validation_exit_code"
         log_debug "CONFIG VALIDATION: Output length: ${#validation_output} characters"
 
-        if [ $validation_exit_code -eq 0 ]; then
+        if [ "$validation_exit_code" -eq 0 ]; then
             show_health_status "healthy" "Configuration" "Configuration validation passed"
             increment_counter "healthy"
             log_debug "CONFIG VALIDATION: SUCCESS"
-        elif [ $validation_exit_code -eq 124 ]; then
+        elif [ "$validation_exit_code" -eq 124 ]; then
             show_health_status "warning" "Configuration" "Validation timed out (>30s)"
             increment_counter "warning"
             log_debug "CONFIG VALIDATION: TIMEOUT - validation took longer than 30 seconds"
@@ -1006,7 +1006,7 @@ check_configuration_health() {
                 log_debug "  Permissions: $(ls -la "$validation_script")"
             else
                 log_debug "  File does not exist"
-                log_debug "  Directory contents: $(ls -la "$SCRIPT_DIR" | grep validate || echo 'No validate scripts found')"
+                log_debug "  Directory contents: $(find "$SCRIPT_DIR" -name "*validate*" -type f 2>/dev/null | head -5 || echo 'No validate scripts found')"
             fi
         fi
     fi
@@ -1019,10 +1019,10 @@ check_configuration_health() {
 
     if [ -f "$placeholder_script" ]; then
         log_debug "PLACEHOLDER CHECK: Utils script found, loading..."
-        # shellcheck disable=SC1091
+        # shellcheck disable=SC1091,SC1090
         . "$placeholder_script"
         # shellcheck disable=SC1090
-        . "$CONFIG_FILE" 2>/dev/null || log_debug "Could not source config file for placeholder check"
+        . "$CONFIG_FILE" 2>/dev/null || log_debug "Could not load config file for placeholder check"
 
         log_debug "PUSHOVER CHECK: Testing if Pushover is configured properly"
         if is_pushover_configured; then
@@ -1160,7 +1160,7 @@ check_monitoring_health() {
 # Function to check system resources
 check_system_resources() {
     log_step "Checking system resources"
-    log_debug "Starting system resource checks..."
+    log_debug "Starting system monitoring checks..."
 
     # Check system uptime and load
     check_system_uptime
@@ -1422,7 +1422,7 @@ main() {
             check_configuration_health
             ;;
         "--resources")
-            log_debug "RESOURCES MODE: Running system resource checks only"
+            log_debug "MONITORING MODE: Running system monitoring checks only"
             check_system_resources
             check_firmware_persistence
             ;;
