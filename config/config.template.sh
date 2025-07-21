@@ -141,22 +141,23 @@ export MAINTENANCE_COOLDOWN_AFTER_FIXES="300" # Cooldown period (seconds) after 
 # --- Auto-Update Configuration ---
 
 # Enable automatic updates via crontab (true/false)
-export AUTO_UPDATE_ENABLED="false"
+export AUTO_UPDATE_ENABLED="true"
 
-# Update policies for different version types
+# Enable update notifications (true/false) - Notifies about available updates even if auto-update is disabled
+export AUTO_UPDATE_NOTIFICATIONS_ENABLED="true"
+
+# Auto-update policies for different version types
 # Format: Never|<number><unit> where unit is: Minutes|Hours|Days|Weeks|Months
 # Examples: "Never", "30Minutes", "2Hours", "5Days", "2Weeks", "1Month"
 
 # Patch version updates (2.1.3 -> 2.1.4) - Usually safe, quick fixes
-export UPDATE_PATCH_DELAY="1Hours"
+export UPDATE_PATCH_DELAY="Never"
 
 # Minor version updates (2.1.x -> 2.2.0) - New features, moderate risk
-export UPDATE_MINOR_DELAY="3Days"
+export UPDATE_MINOR_DELAY="Never" 
 
 # Major version updates (2.x.x -> 3.0.0) - Breaking changes, highest risk
-export UPDATE_MAJOR_DELAY="2Weeks"
-
-# Auto-update schedule (cron format)
+export UPDATE_MAJOR_DELAY="Never"# Auto-update schedule (cron format)
 # Default: Every 4 hours at minute 15: "15 */4 * * *"
 # Examples:
 #   "0 2 * * *"     - Daily at 2 AM

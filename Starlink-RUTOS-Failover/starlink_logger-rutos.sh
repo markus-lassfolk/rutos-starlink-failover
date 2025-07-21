@@ -1,10 +1,5 @@
 #!/bin/sh
 
-# Version information (auto-updated by update-version.sh)
-
-# Use version for validation
-echo "$(basename "$0") v$SCRIPT_VERSION" >/dev/null 2>&1 || true
-
 # ==============================================================================
 # Starlink Performance Data Logger for OpenWrt/RUTOS
 #

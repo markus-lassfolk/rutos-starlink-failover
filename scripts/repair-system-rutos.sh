@@ -6,14 +6,15 @@
 
 set -e # Exit on error
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+
 # Version information (used for logging and debugging)
 # shellcheck disable=SC2034  # SCRIPT_VERSION used for version tracking
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
-readonly SCRIPT_VERSION
-readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'

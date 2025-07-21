@@ -11,7 +11,6 @@ set -e
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.4.12"
 readonly SCRIPT_VERSION
-readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output (compatible with busybox)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
