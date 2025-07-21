@@ -99,7 +99,7 @@ consider_system_reboot() {
 
         # Schedule reboot and record it
         log_error "Scheduling system reboot due to critical maintenance issues"
-        echo "$(date +%s)" >"$reboot_file"
+        date +%s >"$reboot_file"
         record_action "CRITICAL" "System reboot scheduled" "Critical issues: $critical_count"
 
         # Notify before reboot
