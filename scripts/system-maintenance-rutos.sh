@@ -436,7 +436,7 @@ consider_system_reboot() {
 
         # Reset counter and record reboot time
         echo "0" >"$MAINTENANCE_REBOOT_TRACKING_FILE"
-        echo "$(date +%s)" >"$reboot_cooldown_file"
+        date +%s >"$reboot_cooldown_file"
 
         # Record and notify
         record_action "CRITICAL" "System reboot scheduled" "Persistent critical issues: $CRITICAL_ISSUES_COUNT"
@@ -561,7 +561,7 @@ check_log_file_sizes() {
     if [ -n "$large_logs" ]; then
         echo "$large_logs" | while IFS= read -r large_log; do
             if [ -n "$large_log" ]; then
-                size=$(ls -lh "$large_log" 2>/dev/null | awk '{print $5}' || echo "unknown")
+                size=$(stat -c%s "$large_log" 2>/dev/null | awk '{print $1}' || echo "unknown")
                 record_action "FOUND" "Large log file: $large_log ($size)" "Truncate or rotate log"
 
                 if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
@@ -801,7 +801,8 @@ check_cant_open_database_spam() {
                 databases_fixed=""
 
                 if [ -n "$db_list" ]; then
-                    echo "$db_list" | while IFS= read -r db_path; do
+                    # Use for loop to avoid subshell pipeline issue
+                    for db_path in $db_list; do
                         if [ -f "$db_path" ]; then
                             size=$(stat -c%s "$db_path" 2>/dev/null || echo "0")
                             mod_time=$(stat -c%Y "$db_path" 2>/dev/null || echo "0")
@@ -952,12 +953,16 @@ check_disk_space() {
 
                 # Clean old kernel logs
                 if [ -d "/var/log" ]; then
-                    find /var/log -name "*.log.*" -mtime +3 -delete 2>/dev/null && cleaned=1 || true
+                    if find /var/log -name "*.log.*" -mtime +3 -delete 2>/dev/null; then
+                        cleaned=1
+                    fi
                 fi
 
                 # Clean package cache if it exists
                 if [ -d "/var/cache" ]; then
-                    find /var/cache -type f -mtime +7 -delete 2>/dev/null && cleaned=1 || true
+                    if find /var/cache -type f -mtime +7 -delete 2>/dev/null; then
+                        cleaned=1
+                    fi
                 fi
 
                 if [ "$cleaned" = "1" ]; then
@@ -981,7 +986,7 @@ check_critical_permissions() {
         description="$3"
 
         if [ -e "$path" ]; then
-            current_perm=$(ls -ld "$path" 2>/dev/null | cut -c1-10 || echo "unknown")
+            current_perm=$(stat -c%A "$path" 2>/dev/null || echo "unknown")
             if [ "$current_perm" != "$expected_perm" ]; then
                 record_action "FOUND" "Incorrect permissions on $description: $path ($current_perm, expected $expected_perm)" "Fix permissions"
 
@@ -1131,7 +1136,7 @@ check_hostapd_log_flood() {
 
     if command -v logread >/dev/null 2>&1; then
         # Count repetitive hostapd log entries in the last hour
-        flood_count=$(logread | grep -E "$flood_patterns" | grep hostapd | wc -l)
+        flood_count=$(logread | grep -cE "$flood_patterns.*hostapd")
 
         if [ "$flood_count" -gt "$flood_threshold" ]; then
             log_warning "Hostapd log flooding detected: $flood_count entries (threshold: $flood_threshold)"
@@ -1167,7 +1172,6 @@ check_time_drift_ntp() {
     if command -v ntpdate >/dev/null 2>&1; then
         # Get time difference from NTP server
         time_servers="pool.ntp.org 0.pool.ntp.org 1.pool.ntp.org"
-        time_drift_threshold=5 # seconds
 
         for server in $time_servers; do
             # Try to query NTP server for time difference
@@ -1255,7 +1259,6 @@ check_starlink_script_health() {
     # Check if expected StarlinkMonitor log entries appear at least once every 5 minutes
     if command -v logread >/dev/null 2>&1; then
         # Look for StarlinkMonitor log entries in recent logs
-        starlink_logs=$(logread | grep -c "StarlinkMonitor" 2>/dev/null || echo "0")
         recent_starlink_logs=$(logread | tail -50 | grep -c "StarlinkMonitor" 2>/dev/null || echo "0")
 
         # Check if cron is running
@@ -1438,9 +1441,9 @@ EOF
 
     if [ "${DEBUG:-0}" = "1" ]; then
         log_debug "Report contents:"
-        cat "$report_file" | while IFS= read -r line; do
+        while IFS= read -r line; do
             log_debug "  $line"
-        done
+        done < "$report_file"
     fi
 }
 
