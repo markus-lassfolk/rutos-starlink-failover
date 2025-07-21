@@ -21,17 +21,16 @@
 set -eu
 
 # Standard colors for consistent output (compatible with busybox)
-# shellcheck disable=SC2034  # Color variables may not all be used in every script
-# shellcheck disable=SC2034
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-# Check if we're in a terminal that supports colors
-if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
+# Note: Colors defined for consistency but not used in this documentation script
+# shellcheck disable=SC2034  # Colors may not be used but should be defined for consistency
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+else
     RED=""
     GREEN=""
     YELLOW=""
@@ -39,7 +38,6 @@ if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
     CYAN=""
     NC=""
 fi
-set -eu
 
 # --- User Configuration ---
 
