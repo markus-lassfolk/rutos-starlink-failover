@@ -1,0 +1,122 @@
+name: System Status Dashboard
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+  actions: read
+  issues: write
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.COPILOT_TOKEN }}
+          
+      - name: Setup
+        run: sudo apt-get update && sudo apt-get install -y jq gh
+        
+      - name: Collect Metrics
+        id: metrics
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "🤖 System Status Check"
+          
+          # Count PRs
+          TOTAL_PRS=$(gh pr list --state open --json number | jq length)
+          COPILOT_PRS=$(gh pr list --state open --json author --jq '.[] | select(.author.login | test("copilot|github-actions")) | 1' | wc -l)
+          
+          # Count Issues  
+          TOTAL_ISSUES=$(gh issue list --state open --json number | jq length)
+          
+          # Calculate health score
+          HEALTH=100
+          if [ $TOTAL_PRS -gt 15 ]; then
+            HEALTH=$((HEALTH - 10))
+          fi
+          if [ $TOTAL_ISSUES -gt 20 ]; then
+            HEALTH=$((HEALTH - 10))
+          fi
+          
+          # Health status
+          if [ $HEALTH -ge 80 ]; then
+            STATUS="GOOD"
+            EMOJI="🟢"
+          elif [ $HEALTH -ge 60 ]; then
+            STATUS="FAIR"
+            EMOJI="🟡"
+          else
+            STATUS="POOR"
+            EMOJI="🔴"
+          fi
+          
+          echo "Health: $EMOJI $STATUS ($HEALTH/100)"
+          echo "PRs: $TOTAL_PRS (Copilot: $COPILOT_PRS)"
+          echo "Issues: $TOTAL_ISSUES"
+          
+          # Set outputs
+          echo "health=$HEALTH" >> $GITHUB_OUTPUT
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
+          echo "prs=$TOTAL_PRS" >> $GITHUB_OUTPUT
+          echo "issues=$TOTAL_ISSUES" >> $GITHUB_OUTPUT
+          
+      - name: Update Status File
+        run: |
+          echo "# 🤖 Autonomous System Status" > STATUS.md
+          echo "" >> STATUS.md
+          echo "**Health:** ${{ steps.metrics.outputs.emoji }} ${{ steps.metrics.outputs.status }} (${{ steps.metrics.outputs.health }}/100)" >> STATUS.md
+          echo "" >> STATUS.md
+          echo "- **Open PRs:** ${{ steps.metrics.outputs.prs }}" >> STATUS.md
+          echo "- **Open Issues:** ${{ steps.metrics.outputs.issues }}" >> STATUS.md
+          echo "" >> STATUS.md
+          echo "**Autonomous Features Active:**" >> STATUS.md
+          echo "- ✅ Advanced Quality Gate" >> STATUS.md
+          echo "- ✅ Smart Auto-Fix Engine" >> STATUS.md
+          echo "- ✅ Documentation Validation" >> STATUS.md
+          echo "- ✅ Intelligent Merge Engine" >> STATUS.md
+          echo "" >> STATUS.md
+          echo "_Last updated: $(date -u)_" >> STATUS.md
+          
+      - name: Commit Status
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add STATUS.md
+          git commit -m "🤖 System Status: ${{ steps.metrics.outputs.emoji }} ${{ steps.metrics.outputs.status }} [skip ci]" || echo "No changes"
+          git push || echo "Push failed"
+          
+      - name: Health Alert
+        if: steps.metrics.outputs.health < 70
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "🚨 Health alert triggered"
+          
+          ALERT_TITLE="🚨 System Health Alert"
+          ALERT_BODY="System health is at ${{ steps.metrics.outputs.health }}/100 (${{ steps.metrics.outputs.status }}). Please review system status."
+          
+          # Check for existing alert
+          EXISTING=$(gh issue list --state open --search "$ALERT_TITLE" --json number --jq '.[0].number // empty')
+          
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$ALERT_TITLE" --body "$ALERT_BODY" --label "system-alert"
+            echo "Created health alert issue"
+          else
+            echo "Health alert already exists: #$EXISTING"
+          fi
+          
+      - name: Summary
+        run: |
+          echo "📊 Dashboard Complete"
+          echo "Health: ${{ steps.metrics.outputs.emoji }} ${{ steps.metrics.outputs.status }} (${{ steps.metrics.outputs.health }}/100)"
+          echo "PRs: ${{ steps.metrics.outputs.prs }}"
+          echo "Issues: ${{ steps.metrics.outputs.issues }}"

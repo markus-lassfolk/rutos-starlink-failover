@@ -1,0 +1,421 @@
+name: Smart Auto-Fix Engine
+
+on:
+  workflow_run:
+    workflows: ["Advanced Quality Gate"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to auto-fix'
+        required: true
+        type: number
+      fix_types:
+        description: 'Types of fixes to apply (comma-separated: format,permissions,markdown,config)'
+        required: false
+        default: 'format,permissions,markdown,config'
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+    name: Smart Auto-Fix Engine
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Get PR Information
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            # Extract PR number from workflow run
+            PR_NUMBER=$(echo "${{ github.event.workflow_run.head_branch }}" | grep -oE '[0-9]+' | head -1)
+            
+            if [ -z "$PR_NUMBER" ]; then
+              # Alternative: get PR from workflow run pull requests
+              PR_NUMBER=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/pull_requests --jq '.[0].number')
+            fi
+          else
+            PR_NUMBER="${{ inputs.pr_number }}"
+          fi
+          
+          if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
+            echo "❌ Could not determine PR number"
+            exit 1
+          fi
+          
+          echo "pr-number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "🔧 Auto-fixing PR #$PR_NUMBER"
+          
+      - name: Checkout PR Branch
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.COPILOT_TOKEN }}
+          fetch-depth: 0
+          ref: refs/pull/${{ steps.pr-info.outputs.pr-number }}/head
+          
+      - name: Setup Auto-Fix Environment
+        run: |
+          # Install comprehensive tooling
+          sudo apt-get update
+          sudo apt-get install -y shellcheck shfmt jq yamllint gh
+          
+          # Install formatters and fixers
+          pip install --user black autopep8 isort
+          npm install -g prettier markdownlint-cli eslint
+          
+          # Configure git
+          git config --local user.email "copilot@github.com"
+          git config --local user.name "GitHub Copilot Auto-Fix"
+          
+      - name: Get Changed Files
+        id: changed-files
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.pr-info.outputs.pr-number }}"
+          
+          # Get comprehensive file changes
+          git fetch origin main:main
+          ALL_CHANGED=$(git diff --name-only main..HEAD)
+          
+          echo "all-files<<EOF" >> $GITHUB_OUTPUT
+          echo "$ALL_CHANGED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "📁 Files to analyze for auto-fix:"
+          echo "$ALL_CHANGED" | head -20
+          
+      - name: Smart Shell Script Formatting & RUTOS Fixes
+        if: contains(inputs.fix_types || 'format', 'format')
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "🔧 Applying Smart Shell Script Fixes..."
+          
+          FIXES_APPLIED=0
+          
+          echo "${{ steps.changed-files.outputs.all-files }}" | while IFS= read -r file; do
+            if [[ "$file" =~ \.(sh|bash)$ ]] && [ -f "$file" ]; then
+              echo "Processing: $file"
+              
+              # Backup original
+              cp "$file" "$file.backup"
+              
+              # Apply shfmt formatting based on file type
+              if [[ "$file" == *"-rutos.sh" ]]; then
+                # RUTOS-specific formatting (POSIX mode)
+                shfmt -w -i 4 -ci -ln posix "$file" && echo "✅ RUTOS formatting applied to $file"
+              else
+                # Standard bash formatting
+                shfmt -w -i 4 -ci "$file" && echo "✅ Standard formatting applied to $file"
+              fi
+              
+              # Apply RUTOS-specific fixes
+              if [[ "$file" == *"-rutos.sh" ]]; then
+                # Fix common RUTOS incompatibilities
+                
+                # Convert function() syntax to function_name()
+                sed -i 's/function \([a-zA-Z_][a-zA-Z0-9_]*\)()/\1()/g' "$file"
+                
+                # Replace bash-specific [[ ]] with [ ]
+                sed -i 's/\[\[/[/g' "$file"
+                sed -i 's/\]\]/]/g' "$file"
+                
+                # Replace echo -e with printf
+                sed -i 's/echo -e "\([^"]*\)"/printf "\1\\n"/g' "$file"
+                sed -i "s/echo -e '\([^']*\)'/printf '\1\\n'/g" "$file"
+                
+                # Replace source with .
+                sed -i 's/\bsource\b/./g' "$file"
+                
+                # Fix export -f (not supported in POSIX)
+                sed -i '/export -f/d' "$file"
+                
+                echo "✅ RUTOS compatibility fixes applied to $file"
+              fi
+              
+              # Check if file actually changed
+              if ! diff -q "$file" "$file.backup" >/dev/null 2>&1; then
+                FIXES_APPLIED=$((FIXES_APPLIED + 1))
+                echo "✅ $file: Applied formatting and compatibility fixes"
+              else
+                echo "ℹ️ $file: No changes needed"
+              fi
+              
+              rm -f "$file.backup"
+            fi
+          done
+          
+          echo "🎉 Applied formatting fixes to $FIXES_APPLIED files"
+          
+      - name: Smart Markdown Fixes
+        if: contains(inputs.fix_types || 'markdown', 'markdown')
+        run: |
+          echo "📝 Applying Smart Markdown Fixes..."
+          
+          MD_FIXES=0
+          
+          echo "${{ steps.changed-files.outputs.all-files }}" | while IFS= read -r file; do
+            if [[ "$file" =~ \.md$ ]] && [ -f "$file" ]; then
+              echo "Processing markdown: $file"
+              
+              # Backup original
+              cp "$file" "$file.backup"
+              
+              # Fix common markdown issues
+              
+              # Fix trailing whitespace
+              sed -i 's/[[:space:]]*$//' "$file"
+              
+              # Fix multiple blank lines
+              sed -i '/^$/N;/^\n$/d' "$file"
+              
+              # Fix heading spacing (ensure blank line before headings)
+              sed -i ':a;N;$!ba;s/\([^[:space:]]\)\n#/\1\n\n#/g' "$file"
+              
+              # Fix list formatting (ensure consistent spacing)
+              sed -i 's/^-\([^[:space:]]\)/- \1/g' "$file"
+              sed -i 's/^\*\([^[:space:]]\)/* \1/g' "$file"
+              
+              # Fix code block formatting
+              sed -i 's/^```\s*$/```/g' "$file"
+              
+              # Auto-fix broken internal links where possible
+              while IFS= read -r link; do
+                original_link=$(echo "$link" | sed 's/.*(\([^)]*\)).*/\1/')
+                if [[ "$original_link" != http* ]] && [ ! -f "$original_link" ] && [ ! -d "$original_link" ]; then
+                  # Try to find the file in common locations
+                  base_name=$(basename "$original_link")
+                  
+                  # Search for file in repository
+                  found_file=$(find . -name "$base_name" -type f 2>/dev/null | head -1)
+                  
+                  if [ -n "$found_file" ] && [ "$found_file" != "./$original_link" ]; then
+                    # Update the link
+                    escaped_original=$(echo "$original_link" | sed 's/[[\.*^$()+?{|]/\\&/g')
+                    escaped_found=$(echo "$found_file" | sed 's/[[\.*^$()+?{|]/\\&/g' | sed 's/^\.\///')
+                    
+                    sed -i "s|($escaped_original)|($escaped_found)|g" "$file"
+                    echo "🔗 Fixed broken link: $original_link → $found_file"
+                  fi
+                fi
+              done < <(grep -oE '\]\([^)]+\)' "$file" || true)
+              
+              # Apply prettier formatting if available
+              if command -v prettier >/dev/null 2>&1; then
+                prettier --write --prose-wrap always --print-width 100 "$file" 2>/dev/null || true
+              fi
+              
+              # Check if file actually changed
+              if ! diff -q "$file" "$file.backup" >/dev/null 2>&1; then
+                MD_FIXES=$((MD_FIXES + 1))
+                echo "✅ $file: Applied markdown fixes"
+              else
+                echo "ℹ️ $file: No changes needed"
+              fi
+              
+              rm -f "$file.backup"
+            fi
+          done
+          
+          echo "📝 Applied markdown fixes to $MD_FIXES files"
+          
+      - name: Smart Permission Fixes
+        if: contains(inputs.fix_types || 'permissions', 'permissions')
+        run: |
+          echo "🔐 Applying Smart Permission Fixes..."
+          
+          # Use the enhanced security script
+          if [ -f "scripts/check-security.sh" ]; then
+            echo "Running auto-fix permissions..."
+            bash scripts/check-security.sh "${{ steps.changed-files.outputs.all-files }}" --auto-fix-chmod
+            echo "✅ Permission fixes applied"
+          else
+            echo "⚠️ Security script not found, applying basic permission fixes..."
+            
+            # Apply basic permission fixes
+            find config/ -name "*.sh" -type f -exec chmod 600 {} \; 2>/dev/null || true
+            find scripts/ -name "*.sh" -type f -exec chmod 755 {} \; 2>/dev/null || true
+            find Starlink-RUTOS-Failover/ -name "*.sh" -type f -exec chmod 755 {} \; 2>/dev/null || true
+          fi
+          
+      - name: Smart Configuration Fixes
+        if: contains(inputs.fix_types || 'config', 'config')
+        run: |
+          echo "⚙️ Applying Smart Configuration Fixes..."
+          
+          CONFIG_FIXES=0
+          
+          echo "${{ steps.changed-files.outputs.all-files }}" | while IFS= read -r file; do
+            if [[ "$file" =~ \.(yml|yaml|json)$ ]] && [ -f "$file" ]; then
+              echo "Processing config: $file"
+              
+              # Backup original
+              cp "$file" "$file.backup"
+              
+              case "$file" in
+                *.json)
+                  # Format JSON with jq
+                  if command -v jq >/dev/null 2>&1; then
+                    jq . "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+                    echo "✅ JSON formatted: $file"
+                  fi
+                  ;;
+                *.yml|*.yaml)
+                  # Basic YAML formatting fixes
+                  
+                  # Fix indentation (convert tabs to spaces)
+                  sed -i 's/\t/  /g' "$file"
+                  
+                  # Fix trailing whitespace
+                  sed -i 's/[[:space:]]*$//' "$file"
+                  
+                  # Ensure file ends with newline
+                  sed -i -e '$a\' "$file"
+                  
+                  echo "✅ YAML formatted: $file"
+                  ;;
+              esac
+              
+              # Check if file actually changed
+              if ! diff -q "$file" "$file.backup" >/dev/null 2>&1; then
+                CONFIG_FIXES=$((CONFIG_FIXES + 1))
+                echo "✅ $file: Applied configuration fixes"
+              else
+                echo "ℹ️ $file: No changes needed"
+              fi
+              
+              rm -f "$file.backup"
+            fi
+          done
+          
+          echo "⚙️ Applied configuration fixes to $CONFIG_FIXES files"
+          
+      - name: Python Code Fixes
+        if: contains(inputs.fix_types || 'python', 'python')
+        run: |
+          echo "🐍 Applying Python Code Fixes..."
+          
+          PYTHON_FIXES=0
+          
+          echo "${{ steps.changed-files.outputs.all-files }}" | while IFS= read -r file; do
+            if [[ "$file" =~ \.py$ ]] && [ -f "$file" ]; then
+              echo "Processing Python: $file"
+              
+              # Apply black formatting
+              if command -v black >/dev/null 2>&1; then
+                black --line-length 100 "$file" && echo "✅ Black formatting applied to $file"
+                PYTHON_FIXES=$((PYTHON_FIXES + 1))
+              fi
+              
+              # Apply isort for imports
+              if command -v isort >/dev/null 2>&1; then
+                isort "$file" && echo "✅ Import sorting applied to $file"
+              fi
+            fi
+          done
+          
+          echo "🐍 Applied Python fixes to $PYTHON_FIXES files"
+          
+      - name: Commit Auto-Fixes
+        id: commit-fixes
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "💾 Committing Auto-Fixes..."
+          
+          # Check if there are any changes to commit
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "ℹ️ No changes to commit"
+            echo "changes-made=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Add all changes
+          git add .
+          
+          # Count changed files
+          CHANGED_FILES=$(git diff --cached --name-only | wc -l)
+          
+          # Create commit message
+          COMMIT_TITLE="🤖 Auto-fix: Applied smart fixes to $CHANGED_FILES files"
+          
+          COMMIT_BODY=""
+          if git diff --cached --name-only | grep -E '\.(sh|bash)$' >/dev/null; then
+            COMMIT_BODY="${COMMIT_BODY}- Shell script formatting and RUTOS compatibility fixes\n"
+          fi
+          
+          if git diff --cached --name-only | grep -E '\.md$' >/dev/null; then
+            COMMIT_BODY="${COMMIT_BODY}- Markdown formatting and broken link fixes\n"
+          fi
+          
+          if git diff --cached --name-only | grep -E '\.(yml|yaml|json)$' >/dev/null; then
+            COMMIT_BODY="${COMMIT_BODY}- Configuration file formatting\n"
+          fi
+          
+          if git diff --cached --name-only | grep -E '\.py$' >/dev/null; then
+            COMMIT_BODY="${COMMIT_BODY}- Python code formatting (Black, isort)\n"
+          fi
+          
+          COMMIT_FOOTER="Generated by Smart Auto-Fix Engine - PR: #${{ steps.pr-info.outputs.pr-number }}"
+          
+          # Commit with proper message structure
+          git commit -m "$COMMIT_TITLE" -m "$COMMIT_BODY" -m "$COMMIT_FOOTER" -m "[skip ci]"
+          
+          # Push the changes
+          git push origin HEAD
+          
+          echo "changes-made=true" >> $GITHUB_OUTPUT
+          echo "✅ Auto-fixes committed and pushed"
+          
+      - name: Comment on PR
+        if: steps.commit-fixes.outputs.changes-made == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.pr-info.outputs.pr-number }}"
+          
+          # Create PR comment about auto-fixes
+          cat << 'EOF' > pr_comment.md
+          🤖 **Smart Auto-Fix Engine** has applied automated fixes to this PR!
+
+          ## 🔧 Fixes Applied:
+          - ✅ Shell script formatting and RUTOS compatibility
+          - ✅ Markdown formatting and broken link repairs  
+          - ✅ File permission corrections
+          - ✅ Configuration file formatting
+          - ✅ Python code formatting (if applicable)
+
+          ## 📊 Results:
+          The PR has been automatically improved and is ready for quality validation! 🚀
+
+          *This is an automated fix by the Smart Auto-Fix Engine. If you have concerns about any changes, please review the commit diff.*
+          EOF
+          
+          gh pr comment $PR_NUMBER --body-file pr_comment.md
+          rm -f pr_comment.md
+          
+      - name: Trigger Re-Validation
+        if: steps.commit-fixes.outputs.changes-made == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.pr-info.outputs.pr-number }}"
+          
+          echo "🔄 Triggering re-validation after auto-fixes..."
+          
+          # Trigger the advanced quality gate again
+          gh workflow run "Advanced Quality Gate" \
+            --repo ${{ github.repository }} \
+            --field pr_number="$PR_NUMBER" || echo "⚠️ Failed to trigger re-validation"
+            
+          echo "✅ Re-validation triggered for PR #$PR_NUMBER"

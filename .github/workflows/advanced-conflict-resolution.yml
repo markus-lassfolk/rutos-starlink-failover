@@ -1,0 +1,336 @@
+name: Advanced Conflict Resolution Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to resolve conflicts for'
+        required: true
+        type: number
+      strategy:
+        description: 'Resolution strategy'
+        type: choice
+        options:
+          - 'auto-resolve'
+          - 'conservative-merge'
+          - 'prefer-incoming'
+          - 'prefer-existing'
+        default: 'auto-resolve'
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: number
+      strategy:
+        type: string
+        default: 'auto-resolve'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  resolve-conflicts:
+    runs-on: ubuntu-latest
+    name: Advanced Conflict Resolution
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.COPILOT_TOKEN }}
+          fetch-depth: 0
+          
+      - name: Setup Conflict Resolution Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq gh git-merge-changelog
+          
+      - name: Analyze Conflicts
+        id: analyze
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          PR_NUMBER="${{ inputs.pr_number }}"
+          echo "🔍 Analyzing conflicts for PR #$PR_NUMBER"
+          
+          # Get PR information
+          PR_INFO=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+          BASE_BRANCH=$(echo "$PR_INFO" | jq -r '.base.ref')
+          HEAD_BRANCH=$(echo "$PR_INFO" | jq -r '.head.ref')
+          HEAD_SHA=$(echo "$PR_INFO" | jq -r '.head.sha')
+          
+          echo "Base branch: $BASE_BRANCH"
+          echo "Head branch: $HEAD_BRANCH" 
+          echo "Head SHA: $HEAD_SHA"
+          
+          # Checkout the PR branch
+          gh pr checkout $PR_NUMBER
+          
+          # Fetch latest changes
+          git fetch origin $BASE_BRANCH
+          git fetch origin $HEAD_BRANCH
+          
+          # Attempt to identify conflict types
+          git merge origin/$BASE_BRANCH --no-commit --no-ff || true
+          
+          CONFLICTS=$(git status --porcelain | grep '^UU' | cut -c4-)
+          CONFLICT_COUNT=$(echo "$CONFLICTS" | wc -l)
+          
+          if [ -z "$CONFLICTS" ]; then
+            echo "✅ No conflicts detected"
+            echo "conflict-count=0" >> $GITHUB_OUTPUT
+            echo "conflicts=" >> $GITHUB_OUTPUT
+            git merge --abort 2>/dev/null || true
+            exit 0
+          fi
+          
+          echo "📊 Conflict Analysis:"
+          echo "   Count: $CONFLICT_COUNT"
+          echo "   Files: $CONFLICTS"
+          
+          # Analyze conflict types
+          DOCUMENTATION_CONFLICTS=$(echo "$CONFLICTS" | grep -E '\.(md|txt|rst)$' | wc -l)
+          SCRIPT_CONFLICTS=$(echo "$CONFLICTS" | grep -E '\.(sh|py|js|ts)$' | wc -l)
+          CONFIG_CONFLICTS=$(echo "$CONFLICTS" | grep -E '\.(yml|yaml|json|conf)$' | wc -l)
+          
+          echo "   Documentation conflicts: $DOCUMENTATION_CONFLICTS"
+          echo "   Script conflicts: $SCRIPT_CONFLICTS"
+          echo "   Configuration conflicts: $CONFIG_CONFLICTS"
+          
+          # Set outputs
+          echo "conflict-count=$CONFLICT_COUNT" >> $GITHUB_OUTPUT
+          echo "conflicts<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONFLICTS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "documentation-conflicts=$DOCUMENTATION_CONFLICTS" >> $GITHUB_OUTPUT
+          echo "script-conflicts=$SCRIPT_CONFLICTS" >> $GITHUB_OUTPUT
+          echo "config-conflicts=$CONFIG_CONFLICTS" >> $GITHUB_OUTPUT
+          echo "base-branch=$BASE_BRANCH" >> $GITHUB_OUTPUT
+          echo "head-branch=$HEAD_BRANCH" >> $GITHUB_OUTPUT
+          
+          # Abort merge for now
+          git merge --abort
+          
+      - name: Auto-Resolve Simple Conflicts
+        if: steps.analyze.outputs.conflict-count > '0' && inputs.strategy == 'auto-resolve'
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          PR_NUMBER="${{ inputs.pr_number }}"
+          echo "🔧 Attempting auto-resolution of simple conflicts"
+          
+          # Start merge again
+          git merge origin/${{ steps.analyze.outputs.base-branch }} --no-commit --no-ff || true
+          
+          RESOLVED_COUNT=0
+          FAILED_COUNT=0
+          
+          # Process each conflicted file
+          while IFS= read -r file; do
+            if [ -z "$file" ]; then continue; fi
+            
+            echo "Processing conflict in: $file"
+            
+            # Try different resolution strategies based on file type
+            if echo "$file" | grep -qE '\.(md|txt)$'; then
+              # Documentation files - try simple resolution
+              if grep -q '^<<<<<<< HEAD$' "$file"; then
+                # Remove conflict markers and keep both sections
+                sed -i '/^<<<<<<< HEAD$/d' "$file"
+                sed -i '/^=======$/d' "$file"
+                sed -i '/^>>>>>>> /d' "$file"
+                git add "$file"
+                RESOLVED_COUNT=$((RESOLVED_COUNT + 1))
+                echo "✅ Auto-resolved: $file"
+              else
+                FAILED_COUNT=$((FAILED_COUNT + 1))
+                echo "❌ Complex documentation conflict: $file"
+              fi
+              
+            elif echo "$file" | grep -qE '\.(sh)$'; then
+              # Shell scripts - be more conservative
+              if grep -q '^<<<<<<< HEAD$' "$file" && grep -q 'SCRIPT_VERSION' "$file"; then
+                # Version conflicts in shell scripts
+                sed -i '/^<<<<<<< HEAD$/,/^=======$/d' "$file"
+                sed -i '/^>>>>>>> /d' "$file"
+                git add "$file"
+                RESOLVED_COUNT=$((RESOLVED_COUNT + 1))
+                echo "✅ Auto-resolved version conflict: $file"
+              else
+                FAILED_COUNT=$((FAILED_COUNT + 1))
+                echo "❌ Complex shell script conflict: $file"
+              fi
+              
+            elif echo "$file" | grep -qE '\.(yml|yaml)$'; then
+              # YAML files - structural conflicts
+              FAILED_COUNT=$((FAILED_COUNT + 1))
+              echo "❌ YAML structural conflict: $file (manual resolution required)"
+              
+            else
+              # Other files - try git's automatic resolution
+              if git checkout --ours "$file" || git checkout --theirs "$file"; then
+                git add "$file"
+                RESOLVED_COUNT=$((RESOLVED_COUNT + 1))
+                echo "✅ Auto-resolved using git strategy: $file"
+              else
+                FAILED_COUNT=$((FAILED_COUNT + 1))
+                echo "❌ Could not auto-resolve: $file"
+              fi
+            fi
+            
+          done <<< "${{ steps.analyze.outputs.conflicts }}"
+          
+          echo "📊 Resolution Summary:"
+          echo "   Resolved: $RESOLVED_COUNT"
+          echo "   Failed: $FAILED_COUNT"
+          
+          if [ $FAILED_COUNT -eq 0 ] && [ $RESOLVED_COUNT -gt 0 ]; then
+            # All conflicts resolved
+            git commit -m "🔀 Auto-resolve merge conflicts for PR #$PR_NUMBER
+
+Automatically resolved $RESOLVED_COUNT conflict(s):
+${{ steps.analyze.outputs.conflicts }}
+
+Resolution strategy: ${{ inputs.strategy }}
+[skip ci]"
+            
+            git push origin HEAD
+            
+            gh pr comment $PR_NUMBER --body "🤖 **Automatic Conflict Resolution Successful**
+
+✅ Successfully resolved **$RESOLVED_COUNT** merge conflict(s):
+\`\`\`
+${{ steps.analyze.outputs.conflicts }}
+\`\`\`
+
+**Resolution Strategy:** ${{ inputs.strategy }}
+**Result:** All conflicts automatically resolved and committed.
+
+The PR is now ready for continued validation! 🎉"
+
+            echo "resolution-status=success" >> $GITHUB_OUTPUT
+            
+          elif [ $RESOLVED_COUNT -gt 0 ]; then
+            # Partial resolution
+            git commit -m "🔀 Partial auto-resolution of conflicts for PR #$PR_NUMBER
+
+Resolved: $RESOLVED_COUNT conflicts
+Remaining: $FAILED_COUNT conflicts
+
+[skip ci]"
+            
+            git push origin HEAD
+            
+            gh pr comment $PR_NUMBER --body "🤖 **Partial Conflict Resolution**
+
+✅ Resolved **$RESOLVED_COUNT** conflict(s)
+❌ **$FAILED_COUNT** conflict(s) require manual resolution
+
+**Remaining conflicts:**
+\`\`\`
+$(git status --porcelain | grep '^UU' | cut -c4-)
+\`\`\`
+
+Please resolve the remaining conflicts manually."
+
+            echo "resolution-status=partial" >> $GITHUB_OUTPUT
+            
+          else
+            # No conflicts resolved
+            git merge --abort
+            
+            gh pr comment $PR_NUMBER --body "🤖 **Automatic Conflict Resolution Failed**
+
+❌ Unable to automatically resolve any of the **${{ steps.analyze.outputs.conflict-count }}** conflict(s).
+
+**Conflicted files:**
+\`\`\`
+${{ steps.analyze.outputs.conflicts }}
+\`\`\`
+
+**Conflict breakdown:**
+- Documentation conflicts: ${{ steps.analyze.outputs.documentation-conflicts }}
+- Script conflicts: ${{ steps.analyze.outputs.script-conflicts }}
+- Configuration conflicts: ${{ steps.analyze.outputs.config-conflicts }}
+
+Manual resolution is required. Please use your preferred merge tool or resolve conflicts directly in the affected files."
+
+            echo "resolution-status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Conservative Merge Strategy
+        if: steps.analyze.outputs.conflict-count > '0' && inputs.strategy == 'conservative-merge'
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          PR_NUMBER="${{ inputs.pr_number }}"
+          echo "🔧 Applying conservative merge strategy"
+          
+          # Use git's conservative merge strategies
+          if git merge origin/${{ steps.analyze.outputs.base-branch }} -X patience; then
+            git push origin HEAD
+            gh pr comment $PR_NUMBER --body "🤖 **Conservative Merge Successful** - Applied patience strategy to resolve conflicts conservatively."
+            echo "resolution-status=success" >> $GITHUB_OUTPUT
+          else
+            git merge --abort
+            gh pr comment $PR_NUMBER --body "🤖 **Conservative Merge Failed** - Even conservative merge strategies could not resolve conflicts. Manual resolution required."
+            echo "resolution-status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Prefer Incoming Strategy
+        if: steps.analyze.outputs.conflict-count > '0' && inputs.strategy == 'prefer-incoming'
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          PR_NUMBER="${{ inputs.pr_number }}"
+          echo "🔧 Applying prefer-incoming strategy"
+          
+          if git merge origin/${{ steps.analyze.outputs.base-branch }} -X theirs; then
+            git push origin HEAD
+            gh pr comment $PR_NUMBER --body "🤖 **Prefer-Incoming Merge Complete** - Resolved conflicts by preferring incoming changes from base branch."
+            echo "resolution-status=success" >> $GITHUB_OUTPUT
+          else
+            git merge --abort
+            gh pr comment $PR_NUMBER --body "🤖 **Prefer-Incoming Strategy Failed** - Could not resolve conflicts using incoming preference. Manual resolution required."
+            echo "resolution-status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Prefer Existing Strategy
+        if: steps.analyze.outputs.conflict-count > '0' && inputs.strategy == 'prefer-existing'
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          PR_NUMBER="${{ inputs.pr_number }}"
+          echo "🔧 Applying prefer-existing strategy"
+          
+          if git merge origin/${{ steps.analyze.outputs.base-branch }} -X ours; then
+            git push origin HEAD
+            gh pr comment $PR_NUMBER --body "🤖 **Prefer-Existing Merge Complete** - Resolved conflicts by preferring existing changes from PR branch."
+            echo "resolution-status=success" >> $GITHUB_OUTPUT
+          else
+            git merge --abort
+            gh pr comment $PR_NUMBER --body "🤖 **Prefer-Existing Strategy Failed** - Could not resolve conflicts using existing preference. Manual resolution required."
+            echo "resolution-status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Final Status Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "🎯 Conflict Resolution Summary"
+          echo "================================"
+          echo "PR: #${{ inputs.pr_number }}"
+          echo "Strategy: ${{ inputs.strategy }}"
+          echo "Conflicts Found: ${{ steps.analyze.outputs.conflict-count }}"
+          
+          if [ "${{ steps.analyze.outputs.conflict-count }}" = "0" ]; then
+            echo "✅ No conflicts detected - PR is ready to merge"
+          else
+            echo "Resolution Status: $(echo "$GITHUB_OUTPUT" | grep resolution-status | cut -d= -f2 || echo 'unknown')"
+            echo ""
+            echo "Conflict Breakdown:"
+            echo "  Documentation: ${{ steps.analyze.outputs.documentation-conflicts }}"
+            echo "  Scripts: ${{ steps.analyze.outputs.script-conflicts }}"
+            echo "  Configuration: ${{ steps.analyze.outputs.config-conflicts }}"
+          fi

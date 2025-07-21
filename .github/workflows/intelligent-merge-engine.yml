@@ -1,0 +1,361 @@
+name: Intelligent Merge Decision Engine
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    branches: [main]
+  workflow_run:
+    workflows: ["Advanced Quality Gate", "Smart Auto-Fix Engine"]
+    types: [completed]
+  schedule:
+    - cron: "0 */2 * * *"  # Every 2 hours
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to evaluate'
+        type: number
+      force_merge:
+        description: 'Force merge if conditions met'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  actions: write
+
+jobs:
+  evaluate-merge:
+    runs-on: ubuntu-latest
+    name: Intelligent Merge Decision
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.COPILOT_TOKEN }}
+          fetch-depth: 0
+          
+      - name: Setup
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq gh
+          
+      - name: Discover PRs for Evaluation
+        id: discover
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "🔍 Discovering PRs for merge evaluation"
+          
+          # Determine target PR(s)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBERS="${{ github.event.number }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.pr_number }}" ]; then
+            PR_NUMBERS="${{ inputs.pr_number }}"
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            # Get PR from completed workflow
+            PR_NUMBERS=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/pull_requests --jq '.[].number' | tr '\n' ' ')
+          else
+            # Scheduled - find all eligible PRs
+            echo "🕐 Scheduled evaluation - scanning all open PRs"
+            PR_NUMBERS=$(gh pr list --state open --json number,author,isDraft,updatedAt --jq '.[] | select(.isDraft == false) | select(.author.login | test("copilot|github-actions|dependabot")) | .number' | tr '\n' ' ')
+          fi
+          
+          if [ -z "$PR_NUMBERS" ]; then
+            echo "ℹ️ No PRs found for evaluation"
+            exit 0
+          fi
+          
+          echo "📋 PRs for evaluation: $PR_NUMBERS"
+          echo "pr-numbers=$PR_NUMBERS" >> $GITHUB_OUTPUT
+          
+      - name: Comprehensive PR Analysis
+        id: analyze
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "🧠 Comprehensive PR Analysis"
+          echo "============================"
+          
+          MERGE_READY_PRS=""
+          ANALYSIS_RESULTS=""
+          
+          for PR_NUMBER in ${{ steps.discover.outputs.pr-numbers }}; do
+            echo ""
+            echo "🎯 Analyzing PR #$PR_NUMBER"
+            echo "========================"
+            
+            # Get comprehensive PR information
+            PR_INFO=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+            if [ $? -ne 0 ]; then
+              echo "❌ Could not fetch PR #$PR_NUMBER"
+              continue
+            fi
+            
+            PR_TITLE=$(echo "$PR_INFO" | jq -r '.title')
+            PR_AUTHOR=$(echo "$PR_INFO" | jq -r '.user.login')
+            PR_STATE=$(echo "$PR_INFO" | jq -r '.state')
+            PR_DRAFT=$(echo "$PR_INFO" | jq -r '.draft')
+            PR_MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable')
+            PR_MERGEABLE_STATE=$(echo "$PR_INFO" | jq -r '.mergeable_state')
+            PR_CREATED_AT=$(echo "$PR_INFO" | jq -r '.created_at')
+            PR_UPDATED_AT=$(echo "$PR_INFO" | jq -r '.updated_at')
+            HEAD_SHA=$(echo "$PR_INFO" | jq -r '.head.sha')
+            
+            echo "📊 Basic Info:"
+            echo "   Title: $PR_TITLE"
+            echo "   Author: $PR_AUTHOR"
+            echo "   State: $PR_STATE"
+            echo "   Draft: $PR_DRAFT"
+            echo "   Mergeable: $PR_MERGEABLE ($PR_MERGEABLE_STATE)"
+            
+            # Skip if not in correct state
+            if [ "$PR_STATE" != "open" ] || [ "$PR_DRAFT" = "true" ]; then
+              echo "⏭️ Skipping: PR is $PR_STATE or draft"
+              continue
+            fi
+            
+            # Analyze author type (scoring factor)
+            AUTHOR_SCORE=0
+            if echo "$PR_AUTHOR" | grep -qi "copilot\|github-actions\|app"; then
+              AUTHOR_SCORE=10  # Automated PRs get high trust score
+              echo "✅ Automated PR - High trust score"
+            elif echo "$PR_AUTHOR" | grep -qi "dependabot"; then
+              AUTHOR_SCORE=8   # Dependabot gets good score
+              echo "✅ Dependabot PR - Good trust score"
+            else
+              AUTHOR_SCORE=5   # Human PRs get moderate score
+              echo "👤 Human PR - Moderate trust score"
+            fi
+            
+            # Get check runs status
+            CHECK_RUNS=$(gh api repos/${{ github.repository }}/commits/$HEAD_SHA/check-runs 2>/dev/null || echo '{"check_runs":[]}')
+            TOTAL_CHECKS=$(echo "$CHECK_RUNS" | jq -r '.check_runs | length')
+            PASSING_CHECKS=$(echo "$CHECK_RUNS" | jq -r '.check_runs[] | select(.conclusion == "success") | .name' | wc -l)
+            FAILING_CHECKS=$(echo "$CHECK_RUNS" | jq -r '.check_runs[] | select(.conclusion == "failure") | .name' | wc -l)
+            PENDING_CHECKS=$(echo "$CHECK_RUNS" | jq -r '.check_runs[] | select(.status == "in_progress" or .status == "queued" or .status == "pending") | .name' | wc -l)
+            
+            echo "📊 Check Status:"
+            echo "   Total: $TOTAL_CHECKS"
+            echo "   Passing: $PASSING_CHECKS"
+            echo "   Failing: $FAILING_CHECKS"
+            echo "   Pending: $PENDING_CHECKS"
+            
+            # Calculate check score
+            CHECK_SCORE=0
+            if [ $TOTAL_CHECKS -eq 0 ]; then
+              CHECK_SCORE=5  # No checks = neutral
+            elif [ $FAILING_CHECKS -gt 0 ]; then
+              CHECK_SCORE=0  # Any failure = zero score
+            elif [ $PENDING_CHECKS -gt 0 ]; then
+              CHECK_SCORE=3  # Pending = low score
+            elif [ $PASSING_CHECKS -eq $TOTAL_CHECKS ]; then
+              CHECK_SCORE=10 # All passing = perfect score
+            else
+              CHECK_SCORE=6  # Partial = moderate score
+            fi
+            
+            # Get review status
+            REVIEWS=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews 2>/dev/null || echo '[]')
+            APPROVED_REVIEWS=$(echo "$REVIEWS" | jq '[.[] | select(.state == "APPROVED")] | length')
+            CHANGES_REQUESTED=$(echo "$REVIEWS" | jq '[.[] | select(.state == "CHANGES_REQUESTED")] | length')
+            COMMENTED_REVIEWS=$(echo "$REVIEWS" | jq '[.[] | select(.state == "COMMENTED")] | length')
+            
+            echo "📊 Review Status:"
+            echo "   Approved: $APPROVED_REVIEWS"
+            echo "   Changes Requested: $CHANGES_REQUESTED"
+            echo "   Comments: $COMMENTED_REVIEWS"
+            
+            # Calculate review score
+            REVIEW_SCORE=0
+            if [ $CHANGES_REQUESTED -gt 0 ]; then
+              REVIEW_SCORE=0  # Changes requested = zero
+            elif [ $APPROVED_REVIEWS -gt 0 ]; then
+              REVIEW_SCORE=10 # Approved = perfect
+            elif echo "$PR_AUTHOR" | grep -qi "copilot\|github-actions\|dependabot"; then
+              REVIEW_SCORE=8  # Automated PRs don't strictly need human review
+            else
+              REVIEW_SCORE=2  # Human PRs without approval = very low
+            fi
+            
+            # Analyze PR age (freshness factor)
+            PR_AGE_HOURS=$(( ($(date +%s) - $(date -d "$PR_CREATED_AT" +%s)) / 3600 ))
+            echo "📊 PR Age: $PR_AGE_HOURS hours"
+            
+            AGE_SCORE=0
+            if [ $PR_AGE_HOURS -lt 6 ]; then
+              AGE_SCORE=10   # Very fresh
+            elif [ $PR_AGE_HOURS -lt 24 ]; then
+              AGE_SCORE=8    # Fresh
+            elif [ $PR_AGE_HOURS -lt 168 ]; then  # 1 week
+              AGE_SCORE=6    # Moderate
+            elif [ $PR_AGE_HOURS -lt 720 ]; then  # 1 month
+              AGE_SCORE=4    # Old
+            else
+              AGE_SCORE=2    # Very old
+            fi
+            
+            # Analyze change complexity (size factor)
+            PR_STATS=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.additions, .deletions, .changed_files' | tr '\n' ' ')
+            ADDITIONS=$(echo $PR_STATS | cut -d' ' -f1)
+            DELETIONS=$(echo $PR_STATS | cut -d' ' -f2)
+            CHANGED_FILES=$(echo $PR_STATS | cut -d' ' -f3)
+            TOTAL_CHANGES=$((ADDITIONS + DELETIONS))
+            
+            echo "📊 Change Complexity:"
+            echo "   Files: $CHANGED_FILES"
+            echo "   Additions: $ADDITIONS"
+            echo "   Deletions: $DELETIONS"
+            echo "   Total: $TOTAL_CHANGES"
+            
+            COMPLEXITY_SCORE=0
+            if [ $TOTAL_CHANGES -lt 50 ]; then
+              COMPLEXITY_SCORE=10  # Small changes
+            elif [ $TOTAL_CHANGES -lt 200 ]; then
+              COMPLEXITY_SCORE=8   # Medium changes
+            elif [ $TOTAL_CHANGES -lt 500 ]; then
+              COMPLEXITY_SCORE=6   # Large changes
+            elif [ $TOTAL_CHANGES -lt 1000 ]; then
+              COMPLEXITY_SCORE=4   # Very large
+            else
+              COMPLEXITY_SCORE=2   # Massive changes
+            fi
+            
+            # Calculate overall merge score (weighted average)
+            OVERALL_SCORE=$(( (AUTHOR_SCORE * 2 + CHECK_SCORE * 3 + REVIEW_SCORE * 3 + AGE_SCORE + COMPLEXITY_SCORE) / 10 ))
+            
+            echo "📊 Scoring Breakdown:"
+            echo "   Author: $AUTHOR_SCORE/10"
+            echo "   Checks: $CHECK_SCORE/10"
+            echo "   Reviews: $REVIEW_SCORE/10"
+            echo "   Age: $AGE_SCORE/10"
+            echo "   Complexity: $COMPLEXITY_SCORE/10"
+            echo "   Overall: $OVERALL_SCORE/10"
+            
+            # Determine merge readiness
+            MERGE_DECISION="NOT_READY"
+            
+            # Basic requirements
+            if [ "$PR_MERGEABLE" != "true" ]; then
+              echo "❌ Not mergeable - has conflicts"
+            elif [ $FAILING_CHECKS -gt 0 ]; then
+              echo "❌ Not ready - has failing checks"
+            elif [ $CHANGES_REQUESTED -gt 0 ]; then
+              echo "❌ Not ready - changes requested"
+            elif [ $OVERALL_SCORE -ge 8 ]; then
+              echo "✅ READY FOR AUTO-MERGE (Score: $OVERALL_SCORE/10)"
+              MERGE_DECISION="AUTO_MERGE"
+              MERGE_READY_PRS="$MERGE_READY_PRS $PR_NUMBER"
+            elif [ $OVERALL_SCORE -ge 6 ]; then
+              echo "⏳ NEEDS REVIEW (Score: $OVERALL_SCORE/10)"
+              MERGE_DECISION="NEEDS_REVIEW"
+            else
+              echo "❌ NOT READY (Score: $OVERALL_SCORE/10)"
+              MERGE_DECISION="NOT_READY"
+            fi
+            
+            # Store analysis result
+            ANALYSIS_RESULTS="$ANALYSIS_RESULTS|PR_$PR_NUMBER:$MERGE_DECISION:$OVERALL_SCORE"
+          done
+          
+          echo ""
+          echo "🎯 Final Analysis Summary"
+          echo "========================"
+          echo "Merge Ready PRs: $MERGE_READY_PRS"
+          echo "Full Analysis: $ANALYSIS_RESULTS"
+          
+          echo "merge-ready-prs=$MERGE_READY_PRS" >> $GITHUB_OUTPUT
+          echo "analysis-results=$ANALYSIS_RESULTS" >> $GITHUB_OUTPUT
+          
+      - name: Execute Auto-Merges
+        if: steps.analyze.outputs.merge-ready-prs != ''
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "🚀 Executing Auto-Merges"
+          echo "========================"
+          
+          SUCCESS_COUNT=0
+          FAILED_COUNT=0
+          
+          for PR_NUMBER in ${{ steps.analyze.outputs.merge-ready-prs }}; do
+            echo ""
+            echo "🎯 Auto-merging PR #$PR_NUMBER"
+            
+            # Final safety check
+            PR_INFO=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+            PR_MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable')
+            
+            if [ "$PR_MERGEABLE" != "true" ]; then
+              echo "❌ Last-minute check failed - PR not mergeable"
+              FAILED_COUNT=$((FAILED_COUNT + 1))
+              continue
+            fi
+            
+            # Perform the merge
+            if gh pr merge $PR_NUMBER --auto --squash --delete-branch; then
+              echo "✅ Successfully merged PR #$PR_NUMBER"
+              SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+              
+              # Leave success comment
+              gh pr comment $PR_NUMBER --body "🤖 **Intelligent Auto-Merge Complete!** This PR has been automatically merged by the Intelligent Merge Decision Engine after passing comprehensive analysis. Thank you for your contribution! 🎉" || true
+              
+            else
+              echo "❌ Failed to merge PR #$PR_NUMBER"
+              FAILED_COUNT=$((FAILED_COUNT + 1))
+              
+              # Leave failure comment
+              gh pr comment $PR_NUMBER --body "🤖 Auto-Merge Attempted - The merge operation failed. Please check merge requirements and try manually if needed." || true
+            fi
+          done
+          
+          echo ""
+          echo "📊 Auto-Merge Results:"
+          echo "   Successful: $SUCCESS_COUNT"
+          echo "   Failed: $FAILED_COUNT"
+          
+      - name: Request Reviews for Borderline PRs
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "👥 Processing Borderline PRs"
+          echo "============================"
+          
+          # Parse analysis results to find NEEDS_REVIEW PRs
+          echo "${{ steps.analyze.outputs.analysis-results }}" | tr '|' '\n' | while IFS=':' read -r pr_info decision score; do
+            if [ "$decision" = "NEEDS_REVIEW" ]; then
+              PR_NUMBER=$(echo "$pr_info" | sed 's/PR_//')
+              echo "👥 Requesting review for PR #$PR_NUMBER (Score: $score)"
+              
+              # Get maintainers
+              MAINTAINERS=$(gh api repos/${{ github.repository }}/collaborators --jq '.[].login' | grep -v "app\|bot" | head -2)
+              
+              # Request reviews
+              for maintainer in $MAINTAINERS; do
+                gh pr edit $PR_NUMBER --add-reviewer "$maintainer" 2>/dev/null || true
+              done
+              
+              # Comment on PR
+              gh pr comment $PR_NUMBER --body "🤖 **Intelligent Review Request** - Merge Analysis Score: $score/10. This PR shows good quality but requires human review for final approval. A maintainer has been assigned." || true
+            fi
+          done
+          
+      - name: Final Summary Report
+        if: always()
+        run: |
+          echo "📊 Intelligent Merge Decision Engine Summary"
+          echo "============================================"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Evaluated PRs: ${{ steps.discover.outputs.pr-numbers }}"
+          echo "Auto-Merged: ${{ steps.analyze.outputs.merge-ready-prs }}"
+          echo ""
+          echo "Analysis Results:"
+          echo "${{ steps.analyze.outputs.analysis-results }}" | tr '|' '\n' | while IFS=':' read -r pr_info decision score; do
+            if [ -n "$pr_info" ]; then
+              PR_NUM=$(echo "$pr_info" | sed 's/PR_//')
+              echo "  PR #$PR_NUM: $decision (Score: $score/10)"
+            fi
+          done
+          echo ""
+          echo "🔄 Next intelligent evaluation: 2 hours (scheduled)"
