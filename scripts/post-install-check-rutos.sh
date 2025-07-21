@@ -4,6 +4,9 @@
 # Description: Comprehensive post-installation health check with visual indicators
 # Compatible with: RUTOS (busybox sh)
 
+# RUTOS Compatibility - Using Method 5 printf format for proper color display
+# shellcheck disable=SC2059  # Method 5 printf format required for RUTOS color support
+
 set -e  # Exit on error
 
 # Version information (auto-updated by update-version.sh)
@@ -31,28 +34,34 @@ fi
 
 # Standard logging functions with consistent colors
 log_info() {
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
+        # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
         printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_success() {
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
@@ -84,22 +93,27 @@ check_status() {
     
     case "$status_type" in
         "pass")
+            # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
             printf "${GREEN}✅ HEALTHY${NC}   | %-25s | %s\n" "$description" "$details"
             status_passed=$((status_passed + 1))
             ;;
         "fail")
+            # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
             printf "${RED}❌ FAILED${NC}    | %-25s | %s\n" "$description" "$details"
             status_failed=$((status_failed + 1))
             ;;
         "config")
+            # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
             printf "${YELLOW}⚙️  CONFIG${NC}   | %-25s | %s\n" "$description" "$details"
             status_config=$((status_config + 1))
             ;;
         "warn")
+            # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
             printf "${YELLOW}⚠️  WARN${NC}     | %-25s | %s\n" "$description" "$details"
             status_warnings=$((status_warnings + 1))
             ;;
         "info")
+            # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
             printf "${BLUE}ℹ️  INFO${NC}     | %-25s | %s\n" "$description" "$details"
             status_info=$((status_info + 1))
             ;;
@@ -108,8 +122,11 @@ check_status() {
 
 # Show header
 printf "\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${PURPLE}                  STARLINK POST-INSTALL HEALTH CHECK${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 printf "\n"
 
@@ -125,6 +142,7 @@ if [ -f "$CONFIG_FILE" ]; then
     check_status "pass" "Configuration File" "Successfully loaded from $CONFIG_FILE"
 else
     check_status "fail" "Configuration File" "Missing: $CONFIG_FILE"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "\n${RED}❌ Critical Error: Configuration file not found!${NC}\n"
     printf "Run the installer first: curl -fL install-url | sh\n\n"
     exit 1
@@ -143,7 +161,9 @@ is_placeholder() {
     esac
 }
 
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}1. CORE SYSTEM COMPONENTS${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
 # Check installation directory
@@ -176,7 +196,9 @@ else
     check_status "fail" "Hotplug Notification" "Missing notification script"
 fi
 
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}2. CRON SCHEDULING${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
 # Check cron entries
@@ -214,7 +236,9 @@ else
     check_status "fail" "Cron Configuration" "Crontab file missing: $CRON_FILE"
 fi
 
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}3. NETWORK CONFIGURATION${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
 # Check Starlink IP configuration
@@ -265,7 +289,9 @@ else
     check_status "config" "MWAN Member" "Not configured"
 fi
 
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}4. NOTIFICATION SYSTEM${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
 # Check Pushover configuration
@@ -305,7 +331,9 @@ else
     check_status "info" "Slack Notifications" "Not configured (optional feature)"
 fi
 
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}5. MONITORING THRESHOLDS${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
 # Check critical monitoring values
@@ -354,7 +382,9 @@ else
     check_status "config" "Recovery Threshold" "Not configured (using default 3)"
 fi
 
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}6. SYSTEM HEALTH${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
 # Check log directory and space
@@ -404,7 +434,9 @@ else
     check_status "warn" "Memory Usage" "Cannot check - /proc/meminfo unavailable"
 fi
 
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}7. CONNECTIVITY TESTS${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
 # Test internet connectivity
@@ -437,16 +469,25 @@ fi
 
 # Calculate totals and display summary
 printf "\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${PURPLE}                               SUMMARY${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
 printf "\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}Results Overview:${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "  ${GREEN}✅ Passed:${NC}      %d\n" "$status_passed"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "  ${RED}❌ Failed:${NC}      %d\n" "$status_failed"  
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "  ${YELLOW}⚠️  Warnings:${NC}    %d\n" "$status_warnings"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "  ${CYAN}⚙️  Config Needed:${NC} %d\n" "$status_config"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "  ${BLUE}ℹ️  Info:${NC}        %d\n" "$status_info"
 printf "\n"
 
@@ -454,49 +495,66 @@ printf "\n"
 overall_status="unknown"
 if [ "$status_failed" -eq 0 ] && [ "$status_config" -eq 0 ]; then
     overall_status="excellent"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${GREEN}🎉 SYSTEM STATUS: EXCELLENT${NC}\n"
     printf "Your Starlink monitoring system is fully operational and properly configured.\n"
     printf "All components are working correctly.\n"
 elif [ "$status_failed" -eq 0 ] && [ "$status_config" -gt 0 ]; then
     overall_status="good"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${YELLOW}⚙️ SYSTEM STATUS: NEEDS CONFIGURATION${NC}\n"
     printf "Your system is installed correctly but needs configuration to be fully functional.\n"
     printf "Please address the configuration items marked above.\n"
 elif [ "$status_failed" -le 2 ] && [ "$status_warnings" -le 3 ]; then
     overall_status="needs_attention"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${YELLOW}⚠️ SYSTEM STATUS: NEEDS ATTENTION${NC}\n"
     printf "Your system has some issues that should be addressed for optimal operation.\n"
     printf "Most functionality should work, but reliability may be affected.\n"
 else
     overall_status="critical"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${RED}❌ SYSTEM STATUS: CRITICAL ISSUES${NC}\n"
     printf "Your system has significant problems that prevent proper operation.\n"
     printf "Please resolve the failed checks before relying on the monitoring system.\n"
 fi
 
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}Quick Actions:${NC}\n"
 
 # Configuration guidance
 if [ "$status_config" -gt 0 ]; then
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "• Configure system:  ${CYAN}vi $CONFIG_FILE${NC}\n"
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "• Re-run validation: ${CYAN}$INSTALL_DIR/scripts/validate-config-rutos.sh${NC}\n"
 fi
 
 # Standard management commands
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "• Test monitoring:   ${CYAN}$INSTALL_DIR/scripts/test-monitoring-rutos.sh${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "• Check system:      ${CYAN}$INSTALL_DIR/scripts/system-status-rutos.sh${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "• View logs:         ${CYAN}$INSTALL_DIR/scripts/view-logs-rutos.sh${NC}\n"
 
 if [ "$status_failed" -gt 0 ]; then
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "• Repair issues:     ${CYAN}$INSTALL_DIR/scripts/repair-system-rutos.sh${NC}\n"
 fi
 
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}Configuration File Location:${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${CYAN}$CONFIG_FILE${NC}\n"
 
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}Documentation:${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "• Installation Guide: ${CYAN}https://github.com/your-repo/rutos-starlink-failover/blob/main/docs/INSTALLATION.md${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "• Configuration Help: ${CYAN}https://github.com/your-repo/rutos-starlink-failover/blob/main/docs/CONFIGURATION.md${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "• Troubleshooting:    ${CYAN}https://github.com/your-repo/rutos-starlink-failover/blob/main/docs/TROUBLESHOOTING.md${NC}\n"
 
 printf "\n"
