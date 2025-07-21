@@ -2,6 +2,7 @@
 # Fix common markdown issues found by markdownlint
 
 # Color codes for output - RUTOS compatible
+# shellcheck disable=SC2034  # Color variables may not all be used in every script
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -45,7 +46,10 @@ fix_md040() {
     # For now, we'll focus on the most common cases
 
     # First, let's identify directory structure blocks
-    sed 's/^```$/```text/' "$file" >"$temp_file"
+    # Replace bare ``` (markdown code blocks without language) with ```text
+    pattern='^```[[:space:]]*$'
+    replacement='```text'
+    sed "s/${pattern}/${replacement}/" "$file" >"$temp_file"
 
     # Check if any changes were made
     if ! diff -q "$file" "$temp_file" >/dev/null; then
