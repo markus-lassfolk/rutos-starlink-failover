@@ -1828,6 +1828,198 @@ wait_for_network() {
     return 1
 }
 
+# Enhanced configuration restoration with validation and safety features
+restore_user_configuration() {
+    log_restore "Starting enhanced configuration restoration..."
+    
+    # Check if persistent config exists
+    if [ ! -f "$PERSISTENT_CONFIG_DIR/config.sh" ]; then
+        log_restore "No persistent configuration found to restore"
+        return 0
+    fi
+    
+    # Check if installation directory exists
+    if [ ! -d "$INSTALL_DIR/config" ]; then
+        log_restore "WARNING: Installation directory not found, config restore skipped"
+        return 1
+    fi
+    
+    # Step 1: Validate persistent configuration
+    log_restore "Step 1: Validating persistent configuration..."
+    if ! validate_persistent_config "$PERSISTENT_CONFIG_DIR/config.sh"; then
+        log_restore "ERROR: Persistent configuration validation failed"
+        log_restore "Keeping fresh installation configuration for safety"
+        return 1
+    fi
+    
+    # Step 2: Create backup of fresh installation config
+    log_restore "Step 2: Creating backup of fresh installation configuration..."
+    fresh_config_backup="$INSTALL_DIR/config/config.sh.pre-restore.$(date +%Y%m%d_%H%M%S)"
+    if cp "$INSTALL_DIR/config/config.sh" "$fresh_config_backup"; then
+        log_restore "Fresh configuration backed up to: $fresh_config_backup"
+    else
+        log_restore "WARNING: Failed to backup fresh configuration"
+    fi
+    
+    # Step 3: Check template version compatibility
+    log_restore "Step 3: Checking template version compatibility..."
+    check_template_compatibility
+    
+    # Step 4: Use intelligent merge instead of direct overwrite
+    log_restore "Step 4: Performing intelligent configuration merge..."
+    temp_merged_config="/tmp/merged_config_restore.tmp"
+    
+    if merge_configurations "$INSTALL_DIR/config/config.sh" "$PERSISTENT_CONFIG_DIR/config.sh" "$temp_merged_config"; then
+        # Validate merged configuration
+        if validate_persistent_config "$temp_merged_config"; then
+            cp "$temp_merged_config" "$INSTALL_DIR/config/config.sh"
+            log_restore "Configuration successfully restored using intelligent merge"
+            log_restore "Fresh config backup available at: $fresh_config_backup"
+        else
+            log_restore "ERROR: Merged configuration validation failed"
+            log_restore "Keeping fresh installation configuration"
+            rm -f "$temp_merged_config"
+            return 1
+        fi
+    else
+        log_restore "WARNING: Intelligent merge failed, using direct restore with validation"
+        # Fallback to direct copy but with validation
+        if cp "$PERSISTENT_CONFIG_DIR/config.sh" "$INSTALL_DIR/config/config.sh"; then
+            log_restore "User configuration restored from persistent storage (direct copy)"
+        else
+            log_restore "ERROR: Failed to restore user configuration"
+            return 1
+        fi
+    fi
+    
+    # Cleanup
+    rm -f "$temp_merged_config"
+    log_restore "Configuration restoration completed successfully"
+    return 0
+}
+
+# Validate persistent configuration for corruption and required settings
+validate_persistent_config() {
+    config_file="$1"
+    
+    # Use dedicated validation script if available
+    if [ -f "$INSTALL_DIR/scripts/validate-persistent-config-rutos.sh" ]; then
+        log_restore "Using dedicated validation script"
+        if "$INSTALL_DIR/scripts/validate-persistent-config-rutos.sh" "$config_file" >>"$RESTORE_LOG" 2>&1; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+    
+    # Fallback to embedded validation
+    log_restore "Using embedded validation (dedicated script not available)"
+    
+    # Check if file is readable
+    if [ ! -r "$config_file" ]; then
+        log_restore "Configuration file is not readable"
+        return 1
+    fi
+    
+    # Check file size (should not be empty or too small)
+    file_size=$(wc -c < "$config_file" 2>/dev/null || echo "0")
+    if [ "$file_size" -lt 100 ]; then
+        log_restore "Configuration file is too small ($file_size bytes) - likely corrupted"
+        return 1
+    fi
+    
+    # Check for shell syntax errors
+    if ! sh -n "$config_file" 2>/dev/null; then
+        log_restore "Configuration file has shell syntax errors"
+        return 1
+    fi
+    
+    # Check for required settings (not placeholder values)
+    required_settings="STARLINK_IP MWAN_IFACE MWAN_MEMBER"
+    for setting in $required_settings; do
+        if ! grep -q "^${setting}=" "$config_file" 2>/dev/null; then
+            log_restore "Missing required setting: $setting"
+            return 1
+        fi
+    done
+    
+    log_restore "Embedded validation passed"
+    return 0
+}
+
+# Check template version compatibility
+check_template_compatibility() {
+    # Get current template version if available
+    current_template_version=""
+    if [ -f "$INSTALL_DIR/config/config.template.sh" ]; then
+        current_template_version=$(grep "^# Template Version:" "$INSTALL_DIR/config/config.template.sh" 2>/dev/null | cut -d':' -f2- | tr -d ' ')
+    fi
+    
+    # Get persistent config template info if available
+    persistent_template_info=""
+    if grep -q "^# Template Version:" "$PERSISTENT_CONFIG_DIR/config.sh" 2>/dev/null; then
+        persistent_template_info=$(grep "^# Template Version:" "$PERSISTENT_CONFIG_DIR/config.sh" | cut -d':' -f2- | tr -d ' ')
+    fi
+    
+    if [ -n "$current_template_version" ] && [ -n "$persistent_template_info" ]; then
+        if [ "$current_template_version" != "$persistent_template_info" ]; then
+            log_restore "Template version mismatch detected:"
+            log_restore "  Current: $current_template_version"
+            log_restore "  Persistent: $persistent_template_info"
+            log_restore "Will use intelligent merge to handle compatibility"
+        else
+            log_restore "Template versions match: $current_template_version"
+        fi
+    else
+        log_restore "Template version information not available for comparison"
+    fi
+}
+
+# Merge configurations intelligently (simplified version for restore context)
+merge_configurations() {
+    fresh_config="$1"
+    persistent_config="$2"
+    output_config="$3"
+    
+    log_restore "Merging configurations: fresh + persistent -> output"
+    
+    # Start with fresh config as base
+    cp "$fresh_config" "$output_config"
+    
+    # Extract user settings from persistent config and apply to output
+    user_settings="STARLINK_IP MWAN_IFACE MWAN_MEMBER PUSHOVER_TOKEN PUSHOVER_USER RUTOS_USERNAME RUTOS_PASSWORD RUTOS_IP"
+    
+    for setting in $user_settings; do
+        if grep -q "^${setting}=" "$persistent_config" 2>/dev/null; then
+            persistent_value=$(grep "^${setting}=" "$persistent_config" | head -1)
+            
+            # Skip placeholder values
+            if echo "$persistent_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE)" 2>/dev/null; then
+                log_restore "Skipping placeholder value for $setting"
+                continue
+            fi
+            
+            # Apply setting to output config
+            if grep -q "^${setting}=" "$output_config" 2>/dev/null; then
+                # Replace existing setting
+                setting_escaped=$(echo "$setting" | sed 's/[[\.*^$()+?{|]/\\&/g')
+                sed -i "s|^${setting_escaped}=.*|${persistent_value}|" "$output_config" 2>/dev/null
+            else
+                # Add new setting
+                echo "$persistent_value" >> "$output_config"
+            fi
+            log_restore "Merged setting: $setting"
+        fi
+    done
+    
+    # Verify output config is valid
+    if [ -f "$output_config" ] && [ -s "$output_config" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 start() {
     # Always ensure symlinks exist (quick operation)
     ln -sf "$INSTALL_DIR/config/config.sh" "/root/config.sh" 2>/dev/null || true
@@ -1850,17 +2042,8 @@ start() {
         if curl -fsSL "${BASE_URL}/scripts/install-rutos.sh" | sh >>"$RESTORE_LOG" 2>&1; then
             log_restore "Installation script completed successfully"
             
-            # Restore user configuration
-            if [ -f "$PERSISTENT_CONFIG_DIR/config.sh" ]; then
-                if [ -d "$INSTALL_DIR/config" ]; then
-                    cp "$PERSISTENT_CONFIG_DIR/config.sh" "$INSTALL_DIR/config/config.sh"
-                    log_restore "User configuration restored from persistent storage"
-                else
-                    log_restore "WARNING: Installation directory not found, config restore skipped"
-                fi
-            else
-                log_restore "No persistent configuration found to restore"
-            fi
+            # Enhanced configuration restoration with validation and backup
+            restore_user_configuration
             
             # Restore any additional persistent files
             if [ -f "$PERSISTENT_CONFIG_DIR/config.template.sh" ] && [ -d "$INSTALL_DIR/config" ]; then
@@ -1890,11 +2073,43 @@ start() {
 }
 
 stop() {
-    # Backup current configuration to persistent storage before shutdown
+    # Enhanced backup with validation before shutdown
+    log_restore "Performing enhanced configuration backup before shutdown..."
+    
     if [ -f "$INSTALL_DIR/config/config.sh" ]; then
         mkdir -p "$PERSISTENT_CONFIG_DIR"
-        cp "$INSTALL_DIR/config/config.sh" "$PERSISTENT_CONFIG_DIR/config.sh"
-        log_restore "Configuration backed up to persistent storage"
+        
+        # Validate current config before backing it up
+        if validate_persistent_config "$INSTALL_DIR/config/config.sh"; then
+            # Create timestamped backup
+            backup_timestamp=$(date +%Y%m%d_%H%M%S)
+            backup_file="$PERSISTENT_CONFIG_DIR/config.sh.backup.$backup_timestamp"
+            
+            # Keep current config as main backup
+            cp "$INSTALL_DIR/config/config.sh" "$PERSISTENT_CONFIG_DIR/config.sh"
+            cp "$INSTALL_DIR/config/config.sh" "$backup_file"
+            
+            log_restore "Configuration backed up to persistent storage"
+            log_restore "Timestamped backup created: $backup_file"
+            
+            # Add template version info to backup for compatibility tracking
+            if [ -f "$INSTALL_DIR/config/config.template.sh" ]; then
+                template_version=$(grep "^# Template Version:" "$INSTALL_DIR/config/config.template.sh" 2>/dev/null | head -1)
+                if [ -n "$template_version" ]; then
+                    echo "$template_version" >> "$PERSISTENT_CONFIG_DIR/config.sh"
+                    log_restore "Template version info added to backup"
+                fi
+            fi
+            
+            # Cleanup old backups (keep last 5)
+            find "$PERSISTENT_CONFIG_DIR" -name "config.sh.backup.*" -type f | sort -r | tail -n +6 | xargs rm -f 2>/dev/null || true
+            
+        else
+            log_restore "WARNING: Current configuration failed validation, not backing up"
+            log_restore "This may indicate configuration corruption - manual review recommended"
+        fi
+    else
+        log_restore "No configuration file found to backup"
     fi
     
     # Backup template for future use

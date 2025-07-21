@@ -241,7 +241,7 @@ else
 fi
 
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-printf "\n${BLUE}3. NETWORK CONFIGURATION${NC}\n"
+printf "\n${BLUE}3. STARLINK CONFIGURATION${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
@@ -250,16 +250,43 @@ if [ -n "${STARLINK_IP:-}" ]; then
     if is_placeholder "$STARLINK_IP"; then
         check_status "config" "Starlink IP Address" "Needs configuration: $STARLINK_IP"
     else
-        # Test connectivity to Starlink gRPC
-        if timeout 5 sh -c "echo >/dev/tcp/${STARLINK_IP%:*}/${STARLINK_IP#*:}" 2>/dev/null; then
-            check_status "pass" "Starlink IP Address" "Reachable: $STARLINK_IP"
+        # Test connectivity to Starlink using grpcurl like the connectivity test script
+        grpc_host="${STARLINK_IP%:*}"
+        grpc_port="${STARLINK_IP#*:}"
+
+        # Use netcat for basic connectivity test first
+        if command -v nc >/dev/null 2>&1; then
+            if echo | timeout 5 nc "$grpc_host" "$grpc_port" 2>/dev/null; then
+                # Try grpcurl test if basic connectivity works
+                if [ -f "$INSTALL_DIR/grpcurl" ] && [ -x "$INSTALL_DIR/grpcurl" ]; then
+                    if timeout 10 "$INSTALL_DIR/grpcurl" -plaintext -d '{"get_device_info":{}}' "$grpc_host:$grpc_port" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
+                        check_status "pass" "Starlink IP Address" "gRPC API responding: $STARLINK_IP"
+                    else
+                        check_status "warn" "Starlink IP Address" "Port open but gRPC API not responding: $STARLINK_IP"
+                    fi
+                else
+                    check_status "pass" "Starlink IP Address" "TCP port reachable: $STARLINK_IP (grpcurl not available for full test)"
+                fi
+            else
+                check_status "fail" "Starlink IP Address" "Not reachable: $STARLINK_IP"
+            fi
         else
-            check_status "fail" "Starlink IP Address" "Not reachable: $STARLINK_IP"
+            # Fallback to basic TCP test
+            if timeout 5 sh -c "echo >/dev/tcp/$grpc_host/$grpc_port" 2>/dev/null; then
+                check_status "pass" "Starlink IP Address" "TCP port reachable: $STARLINK_IP"
+            else
+                check_status "fail" "Starlink IP Address" "Not reachable: $STARLINK_IP"
+            fi
         fi
     fi
 else
     check_status "config" "Starlink IP Address" "Not configured (using default 192.168.100.1:9200)"
 fi
+
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+printf "\n${BLUE}4. NETWORK CONFIGURATION${NC}\n"
+# shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
 # Check MWAN interface configuration
 if [ -n "${MWAN_IFACE:-}" ]; then
@@ -282,11 +309,19 @@ if [ -n "${MWAN_MEMBER:-}" ]; then
     if is_placeholder "$MWAN_MEMBER"; then
         check_status "config" "MWAN Member" "Needs configuration: $MWAN_MEMBER"
     else
-        # Check if member exists in MWAN3
-        if uci get mwan3.member."$MWAN_MEMBER" >/dev/null 2>&1; then
-            check_status "pass" "MWAN Member" "Configured: $MWAN_MEMBER"
+        # Check if member exists in MWAN3 using correct UCI path
+        if uci get "mwan3.$MWAN_MEMBER" >/dev/null 2>&1; then
+            member_interface=$(uci get "mwan3.$MWAN_MEMBER.interface" 2>/dev/null || echo "unknown")
+            check_status "pass" "MWAN Member" "Configured: $MWAN_MEMBER (interface: $member_interface)"
         else
-            check_status "warn" "MWAN Member" "Member not found in MWAN3: $MWAN_MEMBER"
+            # Provide helpful feedback about available members
+            available_members=$(uci show mwan3 2>/dev/null | grep "=member$" | cut -d'.' -f2 | cut -d'=' -f1 | head -5)
+            if [ -n "$available_members" ]; then
+                members_list=$(echo "$available_members" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+                check_status "warn" "MWAN Member" "Member '$MWAN_MEMBER' not found. Available: $members_list"
+            else
+                check_status "warn" "MWAN Member" "Member '$MWAN_MEMBER' not found in MWAN3 config"
+            fi
         fi
     fi
 else
@@ -294,7 +329,7 @@ else
 fi
 
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-printf "\n${BLUE}4. NOTIFICATION SYSTEM${NC}\n"
+printf "\n${BLUE}5. NOTIFICATION SYSTEM${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
@@ -336,7 +371,7 @@ else
 fi
 
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-printf "\n${BLUE}5. MONITORING THRESHOLDS${NC}\n"
+printf "\n${BLUE}6. MONITORING THRESHOLDS${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
@@ -349,11 +384,33 @@ if [ -n "${CHECK_INTERVAL:-}" ]; then
         if [ "$CHECK_INTERVAL" -ge 30 ] && [ "$CHECK_INTERVAL" -le 600 ]; then
             check_status "pass" "Check Interval" "Set to ${CHECK_INTERVAL}s (recommended: 30-600s)"
         else
-            check_status "warn" "Check Interval" "Value ${CHECK_INTERVAL}s outside recommended range (30-600s)"
+            check_status "warn" "Check Interval" "Set to ${CHECK_INTERVAL}s (recommended: 30-600s)"
         fi
     fi
 else
     check_status "config" "Check Interval" "Not configured (using default 60s)"
+fi
+
+# Check failure threshold for Starlink connectivity monitoring
+if [ -n "${FAILURE_THRESHOLD:-}" ]; then
+    if is_placeholder "$FAILURE_THRESHOLD"; then
+        check_status "config" "Connectivity Failure Threshold" "Needs configuration: $FAILURE_THRESHOLD"
+    else
+        check_status "pass" "Connectivity Failure Threshold" "Set to $FAILURE_THRESHOLD failures before failover"
+    fi
+else
+    check_status "config" "Connectivity Failure Threshold" "Not configured (using default 3 failures before failover)"
+fi
+
+# Check recovery threshold for Starlink connectivity monitoring
+if [ -n "${RECOVERY_THRESHOLD:-}" ]; then
+    if is_placeholder "$RECOVERY_THRESHOLD"; then
+        check_status "config" "Connectivity Recovery Threshold" "Needs configuration: $RECOVERY_THRESHOLD"
+    else
+        check_status "pass" "Connectivity Recovery Threshold" "Set to $RECOVERY_THRESHOLD successes before failback"
+    fi
+else
+    check_status "config" "Connectivity Recovery Threshold" "Not configured (using default 3 successes before failback)"
 fi
 
 if [ -n "${FAILURE_THRESHOLD:-}" ]; then
@@ -387,7 +444,7 @@ else
 fi
 
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-printf "\n${BLUE}6. SYSTEM HEALTH${NC}\n"
+printf "\n${BLUE}7. SYSTEM HEALTH${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
@@ -404,15 +461,41 @@ else
     check_status "fail" "Log Directory" "Missing: $log_dir"
 fi
 
-# Check disk space
+# Check disk space - focus on relevant partitions for RUTOS
 if command -v df >/dev/null 2>&1; then
+    # Check root filesystem but be less strict since RUTOS manages this
     root_usage=$(df / 2>/dev/null | tail -1 | awk '{print $5}' | sed 's/%//' || echo "100")
-    if [ "$root_usage" -lt 80 ]; then
-        check_status "pass" "Disk Space" "Root filesystem ${root_usage}% used (healthy)"
+    if [ "$root_usage" -eq 100 ]; then
+        # Check if this is a RUTOS system where 100% is normal for root
+        if df | grep -q "overlay\|tmpfs"; then
+            check_status "pass" "Root Filesystem" "RUTOS overlay filesystem (100% normal for embedded systems)"
+        else
+            check_status "fail" "Root Filesystem" "Root filesystem ${root_usage}% used (critical)"
+        fi
     elif [ "$root_usage" -lt 90 ]; then
-        check_status "warn" "Disk Space" "Root filesystem ${root_usage}% used (monitor closely)"
+        check_status "pass" "Root Filesystem" "Root filesystem ${root_usage}% used (healthy)"
     else
-        check_status "fail" "Disk Space" "Root filesystem ${root_usage}% used (critical)"
+        check_status "warn" "Root Filesystem" "Root filesystem ${root_usage}% used (monitor closely)"
+    fi
+
+    # Check if we have a separate data partition that we care about more
+    data_partition=""
+    for partition in "/mnt/data" "/opt" "/var" "/tmp"; do
+        if df "$partition" >/dev/null 2>&1 && df "$partition" 2>/dev/null | tail -1 | awk '{print $6}' | grep -q "^$partition$"; then
+            data_partition="$partition"
+            break
+        fi
+    done
+
+    if [ -n "$data_partition" ]; then
+        data_usage=$(df "$data_partition" 2>/dev/null | tail -1 | awk '{print $5}' | sed 's/%//' || echo "0")
+        if [ "$data_usage" -lt 80 ]; then
+            check_status "pass" "Data Partition ($data_partition)" "${data_usage}% used (healthy)"
+        elif [ "$data_usage" -lt 90 ]; then
+            check_status "warn" "Data Partition ($data_partition)" "${data_usage}% used (monitor closely)"
+        else
+            check_status "fail" "Data Partition ($data_partition)" "${data_usage}% used (critical)"
+        fi
     fi
 else
     check_status "warn" "Disk Space" "Cannot check - df command unavailable"
@@ -439,7 +522,7 @@ else
 fi
 
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-printf "\n${BLUE}7. CONNECTIVITY TESTS${NC}\n"
+printf "\n${BLUE}8. CONNECTIVITY TESTS${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
@@ -457,19 +540,7 @@ else
     check_status "fail" "DNS Resolution" "Cannot resolve domain names"
 fi
 
-# Test Starlink gRPC connectivity (if configured)
-if [ -n "${STARLINK_IP:-}" ] && ! is_placeholder "$STARLINK_IP"; then
-    grpc_host="${STARLINK_IP%:*}"
-    grpc_port="${STARLINK_IP#*:}"
-
-    if timeout 5 sh -c "echo >/dev/tcp/$grpc_host/$grpc_port" 2>/dev/null; then
-        check_status "pass" "Starlink gRPC API" "Connection successful to $STARLINK_IP"
-    else
-        check_status "fail" "Starlink gRPC API" "Cannot connect to $STARLINK_IP"
-    fi
-else
-    check_status "config" "Starlink gRPC API" "IP address not configured for testing"
-fi
+# Additional connectivity tests can be added here if needed
 
 # Calculate totals and display summary
 printf "\n"

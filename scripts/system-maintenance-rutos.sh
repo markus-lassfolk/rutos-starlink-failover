@@ -103,7 +103,7 @@ MAINTENANCE_NOTIFICATION_COOLDOWN="${MAINTENANCE_NOTIFICATION_COOLDOWN:-3600}" #
 MAINTENANCE_LAST_NOTIFICATION_FILE="/tmp/maintenance_last_notification"
 
 # Enhanced notification configuration with defaults
-MAINTENANCE_NOTIFY_ON_FIXES="${MAINTENANCE_NOTIFY_ON_FIXES:-true}"                   # Notify on successful fixes
+MAINTENANCE_NOTIFY_ON_FIXES="${MAINTENANCE_NOTIFY_ON_FIXES:-false}"                  # Notify on successful fixes (default: only critical)
 MAINTENANCE_NOTIFY_ON_FAILURES="${MAINTENANCE_NOTIFY_ON_FAILURES:-true}"             # Notify on failed fixes
 MAINTENANCE_NOTIFY_ON_CRITICAL="${MAINTENANCE_NOTIFY_ON_CRITICAL:-true}"             # Notify on critical issues
 MAINTENANCE_NOTIFY_ON_FOUND="${MAINTENANCE_NOTIFY_ON_FOUND:-false}"                  # Notify on issues found
@@ -139,9 +139,34 @@ record_action() {
         "FIXED")
             ISSUES_FIXED_COUNT=$((ISSUES_FIXED_COUNT + 1))
             log_success "FIXED: $issue_description"
-            # Send notification for successful fix
+
+            # Only send notifications for significant fixes
             if [ "$MAINTENANCE_NOTIFY_ON_FIXES" = "true" ]; then
-                send_maintenance_notification "FIXED" "✅ $issue_description" "Solution: $fix_description" "$MAINTENANCE_PRIORITY_FIXED"
+                # Determine if this is a significant fix worth notifying about
+                significant_fix=false
+
+                # Check for significant fixes that indicate real problems were resolved
+                case "$issue_description" in
+                    *"Created missing directory"* | *"Fixed service"* | *"Restarted service"* | *"Fixed critical"* | *"High disk usage"* | *"High memory usage"* | *"Database"* | *"Network"*)
+                        significant_fix=true
+                        ;;
+                    *"Cleaned up 0"* | *"Removed 0"* | *"backup files"*)
+                        # Don't notify about trivial cleanups or when nothing was actually cleaned
+                        significant_fix=false
+                        ;;
+                    *"Cleaned up"* | *"Removed"*)
+                        # Only notify if actual work was done (extract number if possible)
+                        if echo "$fix_description" | grep -q "Cleaned up [1-9][0-9]* \|Removed [1-9][0-9]* "; then
+                            significant_fix=true
+                        fi
+                        ;;
+                esac
+
+                if [ "$significant_fix" = "true" ]; then
+                    send_maintenance_notification "FIXED" "✅ $issue_description" "Solution: $fix_description" "$MAINTENANCE_PRIORITY_FIXED"
+                else
+                    log_debug "Skipping notification for minor fix: $issue_description"
+                fi
             fi
             ;;
         "FOUND")
@@ -590,15 +615,40 @@ check_log_file_sizes() {
 check_temporary_files() {
     log_debug "Checking for old temporary files"
 
-    # Find temporary files older than 7 days
-    old_temp_files=$(find /tmp -type f -mtime +7 2>/dev/null | wc -l || echo "0")
+    # Find temporary files older than 14 days (more conservative)
+    old_temp_files=$(find /tmp -type f -mtime +14 2>/dev/null | wc -l || echo "0")
 
     if [ "$old_temp_files" -gt 0 ]; then
-        record_action "FOUND" "Found $old_temp_files temporary files older than 7 days" "Remove old temp files"
+        log_debug "Found $old_temp_files temporary files older than 14 days"
 
         if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
-            removed_count=$(find /tmp -type f -mtime +7 -delete 2>/dev/null | wc -l || echo "0")
-            record_action "FIXED" "Removed old temporary files" "Cleaned up $removed_count old temp files"
+            # Actually remove the files and count them properly
+            temp_list=$(find /tmp -type f -mtime +14 2>/dev/null)
+            actual_removed=0
+
+            if [ -n "$temp_list" ]; then
+                echo "$temp_list" | while IFS= read -r temp_file; do
+                    if rm "$temp_file" 2>/dev/null; then
+                        actual_removed=$((actual_removed + 1))
+                    fi
+                done
+
+                # Re-count to get actual number removed
+                remaining_old_files=$(find /tmp -type f -mtime +14 2>/dev/null | wc -l || echo "0")
+                actual_removed=$((old_temp_files - remaining_old_files))
+
+                # Only record action if files were actually removed
+                if [ "$actual_removed" -gt 0 ]; then
+                    record_action "FIXED" "Removed old temporary files" "Cleaned up $actual_removed old temp files"
+                else
+                    log_debug "No temporary files could be removed (files may be in use or already cleaned)"
+                fi
+            else
+                log_debug "No old temporary files found to remove"
+            fi
+        else
+            # Check mode - only report if there are files that could potentially be cleaned
+            record_action "FOUND" "Found $old_temp_files temporary files older than 14 days" "Remove old temp files"
         fi
     else
         log_debug "No old temporary files found"
@@ -936,36 +986,68 @@ check_system_services() {
     done
 }
 
-# Check 11: Disk space monitoring
+# Check 11: Disk space monitoring (RUTOS-aware thresholds)
 check_disk_space() {
     log_debug "Checking disk space usage"
 
-    # Check root filesystem usage
+    # Check root filesystem usage - RUTOS-aware thresholds
     if command -v df >/dev/null 2>&1; then
         root_usage=$(df / | tail -1 | awk '{print $5}' | sed 's/%//' || echo "0")
 
-        if [ "$root_usage" -gt 85 ]; then
+        # RUTOS systems typically have 100% root usage due to overlay filesystem
+        # Only alert if we have other issues or need to check overlay separately
+        if [ "$root_usage" -eq 100 ]; then
+            # Check if this is normal RUTOS behavior
+            if df | grep -q "overlay\|tmpfs"; then
+                log_debug "Root filesystem 100% usage is normal for RUTOS overlay systems"
+                # Check overlay space instead
+                overlay_usage=$(df /overlay 2>/dev/null | awk 'NR==2 {print $5}' | sed 's/%//' || echo "0")
+                if [ "$overlay_usage" -gt 90 ]; then
+                    record_action "FOUND" "High overlay filesystem usage: ${overlay_usage}%" "Clean up overlay space"
+                    if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
+                        # Try to clean overlay space
+                        cleaned_files=0
+                        # Clean old backup and temporary files only
+                        cleaned_files=$(find /overlay -name "*.backup.*" -mtime +7 2>/dev/null | wc -l || echo "0")
+                        if [ "$cleaned_files" -gt 0 ]; then
+                            find /overlay -name "*.backup.*" -mtime +7 -delete 2>/dev/null || true
+                            record_action "FIXED" "Cleaned overlay space" "Removed $cleaned_files old backup files"
+                        fi
+                    fi
+                elif [ "$overlay_usage" -gt 80 ]; then
+                    log_warning "Overlay filesystem usage at ${overlay_usage}% - monitor closely"
+                else
+                    log_debug "Overlay filesystem usage: ${overlay_usage}% (OK)"
+                fi
+            else
+                # Non-overlay system with 100% usage is concerning
+                record_action "FOUND" "Critical disk usage on root filesystem: ${root_usage}%" "Clean up disk space"
+            fi
+        elif [ "$root_usage" -gt 95 ]; then
+            # Only alert for very high usage on non-overlay systems
             record_action "FOUND" "High disk usage on root filesystem: ${root_usage}%" "Clean up disk space"
 
             if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
-                # Clean up some common locations
-                cleaned=0
+                # Clean up some common locations (only if really needed)
+                cleaned_something=0
 
-                # Clean old kernel logs
+                # Clean old kernel logs (only if very old)
                 if [ -d "/var/log" ]; then
-                    if find /var/log -name "*.log.*" -mtime +3 -delete 2>/dev/null; then
-                        cleaned=1
+                    old_logs=$(find /var/log -name "*.log.*" -mtime +7 2>/dev/null | wc -l || echo "0")
+                    if [ "$old_logs" -gt 0 ]; then
+                        find /var/log -name "*.log.*" -mtime +7 -delete 2>/dev/null && cleaned_something=1
                     fi
                 fi
 
-                # Clean package cache if it exists
+                # Clean package cache if it exists and is large
                 if [ -d "/var/cache" ]; then
-                    if find /var/cache -type f -mtime +7 -delete 2>/dev/null; then
-                        cleaned=1
+                    old_cache=$(find /var/cache -type f -mtime +14 2>/dev/null | wc -l || echo "0")
+                    if [ "$old_cache" -gt 0 ]; then
+                        find /var/cache -type f -mtime +14 -delete 2>/dev/null && cleaned_something=1
                     fi
                 fi
 
-                if [ "$cleaned" = "1" ]; then
+                if [ "$cleaned_something" = "1" ]; then
                     record_action "FIXED" "Cleaned up disk space" "Removed old logs and cache files"
                 fi
             fi
@@ -1443,7 +1525,7 @@ EOF
         log_debug "Report contents:"
         while IFS= read -r line; do
             log_debug "  $line"
-        done < "$report_file"
+        done <"$report_file"
     fi
 }
 

@@ -862,17 +862,53 @@ check_firmware_persistence() {
         increment_counter "critical"
     fi
 
-    # Check if persistent config backup exists
+    # Check if persistent config backup exists and is valid
     if [ -d "/etc/starlink-config" ]; then
         if [ -f "/etc/starlink-config/config.sh" ]; then
-            show_health_status "healthy" "Config Backup" "Persistent configuration backup exists"
-            increment_counter "healthy"
+            # Check if persistent config is valid
+            if sh -n "/etc/starlink-config/config.sh" 2>/dev/null; then
+                # Check file size (should not be too small)
+                config_size=$(wc -c <"/etc/starlink-config/config.sh" 2>/dev/null || echo "0")
+                if [ "$config_size" -gt 100 ]; then
+                    show_health_status "healthy" "Config Backup" "Valid persistent configuration backup exists (${config_size} bytes)"
+                    increment_counter "healthy"
+
+                    # Check for required settings
+                    missing_settings=""
+                    for setting in STARLINK_IP MWAN_IFACE MWAN_MEMBER; do
+                        if ! grep -q "^${setting}=" "/etc/starlink-config/config.sh" 2>/dev/null; then
+                            missing_settings="$missing_settings $setting"
+                        fi
+                    done
+
+                    if [ -z "$missing_settings" ]; then
+                        show_health_status "healthy" "Config Completeness" "All required settings present in backup"
+                        increment_counter "healthy"
+                    else
+                        show_health_status "warning" "Config Completeness" "Missing settings in backup:$missing_settings"
+                        increment_counter "warning"
+                    fi
+                else
+                    show_health_status "critical" "Config Backup" "Persistent config too small ($config_size bytes) - likely corrupted"
+                    increment_counter "critical"
+                fi
+            else
+                show_health_status "critical" "Config Backup" "Persistent configuration has syntax errors"
+                increment_counter "critical"
+            fi
         else
             show_health_status "warning" "Config Backup" "Backup directory exists but no config.sh"
             increment_counter "warning"
         fi
+
+        # Check for backup history
+        backup_count=$(find "/etc/starlink-config" -name "config.sh.backup.*" -type f 2>/dev/null | wc -l)
+        if [ "$backup_count" -gt 0 ]; then
+            show_health_status "healthy" "Backup History" "Found $backup_count timestamped configuration backups"
+            increment_counter "healthy"
+        fi
     else
-        show_health_status "critical" "Config Backup" "No persistent config backup - settings will be lost"
+        show_health_status "critical" "Config Backup" "No persistent config backup - settings will be lost on firmware upgrade"
         increment_counter "critical"
     fi
 
@@ -883,6 +919,27 @@ check_firmware_persistence() {
             log_lines=$(wc -l <"/var/log/starlink-restore.log" 2>/dev/null || echo "0")
             show_health_status "healthy" "Restore Activity" "Recent activity logged ($log_lines lines)"
             increment_counter "healthy"
+
+            # Check for enhanced restoration features in log
+            if grep -q "enhanced configuration restoration" "/var/log/starlink-restore.log" 2>/dev/null; then
+                show_health_status "healthy" "Enhanced Restore" "Enhanced restoration system detected in logs"
+                increment_counter "healthy"
+
+                # Check for validation and backup activities
+                validation_count=$(grep -c "Configuration validation" "/var/log/starlink-restore.log" 2>/dev/null || echo "0")
+                backup_count=$(grep -c "Fresh configuration backed up" "/var/log/starlink-restore.log" 2>/dev/null || echo "0")
+
+                if [ "$validation_count" -gt 0 ] && [ "$backup_count" -gt 0 ]; then
+                    show_health_status "healthy" "Restore Safety" "Validation ($validation_count) and backup ($backup_count) activities logged"
+                    increment_counter "healthy"
+                else
+                    show_health_status "warning" "Restore Safety" "Limited safety logging detected (V:$validation_count B:$backup_count)"
+                    increment_counter "warning"
+                fi
+            else
+                show_health_status "warning" "Restore Version" "Legacy restoration system detected - consider upgrading"
+                increment_counter "warning"
+            fi
         else
             show_health_status "warning" "Restore Activity" "Restore log exists but no recent activity"
             increment_counter "warning"
