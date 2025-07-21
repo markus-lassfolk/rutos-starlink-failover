@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 # Markdown formatting helper script
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+cd "$(dirname "$0")/.." || exit
 
 echo "Formatting markdown files..."
 
