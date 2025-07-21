@@ -1000,6 +1000,7 @@ This document lists all scripts installed by the Starlink monitoring system.
 
 ### Utility Scripts (in scripts/)
 - `validate-config-rutos.sh` - Configuration validation
+- `post-install-check-rutos.sh` - Unified post-install health check
 - `system-status-rutos.sh` - System status checker
 - `health-check-rutos.sh` - Health monitoring  
 - `update-config-rutos.sh` - Configuration updater
@@ -1180,6 +1181,7 @@ install_scripts() {
     # Core utility scripts
     for script in \
         validate-config-rutos.sh \
+        post-install-check-rutos.sh \
         system-status-rutos.sh \
         health-check-rutos.sh \
         update-config-rutos.sh \
@@ -1999,6 +2001,7 @@ main() {
     print_status "$GREEN" "=== Installation Complete ==="
     printf "\n"
 
+    # Determine available editor
     available_editor=""
     for editor in nano vi vim; do
         if command -v "$editor" >/dev/null 2>&1; then
@@ -2006,68 +2009,32 @@ main() {
             break
         fi
     done
-    print_status "$YELLOW" "Next steps:"
-    print_status "$YELLOW" "1. Edit basic configuration: $available_editor $PERSISTENT_CONFIG_DIR/config.sh"
-    print_status "$YELLOW" "   - Update network settings (MWAN_IFACE, MWAN_MEMBER)"
-    print_status "$YELLOW" "   - Configure Pushover notifications (optional)"
-    print_status "$YELLOW" "   - Adjust maintenance behavior (MAINTENANCE_AUTO_FIX_ENABLED, etc.)"
-    print_status "$YELLOW" "   - Adjust failover thresholds if needed"
-    print_status "$YELLOW" "2. Validate configuration: $INSTALL_DIR/scripts/validate-config-rutos.sh"
-    print_status "$YELLOW" "3. Test connectivity: $INSTALL_DIR/scripts/tests/test-connectivity-rutos.sh"
-    print_status "$YELLOW" "4. Check system status: $INSTALL_DIR/scripts/system-status-rutos.sh"
-    print_status "$YELLOW" "5. Run health check: $INSTALL_DIR/scripts/health-check-rutos.sh"
-    print_status "$YELLOW" "6. Test system maintenance: $INSTALL_DIR/scripts/system-maintenance-rutos.sh check"
-    print_status "$YELLOW" "7. Configure mwan3 according to documentation"
-    print_status "$YELLOW" "8. Test the system manually"
-    printf "\n"
-    print_status "$CYAN" "🎯 NEW ARCHITECTURE - Graceful Degradation:"
-    print_status "$CYAN" "• BASIC CONFIG: 14 essential settings for core monitoring"
-    print_status "$CYAN" "• GRACEFUL DEGRADATION: Features disable safely if not configured"
-    print_status "$CYAN" "• PLACEHOLDER DETECTION: Notifications skip if tokens are placeholders"
-    print_status "$CYAN" "• UPGRADE PATH: Run upgrade-to-advanced-rutos.sh for full features"
-    print_status "$CYAN" "• SMART VALIDATION: Distinguishes critical vs optional settings"
-    printf "\n"
-    print_status "$BLUE" "Available tools:"
-    print_status "$BLUE" "• Comprehensive health check: $INSTALL_DIR/scripts/health-check-rutos.sh"
-    print_status "$BLUE" "• System maintenance (auto-fix issues): $INSTALL_DIR/scripts/system-maintenance-rutos.sh"
-    print_status "$BLUE" "• Database spam fix (manual): $INSTALL_DIR/scripts/fix-database-spam-rutos.sh"
-    print_status "$BLUE" "• Check system status: $INSTALL_DIR/scripts/system-status-rutos.sh"
-    print_status "$BLUE" "• Verify cron scheduling: $INSTALL_DIR/scripts/verify-cron-rutos.sh"
-    print_status "$BLUE" "• Test Pushover notifications: $INSTALL_DIR/scripts/test-pushover-rutos.sh"
-    print_status "$BLUE" "• Test monitoring: $INSTALL_DIR/scripts/test-monitoring-rutos.sh"
-    print_status "$BLUE" "• Test connectivity: $INSTALL_DIR/scripts/tests/test-connectivity-rutos.sh"
-    print_status "$BLUE" "• Test color support: $INSTALL_DIR/scripts/test-colors-rutos.sh"
-    print_status "$BLUE" "• Test Method 5 color format: $INSTALL_DIR/scripts/test-method5-rutos.sh"
-    print_status "$BLUE" "• Update config with new options: $INSTALL_DIR/scripts/update-config-rutos.sh"
-    print_status "$BLUE" "• Upgrade to advanced features: $INSTALL_DIR/scripts/upgrade-to-advanced-rutos.sh"
+
+    # Streamlined next steps - essential actions only
+    print_status "$CYAN" "🎯 Next Steps:"
+    print_status "$YELLOW" "1. Edit configuration: $available_editor $PERSISTENT_CONFIG_DIR/config.sh"
+    print_status "$YELLOW" "   • Update MWAN_IFACE and MWAN_MEMBER for your network"
+    print_status "$YELLOW" "   • Configure Pushover tokens (optional but recommended)"
+    print_status "$YELLOW" "2. Run post-install validation: $INSTALL_DIR/scripts/post-install-check-rutos.sh"
+    print_status "$YELLOW" "3. Configure mwan3 according to documentation"
+    print_status "$YELLOW" "4. Start monitoring: The system will auto-start after configuration"
     printf "\n"
 
-    # Print recommended actions with correct filenames
-    print_status "$BLUE" "  • Test monitoring: ./scripts/test-monitoring-rutos.sh"
-    print_status "$BLUE" "  • Test Pushover: ./scripts/test-pushover-rutos.sh"
-    print_status "$BLUE" "  • Test connectivity: ./scripts/tests/test-connectivity-rutos.sh"
-    print_status "$BLUE" "  • Test colors (for troubleshooting): ./scripts/test-colors-rutos.sh"
-    print_status "$BLUE" "  • Test Method 5 colors: ./scripts/test-method5-rutos.sh"
-    print_status "$BLUE" "  • Validate config: ./scripts/validate-config-rutos.sh"
-    print_status "$BLUE" "  • Upgrade to advanced: ./scripts/upgrade-to-advanced-rutos.sh"
-    print_status "$BLUE" "Installation directory: $INSTALL_DIR"
-    print_status "$BLUE" "Configuration file: $PERSISTENT_CONFIG_DIR/config.sh"
-    print_status "$BLUE" "Uninstall script: $INSTALL_DIR/uninstall.sh"
-    print_status "$BLUE" "Scripts downloaded from: https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
+    print_status "$GREEN" "✅ READY TO GO:"
+    print_status "$GREEN" "• Basic monitoring works with minimal configuration"
+    print_status "$GREEN" "• Advanced features are optional and can be enabled later"
+    print_status "$GREEN" "• Run the post-install check to verify everything is working"
     printf "\n"
-    print_status "$GREEN" "🚀 System will start monitoring automatically after configuration"
-    print_status "$GREEN" "🔧 Monitoring works with minimal configuration - advanced features are optional"
+
+    print_status "$BLUE" "📁 Important Paths:"
+    print_status "$BLUE" "• Config: $PERSISTENT_CONFIG_DIR/config.sh"
+    print_status "$BLUE" "• Scripts: $INSTALL_DIR/scripts/"
+    print_status "$BLUE" "• Logs: $LOG_FILE"
+    print_status "$BLUE" "• Uninstall: $INSTALL_DIR/uninstall.sh"
     printf "\n"
+
     if [ "${DEBUG:-0}" != "1" ]; then
-        print_status "$BLUE" "💡 Troubleshooting:"
-        print_status "$BLUE" "   For detailed debug output, run with DEBUG=1:"
-        print_status "$BLUE" "   DEBUG=1 GITHUB_BRANCH=\"$GITHUB_BRANCH\" \\"
-        print_status "$BLUE" "   curl -fL https://raw.githubusercontent.com/..../install.sh | sh -s --"
-        printf "\n"
-    fi
-    if [ "$GITHUB_BRANCH" != "main" ]; then
-        print_status "$YELLOW" "⚠ Development Mode: Using branch '$GITHUB_BRANCH'"
-        print_status "$YELLOW" "  This is a testing/development installation"
+        print_status "$CYAN" "💡 Need help? Run with DEBUG=1 for detailed output"
     fi
 
     # Log successful completion
