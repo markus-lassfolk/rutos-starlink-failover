@@ -250,6 +250,126 @@ get_remote_version() {
     fi
 }
 
+# Get release date for a specific version from GitHub Releases API
+get_release_date() {
+    version="$1"
+    api_url="https://api.github.com/repos/${GITHUB_REPO}/releases"
+
+    log_debug "Getting release date for version: $version"
+    log_debug "GitHub API URL: $api_url"
+
+    # Fetch releases info from GitHub API
+    temp_releases="/tmp/starlink-releases.json"
+    if curl -fsSL --connect-timeout 10 --max-time 30 "$api_url" -o "$temp_releases" 2>/dev/null; then
+        # Try to find the release with matching tag_name
+        # Look for both "v2.4.12" and "2.4.12" formats
+        release_date=""
+
+        # Search for exact version match (v-prefixed or plain)
+        for version_format in "v${version}" "${version}"; do
+            if command -v jq >/dev/null 2>&1; then
+                # Use jq if available (more reliable)
+                release_date=$(jq -r ".[] | select(.tag_name == \"$version_format\") | .published_at" "$temp_releases" 2>/dev/null | head -1)
+            else
+                # Fallback to grep/sed (busybox compatible)
+                release_date=$(grep -A20 "\"tag_name\": \"$version_format\"" "$temp_releases" 2>/dev/null |
+                    grep "\"published_at\":" | head -1 |
+                    sed 's/.*"published_at": *"\([^"]*\)".*/\1/' 2>/dev/null || echo "null")
+            fi
+
+            if [ -n "$release_date" ] && [ "$release_date" != "null" ] && [ "$release_date" != "" ]; then
+                log_debug "Found release date for $version_format: $release_date"
+                break
+            fi
+        done
+
+        rm -f "$temp_releases"
+
+        if [ -n "$release_date" ] && [ "$release_date" != "null" ] && [ "$release_date" != "" ]; then
+            echo "$release_date"
+            return 0
+        else
+            log_debug "Release date not found for version $version"
+            echo ""
+            return 1
+        fi
+    else
+        log_error "Failed to retrieve release information from GitHub API"
+        rm -f "$temp_releases" 2>/dev/null || true
+        echo ""
+        return 1
+    fi
+}
+
+# Convert ISO date to Unix timestamp
+iso_to_timestamp() {
+    iso_date="$1"
+
+    # Try different date parsing methods (RUTOS/busybox compatibility)
+    if date -d "$iso_date" +%s 2>/dev/null; then
+        return 0
+    elif date -j -f "%Y-%m-%dT%H:%M:%SZ" "$iso_date" +%s 2>/dev/null; then
+        return 0
+    else
+        # Fallback: approximate timestamp (not precise but better than nothing)
+        log_warning "Cannot parse date precisely, using approximate calculation"
+        # Simple year-based approximation (2024 = ~1704067200)
+        year=$(echo "$iso_date" | sed 's/-.*//')
+        if [ "$year" -ge 2024 ]; then
+            echo $(((year - 1970) * 31536000))
+        else
+            echo "0"
+        fi
+        return 0
+    fi
+}
+
+# Check if enough time has passed since release for update delay policy
+check_update_delay_policy() {
+    version="$1"
+    version_type="$2" # "patch", "minor", or "major"
+    delay_config="$3" # e.g., "Never", "2Weeks", "5Days"
+
+    log_debug "Checking update delay policy for $version_type version $version with delay $delay_config"
+
+    if [ "$delay_config" = "Never" ]; then
+        log_info "Auto-update disabled for $version_type versions (policy: Never)"
+        return 1 # Update not allowed
+    fi
+
+    # Get release date
+    release_date=$(get_release_date "$version")
+    if [ -z "$release_date" ]; then
+        log_warning "Cannot determine release date for $version - allowing update (fail-safe)"
+        return 0 # Allow update if we can't determine date
+    fi
+
+    # Convert release date to timestamp
+    release_timestamp=$(iso_to_timestamp "$release_date")
+    current_timestamp=$(date +%s)
+    time_since_release=$((current_timestamp - release_timestamp))
+
+    # Parse delay configuration to seconds
+    required_delay_seconds=$(parse_delay_to_seconds "$delay_config")
+
+    log_debug "Release timestamp: $release_timestamp"
+    log_debug "Current timestamp: $current_timestamp"
+    log_debug "Time since release: ${time_since_release}s"
+    log_debug "Required delay: ${required_delay_seconds}s"
+
+    if [ "$time_since_release" -ge "$required_delay_seconds" ]; then
+        log_info "Update delay satisfied: $version released $((time_since_release / 86400)) days ago (required: $(get_time_description "$delay_config"))"
+        return 0 # Update allowed
+    else
+        days_since=$((time_since_release / 86400))
+        days_required=$((required_delay_seconds / 86400))
+        remaining_days=$((days_required - days_since))
+
+        log_info "Update delay not satisfied: $version released $days_since days ago (required delay: $(get_time_description "$delay_config"), $remaining_days days remaining)"
+        return 1 # Update not allowed yet
+    fi
+}
+
 # Compare versions (returns 0 if $1 > $2)
 version_gt() {
     ver1="$1"
@@ -610,15 +730,14 @@ main() {
         if [ "$AUTO_UPDATE_MODE" = "true" ]; then
             log_info "Checking $version_type update delay policy: $delay_config"
 
-            if [ "$delay_config" = "Never" ]; then
-                log_info "Auto-update disabled for $version_type versions"
-                log_info "Manual update required: run without --auto-update flag"
-                exit 4
+            # Use the new comprehensive delay checking function
+            if check_update_delay_policy "$remote_version" "$version_type" "$delay_config"; then
+                log_info "Auto-update policy allows update: $delay_config delay satisfied for $version_type version $remote_version"
+            else
+                log_info "Auto-update delayed: $delay_config policy not yet satisfied for $version_type version $remote_version"
+                log_info "Manual update available: run without --auto-update flag to override delay"
+                exit 4 # Exit code 4 = update delayed by policy
             fi
-
-            # For simplicity in this version, we'll proceed with update if not "Never"
-            # In a full implementation, you'd check actual release timestamps here
-            log_info "Auto-update policy allows immediate update for testing purposes"
         fi
 
     elif [ "$FORCE_UPDATE" = "true" ]; then
