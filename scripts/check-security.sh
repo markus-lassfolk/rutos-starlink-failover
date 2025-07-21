@@ -1,16 +1,16 @@
 #!/bin/sh
 
-# Parse command line arguments
-
-# Version information (auto-updated by update-version.sh)
-CHANGED_FILES=""
-AUTO_FIX_CHMOD=false
-
-while [ $# -gt 0 ]; do
+set -eu
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.4.12"
 readonly SCRIPT_VERSION
+
+# Parse command line arguments
+CHANGED_FILES=""
+AUTO_FIX_CHMOD=false
+
+while [ $# -gt 0 ]; do
     case $1 in
         --auto-fix-chmod)
             AUTO_FIX_CHMOD=true
