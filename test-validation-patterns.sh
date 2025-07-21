@@ -7,7 +7,7 @@
 # These lines should be VALID (not flagged):
 export STARLINK_IP="192.168.100.1:9200"
 export MWAN_IFACE="wan"
-export NOTIFY_ON_CRITICAL="1" # Critical errors (recommended: 1)
+export NOTIFY_ON_CRITICAL="1"              # Critical errors (recommended: 1)
 export MAINTENANCE_PUSHOVER_ENABLED="true" # Uses PUSHOVER_TOKEN/PUSHOVER_USER if not overridden
 
 # These lines should be INVALID (should be flagged):
