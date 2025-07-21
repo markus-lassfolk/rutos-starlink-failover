@@ -2,7 +2,8 @@
 
 ## ✅ New Checks Implemented
 
-Based on the excellent feedback provided, I've implemented the following new checks and enhancements to our system-maintenance-rutos.sh script:
+Based on the excellent feedback provided, I've implemented the following new checks and enhancements to our
+system-maintenance-rutos.sh script:
 
 ### 1. **Overlay Space Exhaustion Check** (`check_overlay_space_exhaustion`)
 
@@ -131,4 +132,6 @@ DEBUG=1 ./scripts/system-maintenance-rutos.sh fix
 DEBUG=1 ./scripts/system-maintenance-rutos.sh fix 2>&1 | grep -E "(overlay|database|service|time|network|starlink)"
 ```
 
-These enhancements transform the maintenance system from basic cleanup to comprehensive system health monitoring with intelligent, surgical fixes that preserve system stability while addressing real-world RUTOS issues.
+These enhancements transform the maintenance system from basic cleanup to comprehensive system health
+monitoring with intelligent, surgical fixes that preserve system stability while addressing real-world RUTOS
+issues.
