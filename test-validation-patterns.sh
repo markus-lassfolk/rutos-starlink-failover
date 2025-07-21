@@ -1,4 +1,8 @@
+#!/bin/sh
 # Test file for quote validation patterns
+# Description: Contains both valid and intentionally invalid patterns for testing validation logic
+# RUTOS Compatible: Uses POSIX sh
+# shellcheck disable=SC1078,SC1079,SC3045  # Intentional test patterns with malformed syntax
 
 # These lines should be VALID (not flagged):
 export STARLINK_IP="192.168.100.1:9200"
