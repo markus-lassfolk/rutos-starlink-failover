@@ -16,8 +16,13 @@ readonly SCRIPT_VERSION
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="install-rutos.sh"
 
-# Extract build info from comment above
-BUILD_INFO=$(grep "# Build:" "$0" | head -1 | sed 's/# Build: //' || echo "unknown")
+# Extract build info safely (handle remote execution via curl | sh)
+if [ -f "$0" ] && [ "$0" != "sh" ]; then
+    BUILD_INFO=$(grep "# Build:" "$0" | head -1 | sed 's/# Build: //' 2>/dev/null || echo "1.0.2+198.38fb60b-dirty")
+else
+    # When run via curl | sh, $0 is "sh", so use embedded build info
+    BUILD_INFO="1.0.2+198.38fb60b-dirty"
+fi
 
 # Configuration - can be overridden by environment variables
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
