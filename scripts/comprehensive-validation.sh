@@ -22,16 +22,18 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+# shellcheck disable=SC2034  # PURPLE is part of standard color palette
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Check if we're in a terminal that supports colors
-if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ] || ([ ! -t 1 ] && [ ! -t 2 ]); then
+if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ] || { [ ! -t 1 ] && [ ! -t 2 ]; }; then
     RED=""
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # PURPLE is part of standard color palette
     PURPLE=""
     CYAN=""
     NC=""
@@ -134,7 +136,8 @@ check_rutos_compatibility() {
     local issues=0
 
     # Check shebang compatibility
-    local shebang=$(head -1 "$file")
+    local shebang
+    shebang=$(head -1 "$file")
     case "$shebang" in
         "#!/bin/sh")
             log_debug "✓ $file: Uses POSIX shell shebang"
@@ -685,7 +688,7 @@ print_summary() {
     log_error "Files failed: $FAILED_FILES"
     log_warning "Files skipped: $SKIPPED_FILES"
 
-    if [ $total_issues -eq 0 ]; then
+    if [ "$total_issues" -eq 0 ]; then
         log_success "🎉 All files passed comprehensive validation!"
         return 0
     else
