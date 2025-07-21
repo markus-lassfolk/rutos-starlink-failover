@@ -1777,15 +1777,15 @@ EOF
     existing_autoupdate=$(echo "$existing_autoupdate" | tr -d '\n\r' | sed 's/[^0-9]//g')
     existing_autoupdate=${existing_autoupdate:-0}
 
-    # Add auto-update script if not present (defaults to disabled - user must enable)
+    # Add auto-update script if not present (enabled by default with "Never" policy = notifications only)
     if [ "$existing_autoupdate" -eq 0 ]; then
-        print_status "$BLUE" "Adding auto-update cron entry (disabled by default)..."
+        print_status "$BLUE" "Adding auto-update cron entry (enabled with notifications-only mode)..."
         cat >>"$CRON_FILE" <<EOF
-# Auto-update check - Added by install script $(date +%Y-%m-%d) - disabled by default (enable by uncommenting)
-#0 3 * * 0 CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/self-update-rutos.sh --check-and-apply
+# Auto-update check - Added by install script $(date +%Y-%m-%d) - enabled by default (notifications only due to "Never" delays)
+0 3 * * 0 CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/self-update-rutos.sh --auto-update
 EOF
         entries_added=$((entries_added + 1))
-        print_status "$YELLOW" "💡 Auto-update is disabled by default - run: /usr/local/starlink-monitor/scripts/setup-auto-update.sh to configure"
+        print_status "$GREEN" "💡 Auto-update enabled with 'Never' delays - will only send notifications, not install updates"
     else
         print_status "$YELLOW" "⚠ Preserving existing auto-update cron configuration"
     fi
