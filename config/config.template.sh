@@ -1,10 +1,9 @@
-# shellcheck disable=SC1091,SC2034,SC2154
 #!/bin/sh
+# shellcheck disable=SC1091,SC2034,SC2154
 
 # Template version (auto-updated by update-version.sh)
-TEMPLATE_VERSION="2.4.12"
-# shellcheck disable=SC2034  # Template version variables used by scripts that source this
-readonly TEMPLATE_VERSION
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 # ==============================================================================
 # STARLINK MONITOR BASIC CONFIGURATION
 # ==============================================================================
@@ -138,6 +137,38 @@ export MAINTENANCE_MODE_OVERRIDE="" # Force specific mode: auto, check, fix, rep
 # Safety controls
 export MAINTENANCE_MAX_FIXES_PER_RUN="10"     # Maximum number of fixes to attempt in single run
 export MAINTENANCE_COOLDOWN_AFTER_FIXES="300" # Cooldown period (seconds) after performing fixes
+
+# --- Auto-Update Configuration ---
+
+# Enable automatic updates via crontab (true/false)
+export AUTO_UPDATE_ENABLED="false"
+
+# Update policies for different version types
+# Format: Never|<number><unit> where unit is: Minutes|Hours|Days|Weeks|Months
+# Examples: "Never", "30Minutes", "2Hours", "5Days", "2Weeks", "1Month"
+
+# Patch version updates (2.1.3 -> 2.1.4) - Usually safe, quick fixes
+export UPDATE_PATCH_DELAY="1Hours"
+
+# Minor version updates (2.1.x -> 2.2.0) - New features, moderate risk
+export UPDATE_MINOR_DELAY="3Days"
+
+# Major version updates (2.x.x -> 3.0.0) - Breaking changes, highest risk
+export UPDATE_MAJOR_DELAY="2Weeks"
+
+# Auto-update schedule (cron format)
+# Default: Every 4 hours at minute 15: "15 */4 * * *"
+# Examples:
+#   "0 2 * * *"     - Daily at 2 AM
+#   "15 */6 * * *"  - Every 6 hours at minute 15
+#   "0 3 * * 1"     - Weekly on Monday at 3 AM
+export AUTO_UPDATE_SCHEDULE="15 */4 * * *"
+
+# Update behavior options
+export AUTO_UPDATE_BACKUP_ENABLED="true"      # Create backup before update
+export AUTO_UPDATE_ROLLBACK_ON_FAILURE="true" # Auto-rollback if update fails
+export AUTO_UPDATE_NOTIFY_ON_SUCCESS="true"   # Send notification on successful update
+export AUTO_UPDATE_NOTIFY_ON_FAILURE="true"   # Send notification on failed update
 
 # --- Binary Paths (set by install script) ---
 
