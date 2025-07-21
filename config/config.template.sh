@@ -1,7 +1,7 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2034,SC2154
 
-# Configuration template version information  
+# Configuration template version information
 CONFIG_TEMPLATE_VERSION="2.4.12"
 # ==============================================================================
 # STARLINK MONITOR BASIC CONFIGURATION
