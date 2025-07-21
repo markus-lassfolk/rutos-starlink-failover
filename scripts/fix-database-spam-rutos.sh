@@ -447,9 +447,9 @@ main() {
     case "$command" in
         "fix")
             log_info "Starting RUTOS Database Spam Fix v$SCRIPT_VERSION"
-            printf "${BLUE}===============================================${NC}\n"
-            printf "${BLUE}🔧 RUTOS Database Spam Fix - %s${NC}\n" "$(date)"
-            printf "${BLUE}===============================================${NC}\n"
+            printf "%b===============================================%b\n" "$BLUE" "$NC"
+            printf "%b🔧 RUTOS Database Spam Fix - %s%b\n" "$BLUE" "$(date)" "$NC"
+            printf "%b===============================================%b\n" "$BLUE" "$NC"
 
             # Check system
             check_system
@@ -468,17 +468,17 @@ main() {
 
             # Verify and report
             if verify_fix; then
-                printf "${BLUE}===============================================${NC}\n"
-                printf "${GREEN}🏁 Database spam fix completed successfully!${NC}\n"
+                printf "%b===============================================%b\n" "$BLUE" "$NC"
+                printf "%b🏁 Database spam fix completed successfully!%b\n" "$GREEN" "$NC"
                 if [ -n "$backup_dir" ]; then
                     printf "${CYAN}📦 Backups saved to: %s${NC}\n" "$backup_dir"
                 fi
-                printf "${BLUE}===============================================${NC}\n"
+                printf "%b===============================================%b\n" "$BLUE" "$NC"
             else
-                printf "${BLUE}===============================================${NC}\n"
-                printf "${YELLOW}⚠️  Fix applied but verification inconclusive${NC}\n"
-                printf "${CYAN}📦 Monitor system logs and check manually if needed${NC}\n"
-                printf "${BLUE}===============================================${NC}\n"
+                printf "%b===============================================%b\n" "$BLUE" "$NC"
+                printf "%b⚠️  Fix applied but verification inconclusive%b\n" "$YELLOW" "$NC"
+                printf "%b📦 Monitor system logs and check manually if needed%b\n" "$CYAN" "$NC"
+                printf "%b===============================================%b\n" "$BLUE" "$NC"
             fi
             ;;
         "check")
