@@ -606,10 +606,10 @@ validate_config_format() {
     # DISABLED: Complex quote detection - causing false positives
     # These patterns were incorrectly flagging valid configuration lines
     unmatched_quotes=""
-    quotes_in_comments=""  
+    quotes_in_comments=""
     trailing_spaces=""
     stray_quote_comments=""
-    
+
     # TODO: Reimplement with simpler, more accurate patterns
     # Current issue: patterns match valid lines like export VAR="value"
 
@@ -662,11 +662,11 @@ validate_config_format() {
         format_errors=$((format_errors + 1))
     fi
 
-    # DISABLED: Malformed export detection - causing false positives  
+    # DISABLED: Malformed export detection - causing false positives
     # Pattern was incorrectly flagging valid export statements
     malformed_exports=""
-    invalid_syntax=""
-    
+    # invalid_syntax="" - REMOVED: unused variable
+
     # TODO: Reimplement with patterns that don't flag valid exports like:
     # export STARLINK_IP="192.168.100.1:9200" (this is VALID, not malformed)
     if [ -n "$malformed_exports" ]; then
@@ -981,13 +981,18 @@ repair_config_quotes() {
 
     printf "%b\n" "${BLUE}Attempting to repair quote formatting issues...${NC}"
 
-    # Create backup
-    backup_file="${config_file}.backup-$(date +%Y%m%d-%H%M%S)"
-    if cp "$config_file" "$backup_file"; then
-        printf "%b\n" "${GREEN}✅ Created backup: $backup_file${NC}"
+    # Create backup only if not skipped (when called from install script that already created backup)
+    backup_file=""
+    if [ "${SKIP_BACKUP:-0}" != "1" ]; then
+        backup_file="${config_file}.backup-$(date +%Y%m%d-%H%M%S)"
+        if cp "$config_file" "$backup_file"; then
+            printf "%b\n" "${GREEN}✅ Created backup: $backup_file${NC}"
+        else
+            printf "%b\n" "${RED}❌ Failed to create backup. Aborting repair.${NC}"
+            return 1
+        fi
     else
-        printf "%b\n" "${RED}❌ Failed to create backup. Aborting repair.${NC}"
-        return 1
+        printf "%b\n" "${CYAN}ℹ  Skipping backup creation (already handled by caller)${NC}"
     fi
 
     # Fix quotes incorrectly positioned in comments, trailing spaces in quoted values, and stray quotes at end of comments
@@ -1048,7 +1053,9 @@ repair_config_quotes() {
                     rm -f "$temp_file" "$temp_file2" 2>/dev/null || true
 
                     printf "%b\n" "${GREEN}✅ Configuration file repaired successfully${NC}"
-                    printf "%b\n" "${YELLOW}💡 Backup saved as: $backup_file${NC}"
+                    if [ -n "$backup_file" ]; then
+                        printf "%b\n" "${YELLOW}💡 Backup saved as: $backup_file${NC}"
+                    fi
 
                     return 0
                 else

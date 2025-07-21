@@ -7,6 +7,7 @@ The validation script was reporting **false positives** - flagging perfectly val
 ### The Problem
 
 **Multiple valid configuration lines were incorrectly reported as:**
+
 1. **"Missing closing quotes"** - Lines like `export STARLINK_IP="192.168.100.1:9200"`
 2. **"Malformed export statements"** - Same valid lines flagged again under different category
 
@@ -15,28 +16,33 @@ The validation script was reporting **false positives** - flagging perfectly val
 The regex patterns used for validation were fundamentally flawed:
 
 #### 1. Unmatched Quotes Pattern (BROKEN):
+
 ```bash
 # OLD BROKEN PATTERN:
 unmatched_quotes=$(grep -n '^[[:space:]]*export.*=[^=]*"[^"]*$' "$CONFIG_FILE")
 ```
 
 **What this pattern actually does:**
+
 - Looks for lines that start with export
 - Have `="` (opening quote)
 - Have non-quote characters `[^"]*`
 - **END with non-quote characters** `$`
 
 **Why it's broken:**
+
 - A valid line like `export STARLINK_IP="192.168.100.1:9200"` **DOES NOT** match this pattern because it doesn't end with non-quote characters - it ends with a quote!
 - The pattern logic is backwards - it's trying to find lines with unmatched quotes but matches the opposite
 
 #### 2. Malformed Export Pattern (PROBLEMATIC):
-```bash  
+
+```bash
 # PROBLEMATIC PATTERN:
 malformed_exports=$(grep -n '^[[:space:]]*export[[:space:]]*[^A-Z_]' "$CONFIG_FILE")
 ```
 
 **Issues:**
+
 - BusyBox grep may handle character classes differently than GNU grep
 - Pattern logic may not work as expected in RUTOS environment
 - Was flagging valid variable names that start with uppercase letters
@@ -44,13 +50,14 @@ malformed_exports=$(grep -n '^[[:space:]]*export[[:space:]]*[^A-Z_]' "$CONFIG_FI
 ## The Fix
 
 ### Immediate Solution
+
 **Disabled the problematic patterns temporarily:**
 
 ```bash
 # DISABLED: Complex quote detection - causing false positives
 # These patterns were incorrectly flagging valid configuration lines
 unmatched_quotes=""
-quotes_in_comments=""  
+quotes_in_comments=""
 trailing_spaces=""
 stray_quote_comments=""
 
@@ -68,19 +75,22 @@ stray_quote_comments=""
 ## Impact
 
 ### Before Fix:
+
 - 38+ lines of valid configuration flagged as errors
 - Users confused about what needs fixing
 - Validation script credibility damaged by false positives
 
 ### After Fix:
+
 - Only genuine errors reported
-- Clear, accurate validation results  
+- Clear, accurate validation results
 - Users can trust the validation output
 - No unnecessary "fixes" attempted on valid syntax
 
 ## Future Enhancement Plan
 
 ### Proper Quote Detection (TODO):
+
 ```bash
 # Simple approach: count quotes per line
 while read -r line; do
@@ -93,6 +103,7 @@ done
 ```
 
 ### Proper Malformed Export Detection (TODO):
+
 ```bash
 # Check for exports that don't start with valid variable names
 case "$line" in
@@ -112,6 +123,7 @@ esac
 ## Validation
 
 The fix has been tested and confirmed to:
+
 - ✅ Stop flagging valid `export VAR="value"` lines as errors
 - ✅ Maintain other validation functionality (value checks, structure validation)
 - ✅ Preserve repair functionality for genuine issues

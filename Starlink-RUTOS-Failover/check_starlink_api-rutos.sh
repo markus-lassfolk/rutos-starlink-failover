@@ -97,7 +97,6 @@ debug_log() {
     fi
 }
 
-
 # Validate binary with detailed logging
 validate_binary() {
     binary_path="$1"

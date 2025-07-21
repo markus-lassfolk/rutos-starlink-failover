@@ -16,7 +16,6 @@ This solution offers a suite of advanced features to create a truly resilient mo
 
 - **Proactive Quality Monitoring:** Instead of waiting for a total failure, the system actively queries Starlink's
   internal API for key performance indicators:
-
   - **Latency:** Detects when the connection becomes congested or unresponsive, which is a primary indicator of a poor
     user experience for real-time applications like video calls.
   - **Packet Loss:** Monitors the rate of data packets that fail to reach the Starlink ground station, providing a
@@ -62,19 +61,19 @@ Before setting up these scripts, ensure your router meets the following requirem
 3. **Packages & Binaries:** You will need to install several command-line tools on the router via SSH, as they are not
    included in the default RUTOS firmware.
 
-    ```sh
-    # 1. Install grpcurl (32-bit ARMv7 version for RUTX50)
-    curl -fL https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz -o /tmp/grpcurl.tar.gz
-    tar -zxvf /tmp/grpcurl.tar.gz -C /root/ grpcurl
-    chmod +x /root/grpcurl
-    rm /tmp/grpcurl.tar.gz
+   ```sh
+   # 1. Install grpcurl (32-bit ARMv7 version for RUTX50)
+   curl -fL https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz -o /tmp/grpcurl.tar.gz
+   tar -zxvf /tmp/grpcurl.tar.gz -C /root/ grpcurl
+   chmod +x /root/grpcurl
+   rm /tmp/grpcurl.tar.gz
 
-    # 2. Install jq (32-bit ARMv7/armhf version for RUTX50)
-    curl -fL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf -o /root/jq
-    chmod +x /root/jq
+   # 2. Install jq (32-bit ARMv7/armhf version for RUTX50)
+   curl -fL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-armhf -o /root/jq
+   chmod +x /root/jq
 
-    # 3. The scripts use 'awk' and 'logger', which are included in the default BusyBox suite on RUTOS.
-    ```
+   # 3. The scripts use 'awk' and 'logger', which are included in the default BusyBox suite on RUTOS.
+   ```
 
 4. **Pushover:** Register a free account at <https://pushover.net/> and create an application so you get both a User and
    Application API-Key. Then install the Pushover application on your mobile device and login with your account.

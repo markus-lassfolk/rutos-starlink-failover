@@ -5,7 +5,7 @@
 echo "=== Testing Configuration Validation Fix ==="
 
 # Create a test config with valid lines that were being incorrectly flagged
-cat > test-config-valid.sh << 'EOF'
+cat >test-config-valid.sh <<'EOF'
 export STARLINK_IP="192.168.100.1:9200"
 export MWAN_IFACE="wan"  
 export PUSHOVER_TOKEN="aczm9pre8oowwpxmte92utk5gbyub7"
@@ -19,7 +19,7 @@ cat test-config-valid.sh
 echo ""
 echo "=== BEFORE FIX (what the user reported) ==="
 echo "The validation script would report these valid lines as having:"
-echo "- Missing closing quotes"  
+echo "- Missing closing quotes"
 echo "- Malformed export statements"
 echo ""
 
@@ -46,7 +46,7 @@ echo ""
 
 echo "4. SOLUTION:"
 echo "   - Disabled problematic quote detection patterns"
-echo "   - Added TODO comments for proper reimplementation"  
+echo "   - Added TODO comments for proper reimplementation"
 echo "   - Validation now focuses on truly critical issues only"
 
 # Clean up

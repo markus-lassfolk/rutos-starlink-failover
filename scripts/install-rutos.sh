@@ -1378,6 +1378,11 @@ install_config() {
         config_debug "Template file exists: $([ -f "$selected_template" ] && echo 'yes' || echo 'no')"
         config_debug "Template file size: $(wc -c <"$selected_template" 2>/dev/null || echo 'unknown') bytes"
 
+        # OPTIMIZATION: Efficient configuration update process
+        # Old flow: Backup -> Merge -> Save -> Validate -> Backup -> Fix -> Save (4+ writes)
+        # New flow: Backup -> Merge -> Validate -> Save (2 writes total)
+        # This reduces I/O operations and eliminates redundant backup creation
+
         # Create timestamped backup of existing config
         backup_timestamp=$(date +%Y%m%d_%H%M%S)
         backup_file="$PERSISTENT_CONFIG_DIR/config.sh.backup.$backup_timestamp"
@@ -1392,13 +1397,36 @@ install_config() {
             exit 1
         fi
 
-        # Use the new intelligent merge system
-        config_debug "=== STARTING INTELLIGENT MERGE ==="
+        # Use the new intelligent merge system with integrated validation
+        config_debug "=== STARTING OPTIMIZED MERGE WITH VALIDATION ==="
         print_status "$BLUE" "Merging settings from existing configuration..."
 
         # Call the new intelligent config merge function
         if intelligent_config_merge "$selected_template" "$primary_config" "$backup_file"; then
             print_status "$GREEN" "✓ Configuration merged successfully using intelligent merge"
+
+            # Apply validation and formatting fixes in-place (without additional backups)
+            print_status "$BLUE" "Applying configuration formatting validation..."
+
+            # Check if we have the validation script available
+            validate_script_path=""
+            if [ -f "$INSTALL_DIR/scripts/validate-config-rutos.sh" ]; then
+                validate_script_path="$INSTALL_DIR/scripts/validate-config-rutos.sh"
+            elif [ -f "$(dirname "$0")/validate-config-rutos.sh" ]; then
+                validate_script_path="$(dirname "$0")/validate-config-rutos.sh"
+            fi
+
+            if [ -n "$validate_script_path" ]; then
+                # Run validation with repair but skip backup creation (we already have one)
+                if SKIP_BACKUP=1 "$validate_script_path" "$primary_config" --repair; then
+                    print_status "$GREEN" "✓ Configuration formatting validation completed"
+                else
+                    print_status "$YELLOW" "⚠ Configuration validation completed with warnings"
+                fi
+            else
+                print_status "$YELLOW" "⚠ Validation script not found, skipping automatic formatting"
+            fi
+
             print_status "$GREEN" "✓ Updated persistent configuration: $primary_config"
         else
             print_status "$RED" "✗ Intelligent merge failed!"
@@ -1418,34 +1446,30 @@ install_config() {
         if cp "$temp_basic_template" "$primary_config"; then
             print_status "$GREEN" "✓ Initial configuration created from template"
             print_status "$YELLOW" "📋 Please edit $primary_config with your settings"
+
+            # Apply validation formatting to new configuration as well
+            print_status "$BLUE" "Applying configuration formatting validation..."
+
+            # Check if we have the validation script available
+            validate_script_path=""
+            if [ -f "$INSTALL_DIR/scripts/validate-config-rutos.sh" ]; then
+                validate_script_path="$INSTALL_DIR/scripts/validate-config-rutos.sh"
+            elif [ -f "$(dirname "$0")/validate-config-rutos.sh" ]; then
+                validate_script_path="$(dirname "$0")/validate-config-rutos.sh"
+            fi
+
+            if [ -n "$validate_script_path" ]; then
+                # Run validation with repair for new config (no backup needed for fresh install)
+                if SKIP_BACKUP=1 "$validate_script_path" "$primary_config" --repair; then
+                    print_status "$GREEN" "✓ Configuration formatting validation completed"
+                else
+                    print_status "$YELLOW" "⚠ Configuration validation completed with warnings"
+                fi
+            fi
         else
             print_status "$RED" "✗ Failed to create initial configuration"
             exit 1
         fi
-    fi
-
-    # Validate and repair configuration formatting after merge/creation
-    print_status "$BLUE" "Validating and repairing configuration formatting..."
-
-    # Check if we have the validation script available
-    validate_script_path=""
-    if [ -f "$INSTALL_DIR/scripts/validate-config-rutos.sh" ]; then
-        validate_script_path="$INSTALL_DIR/scripts/validate-config-rutos.sh"
-    elif [ -f "$(dirname "$0")/validate-config-rutos.sh" ]; then
-        validate_script_path="$(dirname "$0")/validate-config-rutos.sh"
-    fi
-
-    if [ -n "$validate_script_path" ]; then
-        # Run validation with repair to fix quote formatting and trailing spaces
-        if "$validate_script_path" "$primary_config" --repair; then
-            print_status "$GREEN" "✓ Configuration validation and repair completed"
-        else
-            print_status "$YELLOW" "⚠ Configuration validation completed with warnings"
-            print_status "$YELLOW" "  Check the configuration manually if needed"
-        fi
-    else
-        print_status "$YELLOW" "⚠ Validation script not found, skipping automatic repair"
-        print_status "$BLUE" "  You can run validation later with: validate-config-rutos.sh --repair"
     fi
 
     # Copy final config to install directory for backwards compatibility
