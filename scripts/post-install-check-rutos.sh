@@ -39,11 +39,13 @@ log_info() {
 }
 
 log_warning() {
+    # shellcheck disable=SC2317  # Function provided for consistency - may be unused in some scripts
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
+    # shellcheck disable=SC2317  # Function provided for consistency - may be unused in some scripts
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
@@ -56,11 +58,13 @@ log_debug() {
 }
 
 log_success() {
+    # shellcheck disable=SC2317  # Function provided for consistency - may be unused in some scripts
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
+    # shellcheck disable=SC2317  # Function provided for consistency - may be unused in some scripts
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
