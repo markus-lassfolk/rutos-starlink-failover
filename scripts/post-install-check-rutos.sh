@@ -7,7 +7,7 @@
 # RUTOS Compatibility - Using Method 5 printf format for proper color display
 # shellcheck disable=SC2059  # Method 5 printf format required for RUTOS color support
 
-set -e  # Exit on error
+set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="1.0.0"
@@ -90,7 +90,7 @@ check_status() {
     status_type="$1"
     description="$2"
     details="$3"
-    
+
     case "$status_type" in
         "pass")
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
@@ -152,11 +152,11 @@ fi
 is_placeholder() {
     value="$1"
     case "$value" in
-        "YOUR_"*|"REPLACE_"*|"SET_"*|"EDIT_"*|"CHANGEME"*|"PLACEHOLDER"*|"TODO"*|"<"*">"*|"***"*|"XXX"*|"")
-            return 0  # Is placeholder
+        "YOUR_"* | "REPLACE_"* | "SET_"* | "EDIT_"* | "CHANGEME"* | "PLACEHOLDER"* | "TODO"* | "<"*">"* | "***"* | "XXX"* | "")
+            return 0 # Is placeholder
             ;;
         *)
-            return 1  # Is real value
+            return 1 # Is real value
             ;;
     esac
 }
@@ -208,25 +208,25 @@ if [ -f "$CRON_FILE" ]; then
     logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     api_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
     maintenance_entries=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    
+
     if [ "$monitor_entries" -gt 0 ]; then
         check_status "pass" "Monitor Cron Job" "$monitor_entries entry(s) configured"
     else
         check_status "fail" "Monitor Cron Job" "No cron entries found"
     fi
-    
+
     if [ "$logger_entries" -gt 0 ]; then
         check_status "pass" "Logger Cron Job" "$logger_entries entry(s) configured"
     else
         check_status "fail" "Logger Cron Job" "No cron entries found"
     fi
-    
+
     if [ "$api_entries" -gt 0 ]; then
         check_status "pass" "API Check Cron Job" "$api_entries entry(s) configured"
     else
         check_status "warn" "API Check Cron Job" "No cron entries (optional)"
     fi
-    
+
     if [ "$maintenance_entries" -gt 0 ]; then
         check_status "pass" "Maintenance Cron Job" "$maintenance_entries entry(s) configured"
     else
@@ -306,7 +306,7 @@ if [ -n "${PUSHOVER_TOKEN:-}" ] && [ -n "${PUSHOVER_USER:-}" ]; then
                 -d "user=$PUSHOVER_USER" \
                 -d "message=Starlink Monitor Test" \
                 https://api.pushover.net/1/messages.json 2>/dev/null || echo '{"status":0}')
-            
+
             if echo "$test_response" | grep -q '"status":1'; then
                 check_status "pass" "Pushover Notifications" "API test successful"
             else
@@ -419,7 +419,7 @@ if [ -f "/proc/meminfo" ]; then
     mem_total=$(grep "MemTotal:" /proc/meminfo | awk '{print $2}')
     mem_available=$(grep "MemAvailable:" /proc/meminfo | awk '{print $2}' || grep "MemFree:" /proc/meminfo | awk '{print $2}')
     if [ -n "$mem_total" ] && [ -n "$mem_available" ] && [ "$mem_total" -gt 0 ]; then
-        mem_used_percent=$(( (mem_total - mem_available) * 100 / mem_total ))
+        mem_used_percent=$(((mem_total - mem_available) * 100 / mem_total))
         if [ "$mem_used_percent" -lt 80 ]; then
             check_status "pass" "Memory Usage" "${mem_used_percent}% used (healthy)"
         elif [ "$mem_used_percent" -lt 90 ]; then
@@ -457,7 +457,7 @@ fi
 if [ -n "${STARLINK_IP:-}" ] && ! is_placeholder "$STARLINK_IP"; then
     grpc_host="${STARLINK_IP%:*}"
     grpc_port="${STARLINK_IP#*:}"
-    
+
     if timeout 5 sh -c "echo >/dev/tcp/$grpc_host/$grpc_port" 2>/dev/null; then
         check_status "pass" "Starlink gRPC API" "Connection successful to $STARLINK_IP"
     else
@@ -482,7 +482,7 @@ printf "${BLUE}Results Overview:${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "  ${GREEN}✅ Passed:${NC}      %d\n" "$status_passed"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-printf "  ${RED}❌ Failed:${NC}      %d\n" "$status_failed"  
+printf "  ${RED}❌ Failed:${NC}      %d\n" "$status_failed"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "  ${YELLOW}⚠️  Warnings:${NC}    %d\n" "$status_warnings"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
@@ -565,15 +565,15 @@ case "$overall_status" in
         exit 0
         ;;
     "good")
-        exit 10  # Configuration needed
+        exit 10 # Configuration needed
         ;;
     "needs_attention")
-        exit 20  # Warnings present
+        exit 20 # Warnings present
         ;;
     "critical")
-        exit 30  # Critical failures
+        exit 30 # Critical failures
         ;;
     *)
-        exit 1   # Unknown status
+        exit 1 # Unknown status
         ;;
 esac

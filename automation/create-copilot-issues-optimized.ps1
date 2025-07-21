@@ -395,14 +395,14 @@ function Parse-FullValidationOutput {
         
         Write-DebugMessage "Processing line $lineCount`: $line"
         
-        # Handle the specific format: [SEVERITY] filepath:line description
-        if ($line -match "^\[(CRITICAL|MAJOR|MINOR|WARNING)\]\s+(.+?):(\d+)\s+(.+)$") {
+        # Handle the specific format: [SEVERITY] filepath: SCcode: description
+        if ($line -match "^\[(CRITICAL|MAJOR|MINOR|WARNING)\]\s+(.+?):\s+(SC\d+):\s+(.+)$") {
             $severity = $Matches[1]
             $filepath = $Matches[2] -replace "^\.\/", ""
-            $lineNumber = $Matches[3]
+            $scCode = $Matches[3]
             $description = $Matches[4]
             
-            Write-DebugMessage "Found formatted issue: [$severity] $filepath`:$lineNumber $description"
+            Write-DebugMessage "Found formatted issue: [$severity] $filepath`: $scCode`: $description"
             
             $issueType = switch ($severity) {
                 "CRITICAL" { "Critical" }
@@ -424,10 +424,11 @@ function Parse-FullValidationOutput {
             
             # Add issue to file
             $fileIssues[$filepath].Issues += @{
-                Line = [int]$lineNumber
-                Description = $description
+                Line = 0  # Line number not available in this format
+                Description = "$scCode`: $description"
                 Type = $issueType
                 Severity = $severity
+                SCCode = $scCode
             }
             
             # Update counts
