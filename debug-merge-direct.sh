@@ -18,7 +18,7 @@ wsl bash scripts/merge-config.sh --debug /tmp/debug-test/test-config.sh config/c
 
 echo ""
 echo "=== RESULT ==="
-cat /tmp/debug-test/merged-config.sh | grep -E "(STARLINK_GRPC_HOST|MONITORING_INTERVAL|LOG_LEVEL)="
+grep -E "(STARLINK_GRPC_HOST|MONITORING_INTERVAL|LOG_LEVEL)=" /tmp/debug-test/merged-config.sh
 
 echo ""
 echo "=== CLEANUP ==="
