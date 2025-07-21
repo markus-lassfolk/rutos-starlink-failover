@@ -15,7 +15,7 @@ The validation script was reporting **false positives** - flagging perfectly val
 
 The regex patterns used for validation were fundamentally flawed:
 
-#### 1. Unmatched Quotes Pattern (BROKEN):
+#### 1. Unmatched Quotes Pattern (BROKEN)
 
 ```bash
 # OLD BROKEN PATTERN:
@@ -31,10 +31,11 @@ unmatched_quotes=$(grep -n '^[[:space:]]*export.*=[^=]*"[^"]*$' "$CONFIG_FILE")
 
 **Why it's broken:**
 
-- A valid line like `export STARLINK_IP="192.168.100.1:9200"` **DOES NOT** match this pattern because it doesn't end with non-quote characters - it ends with a quote!
+- A valid line like `export STARLINK_IP="192.168.100.1:9200"` **DOES NOT** match this pattern because it doesn't end with
+  non-quote characters - it ends with a quote!
 - The pattern logic is backwards - it's trying to find lines with unmatched quotes but matches the opposite
 
-#### 2. Malformed Export Pattern (PROBLEMATIC):
+#### 2. Malformed Export Pattern (PROBLEMATIC)
 
 ```bash
 # PROBLEMATIC PATTERN:
@@ -74,13 +75,13 @@ stray_quote_comments=""
 
 ## Impact
 
-### Before Fix:
+### Before Fix
 
 - 38+ lines of valid configuration flagged as errors
 - Users confused about what needs fixing
 - Validation script credibility damaged by false positives
 
-### After Fix:
+### After Fix
 
 - Only genuine errors reported
 - Clear, accurate validation results
@@ -89,7 +90,7 @@ stray_quote_comments=""
 
 ## Future Enhancement Plan
 
-### Proper Quote Detection (TODO):
+### Proper Quote Detection (TODO)
 
 ```bash
 # Simple approach: count quotes per line
@@ -102,7 +103,7 @@ while read -r line; do
 done
 ```
 
-### Proper Malformed Export Detection (TODO):
+### Proper Malformed Export Detection (TODO)
 
 ```bash
 # Check for exports that don't start with valid variable names
