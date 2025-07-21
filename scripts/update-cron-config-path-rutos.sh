@@ -22,6 +22,7 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[1;35m'
+    # shellcheck disable=SC2034
     CYAN='\033[0;36m'
     NC='\033[0m'
 else
@@ -30,6 +31,7 @@ else
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034
     CYAN=""
     NC=""
 fi
