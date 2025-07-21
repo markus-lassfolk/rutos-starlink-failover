@@ -3,8 +3,14 @@ name: ShellCheck & Formatting
 on:
   push:
     branches: [ '*' ]
+    paths:
+      - '**/*.sh'
+      - '**/99-pushover_notify*'
   pull_request:
     branches: [ '*' ]
+    paths:
+      - '**/*.sh'
+      - '**/99-pushover_notify*'
 
 permissions:
   contents: write
