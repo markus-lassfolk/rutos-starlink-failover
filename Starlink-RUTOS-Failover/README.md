@@ -1,5 +1,17 @@
 # Advanced Starlink Failover & Monitoring for RUTOS/OpenWrt
 
+**Version:** 2.4.12 | **Updated:** 2025-07-21
+
+**Version:** 2.4.11 | **Updated:** 2025-07-21
+
+**Version:** 2.4.10 | **Updated:** 2025-07-21
+
+**Version:** 2.4.9 | **Updated:** 2025-07-21
+
+**Version:** 2.4.8 | **Updated:** 2025-07-21
+
+**Version:** 2.4.7 | **Updated:** 2025-07-21
+
 This directory contains a collection of scripts designed to create a highly robust, proactive, and intelligent multi-WAN
 failover system on a Teltonika RUTOS or other OpenWrt-based router. It uses the Starlink gRPC API to make real-time
 decisions about connection quality, providing a much more seamless experience than standard ping-based checks alone.

@@ -1,8 +1,20 @@
+# shellcheck disable=SC1091,SC2034,SC2154
 #!/bin/sh
 # System Configuration for RUTOS Starlink Monitoring
+
+# Template version (auto-updated by update-version.sh)
+readonly TEMPLATE_VERSION="2.4.12"
+# shellcheck disable=SC2034  # Template version variables used by scripts that source this
+readonly TEMPLATE_VERSION
 # This file defines expected system components for dynamic testing and validation
 
 # Expected cron jobs and their patterns
+
+# Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="2.4.12"
+# shellcheck disable=SC2034  # Template version variables used by scripts that source this
+readonly SCRIPT_VERSION
+# Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 EXPECTED_CRON_JOBS="
 starlink_monitor-rutos.sh:every_minute:Monitor primary connectivity and failover
 starlink_logger-rutos.sh:every_minute:Log connection status and events  

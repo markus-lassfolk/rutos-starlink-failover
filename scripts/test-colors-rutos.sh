@@ -5,6 +5,10 @@
 # Standard color definitions required by RUTOS validation system
 # These are defined but not used in this test script - they're required for validation compliance
 # shellcheck disable=SC2034
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 RED=""
 # shellcheck disable=SC2034
 GREEN=""
@@ -230,4 +234,9 @@ echo ""
 echo "NOTE: Method 5 format (printf \"\${COLOR}text\${NC}\") is documented as the"
 echo "ONLY format that works correctly in RUTOS busybox environment."
 echo ""
+# Debug version display
+if [ "$DEBUG" = "1" ]; then
+    printf "Script version: %s\n" "$SCRIPT_VERSION"
+fi
+
 echo "=== Test Complete ==="

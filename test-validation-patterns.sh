@@ -5,6 +5,10 @@
 # shellcheck disable=SC1078,SC1079,SC3045  # Intentional test patterns with malformed syntax
 
 # These lines should be VALID (not flagged):
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 export STARLINK_IP="192.168.100.1:9200"
 export MWAN_IFACE="wan"
 export NOTIFY_ON_CRITICAL="1"              # Critical errors (recommended: 1)
@@ -23,4 +27,9 @@ export VAR123="value"
 
 # This SHOULD be flagged as malformed export:
 export 123invalid="value"
+# Debug version display
+if [ "$DEBUG" = "1" ]; then
+    printf "Script version: %s\n" "$SCRIPT_VERSION"
+fi
+
 export -invalid="value"

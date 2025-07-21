@@ -4,7 +4,7 @@
 # ==============================================================================
 # Enhanced Pushover Notifier for Starlink Monitoring System
 #
-# Version: 2.4.0
+# Version: 2.4.12
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script serves as the central notification hub for the Starlink monitoring
@@ -18,8 +18,13 @@ set -eu
 # Standard colors for consistent output (compatible with busybox)
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
 # CRITICAL: Use RUTOS-compatible color detection
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
+    # shellcheck disable=SC2034
     RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
@@ -28,6 +33,9 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     NC='\033[0m'
 else
     # Colors disabled
+    # shellcheck disable=SC2034  # Color variables may not all be used
+    # shellcheck disable=SC2034  # Color variables may not all be used
+    # shellcheck disable=SC2034
     RED=""
     GREEN=""
     YELLOW=""
@@ -157,6 +165,15 @@ get_system_info() {
 
 # Main notification logic
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "99-pushover_notify-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: 99-pushover_notify-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     main_action="${1:-hotplug}"
     main_detail="${2:-}"
 

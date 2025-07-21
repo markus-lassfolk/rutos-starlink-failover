@@ -6,6 +6,10 @@
 set -e
 
 # Colors for test output (RUTOS-compatible detection)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 RED=""
 GREEN=""
 YELLOW=""
@@ -289,6 +293,9 @@ cleanup() {
 
 # Main test execution
 main() {
+    if [ "$DEBUG" = "1" ]; then
+        printf "Debug script version: %s\n" "$SCRIPT_VERSION"
+    fi
     printf "${BLUE}=== INTELLIGENT CONFIG MERGE TEST ===${NC}\n\n"
 
     setup_test

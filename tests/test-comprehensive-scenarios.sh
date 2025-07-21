@@ -4,6 +4,9 @@
 
 set -eu
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 echo "=== Comprehensive Scenario Testing ==="
 
 # Test directory
@@ -316,4 +319,9 @@ else
     echo "❌ Some tests failed"
     echo "Please review and fix the issues above."
     exit 1
+    # Debug version display
+    if [ "$DEBUG" = "1" ]; then
+        printf "Script version: %s\n" "$SCRIPT_VERSION"
+    fi
+
 fi

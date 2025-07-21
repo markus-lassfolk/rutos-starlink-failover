@@ -1,5 +1,10 @@
+# shellcheck disable=SC1091,SC2034,SC2154
 #!/bin/sh
 
+# Template version (auto-updated by update-version.sh)
+TEMPLATE_VERSION="2.4.12"
+# shellcheck disable=SC2034  # Template version variables used by scripts that source this
+readonly TEMPLATE_VERSION
 # ==============================================================================
 # STARLINK MONITOR BASIC CONFIGURATION
 # ==============================================================================
@@ -17,6 +22,12 @@
 
 # Starlink gRPC endpoint IP and port
 # Default: 192.168.100.1:9200 (standard Starlink configuration)
+
+# Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="2.4.12"
+# shellcheck disable=SC2034  # Template version variables used by scripts that source this
+readonly SCRIPT_VERSION
+# Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 export STARLINK_IP="192.168.100.1:9200"
 
 # MWAN3 interface name for Starlink connection

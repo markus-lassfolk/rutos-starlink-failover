@@ -1,5 +1,11 @@
 #!/bin/sh
 # Markdown validation helper script
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+
+echo "Starting validate-markdown.sh v$SCRIPT_VERSION"
 cd "$(dirname "$0")/.." || exit
 
 echo "Running markdown validation..."

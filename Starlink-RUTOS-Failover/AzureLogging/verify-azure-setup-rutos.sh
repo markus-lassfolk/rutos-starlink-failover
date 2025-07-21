@@ -22,7 +22,14 @@ set -eu
 # --- SCRIPT CONFIGURATION ---
 # shellcheck disable=SC2034  # Variables may be used by external functions
 # shellcheck disable=SC2155  # Declare and assign separately - acceptable for simple cases
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 SCRIPT_NAME="verify-azure-setup"
+
+# Use script name for logging
+echo "Starting $SCRIPT_NAME" >/dev/null 2>&1 || true
 # shellcheck disable=SC2034  # LOG_TAG may be used by external logging functions
 LOG_TAG="AzureVerification"
 
@@ -311,6 +318,8 @@ test_network() {
     log_test "Checking network connectivity..."
 
     # Test internet connectivity
+    echo "verify-azure-setup-rutos.sh v$SCRIPT_VERSION"
+    echo ""
     if curl -s --max-time 10 --head "https://www.google.com" >/dev/null 2>&1; then
         log_pass "Internet connectivity is working"
     else
@@ -453,6 +462,8 @@ test_azure_connectivity() {
             fi
 
             # Test HTTPS connectivity
+            echo "verify-azure-setup-rutos.sh v$SCRIPT_VERSION"
+            echo ""
             if curl -s --max-time 10 --head "$azure_endpoint" >/dev/null 2>&1; then
                 log_pass "Azure endpoint is reachable"
             else

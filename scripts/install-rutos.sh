@@ -11,7 +11,12 @@
 set -eu
 
 # Script version - automatically updated from VERSION file
-SCRIPT_VERSION="2.4.0"
+# Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="install-rutos.sh"
 
@@ -1000,6 +1005,7 @@ This document lists all scripts installed by the Starlink monitoring system.
 
 ### Utility Scripts (in scripts/)
 - `validate-config-rutos.sh` - Configuration validation
+- `auto-detect-config-rutos.sh` - Autonomous system configuration detection
 - `post-install-check-rutos.sh` - Unified post-install health check
 - `system-status-rutos.sh` - System status checker
 - `health-check-rutos.sh` - Health monitoring  
@@ -1057,6 +1063,9 @@ This document lists all scripts installed by the Starlink monitoring system.
 
 ### Configuration Management
 ```bash
+# Autonomous system detection and configuration
+/usr/local/starlink-monitor/scripts/auto-detect-config-rutos.sh
+
 # Update configuration
 /usr/local/starlink-monitor/scripts/update-config-rutos.sh
 
@@ -1181,6 +1190,7 @@ install_scripts() {
     # Core utility scripts
     for script in \
         validate-config-rutos.sh \
+        auto-detect-config-rutos.sh \
         post-install-check-rutos.sh \
         system-status-rutos.sh \
         health-check-rutos.sh \
@@ -1198,7 +1208,8 @@ install_scripts() {
         fix-database-loop-rutos.sh \
         diagnose-database-loop-rutos.sh \
         fix-database-spam-rutos.sh \
-        system-maintenance-rutos.sh; do
+        system-maintenance-rutos.sh \
+        view-logs-rutos.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then
             cp "$script_dir/$script" "$INSTALL_DIR/scripts/$script"
@@ -1467,6 +1478,125 @@ install_config() {
                 else
                     print_status "$YELLOW" "⚠ Configuration validation completed with warnings"
                 fi
+            fi
+
+            # 🎯 AUTONOMOUS CONFIGURATION DETECTION - "Just make it work!"
+            print_status "$BLUE" "🎯 Running autonomous configuration detection..."
+
+            # Check if auto-detect script is available
+            autodetect_script_path=""
+            if [ -f "$INSTALL_DIR/scripts/auto-detect-config-rutos.sh" ]; then
+                autodetect_script_path="$INSTALL_DIR/scripts/auto-detect-config-rutos.sh"
+            elif [ -f "$(dirname "$0")/auto-detect-config-rutos.sh" ]; then
+                autodetect_script_path="$(dirname "$0")/auto-detect-config-rutos.sh"
+            fi
+
+            if [ -n "$autodetect_script_path" ] && [ -x "$autodetect_script_path" ]; then
+                print_status "$BLUE" "Running system auto-detection..."
+
+                # Run auto-detection and capture results
+                detection_results="/tmp/autodetect_results.$$"
+                if "$autodetect_script_path" >"$detection_results" 2>/dev/null; then
+                    print_status "$GREEN" "✓ System auto-detection completed successfully"
+
+                    # Apply detected settings to configuration
+                    print_status "$BLUE" "Applying auto-detected settings to configuration..."
+
+                    # Source the detection results
+                    # shellcheck disable=SC1090  # Dynamic file sourcing
+                    . "$detection_results" 2>/dev/null || true
+
+                    # Create a backup before applying auto-detected settings
+                    cp "$primary_config" "${primary_config}.pre-autodetect" 2>/dev/null || true
+
+                    # Apply auto-detected settings using sed (busybox compatible)
+                    config_updated=0
+
+                    # Update MWAN member and interface if detected
+                    if [ -n "${DETECTED_MWAN_MEMBER:-}" ] && [ -n "${DETECTED_MWAN_INTERFACE:-}" ]; then
+                        # Use busybox-compatible sed with explicit backup
+                        if sed "s/^MWAN_MEMBER=.*/MWAN_MEMBER=\"$DETECTED_MWAN_MEMBER\"/" "$primary_config" >"${primary_config}.tmp" &&
+                            mv "${primary_config}.tmp" "$primary_config"; then
+                            print_status "$GREEN" "  ✓ Auto-configured MWAN member: $DETECTED_MWAN_MEMBER"
+                            config_updated=1
+                        fi
+
+                        if sed "s/^MWAN_IFACE=.*/MWAN_IFACE=\"$DETECTED_MWAN_INTERFACE\"/" "$primary_config" >"${primary_config}.tmp" &&
+                            mv "${primary_config}.tmp" "$primary_config"; then
+                            print_status "$GREEN" "  ✓ Auto-configured MWAN interface: $DETECTED_MWAN_INTERFACE"
+                            config_updated=1
+                        fi
+                    fi
+
+                    # Update Starlink endpoint if detected
+                    if [ -n "${DETECTED_STARLINK_IP:-}" ]; then
+                        if sed "s/^STARLINK_IP=.*/STARLINK_IP=\"$DETECTED_STARLINK_IP\"/" "$primary_config" >"${primary_config}.tmp" &&
+                            mv "${primary_config}.tmp" "$primary_config"; then
+                            print_status "$GREEN" "  ✓ Auto-configured Starlink endpoint: $DETECTED_STARLINK_IP"
+                            config_updated=1
+                        fi
+                    fi
+
+                    # Update monitoring intervals if detected
+                    if [ -n "${DETECTED_CHECK_INTERVAL:-}" ]; then
+                        if sed "s/^CHECK_INTERVAL=.*/CHECK_INTERVAL=\"$DETECTED_CHECK_INTERVAL\"/" "$primary_config" >"${primary_config}.tmp" &&
+                            mv "${primary_config}.tmp" "$primary_config"; then
+                            print_status "$GREEN" "  ✓ Auto-configured check interval: ${DETECTED_CHECK_INTERVAL}s"
+                            config_updated=1
+                        fi
+                    fi
+
+                    # Update failure/recovery thresholds if detected
+                    if [ -n "${DETECTED_FAILURE_THRESHOLD:-}" ]; then
+                        if sed "s/^FAILURE_THRESHOLD=.*/FAILURE_THRESHOLD=\"$DETECTED_FAILURE_THRESHOLD\"/" "$primary_config" >"${primary_config}.tmp" &&
+                            mv "${primary_config}.tmp" "$primary_config"; then
+                            print_status "$GREEN" "  ✓ Auto-configured failure threshold: $DETECTED_FAILURE_THRESHOLD"
+                            config_updated=1
+                        fi
+                    fi
+
+                    if [ -n "${DETECTED_RECOVERY_THRESHOLD:-}" ]; then
+                        if sed "s/^RECOVERY_THRESHOLD=.*/RECOVERY_THRESHOLD=\"$DETECTED_RECOVERY_THRESHOLD\"/" "$primary_config" >"${primary_config}.tmp" &&
+                            mv "${primary_config}.tmp" "$primary_config"; then
+                            print_status "$GREEN" "  ✓ Auto-configured recovery threshold: $DETECTED_RECOVERY_THRESHOLD"
+                            config_updated=1
+                        fi
+                    fi
+
+                    # Update routing metrics if detected (for failover control)
+                    if [ -n "${DETECTED_METRIC_GOOD:-}" ]; then
+                        if sed "s/^METRIC_GOOD=.*/METRIC_GOOD=\"$DETECTED_METRIC_GOOD\"/" "$primary_config" >"${primary_config}.tmp" &&
+                            mv "${primary_config}.tmp" "$primary_config"; then
+                            print_status "$GREEN" "  ✓ Auto-configured good routing metric: $DETECTED_METRIC_GOOD"
+                            config_updated=1
+                        fi
+                    fi
+
+                    if [ -n "${DETECTED_METRIC_BAD:-}" ]; then
+                        if sed "s/^METRIC_BAD=.*/METRIC_BAD=\"$DETECTED_METRIC_BAD\"/" "$primary_config" >"${primary_config}.tmp" &&
+                            mv "${primary_config}.tmp" "$primary_config"; then
+                            print_status "$GREEN" "  ✓ Auto-configured bad routing metric: $DETECTED_METRIC_BAD"
+                            config_updated=1
+                        fi
+                    fi
+
+                    if [ "$config_updated" -eq 1 ]; then
+                        print_status "$GREEN" "✓ Configuration automatically optimized for your system"
+                        print_status "$BLUE" "  Backup of original: ${primary_config}.pre-autodetect"
+                        print_status "$YELLOW" "💡 Review auto-detected settings: vi $primary_config"
+                    else
+                        print_status "$YELLOW" "⚠ No auto-configuration applied (settings may already be optimal)"
+                    fi
+
+                    # Cleanup detection results
+                    rm -f "$detection_results" 2>/dev/null || true
+                else
+                    print_status "$YELLOW" "⚠ Auto-detection completed with warnings - using template defaults"
+                    rm -f "$detection_results" 2>/dev/null || true
+                fi
+            else
+                print_status "$YELLOW" "⚠ Auto-detection script not available - using template defaults"
+                print_status "$BLUE" "💡 Manual configuration required: vi $primary_config"
             fi
         else
             print_status "$RED" "✗ Failed to create initial configuration"

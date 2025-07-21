@@ -1,6 +1,10 @@
 #!/bin/sh
 
 # Quick test of template detection logic
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 echo "=== Template Detection Test ==="
 
 config_file="./test_config.sh"
@@ -89,4 +93,9 @@ for var in $config_vars; do
     if ! echo "$template_vars" | grep -q "^$var$"; then
         echo "  $var"
     fi
+    # Debug version display
+    if [ "$DEBUG" = "1" ]; then
+        printf "Script version: %s\n" "$SCRIPT_VERSION"
+    fi
+
 done

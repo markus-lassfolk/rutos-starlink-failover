@@ -11,6 +11,11 @@
 # --- Network Configuration ---
 
 # Starlink gRPC endpoint IP and port
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+# Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 export STARLINK_IP="192.168.100.1:9200"
 
 # MWAN3 interface name for Starlink connection

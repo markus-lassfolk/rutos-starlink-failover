@@ -2,6 +2,10 @@
 # Debug variable_exists function
 
 # Create test files
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 mkdir -p /tmp/debug-test
 cd /tmp/debug-test || exit
 
@@ -25,4 +29,9 @@ grep -E "(STARLINK_GRPC_HOST|MONITORING_INTERVAL|LOG_LEVEL)=" /tmp/debug-test/me
 echo ""
 echo "=== CLEANUP ==="
 rm -rf /tmp/debug-test
+# Debug version display
+if [ "$DEBUG" = "1" ]; then
+    printf "Script version: %s\n" "$SCRIPT_VERSION"
+fi
+
 echo "Debug test completed!"

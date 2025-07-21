@@ -1,6 +1,6 @@
 #!/bin/sh
 # Setup script for RUTOS development environment
-# Version: [AUTO-GENERATED]
+# Version: 2.4.12
 # Description: Sets up pre-commit hooks and validation tools
 
 set -e
@@ -8,7 +8,13 @@ set -e
 # Colors for output
 # Check if terminal supports colors
 # shellcheck disable=SC2034
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # shellcheck disable=SC2034
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
@@ -17,6 +23,8 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     NC='\033[0m'
 else
     # Fallback to no colors if terminal doesn't support them
+    # shellcheck disable=SC2034
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     RED=""
     GREEN=""
     YELLOW=""
@@ -48,6 +56,15 @@ command_exists() {
 
 # Main setup function
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "setup-dev-environment.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: setup-dev-environment.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     log_info "Setting up RUTOS development environment..."
 
     # Check if we're in a git repository

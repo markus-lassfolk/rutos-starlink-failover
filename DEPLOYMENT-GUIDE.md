@@ -1,5 +1,17 @@
 # Complete Starlink Solution Deployment Guide for RUTOS
 
+**Version:** 2.4.12 | **Updated:** 2025-07-21
+
+**Version:** 2.4.11 | **Updated:** 2025-07-21
+
+**Version:** 2.4.10 | **Updated:** 2025-07-21
+
+**Version:** 2.4.9 | **Updated:** 2025-07-21
+
+**Version:** 2.4.8 | **Updated:** 2025-07-21
+
+**Version:** 2.4.7 | **Updated:** 2025-07-21
+
 This guide provides both automated and manual installation methods for deploying a comprehensive Starlink monitoring and
 failover solution on RUTOS devices.
 

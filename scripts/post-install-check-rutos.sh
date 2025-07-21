@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: post-install-check-rutos.sh
-# Version: 1.0.0
+# Version: 2.4.12
 # Description: Comprehensive post-installation health check with visual indicators
 # Compatible with: RUTOS (busybox sh)
 
@@ -10,7 +10,11 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.0"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
@@ -180,8 +184,9 @@ fi
 
 # Check required binaries
 if [ -f "$INSTALL_DIR/grpcurl" ] && [ -x "$INSTALL_DIR/grpcurl" ]; then
-    version=$("$INSTALL_DIR/grpcurl" --version 2>/dev/null | head -1 || echo "unknown")
-    check_status "pass" "gRPC Client (grpcurl)" "Installed: $version"
+    # Extract grpcurl version properly - it outputs "grpcurl v1.x.x"
+    version=$("$INSTALL_DIR/grpcurl" --version 2>/dev/null | head -1 | sed 's/^grpcurl //' || echo "unknown")
+    check_status "pass" "gRPC Client (grpcurl)" "Installed: v$version"
 else
     check_status "fail" "gRPC Client (grpcurl)" "Missing or not executable"
 fi
@@ -413,36 +418,6 @@ else
     check_status "config" "Connectivity Recovery Threshold" "Not configured (using default 3 successes before failback)"
 fi
 
-if [ -n "${FAILURE_THRESHOLD:-}" ]; then
-    if is_placeholder "$FAILURE_THRESHOLD"; then
-        check_status "config" "Failure Threshold" "Needs configuration: $FAILURE_THRESHOLD"
-    else
-        # Validate threshold is reasonable (2-10 failures)
-        if [ "$FAILURE_THRESHOLD" -ge 2 ] && [ "$FAILURE_THRESHOLD" -le 10 ]; then
-            check_status "pass" "Failure Threshold" "Set to $FAILURE_THRESHOLD failures (recommended: 2-10)"
-        else
-            check_status "warn" "Failure Threshold" "Value $FAILURE_THRESHOLD outside recommended range (2-10)"
-        fi
-    fi
-else
-    check_status "config" "Failure Threshold" "Not configured (using default 3)"
-fi
-
-if [ -n "${RECOVERY_THRESHOLD:-}" ]; then
-    if is_placeholder "$RECOVERY_THRESHOLD"; then
-        check_status "config" "Recovery Threshold" "Needs configuration: $RECOVERY_THRESHOLD"
-    else
-        # Validate threshold is reasonable (2-10 checks)
-        if [ "$RECOVERY_THRESHOLD" -ge 2 ] && [ "$RECOVERY_THRESHOLD" -le 10 ]; then
-            check_status "pass" "Recovery Threshold" "Set to $RECOVERY_THRESHOLD checks (recommended: 2-10)"
-        else
-            check_status "warn" "Recovery Threshold" "Value $RECOVERY_THRESHOLD outside recommended range (2-10)"
-        fi
-    fi
-else
-    check_status "config" "Recovery Threshold" "Not configured (using default 3)"
-fi
-
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "\n${BLUE}7. SYSTEM HEALTH${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
@@ -577,7 +552,7 @@ if [ "$status_failed" -eq 0 ] && [ "$status_config" -eq 0 ]; then
 elif [ "$status_failed" -eq 0 ] && [ "$status_config" -gt 0 ]; then
     overall_status="good"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${YELLOW}⚙️ SYSTEM STATUS: NEEDS CONFIGURATION${NC}\n"
+    printf "${CYAN}⚙️ SYSTEM STATUS: NEEDS CONFIGURATION${NC}\n"
     printf "Your system is installed correctly but needs configuration to be fully functional.\n"
     printf "Please address the configuration items marked above.\n"
 elif [ "$status_failed" -le 2 ] && [ "$status_warnings" -le 3 ]; then
@@ -607,7 +582,7 @@ fi
 
 # Standard management commands
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-printf "• Test monitoring:   ${CYAN}$INSTALL_DIR/scripts/test-monitoring-rutos.sh${NC}\n"
+printf "• Test monitoring:   ${CYAN}$INSTALL_DIR/scripts/tests/test-monitoring-rutos.sh${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "• Check system:      ${CYAN}$INSTALL_DIR/scripts/system-status-rutos.sh${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility

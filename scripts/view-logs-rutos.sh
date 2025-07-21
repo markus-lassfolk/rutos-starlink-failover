@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: view-logs-rutos.sh
-# Version: 1.0.0
+# Version: 2.4.12
 # Description: View and analyze system logs for troubleshooting
 # Compatible with: RUTOS (busybox sh)
 
@@ -8,7 +8,12 @@ set -e # Exit on error
 
 # Version information (used for version tracking and logging)
 # shellcheck disable=SC2034  # SCRIPT_VERSION used for version reporting
-SCRIPT_VERSION="1.0.0"
+# Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
@@ -199,6 +204,15 @@ tail_logs() {
 
 # Main function
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "view-logs-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: view-logs-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     print_header
 
     case "${1:-}" in

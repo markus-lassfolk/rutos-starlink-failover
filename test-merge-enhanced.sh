@@ -1,6 +1,9 @@
 #!/bin/sh
 # Enhanced test to show exactly how the merge works
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 mkdir -p /tmp/merge-test
 
 # Create a proper template with different values
@@ -65,4 +68,9 @@ cat /tmp/merge-test/config.sh
 echo ""
 echo "=== CLEANUP ==="
 rm -rf /tmp/merge-test
+# Debug version display
+if [ "$DEBUG" = "1" ]; then
+    printf "Script version: %s\n" "$SCRIPT_VERSION"
+fi
+
 echo "Enhanced test completed!"

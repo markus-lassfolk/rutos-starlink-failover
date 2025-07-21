@@ -1,5 +1,17 @@
 # RUTOS Deployment Script Updates Summary
 
+**Version:** 2.4.12 | **Updated:** 2025-07-21
+
+**Version:** 2.4.11 | **Updated:** 2025-07-21
+
+**Version:** 2.4.10 | **Updated:** 2025-07-21
+
+**Version:** 2.4.9 | **Updated:** 2025-07-21
+
+**Version:** 2.4.8 | **Updated:** 2025-07-21
+
+**Version:** 2.4.7 | **Updated:** 2025-07-21
+
 ## Critical Fixes Applied
 
 Based on the RUTOS compatibility test results from your RUTX50 device, the following critical fixes have been applied to

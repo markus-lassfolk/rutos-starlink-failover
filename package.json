@@ -1,6 +1,6 @@
 {
   "name": "rutos-starlink-failover-tools",
-  "version": "1.0.0",
+  "version": "2.4.12",
   "description": "Development tools for RUTOS Starlink Failover project",
   "private": true,
   "scripts": {

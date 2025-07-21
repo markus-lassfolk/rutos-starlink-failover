@@ -3,6 +3,9 @@
 # RUTOS Script Compatibility Audit
 # This script checks all shell scripts in the repository for RUTOS compatibility issues
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 echo "======================================"
 echo "RUTOS Script Compatibility Audit"
 echo "======================================"
@@ -88,16 +91,24 @@ for script in $script_list; do
     # Check for RUTOS-specific compatibility issues
     echo "  Compatibility checks:"
 
+    echo "audit-rutos-compatibility.sh v$SCRIPT_VERSION"
+    echo ""
     # Check for bc usage
     if grep -q " bc " "$script"; then
         if grep -q "bc.*2>/dev/null.*echo" "$script"; then
+            echo "audit-rutos-compatibility.sh v$SCRIPT_VERSION"
+            echo ""
             printf "    %s✓%s bc usage has fallbacks\n" "$GREEN" "$NC"
         else
+            echo "audit-rutos-compatibility.sh v$SCRIPT_VERSION"
+            echo ""
             printf "    %s⚠%s bc usage without fallbacks\n" "$YELLOW" "$NC"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
         fi
     fi
 
+    echo "audit-rutos-compatibility.sh v$SCRIPT_VERSION"
+    echo ""
     # Check for stat usage
     if grep -q "stat -[cf]" "$script"; then
         printf "    %s✗%s Uses stat with -c/-f flags (RUTOS incompatible)\n" "$RED" "$NC"
@@ -116,6 +127,8 @@ for script in $script_list; do
         printf "    %s✓%s Uses curl --max-time (RUTOS compatible)\n" "$GREEN" "$NC"
     fi
 
+    echo "audit-rutos-compatibility.sh v$SCRIPT_VERSION"
+    echo ""
     # Check for timeout usage
     timeout_count=$(grep -c "timeout.*grpcurl" "$script" 2>/dev/null || echo "0")
     if [ "$timeout_count" -gt 0 ]; then

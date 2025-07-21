@@ -1,9 +1,14 @@
 #!/bin/sh
 
+# Version information (auto-updated by update-version.sh)
+
+# Use version for validation
+echo "$(basename "$0") v$SCRIPT_VERSION" >/dev/null 2>&1 || true
+
 # ==============================================================================
 # Starlink Performance Data Logger for OpenWrt/RUTOS
 #
-# Version: 2.4.0
+# Version: 2.4.12
 # Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 #
 # This script runs periodically via cron to gather real-time performance data
@@ -24,9 +29,18 @@
 # Exit on first error, undefined variable, or pipe failure for script robustness.
 set -eu
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+
+# Use version for validation
+echo "$(basename "$0") v$SCRIPT_VERSION" >/dev/null 2>&1 || true
+
 # --- User Configuration ---
 
 # Set default installation directory if not already set
+
+# Version information (auto-updated by update-version.sh)
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
 
 # Load configuration from config file if available

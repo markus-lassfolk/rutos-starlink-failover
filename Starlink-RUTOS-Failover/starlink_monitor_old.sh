@@ -3,7 +3,7 @@
 # ==============================================================================
 # Starlink Proactive Quality Monitor for OpenWrt/RUTOS
 #
-# Version: 1.0 (Public Edition)
+# Version: 2.4.12
 # Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 #
 # This script proactively monitors the quality of a Starlink internet connection
@@ -24,6 +24,10 @@
 set -eu
 
 # Configuration validation
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 if [ -z "${STARLINK_IP:-}" ] || [ -z "${MWAN_IFACE:-}" ] || [ -z "${MWAN_MEMBER:-}" ]; then
     echo "Error: Critical configuration variables not set"
     exit 1
@@ -243,6 +247,11 @@ else
         # Quality is good and we are already in the 'up' state. Reset stability counter.
         echo "0" >"$STABILITY_FILE"
     fi
+fi
+
+# Version information for troubleshooting
+if [ "$DEBUG" = "1" ]; then
+    printf "Script version: %s\n" "$SCRIPT_VERSION"
 fi
 
 log "--- Check finished ---"

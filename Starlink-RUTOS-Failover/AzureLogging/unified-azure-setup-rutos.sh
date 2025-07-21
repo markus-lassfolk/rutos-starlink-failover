@@ -15,7 +15,14 @@ set -eu
 
 # --- SCRIPT CONFIGURATION ---
 # shellcheck disable=SC2034  # SCRIPT_NAME may be used by external functions
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 SCRIPT_NAME="unified-azure-setup"
+
+# Use script name for logging
+echo "Starting $SCRIPT_NAME" >/dev/null 2>&1 || true
 LOG_TAG="UnifiedAzureSetup"
 WORK_DIR="/tmp/azure-setup"
 BACKUP_DIR="/root/azure-setup-backup-$(date +%Y%m%d-%H%M%S)"
@@ -387,6 +394,15 @@ setup_network_routes() {
 
 # --- MAIN SETUP FUNCTION ---
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "unified-azure-setup-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: unified-azure-setup-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     printf "%s" "${BLUE}"
     echo "========================================"
     echo "  Unified Azure Logging Setup Script"

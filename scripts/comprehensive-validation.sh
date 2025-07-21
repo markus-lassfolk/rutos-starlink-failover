@@ -1,6 +1,6 @@
 #!/bin/bash
 # Comprehensive Code Quality Validation Script
-# Version: 1.0.2
+# Version: 2.4.12
 # Description: Multi-language code quality validation for RUTOS Starlink Failover Project
 #              Includes all RUTOS/busybox compatibility checks from pre-commit-validation.sh
 #
@@ -15,7 +15,12 @@
 set -e
 
 # Version information
-SCRIPT_VERSION="1.0.2"
+# Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output
 RED='\033[0;31m'

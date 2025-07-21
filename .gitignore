@@ -9,3 +9,4 @@ package-lock.json
 .npm
 
 temp/installation.log
+temp/uci show.txt

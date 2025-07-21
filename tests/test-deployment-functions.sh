@@ -8,6 +8,10 @@ set -eu
 # Source colors and basic functions from the main script
 # Check if terminal supports colors
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -510,6 +514,9 @@ EOF
 
 # Main test execution
 main() {
+    if [ "$DEBUG" = "1" ]; then
+        printf "Debug script version: %s\n" "$SCRIPT_VERSION"
+    fi
     log_header "Starlink Deployment Script Testing"
 
     echo "Testing deployment script components..."

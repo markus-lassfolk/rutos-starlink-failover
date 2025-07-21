@@ -1,6 +1,10 @@
 #!/bin/sh
 # Quick test script to validate config type detection logic
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+# Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 echo "Testing config type detection logic"
 echo "=================================="
 

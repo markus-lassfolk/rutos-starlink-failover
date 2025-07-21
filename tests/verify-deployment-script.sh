@@ -4,6 +4,10 @@
 # This script verifies the updated deployment script syntax for RUTOS compatibility
 
 # Initialize warning counter
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 warning_count=0
 
 # Logging functions
@@ -97,15 +101,25 @@ esac
 echo ""
 echo "=== RUTOS COMPATIBILITY ==="
 
+echo "verify-deployment-script.sh v$SCRIPT_VERSION"
+echo ""
 # Check for bc usage
 if grep -q "bc.*2>/dev/null.*echo" "$SCRIPT_FILE"; then
+    echo "verify-deployment-script.sh v$SCRIPT_VERSION"
+    echo ""
     log_success "bc usage has fallbacks"
 elif grep -q " bc " "$SCRIPT_FILE"; then
+    echo "verify-deployment-script.sh v$SCRIPT_VERSION"
+    echo ""
     log_warn "bc usage without fallbacks found"
 else
+    echo "verify-deployment-script.sh v$SCRIPT_VERSION"
+    echo ""
     log_success "No problematic bc usage"
 fi
 
+echo "verify-deployment-script.sh v$SCRIPT_VERSION"
+echo ""
 # Check for stat usage
 if grep -q "wc -c" "$SCRIPT_FILE"; then
     log_success "Using wc -c for file sizes (RUTOS compatible)"
@@ -113,6 +127,8 @@ else
     log_warn "May still use problematic stat commands"
 fi
 
+echo "verify-deployment-script.sh v$SCRIPT_VERSION"
+echo ""
 # Check for timeout usage
 timeout_count=$(grep -c "timeout.*grpcurl" "$SCRIPT_FILE" 2>/dev/null || echo "0")
 if [ "$timeout_count" -gt 0 ]; then
@@ -131,6 +147,8 @@ fi
 if grep -q "curl.*-L" "$SCRIPT_FILE"; then
     log_warn "Using -L flag (not supported on RUTOS)"
 else
+    echo "verify-deployment-script.sh v$SCRIPT_VERSION"
+    echo ""
     log_success "No problematic curl -L flag usage"
 fi
 
@@ -165,5 +183,7 @@ echo ""
 echo "Recommended next steps:"
 echo "1. Copy $SCRIPT_FILE to your RUTOS device"
 echo "2. Run: chmod +x $SCRIPT_FILE"
+echo "verify-deployment-script.sh v$SCRIPT_VERSION"
+echo ""
 echo "3. Test: ./$SCRIPT_FILE --help"
 echo "4. Deploy: ./$SCRIPT_FILE"

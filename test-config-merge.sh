@@ -2,6 +2,11 @@
 # Test script to demonstrate the new configuration merging system
 
 # Create test files
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+# Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 mkdir -p /tmp/config-test
 
 # Create a "current" template (simulating new version)

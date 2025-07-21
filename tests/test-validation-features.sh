@@ -9,6 +9,10 @@
 set -eu
 
 # Test directory
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 TEST_DIR="/tmp/starlink-validation-test"
 CONFIG_FILE="$TEST_DIR/config.sh"
 TEMPLATE_FILE="$TEST_DIR/config.template.sh"
@@ -188,6 +192,9 @@ cleanup() {
 
 # Main function
 main() {
+    if [ "$DEBUG" = "1" ]; then
+        printf "Debug script version: %s\n" "$SCRIPT_VERSION"
+    fi
     print_status "$GREEN" "=== Enhanced Configuration Validation Tests ==="
     echo ""
 

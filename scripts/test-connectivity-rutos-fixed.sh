@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: test-connectivity.sh
-# Version: 1.0.2
+# Version: 2.4.12
 # Description: Comprehensive connectivity and credential testing for Starlink monitoring system
 
 # RUTOS Compatibility - Dynamic sourcing patterns
@@ -9,7 +9,12 @@
 set -e # Exit on error
 
 # Script version - automatically updated by update-version.sh
-SCRIPT_VERSION="1.0.2"
+# Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 
 # Get the installation directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

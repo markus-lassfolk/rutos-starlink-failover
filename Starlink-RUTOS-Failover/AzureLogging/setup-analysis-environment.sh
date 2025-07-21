@@ -9,8 +9,15 @@ set -e
 # Check if terminal supports colors
 # Color definitions for consistent output (compatible with busybox)
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # shellcheck disable=SC2034
+    # shellcheck disable=SC2034  # Color variables may not all be used
     RED='\033[0;31m'
+    # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[1;35m'
@@ -18,7 +25,10 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     NC='\033[0m' # No Color
 else
     # Fallback to no colors if terminal doesn't support them
+    # shellcheck disable=SC2034
+    # shellcheck disable=SC2034  # Color variables may not all be used
     RED=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN=""
     YELLOW=""
     BLUE=""
@@ -60,6 +70,8 @@ echo ""
 echo "To use the analysis tool:"
 echo "1. Activate the virtual environment: source venv/bin/activate"
 echo "2. Run the analysis: python analyze-network-performance.py --storage-account YOUR_ACCOUNT --days 30 --visualizations"
+echo ""
+echo "setup-analysis-environment.sh v$SCRIPT_VERSION"
 echo ""
 echo "Example usage:"
 echo "  python analyze-network-performance.py --storage-account mystorageaccount --days 7 --visualizations"

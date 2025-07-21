@@ -10,6 +10,10 @@
 
 # --- CONFIGURATION ---
 # Read configuration from UCI if available, otherwise use defaults
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 AZURE_FUNCTION_URL=$(uci get azure.system.endpoint 2>/dev/null || echo "")
 LOG_FILE=$(uci get azure.system.log_file 2>/dev/null || echo "/overlay/messages")
 # shellcheck disable=SC2034  # MAX_SIZE may be used for future file rotation
@@ -71,6 +75,11 @@ else
     # Failure. Do not clear the local file. It will be retried on the next run.
     logger -t "azure-log-shipper" "Failed to send logs to Azure. HTTP Status: $HTTP_STATUS. Retaining local logs."
     exit 1
+fi
+
+# Version information for troubleshooting
+if [ "$DEBUG" = "1" ]; then
+    printf "Script version: %s\n" "$SCRIPT_VERSION"
 fi
 
 exit 0

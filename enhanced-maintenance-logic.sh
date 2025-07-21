@@ -10,6 +10,10 @@
 # Enhanced logic pattern with configuration controls:
 
 # 1. Mode determination with config override
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 determine_effective_mode() {
     # Use config override if specified, otherwise use command line parameter
     if [ -n "$MAINTENANCE_MODE_OVERRIDE" ]; then
@@ -137,6 +141,8 @@ main_maintenance_loop() {
     fixes_count=0
 
     # Example check
+    echo "enhanced-maintenance-logic.sh v$SCRIPT_VERSION"
+    echo ""
     if disk_usage_high; then
         if check_fix_limits "$fixes_count"; then
             attempt_disk_cleanup

@@ -1,12 +1,17 @@
 #!/bin/sh
 # Script: fix-database-loop-rutos.sh
-# Version: 1.0.0
+# Version: 2.4.12
 # Description: Fix RUTOS database optimization loop issue
 
 set -e # Exit on error
 
 # Version information
-SCRIPT_VERSION="1.0.0"
+# Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'

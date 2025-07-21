@@ -1,11 +1,15 @@
 #!/bin/sh
 # Script: diagnose-database-loop-rutos.sh
-# Version: 1.0.0
+# Version: 2.4.12
 # Description: Quick diagnostic for RUTOS database optimization loop
 
 set -e
 
 # Colors for output
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -73,14 +77,22 @@ else
     printf "${GREEN}%s${NC}\n" "   No database files found in common locations"
 fi
 
+echo "diagnose-database-loop-rutos.sh v$SCRIPT_VERSION"
+echo ""
 # 4. Check system resource usage
+echo "diagnose-database-loop-rutos.sh v$SCRIPT_VERSION"
+echo ""
 printf "\n${BLUE}%s${NC}\n" "4. System memory and disk usage:"
 printf "${YELLOW}%s${NC}\n" "   Memory:"
 free | head -2 | while IFS= read -r line; do
     printf "${YELLOW}     %s${NC}\n" "$line"
 done
 
+echo "diagnose-database-loop-rutos.sh v$SCRIPT_VERSION"
+echo ""
 printf "${YELLOW}%s${NC}\n" "   Disk usage:"
+echo "diagnose-database-loop-rutos.sh v$SCRIPT_VERSION"
+echo ""
 df -h / /tmp /var 2>/dev/null | while IFS= read -r line; do
     printf "${YELLOW}     %s${NC}\n" "$line"
 done

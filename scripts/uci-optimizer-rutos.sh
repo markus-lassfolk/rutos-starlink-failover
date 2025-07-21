@@ -10,6 +10,10 @@ set -eu
 # Configuration
 # SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"  # Currently unused
 # CONFIG_FILE="$SCRIPT_DIR/../config/config.sh"  # Currently unused
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 BACKUP_DIR="/tmp/uci_backup_$(date +%Y%m%d_%H%M%S)"
 
 # Colors for output
@@ -401,6 +405,15 @@ restore_backup() {
 
 # Main function
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "uci-optimizer-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: uci-optimizer-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     action="${1:-analyze}"
 
     # Check if running on OpenWrt/RUTOS

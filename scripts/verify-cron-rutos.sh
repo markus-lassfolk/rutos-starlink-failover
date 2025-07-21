@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: verify-cron-rutos.sh
-# Version: 2.0.4
+# Version: 2.4.12
 # Description: Standalone cron configuration verification for Starlink monitoring
 
 # RUTOS Compatibility - Using Method 5 printf format for proper color display
@@ -9,7 +9,11 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.0.4"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output (compatible with busybox)
 # CRITICAL: Use RUTOS-compatible color detection

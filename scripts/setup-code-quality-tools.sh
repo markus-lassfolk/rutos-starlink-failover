@@ -1,12 +1,17 @@
 #!/bin/bash
 # Setup script for comprehensive code quality tools
-# Version: 1.0.2
+# Version: 2.4.12
 # Description: Installs all code quality tools for the RUTOS Starlink Failover project
 
 set -e
 
 # Version information
-SCRIPT_VERSION="1.0.2"
+# Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output (RUTOS-compatible)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then

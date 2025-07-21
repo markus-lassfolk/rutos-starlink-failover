@@ -6,6 +6,13 @@
 # ==============================================================================
 
 # Function to perform intelligent config merge using the user's suggested approach
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+
+# Use version for logging
+echo "intelligent-config-merge.sh v$SCRIPT_VERSION started" >/dev/null 2>&1 || true
 intelligent_config_merge() {
     template_file="$1"
     current_config="$2"

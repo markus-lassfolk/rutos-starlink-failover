@@ -4,6 +4,9 @@
 
 set -eu
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 echo "=== Final Deployment Script Verification ==="
 
 # Test the exact comparison logic used in the deployment script
@@ -309,4 +312,9 @@ else
     echo "❌ VERIFICATION FAILED"
     echo "$tests_failed test(s) failed - please review and fix issues"
     exit 1
+    # Debug version display
+    if [ "$DEBUG" = "1" ]; then
+        printf "Script version: %s\n" "$SCRIPT_VERSION"
+    fi
+
 fi

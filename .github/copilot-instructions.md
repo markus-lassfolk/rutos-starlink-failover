@@ -205,7 +205,7 @@ log_debug "Current working directory: $(pwd)"
 ```bash
 #!/bin/sh
 # Script: script_name.sh
-# Version: [AUTO-GENERATED]
+# Version: 2.4.6
 # Description: Brief description
 
 set -e  # Exit on error

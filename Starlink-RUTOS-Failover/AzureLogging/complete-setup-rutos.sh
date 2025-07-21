@@ -5,6 +5,9 @@
 
 set -e
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 SCRIPT_DIR="$(dirname "$0")"
 LOG_FILE="/overlay/messages"
 SETUP_SCRIPT="$SCRIPT_DIR/setup-persistent-logging-rutos.sh"
@@ -158,6 +161,15 @@ show_status() {
 
 # Main execution
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "complete-setup-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: complete-setup-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     check_rutos
 
     echo "This script will:"

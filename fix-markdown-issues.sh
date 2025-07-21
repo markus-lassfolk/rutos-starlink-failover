@@ -3,6 +3,10 @@
 
 # Color codes for output - RUTOS compatible
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -107,6 +111,15 @@ fix_md010() {
 
 # Main function
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "fix-markdown-issues.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: fix-markdown-issues.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     log_info "Starting markdown issue fixes"
 
     # List of files that need fixes based on the validation report

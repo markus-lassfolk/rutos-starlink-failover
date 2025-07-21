@@ -11,7 +11,12 @@
 set -eu
 
 # Script version information
-SCRIPT_VERSION="2.4.0"
+# Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="validate-config-rutos.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"

@@ -1,5 +1,17 @@
 # 🚀 RUTOS Starlink Failover
 
+**Version:** 2.4.12 | **Updated:** 2025-07-21
+
+**Version:** 2.4.11 | **Updated:** 2025-07-21
+
+**Version:** 2.4.10 | **Updated:** 2025-07-21
+
+**Version:** 2.4.9 | **Updated:** 2025-07-21
+
+**Version:** 2.4.8 | **Updated:** 2025-07-21
+
+**Version:** 2.4.7 | **Updated:** 2025-07-21
+
 > **📍 Victron GPS Integration Moved!**  
 > The Victron GPS failover functionality has been split into its own repository for better maintainability.  
 > **New location:** [rutos-victron-gps](https://github.com/markus-lassfolk/rutos-victron-gps)

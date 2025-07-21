@@ -1,6 +1,6 @@
 #!/bin/bash
 # Pre-commit validation script for RUTOS Starlink Failover Project
-# Version: 1.0.3
+# Version: 2.4.12
 # Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility
 #              and markdown files for documentation quality
 #
@@ -17,7 +17,12 @@
 # and collect all validation issues before exiting
 
 # Version information
-SCRIPT_VERSION="1.0.3"
+# Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 
 # Files to exclude from validation (patterns supported)
 # Only exclude files that genuinely shouldn't be shell-validated
@@ -47,6 +52,10 @@ if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ] || { [ ! -t 1
 fi
 
 # Standard logging functions
+# Version information for troubleshooting
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "Script: pre-commit-validation.sh v$SCRIPT_VERSION"
+fi
 log_info() {
     printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
@@ -410,6 +419,107 @@ validate_color_codes() {
     return 0
 }
 
+# Function to validate SCRIPT_VERSION according to best practices
+validate_script_version() {
+    local file="$1"
+
+    # Check if SCRIPT_VERSION is defined
+    if ! grep -q "^[[:space:]]*SCRIPT_VERSION=" "$file"; then
+        report_issue "CRITICAL" "$file" "1" "Missing SCRIPT_VERSION variable - all scripts must define version"
+        return 1
+    fi
+
+    # Check SCRIPT_VERSION format and best practices
+    local version_line_num
+    local version_line
+
+    # Get the SCRIPT_VERSION line
+    version_line_num=$(grep -n "^[[:space:]]*SCRIPT_VERSION=" "$file" | head -1 | cut -d: -f1)
+    version_line=$(grep "^[[:space:]]*SCRIPT_VERSION=" "$file" | head -1)
+
+    # Check if version is properly quoted
+    if ! echo "$version_line" | grep -q 'SCRIPT_VERSION="[0-9]\+\.[0-9]\+\.[0-9]\+"'; then
+        if echo "$version_line" | grep -q 'SCRIPT_VERSION=[0-9]'; then
+            report_issue "MAJOR" "$file" "$version_line_num" "SCRIPT_VERSION should be quoted: SCRIPT_VERSION=\"X.Y.Z\""
+        elif echo "$version_line" | grep -q 'SCRIPT_VERSION='; then
+            report_issue "MAJOR" "$file" "$version_line_num" "SCRIPT_VERSION should use semantic versioning format: \"X.Y.Z\""
+        fi
+    fi
+
+    # Check if version follows semantic versioning
+    local version_value
+    version_value=$(echo "$version_line" | sed 's/.*SCRIPT_VERSION="\([^"]*\)".*/\1/' | sed 's/.*SCRIPT_VERSION=\([^[:space:]]*\).*/\1/' | tr -d '"')
+
+    if ! echo "$version_value" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+        report_issue "MAJOR" "$file" "$version_line_num" "SCRIPT_VERSION should use semantic versioning (X.Y.Z): current=\"$version_value\""
+    fi
+
+    # Check if readonly is used (recommended but not required)
+    local next_line_num=$((version_line_num + 1))
+    local next_line
+    next_line=$(sed -n "${next_line_num}p" "$file" 2>/dev/null)
+
+    if ! echo "$next_line" | grep -q "readonly.*SCRIPT_VERSION"; then
+        # Check if readonly is on the same line
+        if ! echo "$version_line" | grep -q "readonly"; then
+            report_issue "MINOR" "$file" "$version_line_num" "Consider using 'readonly SCRIPT_VERSION' for immutable version"
+        fi
+    fi
+
+    # Check positioning - SCRIPT_VERSION should be after shebang/set commands, before other variables
+    local set_line_num
+    set_line_num=$(grep -n "^set " "$file" | head -1 | cut -d: -f1 2>/dev/null || echo "1")
+
+    # SCRIPT_VERSION should be within first 30 lines and after set commands
+    if [ "$version_line_num" -gt 30 ]; then
+        report_issue "MINOR" "$file" "$version_line_num" "SCRIPT_VERSION should be defined near the top of the file (within first 30 lines)"
+    fi
+
+    if [ -n "$set_line_num" ] && [ "$version_line_num" -lt "$set_line_num" ]; then
+        report_issue "MINOR" "$file" "$version_line_num" "SCRIPT_VERSION should be defined after 'set' commands"
+    fi
+
+    # Check for automation comment
+    local comment_line_num=$((version_line_num - 1))
+    local comment_line
+    comment_line=$(sed -n "${comment_line_num}p" "$file" 2>/dev/null)
+
+    if ! echo "$comment_line" | grep -q "auto-updated.*update-version"; then
+        report_issue "MINOR" "$file" "$comment_line_num" "Consider adding automation comment: # Version information (auto-updated by update-version.sh)"
+    fi
+
+    # Check if version is actually used in the script
+    if ! grep -q "\$SCRIPT_VERSION" "$file"; then
+        report_issue "MINOR" "$file" "$version_line_num" "SCRIPT_VERSION is defined but never used - consider displaying in logs or help"
+    fi
+
+    return 0
+}
+
+# Function to validate Markdown file versioning
+validate_markdown_version() {
+    local file="$1"
+
+    # Check for version information in markdown files
+    local has_version=false
+
+    # Look for various version patterns in markdown
+    if grep -q "^# Version:" "$file" || grep -q "Version: [0-9]" "$file" || grep -q "v[0-9]\+\.[0-9]\+\.[0-9]\+" "$file"; then
+        has_version=true
+    fi
+
+    # Look for YAML frontmatter version
+    if head -10 "$file" | grep -q "^version:" || head -10 "$file" | grep -q "^Version:"; then
+        has_version=true
+    fi
+
+    if [ "$has_version" = "false" ]; then
+        report_issue "MINOR" "$file" "1" "Consider adding version information to documentation file"
+    fi
+
+    return 0
+}
+
 # Function to run ShellCheck
 run_shellcheck() {
     file="$1"
@@ -592,6 +702,9 @@ validate_file() {
     # Validate color code usage
     validate_color_codes "$file"
 
+    # Validate SCRIPT_VERSION according to best practices
+    validate_script_version "$file"
+
     # Run ShellCheck
     run_shellcheck "$file"
 
@@ -734,6 +847,9 @@ validate_markdown_file() {
 
     # Run markdownlint validation
     run_markdownlint "$file"
+
+    # Validate markdown versioning
+    validate_markdown_version "$file"
 
     # Run prettier validation (after potential auto-fixes)
     run_prettier_markdown "$file"
@@ -1071,6 +1187,48 @@ EXIT CODES:
 EOF
 }
 
+# Function to parse .gitignore and generate find exclusions
+parse_gitignore_exclusions() {
+    gitignore_file=".gitignore"
+    exclusions=""
+
+    if [ -f "$gitignore_file" ]; then
+        # Read .gitignore and convert patterns to find exclusions
+        while read -r line; do
+            # Skip empty lines and comments
+            if [ -n "$line" ] && ! echo "$line" | grep -q "^#"; then
+                # Remove leading/trailing whitespace
+                pattern=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+                if [ -n "$pattern" ]; then
+                    # Convert gitignore patterns to find exclusions
+                    if echo "$pattern" | grep -q "/$"; then
+                        # Directory pattern (ends with /)
+                        dir_pattern=${pattern%/}
+                        exclusions="$exclusions -not -path \"./$dir_pattern/*\""
+                    elif echo "$pattern" | grep -q "\*"; then
+                        # Wildcard pattern - handle as name pattern
+                        exclusions="$exclusions -not -name \"$pattern\""
+                    else
+                        # Regular file/directory pattern
+                        exclusions="$exclusions -not -path \"./$pattern\" -not -path \"./$pattern/*\""
+                    fi
+                fi
+            fi
+        done <"$gitignore_file"
+
+        log_debug "Generated gitignore exclusions: $exclusions"
+    fi
+
+    # Always exclude standard patterns first (these override gitignore)
+    standard_exclusions="-not -path \"./node_modules/*\" -not -path \"./.git/*\" -not -path \"./.github/*\""
+
+    # Combine standard exclusions with gitignore patterns
+    all_exclusions="$standard_exclusions $exclusions"
+
+    echo "$all_exclusions"
+}
+
 # Main function
 main() {
     log_info "Starting RUTOS busybox compatibility and markdown validation v$SCRIPT_VERSION"
@@ -1101,25 +1259,42 @@ main() {
         markdown_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | LC_ALL=C sort)
     elif [ "$1" = "--all" ]; then
         log_info "Running in comprehensive validation mode (all shell and markdown files)"
-        # Get all shell and markdown files, excluding specified files and directories
-        shell_files=$(find . -name "*.sh" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | while read -r file; do
+        # Get exclusion patterns from .gitignore
+        exclusions=$(parse_gitignore_exclusions)
+
+        # Get all shell and markdown files, respecting .gitignore
+        shell_files=$(eval "find . -name \"*.sh\" -type f $exclusions" | while read -r file; do
             if ! is_excluded "$file"; then
                 echo "$file"
             fi
         done | LC_ALL=C sort)
-        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | LC_ALL=C sort)
+        markdown_files=$(eval "find . -name \"*.md\" -type f $exclusions" | while read -r file; do
+            if ! is_excluded "$file"; then
+                echo "$file"
+            fi
+        done | LC_ALL=C sort)
     elif [ "$1" = "--shell-only" ]; then
         log_info "Running in shell-only validation mode"
-        # Get all shell files, excluding specified files and directories
-        shell_files=$(find . -name "*.sh" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | while read -r file; do
+        # Get exclusion patterns from .gitignore
+        exclusions=$(parse_gitignore_exclusions)
+
+        # Get all shell files, respecting .gitignore
+        shell_files=$(eval "find . -name \"*.sh\" -type f $exclusions" | while read -r file; do
             if ! is_excluded "$file"; then
                 echo "$file"
             fi
         done | LC_ALL=C sort)
     elif [ "$1" = "--md-only" ]; then
         log_info "Running in markdown-only validation mode"
-        # Get all markdown files, excluding directories
-        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | LC_ALL=C sort)
+        # Get exclusion patterns from .gitignore
+        exclusions=$(parse_gitignore_exclusions)
+
+        # Get all markdown files, respecting .gitignore
+        markdown_files=$(eval "find . -name \"*.md\" -type f $exclusions" | while read -r file; do
+            if ! is_excluded "$file"; then
+                echo "$file"
+            fi
+        done | LC_ALL=C sort)
     elif [ $# -gt 0 ]; then
         log_info "Running in specific file mode"
         # Process specific files based on extension
@@ -1140,13 +1315,20 @@ main() {
         done
     else
         log_info "Running in full validation mode (all shell and markdown files)"
-        # Get all shell and markdown files, excluding specified files and directories
-        shell_files=$(find . -name "*.sh" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | while read -r file; do
+        # Get exclusion patterns from .gitignore
+        exclusions=$(parse_gitignore_exclusions)
+
+        # Get all shell and markdown files, respecting .gitignore
+        shell_files=$(eval "find . -name \"*.sh\" -type f $exclusions" | while read -r file; do
             if ! is_excluded "$file"; then
                 echo "$file"
             fi
         done | LC_ALL=C sort)
-        markdown_files=$(find . -name "*.md" -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.*/*" | LC_ALL=C sort)
+        markdown_files=$(eval "find . -name \"*.md\" -type f $exclusions" | while read -r file; do
+            if ! is_excluded "$file"; then
+                echo "$file"
+            fi
+        done | LC_ALL=C sort)
     fi
 
     # Count total files

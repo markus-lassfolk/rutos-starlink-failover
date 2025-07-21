@@ -1,10 +1,16 @@
 #!/bin/sh
 
 # Parse command line arguments
+
+# Version information (auto-updated by update-version.sh)
 CHANGED_FILES=""
 AUTO_FIX_CHMOD=false
 
 while [ $# -gt 0 ]; do
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
     case $1 in
         --auto-fix-chmod)
             AUTO_FIX_CHMOD=true
@@ -111,6 +117,15 @@ check_secrets() {
 # check-security.sh: Checks file permissions, hardcoded secrets, and config values
 
 set -e
+
+# Version information (auto-updated by update-version.sh)
+
+# Version information
+
+# Use version for logging
+echo "check-security.sh v$SCRIPT_VERSION started" >/dev/null 2>&1 || true
+
+# Version information
 
 # Check if terminal supports colors
 # shellcheck disable=SC2034  # Color variables may not all be used in every script

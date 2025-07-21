@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: system-status.sh
-# Version: 1.0.2
+# Version: 2.4.12
 # Description: Show system status with graceful degradation information
 
 # RUTOS Compatibility - Using Method 5 printf format for proper color display
@@ -9,46 +9,30 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.0"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output (compatible with busybox)
-# RUTOS-compatible color detection - matches install-rutos.sh approach
-RED=""
-GREEN=""
-YELLOW=""
-BLUE=""
-PURPLE=""
-CYAN=""
-NC=""
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;35m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
 
-# Only enable colors if explicitly requested or in very specific conditions
-if [ "${FORCE_COLOR:-}" = "1" ]; then
-    # Only enable if user explicitly forces colors
-    RED="\033[0;31m"
-    GREEN="\033[0;32m"
-    YELLOW="\033[1;33m"
-    BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
-    PURPLE="\033[0;35m"
-    CYAN="\033[0;36m"
-    NC="\033[0m" # No Color
-elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
-    # Additional conservative check: only if stdout is a terminal and TERM is set properly
-    # But still be very conservative about RUTOS
-    case "${TERM:-}" in
-        xterm* | screen* | tmux* | linux*)
-            # Known terminal types that support colors
-            RED="\033[0;31m"
-            GREEN="\033[0;32m"
-            YELLOW="\033[1;33m"
-            BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
-            PURPLE="\033[0;35m"
-            CYAN="\033[0;36m"
-            NC="\033[0m" # No Color
-            ;;
-        *)
-            # Unknown or limited terminal - stay safe with no colors
-            ;;
-    esac
+# Check if we're in a terminal that supports colors
+if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    PURPLE=""
+    CYAN=""
+    NC=""
 fi
 
 # Standard logging functions with consistent colors

@@ -1,8 +1,12 @@
 #!/bin/sh
+
+# Version information (auto-updated by update-version.sh)
 # VALIDATION_SKIP_COLOR_CHECK: This script uses syslog only, no color output needed
 
 # Standard colors for consistent output (compatible with busybox)
 # shellcheck disable=SC2034
+
+# Version information (auto-updated by update-version.sh)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -23,7 +27,7 @@ fi
 # ==============================================================================
 # Starlink API Version Monitor
 #
-# Version: 2.4.0
+# Version: 2.4.12
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script runs periodically (ideally once per day via cron) to check if the
@@ -41,6 +45,12 @@ fi
 
 # Exit on first error, undefined variable, or pipe failure for script robustness.
 set -eu
+
+# Version information (auto-updated by update-version.sh)
+
+# Version information
+
+# Version information
 
 # --- User Configuration ---
 
@@ -118,9 +128,15 @@ validate_binary() {
     fi
 
     # Test if binary actually works
+    echo "check_starlink_api-rutos.sh v$SCRIPT_VERSION"
+    echo ""
     debug_log "TESTING BINARY: $binary_path --help"
+    echo "check_starlink_api-rutos.sh v$SCRIPT_VERSION"
+    echo ""
     if ! "$binary_path" --help >/dev/null 2>&1; then
         log "WARNING: $binary_name may not be functioning properly"
+        echo "check_starlink_api-rutos.sh v$SCRIPT_VERSION"
+        echo ""
         debug_log "BINARY TEST FAILED: $binary_path --help returned non-zero"
     else
         debug_log "BINARY TEST PASSED: $binary_name is functional"

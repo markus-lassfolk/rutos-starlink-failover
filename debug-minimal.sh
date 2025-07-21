@@ -2,6 +2,10 @@
 # Minimal debug script
 
 # Let's manually test the functions
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 variable_exists() {
     file="$1"
     var_name="$2"
@@ -67,4 +71,9 @@ echo "LOG_LEVEL = '$(extract_variable "/tmp/minimal-debug/test-config.sh" "LOG_L
 echo ""
 echo "=== CLEANUP ==="
 rm -rf /tmp/minimal-debug
+# Debug version display
+if [ "$DEBUG" = "1" ]; then
+    printf "Script version: %s\n" "$SCRIPT_VERSION"
+fi
+
 echo "Minimal debug completed!"

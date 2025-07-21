@@ -8,8 +8,16 @@ set -eu
 # Standard colors for consistent output (compatible with busybox)
 # CRITICAL: Use RUTOS-compatible color detection
 # shellcheck disable=SC2034
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+
+# Use version for logging
+echo "check_starlink_api_change.sh v$SCRIPT_VERSION started" >/dev/null 2>&1 || true
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
@@ -18,6 +26,7 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     NC='\033[0m'
 else
     # Colors disabled
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     RED=""
     GREEN=""
     YELLOW=""

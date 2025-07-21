@@ -2,6 +2,9 @@
 
 # Quick debug script to test the cron check logic
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 CRON_FILE="/etc/crontabs/root"
 
 echo "Testing cron entry checking logic"
@@ -49,4 +52,9 @@ if [ "$existing_maintenance" -eq 0 ]; then
     echo "  ✓ Should ADD system-maintenance cron entry (existing_maintenance=$existing_maintenance)"
 else
     echo "  ⚠ Should SKIP system-maintenance cron entry (existing_maintenance=$existing_maintenance)"
+    # Debug version display
+    if [ "$DEBUG" = "1" ]; then
+        printf "Script version: %s\n" "$SCRIPT_VERSION"
+    fi
+
 fi

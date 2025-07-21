@@ -17,7 +17,7 @@
 # - Automated monitoring and alerting
 # - Complete verification and health checks
 #
-# Version: 1.0-RUTOS
+# Version: 2.4.12
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 # ==============================================================================
 
@@ -25,6 +25,10 @@ set -eu
 
 # === COLORS AND FORMATTING ===
 # Check if terminal supports colors (simplified for RUTOS compatibility)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -696,6 +700,15 @@ log() {
 
 # Main monitoring logic
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "deploy-starlink-solution-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: deploy-starlink-solution-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     log "Starting quality check"
     
     # Read current state
@@ -826,6 +839,15 @@ fi
 
 # Main logging logic
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "deploy-starlink-solution-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: deploy-starlink-solution-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     log "Starting performance data collection"
     
     if [ -x "/root/grpcurl" ] && [ -x "/root/jq" ]; then
@@ -912,6 +934,15 @@ log() {
 
 # Main checking logic
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "deploy-starlink-solution-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: deploy-starlink-solution-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     log "Checking for Starlink API changes"
     
     if [ -x "/root/grpcurl" ] && [ -x "/root/jq" ]; then
@@ -1078,6 +1109,15 @@ RUTOS_PASSWORD="$(uci get azure.gps.rutos_password 2>/dev/null || echo "")"
 
 # Main monitoring logic
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "deploy-starlink-solution-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: deploy-starlink-solution-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     if [ -x "/root/grpcurl" ] && [ -x "/root/jq" ]; then
         # Get Starlink data (timeout works on RUTOS)
         status_json=$(timeout 10 /root/grpcurl -plaintext --max-time 5 \
@@ -1417,6 +1457,15 @@ test_logs() {
 
 # Main verification
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "deploy-starlink-solution-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: deploy-starlink-solution-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     echo "========================================="
     echo "Starlink Solution Verification"
     echo "========================================="
@@ -1492,6 +1541,15 @@ finalize_deployment() {
 
 # === MAIN DEPLOYMENT FUNCTION ===
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "deploy-starlink-solution-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: deploy-starlink-solution-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     echo
     echo "========================================="
     echo "Starlink Solution Deployment for RUTOS"

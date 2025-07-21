@@ -3,7 +3,7 @@
 # ==============================================================================
 # Starlink API Documentation Generator
 #
-# Version: 1.0 (Public Edition)
+# Version: 2.4.12
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script is a utility for developers and enthusiasts who want to explore
@@ -23,15 +23,25 @@ set -eu
 # Standard colors for consistent output (compatible with busybox)
 # Note: Colors defined for consistency but not used in this documentation script
 # shellcheck disable=SC2034  # Colors may not be used but should be defined for consistency
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # shellcheck disable=SC2034
+    # shellcheck disable=SC2034  # Color variables may not all be used
     RED='\033[0;31m'
+    # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[1;35m'
     CYAN='\033[0;36m'
     NC='\033[0m'
 else
+    # shellcheck disable=SC2034
+    # shellcheck disable=SC2034  # Color variables may not all be used
     RED=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN=""
     YELLOW=""
     BLUE=""
@@ -121,4 +131,9 @@ done
 
 echo ""
 echo "================================================="
+# Version information for troubleshooting
+if [ "$DEBUG" = "1" ]; then
+    printf "Script version: %s\n" "$SCRIPT_VERSION"
+fi
+
 echo "Done. API documentation saved to $FILENAME"

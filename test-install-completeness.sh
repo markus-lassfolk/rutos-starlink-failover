@@ -5,6 +5,10 @@
 set -e
 
 # Colors for output (RUTOS-compatible detection)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 RED=""
 GREEN=""
 YELLOW=""
@@ -120,4 +124,9 @@ else
     echo ""
     echo "${BLUE}[RECOMMENDATION]${NC} Review these scripts and add them to install-rutos.sh if needed."
     exit 1
+    # Debug version display
+    if [ "$DEBUG" = "1" ]; then
+        printf "Script version: %s\n" "$SCRIPT_VERSION"
+    fi
+
 fi

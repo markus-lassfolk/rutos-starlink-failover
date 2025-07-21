@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: cleanup-rutos.sh
-# Version: 1.0.0
+# Version: 2.4.12
 # Description: Cleanup and undo Starlink Monitor installation artifacts for testing
 
 set -eu
@@ -8,7 +8,15 @@ set -eu
 # Standard colors for output (RUTOS compatible)
 # CRITICAL: Use RUTOS-compatible color detection
 # shellcheck disable=SC2034  # CYAN may not be used but should be defined for consistency
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+
+# Use version for logging
+echo "cleanup-rutos.sh v$SCRIPT_VERSION started" >/dev/null 2>&1 || true
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
@@ -16,6 +24,7 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     CYAN='\033[0;36m'
     NC='\033[0m'
 else
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     RED=""
     GREEN=""
     YELLOW=""

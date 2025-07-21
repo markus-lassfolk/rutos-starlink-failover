@@ -5,6 +5,10 @@
 # It collects performance data in CSV format and ships it to Azure alongside system logs
 
 # Source the main config if it exists
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 if [ -f "/etc/starlink-config/config.sh" ]; then
     # Load configuration from persistent location
     # shellcheck disable=SC1091  # Don't follow dynamic config file
@@ -442,6 +446,15 @@ ship_csv_to_azure() {
 
 # --- MAIN EXECUTION ---
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "starlink-azure-monitor-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: starlink-azure-monitor-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     log_info "Starting enhanced Starlink monitoring with Azure integration"
 
     # Initialize CSV file if needed

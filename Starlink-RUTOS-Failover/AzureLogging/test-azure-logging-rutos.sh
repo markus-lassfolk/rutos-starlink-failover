@@ -6,6 +6,10 @@
 set -eu
 
 # Configuration - Use UCI if available, otherwise use command line parameter
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 TEST_LOG_FILE="/tmp/test-azure-logging.log"
 if [ -n "${1:-}" ]; then
     AZURE_FUNCTION_URL="$1"
@@ -91,5 +95,10 @@ fi
 
 # Cleanup
 rm -f "$TEST_LOG_FILE"
+
+# Debug version display
+if [ "$DEBUG" = "1" ]; then
+    printf "Script version: %s\n" "$SCRIPT_VERSION"
+fi
 
 log_info "🎉 All tests passed! Azure logging solution is working correctly."

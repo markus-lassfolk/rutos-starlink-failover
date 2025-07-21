@@ -8,6 +8,10 @@
 # ==============================================================================
 
 # Function to check if a value is a placeholder
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 is_placeholder() {
     value="$1"
 
@@ -114,6 +118,10 @@ safe_notify() {
         if command -v send_notification >/dev/null 2>&1; then
             send_notification "$title" "$message" "$priority"
         else
+            # Version information for troubleshooting
+            if [ "${DEBUG:-0}" = "1" ]; then
+                log_debug "Script: placeholder-utils.sh v$SCRIPT_VERSION"
+            fi
             echo "INFO: Would send notification: $title - $message"
         fi
     else

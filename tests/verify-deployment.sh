@@ -4,6 +4,10 @@
 # Simple verification script for RUTOS compatibility
 
 # Initialize warning counter
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 warning_count=0
 
 # Simple logging functions (RUTOS compatible)
@@ -128,15 +132,25 @@ fi
 echo ""
 echo "=== RUTOS COMPATIBILITY ==="
 
+echo "verify-deployment.sh v$SCRIPT_VERSION"
+echo ""
 # Check for bc usage
 if [ -n "$SCRIPT_FILE" ] && grep -q "bc.*2>/dev/null" "$SCRIPT_FILE" 2>/dev/null; then
+    echo "verify-deployment.sh v$SCRIPT_VERSION"
+    echo ""
     log_success "bc usage has fallbacks"
 elif [ -n "$SCRIPT_FILE" ] && grep -q " bc " "$SCRIPT_FILE" 2>/dev/null; then
+    echo "verify-deployment.sh v$SCRIPT_VERSION"
+    echo ""
     log_warn "bc usage without fallbacks found"
 else
+    echo "verify-deployment.sh v$SCRIPT_VERSION"
+    echo ""
     log_success "No problematic bc usage"
 fi
 
+echo "verify-deployment.sh v$SCRIPT_VERSION"
+echo ""
 # Check for stat usage
 if [ -n "$SCRIPT_FILE" ] && grep -q "wc -c" "$SCRIPT_FILE" 2>/dev/null; then
     log_success "Using wc -c for file sizes (RUTOS compatible)"
@@ -144,6 +158,8 @@ else
     log_info "File size detection method not confirmed"
 fi
 
+echo "verify-deployment.sh v$SCRIPT_VERSION"
+echo ""
 # Check for timeout usage
 if [ -n "$SCRIPT_FILE" ]; then
     timeout_count=$(grep -c "timeout.*grpcurl" "$SCRIPT_FILE" 2>/dev/null || echo "0")
@@ -164,6 +180,8 @@ fi
 if [ -n "$SCRIPT_FILE" ] && grep -q "curl.*-L" "$SCRIPT_FILE" 2>/dev/null; then
     log_warn "Using -L flag (not supported on RUTOS)"
 else
+    echo "verify-deployment.sh v$SCRIPT_VERSION"
+    echo ""
     log_success "No problematic curl -L flag usage"
 fi
 
@@ -201,6 +219,8 @@ echo "Recommended next steps:"
 if [ -n "$SCRIPT_FILE" ]; then
     echo "1. Copy $SCRIPT_FILE to your RUTOS device"
     echo "2. Run: chmod +x $SCRIPT_FILE"
+    echo "verify-deployment.sh v$SCRIPT_VERSION"
+    echo ""
     echo "3. Test: ./$SCRIPT_FILE --help"
     echo "4. Deploy: ./$SCRIPT_FILE"
 fi

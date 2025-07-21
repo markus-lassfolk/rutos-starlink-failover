@@ -1,12 +1,17 @@
 #!/bin/sh
 # Test script for cron cleanup functionality
-# Version: 2.0.4
+# Version: 2.4.12
 # Description: Tests the intelligent cron management in install-rutos.sh
 
 set -e
 
 # Script version - automatically updated from VERSION file
-SCRIPT_VERSION="2.0.4"
+# Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'

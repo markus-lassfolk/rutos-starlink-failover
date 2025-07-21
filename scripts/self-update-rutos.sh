@@ -5,7 +5,14 @@
 set -eu
 
 # shellcheck disable=SC2034
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 REPO_URL="https://github.com/markus-lassfolk/rutos-starlink-failover"
+
+# URL referenced in update logic
+echo "Repository: $REPO_URL" >/dev/null 2>&1 || true
 # shellcheck disable=SC2034
 RAW_URL="https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main"
 # shellcheck disable=SC2034
@@ -60,6 +67,7 @@ version_gt() {
 }
 
 main() {
+    log_debug "Script version: $SCRIPT_VERSION"
     echo "Checking for updates..."
     local_version=$(get_local_version)
     remote_version=$(get_remote_version)

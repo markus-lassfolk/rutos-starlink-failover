@@ -3,6 +3,10 @@
 # Quick test to fix and verify the IP validation function
 
 # Improved IP validation function
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 validate_ip() {
     ip="$1"
 
@@ -71,4 +75,9 @@ for url in $test_urls; do
     else
         echo "✗ Invalid URL: $url"
     fi
+    # Debug version display
+    if [ "$DEBUG" = "1" ]; then
+        printf "Script version: %s\n" "$SCRIPT_VERSION"
+    fi
+
 done

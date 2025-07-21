@@ -13,8 +13,15 @@ set -eu
 # Colors for output
 # Check if terminal supports colors
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # shellcheck disable=SC2034
+    # shellcheck disable=SC2034  # Color variables may not all be used
     RED='\033[0;31m'
+    # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[0;34m'
@@ -22,7 +29,10 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     NC='\033[0m' # No Color
 else
     # Fallback to no colors if terminal doesn't support them
+    # shellcheck disable=SC2034
+    # shellcheck disable=SC2034  # Color variables may not all be used
     RED=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN=""
     YELLOW=""
     BLUE=""
@@ -128,6 +138,7 @@ PUSHOVER_USER="test_user"
 PACKET_LOSS_THRESHOLD=0.05
 OBSTRUCTION_THRESHOLD=0.001
 LATENCY_THRESHOLD_MS=150
+# shellcheck disable=SC2034
 STABILITY_CHECKS_REQUIRED=5
 METRIC_GOOD=1
 METRIC_BAD=10
@@ -465,6 +476,9 @@ generate_report() {
 
 # Main test runner
 main() {
+    if [ "$DEBUG" = "1" ]; then
+        printf "Debug script version: %s\n" "$SCRIPT_VERSION"
+    fi
     print_status "$GREEN" "=== Starlink Monitoring System Test Suite ==="
     echo ""
 

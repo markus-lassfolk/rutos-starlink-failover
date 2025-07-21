@@ -6,6 +6,9 @@
 
 set -e # Exit on any error
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 LOG_FILE="/overlay/messages"
 UCI_SYSTEM_CONFIG="/etc/config/system"
 BACKUP_DIR="/overlay/backup-configs"
@@ -163,6 +166,15 @@ show_final_status() {
 
 # Main execution
 main() {
+    # Display script version for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
+        printf "[DEBUG] %s v%s\n" "setup-persistent-logging-rutos.sh" "$SCRIPT_VERSION" >&2
+    fi
+    log_debug "==================== SCRIPT START ==================="
+    log_debug "Script: setup-persistent-logging-rutos.sh v$SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "======================================================"
     # Check if running as root
     if [ "$(id -u)" -ne 0 ]; then
         echo "ERROR: This script must be run as root (use sudo or run directly as root)"
