@@ -88,6 +88,7 @@ assert_file_exists() {
     assert_true "[ -f '$file' ]" "$message"
 }
 
+# shellcheck disable=SC2317  # Function is called indirectly by test framework
 assert_file_not_exists() {
     file="$1"
     message="${2:-File does not exist: $file}"

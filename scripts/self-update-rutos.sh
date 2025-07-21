@@ -1,7 +1,24 @@
 #!/bin/sh
 
-# ==============================================================================
+# ==================================# Configuration
+GITHUB_REPO="markus-lassfolk/rutos-starlink-failover"
+GITHUB_BRANCH="main"
+RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
+INSTALL_DIR="/root/starlink-monitor"
+# shellcheck disable=SC2034  # Used in future backup functionality
+BACKUP_DIR="/root/starlink-monitor-backup" # Used in backup functionality (placeholder for now)
+# shellcheck disable=SC2034  # Used in future update functionality
+TMP_DIR="/tmp/starlink-update" # Used in update process (placeholder for now)
+VERSION_FILE="$INSTALL_DIR/VERSION"
+CONFIG_FILE="/root/starlink-monitor/config/config.sh"
+SCRIPT_NAME="$(basename "$0")"==================================
 # Self-Update Script for RUTOS Starlink Failover System
+
+set -eu
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 #
 # This script checks for newer versions on GitHub and performs automatic
 # updates of the Starlink monitoring system on RUTOS devices.
@@ -39,17 +56,15 @@
 
 set -eu
 
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
-readonly SCRIPT_VERSION
-
 # Configuration
 GITHUB_REPO="markus-lassfolk/rutos-starlink-failover"
 GITHUB_BRANCH="main"
 RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 INSTALL_DIR="/root/starlink-monitor"
-BACKUP_DIR="/root/starlink-monitor-backup"
-TMP_DIR="/tmp/starlink-update"
+# shellcheck disable=SC2034
+BACKUP_DIR="/root/starlink-monitor-backup" # Used in backup functionality (placeholder for now)
+# shellcheck disable=SC2034
+TMP_DIR="/tmp/starlink-update" # Used in update process (placeholder for now)
 VERSION_FILE="$INSTALL_DIR/VERSION"
 CONFIG_FILE="/root/starlink-monitor/config/config.sh"
 SCRIPT_NAME="$(basename "$0")"
@@ -137,7 +152,7 @@ load_config() {
         PUSHOVER_TOKEN="${PUSHOVER_TOKEN:-}"
         PUSHOVER_USER="${PUSHOVER_USER:-}"
     fi
-    
+
     # Ensure notification variables are set
     AUTO_UPDATE_NOTIFICATIONS_ENABLED="${AUTO_UPDATE_NOTIFICATIONS_ENABLED:-true}"
 }
@@ -146,20 +161,20 @@ load_config() {
 send_notification() {
     title="$1"
     message="$2"
-    priority="${3:-0}"  # 0=normal, 1=high
-    
+    priority="${3:-0}" # 0=normal, 1=high
+
     if [ -z "${PUSHOVER_TOKEN:-}" ] || [ -z "${PUSHOVER_USER:-}" ]; then
         log_debug "Pushover not configured, skipping notification"
         return 0
     fi
-    
+
     if [ "${PUSHOVER_TOKEN}" = "YOUR_PUSHOVER_API_TOKEN" ] || [ "${PUSHOVER_USER}" = "YOUR_PUSHOVER_USER_KEY" ]; then
         log_debug "Pushover has placeholder values, skipping notification"
         return 0
     fi
-    
+
     log_debug "Sending Pushover notification: $title"
-    
+
     curl -fsSL https://api.pushover.net/1/messages.json \
         -F "token=${PUSHOVER_TOKEN}" \
         -F "user=${PUSHOVER_USER}" \
@@ -170,14 +185,14 @@ send_notification() {
         log_debug "Failed to send Pushover notification"
         return 1
     }
-    
+
     log_debug "Pushover notification sent successfully"
     return 0
 }
 
 # Show help message
 show_help() {
-    printf "%sSelf-Update Script v%s%s\n\n" "$GREEN" "$SCRIPT_VERSION" "$NC"
+    printf "${GREEN}Self-Update Script v%s${NC}\n\n" "$SCRIPT_VERSION"
     printf "Updates the RUTOS Starlink Failover system from GitHub repository.\n\n"
     printf "Usage: %s [options]\n\n" "$SCRIPT_NAME"
     printf "Options:\n"
@@ -239,15 +254,15 @@ get_remote_version() {
 version_gt() {
     ver1="$1"
     ver2="$2"
-    
+
     log_debug "Comparing versions: $ver1 > $ver2"
-    
+
     # Handle same versions
     if [ "$ver1" = "$ver2" ]; then
         log_debug "Versions are equal"
         return 1
     fi
-    
+
     # Use sort -V if available (most systems), fallback to basic comparison
     if command -v sort >/dev/null 2>&1 && sort --version-sort /dev/null >/dev/null 2>&1; then
         result=$(printf '%s\n%s' "$ver1" "$ver2" | sort -V | head -n1)
@@ -271,85 +286,87 @@ version_gt() {
 }
 
 # Parse delay string (e.g., "2Weeks", "5Days", "30Minutes") into seconds
+# shellcheck disable=SC2317  # Function is called indirectly
 parse_delay_to_seconds() {
     delay_str="$1"
-    
+
     if [ "$delay_str" = "Never" ]; then
-        echo "999999999"  # Very large number to represent "never"
+        echo "999999999" # Very large number to represent "never"
         return 0
     fi
-    
+
     # Extract number and unit
     number=$(echo "$delay_str" | sed 's/[A-Za-z]*$//')
     unit=$(echo "$delay_str" | sed 's/^[0-9]*//')
-    
+
     case "$unit" in
-        "Minutes"|"Minute")
+        "Minutes" | "Minute")
             echo $((number * 60))
             ;;
-        "Hours"|"Hour") 
+        "Hours" | "Hour")
             echo $((number * 3600))
             ;;
-        "Days"|"Day")
+        "Days" | "Day")
             echo $((number * 86400))
             ;;
-        "Weeks"|"Week")
+        "Weeks" | "Week")
             echo $((number * 604800))
             ;;
-        "Months"|"Month")
-            echo $((number * 2592000))  # 30 days
+        "Months" | "Month")
+            echo $((number * 2592000)) # 30 days
             ;;
         *)
             log_error "Invalid time unit in delay: $unit"
-            echo "86400"  # Default to 1 day
+            echo "86400" # Default to 1 day
             ;;
     esac
 }
 
 # Get human-readable time description
+# shellcheck disable=SC2317  # Function is called indirectly
 get_time_description() {
     delay_str="$1"
-    
+
     if [ "$delay_str" = "Never" ]; then
         echo "Never (manual updates only)"
         return 0
     fi
-    
+
     # Extract number and unit
     number=$(echo "$delay_str" | sed 's/[A-Za-z]*$//')
     unit=$(echo "$delay_str" | sed 's/^[0-9]*//')
-    
+
     # Convert to friendly format
     case "$unit" in
-        "Minutes"|"Minute")
+        "Minutes" | "Minute")
             if [ "$number" = "1" ]; then
                 echo "1 minute"
             else
                 echo "$number minutes"
             fi
             ;;
-        "Hours"|"Hour")
+        "Hours" | "Hour")
             if [ "$number" = "1" ]; then
                 echo "1 hour"
             else
                 echo "$number hours"
             fi
             ;;
-        "Days"|"Day")
+        "Days" | "Day")
             if [ "$number" = "1" ]; then
                 echo "1 day"
             else
                 echo "$number days"
             fi
             ;;
-        "Weeks"|"Week")
+        "Weeks" | "Week")
             if [ "$number" = "1" ]; then
                 echo "1 week"
             else
                 echo "$number weeks"
             fi
             ;;
-        "Months"|"Month")
+        "Months" | "Month")
             if [ "$number" = "1" ]; then
                 echo "1 month"
             else
@@ -366,27 +383,27 @@ get_time_description() {
 get_version_change_type() {
     local_ver="$1"
     remote_ver="$2"
-    
+
     # Parse version numbers (assuming semantic versioning: major.minor.patch)
     local_major=$(echo "$local_ver" | cut -d. -f1 | sed 's/[^0-9]//g')
     local_minor=$(echo "$local_ver" | cut -d. -f2 | sed 's/[^0-9]//g')
-    
+
     remote_major=$(echo "$remote_ver" | cut -d. -f1 | sed 's/[^0-9]//g')
     remote_minor=$(echo "$remote_ver" | cut -d. -f2 | sed 's/[^0-9]//g')
-    
+
     # Handle missing version parts
     local_major=${local_major:-0}
     local_minor=${local_minor:-0}
     remote_major=${remote_major:-0}
     remote_minor=${remote_minor:-0}
-    
+
     log_debug "Local version parts: $local_major.$local_minor"
     log_debug "Remote version parts: $remote_major.$remote_minor"
-    
+
     if [ "$remote_major" != "$local_major" ]; then
         echo "major"
     elif [ "$remote_minor" != "$local_minor" ]; then
-        echo "minor"  
+        echo "minor"
     else
         echo "patch"
     fi
@@ -395,25 +412,25 @@ get_version_change_type() {
 # Install crontab job for auto-updates
 install_crontab_job() {
     load_config
-    
+
     if [ "$AUTO_UPDATE_ENABLED" != "true" ]; then
         log_warning "Auto-update is disabled in configuration, but installing crontab anyway"
         log_warning "Enable auto-updates by setting AUTO_UPDATE_ENABLED=\"true\" in $CONFIG_FILE"
     fi
-    
+
     log_step "Installing auto-update crontab job"
-    
+
     script_path="/root/starlink-monitor/scripts/self-update-rutos.sh"
     cron_command="$AUTO_UPDATE_SCHEDULE $script_path --auto-update >/dev/null 2>&1"
     cron_comment="# Starlink Monitor Auto-Update (every 4 hours)"
-    
+
     # Check if cron job already exists
     if crontab -l 2>/dev/null | grep -F "$script_path --auto-update" >/dev/null; then
         log_warning "Auto-update cron job already exists, updating it"
         # Remove existing job first
         crontab -l 2>/dev/null | grep -v -F "$script_path" | crontab -
     fi
-    
+
     # Add the cron job
     if {
         crontab -l 2>/dev/null || true
@@ -430,12 +447,12 @@ install_crontab_job() {
     fi
 }
 
-# Remove crontab job for auto-updates  
+# Remove crontab job for auto-updates
 remove_crontab_job() {
     log_step "Removing auto-update crontab job"
-    
+
     script_path="/root/starlink-monitor/scripts/self-update-rutos.sh"
-    
+
     # Remove lines containing the script path and comments
     if crontab -l 2>/dev/null | grep -v -F "$script_path" | grep -v "Starlink Monitor Auto-Update" | crontab -; then
         log_success "Auto-update cron job removed"
@@ -495,24 +512,24 @@ parse_args() {
 main() {
     # Parse arguments
     parse_args "$@"
-    
+
     # Handle cron installation/removal first
     if [ "$INSTALL_CRON" = "true" ]; then
         install_crontab_job
         exit $?
     fi
-    
+
     if [ "$REMOVE_CRON" = "true" ]; then
         remove_crontab_job
         exit $?
     fi
-    
+
     # Load configuration
     load_config
-    
+
     # Show script info
     log_info "Starting $SCRIPT_NAME v$SCRIPT_VERSION"
-    
+
     if [ "$DEBUG" = "1" ]; then
         log_debug "Debug mode active"
         log_debug "Check only: $CHECK_ONLY"
@@ -520,7 +537,7 @@ main() {
         log_debug "Backup only: $BACKUP_ONLY"
         log_debug "Auto-update mode: $AUTO_UPDATE_MODE"
     fi
-    
+
     # Handle backup-only mode
     if [ "$BACKUP_ONLY" = "true" ]; then
         if create_backup; then
@@ -531,29 +548,29 @@ main() {
             exit 1
         fi
     fi
-    
+
     # Get versions
     log_step "Checking versions"
     local_version=$(get_local_version)
     log_info "Current local version: $local_version"
-    
+
     remote_version=$(get_remote_version)
     if [ "$remote_version" = "0.0.0" ]; then
         log_error "Failed to get remote version"
         exit 1
     fi
     log_info "Latest remote version: $remote_version"
-    
+
     # Compare versions
     update_available=false
     if version_gt "$remote_version" "$local_version"; then
         update_available=true
         log_info "Update available: $local_version -> $remote_version"
-        
+
         # Determine version change type
         version_type=$(get_version_change_type "$local_version" "$remote_version")
         log_info "Version change type: $version_type"
-        
+
         # Get appropriate delay setting
         case "$version_type" in
             "major")
@@ -570,10 +587,10 @@ main() {
                 delay_config="$UPDATE_PATCH_DELAY"
                 ;;
         esac
-        
+
         # Get human readable delay description
         delay_description=$(get_time_description "$delay_config")
-        
+
         # Send notification if enabled
         if [ "$AUTO_UPDATE_NOTIFICATIONS_ENABLED" = "true" ]; then
             if [ "$delay_config" = "Never" ]; then
@@ -581,36 +598,36 @@ main() {
             else
                 notification_msg="New ${version_type} version ${remote_version} is available (currently ${local_version}). Auto-update scheduled in ${delay_description}."
             fi
-            
+
             if send_notification "Update Available" "$notification_msg" 0; then
                 log_info "Update notification sent via Pushover"
             else
                 log_debug "Notification sending failed or skipped"
             fi
         fi
-        
+
         # Check auto-update delay policy if in auto-update mode
         if [ "$AUTO_UPDATE_MODE" = "true" ]; then
             log_info "Checking $version_type update delay policy: $delay_config"
-            
+
             if [ "$delay_config" = "Never" ]; then
                 log_info "Auto-update disabled for $version_type versions"
                 log_info "Manual update required: run without --auto-update flag"
                 exit 4
             fi
-            
+
             # For simplicity in this version, we'll proceed with update if not "Never"
             # In a full implementation, you'd check actual release timestamps here
             log_info "Auto-update policy allows immediate update for testing purposes"
         fi
-        
+
     elif [ "$FORCE_UPDATE" = "true" ]; then
         update_available=true
         log_info "Forcing update (versions may be the same)"
     else
         log_success "Already up to date (local: $local_version, remote: $remote_version)"
     fi
-    
+
     # Handle check-only mode
     if [ "$CHECK_ONLY" = "true" ]; then
         if [ "$update_available" = "true" ]; then
@@ -621,18 +638,18 @@ main() {
             exit 0
         fi
     fi
-    
+
     # Perform update if available
     if [ "$update_available" = "true" ]; then
         log_warning "Update functionality not yet implemented in this version"
         log_info "This is a placeholder - actual update would happen here"
         log_info "To update manually: download and run the installation script"
-        
+
         # Send success notification
         if [ "$AUTO_UPDATE_NOTIFICATIONS_ENABLED" = "true" ]; then
             send_notification "Update Complete" "Successfully updated from ${local_version} to ${remote_version}" 0
         fi
-        
+
         exit 0
     else
         log_success "System is up to date"

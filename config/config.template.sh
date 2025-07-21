@@ -154,10 +154,10 @@ export AUTO_UPDATE_NOTIFICATIONS_ENABLED="true"
 export UPDATE_PATCH_DELAY="Never"
 
 # Minor version updates (2.1.x -> 2.2.0) - New features, moderate risk
-export UPDATE_MINOR_DELAY="Never" 
+export UPDATE_MINOR_DELAY="Never"
 
 # Major version updates (2.x.x -> 3.0.0) - Breaking changes, highest risk
-export UPDATE_MAJOR_DELAY="Never"# Auto-update schedule (cron format)
+export UPDATE_MAJOR_DELAY="Never" # Auto-update schedule (cron format)
 # Default: Every 4 hours at minute 15: "15 */4 * * *"
 # Examples:
 #   "0 2 * * *"     - Daily at 2 AM
