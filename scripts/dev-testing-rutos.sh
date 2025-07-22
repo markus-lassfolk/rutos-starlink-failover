@@ -349,20 +349,53 @@ self_update() {
             # Compare versions
             if ! version_compare "$SCRIPT_VERSION" "$latest_script_version" || [ "$FORCE_UPDATE" = "1" ]; then
                 log_info "Latest dev-testing-rutos.sh available (v$latest_script_version vs current v$SCRIPT_VERSION)"
-                log_info "Note: Running consolidated version scripts/dev-testing-rutos.sh - manual update recommended"
 
                 # Verify downloaded script syntax
                 if ! sh -n "$TEMP_SCRIPT" 2>/dev/null; then
                     log_error "Downloaded script has syntax errors - keeping current version"
+                    rm -f "$TEMP_SCRIPT"
                     return 1
                 fi
 
-                log_success "Update available but using consolidated version"
+                log_info "Auto-updating to latest version and restarting..."
+                
+                # Make backup of current script
+                cp "$SCRIPT_PATH" "${SCRIPT_PATH}.backup.$(date +%s)"
+                
+                # Replace current script with latest version
+                cp "$TEMP_SCRIPT" "$SCRIPT_PATH"
+                chmod +x "$SCRIPT_PATH"
+                
+                log_success "Script updated successfully - restarting with new version"
+                
+                # Re-execute with updated script
+                exec sh "$SCRIPT_PATH" "$@"
             else
                 log_info "dev-testing-rutos.sh is up to date (v$SCRIPT_VERSION)"
             fi
         else
-            log_warning "Could not extract version from downloaded script"
+            log_warning "Could not extract version from downloaded script - attempting update anyway"
+            
+            # Verify downloaded script syntax
+            if ! sh -n "$TEMP_SCRIPT" 2>/dev/null; then
+                log_error "Downloaded script has syntax errors - keeping current version"
+                rm -f "$TEMP_SCRIPT"
+                return 1
+            fi
+
+            log_info "Auto-updating to latest version and restarting..."
+            
+            # Make backup of current script
+            cp "$SCRIPT_PATH" "${SCRIPT_PATH}.backup.$(date +%s)"
+            
+            # Replace current script with latest version
+            cp "$TEMP_SCRIPT" "$SCRIPT_PATH"
+            chmod +x "$SCRIPT_PATH"
+            
+            log_success "Script updated successfully - restarting with new version"
+            
+            # Re-execute with updated script
+            exec sh "$SCRIPT_PATH" "$@"
         fi
 
         rm -f "$TEMP_SCRIPT"
