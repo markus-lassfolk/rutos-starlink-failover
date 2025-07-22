@@ -1,8 +1,10 @@
 # Adaptive Sampling Implementation Summary
+
 <!-- Version: 2.4.12 -->
 
 ## Overview
-Successfully implemented adaptive sampling functionality to handle high-load scenarios while maintaining data 
+
+Successfully implemented adaptive sampling functionality to handle high-load scenarios while maintaining data
 consistency and preventing performance degradation.
 
 ## Key Features Implemented

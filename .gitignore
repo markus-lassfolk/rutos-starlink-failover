@@ -10,3 +10,8 @@ package-lock.json
 
 temp/installation.log
 temp/uci show.txt
+temp/
+dev-test-errors.txt
+dev-test-full-log.txt
+.gitignore
+dev-test-summary.txt

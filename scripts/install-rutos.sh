@@ -444,7 +444,7 @@ intelligent_config_merge() {
                     *INSTALLED_VERSION=* | *INSTALLED_TIMESTAMP=* | *RECOVERY_INSTALL_URL=* | *RECOVERY_FALLBACK_URL=*)
                         config_debug "Filtering out recovery variable during extraction: $(echo "$line" | cut -d'=' -f1)"
                         ;;
-                    # Skip standalone export statements (malformed)
+                        # Skip standalone export statements (malformed)
                     "export "*[A-Za-z_][A-Za-z0-9_]*)
                         # Check if this is a standalone export without assignment
                         if ! echo "$line" | grep -q "="; then
@@ -1078,6 +1078,7 @@ This document lists all scripts installed by the Starlink monitoring system.
 - `uci-optimizer-rutos.sh` - UCI configuration optimizer
 - `verify-cron-rutos.sh` - Cron job verifier
 - `update-cron-config-path-rutos.sh` - Cron path updater
+- `dev-testing-rutos.sh` - Comprehensive development testing script
 - `upgrade-rutos.sh` - System upgrade helper
 - `placeholder-utils.sh` - Utility functions library
 - `fix-database-loop-rutos.sh` - Database loop repair tool
@@ -1269,7 +1270,8 @@ install_scripts() {
         diagnose-database-loop-rutos.sh \
         fix-database-spam-rutos.sh \
         system-maintenance-rutos.sh \
-        view-logs-rutos.sh; do
+        view-logs-rutos.sh \
+        dev-testing-rutos.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then
             cp "$script_dir/$script" "$INSTALL_DIR/scripts/$script"
