@@ -231,6 +231,21 @@ fi
 # Calculate how many new samples we need to process.
 new_sample_count=$((current_sample_index - last_sample_index))
 debug_log "LOOP SETUP: new_sample_count=$new_sample_count"
+
+# PERFORMANCE FIX: Limit the number of samples to process to prevent massive loops
+# Only process the most recent samples (default: 60 = 1 hour of data)
+MAX_SAMPLES_PER_RUN="${MAX_SAMPLES_PER_RUN:-60}"
+if [ "$new_sample_count" -gt "$MAX_SAMPLES_PER_RUN" ]; then
+    debug_log "PERFORMANCE LIMIT: Limiting processing to $MAX_SAMPLES_PER_RUN samples (was $new_sample_count)"
+    log "WARNING: Too many new samples ($new_sample_count). Processing only the most recent $MAX_SAMPLES_PER_RUN samples."
+    
+    # Adjust last_sample_index to only process the most recent samples
+    last_sample_index=$((current_sample_index - MAX_SAMPLES_PER_RUN))
+    new_sample_count=$MAX_SAMPLES_PER_RUN
+    debug_log "PERFORMANCE LIMIT: Adjusted last_sample_index to $last_sample_index"
+fi
+
+debug_log "LOOP SETUP: Final new_sample_count=$new_sample_count"
 debug_log "LOOP SETUP: Starting processing loop"
 
 i=0
