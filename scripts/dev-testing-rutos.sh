@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC2059  # RUTOS requires Method 5 printf format (embedded variables)  
+# shellcheck disable=SC2059  # RUTOS requires Method 5 printf format (embedded variables)
 # shellcheck disable=SC2317  # Functions are called dynamically by main()
 # Script: dev-testing-rutos.sh
 # Version: 2.4.12 (Consolidated)
@@ -364,19 +364,19 @@ self_update() {
                 fi
 
                 log_info "Auto-updating to latest version and restarting..."
-                
+
                 # Make backup of current script
                 cp "$SCRIPT_PATH" "${SCRIPT_PATH}.backup.$(date +%s)"
-                
+
                 # Replace current script with latest version
                 cp "$TEMP_SCRIPT" "$SCRIPT_PATH"
                 chmod +x "$SCRIPT_PATH"
-                
+
                 log_success "Script updated successfully - restarting with new version"
-                
+
                 # Set environment variable to prevent update loops
                 export SCRIPT_UPDATE_ATTEMPT=1
-                
+
                 # Re-execute with updated script
                 exec sh "$SCRIPT_PATH" "$@"
             else
