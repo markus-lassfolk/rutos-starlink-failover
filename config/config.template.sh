@@ -15,9 +15,11 @@
 # ==============================================================================
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
-readonly SCRIPT_VERSION
-# Used for troubleshooting: echo "Config version: $SCRIPT_VERSION"
+# Note: Only set SCRIPT_VERSION if not already set (prevents conflicts when sourced)
+if [ -z "${SCRIPT_VERSION:-}" ]; then
+    SCRIPT_VERSION="2.4.12"
+fi
+# Used for troubleshooting: echo "Config version: $CONFIG_VERSION"
 
 # Configuration metadata (for troubleshooting and updates)
 CONFIG_VERSION="2.4.12"

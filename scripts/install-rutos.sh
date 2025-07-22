@@ -180,6 +180,7 @@ fi
 # Installation configuration
 # shellcheck disable=SC2034  # Variables are used throughout the script
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}" # Use /usr/local for proper Unix convention
+VERSION_FILE="$INSTALL_DIR/VERSION"                       # Version file location
 PERSISTENT_CONFIG_DIR="/etc/starlink-config"              # Primary persistent config location
 HOTPLUG_DIR="/etc/hotplug.d/iface"
 CRON_FILE="/etc/crontabs/root" # Used throughout script

@@ -16,7 +16,6 @@ set -e # Exit on error
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.4.12"
 readonly SCRIPT_VERSION
-readonly SCRIPT_VERSION="2.4.11"
 
 # Colors for output
 # Check if terminal supports colors (simplified for RUTOS compatibility)

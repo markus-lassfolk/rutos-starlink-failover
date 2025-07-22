@@ -4,13 +4,13 @@
 GITHUB_REPO="markus-lassfolk/rutos-starlink-failover"
 GITHUB_BRANCH="main"
 RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
-INSTALL_DIR="/root/starlink-monitor"
+INSTALL_DIR="/usr/local/starlink-monitor"
 # shellcheck disable=SC2034  # Used in future backup functionality
-BACKUP_DIR="/root/starlink-monitor-backup" # Used in backup functionality (placeholder for now)
+BACKUP_DIR="/usr/local/starlink-monitor-backup" # Used in backup functionality (placeholder for now)
 # shellcheck disable=SC2034  # Used in future update functionality
 TMP_DIR="/tmp/starlink-update" # Used in update process (placeholder for now)
 VERSION_FILE="$INSTALL_DIR/VERSION"
-CONFIG_FILE="/root/starlink-monitor/config/config.sh"
+CONFIG_FILE="/usr/local/starlink-monitor/config/config.sh"
 SCRIPT_NAME="$(basename "$0")"==================================
 # Self-Update Script for RUTOS Starlink Failover System
 
@@ -60,13 +60,13 @@ set -eu
 GITHUB_REPO="markus-lassfolk/rutos-starlink-failover"
 GITHUB_BRANCH="main"
 RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
-INSTALL_DIR="/root/starlink-monitor"
+INSTALL_DIR="/usr/local/starlink-monitor"
 # shellcheck disable=SC2034
-BACKUP_DIR="/root/starlink-monitor-backup" # Used in backup functionality (placeholder for now)
+BACKUP_DIR="/usr/local/starlink-monitor-backup" # Used in backup functionality (placeholder for now)
 # shellcheck disable=SC2034
 TMP_DIR="/tmp/starlink-update" # Used in update process (placeholder for now)
 VERSION_FILE="$INSTALL_DIR/VERSION"
-CONFIG_FILE="/root/starlink-monitor/config/config.sh"
+CONFIG_FILE="/usr/local/starlink-monitor/config/config.sh"
 SCRIPT_NAME="$(basename "$0")"
 
 # Command line options
@@ -625,7 +625,7 @@ install_crontab_job() {
 
     log_step "Installing auto-update crontab job"
 
-    script_path="/root/starlink-monitor/scripts/self-update-rutos.sh"
+    script_path="/usr/local/starlink-monitor/scripts/self-update-rutos.sh"
     cron_command="$AUTO_UPDATE_SCHEDULE $script_path --auto-update >/dev/null 2>&1"
     cron_comment="# Starlink Monitor Auto-Update (every 4 hours)"
 
@@ -935,7 +935,7 @@ update_recovery_system() {
 remove_crontab_job() {
     log_step "Removing auto-update crontab job"
 
-    script_path="/root/starlink-monitor/scripts/self-update-rutos.sh"
+    script_path="/usr/local/starlink-monitor/scripts/self-update-rutos.sh"
 
     # Remove lines containing the script path and comments
     if crontab -l 2>/dev/null | grep -v -F "$script_path" | grep -v "Starlink Monitor Auto-Update" | crontab -; then
