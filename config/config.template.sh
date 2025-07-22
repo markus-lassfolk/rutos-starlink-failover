@@ -19,7 +19,8 @@
 if [ -z "${SCRIPT_VERSION:-}" ]; then
     SCRIPT_VERSION="2.4.12"
 fi
-# Used for troubleshooting: echo "Config version: $CONFIG_VERSION"
+readonly SCRIPT_VERSION
+# Used for troubleshooting: echo "Config version: $SCRIPT_VERSION"
 
 # Configuration metadata (for troubleshooting and updates)
 CONFIG_VERSION="2.4.12"
@@ -90,6 +91,30 @@ export LOG_RETENTION_DAYS="7"
 
 # Syslog tag for log messages (shown in system logs)
 export LOG_TAG="StarlinkMonitor"
+
+# --- Performance Monitoring Configuration ---
+
+# Maximum execution time for logger script (seconds)
+# Alert if starlink_logger-rutos.sh takes longer than this
+export MAX_EXECUTION_TIME_SECONDS="30"
+
+# Minimum processing rate (samples per second)
+# Alert if processing rate drops below this threshold
+export MAX_SAMPLES_PER_SECOND="10"
+
+# Performance alert threshold (seconds)
+# Send Pushover alert if script execution exceeds this time
+export PERFORMANCE_ALERT_THRESHOLD="15"
+
+# Maximum samples to process per logger run
+# Prevents infinite loops when catching up with large sample backlogs
+export MAX_SAMPLES_PER_RUN="60"
+
+# Adaptive sampling configuration
+# When falling behind, process every Nth sample instead of every sample
+export ADAPTIVE_SAMPLING_ENABLED="true"
+export ADAPTIVE_SAMPLING_INTERVAL="5" # Process every 5th sample when falling behind
+export FALLBEHIND_THRESHOLD="100"     # Start adaptive sampling when queue > 100 samples
 
 # --- System Maintenance Configuration ---
 

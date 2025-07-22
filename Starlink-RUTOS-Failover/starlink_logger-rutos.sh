@@ -255,8 +255,34 @@ debug_log "LOOP SETUP: new_sample_count=$new_sample_count"
 # PERFORMANCE FIX: Limit the number of samples to process to prevent massive loops
 # Only process the most recent samples (default: 60 = 1 hour of data)
 MAX_SAMPLES_PER_RUN="${MAX_SAMPLES_PER_RUN:-60}"
+ADAPTIVE_SAMPLING_ENABLED="${ADAPTIVE_SAMPLING_ENABLED:-1}"
+ADAPTIVE_SAMPLING_INTERVAL="${ADAPTIVE_SAMPLING_INTERVAL:-5}"
+FALLBEHIND_THRESHOLD="${FALLBEHIND_THRESHOLD:-100}"
+
 samples_limited=false
-if [ "$new_sample_count" -gt "$MAX_SAMPLES_PER_RUN" ]; then
+adaptive_sampling_active=false
+
+# Check if we're falling significantly behind
+if [ "$ADAPTIVE_SAMPLING_ENABLED" = "1" ] && [ "$new_sample_count" -gt "$FALLBEHIND_THRESHOLD" ]; then
+    adaptive_sampling_active=true
+    debug_log "ADAPTIVE SAMPLING: Activating adaptive sampling mode"
+    debug_log "ADAPTIVE SAMPLING: $new_sample_count samples > threshold $FALLBEHIND_THRESHOLD"
+    log "INFO: Adaptive sampling activated - processing every ${ADAPTIVE_SAMPLING_INTERVAL}th sample due to high sample count ($new_sample_count)"
+
+    # Calculate effective sample count when using adaptive sampling
+    effective_sample_count=$((new_sample_count / ADAPTIVE_SAMPLING_INTERVAL))
+    if [ "$effective_sample_count" -gt "$MAX_SAMPLES_PER_RUN" ]; then
+        samples_limited=true
+        original_sample_count=$new_sample_count
+        effective_sample_count=$MAX_SAMPLES_PER_RUN
+        # Adjust to process the most recent portion
+        samples_to_skip=$((new_sample_count - (effective_sample_count * ADAPTIVE_SAMPLING_INTERVAL)))
+        last_sample_index=$((last_sample_index + samples_to_skip))
+        new_sample_count=$((effective_sample_count * ADAPTIVE_SAMPLING_INTERVAL))
+        debug_log "ADAPTIVE SAMPLING: Limited to $effective_sample_count effective samples"
+        debug_log "ADAPTIVE SAMPLING: Skipping $samples_to_skip samples at beginning"
+    fi
+elif [ "$new_sample_count" -gt "$MAX_SAMPLES_PER_RUN" ]; then
     samples_limited=true
     original_sample_count=$new_sample_count
     debug_log "PERFORMANCE LIMIT: Limiting processing to $MAX_SAMPLES_PER_RUN samples (was $new_sample_count)"
@@ -271,35 +297,56 @@ if [ "$new_sample_count" -gt "$MAX_SAMPLES_PER_RUN" ]; then
 fi
 
 debug_log "LOOP SETUP: Final new_sample_count=$new_sample_count"
+debug_log "LOOP SETUP: adaptive_sampling_active=$adaptive_sampling_active"
 debug_log "LOOP SETUP: Starting processing loop"
 
 i=0
+samples_processed=0
 while [ "$i" -lt "$new_sample_count" ]; do
-    debug_log "LOOP ITERATION: Processing iteration $i"
-    # The API provides samples in chronological order. We work backwards from the
-    # current time to assign an approximate but accurate timestamp to each sample.
-    sample_timestamp=$((now_seconds - (new_sample_count - 1 - i)))
-    human_readable_timestamp=$(date -d "@$sample_timestamp" '+%Y-%m-%d %H:%M:%S')
-    debug_log "TIMESTAMP: $human_readable_timestamp (epoch: $sample_timestamp)"
+    # Check if we should process this sample based on adaptive sampling
+    should_process_sample=true
+    if [ "$adaptive_sampling_active" = "true" ]; then
+        # In adaptive mode, only process every Nth sample
+        if [ $((i % ADAPTIVE_SAMPLING_INTERVAL)) -ne 0 ]; then
+            should_process_sample=false
+            debug_log "ADAPTIVE SAMPLING: Skipping sample $i (not divisible by $ADAPTIVE_SAMPLING_INTERVAL)"
+        else
+            debug_log "ADAPTIVE SAMPLING: Processing sample $i (divisible by $ADAPTIVE_SAMPLING_INTERVAL)"
+        fi
+    fi
 
-    # Extract the specific latency and loss for this sample from the arrays.
-    # We use jq's --argjson flag to safely pass shell variables into the jq script.
-    debug_log "SAMPLE EXTRACTION: Processing sample $i of $new_sample_count"
-    debug_log "JQ VARIABLES: i=$i, count=$new_sample_count"
-    debug_log "JQ EXPRESSION: .[length - (4*\$count - 4*\$i)] // 0"
+    if [ "$should_process_sample" = "true" ]; then
+        debug_log "LOOP ITERATION: Processing iteration $i (sample #$((samples_processed + 1)))"
+        # The API provides samples in chronological order. We work backwards from the
+        # current time to assign an approximate but accurate timestamp to each sample.
+        sample_timestamp=$((now_seconds - (new_sample_count - 1 - i)))
+        human_readable_timestamp=$(date -d "@$sample_timestamp" '+%Y-%m-%d %H:%M:%S')
+        debug_log "TIMESTAMP: $human_readable_timestamp (epoch: $sample_timestamp)"
 
-    latency=$(echo "$latency_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4*\$count - 4*\$i)] // 0" | cut -d'.' -f1)
-    debug_log "EXTRACTED LATENCY: $latency"
+        # Extract the specific latency and loss for this sample from the arrays.
+        # We use jq's --argjson flag to safely pass shell variables into the jq script.
+        debug_log "SAMPLE EXTRACTION: Processing sample $i of $new_sample_count"
+        debug_log "JQ VARIABLES: i=$i, count=$new_sample_count"
+        debug_log "JQ EXPRESSION: .[length - (4*\$count - 4*\$i)] // 0"
 
-    loss=$(echo "$loss_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4*\$count - 4*\$i)] // 0")
-    debug_log "EXTRACTED LOSS: $loss"
+        latency=$(echo "$latency_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4*\$count - 4*\$i)] // 0" | cut -d'.' -f1)
+        debug_log "EXTRACTED LATENCY: $latency"
 
-    # Convert loss and obstruction ratios to percentages for easier analysis in spreadsheets.
-    loss_pct=$(awk -v val="$loss" 'BEGIN { printf "%.2f", val * 100 }')
-    obstruction_pct=$(awk -v val="$obstruction" 'BEGIN { printf "%.2f", val * 100 }')
+        loss=$(echo "$loss_array" | $JQ_CMD -r --argjson i "$i" --argjson count "$new_sample_count" ".[length - (4*\$count - 4*\$i)] // 0")
+        debug_log "EXTRACTED LOSS: $loss"
 
-    # Append the formatted data as a new line in the CSV file.
-    echo "$human_readable_timestamp,$latency,$loss_pct,$obstruction_pct" >>"$OUTPUT_CSV"
+        # Convert loss and obstruction ratios to percentages for easier analysis in spreadsheets.
+        loss_pct=$(awk -v val="$loss" 'BEGIN { printf "%.2f", val * 100 }')
+        obstruction_pct=$(awk -v val="$obstruction" 'BEGIN { printf "%.2f", val * 100 }')
+
+        # Append the formatted data as a new line in the CSV file.
+        echo "$human_readable_timestamp,$latency,$loss_pct,$obstruction_pct" >>"$OUTPUT_CSV"
+        debug_log "CSV WRITE: Sample $i written to CSV"
+
+        samples_processed=$((samples_processed + 1))
+    else
+        debug_log "LOOP ITERATION: Skipping iteration $i (adaptive sampling)"
+    fi
 
     i=$((i + 1))
 done
@@ -309,22 +356,27 @@ debug_log "STEP: Saving current sample index for next run"
 echo "$current_sample_index" >"$LAST_SAMPLE_FILE"
 debug_log "SAVED INDEX: $current_sample_index to $LAST_SAMPLE_FILE"
 
-debug_log "CSV OUTPUT: Successfully wrote $new_sample_count rows to $OUTPUT_CSV"
-log "--- Successfully logged $new_sample_count new data points. Finishing run. ---"
+debug_log "CSV OUTPUT: Successfully wrote $samples_processed rows to $OUTPUT_CSV"
+if [ "$adaptive_sampling_active" = "true" ]; then
+    log "--- Successfully logged $samples_processed data points (adaptive sampling: every ${ADAPTIVE_SAMPLING_INTERVAL}th of $new_sample_count samples). Finishing run. ---"
+else
+    log "--- Successfully logged $samples_processed new data points. Finishing run. ---"
+fi
 
 # --- Performance Analysis and Alerting ---
 script_end_time=$(date +%s)
 execution_time=$((script_end_time - script_start_time))
 debug_log "PERFORMANCE: Script completed at epoch $script_end_time"
 debug_log "PERFORMANCE: Total execution time: ${execution_time} seconds"
-debug_log "PERFORMANCE: Processed $new_sample_count samples in ${execution_time} seconds"
+debug_log "PERFORMANCE: Processed $samples_processed samples in ${execution_time} seconds"
+debug_log "PERFORMANCE: Total available samples: $new_sample_count"
 
 # Calculate processing rate
 if [ "$execution_time" -gt 0 ]; then
-    samples_per_second=$((new_sample_count / execution_time))
+    samples_per_second=$((samples_processed / execution_time))
     debug_log "PERFORMANCE: Processing rate: $samples_per_second samples/second"
 else
-    samples_per_second="$new_sample_count"
+    samples_per_second="$samples_processed"
     debug_log "PERFORMANCE: Processing rate: $samples_per_second samples/second (instant)"
 fi
 
@@ -338,7 +390,7 @@ if [ "$execution_time" -gt "$MAX_EXECUTION_TIME_SECONDS" ]; then
 fi
 
 # Check processing rate
-if [ "$samples_per_second" -lt "$MAX_SAMPLES_PER_SECOND" ] && [ "$new_sample_count" -gt 5 ]; then
+if [ "$samples_per_second" -lt "$MAX_SAMPLES_PER_SECOND" ] && [ "$samples_processed" -gt 5 ]; then
     performance_issues="${performance_issues}Processing rate ($samples_per_second samples/s) below minimum ($MAX_SAMPLES_PER_SECOND samples/s). "
     log "WARNING: Logger processing rate ($samples_per_second samples/s) is slower than expected minimum ($MAX_SAMPLES_PER_SECOND samples/s)"
 fi
@@ -353,8 +405,13 @@ fi
 # If we consistently process fewer samples than we should, we're falling behind
 expected_samples_per_run=1 # Normally expect 1-2 new samples per minute for frequent runs
 if [ "$new_sample_count" -gt "$((expected_samples_per_run * 5))" ]; then
-    performance_issues="${performance_issues}Falling behind data generation - processed $new_sample_count samples (expected ~$expected_samples_per_run). "
-    log "WARNING: Logger may be falling behind - processed $new_sample_count samples, expected around $expected_samples_per_run"
+    if [ "$adaptive_sampling_active" = "true" ]; then
+        performance_issues="${performance_issues}High sample load handled with adaptive sampling - $new_sample_count samples available, processed $samples_processed. "
+        log "INFO: Adaptive sampling handled high load - $new_sample_count samples available, processed $samples_processed (every ${ADAPTIVE_SAMPLING_INTERVAL}th sample)"
+    else
+        performance_issues="${performance_issues}Falling behind data generation - processed $samples_processed of $new_sample_count samples. "
+        log "WARNING: Logger may be falling behind - processed $samples_processed of $new_sample_count available samples"
+    fi
 fi
 
 # Check if we had to limit sample processing
@@ -365,7 +422,7 @@ fi
 
 # Send consolidated alert if there are performance issues
 if [ -n "$performance_issues" ]; then
-    alert_message="Starlink Logger Performance Issues: ${performance_issues}Runtime: ${execution_time}s, Rate: ${samples_per_second} samples/s, Batch size: $new_sample_count"
+    alert_message="Starlink Logger Performance Issues: ${performance_issues}Runtime: ${execution_time}s, Rate: ${samples_per_second} samples/s, Processed: $samples_processed of $new_sample_count available"
     log "PERFORMANCE_ALERT: $alert_message"
     debug_log "PERFORMANCE_ALERT: Generated alert for performance issues"
 

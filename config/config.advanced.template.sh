@@ -2,6 +2,11 @@
 # shellcheck disable=SC1091,SC2034,SC2154
 # shellcheck disable=SC2034  # Variables are used when sourced by other scripts
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
+# Used for troubleshooting: echo "Config version: $SCRIPT_VERSION"
+
 # Template version (auto-updated by update-version.sh)
 TEMPLATE_VERSION="2.4.12"
 readonly TEMPLATE_VERSION
@@ -252,6 +257,23 @@ ENABLE_BANDWIDTH_MONITORING=1 # Monitor bandwidth usage
 ENABLE_API_RATE_LIMITING=1 # Rate limit API calls
 ENABLE_SECURE_LOGGING=1    # Encrypt sensitive log data
 ENABLE_INTEGRITY_CHECKS=1  # Verify script integrity
+
+# ==============================================================================
+# Performance Monitoring Configuration
+# ==============================================================================
+
+# Execution time limits (seconds)
+MAX_EXECUTION_TIME_SECONDS=30 # Alert if any script takes longer than this
+
+# Processing rate controls
+MAX_SAMPLES_PER_SECOND=10      # Maximum samples to process per second
+MAX_SAMPLES_PER_RUN=60         # Maximum samples to process in one run
+PERFORMANCE_ALERT_THRESHOLD=15 # Alert if execution time exceeds this
+
+# Adaptive sampling for high-load scenarios
+ADAPTIVE_SAMPLING_ENABLED=1  # Enable adaptive sampling when falling behind
+ADAPTIVE_SAMPLING_INTERVAL=5 # Process every Nth sample when adaptive mode active
+FALLBEHIND_THRESHOLD=100     # Sample queue size that triggers adaptive mode
 
 # ==============================================================================
 # End of Configuration
