@@ -92,6 +92,13 @@ debug_log() {
     fi
 }
 
+# Standard logging functions for consistency with other scripts
+log_debug() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
+
 ##
 # log(level, message)
 # Enhanced logging with severity levels. Logs to syslog, file, and optionally console.
