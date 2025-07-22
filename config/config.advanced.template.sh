@@ -30,6 +30,12 @@ STARLINK_MANAGEMENT_IP="192.168.100.1" # Starlink management interface
 MWAN_IFACE="wan"      # Starlink interface (network.wan)
 MWAN_MEMBER="member1" # Starlink member (metric=1, highest priority)
 
+# MWAN3 metric values for failover control
+# METRIC_GOOD: Normal routing priority (lower numbers = higher priority)
+# METRIC_BAD: Failover routing priority (higher numbers = lower priority)
+METRIC_GOOD="1"       # Primary route priority
+METRIC_BAD="20"       # Failover route priority
+
 # Cellular backup interfaces (matching your setup)
 CELLULAR_PRIMARY_IFACE="mob1s1a1" # Primary SIM (Telia)
 CELLULAR_PRIMARY_MEMBER="member3" # metric=2

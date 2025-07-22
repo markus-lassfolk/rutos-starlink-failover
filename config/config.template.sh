@@ -38,6 +38,12 @@ export MWAN_IFACE="wan"
 # Check your MWAN3 config: uci show mwan3 | grep member
 export MWAN_MEMBER="member1"
 
+# MWAN3 metric values for failover control
+# METRIC_GOOD: Normal routing priority (lower numbers = higher priority)
+# METRIC_BAD: Failover routing priority (higher numbers = lower priority)
+export METRIC_GOOD="1"
+export METRIC_BAD="20"
+
 # --- Notification Settings ---
 
 # Pushover API credentials for notifications
