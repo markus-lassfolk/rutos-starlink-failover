@@ -4,7 +4,9 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
+# shellcheck disable=SC2034  # Version used by update-version.sh, not in script logic
 SCRIPT_VERSION="2.4.12"
+# shellcheck disable=SC2034  # readonly declaration
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)
@@ -26,10 +28,15 @@ NC='\033[0m' # No Color
 if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
     # shellcheck disable=SC2034  # Colors disabled but variables defined for consistency
     RED=""
+    # shellcheck disable=SC2034
     GREEN=""
+    # shellcheck disable=SC2034
     YELLOW=""
+    # shellcheck disable=SC2034
     BLUE=""
+    # shellcheck disable=SC2034
     CYAN=""
+    # shellcheck disable=SC2034
     NC=""
 fi
 
@@ -54,26 +61,6 @@ fi
 
 # Exit on first error, undefined variable, or pipe failure for script robustness.
 set -eu
-
-# Standard colors for consistent output (compatible with busybox)
-# VALIDATION_SKIP_COLOR_CHECK: This script uses syslog only, no color output needed
-# shellcheck disable=SC2034
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-# Check if we're in a terminal that supports colors
-if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
-    RED=""
-    GREEN=""
-    YELLOW=""
-    BLUE=""
-    CYAN=""
-    NC=""
-fi
 
 # --- User Configuration ---
 
@@ -151,15 +138,9 @@ validate_binary() {
     fi
 
     # Test if binary actually works
-    echo "check_starlink_api-rutos.sh v$SCRIPT_VERSION"
-    echo ""
     debug_log "TESTING BINARY: $binary_path --help"
-    echo "check_starlink_api-rutos.sh v$SCRIPT_VERSION"
-    echo ""
     if ! "$binary_path" --help >/dev/null 2>&1; then
         log "WARNING: $binary_name may not be functioning properly"
-        echo "check_starlink_api-rutos.sh v$SCRIPT_VERSION"
-        echo ""
         debug_log "BINARY TEST FAILED: $binary_path --help returned non-zero"
     else
         debug_log "BINARY TEST PASSED: $binary_name is functional"
