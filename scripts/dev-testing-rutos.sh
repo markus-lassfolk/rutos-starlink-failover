@@ -1,7 +1,5 @@
 #!/bin/sh
-# Script: dev-testing-rutos.sh
-#!/bin/sh
-# shellcheck disable=SC2059  # RUTOS requires Method 5 printf format (embedded variables)
+# shellcheck disable=SC2059  # RUTOS requires Method 5 printf format (embedded variables)  
 # shellcheck disable=SC2317  # Functions are called dynamically by main()
 # Script: dev-testing-rutos.sh
 # Version: 2.4.12 (Consolidated)
@@ -132,7 +130,7 @@ parse_arguments() {
                 NO_INSTALL=1
                 shift
                 ;;
-            --debug)
+            --debug | -debug)
                 DEBUG=1
                 shift
                 ;;
@@ -646,46 +644,92 @@ run_comprehensive_tests() {
     printf "${BLUE}Testing shell syntax for all scripts...${NC}\n"
 
     # Test syntax for all scripts
-    for script_list in "$main_scripts" "$utility_scripts" "$test_scripts" "$config_files"; do
-        if [ -n "$script_list" ]; then
-            # Use a for loop with file list instead of pipe to avoid subshell
-            for script in $script_list; do
-                test_script_syntax "$script"
-            done
-        fi
-    done
+    # Process each script list separately using direct iteration
+    if [ -n "$main_scripts" ]; then
+        for script in $main_scripts; do
+            test_script_syntax "$script"
+        done
+    fi
+    if [ -n "$utility_scripts" ]; then
+        for script in $utility_scripts; do
+            test_script_syntax "$script"
+        done
+    fi
+    if [ -n "$test_scripts" ]; then
+        for script in $test_scripts; do
+            test_script_syntax "$script"
+        done
+    fi
+    if [ -n "$config_files" ]; then
+        for script in $config_files; do
+            test_script_syntax "$script"
+        done
+    fi
 
     log_header "RUTOS COMPATIBILITY"
     printf "${BLUE}Testing RUTOS/busybox compatibility...${NC}\n"
 
     # Test RUTOS compatibility for all scripts
-    for script_list in "$main_scripts" "$utility_scripts" "$test_scripts" "$config_files"; do
-        if [ -n "$script_list" ]; then
-            # Use a for loop with file list instead of pipe to avoid subshell
-            for script in $script_list; do
-                test_rutos_compatibility "$script"
-            done
-        fi
-    done
+    # Process each script list separately using direct iteration
+    if [ -n "$main_scripts" ]; then
+        for script in $main_scripts; do
+            test_rutos_compatibility "$script"
+        done
+    fi
+    if [ -n "$utility_scripts" ]; then
+        for script in $utility_scripts; do
+            test_rutos_compatibility "$script"
+        done
+    fi
+    if [ -n "$test_scripts" ]; then
+        for script in $test_scripts; do
+            test_rutos_compatibility "$script"
+        done
+    fi
+    if [ -n "$config_files" ]; then
+        for script in $config_files; do
+            test_rutos_compatibility "$script"
+        done
+    fi
 
     log_header "EXECUTION TESTING"
     printf "${BLUE}Testing script execution (dry-run mode)...${NC}\n"
 
     # Test execution for executable scripts (skip config files)
-    for script_list in "$main_scripts" "$utility_scripts" "$test_scripts"; do
-        if [ -n "$script_list" ]; then
-            # Use a for loop with file list instead of pipe to avoid subshell
-            for script in $script_list; do
-                # Skip non-executable scripts and the current script
-                if [ -x "$script" ] || echo "$script" | grep -q '\.sh$'; then
-                    # Skip self to avoid recursion
-                    if [ "$script" != "$0" ] && [ "$(basename "$script")" != "dev-testing-rutos.sh" ]; then
-                        test_script_execution "$script" 15 # 15 second timeout
-                    fi
+    # Process each script list separately using direct iteration
+    if [ -n "$main_scripts" ]; then
+        for script in $main_scripts; do
+            # Skip non-executable scripts and the current script
+            if [ -x "$script" ] || echo "$script" | grep -q '\.sh$'; then
+                # Skip self to avoid recursion
+                if [ "$script" != "$0" ] && [ "$(basename "$script")" != "dev-testing-rutos.sh" ]; then
+                    test_script_execution "$script" 15 # 15 second timeout
                 fi
-            done
-        fi
-    done
+            fi
+        done
+    fi
+    if [ -n "$utility_scripts" ]; then
+        for script in $utility_scripts; do
+            # Skip non-executable scripts and the current script
+            if [ -x "$script" ] || echo "$script" | grep -q '\.sh$'; then
+                # Skip self to avoid recursion
+                if [ "$script" != "$0" ] && [ "$(basename "$script")" != "dev-testing-rutos.sh" ]; then
+                    test_script_execution "$script" 15 # 15 second timeout
+                fi
+            fi
+        done
+    fi
+    if [ -n "$test_scripts" ]; then
+        for script in $test_scripts; do
+            # Skip non-executable scripts and the current script
+            if [ -x "$script" ] || echo "$script" | grep -q '\.sh$'; then
+                # Skip self to avoid recursion
+                if [ "$script" != "$0" ] && [ "$(basename "$script")" != "dev-testing-rutos.sh" ]; then
+                    test_script_execution "$script" 15 # 15 second timeout
+                fi
+            fi
+        done
+    fi
 
     log_header "SPECIAL VALIDATIONS"
     printf "${BLUE}Running additional validation checks...${NC}\n"
@@ -695,20 +739,28 @@ run_comprehensive_tests() {
     log_debug "Checking version consistency across scripts"
 
     version_issues=0
-    for script_list in "$main_scripts" "$utility_scripts"; do
-        if [ -n "$script_list" ]; then
-            # Use a for loop with file list instead of pipe to avoid subshell
-            for script in $script_list; do
-                if grep -q "SCRIPT_VERSION=" "$script" 2>/dev/null; then
-                    script_version=$(grep "SCRIPT_VERSION=" "$script" | head -1 | cut -d'"' -f2 2>/dev/null)
-                    if [ "$script_version" != "$SCRIPT_VERSION" ]; then
-                        echo "VERSION_MISMATCH: $(basename "$script") has version $script_version, expected $SCRIPT_VERSION" >>"$ERROR_LOG"
-                        version_issues=$((version_issues + 1))
-                    fi
+    if [ -n "$main_scripts" ]; then
+        for script in $main_scripts; do
+            if grep -q "SCRIPT_VERSION=" "$script" 2>/dev/null; then
+                script_version=$(grep "SCRIPT_VERSION=" "$script" | head -1 | cut -d'"' -f2 2>/dev/null)
+                if [ "$script_version" != "$SCRIPT_VERSION" ]; then
+                    echo "VERSION_MISMATCH: $(basename "$script") has version $script_version, expected $SCRIPT_VERSION" >>"$ERROR_LOG"
+                    version_issues=$((version_issues + 1))
                 fi
-            done
-        fi
-    done
+            fi
+        done
+    fi
+    if [ -n "$utility_scripts" ]; then
+        for script in $utility_scripts; do
+            if grep -q "SCRIPT_VERSION=" "$script" 2>/dev/null; then
+                script_version=$(grep "SCRIPT_VERSION=" "$script" | head -1 | cut -d'"' -f2 2>/dev/null)
+                if [ "$script_version" != "$SCRIPT_VERSION" ]; then
+                    echo "VERSION_MISMATCH: $(basename "$script") has version $script_version, expected $SCRIPT_VERSION" >>"$ERROR_LOG"
+                    version_issues=$((version_issues + 1))
+                fi
+            fi
+        done
+    fi
 
     if [ "$version_issues" -eq 0 ]; then
         log_test_result "Version Consistency" "PASS" "All scripts have matching versions"
@@ -723,17 +775,22 @@ run_comprehensive_tests() {
     log_debug "Checking for readonly variable conflicts"
 
     readonly_issues=0
-    for script_list in "$main_scripts" "$utility_scripts"; do
-        if [ -n "$script_list" ]; then
-            # Use a for loop with file list instead of pipe to avoid subshell
-            for script in $script_list; do
-                if grep -q "readonly.*SCRIPT_VERSION\|SCRIPT_VERSION.*readonly" "$script" 2>/dev/null; then
-                    echo "READONLY_CONFLICT: $(basename "$script") has readonly SCRIPT_VERSION (may cause issues)" >>"$ERROR_LOG"
-                    readonly_issues=$((readonly_issues + 1))
-                fi
-            done
-        fi
-    done
+    if [ -n "$main_scripts" ]; then
+        for script in $main_scripts; do
+            if grep -q "readonly.*SCRIPT_VERSION\|SCRIPT_VERSION.*readonly" "$script" 2>/dev/null; then
+                echo "READONLY_CONFLICT: $(basename "$script") has readonly SCRIPT_VERSION (may cause issues)" >>"$ERROR_LOG"
+                readonly_issues=$((readonly_issues + 1))
+            fi
+        done
+    fi
+    if [ -n "$utility_scripts" ]; then
+        for script in $utility_scripts; do
+            if grep -q "readonly.*SCRIPT_VERSION\|SCRIPT_VERSION.*readonly" "$script" 2>/dev/null; then
+                echo "READONLY_CONFLICT: $(basename "$script") has readonly SCRIPT_VERSION (may cause issues)" >>"$ERROR_LOG"
+                readonly_issues=$((readonly_issues + 1))
+            fi
+        done
+    fi
 
     if [ "$readonly_issues" -eq 0 ]; then
         log_test_result "Readonly Variables" "PASS" "No readonly conflicts detected"
