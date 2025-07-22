@@ -1,21 +1,30 @@
 #!/bin/sh
 
+# Exit on first error, undefined variable, or pipe failure for script robustness.
+set -eu
+
 # Version information (auto-updated by update-version.sh)
-# VALIDATION_SKIP_COLOR_CHECK: This script uses syslog only, no color output needed
+SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)
+# VALIDATION_SKIP_COLOR_CHECK: This script uses syslog only, no color output needed
 # shellcheck disable=SC2034
-
-# Version information (auto-updated by update-version.sh)
 RED='\033[0;31m'
+# shellcheck disable=SC2034
 GREEN='\033[0;32m'
+# shellcheck disable=SC2034
 YELLOW='\033[1;33m'
+# shellcheck disable=SC2034
 BLUE='\033[1;35m'
+# shellcheck disable=SC2034
 CYAN='\033[0;36m'
+# shellcheck disable=SC2034
 NC='\033[0m' # No Color
 
 # Check if we're in a terminal that supports colors
 if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
+    # shellcheck disable=SC2034  # Colors disabled but variables defined for consistency
     RED=""
     GREEN=""
     YELLOW=""
@@ -46,11 +55,25 @@ fi
 # Exit on first error, undefined variable, or pipe failure for script robustness.
 set -eu
 
-# Version information (auto-updated by update-version.sh)
+# Standard colors for consistent output (compatible with busybox)
+# VALIDATION_SKIP_COLOR_CHECK: This script uses syslog only, no color output needed
+# shellcheck disable=SC2034
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
 
-# Version information
-
-# Version information
+# Check if we're in a terminal that supports colors
+if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    CYAN=""
+    NC=""
+fi
 
 # --- User Configuration ---
 

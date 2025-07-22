@@ -427,9 +427,41 @@ intelligent_config_merge() {
     config_debug "=== STEP 2: EXTRACT VARIABLES FROM CURRENT CONFIG ==="
     # Extract all variable assignments from current config
     if [ -f "$current_config" ]; then
-        grep -E "^(export )?[A-Za-z_][A-Za-z0-9_]*=" "$current_config" 2>/dev/null >"$temp_current_vars" || touch "$temp_current_vars"
+        # Extract variable assignments, but filter out system variables and malformed lines
+        {
+            # Find proper variable assignments (with export or without)
+            grep -E "^(export )?[A-Za-z_][A-Za-z0-9_]*=" "$current_config" 2>/dev/null || true
+        } | {
+            # Filter out system variables during extraction to prevent conflicts
+            while IFS= read -r line; do
+                case "$line" in
+                    # Skip system/metadata variables
+                    *SCRIPT_VERSION=* | *TEMPLATE_VERSION=* | *CONFIG_VERSION=* | *BUILD_INFO=* | *SCRIPT_NAME=*)
+                        config_debug "Filtering out system variable during extraction: $(echo "$line" | cut -d'=' -f1)"
+                        ;;
+                    # Skip recovery information variables
+                    *INSTALLED_VERSION=* | *INSTALLED_TIMESTAMP=* | *RECOVERY_INSTALL_URL=* | *RECOVERY_FALLBACK_URL=*)
+                        config_debug "Filtering out recovery variable during extraction: $(echo "$line" | cut -d'=' -f1)"
+                        ;;
+                    # Skip standalone export statements (malformed)
+                    "export "*[A-Za-z_][A-Za-z0-9_]*)
+                        # Check if this is a standalone export without assignment
+                        if ! echo "$line" | grep -q "="; then
+                            config_debug "Filtering out standalone export statement: $line"
+                        else
+                            echo "$line"
+                        fi
+                        ;;
+                    # Keep valid variable assignments
+                    *)
+                        echo "$line"
+                        ;;
+                esac
+            done
+        } >"$temp_current_vars"
+
         current_count=$(wc -l <"$temp_current_vars" 2>/dev/null || echo 0)
-        config_debug "Found $current_count variables in current config"
+        config_debug "Found $current_count variables in current config (after filtering)"
 
         if [ "${CONFIG_DEBUG:-0}" = "1" ] && [ "$current_count" -gt 0 ]; then
             config_debug "Current config variables (first 10, sensitive values masked):"
@@ -484,6 +516,19 @@ intelligent_config_merge() {
 
         if [ -n "$var_name" ]; then
             config_debug "--- Processing template variable: $var_name ---"
+
+            # Skip system variables during processing to avoid readonly conflicts
+            case "$var_name" in
+                SCRIPT_VERSION | TEMPLATE_VERSION | CONFIG_VERSION | BUILD_INFO | SCRIPT_NAME)
+                    config_debug "Skipping system variable: $var_name (should not be processed)"
+                    continue
+                    ;;
+                # Skip recovery information variables (managed by self-update system)
+                INSTALLED_VERSION | INSTALLED_TIMESTAMP | RECOVERY_INSTALL_URL | RECOVERY_FALLBACK_URL)
+                    config_debug "Skipping recovery variable: $var_name (managed by self-update system)"
+                    continue
+                    ;;
+            esac
 
             # Look for this variable in current config (both formats)
             current_value=""
@@ -561,6 +606,19 @@ intelligent_config_merge() {
             fi
 
             if [ -n "$var_name" ]; then
+                # Skip system/metadata variables that should not be preserved
+                case "$var_name" in
+                    SCRIPT_VERSION | TEMPLATE_VERSION | CONFIG_VERSION | BUILD_INFO | SCRIPT_NAME)
+                        config_debug "Skipping system variable: $var_name (should not be preserved)"
+                        continue
+                        ;;
+                    # Skip recovery information variables (managed by self-update system)
+                    INSTALLED_VERSION | INSTALLED_TIMESTAMP | RECOVERY_INSTALL_URL | RECOVERY_FALLBACK_URL)
+                        config_debug "Skipping recovery variable: $var_name (managed by self-update system)"
+                        continue
+                        ;;
+                esac
+
                 # Check if this variable exists in template
                 if ! grep -q "^export ${var_name}=" "$temp_template_vars" 2>/dev/null &&
                     ! grep -q "^${var_name}=" "$temp_template_vars" 2>/dev/null; then
@@ -1911,7 +1969,148 @@ EOF
     print_status "$GREEN" "✓ Uninstall script created"
 }
 
-# Create auto-restoration script for firmware upgrade persistence
+# Setup recovery information for firmware upgrade scenarios
+setup_recovery_information() {
+    print_status "$BLUE" "Setting up firmware upgrade recovery information..."
+
+    # Get current version
+    current_version=""
+    if [ -f "$VERSION_FILE" ]; then
+        current_version=$(tr -d '\n\r ' <"$VERSION_FILE" 2>/dev/null || echo "")
+    fi
+
+    # Fallback to script version if VERSION file not available
+    if [ -z "$current_version" ]; then
+        current_version="$SCRIPT_VERSION"
+    fi
+
+    print_status "$BLUE" "Current version: $current_version"
+
+    # Store version information in persistent config
+    if store_version_in_persistent_config "$current_version"; then
+        print_status "$GREEN" "✓ Version information stored for recovery"
+    else
+        print_status "$YELLOW" "⚠ Warning: Could not store version information"
+    fi
+
+    # Create version-pinned recovery script
+    if create_version_pinned_recovery_script "$current_version"; then
+        print_status "$GREEN" "✓ Version-pinned recovery script created"
+    else
+        print_status "$YELLOW" "⚠ Warning: Could not create recovery script"
+    fi
+
+    print_status "$GREEN" "✓ Firmware upgrade recovery configured"
+    print_status "$BLUE" "  Recovery will reinstall v$current_version to respect your update policies"
+}
+
+# Store version information in persistent config for recovery
+store_version_in_persistent_config() {
+    version="$1"
+    persistent_config="$PERSISTENT_CONFIG_DIR/config.sh"
+
+    if [ ! -f "$persistent_config" ]; then
+        log_message "ERROR" "Persistent config not found: $persistent_config"
+        return 1
+    fi
+
+    # Remove any existing recovery information section
+    if grep -q "^# Recovery Information" "$persistent_config" 2>/dev/null; then
+        # Create temp file without the recovery section
+        temp_config="/tmp/config_recovery_update.$$"
+        awk '/^# Recovery Information/,/^# ==============================================================================$/ {next} {print}' \
+            "$persistent_config" >"$temp_config"
+        mv "$temp_config" "$persistent_config"
+    fi
+
+    # Add new recovery information section
+    cat >>"$persistent_config" <<EOF
+
+# ==============================================================================
+# Recovery Information - DO NOT EDIT MANUALLY
+# This section is automatically managed by the installation and self-update system
+# ==============================================================================
+# Version installed on this system (for firmware upgrade recovery)
+INSTALLED_VERSION="$version"
+# Installation timestamp  
+INSTALLED_TIMESTAMP="$(date '+%Y-%m-%d %H:%M:%S')"
+# Recovery URL (pinned to this version for consistency)
+RECOVERY_INSTALL_URL="https://raw.githubusercontent.com/$GITHUB_REPO/v$version/scripts/install-rutos.sh"
+# ==============================================================================
+EOF
+
+    log_message "INFO" "Stored version $version in persistent config for recovery"
+    return 0
+}
+
+# Create version-pinned recovery installation script
+create_version_pinned_recovery_script() {
+    version="$1"
+    recovery_script="$PERSISTENT_CONFIG_DIR/install-pinned-version.sh"
+
+    # Ensure persistent config directory exists
+    mkdir -p "$PERSISTENT_CONFIG_DIR" 2>/dev/null || {
+        log_message "ERROR" "Cannot create persistent config directory"
+        return 1
+    }
+
+    # Create the recovery script with embedded version information
+    cat >"$recovery_script" <<EOF
+#!/bin/sh
+# ==============================================================================
+# Version-Pinned Recovery Installation Script
+# Generated by install-rutos.sh v$SCRIPT_VERSION
+# 
+# This script installs the exact version that was previously running on this
+# system before firmware upgrade. It ensures consistency with user's update
+# delay policies by not forcing newer versions during recovery.
+# ==============================================================================
+
+set -eu
+
+# Pinned version information
+PINNED_VERSION="$version"
+GITHUB_REPO="$GITHUB_REPO"
+GITHUB_BRANCH="$GITHUB_BRANCH"
+RECOVERY_URL="https://raw.githubusercontent.com/\$GITHUB_REPO/v\$PINNED_VERSION/scripts/install-rutos.sh"
+FALLBACK_URL="https://raw.githubusercontent.com/\$GITHUB_REPO/\$GITHUB_BRANCH/scripts/install-rutos.sh"
+CREATED_DATE="$(date '+%Y-%m-%d %H:%M:%S')"
+
+echo "=============================================="
+echo "Starlink Monitor - Version-Pinned Recovery"
+echo "Pinned Version: v\$PINNED_VERSION"
+echo "Created: \$CREATED_DATE"
+echo "=============================================="
+
+echo "Attempting to install pinned version v\$PINNED_VERSION..."
+
+# Try pinned version first
+if curl -fsSL --connect-timeout 10 --max-time 60 "\$RECOVERY_URL" | sh; then
+    echo "✓ Successfully installed pinned version v\$PINNED_VERSION"
+    echo "✓ Your update delay policies are respected - no forced upgrades"
+    exit 0
+else
+    echo "⚠ Pinned version installation failed, trying current stable version"
+    echo "⚠ This may install a newer version than originally configured"
+    
+    if curl -fsSL --connect-timeout 10 --max-time 60 "\$FALLBACK_URL" | sh; then
+        echo "✓ Fallback installation completed"
+        echo "ℹ Check your configuration: newer version may have been installed"
+        exit 0
+    else
+        echo "✗ Both pinned and fallback installations failed"
+        echo "✗ Manual installation required"
+        exit 1
+    fi
+fi
+EOF
+
+    # Make script executable
+    chmod +x "$recovery_script"
+
+    log_message "INFO" "Version-pinned recovery script created: $recovery_script"
+    return 0
+}
 create_restoration_script() {
     print_status "$BLUE" "Creating auto-restoration script for firmware upgrade persistence..."
 
@@ -2188,9 +2387,76 @@ start() {
         
         # Attempt restoration with detailed logging
         log_restore "Downloading and executing installation script..."
-        if curl -fsSL "${BASE_URL}/scripts/install-rutos.sh" | sh >>"$RESTORE_LOG" 2>&1; then
-            log_restore "Installation script completed successfully"
+        
+        # Try version-pinned recovery first (respects user's update delay policies)
+        if [ -f "$PERSISTENT_CONFIG_DIR/install-pinned-version.sh" ]; then
+            log_restore "Using version-pinned recovery to respect update delay policies"
+            log_restore "Executing: $PERSISTENT_CONFIG_DIR/install-pinned-version.sh"
             
+            if sh "$PERSISTENT_CONFIG_DIR/install-pinned-version.sh" >>"$RESTORE_LOG" 2>&1; then
+                log_restore "Version-pinned installation completed successfully"
+                restoration_success=true
+            else
+                log_restore "Version-pinned installation failed, checking recovery script for details"
+                # Log last few lines of recovery script output for debugging
+                if [ -f "$RESTORE_LOG" ]; then
+                    log_restore "Last 5 lines of recovery output:"
+                    tail -5 "$RESTORE_LOG" 2>/dev/null | while IFS= read -r line; do
+                        log_restore "  $line"
+                    done || log_restore "  (Unable to read recovery log)"
+                fi
+                
+                log_restore "Trying fallback to latest version"
+                restoration_success=false
+            fi
+        else
+            log_restore "No version-pinned recovery script available"
+            restoration_success=false
+        fi
+        
+        # Fallback to latest version if version-pinned recovery failed or unavailable
+        if [ "$restoration_success" != "true" ]; then
+            log_restore "Attempting latest version installation (fallback)"
+            
+            # Try multiple methods for maximum reliability
+            installation_methods="
+                curl_direct:curl -fsSL \"\${BASE_URL}/scripts/install-rutos.sh\" | sh
+                curl_download:curl -fsSL \"\${BASE_URL}/scripts/install-rutos.sh\" -o /tmp/install.sh && sh /tmp/install.sh && rm -f /tmp/install.sh
+                wget_direct:wget -qO- \"\${BASE_URL}/scripts/install-rutos.sh\" | sh
+                wget_download:wget -qO /tmp/install.sh \"\${BASE_URL}/scripts/install-rutos.sh\" && sh /tmp/install.sh && rm -f /tmp/install.sh
+            "
+            
+            method_success=false
+            for method_line in \$installation_methods; do
+                method_name=\$(echo "\$method_line" | cut -d: -f1)
+                method_command=\$(echo "\$method_line" | cut -d: -f2-)
+                
+                log_restore "Trying installation method: \$method_name"
+                log_restore "Command: \$method_command"
+                
+                if eval "\$method_command" >>\"\$RESTORE_LOG\" 2>&1; then
+                    log_restore "\$method_name installation completed successfully"
+                    method_success=true
+                    break
+                else
+                    log_restore "\$method_name installation failed, trying next method"
+                fi
+            done
+            
+            if [ "\$method_success" = "true" ]; then
+                restoration_success=true
+                log_restore "Installation completed using fallback method"
+            else
+                log_restore "All installation methods failed"
+                restoration_success=false
+            fi
+        fi
+        
+        # Final check for restoration success
+        if [ "\$restoration_success" = "true" ]; then
+            
+        # Final check for restoration success
+        if [ "$restoration_success" = "true" ]; then
             # Enhanced configuration restoration with validation and backup
             restore_user_configuration
             
@@ -2207,9 +2473,23 @@ start() {
             
         else
             log_restore "=========================================="
-            log_restore "ERROR: Auto-restoration failed!"
+            log_restore "ERROR: All restoration methods failed!"
             log_restore "Manual reinstallation required"
-            log_restore "Run: curl -fsSL ${BASE_URL}/scripts/install-rutos.sh | sh"
+            log_restore ""
+            log_restore "Manual recovery options:"
+            log_restore "1. Standard installation:"
+            log_restore "   curl -fsSL ${BASE_URL}/scripts/install-rutos.sh | sh"
+            log_restore "2. Alternative with wget:"
+            log_restore "   wget -qO- ${BASE_URL}/scripts/install-rutos.sh | sh"
+            log_restore "3. Download and inspect first:"
+            log_restore "   curl -fsSL ${BASE_URL}/scripts/install-rutos.sh -o /tmp/install.sh"
+            log_restore "   cat /tmp/install.sh  # inspect the script"
+            log_restore "   sh /tmp/install.sh   # run if it looks correct"
+            log_restore "4. Check network connectivity:"
+            log_restore "   ping github.com"
+            log_restore "   curl -I https://github.com/markus-lassfolk/rutos-starlink-failover"
+            log_restore ""
+            log_restore "Your configuration is preserved at: $PERSISTENT_CONFIG_DIR/config.sh"
             log_restore "=========================================="
             return 1
         fi
@@ -2360,6 +2640,9 @@ main() {
 
     debug_log "STEP 9: Setting up auto-restoration"
     create_restoration_script
+
+    debug_log "STEP 10: Setting up firmware upgrade recovery"
+    setup_recovery_information
 
     debug_log "==================== INSTALLATION COMPLETE ===================="
     print_status "$GREEN" "=== Installation Complete ==="
