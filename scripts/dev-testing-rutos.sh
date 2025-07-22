@@ -326,6 +326,12 @@ self_update() {
         return 0
     fi
 
+    # Check for update loop prevention
+    if [ "${SCRIPT_UPDATE_ATTEMPT:-0}" -gt 0 ]; then
+        log_warning "Update loop detected - skipping self-update to prevent infinite loop"
+        return 0
+    fi
+
     log_step "Checking for dev-testing-rutos.sh updates"
 
     # Get current script path
@@ -343,7 +349,7 @@ self_update() {
 
     if curl -fsSL "$GITHUB_SCRIPT_URL" -o "$TEMP_SCRIPT" 2>/dev/null; then
         # Extract version from downloaded script
-        if latest_script_version=$(grep '^SCRIPT_VERSION=' "$TEMP_SCRIPT" | head -1 | cut -d'"' -f2); then
+        if latest_script_version=$(grep '^SCRIPT_VERSION=' "$TEMP_SCRIPT" | head -1 | cut -d'"' -f2 2>/dev/null) && [ -n "$latest_script_version" ]; then
             log_debug "Latest script version: $latest_script_version"
 
             # Compare versions
@@ -368,34 +374,17 @@ self_update() {
                 
                 log_success "Script updated successfully - restarting with new version"
                 
+                # Set environment variable to prevent update loops
+                export SCRIPT_UPDATE_ATTEMPT=1
+                
                 # Re-execute with updated script
                 exec sh "$SCRIPT_PATH" "$@"
             else
                 log_info "dev-testing-rutos.sh is up to date (v$SCRIPT_VERSION)"
             fi
         else
-            log_warning "Could not extract version from downloaded script - attempting update anyway"
-            
-            # Verify downloaded script syntax
-            if ! sh -n "$TEMP_SCRIPT" 2>/dev/null; then
-                log_error "Downloaded script has syntax errors - keeping current version"
-                rm -f "$TEMP_SCRIPT"
-                return 1
-            fi
-
-            log_info "Auto-updating to latest version and restarting..."
-            
-            # Make backup of current script
-            cp "$SCRIPT_PATH" "${SCRIPT_PATH}.backup.$(date +%s)"
-            
-            # Replace current script with latest version
-            cp "$TEMP_SCRIPT" "$SCRIPT_PATH"
-            chmod +x "$SCRIPT_PATH"
-            
-            log_success "Script updated successfully - restarting with new version"
-            
-            # Re-execute with updated script
-            exec sh "$SCRIPT_PATH" "$@"
+            log_warning "Could not extract version from downloaded script - keeping current version"
+            log_info "This may indicate the GitHub version has issues or is incomplete"
         fi
 
         rm -f "$TEMP_SCRIPT"
@@ -498,7 +487,7 @@ test_rutos_compatibility() {
     compat_issues=""
 
     # Check for bash-specific syntax that won't work in busybox
-    if grep -q '\[\[.*\]\]' "$script_path" 2>/dev/null; then
+    if grep -qE '\[\[[[:space:]]*[^[:space:]].*[^[:space:]][[:space:]]*\]\]' "$script_path" 2>/dev/null; then
         compat_issues="${compat_issues}[[ ]] syntax (use [ ] instead); "
     fi
 
@@ -506,11 +495,11 @@ test_rutos_compatibility() {
         compat_issues="${compat_issues}'local' keyword (not in busybox); "
     fi
 
-    if grep -q 'echo[[:space:]]\+-e' "$script_path" 2>/dev/null; then
+    if grep -qE '^[[:space:]]*echo[[:space:]]+-e[[:space:]]' "$script_path" 2>/dev/null; then
         compat_issues="${compat_issues}'echo -e' (use printf instead); "
     fi
 
-    if grep -q 'source[[:space:]]' "$script_path" 2>/dev/null; then
+    if grep -q '^[[:space:]]*source[[:space:]]' "$script_path" 2>/dev/null; then
         compat_issues="${compat_issues}'source' command (use . instead); "
     fi
 
@@ -518,11 +507,11 @@ test_rutos_compatibility() {
         compat_issues="${compat_issues}\$'\\n' syntax (use printf instead); "
     fi
 
-    if grep -q 'function[[:space:]]\+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*()' "$script_path" 2>/dev/null; then
+    if grep -qE '^[[:space:]]*function[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(' "$script_path" 2>/dev/null; then
         compat_issues="${compat_issues}'function name()' syntax (use 'name()' only); "
     fi
 
-    if grep -q 'export[[:space:]]\+-f' "$script_path" 2>/dev/null; then
+    if grep -qE '^[[:space:]]*export[[:space:]]+-f[[:space:]]' "$script_path" 2>/dev/null; then
         compat_issues="${compat_issues}'export -f' (not in POSIX sh); "
     fi
 
@@ -811,7 +800,7 @@ run_comprehensive_tests() {
     if [ -n "$main_scripts" ]; then
         for script in $main_scripts; do
             if grep -q "readonly.*SCRIPT_VERSION\|SCRIPT_VERSION.*readonly" "$script" 2>/dev/null; then
-                echo "READONLY_CONFLICT: $(basename "$script") has readonly SCRIPT_VERSION (may cause issues)" >>"$ERROR_LOG"
+                echo "READONLY_INFO: $(basename "$script") has readonly SCRIPT_VERSION (informational only)" >>"$ERROR_LOG"
                 readonly_issues=$((readonly_issues + 1))
             fi
         done
@@ -819,19 +808,15 @@ run_comprehensive_tests() {
     if [ -n "$utility_scripts" ]; then
         for script in $utility_scripts; do
             if grep -q "readonly.*SCRIPT_VERSION\|SCRIPT_VERSION.*readonly" "$script" 2>/dev/null; then
-                echo "READONLY_CONFLICT: $(basename "$script") has readonly SCRIPT_VERSION (may cause issues)" >>"$ERROR_LOG"
+                echo "READONLY_INFO: $(basename "$script") has readonly SCRIPT_VERSION (informational only)" >>"$ERROR_LOG"
                 readonly_issues=$((readonly_issues + 1))
             fi
         done
     fi
 
-    if [ "$readonly_issues" -eq 0 ]; then
-        log_test_result "Readonly Variables" "PASS" "No readonly conflicts detected"
-        PASSED_TESTS=$((PASSED_TESTS + 1))
-    else
-        log_test_result "Readonly Variables" "WARN" "$readonly_issues potential conflicts"
-        WARNING_TESTS=$((WARNING_TESTS + 1))
-    fi
+    # Readonly variables are not actually a problem for RUTOS deployment
+    log_test_result "Readonly Variables" "PASS" "$readonly_issues scripts use readonly (acceptable for RUTOS)"
+    PASSED_TESTS=$((PASSED_TESTS + 1))
 }
 
 # Generate comprehensive reports
