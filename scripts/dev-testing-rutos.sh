@@ -1,13 +1,17 @@
 #!/bin/sh
 # Script: dev-testing-rutos.sh
-# Version: 2.4.12
-# Description: Master RUTOS development testing script - self-updates, downloads latest, comprehensive testing
+#!/bin/sh
+# shellcheck disable=SC2059  # RUTOS requires Method 5 printf format (embedded variables)
+# shellcheck disable=SC2317  # Functions are called dynamically by main()
+# Script: dev-testing-rutos.sh
+# Version: 2.4.12 (Consolidated)
+# Description: Comprehensive RUTOS development testing script with consolidated functionality
 # Usage: ./scripts/dev-testing-rutos.sh [--force-update] [--no-install] [--debug] [--help]
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+readonly SCRIPT_VERSION="2.4.12"
 
 # GitHub repository information
 GITHUB_USER="markus-lassfolk"
@@ -644,7 +648,8 @@ run_comprehensive_tests() {
     # Test syntax for all scripts
     for script_list in "$main_scripts" "$utility_scripts" "$test_scripts" "$config_files"; do
         if [ -n "$script_list" ]; then
-            echo "$script_list" | while IFS= read -r script; do
+            # Use a for loop with file list instead of pipe to avoid subshell
+            for script in $script_list; do
                 test_script_syntax "$script"
             done
         fi
@@ -656,7 +661,8 @@ run_comprehensive_tests() {
     # Test RUTOS compatibility for all scripts
     for script_list in "$main_scripts" "$utility_scripts" "$test_scripts" "$config_files"; do
         if [ -n "$script_list" ]; then
-            echo "$script_list" | while IFS= read -r script; do
+            # Use a for loop with file list instead of pipe to avoid subshell
+            for script in $script_list; do
                 test_rutos_compatibility "$script"
             done
         fi
@@ -668,7 +674,8 @@ run_comprehensive_tests() {
     # Test execution for executable scripts (skip config files)
     for script_list in "$main_scripts" "$utility_scripts" "$test_scripts"; do
         if [ -n "$script_list" ]; then
-            echo "$script_list" | while IFS= read -r script; do
+            # Use a for loop with file list instead of pipe to avoid subshell
+            for script in $script_list; do
                 # Skip non-executable scripts and the current script
                 if [ -x "$script" ] || echo "$script" | grep -q '\.sh$'; then
                     # Skip self to avoid recursion
@@ -690,7 +697,8 @@ run_comprehensive_tests() {
     version_issues=0
     for script_list in "$main_scripts" "$utility_scripts"; do
         if [ -n "$script_list" ]; then
-            echo "$script_list" | while IFS= read -r script; do
+            # Use a for loop with file list instead of pipe to avoid subshell
+            for script in $script_list; do
                 if grep -q "SCRIPT_VERSION=" "$script" 2>/dev/null; then
                     script_version=$(grep "SCRIPT_VERSION=" "$script" | head -1 | cut -d'"' -f2 2>/dev/null)
                     if [ "$script_version" != "$SCRIPT_VERSION" ]; then
@@ -717,7 +725,8 @@ run_comprehensive_tests() {
     readonly_issues=0
     for script_list in "$main_scripts" "$utility_scripts"; do
         if [ -n "$script_list" ]; then
-            echo "$script_list" | while IFS= read -r script; do
+            # Use a for loop with file list instead of pipe to avoid subshell
+            for script in $script_list; do
                 if grep -q "readonly.*SCRIPT_VERSION\|SCRIPT_VERSION.*readonly" "$script" 2>/dev/null; then
                     echo "READONLY_CONFLICT: $(basename "$script") has readonly SCRIPT_VERSION (may cause issues)" >>"$ERROR_LOG"
                     readonly_issues=$((readonly_issues + 1))
