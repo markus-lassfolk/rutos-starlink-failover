@@ -223,7 +223,7 @@ fi
 DEBUG="${DEBUG:-0}"
 if [ "$DEBUG" = "1" ]; then
     debug_log "==================== STARLINK MONITOR DEBUG MODE ENABLED ===================="
-    debug_log "Script version: 2.4.0"
+    debug_log "Script version: $SCRIPT_VERSION"
     debug_log "Current working directory: $(pwd)"
     debug_log "Script path: $0"
     debug_log "Process ID: $$"
