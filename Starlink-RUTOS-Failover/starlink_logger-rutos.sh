@@ -145,6 +145,16 @@ debug_log "==================== STARLINK LOGGER START ===================="
 debug_log "Starting data logging run"
 log "--- Starting data logging run ---"
 
+# --- Performance Monitoring Setup ---
+# Record start time for execution monitoring
+script_start_time=$(date +%s)
+debug_log "PERFORMANCE: Script started at epoch $script_start_time"
+
+# Performance thresholds (configurable)
+MAX_EXECUTION_TIME_SECONDS="${MAX_EXECUTION_TIME_SECONDS:-30}"  # Maximum acceptable script runtime
+MAX_SAMPLES_PER_SECOND="${MAX_SAMPLES_PER_SECOND:-10}"         # Expected minimum processing rate
+PERFORMANCE_ALERT_THRESHOLD="${PERFORMANCE_ALERT_THRESHOLD:-15}" # Alert if script takes longer than this
+
 # --- Data Gathering ---
 # We make two API calls to get a complete set of metrics.
 debug_log "STEP: Making API calls to gather data"
@@ -235,14 +245,19 @@ debug_log "LOOP SETUP: new_sample_count=$new_sample_count"
 # PERFORMANCE FIX: Limit the number of samples to process to prevent massive loops
 # Only process the most recent samples (default: 60 = 1 hour of data)
 MAX_SAMPLES_PER_RUN="${MAX_SAMPLES_PER_RUN:-60}"
+samples_limited=false
 if [ "$new_sample_count" -gt "$MAX_SAMPLES_PER_RUN" ]; then
+    samples_limited=true
+    original_sample_count=$new_sample_count
     debug_log "PERFORMANCE LIMIT: Limiting processing to $MAX_SAMPLES_PER_RUN samples (was $new_sample_count)"
     log "WARNING: Too many new samples ($new_sample_count). Processing only the most recent $MAX_SAMPLES_PER_RUN samples."
+    log "WARNING: Logger may be falling behind - $((new_sample_count - MAX_SAMPLES_PER_RUN)) samples will be skipped"
     
     # Adjust last_sample_index to only process the most recent samples
     last_sample_index=$((current_sample_index - MAX_SAMPLES_PER_RUN))
     new_sample_count=$MAX_SAMPLES_PER_RUN
     debug_log "PERFORMANCE LIMIT: Adjusted last_sample_index to $last_sample_index"
+    debug_log "PERFORMANCE LIMIT: Skipping $((original_sample_count - MAX_SAMPLES_PER_RUN)) samples to prevent performance issues"
 fi
 
 debug_log "LOOP SETUP: Final new_sample_count=$new_sample_count"
@@ -286,6 +301,77 @@ debug_log "SAVED INDEX: $current_sample_index to $LAST_SAMPLE_FILE"
 
 debug_log "CSV OUTPUT: Successfully wrote $new_sample_count rows to $OUTPUT_CSV"
 log "--- Successfully logged $new_sample_count new data points. Finishing run. ---"
+
+# --- Performance Analysis and Alerting ---
+script_end_time=$(date +%s)
+execution_time=$((script_end_time - script_start_time))
+debug_log "PERFORMANCE: Script completed at epoch $script_end_time"
+debug_log "PERFORMANCE: Total execution time: ${execution_time} seconds"
+debug_log "PERFORMANCE: Processed $new_sample_count samples in ${execution_time} seconds"
+
+# Calculate processing rate
+if [ "$execution_time" -gt 0 ]; then
+    samples_per_second=$((new_sample_count / execution_time))
+    debug_log "PERFORMANCE: Processing rate: $samples_per_second samples/second"
+else
+    samples_per_second="$new_sample_count"
+    debug_log "PERFORMANCE: Processing rate: $samples_per_second samples/second (instant)"
+fi
+
+# Check for performance issues and generate alerts
+performance_issues=""
+
+# Check execution time threshold
+if [ "$execution_time" -gt "$MAX_EXECUTION_TIME_SECONDS" ]; then
+    performance_issues="${performance_issues}Execution time ($execution_time s) exceeded maximum ($MAX_EXECUTION_TIME_SECONDS s). "
+    log "WARNING: Logger execution took ${execution_time} seconds, exceeding maximum of ${MAX_EXECUTION_TIME_SECONDS} seconds"
+fi
+
+# Check processing rate
+if [ "$samples_per_second" -lt "$MAX_SAMPLES_PER_SECOND" ] && [ "$new_sample_count" -gt 5 ]; then
+    performance_issues="${performance_issues}Processing rate ($samples_per_second samples/s) below minimum ($MAX_SAMPLES_PER_SECOND samples/s). "
+    log "WARNING: Logger processing rate ($samples_per_second samples/s) is slower than expected minimum ($MAX_SAMPLES_PER_SECOND samples/s)"
+fi
+
+# Alert threshold check
+if [ "$execution_time" -gt "$PERFORMANCE_ALERT_THRESHOLD" ]; then
+    performance_issues="${performance_issues}Script performance degraded (${execution_time}s > ${PERFORMANCE_ALERT_THRESHOLD}s threshold). "
+    log "ALERT: Logger performance degraded - execution time ${execution_time} seconds exceeded alert threshold ${PERFORMANCE_ALERT_THRESHOLD} seconds"
+fi
+
+# Calculate if we're falling behind (samples accumulating faster than processing)
+# If we consistently process fewer samples than we should, we're falling behind
+expected_samples_per_run=1  # Normally expect 1-2 new samples per minute for frequent runs
+if [ "$new_sample_count" -gt "$((expected_samples_per_run * 5))" ]; then
+    performance_issues="${performance_issues}Falling behind data generation - processed $new_sample_count samples (expected ~$expected_samples_per_run). "
+    log "WARNING: Logger may be falling behind - processed $new_sample_count samples, expected around $expected_samples_per_run"
+fi
+
+# Check if we had to limit sample processing
+if [ "$samples_limited" = "true" ]; then
+    performance_issues="${performance_issues}Sample processing was limited to prevent performance issues ($original_sample_count reduced to $new_sample_count). "
+    log "WARNING: Sample processing was limited - $((original_sample_count - new_sample_count)) samples were skipped"
+fi
+
+# Send consolidated alert if there are performance issues
+if [ -n "$performance_issues" ]; then
+    alert_message="Starlink Logger Performance Issues: ${performance_issues}Runtime: ${execution_time}s, Rate: ${samples_per_second} samples/s, Batch size: $new_sample_count"
+    log "PERFORMANCE_ALERT: $alert_message"
+    debug_log "PERFORMANCE_ALERT: Generated alert for performance issues"
+    
+    # Try to send notification if available (from placeholder-utils.sh)
+    if command -v safe_notify >/dev/null 2>&1; then
+        safe_notify "Starlink Logger Performance Alert" "$alert_message" 1
+        debug_log "PERFORMANCE_ALERT: Notification sent via safe_notify"
+    else
+        debug_log "PERFORMANCE_ALERT: safe_notify not available, alert logged only"
+    fi
+else
+    debug_log "PERFORMANCE: No performance issues detected"
+    if [ "$execution_time" -lt "$PERFORMANCE_ALERT_THRESHOLD" ]; then
+        debug_log "PERFORMANCE: Script completed within acceptable time ($execution_time s < $PERFORMANCE_ALERT_THRESHOLD s)"
+    fi
+fi
 
 debug_log "LOGGER: Completing successfully"
 debug_log "==================== STARLINK LOGGER COMPLETE ===================="
