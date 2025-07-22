@@ -45,6 +45,16 @@ if [ -f "$CONFIG_FILE" ]; then
     . "$CONFIG_FILE"
 fi
 
+# Load placeholder utilities for graceful degradation and notifications
+script_dir="$(dirname "$0")/../scripts"
+if [ -f "$script_dir/placeholder-utils.sh" ]; then
+    # shellcheck source=/dev/null
+    . "$script_dir/placeholder-utils.sh"
+    debug_log "UTILITY: Loaded placeholder-utils.sh for notifications"
+else
+    debug_log "WARNING: placeholder-utils.sh not found. Pushover notifications may not work gracefully."
+fi
+
 # Set defaults for variables that may not be in config
 STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
 LOG_TAG="${LOG_TAG:-StarlinkLogger}"
@@ -123,7 +133,7 @@ fi
 DEBUG="${DEBUG:-0}"
 if [ "$DEBUG" = "1" ]; then
     debug_log "==================== STARLINK LOGGER DEBUG MODE ENABLED ===================="
-    debug_log "Script version: 2.4.0"
+    debug_log "Script version: $SCRIPT_VERSION"
     debug_log "Current working directory: $(pwd)"
     debug_log "Script path: $0"
     debug_log "Process ID: $$"
@@ -151,8 +161,8 @@ script_start_time=$(date +%s)
 debug_log "PERFORMANCE: Script started at epoch $script_start_time"
 
 # Performance thresholds (configurable)
-MAX_EXECUTION_TIME_SECONDS="${MAX_EXECUTION_TIME_SECONDS:-30}"  # Maximum acceptable script runtime
-MAX_SAMPLES_PER_SECOND="${MAX_SAMPLES_PER_SECOND:-10}"         # Expected minimum processing rate
+MAX_EXECUTION_TIME_SECONDS="${MAX_EXECUTION_TIME_SECONDS:-30}"   # Maximum acceptable script runtime
+MAX_SAMPLES_PER_SECOND="${MAX_SAMPLES_PER_SECOND:-10}"           # Expected minimum processing rate
 PERFORMANCE_ALERT_THRESHOLD="${PERFORMANCE_ALERT_THRESHOLD:-15}" # Alert if script takes longer than this
 
 # --- Data Gathering ---
@@ -252,7 +262,7 @@ if [ "$new_sample_count" -gt "$MAX_SAMPLES_PER_RUN" ]; then
     debug_log "PERFORMANCE LIMIT: Limiting processing to $MAX_SAMPLES_PER_RUN samples (was $new_sample_count)"
     log "WARNING: Too many new samples ($new_sample_count). Processing only the most recent $MAX_SAMPLES_PER_RUN samples."
     log "WARNING: Logger may be falling behind - $((new_sample_count - MAX_SAMPLES_PER_RUN)) samples will be skipped"
-    
+
     # Adjust last_sample_index to only process the most recent samples
     last_sample_index=$((current_sample_index - MAX_SAMPLES_PER_RUN))
     new_sample_count=$MAX_SAMPLES_PER_RUN
@@ -341,7 +351,7 @@ fi
 
 # Calculate if we're falling behind (samples accumulating faster than processing)
 # If we consistently process fewer samples than we should, we're falling behind
-expected_samples_per_run=1  # Normally expect 1-2 new samples per minute for frequent runs
+expected_samples_per_run=1 # Normally expect 1-2 new samples per minute for frequent runs
 if [ "$new_sample_count" -gt "$((expected_samples_per_run * 5))" ]; then
     performance_issues="${performance_issues}Falling behind data generation - processed $new_sample_count samples (expected ~$expected_samples_per_run). "
     log "WARNING: Logger may be falling behind - processed $new_sample_count samples, expected around $expected_samples_per_run"
@@ -358,7 +368,7 @@ if [ -n "$performance_issues" ]; then
     alert_message="Starlink Logger Performance Issues: ${performance_issues}Runtime: ${execution_time}s, Rate: ${samples_per_second} samples/s, Batch size: $new_sample_count"
     log "PERFORMANCE_ALERT: $alert_message"
     debug_log "PERFORMANCE_ALERT: Generated alert for performance issues"
-    
+
     # Try to send notification if available (from placeholder-utils.sh)
     if command -v safe_notify >/dev/null 2>&1; then
         safe_notify "Starlink Logger Performance Alert" "$alert_message" 1
