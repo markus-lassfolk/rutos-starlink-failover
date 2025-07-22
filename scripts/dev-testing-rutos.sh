@@ -558,28 +558,49 @@ test_script_execution() {
 
     log_debug "Testing execution for $script_name (timeout: ${timeout_duration}s)"
 
+    # Convert to absolute path to avoid path resolution issues
+    if [ "${script_path#/}" = "$script_path" ]; then
+        # Relative path - convert to absolute
+        abs_script_path="$(pwd)/$script_path"
+    else
+        # Already absolute path
+        abs_script_path="$script_path"
+    fi
+
+    # Verify script exists before testing
+    if [ ! -f "$abs_script_path" ]; then
+        log_test_result "$script_name" "FAIL" "Script file not found: $abs_script_path"
+        echo "EXECUTION_ERROR: $script_name" >>"$ERROR_LOG"
+        echo "  Script: $script_path" >>"$ERROR_LOG"
+        echo "  Absolute path: $abs_script_path" >>"$ERROR_LOG"
+        echo "  Error: Script file does not exist" >>"$ERROR_LOG"
+        echo "  Fix: Verify script path and file system permissions" >>"$ERROR_LOG"
+        echo "" >>"$ERROR_LOG"
+        FAILED_TESTS=$((FAILED_TESTS + 1))
+        return 1
+    fi
+
     # Set up execution environment
     original_dir=$(pwd)
-    script_dir=$(dirname "$script_path")
 
     # shellcheck disable=SC2030,SC2031  # Intentional subshell for isolated testing
     (
-        cd "$script_dir" 2>/dev/null || cd "$original_dir"
+        # Stay in original directory and use absolute path
         export RUTOS_TEST_MODE=1
         export DRY_RUN=1
         export DEBUG=0 # Reduce noise during testing
 
-        # Try execution with common test arguments
+        # Try execution with common test arguments using absolute path
         if command -v timeout >/dev/null 2>&1; then
-            timeout "$timeout_duration" sh "$script_path" --dry-run --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                timeout "$timeout_duration" sh "$script_path" --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                timeout "$timeout_duration" sh "$script_path" --help >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                timeout "$timeout_duration" sh "$script_path" >/dev/null 2>"$WORK_DIR/${script_name}.exec_err"
+            timeout "$timeout_duration" sh "$abs_script_path" --dry-run --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
+                timeout "$timeout_duration" sh "$abs_script_path" --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
+                timeout "$timeout_duration" sh "$abs_script_path" --help >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
+                timeout "$timeout_duration" sh "$abs_script_path" >/dev/null 2>"$WORK_DIR/${script_name}.exec_err"
         else
-            sh "$script_path" --dry-run --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                sh "$script_path" --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                sh "$script_path" --help >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                sh "$script_path" >/dev/null 2>"$WORK_DIR/${script_name}.exec_err"
+            sh "$abs_script_path" --dry-run --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
+                sh "$abs_script_path" --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
+                sh "$abs_script_path" --help >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
+                sh "$abs_script_path" >/dev/null 2>"$WORK_DIR/${script_name}.exec_err"
         fi
     )
 
