@@ -487,7 +487,8 @@ test_rutos_compatibility() {
     compat_issues=""
 
     # Check for bash-specific syntax that won't work in busybox
-    if grep -qE '\[\[[[:space:]]*[^[:space:]].*[^[:space:]][[:space:]]*\]\]' "$script_path" 2>/dev/null; then
+    # Look for actual [[ ]] conditional expressions, not POSIX character classes
+    if grep -qE '\[\[[[:space:]]+.*[[:space:]]+\]\]' "$script_path" 2>/dev/null; then
         compat_issues="${compat_issues}[[ ]] syntax (use [ ] instead); "
     fi
 
