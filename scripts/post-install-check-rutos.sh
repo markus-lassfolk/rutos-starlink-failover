@@ -83,7 +83,7 @@ safe_execute() {
     cmd="$1"
     # shellcheck disable=SC2317  # Function is called later in script
     description="$2"
-    
+
     # shellcheck disable=SC2317  # Function is called later in script
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
         log_info "[DRY-RUN] Would execute: $description"
@@ -93,7 +93,9 @@ safe_execute() {
         log_debug "Executing: $cmd"
         eval "$cmd"
     fi
-}log_step() {
+}
+
+log_step() {
     # shellcheck disable=SC2317  # Function provided for consistency - may be unused in some scripts
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"

@@ -17,7 +17,11 @@
 # Version information (auto-updated by update-version.sh)
 # Note: Only set SCRIPT_VERSION if not already set (prevents conflicts when sourced)
 if [ -z "${SCRIPT_VERSION:-}" ]; then
-    SCRIPT_VERSION="2.4.12"
+    # Script configuration template for Starlink RUTOS Failover
+# Version: 2.5.0
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.5.0"
+readonly SCRIPT_VERSION
 fi
 readonly SCRIPT_VERSION
 # Used for troubleshooting: echo "Config version: $SCRIPT_VERSION"
@@ -82,6 +86,9 @@ export API_TIMEOUT="10"
 
 # Directory for log files (persistent across reboots)
 export LOG_DIR="/etc/starlink-logs"
+
+# Installation directory (where scripts are installed)
+export INSTALL_DIR="/usr/local/starlink-monitor"
 
 # Directory for runtime state files
 export STATE_DIR="/tmp/run"

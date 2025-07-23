@@ -228,10 +228,11 @@ DRY_RUN=0   # Set to 1 to log actions without executing
 
 # System directories for persistent storage
 # NOTE: /var/log is wiped on reboot in OpenWrt/RUTOS - use /overlay/ for persistence
-STATE_DIR="/tmp/run"                   # Runtime state files (temporary)
-LOG_DIR="/overlay/starlink-logs"       # Log files directory (persistent across reboots)
-DATA_DIR="/overlay/starlink-data"      # Data storage directory (persistent across reboots)
-BACKUP_DIR="/overlay/starlink-backups" # Configuration backups (persistent)
+STATE_DIR="/tmp/run"                      # Runtime state files (temporary)
+LOG_DIR="/overlay/starlink-logs"          # Log files directory (persistent across reboots)
+INSTALL_DIR="/usr/local/starlink-monitor" # Installation directory (where scripts are installed)
+DATA_DIR="/overlay/starlink-data"         # Data storage directory (persistent across reboots)
+BACKUP_DIR="/overlay/starlink-backups"    # Configuration backups (persistent)
 
 # Binary paths (set by install script)
 GRPCURL_CMD="/root/grpcurl" # gRPC client for Starlink API
