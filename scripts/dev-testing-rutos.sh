@@ -207,32 +207,55 @@ self_update() {
     fi
 }
 
-# Find all RUTOS scripts in the project
+# Find all RUTOS scripts - defaults to installation directory, falls back to current if needed
 find_rutos_scripts() {
     # Create a temporary file to collect script paths
     temp_script_list="/tmp/rutos_scripts_$$"
     > "$temp_script_list"
 
-    # Current directory and subdirectories - suppress all output during find
-    find . -name "*-rutos.sh" -type f 2>/dev/null | sort | while read -r script; do
-        if [ -f "$script" ] && [ -r "$script" ]; then
-            # Only output to debug if debug is enabled, but don't let it contaminate the script list
-            if [ "$DEBUG" = "1" ]; then
-                printf "[DEBUG] [%s] Found script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
-            fi
-            echo "$script" >> "$temp_script_list"
+    # Try to read the installation directory from config
+    INSTALL_DIR=""
+    if [ -f "/etc/starlink-config/config.sh" ]; then
+        # Source the config to get INSTALL_DIR
+        # shellcheck source=/dev/null
+        . /etc/starlink-config/config.sh 2>/dev/null
+        if [ "$DEBUG" = "1" ]; then
+            printf "[DEBUG] [%s] Config found - INSTALL_DIR: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$INSTALL_DIR" >&2
         fi
-    done
+    fi
 
-    # Also check for main scripts that might be RUTOS-compatible
-    find . -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
-        if [ -f "$script" ] && [ -r "$script" ]; then
-            if [ "$DEBUG" = "1" ]; then
-                printf "[DEBUG] [%s] Found main script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
-            fi
-            echo "$script" >> "$temp_script_list"
+    # Default: Search installation directory and subdirectories
+    if [ -n "$INSTALL_DIR" ] && [ -d "$INSTALL_DIR" ]; then
+        if [ "$DEBUG" = "1" ]; then
+            printf "[DEBUG] [%s] Searching installation directory: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$INSTALL_DIR" >&2
         fi
-    done
+        
+        # Search for all RUTOS scripts in installation directory and subdirectories
+        find "$INSTALL_DIR" -name "*-rutos.sh" -o -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
+            if [ -f "$script" ] && [ -r "$script" ]; then
+                if [ "$DEBUG" = "1" ]; then
+                    printf "[DEBUG] [%s] Found installed script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+                fi
+                echo "$script" >> "$temp_script_list"
+            fi
+        done
+    fi
+
+    # Fallback: If no installation directory or no scripts found there, search current directory
+    if [ ! -s "$temp_script_list" ]; then
+        if [ "$DEBUG" = "1" ]; then
+            printf "[DEBUG] [%s] No scripts in installation dir, searching current directory\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
+        fi
+        
+        find . -name "*-rutos.sh" -o -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
+            if [ -f "$script" ] && [ -r "$script" ]; then
+                if [ "$DEBUG" = "1" ]; then
+                    printf "[DEBUG] [%s] Found local script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+                fi
+                echo "$script" >> "$temp_script_list"
+            fi
+        done
+    fi
 
     # Return the list and clean up (NO LOGGING in this function - it contaminates output)
     if [ -f "$temp_script_list" ] && [ -s "$temp_script_list" ]; then
