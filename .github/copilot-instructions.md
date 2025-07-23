@@ -770,6 +770,139 @@ Brief description of change
 **Remember**: This project prioritizes reliability and compatibility over advanced features. Always test changes in the
 RUTOS environment and maintain backward compatibility with existing configurations.
 
+## Continuous Learning and Documentation Improvement
+
+### Learning Capture Protocol
+
+**CRITICAL**: Whenever you discover something new, useful, or important during development sessions, immediately add it to this file to build our collective knowledge base.
+
+#### What to Document
+
+1. **New RUTOS/BusyBox Discoveries**
+   - Shell compatibility issues and solutions
+   - BusyBox command limitations or alternatives
+   - POSIX sh patterns that work vs. those that don't
+   - Router-specific behaviors or constraints
+
+2. **Debug and Testing Insights**
+   - Debugging techniques that work well in RUTOS environment
+   - Common error patterns and their solutions
+   - Testing strategies that reveal issues early
+   - Performance considerations for resource-constrained routers
+
+3. **Development Workflow Improvements**
+   - VS Code setup optimizations
+   - Using Winows with Powershell in VSCode, all Linux scripts and commands need to be run in WSL or Bash.
+   - Tool configurations that enhance productivity
+   - Git workflow patterns that work well for this project
+   - Quality assurance discoveries
+
+4. **Script Architecture Patterns**
+   - Effective function design patterns
+   - Error handling strategies that work reliably
+   - Configuration management insights
+   - Version management learnings
+
+5. **Integration and Deployment Learnings**
+   - Remote deployment gotchas and solutions
+   - Network connectivity considerations
+   - Azure integration best practices
+   - Production deployment insights
+
+#### Documentation Guidelines
+
+````bash
+# Use this format for new learnings:
+### [Category] - [Brief Title] (Date: YYYY-MM-DD)
+
+**Discovery**: What was learned or discovered
+**Context**: When/where this applies
+**Implementation**: How to apply this learning
+**Impact**: Why this matters for the project
+**Example**: Code example or specific case (if applicable)
+
+# Example:
+### Shell Scripting - Subprocess Output Contamination Fix (Date: 2025-07-23)
+
+**Discovery**: Using pipes with logging functions inside find commands contaminates script lists with log output like "[STEP]", "[DEBUG]" being treated as script filenames
+**Context**: When collecting script lists using find with logging inside loops or subshells
+**Implementation**: Move all logging AFTER data collection, use temp files instead of pipes for complex processing
+**Impact**: Prevents critical parsing failures that can cause divide-by-zero errors and complete test system failure
+**Example**:
+```bash
+# WRONG - logging contaminates output
+find . -name "*.sh" | while read script; do
+    log_debug "Found: $script"  # This contamination breaks parsing
+done
+
+# RIGHT - collect first, log after
+temp_file="/tmp/scripts_$$"
+find . -name "*.sh" > "$temp_file"
+log_step "Finding scripts"  # Safe to log after collection
+````
+
+#### Integration Process
+
+1. **During Development**: Add learnings immediately when discovered
+2. **Session Completion**: Review and consolidate new insights
+3. **Regular Updates**: Periodically review and refine existing sections
+4. **Cross-Reference**: Link new learnings to existing sections when relevant
+
+#### Learning Categories
+
+- **RUTOS Compatibility**: Hardware/OS specific discoveries
+- **Shell Scripting**: POSIX sh and BusyBox insights
+- **Debug and Testing**: Development and validation improvements
+- **Architecture**: Code organization and pattern discoveries
+- **Integration**: Deployment and system integration learnings
+- **Quality Assurance**: Testing and validation methodology improvements
+- **Development Workflow**: Tool and process optimizations
+
+### Recent Learning Captures
+
+#### Shell Scripting - Subprocess Output Contamination Fix (Date: 2025-07-23)
+
+**Discovery**: Using pipes with logging functions inside find commands contaminates script lists with log output like "[STEP]", "[DEBUG]" being treated as script filenames
+**Context**: When collecting script lists using find with logging inside loops or subshells  
+**Implementation**: Move all logging AFTER data collection, use temp files instead of pipes for complex processing
+**Impact**: Prevents critical parsing failures that can cause divide-by-zero errors and complete test system failure
+**Example**:
+
+```bash
+# WRONG - logging contaminates output
+find . -name "*.sh" | while read script; do
+    log_debug "Found: $script"  # This contamination breaks parsing
+done
+
+# RIGHT - collect first, log after
+temp_file="/tmp/scripts_$$"
+find . -name "*.sh" > "$temp_file"
+log_step "Finding scripts"  # Safe to log after collection
+```
+
+#### Testing - File-Based Processing Over Pipes (Date: 2025-07-23)
+
+**Discovery**: BusyBox subshell variable persistence issues make pipe-based processing unreliable for counters and state
+**Context**: When processing lists of items and tracking results/counters across iterations
+**Implementation**: Use temporary files to pass data between processing stages instead of pipes with variable updates
+**Impact**: Ensures reliable result tracking and prevents variables being reset to zero after subshell completion
+**Example**:
+
+```bash
+# WRONG - variables lost in subshell
+find . -name "*.sh" | while read script; do
+    COUNTER=$((COUNTER + 1))  # Lost when pipe ends
+done
+
+# RIGHT - file-based approach
+temp_results="/tmp/results_$$"
+find . -name "*.sh" > /tmp/scripts_$$
+while read script; do
+    echo "PASS:$script" >> "$temp_results"
+done < /tmp/scripts_$$
+COUNTER=$(wc -l < "$temp_results")
+```
+
 ## Current Project Status (As of July 2025)
 
 ### Development Milestones Achieved
