@@ -74,10 +74,12 @@ if [ "${DEBUG:-0}" = "1" ]; then
     printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
 fi
 
-# Early exit in test mode to prevent execution errors
+# Configure test mode behavior - allow basic logic but skip network operations
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
-    exit 0
+    printf "[INFO] RUTOS_TEST_MODE enabled - will simulate network operations\n" >&2
+    SKIP_NETWORK_TESTS=1
+else
+    SKIP_NETWORK_TESTS=0
 fi
 
 # Function to safely execute commands
@@ -85,7 +87,7 @@ safe_execute() {
     cmd="$1"
     description="$2"
 
-    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
         printf "${BLUE}[DRY-RUN]${NC} Would execute: %s\n" "$description"
         return 0
     else
