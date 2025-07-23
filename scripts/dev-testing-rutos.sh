@@ -753,14 +753,28 @@ main() {
         log_info "Found script: $script_path"
         
         # Test the single script
+        TOTAL_SCRIPTS=1  # Set counter for single script mode
+        
         if [ "$COMPREHENSIVE_TEST" = "1" ]; then
             log_info "Running comprehensive test on $SINGLE_SCRIPT"
-            test_script_comprehensive "$script_path"
+            if test_script_comprehensive "$script_path"; then
+                PASSED_SCRIPTS=1
+                FAILED_SCRIPTS=0
+                log_success "✅ $SINGLE_SCRIPT passed comprehensive testing"
+            else
+                PASSED_SCRIPTS=0
+                FAILED_SCRIPTS=1
+                log_error "❌ $SINGLE_SCRIPT failed comprehensive testing"
+            fi
         else
             log_info "Running basic test on $SINGLE_SCRIPT"
             if test_script "$script_path"; then
+                PASSED_SCRIPTS=1
+                FAILED_SCRIPTS=0
                 log_success "✅ $SINGLE_SCRIPT passed all tests"
             else
+                PASSED_SCRIPTS=0
+                FAILED_SCRIPTS=1
                 log_error "❌ $SINGLE_SCRIPT failed tests"
             fi
         fi
