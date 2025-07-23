@@ -95,12 +95,6 @@ safe_execute() {
     fi
 }
 
-# Early exit in test mode to prevent execution errors
-if [ "$RUTOS_TEST_MODE" = "1" ]; then
-    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
-    exit 0
-fi
-
 log_step() {
     # shellcheck disable=SC2317  # Function provided for consistency - may be unused in some scripts
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
@@ -161,6 +155,12 @@ check_status() {
             ;;
     esac
 }
+
+# Early exit in test mode to prevent execution errors
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
 
 # Show header
 printf "\n"

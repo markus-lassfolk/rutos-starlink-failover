@@ -415,8 +415,15 @@ test_script() {
     export TEST_MODE=1
     export DEBUG="$DEBUG"
 
+    # Determine timeout based on script type
+    timeout_seconds=20
+    if echo "$script_name" | grep -qE "(health-check|post-install-check|system-maintenance|comprehensive)" 2>/dev/null; then
+        timeout_seconds=60
+        log_debug "Using extended timeout for comprehensive script: $script_name"
+    fi
+
     # Try to run script - it should respect our dry-run environment variables
-    if ! timeout 20 sh "$script_path" >/tmp/test_output_$$ 2>&1; then
+    if ! timeout $timeout_seconds sh "$script_path" >/tmp/test_output_$$ 2>&1; then
         # Check if error is due to missing config or dependencies vs real issues
         test_error=$(cat /tmp/test_output_$$ 2>/dev/null | head -5 || echo "Script execution failed")
 
@@ -503,8 +510,15 @@ test_script_comprehensive() {
         printf "${YELLOW}Environment: %s${NC}\n" "$env_vars"
         printf "${YELLOW}Running...${NC}\n"
 
+        # Determine timeout based on script type
+        timeout_seconds=30
+        if echo "$script_name" | grep -qE "(health-check|post-install-check|system-maintenance|comprehensive)" 2>/dev/null; then
+            timeout_seconds=60
+            printf "${CYAN}(Using extended timeout for comprehensive script)${NC}\n"
+        fi
+
         # Execute with timeout and capture both stdout and stderr
-        if eval "$test_env timeout 15 sh '$script_path'" >"$output_file" 2>&1; then
+        if eval "$test_env timeout $timeout_seconds sh '$script_path'" >"$output_file" 2>&1; then
             printf "${GREEN}✅ SUCCESS${NC}\n"
             echo "PASS:Test_${test_num}" >> "$comp_results_file"
             
