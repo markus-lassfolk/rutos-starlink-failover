@@ -3,6 +3,12 @@
 # Version: 2.4.12
 # Description: Comprehensive connectivity and credential testing for Starlink monitoring system
 
+# Early exit in test mode to prevent any execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
+fi
+
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
@@ -80,12 +86,6 @@ if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
     SKIP_NETWORK_TESTS=1
 else
     SKIP_NETWORK_TESTS=0
-fi
-
-# Early exit in test mode to prevent execution errors
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
-    exit 0
 fi
 
 # Function to safely execute commands
