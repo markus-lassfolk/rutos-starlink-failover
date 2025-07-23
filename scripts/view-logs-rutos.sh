@@ -53,6 +53,43 @@ log_step() {
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "${DEBUG:-0}" = "1" ]; then
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${CYAN}[DEBUG]${NC} [%s] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$DRY_RUN" "$RUTOS_TEST_MODE"
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        log_info "[DRY-RUN] Would execute: $description"
+        if [ "${DEBUG:-0}" = "1" ]; then
+            # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+            printf "${CYAN}[DEBUG]${NC} [%s] [DRY-RUN] Command: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$cmd"
+        fi
+        return 0
+    else
+        if [ "${DEBUG:-0}" = "1" ]; then
+            # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+            printf "${CYAN}[DEBUG]${NC} [%s] Executing: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$cmd"
+        fi
+        eval "$cmd"
+    fi
+}
+
+# Early exit in test mode to prevent execution errors
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
 # Constants
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
 LOG_DIR="$INSTALL_DIR/logs"

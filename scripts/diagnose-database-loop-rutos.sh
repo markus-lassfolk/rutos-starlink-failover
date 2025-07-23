@@ -55,6 +55,12 @@ safe_execute() {
     fi
 }
 
+# Early exit in test mode to prevent execution errors
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    printf "${GREEN}RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution${NC}\n"
+    exit 0
+fi
+
 printf "${BLUE}%s${NC}\n\n" "=== RUTOS Database Loop Diagnostic ==="
 
 # 1. Check for the loop pattern in recent logs

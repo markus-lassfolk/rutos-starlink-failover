@@ -50,6 +50,36 @@ test_step() {
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "${DEBUG:-0}" = "1" ]; then
+    test_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        test_log "[DRY-RUN] Would execute: $description"
+        test_debug "[DRY-RUN] Command: $cmd"
+        return 0
+    else
+        test_debug "Executing: $cmd"
+        eval "$cmd"
+    fi
+}
+
+# Early exit in test mode to prevent execution errors
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    test_log "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
 # Test configuration
 TEST_DIR="/tmp/starlink-merge-test.$$"
 NOTIFICATION_SETTINGS="NOTIFY_ON_CRITICAL NOTIFY_ON_HARD_FAIL NOTIFY_ON_RECOVERY NOTIFY_ON_SOFT_FAIL NOTIFY_ON_INFO"

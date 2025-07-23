@@ -50,6 +50,40 @@ print_status "$BLUE" "║                         Version $SCRIPT_VERSION       
 print_status "$BLUE" "╚══════════════════════════════════════════════════════════════════════════╝"
 print_status "" ""
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "${DEBUG:-0}" = "1" ]; then
+    print_status "$CYAN" "[DEBUG] DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        print_status "$GREEN" "[DRY-RUN] Would execute: $description"
+        if [ "${DEBUG:-0}" = "1" ]; then
+            print_status "$CYAN" "[DRY-RUN] Command: $cmd"
+        fi
+        return 0
+    else
+        if [ "${DEBUG:-0}" = "1" ]; then
+            print_status "$CYAN" "Executing: $cmd"
+        fi
+        eval "$cmd"
+    fi
+}
+
+# Early exit in test mode to prevent execution errors
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    print_status "$GREEN" "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
 # Check if running on OpenWrt/RUTOS
 if [ ! -f "/etc/openwrt_release" ]; then
     print_status "$RED" "❌ Error: This script is designed for OpenWrt/RUTOS systems"

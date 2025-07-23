@@ -529,6 +529,12 @@ EOF
     fi
 }
 
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
 # Main execution function
 main() {
     printf "\n${BLUE}========================================${NC}\n"

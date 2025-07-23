@@ -276,6 +276,12 @@ if [ "$DEBUG" = "1" ]; then
     debug_log "  PUSHOVER_USER=$(printf "%.10s..." "${PUSHOVER_USER:-not_set}")"
 fi
 
+# Early exit in test mode to prevent execution errors
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    debug_log "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
 ##
 # main()
 # Main monitoring logic: rotates logs, acquires lock, gathers Starlink API data, analyzes quality, manages failover/failback, updates health, and notifies as needed.

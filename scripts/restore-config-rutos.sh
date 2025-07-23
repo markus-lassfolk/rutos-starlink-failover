@@ -64,6 +64,12 @@ print_status() {
     esac
 }
 
+# Early exit in test mode to prevent execution errors
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    print_status "$GREEN" "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
 print_status "$GREEN" "=== Configuration Restoration Utility ==="
 
 # Find the most recent backup

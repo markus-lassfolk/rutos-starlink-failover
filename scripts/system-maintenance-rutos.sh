@@ -1527,11 +1527,41 @@ CONFIGURATION:
 - Notification Cooldown: ${MAINTENANCE_NOTIFICATION_COOLDOWN}s
 - Config File: ${CONFIG_FILE:-Not found}
 
-RECENT MAINTENANCE LOG (last 20 entries):
+RECENT MAINTENANCE LOG (current run):
 EOF
 
     if [ -f "$MAINTENANCE_LOG" ]; then
-        tail -20 "$MAINTENANCE_LOG" >>"$report_file"
+        # Get current run start time for filtering (format: YYYY-MM-DD HH:MM:SS)
+        current_run_start=$(date '+%Y-%m-%d %H:%M')  # Match to minute precision
+        
+        # Extract entries from current run session only
+        # Find the last START entry and get all entries after it
+        current_run_entries=$(awk '
+            /\[START\] System maintenance run/ { 
+                start_found = 1; 
+                current_run = ""; 
+                current_run = current_run $0 "\n"; 
+                next 
+            }
+            start_found { 
+                current_run = current_run $0 "\n" 
+            }
+            END { 
+                if (current_run != "") {
+                    printf "%s", current_run
+                } else {
+                    print "No current run entries found"
+                }
+            }
+        ' "$MAINTENANCE_LOG")
+        
+        if [ -n "$current_run_entries" ] && [ "$current_run_entries" != "No current run entries found" ]; then
+            echo "$current_run_entries" >>"$report_file"
+        else
+            echo "" >>"$report_file"
+            echo "Recent entries (last 10):" >>"$report_file"
+            tail -10 "$MAINTENANCE_LOG" >>"$report_file"
+        fi
     else
         echo "No maintenance log found" >>"$report_file"
     fi
