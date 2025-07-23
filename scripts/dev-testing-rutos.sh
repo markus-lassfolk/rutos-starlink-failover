@@ -542,10 +542,15 @@ main() {
         
         # Calculate final results
         if [ -f "$temp_results" ] && [ -s "$temp_results" ]; then
-            # Use more robust counting to avoid whitespace issues
+            # Use more robust counting to avoid whitespace issues - fix command order
             TOTAL_SCRIPTS=$(wc -l < "$temp_results" | tr -d ' \n\r')
-            PASSED_SCRIPTS=$(grep -c "^PASS:" "$temp_results" 2>/dev/null | tr -d ' \n\r' || echo "0")
-            FAILED_SCRIPTS=$(grep -c "^FAIL:" "$temp_results" 2>/dev/null | tr -d ' \n\r' || echo "0")
+            
+            # Fix grep fallback - tr should happen on grep output, not on fallback
+            PASSED_COUNT=$(grep -c "^PASS:" "$temp_results" 2>/dev/null || echo "0")
+            PASSED_SCRIPTS=$(printf "%s" "$PASSED_COUNT" | tr -d ' \n\r')
+            
+            FAILED_COUNT=$(grep -c "^FAIL:" "$temp_results" 2>/dev/null || echo "0")
+            FAILED_SCRIPTS=$(printf "%s" "$FAILED_COUNT" | tr -d ' \n\r')
             
             # Debug the calculated values
             log_debug "Result counts: TOTAL=$TOTAL_SCRIPTS, PASSED=$PASSED_SCRIPTS, FAILED=$FAILED_SCRIPTS"
