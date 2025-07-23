@@ -118,7 +118,32 @@ log_success() {
     printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
-log_step() {
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "$DEBUG" = "1" ]; then
+    log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    # shellcheck disable=SC2317  # Function is called later in script
+    cmd="$1"
+    # shellcheck disable=SC2317  # Function is called later in script
+    description="$2"
+    
+    # shellcheck disable=SC2317  # Function is called later in script
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        log_info "[DRY-RUN] Would execute: $description"
+        log_debug "[DRY-RUN] Command: $cmd"
+        return 0
+    else
+        log_debug "Executing: $cmd"
+        eval "$cmd"
+    fi
+}log_step() {
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 

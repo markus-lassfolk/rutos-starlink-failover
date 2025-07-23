@@ -46,6 +46,34 @@ print_status() {
     esac
 }
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "${DEBUG:-0}" = "1" ]; then
+    print_status "$CYAN" "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        print_status "$YELLOW" "[DRY-RUN] Would execute: $description"
+        if [ "${DEBUG:-0}" = "1" ]; then
+            print_status "$CYAN" "[DRY-RUN] Command: $cmd"
+        fi
+        return 0
+    else
+        if [ "${DEBUG:-0}" = "1" ]; then
+            print_status "$CYAN" "Executing: $cmd"
+        fi
+        eval "$cmd"
+    fi
+}
+
 print_status "$BLUE" "==== Cleanup: Removing Starlink Monitor artifacts ===="
 
 # Comment out cron entries
@@ -54,36 +82,26 @@ if [ -f "$CRON_FILE" ]; then
     print_status "$YELLOW" "Commenting Starlink cron entries in $CRON_FILE"
 
     # Create backup
-    cp "$CRON_FILE" "${CRON_FILE}.cleanup.backup.$(date +%Y%m%d_%H%M%S)" || true
+    safe_execute "cp '$CRON_FILE' '${CRON_FILE}.cleanup.backup.$(date +%Y%m%d_%H%M%S)'" "Create crontab backup"
 
     # Comment out starlink entries and clean up blank lines
     temp_cron="/tmp/crontab_cleanup.tmp"
-    sed 's|^\([^#].*\(starlink_monitor-rutos\.sh\|starlink_logger-rutos\.sh\|check_starlink_api\).*\)|# CLEANUP COMMENTED: \1|g' "$CRON_FILE" >"$temp_cron"
+    safe_execute "sed 's|^\([^#].*\(starlink_monitor-rutos\.sh\|starlink_logger-rutos\.sh\|check_starlink_api\).*\)|# CLEANUP COMMENTED: \1|g' '$CRON_FILE' >'$temp_cron'" "Process crontab entries"
 
     # Remove excessive blank lines (more than 1 consecutive blank line)
-    awk '
-    BEGIN { blank_count = 0 }
-    /^$/ { 
-        blank_count++
-        if (blank_count <= 1) print
-    }
-    /^./ { 
-        blank_count = 0
-        print 
-    }
-    ' "$temp_cron" >"${temp_cron}.clean" && mv "${temp_cron}.clean" "$temp_cron"
+    safe_execute "awk 'BEGIN { blank_count = 0 } /^$/ { blank_count++; if (blank_count <= 1) print } /^./ { blank_count = 0; print }' '$temp_cron' >'${temp_cron}.clean' && mv '${temp_cron}.clean' '$temp_cron'" "Clean up blank lines"
 
     # Apply the cleaned crontab
-    mv "$temp_cron" "$CRON_FILE" || true
-    /etc/init.d/cron restart >/dev/null 2>&1 || true
+    safe_execute "mv '$temp_cron' '$CRON_FILE'" "Update crontab file"
+    safe_execute "/etc/init.d/cron restart >/dev/null 2>&1" "Restart cron service"
     print_status "$GREEN" "Cron entries commented and blank lines normalized"
 fi
 
 # Disable and remove auto-restore service
 if [ -x "/etc/init.d/starlink-restore" ]; then
     print_status "$YELLOW" "Disabling auto-restoration service"
-    /etc/init.d/starlink-restore disable >/dev/null 2>&1 || true
-    rm -f /etc/init.d/starlink-restore
+    safe_execute "/etc/init.d/starlink-restore disable >/dev/null 2>&1" "Disable auto-restore service"
+    safe_execute "rm -f /etc/init.d/starlink-restore" "Remove auto-restore service file"
     print_status "$GREEN" "Auto-restoration service removed"
 fi
 
@@ -91,7 +109,7 @@ fi
 INSTALL_DIR="/usr/local/starlink-monitor"
 if [ -d "$INSTALL_DIR" ]; then
     print_status "$YELLOW" "Removing installation directory: $INSTALL_DIR"
-    rm -rf "$INSTALL_DIR"
+    safe_execute "rm -rf '$INSTALL_DIR'" "Remove installation directory"
     print_status "$GREEN" "Installation directory removed"
 fi
 
@@ -99,7 +117,7 @@ fi
 for path in "/etc/starlink-config" "/etc/starlink-logs"; do
     if [ -e "$path" ]; then
         print_status "$YELLOW" "Removing $path"
-        rm -rf "$path"
+        safe_execute "rm -rf '$path'" "Remove $path"
         print_status "$GREEN" "$path removed"
     fi
 done
@@ -108,7 +126,7 @@ done
 for link in "/root/config.sh" "/root/starlink-monitor"; do
     if [ -L "$link" ] || [ -e "$link" ]; then
         print_status "$YELLOW" "Removing symlink or file: $link"
-        rm -f "$link"
+        safe_execute "rm -f '$link'" "Remove $link"
         print_status "$GREEN" "$link removed"
     fi
 done

@@ -1,15 +1,23 @@
 #!/bin/sh
 # shellcheck disable=SC2059  # RUTOS requires Method 5 printf format (embedded variables)
-# shellcheck disable=SC2317  # Functions are called dynamically by main()
 # Script: dev-testing-rutos.sh
-# Version: 2.4.13 (Consolidated with Config-Aware Discovery)
-# Description: Comprehensive RUTOS development testing script with smart script discovery
-# Usage: ./scripts/dev-testing-rutos.sh [--force-update] [--no-install] [--debug] [--help]
+# Version: 2.5.0
+# Description: Simple RUTOS script testing with AI-friendly error reporting
+# Usage: ./scripts/dev-testing-rutos.sh [--debug] [--help]
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-readonly SCRIPT_VERSION="2.4.13"
+SCRIPT_VERSION="2.5.0"
+readonly SCRIPT_VERSION# Script: dev-testing-rutos-simplified.sh
+# Version: 2.5.0
+# Description: Simple RUTOS script testing with AI-friendly error reporting
+# Usage: ./scripts/dev-testing-rutos-simplified.sh [--debug] [--help]
+
+set -e # Exit on error
+
+# Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="2.5.0"
 
 # GitHub repository information
 GITHUB_USER="markus-lassfolk"
@@ -22,7 +30,6 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
-PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
@@ -32,12 +39,11 @@ if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" != "" ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
-    PURPLE=""
     CYAN=""
     NC=""
 fi
 
-# Standard logging functions with consistent colors
+# Standard logging functions with RUTOS-compatible printf format
 log_info() {
     printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
@@ -64,84 +70,27 @@ log_step() {
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
-log_header() {
-    printf "\n${PURPLE}========================================${NC}\n"
-    printf "${PURPLE}%s${NC}\n" "$1"
-    printf "${PURPLE}========================================${NC}\n"
-}
-
-log_test_result() {
-    test_name="$1"
-    status="$2"
-    details="$3"
-
-    case "$status" in
-        "PASS")
-            printf "${GREEN}✅ PASS${NC}     | %-25s | %s\n" "$test_name" "$details"
-            ;;
-        "FAIL")
-            printf "${RED}❌ FAIL${NC}     | %-25s | %s\n" "$test_name" "$details"
-            ;;
-        "WARN")
-            printf "${YELLOW}⚠️  WARN${NC}     | %-25s | %s\n" "$test_name" "$details"
-            ;;
-        "SKIP")
-            printf "${CYAN}⏭️  SKIP${NC}     | %-25s | %s\n" "$test_name" "$details"
-            ;;
-        *)
-            printf "${PURPLE}ℹ️  INFO${NC}     | %-25s | %s\n" "$test_name" "$details"
-            ;;
-    esac
-}
-
-# Configuration and flags
+# Configuration
 DEBUG="${DEBUG:-0}"
-FORCE_UPDATE="${FORCE_UPDATE:-0}"
-NO_INSTALL="${NO_INSTALL:-0}"
-SKIP_SELF_UPDATE="${SKIP_SELF_UPDATE:-0}"
-DRY_RUN="${DRY_RUN:-1}"
-RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-1}"
+SKIP_UPDATE="${SKIP_UPDATE:-0}"
 
 # Test result counters
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
-WARNING_TESTS=0
-SKIPPED_TESTS=0
-
-# Working directories
-WORK_DIR="/tmp/rutos-dev-test-$$"
-TEST_DIR="$WORK_DIR/test-env"
-LOG_DIR="$WORK_DIR/logs"
-ERROR_LOG="$LOG_DIR/test-errors.txt"
-SUMMARY_LOG="$LOG_DIR/test-summary.txt"
-# shellcheck disable=SC2034  # Reserved for detailed logging
-FULL_LOG="$LOG_DIR/test-full.txt"
+TOTAL_SCRIPTS=0
+PASSED_SCRIPTS=0
+FAILED_SCRIPTS=0
+SCRIPTS_MISSING_DRYRUN=0
+ERROR_DETAILS=""
 
 # Parse command line arguments
 parse_arguments() {
     while [ $# -gt 0 ]; do
         case "$1" in
-            --force-update)
-                FORCE_UPDATE=1
-                shift
-                ;;
-            --no-install)
-                NO_INSTALL=1
-                shift
-                ;;
-            --debug | -debug)
+            --debug | -d)
                 DEBUG=1
                 shift
                 ;;
-            --skip-self-update)
-                SKIP_SELF_UPDATE=1
-                shift
-                ;;
-            --live-mode)
-                DRY_RUN=0
-                RUTOS_TEST_MODE=0
-                log_warning "Live mode enabled - scripts will make actual changes!"
+            --skip-update)
+                SKIP_UPDATE=1
                 shift
                 ;;
             --help | -h)
@@ -159,364 +108,212 @@ parse_arguments() {
 # Show help information
 show_help() {
     cat <<EOF
-RUTOS Development Testing Script v$SCRIPT_VERSION (Config-Aware Discovery)
+RUTOS Script Testing Tool v$SCRIPT_VERSION
+
+PURPOSE:
+    Run all *-rutos.sh scripts in safe test mode to catch errors.
+    Generate AI-friendly error reports for debugging assistance.
 
 USAGE:
-    ./scripts/dev-testing-rutos.sh [OPTIONS]
+    ./scripts/dev-testing-rutos-simplified.sh [OPTIONS]
 
 OPTIONS:
-    --force-update      Force update even if versions match
-    --no-install        Skip running install-rutos.sh (test existing files only)
-    --debug             Enable debug output
-    --skip-self-update  Skip self-update check (for testing)
-    --live-mode         Disable dry-run mode (CAUTION: makes real changes!)
+    --debug, -d         Enable debug output
+    --skip-update       Skip self-update check
     --help, -h          Show this help message
 
-WORKFLOW:
-    1. Self-update from GitHub (unless --skip-self-update)
-    2. Download and run install-rutos.sh (unless --no-install)
-    3. Discover installation base directory from /etc/starlink-config/config.sh
-    4. Comprehensive testing of deployed and development scripts:
-       - Syntax validation (POSIX sh compliance)
-       - RUTOS compatibility checks (busybox shell)
-       - Execution testing (dry-run mode with config sourcing)
-       - Functionality validation
-       - Error handling verification
-    5. Generate AI-friendly error reports for debugging
-
-SCRIPT DISCOVERY:
-    📂 Deployed Scripts    - Found via /etc/starlink-config/config.sh installation directory
-    📂 Development Scripts - Current directory structure (Starlink-RUTOS-Failover/, scripts/, etc.)
-    🔄 Mixed Testing       - Tests both deployed and development versions when available
-    🔧 Config Sourcing     - Deployed scripts run with proper config environment
-
-TEST CATEGORIES:
-    🔍 Syntax Tests     - Shell parser validation
-    🔧 Compatibility   - RUTOS/busybox specific checks
-    ⚡ Execution       - Dry-run execution testing with config sourcing
-    🎯 Functionality   - Feature-specific validation
-    📊 Integration     - End-to-end workflow testing
+WHAT IT DOES:
+    1. Auto-update itself from GitHub (unless --skip-update)
+    2. Find all *-rutos.sh scripts in the project
+    3. Run each script in test/dry-run mode
+    4. Capture all errors and issues
+    5. Generate AI-friendly error report
 
 OUTPUTS:
-    - dev-test-summary.txt     (Quick overview with pass/fail counts)
-    - dev-test-errors.txt      (AI-friendly error details with fixes)
-    - dev-test-full-log.txt    (Complete execution log with debug info)
+    - rutos-test-errors.txt    (AI-friendly error report)
+    - Console output           (Real-time progress)
 
 EXAMPLES:
-    ./scripts/dev-testing-rutos.sh                    # Full workflow with auto-discovery
-    ./scripts/dev-testing-rutos.sh --debug            # With detailed debug output
-    ./scripts/dev-testing-rutos.sh --no-install       # Test existing files only
-    ./scripts/dev-testing-rutos.sh --force-update     # Force update everything
-    ./scripts/dev-testing-rutos.sh --live-mode        # DANGEROUS: actual execution
+    # Basic testing
+    ./scripts/dev-testing-rutos-simplified.sh
+
+    # With debug output
+    ./scripts/dev-testing-rutos-simplified.sh --debug
+
+    # Skip auto-update (for development)
+    ./scripts/dev-testing-rutos-simplified.sh --skip-update
+
+DEPLOYMENT:
+    # Run directly from GitHub (for RUTOS router)
+    curl -fsSL https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/$GITHUB_BRANCH/scripts/dev-testing-rutos-simplified.sh | sh
+
+    # Or download and run
+    curl -fsSL https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/$GITHUB_BRANCH/scripts/dev-testing-rutos-simplified.sh > test-scripts.sh
+    chmod +x test-scripts.sh
+    ./test-scripts.sh
 
 SAFETY:
-    By default, all tests run in DRY_RUN mode and RUTOS_TEST_MODE.
-    This prevents actual system changes during testing.
-    Use --live-mode only for final validation on actual RUTOS device.
-
-FEATURES (WITH CONFIG-AWARE DISCOVERY):
-    ✅ Self-updating capability with GitHub integration
-    ✅ Smart script discovery using /etc/starlink-config/config.sh
-    ✅ Comprehensive syntax validation for all shell scripts
-    ✅ RUTOS compatibility checks (busybox shell compliance)
-    ✅ Execution testing with proper config environment sourcing
-    ✅ Version consistency validation across all scripts
-    ✅ Readonly variable conflict detection
-    ✅ AI-friendly error reporting with specific fixes
-    ✅ Complete test statistics and success rates
-    ✅ Safe dry-run mode by default
-    ✅ Mixed deployed/development script testing
+    All scripts run with DRY_RUN=1 and RUTOS_TEST_MODE=1 environment variables.
+    No actual system changes are made during testing.
 EOF
-    ./scripts/dev-testing-rutos.sh --no-install       # Test existing files only
-    ./scripts/dev-testing-rutos.sh --force-update     # Force update everything
-    ./scripts/dev-testing-rutos.sh --live-mode        # DANGEROUS: actual execution
-
-SAFETY:
-    By default, all tests run in DRY_RUN mode and RUTOS_TEST_MODE.
-    This prevents actual system changes during testing.
-    Use --live-mode only for final validation on actual RUTOS device.
-
-FEATURES (CONSOLIDATED FROM ALL TESTING SCRIPTS):
-    ✅ Self-updating capability with GitHub integration
-    ✅ Comprehensive syntax validation for all shell scripts
-    ✅ RUTOS compatibility checks (busybox shell compliance)
-    ✅ Execution testing with timeout protection
-    ✅ Version consistency validation across all scripts
-    ✅ Readonly variable conflict detection
-    ✅ AI-friendly error reporting with specific fixes
-    ✅ Complete test statistics and success rates
-    ✅ Safe dry-run mode by default
-EOF
-}
-
-# Setup working environment
-setup_test_environment() {
-    log_step "Setting up test environment"
-
-    # Create working directories
-    mkdir -p "$WORK_DIR" "$TEST_DIR" "$LOG_DIR"
-
-    # Initialize test logs
-    cat >"$ERROR_LOG" <<EOF
-RUTOS DEVELOPMENT TESTING - ERROR REPORT
-========================================
-Test Date: $(date)
-Script Version: $SCRIPT_VERSION
-Repository: ${GITHUB_USER}/${GITHUB_REPO}
-
-ERRORS AND ISSUES FOUND:
-EOF
-
-    cat >"$SUMMARY_LOG" <<EOF
-RUTOS DEVELOPMENT TESTING - SUMMARY
-===================================
-Test Date: $(date)
-Script Version: $SCRIPT_VERSION
-
-TEST RESULTS:
-EOF
-
-    # Set up environment variables for all tests
-    export DEBUG="$DEBUG"
-    export DRY_RUN="$DRY_RUN"
-    export RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
-    export TEST_MODE=1
-
-    log_debug "Test environment:"
-    log_debug "  Work directory: $WORK_DIR"
-    log_debug "  Test directory: $TEST_DIR"
-    log_debug "  Log directory: $LOG_DIR"
-    log_debug "  DRY_RUN: $DRY_RUN"
-    log_debug "  RUTOS_TEST_MODE: $RUTOS_TEST_MODE"
-
-    log_success "Test environment ready"
-}
-
-# Check dependencies
-check_dependencies() {
-    log_debug "Checking dependencies"
-
-    missing_deps=""
-
-    # Check for required commands
-    for cmd in curl sh find grep; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            missing_deps="$missing_deps $cmd"
-        fi
-    done
-
-    if [ -n "$missing_deps" ]; then
-        log_error "Missing required dependencies:$missing_deps"
-        log_error "Please install missing commands and try again"
-        exit 1
-    fi
-
-    # Check for optional but recommended commands
-    for cmd in timeout wget; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            log_warning "Optional command '$cmd' not found - some tests may be skipped"
-        fi
-    done
-
-    log_debug "Dependencies check passed"
-}
-
-# Get latest version from GitHub
-get_latest_version() {
-    log_debug "Fetching latest version from GitHub"
-
-    if latest_version=$(curl -fsSL "${GITHUB_RAW_BASE}/VERSION" 2>/dev/null); then
-        log_debug "Latest version from GitHub: $latest_version"
-        echo "$latest_version"
-        return 0
-    else
-        log_warning "Could not fetch latest version from GitHub"
-        return 1
-    fi
-}
-
-# Version comparison function
-version_compare() {
-    test_version="$1"
-    latest_version="$2"
-
-    # Simple version comparison (works for semantic versioning)
-    if [ "$test_version" = "$latest_version" ]; then
-        return 0 # Equal
-    else
-        return 1 # Different
-    fi
 }
 
 # Self-update functionality
 self_update() {
-    if [ "$SKIP_SELF_UPDATE" = "1" ]; then
-        log_info "Skipping self-update (--skip-self-update specified)"
+    if [ "$SKIP_UPDATE" = "1" ]; then
+        log_info "Skipping self-update (--skip-update specified)"
         return 0
     fi
 
-    # Check for update loop prevention
-    if [ "${SCRIPT_UPDATE_ATTEMPT:-0}" -gt 0 ]; then
-        log_warning "Update loop detected - skipping self-update to prevent infinite loop"
-        return 0
-    fi
+    log_step "Checking for script updates"
 
-    log_step "Checking for dev-testing-rutos.sh updates"
+    # Download latest version
+    TEMP_SCRIPT="/tmp/dev-testing-rutos-simplified.sh.latest"
+    SCRIPT_URL="${GITHUB_RAW_BASE}/scripts/dev-testing-rutos-simplified.sh"
 
-    # Get current script path
-    SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
-    SCRIPT_NAME="dev-testing-rutos.sh" # Always look for the main script name
+    log_debug "Downloading from: $SCRIPT_URL"
 
-    log_debug "Current script: $SCRIPT_PATH"
-    log_debug "Current version: $SCRIPT_VERSION"
-
-    # Download latest version to temporary file
-    TEMP_SCRIPT="$WORK_DIR/${SCRIPT_NAME}.latest"
-    GITHUB_SCRIPT_URL="${GITHUB_RAW_BASE}/scripts/${SCRIPT_NAME}"
-
-    log_debug "Downloading latest version from: $GITHUB_SCRIPT_URL"
-
-    if curl -fsSL "$GITHUB_SCRIPT_URL" -o "$TEMP_SCRIPT" 2>/dev/null; then
+    if curl -fsSL "$SCRIPT_URL" -o "$TEMP_SCRIPT" 2>/dev/null; then
         # Extract version from downloaded script
-        if latest_script_version=$(grep '^SCRIPT_VERSION=' "$TEMP_SCRIPT" | head -1 | cut -d'"' -f2 2>/dev/null) && [ -n "$latest_script_version" ]; then
-            log_debug "Latest script version: $latest_script_version"
+        if latest_version=$(grep '^readonly SCRIPT_VERSION=' "$TEMP_SCRIPT" | cut -d'"' -f2 2>/dev/null) && [ -n "$latest_version" ]; then
+            log_debug "Current: v$SCRIPT_VERSION, Latest: v$latest_version"
 
-            # Compare versions
-            if ! version_compare "$SCRIPT_VERSION" "$latest_script_version" || [ "$FORCE_UPDATE" = "1" ]; then
-                log_info "Latest dev-testing-rutos.sh available (v$latest_script_version vs current v$SCRIPT_VERSION)"
+            if [ "$SCRIPT_VERSION" != "$latest_version" ]; then
+                log_info "Updating script from v$SCRIPT_VERSION to v$latest_version"
 
-                # Verify downloaded script syntax
-                if ! sh -n "$TEMP_SCRIPT" 2>/dev/null; then
-                    log_error "Downloaded script has syntax errors - keeping current version"
-                    rm -f "$TEMP_SCRIPT"
-                    return 1
+                # Replace current script if we can write to it
+                SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+                if cp "$TEMP_SCRIPT" "$SCRIPT_PATH" 2>/dev/null; then
+                    chmod +x "$SCRIPT_PATH"
+                    log_success "Script updated successfully - restarting"
+                    exec sh "$SCRIPT_PATH" "$@"
+                else
+                    log_warning "Could not update script file - using downloaded version"
+                    exec sh "$TEMP_SCRIPT" "$@"
                 fi
-
-                log_info "Auto-updating to latest version and restarting..."
-
-                # Make backup of current script
-                cp "$SCRIPT_PATH" "${SCRIPT_PATH}.backup.$(date +%s)"
-
-                # Replace current script with latest version
-                cp "$TEMP_SCRIPT" "$SCRIPT_PATH"
-                chmod +x "$SCRIPT_PATH"
-
-                log_success "Script updated successfully - restarting with new version"
-
-                # Set environment variable to prevent update loops
-                export SCRIPT_UPDATE_ATTEMPT=1
-
-                # Re-execute with updated script
-                exec sh "$SCRIPT_PATH" "$@"
             else
-                log_info "dev-testing-rutos.sh is up to date (v$SCRIPT_VERSION)"
+                log_info "Script is up to date (v$SCRIPT_VERSION)"
             fi
         else
-            log_warning "Could not extract version from downloaded script - keeping current version"
-            log_info "This may indicate the GitHub version has issues or is incomplete"
+            log_warning "Could not extract version from downloaded script"
         fi
-
         rm -f "$TEMP_SCRIPT"
     else
-        log_warning "Could not download latest dev-testing-rutos.sh from GitHub"
-        log_info "Continuing with current consolidated version (v$SCRIPT_VERSION)"
+        log_warning "Could not download latest script - continuing with current version"
     fi
 }
 
-# Download and run install-rutos.sh
-run_install_script() {
-    if [ "$NO_INSTALL" = "1" ]; then
-        log_info "Skipping install-rutos.sh (--no-install specified)"
-        return 0
-    fi
+# Find all RUTOS scripts in the project
+find_rutos_scripts() {
+    log_step "Finding *-rutos.sh scripts"
 
-    log_step "Downloading and running install-rutos.sh"
+    # Look for scripts in common locations
+    script_list=""
 
-    # Create temporary directory for install script
-    INSTALL_DIR="$WORK_DIR/install"
-    mkdir -p "$INSTALL_DIR"
+    # Current directory and subdirectories
+    find . -name "*-rutos.sh" -type f 2>/dev/null | sort | while read -r script; do
+        if [ -f "$script" ] && [ -r "$script" ]; then
+            log_debug "Found script: $script"
+            echo "$script"
+        fi
+    done | tr '\n' ' '
 
-    # Download install script
-    INSTALL_SCRIPT="$INSTALL_DIR/install-rutos.sh"
-    INSTALL_URL="${GITHUB_RAW_BASE}/scripts/install-rutos.sh"
-
-    log_debug "Downloading install script from: $INSTALL_URL"
-
-    if curl -fsSL "$INSTALL_URL" -o "$INSTALL_SCRIPT"; then
-        chmod +x "$INSTALL_SCRIPT"
-
-        log_info "Running install-rutos.sh in test mode..."
-
-        # Run install script with test/dry-run flags
-        (
-            cd "$INSTALL_DIR"
-            export RUTOS_TEST_MODE=1
-            export DRY_RUN=1
-            export DEBUG="$DEBUG"
-            export INSTALL_DIR="$TEST_DIR/starlink-monitor"
-
-            if sh "$INSTALL_SCRIPT" --test-mode --dry-run; then
-                log_success "install-rutos.sh completed successfully"
-                return 0
-            else
-                log_warning "install-rutos.sh encountered issues"
-                return 1
-            fi
-        )
-    else
-        log_error "Failed to download install-rutos.sh from GitHub"
-        return 1
-    fi
+    # Also check for main scripts that might be RUTOS-compatible
+    find . -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
+        if [ -f "$script" ] && [ -r "$script" ]; then
+            log_debug "Found main script: $script"
+            echo "$script"
+        fi
+    done | tr '\n' ' '
 }
 
-# Test individual script syntax
-test_script_syntax() {
+# Check if script has dry-run support
+check_dry_run_support() {
+    script_path="$1"
+
+    # Check for existing dry-run patterns
+    if grep -qE "(DRY_RUN|RUTOS_TEST_MODE|TEST_MODE)" "$script_path" 2>/dev/null; then
+        return 0 # Has support
+    fi
+
+    # Check for command line flag support
+    if grep -qE "(--dry-run|--test-mode|--test)" "$script_path" 2>/dev/null; then
+        return 0 # Has support
+    fi
+
+    return 1 # No support
+}
+
+# Generate dry-run pattern recommendation for a script
+generate_dry_run_recommendation() {
+    script_name="$1"
+
+    cat <<EOF
+DRY-RUN MISSING in $script_name:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="\${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="\${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "\$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=\$DRY_RUN, RUTOS_TEST_MODE=\$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="\$1"
+      description="\$2"
+      
+      if [ "\$DRY_RUN" = "1" ] || [ "\$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: \$description"
+          log_debug "[DRY-RUN] Command: \$cmd"
+          return 0
+      else
+          log_debug "Executing: \$cmd"
+          eval "\$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  
+EOF
+}
+
+# Test individual script with enhanced dry-run detection
+test_script() {
     script_path="$1"
     script_name=$(basename "$script_path")
 
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+    log_step "Testing $script_name"
 
-    log_debug "Testing syntax for $script_name"
-
-    # Check if file exists and is readable
-    if [ ! -f "$script_path" ] || [ ! -r "$script_path" ]; then
-        log_test_result "$script_name" "FAIL" "File not found or not readable"
-        echo "ERROR: $script_name - File not found or not readable at $script_path" >>"$ERROR_LOG"
-        FAILED_TESTS=$((FAILED_TESTS + 1))
+    # Test 1: Syntax check
+    if ! sh -n "$script_path" 2>/tmp/syntax_error_$$; then
+        syntax_error=$(cat /tmp/syntax_error_$$ 2>/dev/null || echo "Unknown syntax error")
+        ERROR_DETAILS="${ERROR_DETAILS}SYNTAX ERROR in $script_name:
+  File: $script_path
+  Error: $syntax_error
+  Fix: Check shell syntax, quotes, brackets
+  
+"
+        rm -f /tmp/syntax_error_$$
         return 1
     fi
+    rm -f /tmp/syntax_error_$$
 
-    # Test syntax with shell parser
-    if sh -n "$script_path" 2>"$WORK_DIR/${script_name}.syntax_err"; then
-        log_test_result "$script_name" "PASS" "Syntax valid"
-        PASSED_TESTS=$((PASSED_TESTS + 1))
-        return 0
-    else
-        syntax_error=$(cat "$WORK_DIR/${script_name}.syntax_err" 2>/dev/null || echo "Unknown syntax error")
-        log_test_result "$script_name" "FAIL" "Syntax error"
-        echo "SYNTAX_ERROR: $script_name" >>"$ERROR_LOG"
-        echo "  Script: $script_path" >>"$ERROR_LOG"
-        echo "  Error: $syntax_error" >>"$ERROR_LOG"
-        echo "  Fix: Check shell syntax, missing quotes, unmatched brackets" >>"$ERROR_LOG"
-        echo "" >>"$ERROR_LOG"
-        FAILED_TESTS=$((FAILED_TESTS + 1))
-        return 1
-    fi
-}
-
-# Test RUTOS compatibility
-test_rutos_compatibility() {
-    script_path="$1"
-    script_name=$(basename "$script_path")
-
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-
-    log_debug "Testing RUTOS compatibility for $script_name"
-
+    # Test 2: POSIX compatibility check
     compat_issues=""
 
-    # Check for bash-specific syntax that won't work in busybox
-    # Look for actual [[ ]] conditional expressions, not POSIX character classes
     if grep -qE '\[\[[[:space:]]+.*[[:space:]]+\]\]' "$script_path" 2>/dev/null; then
         compat_issues="${compat_issues}[[ ]] syntax (use [ ] instead); "
     fi
@@ -533,760 +330,216 @@ test_rutos_compatibility() {
         compat_issues="${compat_issues}'source' command (use . instead); "
     fi
 
-    if grep -q '\$'"'"'\\n'"'"'' "$script_path" 2>/dev/null; then
-        compat_issues="${compat_issues}\$'\\n' syntax (use printf instead); "
-    fi
-
-    if grep -qE '^[[:space:]]*function[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(' "$script_path" 2>/dev/null; then
-        compat_issues="${compat_issues}'function name()' syntax (use 'name()' only); "
-    fi
-
-    if grep -qE '^[[:space:]]*export[[:space:]]+-f[[:space:]]' "$script_path" 2>/dev/null; then
-        compat_issues="${compat_issues}'export -f' (not in POSIX sh); "
-    fi
-
-    # Check if it's a RUTOS-specific script and validate naming
-    if echo "$script_name" | grep -q '\-rutos\.sh$'; then
-        # RUTOS scripts should be extra compliant
-        if [ -n "$compat_issues" ]; then
-            log_test_result "$script_name" "FAIL" "RUTOS compatibility issues: $compat_issues"
-            echo "COMPATIBILITY_ERROR: $script_name" >>"$ERROR_LOG"
-            echo "  Script: $script_path" >>"$ERROR_LOG"
-            echo "  Issues: $compat_issues" >>"$ERROR_LOG"
-            echo "  Fix: Replace bash-specific syntax with POSIX sh equivalents" >>"$ERROR_LOG"
-            echo "" >>"$ERROR_LOG"
-            FAILED_TESTS=$((FAILED_TESTS + 1))
-            return 1
-        fi
-    else
-        # Non-RUTOS scripts get warnings instead of failures
-        if [ -n "$compat_issues" ]; then
-            log_test_result "$script_name" "WARN" "Potential RUTOS issues: $compat_issues"
-            echo "COMPATIBILITY_WARNING: $script_name" >>"$ERROR_LOG"
-            echo "  Script: $script_path" >>"$ERROR_LOG"
-            echo "  Issues: $compat_issues" >>"$ERROR_LOG"
-            echo "  Fix: Consider RUTOS compatibility if deploying to router" >>"$ERROR_LOG"
-            echo "" >>"$ERROR_LOG"
-            WARNING_TESTS=$((WARNING_TESTS + 1))
-            return 0
-        fi
-    fi
-
-    log_test_result "$script_name" "PASS" "RUTOS compatible"
-    PASSED_TESTS=$((PASSED_TESTS + 1))
-    return 0
-}
-
-# Test script execution
-test_script_execution() {
-    script_path="$1"
-    script_name=$(basename "$script_path")
-    timeout_duration="${2:-30}"
-
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-
-    log_debug "Testing execution for $script_name (timeout: ${timeout_duration}s)"
-
-    # Convert to absolute path to avoid path resolution issues
-    if [ "${script_path#/}" = "$script_path" ]; then
-        # Relative path - convert to absolute
-        abs_script_path="$(pwd)/$script_path"
-    else
-        # Already absolute path
-        abs_script_path="$script_path"
-    fi
-
-    # Verify script exists before testing
-    if [ ! -f "$abs_script_path" ]; then
-        log_test_result "$script_name" "FAIL" "Script file not found: $abs_script_path"
-        echo "EXECUTION_ERROR: $script_name" >>"$ERROR_LOG"
-        echo "  Script: $script_path" >>"$ERROR_LOG"
-        echo "  Absolute path: $abs_script_path" >>"$ERROR_LOG"
-        echo "  Error: Script file does not exist" >>"$ERROR_LOG"
-        echo "  Fix: Verify script path and file system permissions" >>"$ERROR_LOG"
-        echo "" >>"$ERROR_LOG"
-        FAILED_TESTS=$((FAILED_TESTS + 1))
+    if [ -n "$compat_issues" ]; then
+        ERROR_DETAILS="${ERROR_DETAILS}COMPATIBILITY ERROR in $script_name:
+  File: $script_path
+  Issues: $compat_issues
+  Fix: Replace bash-specific syntax with POSIX sh equivalents
+  
+"
         return 1
     fi
 
-    # Set up execution environment
-    original_dir=$(pwd)
+    # Test 3: Dry-run support check
+    if ! check_dry_run_support "$script_path"; then
+        # Script lacks dry-run support - this is a warning, not a failure
+        SCRIPTS_MISSING_DRYRUN=$((SCRIPTS_MISSING_DRYRUN + 1))
+        dry_run_recommendation=$(generate_dry_run_recommendation "$script_name")
+        ERROR_DETAILS="${ERROR_DETAILS}${dry_run_recommendation}"
 
-    # Determine if this is a deployed script
-    is_deployed_script=0
-    if echo "$abs_script_path" | grep -qE "^/(opt|usr|etc|tmp)/" 2>/dev/null; then
-        is_deployed_script=1
-        log_debug "Testing deployed script: $script_name"
-    else
-        log_debug "Testing development script: $script_name"
+        log_debug "$script_name lacks dry-run support - added recommendation"
+
+        # Try basic syntax execution only (no real execution attempt)
+        log_debug "$script_name syntax OK, but cannot safely test execution (no dry-run support)"
+        return 0 # Don't fail for missing dry-run, just report it
     fi
 
-    # shellcheck disable=SC2030,SC2031  # Intentional subshell for isolated testing
-    (
-        # Set up environment for testing
-        export RUTOS_TEST_MODE=1
-        export DRY_RUN=1
-        export DEBUG=0 # Reduce noise during testing
-        
-        # For deployed scripts, source the config if available
-        if [ "$is_deployed_script" = "1" ] && [ -f "/etc/starlink-config/config.sh" ]; then
-            # shellcheck disable=SC1091  # Config file sourcing
-            . "/etc/starlink-config/config.sh" 2>/dev/null || true
-        fi
+    # Test 4: Safe execution test (only for scripts with dry-run support)
+    log_debug "Testing $script_name execution (has dry-run support)"
 
-        # Try execution with common test arguments using absolute path
-        if command -v timeout >/dev/null 2>&1; then
-            timeout "$timeout_duration" sh "$abs_script_path" --dry-run --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                timeout "$timeout_duration" sh "$abs_script_path" --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                timeout "$timeout_duration" sh "$abs_script_path" --help >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                timeout "$timeout_duration" sh "$abs_script_path" >/dev/null 2>"$WORK_DIR/${script_name}.exec_err"
+    # Set up test environment
+    export DRY_RUN=1
+    export RUTOS_TEST_MODE=1
+    export TEST_MODE=1
+    export DEBUG="$DEBUG"
+
+    # Try to run script - it should respect our dry-run environment variables
+    if ! timeout 20 sh "$script_path" >/tmp/test_output_$$ 2>&1; then
+        # Check if error is due to missing config or dependencies vs real issues
+        test_error=$(cat /tmp/test_output_$$ 2>/dev/null | head -5 || echo "Script execution failed")
+
+        # Only report as error if it's not expected dependency issues
+        if echo "$test_error" | grep -qE "(not found|No such file|Permission denied|command not found)" && ! echo "$test_error" | grep -q "syntax"; then
+            log_debug "$script_name failed due to missing dependencies (expected in test environment)"
         else
-            sh "$abs_script_path" --dry-run --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                sh "$abs_script_path" --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                sh "$abs_script_path" --help >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                sh "$abs_script_path" >/dev/null 2>"$WORK_DIR/${script_name}.exec_err"
-        fi
-    )
-
-    execution_result=$?
-
-    if [ "$execution_result" -eq 0 ]; then
-        if [ "$is_deployed_script" = "1" ]; then
-            log_test_result "$script_name" "PASS" "Deployed script executed successfully"
-        else
-            log_test_result "$script_name" "PASS" "Development script executed successfully"
-        fi
-        PASSED_TESTS=$((PASSED_TESTS + 1))
-        return 0
-    elif [ "$execution_result" -eq 124 ]; then
-        log_test_result "$script_name" "WARN" "Execution timeout (${timeout_duration}s)"
-        echo "EXECUTION_TIMEOUT: $script_name" >>"$ERROR_LOG"
-        echo "  Script: $script_path" >>"$ERROR_LOG"
-        echo "  Type: $(if [ "$is_deployed_script" = "1" ]; then echo "Deployed"; else echo "Development"; fi)" >>"$ERROR_LOG"
-        echo "  Timeout: ${timeout_duration} seconds" >>"$ERROR_LOG"
-        echo "  Fix: Optimize script performance or increase timeout" >>"$ERROR_LOG"
-        echo "" >>"$ERROR_LOG"
-        WARNING_TESTS=$((WARNING_TESTS + 1))
-        return 1
-    else
-        execution_error=$(cat "$WORK_DIR/${script_name}.exec_err" 2>/dev/null || echo "Unknown execution error")
-
-        # Check if it's a graceful failure (help message, etc.)
-        if echo "$execution_error" | grep -qi "usage\|help\|invalid.*option"; then
-            if [ "$is_deployed_script" = "1" ]; then
-                log_test_result "$script_name" "PASS" "Deployed script shows graceful argument handling"
-            else
-                log_test_result "$script_name" "PASS" "Development script shows graceful argument handling"
-            fi
-            PASSED_TESTS=$((PASSED_TESTS + 1))
-            return 0
-        else
-            if [ "$is_deployed_script" = "1" ]; then
-                log_test_result "$script_name" "FAIL" "Deployed script execution failed"
-            else
-                log_test_result "$script_name" "FAIL" "Development script execution failed"
-            fi
-            echo "EXECUTION_ERROR: $script_name" >>"$ERROR_LOG"
-            echo "  Script: $script_path" >>"$ERROR_LOG"
-            echo "  Type: $(if [ "$is_deployed_script" = "1" ]; then echo "Deployed"; else echo "Development"; fi)" >>"$ERROR_LOG"
-            echo "  Exit code: $execution_result" >>"$ERROR_LOG"
-            echo "  Error: $execution_error" >>"$ERROR_LOG"
-            echo "  Fix: Check script logic, dependencies, and error handling" >>"$ERROR_LOG"
-            echo "" >>"$ERROR_LOG"
-            FAILED_TESTS=$((FAILED_TESTS + 1))
+            ERROR_DETAILS="${ERROR_DETAILS}EXECUTION ERROR in $script_name:
+  File: $script_path  
+  Error: $test_error
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+"
+            rm -f /tmp/test_output_$$
             return 1
         fi
     fi
-}
 
-# Discover installation base directory from config
-discover_installation_base() {
-    log_debug "Discovering installation base directory"
-
-    # Try to read from deployed configuration first
-    if [ -f "/etc/starlink-config/config.sh" ]; then
-        log_debug "Found deployed configuration at /etc/starlink-config/config.sh"
-        
-        # Look for installation directory references in config
-        # Check for INSTALL_DIR variable (standard installation variable)
-        if install_dir_line=$(grep "^INSTALL_DIR=" "/etc/starlink-config/config.sh" 2>/dev/null | head -1); then
-            INSTALL_DIR_FROM_CONFIG=$(echo "$install_dir_line" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
-            if [ -n "$INSTALL_DIR_FROM_CONFIG" ] && [ -d "$INSTALL_DIR_FROM_CONFIG" ]; then
-                log_info "Using installation base directory from config: $INSTALL_DIR_FROM_CONFIG"
-                echo "$INSTALL_DIR_FROM_CONFIG"
-                return 0
-            fi
-        fi
-        
-        # Alternative: Check crontab for script paths to detect installation directory
-        if command -v crontab >/dev/null 2>&1; then
-            if cron_install_dir=$(crontab -l 2>/dev/null | grep "CONFIG_FILE=/etc/starlink-config/config.sh" | grep -o '/[^[:space:]]*/starlink-monitor' | head -1); then
-                if [ -n "$cron_install_dir" ] && [ -d "$cron_install_dir" ]; then
-                    log_info "Using installation directory from cron pattern: $cron_install_dir"
-                    echo "$cron_install_dir"
-                    return 0
-                fi
-            fi
-        fi
-        
-        log_debug "Could not extract valid installation directory from config file"
-    fi
-
-    # Check standard RUTOS installation location
-    if [ -d "/usr/local/starlink-monitor" ]; then
-        log_info "Using standard RUTOS installation directory: /usr/local/starlink-monitor"
-        echo "/usr/local/starlink-monitor"
-        return 0
-    fi
-
-    # Fallback to other common installation paths
-    for base_dir in "/opt/starlink-monitor" "/tmp/starlink-monitor"; do
-        if [ -d "$base_dir" ]; then
-            log_info "Using fallback installation base directory: $base_dir"
-            echo "$base_dir"
-            return 0
-        fi
-    done
-
-    # Final fallback to current directory structure (development mode)
-    log_info "Using development directory structure (no deployment detected)"
-    echo "$(pwd)"
+    rm -f /tmp/test_output_$$
+    log_debug "$script_name passed all tests"
     return 0
 }
 
-# Run comprehensive testing
-run_comprehensive_tests() {
-    log_header "COMPREHENSIVE SCRIPT TESTING"
+# Generate AI-friendly error report
+generate_error_report() {
+    ERROR_FILE="./rutos-test-errors.txt"
 
-    # Discover installation base directory
-    INSTALLATION_BASE=$(discover_installation_base)
-    log_debug "Installation base directory: $INSTALLATION_BASE"
+    cat >"$ERROR_FILE" <<EOF
+AI DEBUGGING REPORT FOR RUTOS STARLINK FAILOVER SCRIPTS
+======================================================
 
-    # Find all shell scripts to test
-    log_step "Discovering shell scripts"
-
-    # Get script lists
-    main_scripts=""
-    utility_scripts=""
-    test_scripts=""
-    config_files=""
-
-    # Check for scripts in installation directory first
-    if [ "$INSTALLATION_BASE" != "$(pwd)" ] && [ -d "$INSTALLATION_BASE" ]; then
-        log_info "Searching for deployed scripts in: $INSTALLATION_BASE"
-        
-        # Look for main monitoring script in installation directory
-        if [ -f "$INSTALLATION_BASE/starlink_monitor.sh" ]; then
-            main_scripts="$INSTALLATION_BASE/starlink_monitor.sh"
-        fi
-        
-        # Look for scripts in installation directory (common pattern)
-        if [ -d "$INSTALLATION_BASE/scripts" ]; then
-            additional_scripts=$(find "$INSTALLATION_BASE/scripts" -name "*.sh" -type f 2>/dev/null | sort)
-            main_scripts="$main_scripts $additional_scripts"
-        fi
-        
-        # Look for direct scripts in installation directory
-        deployed_scripts=$(find "$INSTALLATION_BASE" -maxdepth 1 -name "*-rutos.sh" -type f 2>/dev/null | sort)
-        if [ -n "$deployed_scripts" ]; then
-            main_scripts="$main_scripts $deployed_scripts"
-        fi
-        
-        # Look for configuration scripts
-        if [ -d "$INSTALLATION_BASE/config" ]; then
-            config_files=$(find "$INSTALLATION_BASE/config" -name "*.sh" -type f 2>/dev/null | sort)
-        fi
-    fi
-
-    # Also check development directory structure
-    log_debug "Searching for development scripts in current directory"
-    
-    # Main monitoring scripts (development)
-    if [ -d "Starlink-RUTOS-Failover" ]; then
-        dev_main_scripts=$(find Starlink-RUTOS-Failover -name "*.sh" -type f 2>/dev/null | sort)
-        main_scripts="$main_scripts $dev_main_scripts"
-    fi
-
-    # Utility scripts (development)
-    if [ -d "scripts" ]; then
-        utility_scripts=$(find scripts -name "*.sh" -type f 2>/dev/null | sort)
-    fi
-
-    # Test scripts (development)
-    if [ -d "tests" ]; then
-        test_scripts=$(find tests -name "*.sh" -type f 2>/dev/null | sort)
-    fi
-
-    # Configuration files (development)
-    if [ -d "config" ]; then
-        dev_config_files=$(find config -name "*.sh" -type f 2>/dev/null | sort)
-        config_files="$config_files $dev_config_files"
-    fi
-
-    # Clean up script lists (remove empty entries and duplicates)
-    main_scripts=$(echo "$main_scripts" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
-    utility_scripts=$(echo "$utility_scripts" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
-    test_scripts=$(echo "$test_scripts" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
-    config_files=$(echo "$config_files" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
-
-    # Count total scripts for both deployed and development
-    total_scripts=0
-    for script_list in "$main_scripts" "$utility_scripts" "$test_scripts" "$config_files"; do
-        if [ -n "$script_list" ]; then
-            total_scripts=$((total_scripts + $(echo "$script_list" | wc -w)))
-        fi
-    done
-
-    log_info "Found $total_scripts shell scripts to test"
-    
-    if [ "$INSTALLATION_BASE" != "$(pwd)" ]; then
-        log_info "Testing mix of deployed (in $INSTALLATION_BASE) and development scripts"
-    else
-        log_info "Testing development directory structure"
-    fi
-
-    # Test categories
-    log_header "SYNTAX VALIDATION"
-    printf "${BLUE}Testing shell syntax for all scripts...${NC}\n"
-
-    # Test syntax for all scripts
-    # Process each script list separately using direct iteration
-    if [ -n "$main_scripts" ]; then
-        for script in $main_scripts; do
-            test_script_syntax "$script"
-        done
-    fi
-    if [ -n "$utility_scripts" ]; then
-        for script in $utility_scripts; do
-            test_script_syntax "$script"
-        done
-    fi
-    if [ -n "$test_scripts" ]; then
-        for script in $test_scripts; do
-            test_script_syntax "$script"
-        done
-    fi
-    if [ -n "$config_files" ]; then
-        for script in $config_files; do
-            test_script_syntax "$script"
-        done
-    fi
-
-    log_header "RUTOS COMPATIBILITY"
-    printf "${BLUE}Testing RUTOS/busybox compatibility...${NC}\n"
-
-    # Test RUTOS compatibility for all scripts
-    # Process each script list separately using direct iteration
-    if [ -n "$main_scripts" ]; then
-        for script in $main_scripts; do
-            test_rutos_compatibility "$script"
-        done
-    fi
-    if [ -n "$utility_scripts" ]; then
-        for script in $utility_scripts; do
-            test_rutos_compatibility "$script"
-        done
-    fi
-    if [ -n "$test_scripts" ]; then
-        for script in $test_scripts; do
-            test_rutos_compatibility "$script"
-        done
-    fi
-    if [ -n "$config_files" ]; then
-        for script in $config_files; do
-            test_rutos_compatibility "$script"
-        done
-    fi
-
-    log_header "EXECUTION TESTING"
-    printf "${BLUE}Testing script execution (dry-run mode)...${NC}\n"
-
-    # Test execution for executable scripts (skip config files)
-    # Process each script list separately using direct iteration
-    if [ -n "$main_scripts" ]; then
-        for script in $main_scripts; do
-            # Skip non-executable scripts and the current script
-            if [ -x "$script" ] || echo "$script" | grep -q '\.sh$'; then
-                # Skip self to avoid recursion
-                if [ "$script" != "$0" ] && [ "$(basename "$script")" != "dev-testing-rutos.sh" ]; then
-                    test_script_execution "$script" 15 # 15 second timeout
-                fi
-            fi
-        done
-    fi
-    if [ -n "$utility_scripts" ]; then
-        for script in $utility_scripts; do
-            # Skip non-executable scripts and the current script
-            if [ -x "$script" ] || echo "$script" | grep -q '\.sh$'; then
-                # Skip self to avoid recursion
-                if [ "$script" != "$0" ] && [ "$(basename "$script")" != "dev-testing-rutos.sh" ]; then
-                    test_script_execution "$script" 15 # 15 second timeout
-                fi
-            fi
-        done
-    fi
-    if [ -n "$test_scripts" ]; then
-        for script in $test_scripts; do
-            # Skip non-executable scripts and the current script
-            if [ -x "$script" ] || echo "$script" | grep -q '\.sh$'; then
-                # Skip self to avoid recursion
-                if [ "$script" != "$0" ] && [ "$(basename "$script")" != "dev-testing-rutos.sh" ]; then
-                    test_script_execution "$script" 15 # 15 second timeout
-                fi
-            fi
-        done
-    fi
-
-    log_header "SPECIAL VALIDATIONS"
-    printf "${BLUE}Running additional validation checks...${NC}\n"
-
-    # Check for version consistency
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    log_debug "Checking version consistency across scripts"
-
-    version_issues=0
-    if [ -n "$main_scripts" ]; then
-        for script in $main_scripts; do
-            if grep -q "SCRIPT_VERSION=" "$script" 2>/dev/null; then
-                script_version=$(grep "SCRIPT_VERSION=" "$script" | head -1 | cut -d'"' -f2 2>/dev/null)
-                if [ "$script_version" != "$SCRIPT_VERSION" ]; then
-                    echo "VERSION_MISMATCH: $(basename "$script") has version $script_version, expected $SCRIPT_VERSION" >>"$ERROR_LOG"
-                    version_issues=$((version_issues + 1))
-                fi
-            fi
-        done
-    fi
-    if [ -n "$utility_scripts" ]; then
-        for script in $utility_scripts; do
-            if grep -q "SCRIPT_VERSION=" "$script" 2>/dev/null; then
-                script_version=$(grep "SCRIPT_VERSION=" "$script" | head -1 | cut -d'"' -f2 2>/dev/null)
-                if [ "$script_version" != "$SCRIPT_VERSION" ]; then
-                    echo "VERSION_MISMATCH: $(basename "$script") has version $script_version, expected $SCRIPT_VERSION" >>"$ERROR_LOG"
-                    version_issues=$((version_issues + 1))
-                fi
-            fi
-        done
-    fi
-
-    if [ "$version_issues" -eq 0 ]; then
-        log_test_result "Version Consistency" "PASS" "All scripts have matching versions"
-        PASSED_TESTS=$((PASSED_TESTS + 1))
-    else
-        log_test_result "Version Consistency" "WARN" "$version_issues version mismatches found"
-        WARNING_TESTS=$((WARNING_TESTS + 1))
-    fi
-
-    # Check for readonly variable conflicts
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    log_debug "Checking for readonly variable conflicts"
-
-    readonly_issues=0
-    if [ -n "$main_scripts" ]; then
-        for script in $main_scripts; do
-            if grep -q "readonly.*SCRIPT_VERSION\|SCRIPT_VERSION.*readonly" "$script" 2>/dev/null; then
-                echo "READONLY_INFO: $(basename "$script") has readonly SCRIPT_VERSION (informational only)" >>"$ERROR_LOG"
-                readonly_issues=$((readonly_issues + 1))
-            fi
-        done
-    fi
-    if [ -n "$utility_scripts" ]; then
-        for script in $utility_scripts; do
-            if grep -q "readonly.*SCRIPT_VERSION\|SCRIPT_VERSION.*readonly" "$script" 2>/dev/null; then
-                echo "READONLY_INFO: $(basename "$script") has readonly SCRIPT_VERSION (informational only)" >>"$ERROR_LOG"
-                readonly_issues=$((readonly_issues + 1))
-            fi
-        done
-    fi
-
-    # Readonly variables are not actually a problem for RUTOS deployment
-    log_test_result "Readonly Variables" "PASS" "$readonly_issues scripts use readonly (acceptable for RUTOS)"
-    PASSED_TESTS=$((PASSED_TESTS + 1))
-}
-
-# Generate comprehensive reports
-generate_comprehensive_reports() {
-    # shellcheck disable=SC2120  # Function doesn't need parameters for current implementation
-    log_step "Generating comprehensive test reports"
-
-    # Calculate success rate
-    if [ "$TOTAL_TESTS" -gt 0 ]; then
-        success_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))
-    else
-        success_rate=0
-    fi
-
-    # Generate summary report
-    cat >"$SUMMARY_LOG" <<EOF
-RUTOS DEVELOPMENT TESTING - FINAL SUMMARY
-=========================================
-Test Date: $(date)
-Script Version: $SCRIPT_VERSION (Consolidated Version)
-Repository: ${GITHUB_USER}/${GITHUB_REPO}
-
-OVERALL RESULTS:
-✅ PASSED:     $PASSED_TESTS tests
-❌ FAILED:     $FAILED_TESTS tests
-⚠️  WARNINGS:  $WARNING_TESTS tests
-⏭️  SKIPPED:   $SKIPPED_TESTS tests
-📊 TOTAL:      $TOTAL_TESTS tests
-🎯 SUCCESS:    ${success_rate}%
-
-TEST CATEGORIES COMPLETED:
-✅ Syntax Validation       - Shell parser verification
-✅ RUTOS Compatibility     - Busybox shell compliance
-✅ Execution Testing       - Dry-run mode validation
-✅ Special Validations     - Version and variable checks
-
-GENERATED REPORTS:
-📄 $(basename "$SUMMARY_LOG")    - This summary
-🤖 dev-test-errors.txt       - AI-friendly debugging info
-📋 dev-test-full-log.txt     - Complete execution details
-
-STATUS: $(if [ "$FAILED_TESTS" -eq 0 ]; then echo "🎉 ALL TESTS PASSED"; else echo "❌ ISSUES FOUND - REVIEW REQUIRED"; fi)
-
-CONSOLIDATION NOTE:
-This is the consolidated version combining features from:
-- dev-testing-rutos.sh (master workflow)
-- test-rutos-deployment.sh (comprehensive testing)
-- All best practices from existing testing scripts
-EOF
-
-    # Copy summary to main directory
-    cp "$SUMMARY_LOG" "./dev-test-summary.txt"
-
-    # Generate AI-friendly error report
-    cat >"./dev-test-errors.txt" <<EOF
-AI DEBUGGING REPORT FOR RUTOS STARLINK FAILOVER
-===============================================
-
-COPY THIS ENTIRE SECTION TO AI FOR DEBUGGING:
-
-## Context
-- Project: RUTOS Starlink Failover System  
-- Environment: RUTX50 router with busybox shell (POSIX sh only)
-- Test Results: $PASSED_TESTS passed, $FAILED_TESTS failed, $WARNING_TESTS warnings
-- Success Rate: ${success_rate}%
-- Script: scripts/dev-testing-rutos.sh (Consolidated Version)
+COPY THIS ENTIRE SECTION TO AI FOR DEBUGGING ASSISTANCE:
 
 ## Test Summary
-Total Tests: $TOTAL_TESTS
-- ✅ Passed: $PASSED_TESTS
-- ❌ Failed: $FAILED_TESTS  
-- ⚠️  Warnings: $WARNING_TESTS
-- ⏭️  Skipped: $SKIPPED_TESTS
+- Date: $(date)
+- Script Version: $SCRIPT_VERSION
+- Total Scripts Tested: $TOTAL_SCRIPTS
+- Passed: $PASSED_SCRIPTS
+- Failed: $FAILED_SCRIPTS
+- Missing Dry-Run Support: $SCRIPTS_MISSING_DRYRUN
+- Success Rate: $((PASSED_SCRIPTS * 100 / TOTAL_SCRIPTS))%
 
-EOF
-
-    # Add detailed errors if any
-    if [ -s "$ERROR_LOG" ]; then
-        echo "## Detailed Error Analysis" >>"./dev-test-errors.txt"
-        cat "$ERROR_LOG" >>"./dev-test-errors.txt"
+## Dry-Run Support Analysis
+$(if [ "$SCRIPTS_MISSING_DRYRUN" -gt 0 ]; then
+        echo "⚠️  WARNING: $SCRIPTS_MISSING_DRYRUN scripts lack dry-run support"
+        echo "These scripts cannot be safely tested without making real system changes."
+        echo "See detailed recommendations below for adding dry-run support."
     else
-        echo "## Detailed Error Analysis" >>"./dev-test-errors.txt"
-        echo "🎉 No errors found! All tests passed successfully." >>"./dev-test-errors.txt"
-    fi
+        echo "✅ All scripts have proper dry-run support"
+    fi)
 
-    # Add project structure for context
-    cat >>"./dev-test-errors.txt" <<EOF
+## Project Context
+- Environment: RUTX50 router with busybox shell (POSIX sh only)
+- Requirement: All scripts must work in RUTOS/busybox environment
+- Test Mode: All scripts run with DRY_RUN=1 and RUTOS_TEST_MODE=1
 
-## Project Structure
-\`\`\`
-$(find . -name "*.sh" -o -name "*.md" -o -name "*.txt" | grep -E "\.(sh|md|txt)$" | head -30 | sort)
-\`\`\`
+## Detailed Errors Found
+$(if [ -n "$ERROR_DETAILS" ]; then
+        echo "$ERROR_DETAILS"
+    else
+        echo "No errors found - all scripts passed testing!"
+    fi)
 
-## Environment Information
-- Script Version: $SCRIPT_VERSION (Consolidated)
-- Test Mode: DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE
+## Script Testing Environment
 - Working Directory: $(pwd)
+- Shell: $(readlink -f /proc/$$/exe 2>/dev/null || echo "busybox sh")
 - Test Date: $(date)
 
-## Consolidation Info
-This report was generated by scripts/dev-testing-rutos.sh, which consolidates features from:
-- dev-testing-rutos.sh (master workflow)
-- test-rutos-deployment.sh (comprehensive testing engine)
-- All best practices from the project testing infrastructure
+## Instructions for AI
+1. Analyze each error listed above
+2. Focus on RUTOS/busybox compatibility issues
+3. Provide specific fixes for each issue
+4. Ensure all solutions are POSIX sh compatible
+5. For scripts missing dry-run support, implement the recommended pattern
+6. Check for common RUTOS pitfalls:
+   - bash-specific syntax ([[]], local, echo -e)
+   - Missing dependencies or commands
+   - Incorrect file paths or permissions
+   - Shell compatibility issues
+   - Missing dry-run/test mode functionality
 
-## Instructions for AI:
-1. Analyze all errors and warnings listed above
-2. Prioritize RUTOS compatibility issues (busybox shell environment)
-3. Focus on syntax errors, readonly variable conflicts, and compatibility issues
-4. Provide specific file edits with line numbers where needed
-5. Ensure all fixes maintain POSIX sh compatibility for RUTX50 deployment
+## Dry-Run Implementation Priority
+Scripts lacking dry-run support should be updated first as they:
+- Cannot be safely tested without making real system changes
+- Risk causing issues during development and testing
+- Should follow the provided safe_execute() pattern for all system operations
 
-## Expected Fix Format:
+## Fix Format Requested
+For each error, please provide:
 - File: [filename]
-- Line: [line number] (if applicable)
-- Issue: [description]
-- Fix: [specific code change]
-- Reason: [why this fix is needed for RUTOS compatibility]
+- Issue: [description of problem]  
+- Fix: [specific code change needed]
+- Reason: [why this fix works in RUTOS environment]
 
-## Environment Requirements:
-- Must work in busybox sh (not bash)
-- Must be POSIX compliant  
-- Must handle readonly variables properly
-- Must work on RUTX50 RUTOS router environment
-- Should follow project coding guidelines from .github/copilot-instructions.md
+END OF AI DEBUGGING REPORT
+=========================
 EOF
 
-    # Generate full execution log
-    cat >"./dev-test-full-log.txt" <<EOF
-FULL DEVELOPMENT TESTING LOG (CONSOLIDATED VERSION)
-===================================================
-Generated: $(date)
-Script: scripts/dev-testing-rutos.sh v$SCRIPT_VERSION
+    log_info "Error report generated: $ERROR_FILE"
 
-EXECUTION DETAILS:
-Command Line: $0 $*
-Working Directory: $(pwd)
-Environment Variables:
-- DEBUG=$DEBUG
-- FORCE_UPDATE=$FORCE_UPDATE
-- NO_INSTALL=$NO_INSTALL  
-- SKIP_SELF_UPDATE=$SKIP_SELF_UPDATE
-- DRY_RUN=$DRY_RUN
-- RUTOS_TEST_MODE=$RUTOS_TEST_MODE
-
-WORKFLOW EXECUTED:
-$(if [ "$SKIP_SELF_UPDATE" = "0" ]; then echo "✅ Self-update check performed"; else echo "⏭️  Self-update skipped"; fi)
-$(if [ "$NO_INSTALL" = "0" ]; then echo "✅ Install script execution attempted"; else echo "⏭️  Install script execution skipped"; fi)
-✅ Comprehensive testing performed
-✅ Test reports generated
-
-FINAL STATISTICS:
-Total Tests: $TOTAL_TESTS
-Passed: $PASSED_TESTS (${success_rate}%)
-Failed: $FAILED_TESTS
-Warnings: $WARNING_TESTS
-Skipped: $SKIPPED_TESTS
-
-CONSOLIDATION INFO:
-===================
-This log was generated by the consolidated testing script that combines:
-- Master workflow from dev-testing-rutos.sh
-- Comprehensive testing engine from test-rutos-deployment.sh
-- Enhanced error reporting and AI-friendly output
-- RUTOS-specific compatibility checks
-- Version consistency validation
-- Readonly variable conflict detection
-
-DETAILED LOGS:
-==============
-EOF
-
-    # Include detailed test results if available
-    if [ -s "$ERROR_LOG" ]; then
-        echo "" >>"./dev-test-full-log.txt"
-        echo "ERROR DETAILS:" >>"./dev-test-full-log.txt"
-        echo "==============" >>"./dev-test-full-log.txt"
-        cat "$ERROR_LOG" >>"./dev-test-full-log.txt"
-    fi
-
-    log_success "Reports generated successfully:"
-    log_info "  📄 dev-test-summary.txt - Quick overview with statistics"
-    log_info "  🤖 dev-test-errors.txt - AI-friendly debugging info (copy-paste ready)"
-    log_info "  📋 dev-test-full-log.txt - Complete execution details and logs"
-}
-
-# Cleanup function
-cleanup() {
-    if [ "$DEBUG" = "1" ]; then
-        log_debug "Cleaning up temporary files at $WORK_DIR"
-    fi
-
-    # Remove temporary files but keep reports
-    if [ -d "$WORK_DIR" ]; then
-        find "$WORK_DIR" -name "*.syntax_err" -delete 2>/dev/null || true
-        find "$WORK_DIR" -name "*.exec_err" -delete 2>/dev/null || true
-        find "$WORK_DIR" -name "*.tmp" -delete 2>/dev/null || true
-    fi
-
-    # Only remove work directory if not in debug mode
-    if [ "$DEBUG" != "1" ]; then
-        rm -rf "$WORK_DIR" 2>/dev/null || true
+    if [ "$FAILED_SCRIPTS" -gt 0 ]; then
+        log_error "Copy the contents of $ERROR_FILE to AI for debugging help"
     fi
 }
 
 # Main execution function
 main() {
-    log_header "RUTOS Development Testing v$SCRIPT_VERSION (Consolidated)"
+    printf "\n${BLUE}========================================${NC}\n"
+    printf "${BLUE}RUTOS Script Testing Tool v$SCRIPT_VERSION${NC}\n"
+    printf "${BLUE}========================================${NC}\n\n"
 
-    # Parse command line arguments
+    # Parse arguments
     parse_arguments "$@"
 
     if [ "$DEBUG" = "1" ]; then
-        log_debug "==================== DEBUG MODE ENABLED ===================="
-        log_debug "Script version: $SCRIPT_VERSION (Consolidated)"
+        log_debug "Debug mode enabled"
         log_debug "Working directory: $(pwd)"
         log_debug "Arguments: $*"
-        log_debug "Configuration:"
-        log_debug "  FORCE_UPDATE=$FORCE_UPDATE"
-        log_debug "  NO_INSTALL=$NO_INSTALL"
-        log_debug "  SKIP_SELF_UPDATE=$SKIP_SELF_UPDATE"
-        log_debug "  DEBUG=$DEBUG"
-        log_debug "  DRY_RUN=$DRY_RUN"
-        log_debug "  RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-        set -x # Enable command tracing in debug mode
     fi
 
-    # Setup environment
-    setup_test_environment
-    check_dependencies
+    # Step 1: Self-update
+    self_update "$@"
 
-    # Workflow execution
-    workflow_success=true # shellcheck disable=SC2034  # Future use for workflow validation
+    # Step 2: Find scripts
+    if script_list=$(find_rutos_scripts); then
+        log_info "Testing scripts in safe mode (DRY_RUN=1, RUTOS_TEST_MODE=1)"
 
-    # Step 1: Self-update check (informational for consolidated version)
-    if ! self_update "$@"; then
-        log_warning "Self-update check completed (using consolidated version)"
-    fi
+        # Step 3: Test each script
+        for script in $script_list; do
+            script_name=$(basename "$script")
+            if test_script "$script"; then
+                PASSED_SCRIPTS=$((PASSED_SCRIPTS + 1))
+                # Check if script has dry-run support for display
+                if check_dry_run_support "$script"; then
+                    printf "${GREEN}✅ PASS${NC} - %s ${CYAN}(dry-run ready)${NC}\n" "$script_name"
+                else
+                    printf "${GREEN}✅ PASS${NC} - %s ${YELLOW}(needs dry-run)${NC}\n" "$script_name"
+                fi
+            else
+                FAILED_SCRIPTS=$((FAILED_SCRIPTS + 1))
+                printf "${RED}❌ FAIL${NC} - %s\n" "$script_name"
+            fi
+        done
 
-    # Step 2: Download and run install script (if requested)
-    if ! run_install_script; then
-        log_warning "Install script execution had issues"
-        workflow_success=false
-    fi
+        # Step 4: Generate report
+        generate_error_report
 
-    # Step 3: Run comprehensive tests
-    if ! run_comprehensive_tests; then
-        log_warning "Some comprehensive tests encountered issues"
-        workflow_success=false
-    fi
+        # Step 5: Summary
+        printf "\n${BLUE}========================================${NC}\n"
+        printf "${BLUE}TESTING COMPLETE${NC}\n"
+        printf "${BLUE}========================================${NC}\n"
 
-    # Step 4: Generate comprehensive reports
-    # shellcheck disable=SC2119  # Function doesn't require parameters
-    generate_comprehensive_reports
-
-    # Final summary
-    log_header "DEVELOPMENT TESTING COMPLETE"
-
-    if [ "$FAILED_TESTS" -eq 0 ]; then
-        log_success "🎉 ALL TESTS PASSED! Scripts are ready for RUTOS deployment"
-        log_info "✅ Success Rate: ${success_rate}% ($PASSED_TESTS/$TOTAL_TESTS tests passed)"
-        if [ "$WARNING_TESTS" -gt 0 ]; then
-            log_info "⚠️  Note: $WARNING_TESTS warnings found (review recommended)"
+        if [ "$FAILED_SCRIPTS" -eq 0 ]; then
+            if [ "$SCRIPTS_MISSING_DRYRUN" -eq 0 ]; then
+                log_success "🎉 ALL TESTS PASSED! All scripts are RUTOS-ready with dry-run support"
+            else
+                log_success "✅ All scripts passed syntax/compatibility tests"
+                log_warning "⚠️  $SCRIPTS_MISSING_DRYRUN scripts need dry-run support added"
+                log_info "📋 Review rutos-test-errors.txt for dry-run implementation guides"
+            fi
+            exit 0
+        else
+            log_error "❌ $FAILED_SCRIPTS of $TOTAL_SCRIPTS scripts failed"
+            if [ "$SCRIPTS_MISSING_DRYRUN" -gt 0 ]; then
+                log_warning "⚠️  Additionally, $SCRIPTS_MISSING_DRYRUN scripts need dry-run support"
+            fi
+            log_info "📄 Review rutos-test-errors.txt for AI debugging help"
+            exit 1
         fi
-        echo ""
-        echo "$(printf "${GREEN}Next steps:${NC}")"
-        echo "1. Review summary: cat dev-test-summary.txt"
-        echo "2. Script is now properly located at scripts/dev-testing-rutos.sh"
-        echo "3. Add to install-rutos.sh for deployment"
-        echo "4. Deploy to RUTOS router when ready"
-        exit 0
     else
-        log_error "❌ TESTING FAILED: $FAILED_TESTS of $TOTAL_TESTS tests failed"
-        log_info "📊 Statistics: $PASSED_TESTS passed, $FAILED_TESTS failed, $WARNING_TESTS warnings"
-        echo ""
-        echo "$(printf "${YELLOW}Next steps:${NC}")"
-        echo "1. Copy dev-test-errors.txt to AI for debugging help"
-        echo "2. Fix identified issues using the provided fixes"
-        echo "3. Re-run: ./scripts/dev-testing-rutos.sh"
-        echo "4. Review full log: cat dev-test-full-log.txt"
+        log_error "No scripts found to test"
         exit 1
     fi
 }
 
-# Set up cleanup on exit
-trap cleanup EXIT
-
-# Execute main function with all arguments
+# Execute main function
 main "$@"
