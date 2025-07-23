@@ -200,17 +200,17 @@ self_update() {
     if curl -fsSL "$SCRIPT_URL" -o "$TEMP_SCRIPT" 2>/dev/null; then
         # Extract version from downloaded script - try multiple patterns
         latest_version=""
-        
+
         # Try pattern 1: readonly SCRIPT_VERSION="x.x.x"
         if [ -z "$latest_version" ]; then
             latest_version=$(grep '^readonly SCRIPT_VERSION=' "$TEMP_SCRIPT" | cut -d'"' -f2 2>/dev/null)
         fi
-        
+
         # Try pattern 2: SCRIPT_VERSION="x.x.x" followed by readonly
         if [ -z "$latest_version" ]; then
             latest_version=$(grep '^SCRIPT_VERSION=' "$TEMP_SCRIPT" | cut -d'"' -f2 2>/dev/null)
         fi
-        
+
         if [ -n "$latest_version" ]; then
             log_debug "Current: v$SCRIPT_VERSION, Latest: v$latest_version"
 
@@ -243,7 +243,7 @@ self_update() {
 find_rutos_scripts() {
     # Create a temporary file to collect script paths
     temp_script_list="/tmp/rutos_scripts_$$"
-    > "$temp_script_list"
+    >"$temp_script_list"
 
     # Try to read the installation directory from config
     INSTALL_DIR=""
@@ -261,7 +261,7 @@ find_rutos_scripts() {
         if [ "$DEBUG" = "1" ]; then
             printf "[DEBUG] [%s] Searching installation directory: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$INSTALL_DIR" >&2
         fi
-        
+
         # Search for all RUTOS scripts in installation directory and subdirectories
         find "$INSTALL_DIR" -name "*-rutos.sh" -o -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
             if [ -f "$script" ] && [ -r "$script" ]; then
@@ -273,11 +273,11 @@ find_rutos_scripts() {
                     fi
                     continue
                 fi
-                
+
                 if [ "$DEBUG" = "1" ]; then
                     printf "[DEBUG] [%s] Found installed script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
                 fi
-                echo "$script" >> "$temp_script_list"
+                echo "$script" >>"$temp_script_list"
             fi
         done
     fi
@@ -287,7 +287,7 @@ find_rutos_scripts() {
         if [ "$DEBUG" = "1" ]; then
             printf "[DEBUG] [%s] No scripts in installation dir, searching current directory\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
         fi
-        
+
         find . -name "*-rutos.sh" -o -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
             if [ -f "$script" ] && [ -r "$script" ]; then
                 # Skip testing the dev-testing script itself to prevent recursion
@@ -298,11 +298,11 @@ find_rutos_scripts() {
                     fi
                     continue
                 fi
-                
+
                 if [ "$DEBUG" = "1" ]; then
                     printf "[DEBUG] [%s] Found local script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
                 fi
-                echo "$script" >> "$temp_script_list"
+                echo "$script" >>"$temp_script_list"
             fi
         done
     fi
@@ -423,9 +423,31 @@ test_script() {
     fi
 
     # Try to run script - it should respect our dry-run environment variables
-    if ! timeout $timeout_seconds sh "$script_path" >/tmp/test_output_$$ 2>&1; then
-        # Check if error is due to missing config or dependencies vs real issues
+    test_start_time=$(date '+%s')
+    test_exit_code=0
+    
+    if ! timeout $timeout_seconds sh -x "$script_path" >/tmp/test_output_$$ 2>&1; then
+        test_exit_code=$?
+        test_end_time=$(date '+%s')
+        test_duration=$((test_end_time - test_start_time))
+        
+        # Enhanced error analysis
         test_error=$(cat /tmp/test_output_$$ 2>/dev/null | head -5 || echo "Script execution failed")
+        
+        # Capture additional debugging information
+        debug_info="Exit Code: $test_exit_code | Duration: ${test_duration}s | Timeout: ${timeout_seconds}s"
+        
+        # Analyze failure patterns
+        failure_analysis=""
+        if [ $test_exit_code -eq 124 ]; then
+            failure_analysis="TIMEOUT: Script exceeded ${timeout_seconds}s timeout"
+        elif [ $test_exit_code -eq 127 ]; then
+            failure_analysis="COMMAND NOT FOUND: Missing dependency or command"
+        elif [ $test_exit_code -eq 1 ]; then
+            failure_analysis="GENERAL ERROR: Script logic error or command failure"
+        else
+            failure_analysis="UNKNOWN ERROR: Exit code $test_exit_code"
+        fi
 
         # Only report as error if it's not expected dependency issues
         if echo "$test_error" | grep -qE "(not found|No such file|Permission denied|command not found)" && ! echo "$test_error" | grep -q "syntax"; then
@@ -433,7 +455,17 @@ test_script() {
         else
             ERROR_DETAILS="${ERROR_DETAILS}EXECUTION ERROR in $script_name:
   File: $script_path  
-  Error: $test_error
+  Exit Code: $test_exit_code
+  Duration: ${test_duration}s (timeout: ${timeout_seconds}s)
+  Failure Type: $failure_analysis
+  Error Output: $test_error
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x '$script_path'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
   Fix: Check script logic, error handling, and dry-run implementation
   Note: Script has dry-run support but still failed - check dry-run logic
   
@@ -486,18 +518,18 @@ test_script_comprehensive() {
     comp_results_file="/tmp/comp_results_${script_name}_$$"
     comp_errors_file="/tmp/comp_errors_${script_name}_$$"
     test_modes_file="/tmp/test_modes_${script_name}_$$"
-    
-    > "$comp_results_file"
-    > "$comp_errors_file"
-    
+
+    >"$comp_results_file"
+    >"$comp_errors_file"
+
     # Write test modes to file to avoid pipe subshell issues
-    echo "$test_modes" > "$test_modes_file"
+    echo "$test_modes" >"$test_modes_file"
 
     while IFS=: read -r test_num test_desc env_vars; do
         [ -z "$test_num" ] && continue
 
         printf "\n${CYAN}── Test %s: %s ──${NC}\n" "$test_num" "$test_desc"
-        
+
         # Parse environment variables
         test_env=""
         for var in $env_vars; do
@@ -506,7 +538,7 @@ test_script_comprehensive() {
 
         # Run the test
         output_file="/tmp/comp_test_${script_name}_${test_num}_$$"
-        
+
         printf "${YELLOW}Environment: %s${NC}\n" "$env_vars"
         printf "${YELLOW}Running...${NC}\n"
 
@@ -518,66 +550,174 @@ test_script_comprehensive() {
         fi
 
         # Execute with timeout and capture both stdout and stderr
-        if eval "$test_env timeout $timeout_seconds sh '$script_path'" >"$output_file" 2>&1; then
+        test_start_time=$(date '+%s')
+        test_exit_code=0
+        
+        # Enhanced error capture with debugging information
+        debug_info_file="/tmp/debug_info_${script_name}_${test_num}_$$"
+        
+        # Prepare enhanced debugging environment
+        debug_env="$test_env"
+        debug_env="${debug_env} export PS4='+ Line \$LINENO: ';"
+        debug_env="${debug_env} export SCRIPT_DEBUG=1;"
+        
+        # Run with comprehensive error capture
+        if eval "$debug_env timeout $timeout_seconds sh -x '$script_path'" >"$output_file" 2>&1; then
+            test_exit_code=0
+        else
+            test_exit_code=$?
+        fi
+        
+        test_end_time=$(date '+%s')
+        test_duration=$((test_end_time - test_start_time))
+        
+        # Capture additional debugging information
+        cat > "$debug_info_file" <<EOF
+=== TEST EXECUTION DETAILS ===
+Exit Code: $test_exit_code
+Duration: ${test_duration}s (timeout: ${timeout_seconds}s)
+Start Time: $(date -d "@$test_start_time" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date)
+End Time: $(date -d "@$test_end_time" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date)
+
+=== ENVIRONMENT VARIABLES ===
+$(echo "$env_vars" | tr ':' '\n' | while read -r var; do
+    if [ -n "$var" ]; then
+        echo "$var"
+    fi
+done)
+
+=== FAILURE ANALYSIS ===
+$(if [ $test_exit_code -eq 124 ]; then
+    echo "TIMEOUT: Script exceeded ${timeout_seconds}s timeout"
+elif [ $test_exit_code -eq 130 ]; then
+    echo "INTERRUPTED: Script was interrupted (Ctrl+C)"
+elif [ $test_exit_code -eq 137 ]; then
+    echo "KILLED: Script was killed (SIGKILL)"
+elif [ $test_exit_code -eq 143 ]; then
+    echo "TERMINATED: Script was terminated (SIGTERM)"
+elif [ $test_exit_code -ne 0 ]; then
+    echo "ERROR: Script exited with non-zero code $test_exit_code"
+else
+    echo "SUCCESS: Script completed normally"
+fi)
+
+=== OUTPUT SIZE ===
+Output Lines: $(wc -l < "$output_file" 2>/dev/null || echo "0")
+Output Size: $(wc -c < "$output_file" 2>/dev/null || echo "0") bytes
+
+=== LAST 20 LINES OF OUTPUT (with line tracing) ===
+$(tail -20 "$output_file" 2>/dev/null || echo "No output captured")
+
+=== ERROR PATTERNS DETECTED ===
+$(grep -E "(error|Error|ERROR|fail|Fail|FAIL|exception|Exception|EXCEPTION)" "$output_file" 2>/dev/null | head -5 || echo "No obvious error patterns found")
+
+=== SHELL TRACE ANALYSIS ===
+$(grep "^+ Line [0-9]*:" "$output_file" 2>/dev/null | tail -10 || echo "No shell trace information available")
+EOF
+
+        if [ $test_exit_code -eq 0 ]; then
             printf "${GREEN}✅ SUCCESS${NC}\n"
-            echo "PASS:Test_${test_num}" >> "$comp_results_file"
-            
+            echo "PASS:Test_${test_num}" >>"$comp_results_file"
+
             # Show first few lines of output to verify it looks good
             if [ -s "$output_file" ]; then
                 printf "${CYAN}Output preview:${NC}\n"
                 head -10 "$output_file" | sed 's/^/  /'
-                if [ "$(wc -l < "$output_file")" -gt 10 ]; then
-                    printf "  ${CYAN}... (truncated, %d total lines)${NC}\n" "$(wc -l < "$output_file")"
+                if [ "$(wc -l <"$output_file")" -gt 10 ]; then
+                    printf "  ${CYAN}... (truncated, %d total lines)${NC}\n" "$(wc -l <"$output_file")"
                 fi
             else
                 printf "${YELLOW}  (No output produced)${NC}\n"
             fi
         else
             printf "${RED}❌ FAILED${NC}\n"
-            echo "FAIL:Test_${test_num}" >> "$comp_results_file"
-            
-            # Always show error details, even if file is empty
-            if [ -s "$output_file" ]; then
-                printf "${RED}Error output:${NC}\n"
-                head -10 "$output_file" | sed 's/^/  /'
-                error_content=$(head -5 "$output_file" 2>/dev/null | tr '\n' ' ' || echo "Script execution failed")
-            else
-                printf "${RED}No error output captured (silent failure)${NC}\n"
-                error_content="Silent failure - script exited with error code but produced no output"
+            echo "FAIL:Test_${test_num}" >>"$comp_results_file"
+
+            # Enhanced error reporting with debugging details
+            printf "${RED}Error Details:${NC}\n"
+            if [ -f "$debug_info_file" ]; then
+                printf "${CYAN}Debug Information:${NC}\n"
+                head -30 "$debug_info_file" | sed 's/^/  /'
+                printf "\n"
             fi
             
-            # Write error details to file to avoid subshell variable issues
-            cat >> "$comp_errors_file" <<EOF
+            # Show script output
+            if [ -s "$output_file" ]; then
+                printf "${RED}Script Output:${NC}\n"
+                head -15 "$output_file" | sed 's/^/  /'
+                if [ "$(wc -l < "$output_file")" -gt 15 ]; then
+                    printf "  ${CYAN}... (truncated, %d total lines)${NC}\n" "$(wc -l < "$output_file")"
+                fi
+            else
+                printf "${RED}No output captured (silent failure)${NC}\n"
+            fi
+            
+            # Prepare enhanced error content for report
+            if [ -f "$debug_info_file" ]; then
+                error_content="Exit Code: $test_exit_code | Duration: ${test_duration}s | $(head -5 "$output_file" 2>/dev/null | tr '\n' ' ' || echo "No output")"
+                debug_details=$(cat "$debug_info_file" 2>/dev/null)
+            else
+                error_content="Script execution failed with exit code $test_exit_code"
+                debug_details="No debug information available"
+            fi
+            
+            # Write enhanced error details to file
+            cat >>"$comp_errors_file" <<EOF
 COMPREHENSIVE TEST FAILURE in $script_name (Test $test_num: $test_desc):
   File: $script_path
   Environment: $env_vars
-  Error: $error_content
-  Issue: Script failed during comprehensive testing
-  Fix: Check script logic, error handling, and environment variable handling
-  Debug: Run manually with same environment variables to reproduce
+  Exit Code: $test_exit_code
+  Duration: ${test_duration}s (timeout: ${timeout_seconds}s)
+  Error Summary: $error_content
+  
+  === DETAILED DEBUG INFORMATION ===
+$debug_details
+  
+  === TROUBLESHOOTING STEPS ===
+  1. Run manually: $env_vars sh -x '$script_path'
+  2. Check exit code patterns above for specific failure type
+  3. Review shell trace (Line numbers) for exact failure location
+  4. Verify environment variable handling in script
+  5. Check for RUTOS compatibility issues (busybox limitations)
+  
+  === QUICK DIAGNOSIS ===
+$(if [ $test_exit_code -eq 124 ]; then
+    echo "  - TIMEOUT: Script is taking too long (>${timeout_seconds}s)"
+    echo "  - Fix: Add early exit pattern or optimize performance"
+elif [ $test_exit_code -eq 1 ]; then
+    echo "  - GENERAL ERROR: Script logic error or command failure"
+    echo "  - Fix: Check script logic and error handling"
+elif [ $test_exit_code -eq 127 ]; then
+    echo "  - COMMAND NOT FOUND: Missing dependency or typo"
+    echo "  - Fix: Verify all commands exist in RUTOS environment"
+else
+    echo "  - Exit code $test_exit_code indicates specific error condition"
+    echo "  - Fix: Review script documentation for exit code meanings"
+fi)
   
 EOF
         fi
 
-        rm -f "$output_file"
+        # Clean up debug files
+        rm -f "$output_file" "$debug_info_file"
         printf "\n"
-    done < "$test_modes_file"
+    done <"$test_modes_file"
 
     printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n\n"
-    
+
     # Read error details from file and add to global ERROR_DETAILS
     if [ -f "$comp_errors_file" ] && [ -s "$comp_errors_file" ]; then
         ERROR_DETAILS="${ERROR_DETAILS}$(cat "$comp_errors_file")"
     fi
-    
+
     # Check results and return appropriate code
     if [ -f "$comp_results_file" ]; then
         failed_tests=$(grep -c "^FAIL:" "$comp_results_file" 2>/dev/null || echo "0")
-        total_tests=$(wc -l < "$comp_results_file" 2>/dev/null || echo "0")
-        
+        total_tests=$(wc -l <"$comp_results_file" 2>/dev/null || echo "0")
+
         # Clean up temp files
         rm -f "$comp_results_file" "$comp_errors_file" "$test_modes_file"
-        
+
         if [ "$failed_tests" -gt 0 ]; then
             log_error "Comprehensive testing failed: $failed_tests of $total_tests tests failed"
             return 1
@@ -755,20 +895,20 @@ main() {
     if [ -n "$SINGLE_SCRIPT" ]; then
         # Single script mode
         log_info "Single script mode: $SINGLE_SCRIPT"
-        
+
         # Find the specific script
         script_list=$(find_rutos_scripts | grep "$SINGLE_SCRIPT" || echo "")
         if [ -z "$script_list" ]; then
             log_error "Script not found: $SINGLE_SCRIPT"
             exit 1
         fi
-        
+
         script_path=$(echo "$script_list" | head -1)
         log_info "Found script: $script_path"
-        
+
         # Test the single script
-        TOTAL_SCRIPTS=1  # Set counter for single script mode
-        
+        TOTAL_SCRIPTS=1 # Set counter for single script mode
+
         if [ "$COMPREHENSIVE_TEST" = "1" ]; then
             log_info "Running comprehensive test on $SINGLE_SCRIPT"
             if test_script_comprehensive "$script_path"; then
@@ -792,12 +932,12 @@ main() {
                 log_error "❌ $SINGLE_SCRIPT failed tests"
             fi
         fi
-        
+
         # Generate report for single script
         generate_error_report
         exit 0
     fi
-    
+
     # Multi-script mode
     script_list=$(find_rutos_scripts)
     if [ -n "$script_list" ]; then
@@ -811,15 +951,15 @@ main() {
         # Write script list to temp file to avoid subshell variable issues
         temp_script_file="/tmp/scripts_to_test_$$"
         temp_results="/tmp/test_results_$$"
-        
-        printf "%s\n" "$script_list" > "$temp_script_file"
-        > "$temp_results"
-        
+
+        printf "%s\n" "$script_list" >"$temp_script_file"
+        >"$temp_results"
+
         # Process each script
         while IFS= read -r script; do
             if [ -n "$script" ] && [ "$script" != "" ]; then
                 script_name=$(basename "$script")
-                
+
                 # Choose testing method based on mode
                 test_result=0
                 if [ "$COMPREHENSIVE_TEST" = "1" ]; then
@@ -835,10 +975,10 @@ main() {
                         test_result=1
                     fi
                 fi
-                
+
                 # Record results
                 if [ $test_result -eq 0 ]; then
-                    echo "PASS:$script_name" >> "$temp_results"
+                    echo "PASS:$script_name" >>"$temp_results"
                     # Check if script has dry-run support for display
                     if check_dry_run_support "$script"; then
                         printf "${GREEN}✅ PASS${NC} - %s ${CYAN}(dry-run ready)${NC}\n" "$script_name"
@@ -846,24 +986,24 @@ main() {
                         printf "${GREEN}✅ PASS${NC} - %s ${YELLOW}(needs dry-run)${NC}\n" "$script_name"
                     fi
                 else
-                    echo "FAIL:$script_name" >> "$temp_results"
+                    echo "FAIL:$script_name" >>"$temp_results"
                     printf "${RED}❌ FAIL${NC} - %s\n" "$script_name"
                 fi
             fi
-        done < "$temp_script_file"
-        
+        done <"$temp_script_file"
+
         # Calculate final results
         if [ -f "$temp_results" ] && [ -s "$temp_results" ]; then
             # Use more robust counting to avoid whitespace issues - fix command order
-            TOTAL_SCRIPTS=$(wc -l < "$temp_results" | tr -d ' \n\r')
-            
+            TOTAL_SCRIPTS=$(wc -l <"$temp_results" | tr -d ' \n\r')
+
             # Fix grep fallback - tr should happen on grep output, not on fallback
             PASSED_COUNT=$(grep -c "^PASS:" "$temp_results" 2>/dev/null || echo "0")
             PASSED_SCRIPTS=$(printf "%s" "$PASSED_COUNT" | tr -d ' \n\r')
-            
+
             FAILED_COUNT=$(grep -c "^FAIL:" "$temp_results" 2>/dev/null || echo "0")
             FAILED_SCRIPTS=$(printf "%s" "$FAILED_COUNT" | tr -d ' \n\r')
-            
+
             # Debug the calculated values
             log_debug "Result counts: TOTAL=$TOTAL_SCRIPTS, PASSED=$PASSED_SCRIPTS, FAILED=$FAILED_SCRIPTS"
         else
@@ -872,7 +1012,7 @@ main() {
             FAILED_SCRIPTS=0
             log_debug "No results file or empty - using zeros"
         fi
-        
+
         # Clean up temp files
         rm -f "$temp_script_file" "$temp_results"
 
