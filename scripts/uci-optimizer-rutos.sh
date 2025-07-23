@@ -80,7 +80,7 @@ log_success() {
 }
 
 log_debug() {
-    if [ "$DEBUG" = "1" ]; then
+    if [ "${DEBUG:-0}" = "1" ]; then
         printf "${CYAN}[DEBUG]${NC} %s\n" "$1" >&2
     fi
 }
