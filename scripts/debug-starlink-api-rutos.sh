@@ -77,14 +77,14 @@ main() {
 
     # Step 1: Check binary availability
     log_step "Checking required binaries"
-    
+
     if [ ! -x "$GRPCURL_CMD" ]; then
         log_error "grpcurl not found at: $GRPCURL_CMD"
         exit 1
     else
         log_info "grpcurl found: $GRPCURL_CMD"
     fi
-    
+
     if [ ! -x "$JQ_CMD" ]; then
         log_error "jq not found at: $JQ_CMD"
         exit 1
@@ -96,11 +96,11 @@ main() {
     # Step 2: Test API connectivity
     log_step "Testing Starlink API connectivity"
     log_debug "Endpoint: $STARLINK_IP"
-    
+
     log_debug "Making get_status API call..."
     status_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetStatus' 2>/dev/null)
     status_exit=$?
-    
+
     if [ $status_exit -eq 0 ] && [ -n "$status_data" ]; then
         log_info "✅ get_status API call successful"
         log_debug "Status data length: ${#status_data} characters"
@@ -110,11 +110,11 @@ main() {
         log_error "This explains why the logger says 'No new data' - API is not responding!"
         exit 1
     fi
-    
+
     log_debug "Making get_history API call..."
     history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory' 2>/dev/null)
     history_exit=$?
-    
+
     if [ $history_exit -eq 0 ] && [ -n "$history_data" ]; then
         log_info "✅ get_history API call successful"
         log_debug "History data length: ${#history_data} characters"
@@ -128,7 +128,7 @@ main() {
 
     # Step 3: Analyze sample indices
     log_step "Analyzing sample indices (logger logic)"
-    
+
     # Extract current sample index from API
     current_sample_index=$(echo "$history_data" | $JQ_CMD -r '.current' 2>/dev/null)
     if [ -z "$current_sample_index" ] || [ "$current_sample_index" = "null" ]; then
@@ -136,14 +136,14 @@ main() {
         log_debug "Raw history_data preview: $(echo "$history_data" | head -c 200)"
         exit 1
     fi
-    
+
     # Get last sample index from tracking file
     last_sample_index=$(cat "$LAST_SAMPLE_FILE" 2>/dev/null || echo "$((current_sample_index - 1))")
-    
+
     log_info "Current sample index (from API): $current_sample_index"
     log_info "Last logged sample index: $last_sample_index"
     log_info "Difference: $((current_sample_index - last_sample_index))"
-    
+
     # This is the exact logic from the logger
     if [ "$current_sample_index" -le "$last_sample_index" ]; then
         log_warn "⚠️  Logger logic: No new samples to log"
@@ -162,14 +162,14 @@ main() {
 
     # Step 4: Check sample timing
     log_step "Checking sample generation timing"
-    
+
     # Wait and check again to see if samples are being generated
     log_debug "Waiting 30 seconds to check for new samples..."
     sleep 30
-    
+
     new_history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory' 2>/dev/null)
     new_sample_index=$(echo "$new_history_data" | $JQ_CMD -r '.current' 2>/dev/null)
-    
+
     if [ "$new_sample_index" -gt "$current_sample_index" ]; then
         log_info "✅ New samples generated in 30 seconds"
         log_info "Old index: $current_sample_index, New index: $new_sample_index"
@@ -183,7 +183,7 @@ main() {
 
     # Step 5: Check tracking file
     log_step "Checking sample tracking file"
-    
+
     if [ -f "$LAST_SAMPLE_FILE" ]; then
         log_info "Tracking file exists: $LAST_SAMPLE_FILE"
         log_info "Content: $(cat "$LAST_SAMPLE_FILE")"
@@ -196,7 +196,7 @@ main() {
 
     # Step 6: Summary and recommendations
     log_step "Summary and Recommendations"
-    
+
     if [ "$current_sample_index" -le "$last_sample_index" ]; then
         log_info "🔍 Root Cause: No new samples available for logging"
         log_info ""
@@ -213,7 +213,7 @@ main() {
         log_info "✅ Logger should be working - new samples are available"
         log_warn "If you still see 'No new data' messages, there may be another issue"
     fi
-    
+
     log_info ""
     log_info "The 'No new data' messages are informational, not errors"
     log_info "CSV logging will work properly when new samples are available"

@@ -10,7 +10,7 @@ readonly TEMPLATE_VERSION
 # Version information for validation compliance
 # Note: Only set SCRIPT_VERSION if not already set (prevents conflicts when sourced)
 if [ -z "${SCRIPT_VERSION:-}" ]; then
-SCRIPT_VERSION="2.6.0"
+    SCRIPT_VERSION="2.6.0"
 fi
 
 # Expected cron jobs and their patterns

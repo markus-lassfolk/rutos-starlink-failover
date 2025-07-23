@@ -39,10 +39,10 @@ else
 fi
 
 # Standard logging functions with consistent colors
-    # Version information for troubleshooting
-    if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Script: health-check-rutos.sh v$SCRIPT_VERSION"
-    fi
+# Version information for troubleshooting
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "Script: health-check-rutos.sh v$SCRIPT_VERSION"
+fi
 log_info() {
     printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }

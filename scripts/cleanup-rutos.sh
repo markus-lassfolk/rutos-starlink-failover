@@ -55,7 +55,7 @@ FORCE_CLEANUP="${FORCE_CLEANUP:-0}"
 parse_arguments() {
     while [ $# -gt 0 ]; do
         case "$1" in
-            --execute|--force)
+            --execute | --force)
                 DRY_RUN=0
                 FORCE_CLEANUP=1
                 shift
@@ -64,7 +64,7 @@ parse_arguments() {
                 DRY_RUN=1
                 shift
                 ;;
-            --help|-h)
+            --help | -h)
                 show_help
                 exit 0
                 ;;
@@ -229,7 +229,7 @@ print_status "$CYAN" "==== Cleanup Verification ===="
 if [ -f "$CRON_FILE" ]; then
     remaining_entries=$(grep -c -E "(starlink_monitor-rutos\.sh|starlink_logger-rutos\.sh|check_starlink_api|system-maintenance-rutos\.sh|self-update-rutos\.sh)" "$CRON_FILE" 2>/dev/null || echo "0")
     commented_entries=$(grep -c "# CLEANUP COMMENTED:" "$CRON_FILE" 2>/dev/null || echo "0")
-    
+
     if [ "$remaining_entries" -eq 0 ]; then
         print_status "$GREEN" "✅ All starlink cron entries removed/commented"
         if [ "$commented_entries" -gt 0 ]; then
@@ -268,7 +268,7 @@ fi
 print_status "$CYAN" "==== Summary ===="
 print_status "$BLUE" "The following components have been cleaned up:"
 print_status "$BLUE" "• Cron entries: starlink_monitor, starlink_logger, check_starlink_api"
-print_status "$BLUE" "• System maintenance: system-maintenance-rutos.sh (every 6 hours)"  
+print_status "$BLUE" "• System maintenance: system-maintenance-rutos.sh (every 6 hours)"
 print_status "$BLUE" "• Auto-updates: self-update-rutos.sh (weekly updates)"
 print_status "$BLUE" "• Auto-recovery: /etc/init.d/starlink-restore (firmware upgrade persistence)"
 print_status "$BLUE" "• Version-pinned recovery: install-pinned-version.sh"

@@ -29,7 +29,7 @@ fi
 safe_execute() {
     cmd="$1"
     description="$2"
-    
+
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
         printf "[DRY-RUN] Would execute: %s\n" "$description" >&2
         printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
@@ -84,7 +84,7 @@ fi
 
 if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
     printf "[DRY-RUN] Would send log file to Azure Function: %s\n" "$AZURE_FUNCTION_URL" >&2
-    HTTP_STATUS="200"  # Simulate success in dry-run
+    HTTP_STATUS="200" # Simulate success in dry-run
     CURL_EXIT_CODE="0"
 else
     HTTP_STATUS=$(curl -sS -w '%{http_code}' -o /dev/null --max-time 30 --data-binary "@$LOG_FILE" "$AZURE_FUNCTION_URL" 2>/dev/null)

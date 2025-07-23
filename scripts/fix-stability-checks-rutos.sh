@@ -3,7 +3,7 @@
 # Fix STABILITY_CHECKS_REQUIRED Missing Configuration Issue
 #
 # Version: 2.6.0
-# Description: Fixes the infinite failover loop caused by missing 
+# Description: Fixes the infinite failover loop caused by missing
 #              STABILITY_CHECKS_REQUIRED configuration
 # ==============================================================================
 
@@ -51,7 +51,7 @@ parse_arguments() {
                 RUTOS_TEST_MODE=1
                 shift
                 ;;
-            --help|-h)
+            --help | -h)
                 show_help
                 exit 0
                 ;;
@@ -66,7 +66,7 @@ parse_arguments() {
 
 # Show help information
 show_help() {
-    cat << EOF
+    cat <<EOF
 Starlink Failback Fix Script v$SCRIPT_VERSION
 
 DESCRIPTION:
@@ -172,7 +172,7 @@ safe_write() {
         if [ "${DEBUG:-0}" = "1" ]; then
             printf "${CYAN}[DEBUG]${NC} Writing to: %s\n" "$file_path" >&2
         fi
-        printf "%s" "$content" > "$file_path"
+        printf "%s" "$content" >"$file_path"
     fi
 }
 
@@ -180,7 +180,7 @@ safe_write() {
 main() {
     log_info "Starlink Failback Fix Script v$SCRIPT_VERSION"
     log_info "This script fixes the missing STABILITY_CHECKS_REQUIRED configuration"
-    
+
     # Show mode information
     if [ "$DRY_RUN" = "1" ]; then
         log_warn "DRY-RUN MODE: No changes will be made"
@@ -201,21 +201,21 @@ main() {
 
     # Step 1: Check current state
     log_step "Checking current Starlink failover state"
-    
+
     log_debug "Reading state files and UCI configuration"
     current_state=$(cat /tmp/run/starlink_monitor.state 2>/dev/null || echo "unknown")
     stability_count=$(cat /tmp/run/starlink_monitor.stability 2>/dev/null || echo "0")
     current_metric=$(uci -q get mwan3.member1.metric 2>/dev/null || echo "unknown")
-    
+
     log_debug "State file contents:"
     log_debug "  /tmp/run/starlink_monitor.state: $current_state"
     log_debug "  /tmp/run/starlink_monitor.stability: $stability_count"
     log_debug "  mwan3.member1.metric: $current_metric"
-    
+
     log_info "Current state: $current_state"
     log_info "Stability count: $stability_count"
     log_info "Current metric: $current_metric"
-    
+
     if [ "$current_state" = "down" ] && [ "$current_metric" = "20" ]; then
         log_warn "Starlink is currently in failover mode (stuck!)"
     fi
@@ -223,10 +223,10 @@ main() {
 
     # Step 2: Check configuration file
     log_step "Checking configuration file"
-    
+
     config_file="/etc/starlink-config/config.sh"
     log_debug "Configuration file path: $config_file"
-    
+
     if [ ! -f "$config_file" ]; then
         log_error "Configuration file not found: $config_file"
         if [ "$DRY_RUN" = "1" ]; then
@@ -246,10 +246,10 @@ main() {
         log_debug "Extracted value from config: '$current_value'"
     else
         log_warn "STABILITY_CHECKS_REQUIRED missing from configuration!"
-        
+
         # Step 3: Add missing configuration
         log_step "Adding STABILITY_CHECKS_REQUIRED to configuration"
-        
+
         log_debug "Preparing to add STABILITY_CHECKS_REQUIRED to config file"
         # Add the missing configuration
         config_addition="
@@ -257,12 +257,12 @@ main() {
 # Stability checks required before failback (consecutive good checks)
 # Added by fix-stability-checks-rutos.sh on $(date)
 export STABILITY_CHECKS_REQUIRED=\"5\""
-        
+
         if [ "$DRY_RUN" = "1" ]; then
             log_warn "DRY-RUN: Would append to $config_file:"
             printf "${YELLOW}%s${NC}\n" "$config_addition"
         else
-            printf "%s" "$config_addition" >> "$config_file"
+            printf "%s" "$config_addition" >>"$config_file"
             log_success "Added STABILITY_CHECKS_REQUIRED=5 to configuration"
         fi
     fi
@@ -270,22 +270,22 @@ export STABILITY_CHECKS_REQUIRED=\"5\""
 
     # Step 4: Immediate fix - restore Starlink priority
     log_step "Performing immediate failback to restore Starlink priority"
-    
+
     if [ "$current_metric" = "20" ]; then
         log_info "Restoring Starlink to primary priority (metric=1)"
         log_debug "Current metric is 20 (failover), changing to 1 (primary)"
-        
+
         if safe_execute "uci set mwan3.member1.metric='1' && uci commit mwan3" "Set Starlink metric to 1 and commit UCI changes"; then
             log_success "UCI configuration updated"
-            
+
             if safe_execute "mwan3 restart" "Restart mwan3 service"; then
                 log_success "mwan3 service restarted"
-                
+
                 # Reset state files
                 log_debug "Resetting state files to 'up' and stability count to 0"
                 safe_write "up" "/tmp/run/starlink_monitor.state" "Set monitor state to 'up'"
                 safe_write "0" "/tmp/run/starlink_monitor.stability" "Reset stability count to 0"
-                
+
                 log_success "State files reset"
                 log_success "Starlink is now back to primary internet!"
             else
@@ -312,7 +312,7 @@ export STABILITY_CHECKS_REQUIRED=\"5\""
 
     # Step 5: Verify fix
     log_step "Verifying the fix"
-    
+
     log_debug "Reading final state after changes"
     if [ "$DRY_RUN" = "1" ]; then
         # In dry-run mode, simulate the expected results
@@ -325,16 +325,16 @@ export STABILITY_CHECKS_REQUIRED=\"5\""
         new_state=$(cat /tmp/run/starlink_monitor.state 2>/dev/null || echo "unknown")
         new_stability=$(cat /tmp/run/starlink_monitor.stability 2>/dev/null || echo "unknown")
     fi
-    
+
     log_debug "Final state verification:"
     log_debug "  mwan3.member1.metric: $new_metric"
     log_debug "  starlink_monitor.state: $new_state"
     log_debug "  starlink_monitor.stability: $new_stability"
-    
+
     log_info "New metric: $new_metric"
     log_info "New state: $new_state"
     log_info "New stability count: $new_stability"
-    
+
     if [ "$new_metric" = "1" ] && [ "$new_state" = "up" ]; then
         if [ "$DRY_RUN" = "1" ]; then
             log_success "DRY-RUN: Fix would complete successfully!"
@@ -346,7 +346,7 @@ export STABILITY_CHECKS_REQUIRED=\"5\""
         echo ""
         log_info "Future failovers will now automatically failback after 5 consecutive good checks"
         log_info "Monitor with: logread | grep StarlinkMonitor"
-        
+
         if [ "$DEBUG" = "1" ]; then
             log_debug "Fix summary:"
             log_debug "  Configuration updated: STABILITY_CHECKS_REQUIRED=5"
@@ -363,7 +363,7 @@ export STABILITY_CHECKS_REQUIRED=\"5\""
         fi
         log_debug "Expected: metric=1, state=up"
         log_debug "Actual: metric=$new_metric, state=$new_state"
-        
+
         if [ "$DRY_RUN" = "1" ]; then
             return 1
         else

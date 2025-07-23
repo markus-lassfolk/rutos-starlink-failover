@@ -81,7 +81,7 @@ fi
 safe_execute() {
     cmd="$1"
     description="$2"
-    
+
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
         log_info "[DRY-RUN] Would execute: $description"
         log_debug "[DRY-RUN] Command: $cmd"

@@ -36,10 +36,10 @@ if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" != "" ]; then
 fi
 
 # Standard logging functions with RUTOS-compatible printf format
-    # Version information for troubleshooting
-    if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Script: dev-testing-rutos.sh v$SCRIPT_VERSION"
-    fi
+# Version information for troubleshooting
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "Script: dev-testing-rutos.sh v$SCRIPT_VERSION"
+fi
 log_info() {
     printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
@@ -429,18 +429,18 @@ test_script() {
     # Try to run script - it should respect our dry-run environment variables
     test_start_time=$(date '+%s')
     test_exit_code=0
-    
+
     if ! timeout $timeout_seconds sh -x "$script_path" >/tmp/test_output_$$ 2>&1; then
         test_exit_code=$?
         test_end_time=$(date '+%s')
         test_duration=$((test_end_time - test_start_time))
-        
+
         # Enhanced error analysis
         test_error=$(cat /tmp/test_output_$$ 2>/dev/null | head -5 || echo "Script execution failed")
-        
+
         # Capture additional debugging information
         debug_info="Exit Code: $test_exit_code | Duration: ${test_duration}s | Timeout: ${timeout_seconds}s"
-        
+
         # Analyze failure patterns
         failure_analysis=""
         if [ $test_exit_code -eq 124 ]; then
@@ -556,27 +556,27 @@ test_script_comprehensive() {
         # Execute with timeout and capture both stdout and stderr
         test_start_time=$(date '+%s')
         test_exit_code=0
-        
+
         # Enhanced error capture with debugging information
         debug_info_file="/tmp/debug_info_${script_name}_${test_num}_$$"
-        
+
         # Prepare enhanced debugging environment
         debug_env="$test_env"
         debug_env="${debug_env} export PS4='+ Line \$LINENO: ';"
         debug_env="${debug_env} export SCRIPT_DEBUG=1;"
-        
+
         # Run with comprehensive error capture
         if eval "$debug_env timeout $timeout_seconds sh -x '$script_path'" >"$output_file" 2>&1; then
             test_exit_code=0
         else
             test_exit_code=$?
         fi
-        
+
         test_end_time=$(date '+%s')
         test_duration=$((test_end_time - test_start_time))
-        
+
         # Capture additional debugging information
-        cat > "$debug_info_file" <<EOF
+        cat >"$debug_info_file" <<EOF
 === TEST EXECUTION DETAILS ===
 Exit Code: $test_exit_code
 Duration: ${test_duration}s (timeout: ${timeout_seconds}s)
@@ -585,29 +585,29 @@ End Time: $(date -d "@$test_end_time" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date)
 
 === ENVIRONMENT VARIABLES ===
 $(for var in $env_vars; do
-    if [ -n "$var" ]; then
-        echo "$var"
-    fi
-done)
+            if [ -n "$var" ]; then
+                echo "$var"
+            fi
+        done)
 
 === FAILURE ANALYSIS ===
 $(if [ $test_exit_code -eq 124 ]; then
-    echo "TIMEOUT: Script exceeded ${timeout_seconds}s timeout"
-elif [ $test_exit_code -eq 130 ]; then
-    echo "INTERRUPTED: Script was interrupted (Ctrl+C)"
-elif [ $test_exit_code -eq 137 ]; then
-    echo "KILLED: Script was killed (SIGKILL)"
-elif [ $test_exit_code -eq 143 ]; then
-    echo "TERMINATED: Script was terminated (SIGTERM)"
-elif [ $test_exit_code -ne 0 ]; then
-    echo "ERROR: Script exited with non-zero code $test_exit_code"
-else
-    echo "SUCCESS: Script completed normally"
-fi)
+            echo "TIMEOUT: Script exceeded ${timeout_seconds}s timeout"
+        elif [ $test_exit_code -eq 130 ]; then
+            echo "INTERRUPTED: Script was interrupted (Ctrl+C)"
+        elif [ $test_exit_code -eq 137 ]; then
+            echo "KILLED: Script was killed (SIGKILL)"
+        elif [ $test_exit_code -eq 143 ]; then
+            echo "TERMINATED: Script was terminated (SIGTERM)"
+        elif [ $test_exit_code -ne 0 ]; then
+            echo "ERROR: Script exited with non-zero code $test_exit_code"
+        else
+            echo "SUCCESS: Script completed normally"
+        fi)
 
 === OUTPUT SIZE ===
-Output Lines: $(wc -l < "$output_file" 2>/dev/null || echo "0")
-Output Size: $(wc -c < "$output_file" 2>/dev/null || echo "0") bytes
+Output Lines: $(wc -l <"$output_file" 2>/dev/null || echo "0")
+Output Size: $(wc -c <"$output_file" 2>/dev/null || echo "0") bytes
 
 === LAST 20 LINES OF OUTPUT (with line tracing) ===
 $(tail -20 "$output_file" 2>/dev/null || echo "No output captured")
@@ -644,18 +644,18 @@ EOF
                 head -30 "$debug_info_file" | sed 's/^/  /'
                 printf "\n"
             fi
-            
+
             # Show script output
             if [ -s "$output_file" ]; then
                 printf "${RED}Script Output:${NC}\n"
                 head -15 "$output_file" | sed 's/^/  /'
-                if [ "$(wc -l < "$output_file")" -gt 15 ]; then
-                    printf "  ${CYAN}... (truncated, %d total lines)${NC}\n" "$(wc -l < "$output_file")"
+                if [ "$(wc -l <"$output_file")" -gt 15 ]; then
+                    printf "  ${CYAN}... (truncated, %d total lines)${NC}\n" "$(wc -l <"$output_file")"
                 fi
             else
                 printf "${RED}No output captured (silent failure)${NC}\n"
             fi
-            
+
             # Prepare enhanced error content for report
             if [ -f "$debug_info_file" ]; then
                 error_content="Exit Code: $test_exit_code | Duration: ${test_duration}s | $(head -5 "$output_file" 2>/dev/null | tr '\n' ' ' || echo "No output")"
@@ -664,7 +664,7 @@ EOF
                 error_content="Script execution failed with exit code $test_exit_code"
                 debug_details="No debug information available"
             fi
-            
+
             # Write enhanced error details to file
             cat >>"$comp_errors_file" <<EOF
 COMPREHENSIVE TEST FAILURE in $script_name (Test $test_num: $test_desc):
@@ -686,18 +686,18 @@ $debug_details
   
   === QUICK DIAGNOSIS ===
 $(if [ $test_exit_code -eq 124 ]; then
-    echo "  - TIMEOUT: Script is taking too long (>${timeout_seconds}s)"
-    echo "  - Fix: Add early exit pattern or optimize performance"
-elif [ $test_exit_code -eq 1 ]; then
-    echo "  - GENERAL ERROR: Script logic error or command failure"
-    echo "  - Fix: Check script logic and error handling"
-elif [ $test_exit_code -eq 127 ]; then
-    echo "  - COMMAND NOT FOUND: Missing dependency or typo"
-    echo "  - Fix: Verify all commands exist in RUTOS environment"
-else
-    echo "  - Exit code $test_exit_code indicates specific error condition"
-    echo "  - Fix: Review script documentation for exit code meanings"
-fi)
+                echo "  - TIMEOUT: Script is taking too long (>${timeout_seconds}s)"
+                echo "  - Fix: Add early exit pattern or optimize performance"
+            elif [ $test_exit_code -eq 1 ]; then
+                echo "  - GENERAL ERROR: Script logic error or command failure"
+                echo "  - Fix: Check script logic and error handling"
+            elif [ $test_exit_code -eq 127 ]; then
+                echo "  - COMMAND NOT FOUND: Missing dependency or typo"
+                echo "  - Fix: Verify all commands exist in RUTOS environment"
+            else
+                echo "  - Exit code $test_exit_code indicates specific error condition"
+                echo "  - Fix: Review script documentation for exit code meanings"
+            fi)
   
 EOF
         fi

@@ -82,22 +82,22 @@ mkdir -p "$RESULTS_DIR"
 # Logging functions
 test_log() {
     printf "${GREEN}[TEST]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    printf "[TEST] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$TEST_LOG"
+    printf "[TEST] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
 }
 
 test_error() {
     printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    printf "[ERROR] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$TEST_LOG"
+    printf "[ERROR] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
 }
 
 test_warning() {
     printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    printf "[WARNING] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$TEST_LOG"
+    printf "[WARNING] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
 }
 
 test_step() {
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    printf "[STEP] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$TEST_LOG"
+    printf "[STEP] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
 }
 
 test_result() {
@@ -105,19 +105,19 @@ test_result() {
     script="$2"
     test_type="$3"
     details="$4"
-    
+
     case "$status" in
         "PASS")
             printf "${GREEN}✅ PASS${NC}   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details"
-            printf "PASS   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details" >> "$TEST_LOG"
+            printf "PASS   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details" >>"$TEST_LOG"
             ;;
         "FAIL")
             printf "${RED}❌ FAIL${NC}   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details"
-            printf "FAIL   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details" >> "$TEST_LOG"
+            printf "FAIL   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details" >>"$TEST_LOG"
             ;;
         "WARN")
             printf "${YELLOW}⚠️  WARN${NC}   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details"
-            printf "WARN   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details" >> "$TEST_LOG"
+            printf "WARN   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details" >>"$TEST_LOG"
             ;;
     esac
 }
@@ -128,27 +128,27 @@ run_test() {
     test_type="$2"
     env_vars="$3"
     script_args="$4"
-    
+
     script_name=$(basename "$script_path")
     output_file="$RESULTS_DIR/${script_name}_${test_type}.log"
-    
+
     # Run the test and capture output
-    if eval "$env_vars timeout 30 $script_path $script_args" > "$output_file" 2>&1; then
+    if eval "$env_vars timeout 30 $script_path $script_args" >"$output_file" 2>&1; then
         exit_code=0
     else
         exit_code=$?
     fi
-    
+
     # Analyze results
-    output_size=$(wc -c < "$output_file" 2>/dev/null || echo "0")
-    line_count=$(wc -l < "$output_file" 2>/dev/null || echo "0")
-    
+    output_size=$(wc -c <"$output_file" 2>/dev/null || echo "0")
+    line_count=$(wc -l <"$output_file" 2>/dev/null || echo "0")
+
     # Check for common issues
     has_colors=$(grep -c "\\033\[" "$output_file" 2>/dev/null || echo "0")
     has_errors=$(grep -ci "error\|fail\|exception" "$output_file" 2>/dev/null || echo "0")
     has_debug=$(grep -c "\[DEBUG\]" "$output_file" 2>/dev/null || echo "0")
     has_dry_run=$(grep -c "DRY-RUN\|dry.run\|test.mode" "$output_file" 2>/dev/null || echo "0")
-    
+
     # Determine test result
     if [ $exit_code -eq 0 ]; then
         if [ "$output_size" -gt 10 ]; then
@@ -170,7 +170,7 @@ run_test() {
         fi
         test_result "FAIL" "$script_name" "$test_type" "$error_details"
     fi
-    
+
     # Show detailed output if requested
     if [ "$TEST_MODE_DETAILED" = true ]; then
         printf "${CYAN}--- Output for %s (%s) ---${NC}\n" "$script_name" "$test_type"
@@ -186,21 +186,21 @@ run_test() {
 test_script() {
     script_path="$1"
     script_name=$(basename "$script_path")
-    
+
     test_step "Testing $script_name"
-    
+
     # Test 1: Basic dry-run (should provide minimal user feedback)
     run_test "$script_path" "dry-run" "DRY_RUN=1" ""
-    
+
     # Test 2: Debug dry-run (should provide detailed debug info)
     run_test "$script_path" "debug" "DEBUG=1 DRY_RUN=1" ""
-    
+
     # Test 3: Test mode (should validate syntax and exit)
     run_test "$script_path" "test-mode" "RUTOS_TEST_MODE=1" ""
-    
+
     # Test 4: Combined verbose (should show everything)
     run_test "$script_path" "verbose" "DEBUG=1 DRY_RUN=1 RUTOS_TEST_MODE=1" ""
-    
+
     # Test 5: Script-specific tests based on script name
     case "$script_name" in
         "update-config-rutos.sh")
@@ -230,13 +230,13 @@ main() {
     printf "${PURPLE}║                    RUTOS SCRIPT COMPREHENSIVE TESTING                   ║${NC}\n"
     printf "${PURPLE}║                         Version %s                                ║${NC}\n" "$SCRIPT_VERSION"
     printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n\n"
-    
+
     test_log "Starting comprehensive RUTOS script testing"
     test_log "Test results directory: $RESULTS_DIR"
-    
+
     # Find all RUTOS scripts
     script_dir="$(cd "$(dirname "$0")" && pwd)"
-    
+
     if [ -n "$SPECIFIC_SCRIPT" ]; then
         script_path="$script_dir/$SPECIFIC_SCRIPT"
         if [ -f "$script_path" ]; then
@@ -254,33 +254,33 @@ main() {
                 scripts_found=$((scripts_found + 1))
             fi
         done
-        
+
         # Also test main starlink monitor script
         main_script="$script_dir/../Starlink-RUTOS-Failover/starlink_monitor-rutos.sh"
         if [ -f "$main_script" ]; then
             test_script "$main_script"
             scripts_found=$((scripts_found + 1))
         fi
-        
+
         test_log "Tested $scripts_found scripts total"
     fi
-    
+
     # Generate summary
     printf "\n${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}\n"
     printf "${BLUE}                              TEST SUMMARY                               ${NC}\n"
     printf "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}\n\n"
-    
+
     # Count results
     total_tests=$(grep -c "PASS\|FAIL\|WARN" "$TEST_LOG" 2>/dev/null || echo "0")
     passed_tests=$(grep -c "PASS" "$TEST_LOG" 2>/dev/null || echo "0")
     failed_tests=$(grep -c "FAIL" "$TEST_LOG" 2>/dev/null || echo "0")
     warned_tests=$(grep -c "WARN" "$TEST_LOG" 2>/dev/null || echo "0")
-    
+
     printf "${GREEN}✅ Passed: %d${NC}\n" "$passed_tests"
     printf "${RED}❌ Failed: %d${NC}\n" "$failed_tests"
     printf "${YELLOW}⚠️  Warnings: %d${NC}\n" "$warned_tests"
     printf "📊 Total Tests: %d\n\n" "$total_tests"
-    
+
     if [ "$failed_tests" -gt 0 ]; then
         printf "${RED}FAILED TESTS:${NC}\n"
         grep "FAIL" "$TEST_LOG" | while IFS= read -r line; do
@@ -288,7 +288,7 @@ main() {
         done
         printf "\n"
     fi
-    
+
     if [ "$warned_tests" -gt 0 ]; then
         printf "${YELLOW}WARNINGS:${NC}\n"
         grep "WARN" "$TEST_LOG" | while IFS= read -r line; do
@@ -296,10 +296,10 @@ main() {
         done
         printf "\n"
     fi
-    
+
     printf "📁 Detailed results: %s\n" "$RESULTS_DIR"
     printf "📋 Test log: %s\n\n" "$TEST_LOG"
-    
+
     # Exit with appropriate code
     if [ "$failed_tests" -gt 0 ]; then
         test_error "Some tests failed - review required"
