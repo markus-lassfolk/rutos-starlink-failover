@@ -542,13 +542,18 @@ main() {
         
         # Calculate final results
         if [ -f "$temp_results" ] && [ -s "$temp_results" ]; then
-            TOTAL_SCRIPTS=$(wc -l < "$temp_results")
-            PASSED_SCRIPTS=$(grep -c "^PASS:" "$temp_results" 2>/dev/null || echo "0")
-            FAILED_SCRIPTS=$(grep -c "^FAIL:" "$temp_results" 2>/dev/null || echo "0")
+            # Use more robust counting to avoid whitespace issues
+            TOTAL_SCRIPTS=$(wc -l < "$temp_results" | tr -d ' \n\r')
+            PASSED_SCRIPTS=$(grep -c "^PASS:" "$temp_results" 2>/dev/null | tr -d ' \n\r' || echo "0")
+            FAILED_SCRIPTS=$(grep -c "^FAIL:" "$temp_results" 2>/dev/null | tr -d ' \n\r' || echo "0")
+            
+            # Debug the calculated values
+            log_debug "Result counts: TOTAL=$TOTAL_SCRIPTS, PASSED=$PASSED_SCRIPTS, FAILED=$FAILED_SCRIPTS"
         else
             TOTAL_SCRIPTS=0
             PASSED_SCRIPTS=0
             FAILED_SCRIPTS=0
+            log_debug "No results file or empty - using zeros"
         fi
         
         # Clean up temp files
