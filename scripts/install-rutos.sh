@@ -107,7 +107,7 @@ if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
     exit 0
 fi
 
-# Debug dry-run status  
+# Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
     debug_log "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
 fi
@@ -1292,6 +1292,7 @@ install_scripts() {
         diagnose-database-loop-rutos.sh \
         fix-database-spam-rutos.sh \
         fix-stability-checks-rutos.sh \
+        fix-logger-tracking-rutos.sh \
         debug-starlink-api-rutos.sh \
         repair-system-rutos.sh \
         system-maintenance-rutos.sh \

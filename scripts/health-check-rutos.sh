@@ -1029,6 +1029,75 @@ check_monitoring_health() {
     fi
 }
 
+# Function to check logger sample tracking health
+check_logger_sample_tracking() {
+    log_step "Checking logger sample tracking health"
+
+    # Set defaults
+    STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+    STATE_DIR="${STATE_DIR:-/tmp/run}"
+    LAST_SAMPLE_FILE="${LAST_SAMPLE_FILE:-${STATE_DIR}/starlink_last_sample.ts}"
+    GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
+    JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
+
+    # Check if binaries exist
+    if [ ! -x "$GRPCURL_CMD" ] || [ ! -x "$JQ_CMD" ]; then
+        show_health_status "warning" "Logger Sample Tracking" "Required binaries (grpcurl/jq) not found"
+        increment_counter "warning"
+        return
+    fi
+
+    # Check if tracking file exists
+    if [ ! -f "$LAST_SAMPLE_FILE" ]; then
+        show_health_status "info" "Logger Sample Tracking" "Tracking file not found (normal for new installations)"
+        increment_counter "healthy"
+        return
+    fi
+
+    # Get current API sample index (with timeout and error handling)
+    log_debug "Checking Starlink API for current sample index..."
+    current_sample_index=""
+    if history_data=$(timeout 10 "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null); then
+        if [ -n "$history_data" ]; then
+            current_sample_index=$(echo "$history_data" | "$JQ_CMD" -r '.dishGetHistory.current' 2>/dev/null)
+        fi
+    fi
+
+    # Handle API errors gracefully
+    if [ -z "$current_sample_index" ] || [ "$current_sample_index" = "null" ]; then
+        show_health_status "warning" "Logger Sample Tracking" "Cannot check - Starlink API not responding"
+        increment_counter "warning"
+        return
+    fi
+
+    # Get tracked sample index
+    last_sample_index=$(cat "$LAST_SAMPLE_FILE" 2>/dev/null || echo "0")
+
+    # Check for the stale tracking issue
+    if [ "$last_sample_index" -gt "$current_sample_index" ]; then
+        # This is the problem we found!
+        difference=$((last_sample_index - current_sample_index))
+        show_health_status "critical" "Logger Sample Tracking" "Stale tracking index detected (tracked: $last_sample_index, API: $current_sample_index, diff: +$difference)"
+        increment_counter "critical"
+
+        # Add recommendation
+        log_warning "Logger sample tracking issue detected:"
+        log_warning "  Tracked index: $last_sample_index"
+        log_warning "  Current API index: $current_sample_index"
+        log_warning "  This prevents CSV logging from working"
+        log_warning "  Run: $INSTALL_DIR/scripts/fix-logger-tracking-rutos.sh"
+    else
+        # Tracking looks healthy
+        if [ "$current_sample_index" -gt "$last_sample_index" ]; then
+            pending_samples=$((current_sample_index - last_sample_index))
+            show_health_status "healthy" "Logger Sample Tracking" "Working correctly ($pending_samples new samples pending)"
+        else
+            show_health_status "healthy" "Logger Sample Tracking" "Working correctly (up to date)"
+        fi
+        increment_counter "healthy"
+    fi
+}
+
 # Function to check system resources
 check_system_resources() {
     log_step "Checking system resources"
@@ -1278,6 +1347,7 @@ main() {
             check_system_resources
             check_configuration_health
             check_monitoring_health
+            check_logger_sample_tracking
             check_firmware_persistence
             ;;
         "--connectivity")
@@ -1305,6 +1375,7 @@ main() {
             check_starlink_connectivity
             check_configuration_health
             check_monitoring_health
+            check_logger_sample_tracking
             check_firmware_persistence
             run_integrated_tests
             ;;

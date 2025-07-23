@@ -29,9 +29,11 @@ set -eu
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.4.12"
 readonly SCRIPT_VERSION
+
+# Standard colors for consistent output (compatible with busybox)
+# shellcheck disable=SC2034  # Color variables may not all be used in every script
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
-    # shellcheck disable=SC2034
     RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
@@ -40,8 +42,6 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     NC='\033[0m'
 else
     # Colors disabled
-    # shellcheck disable=SC2034  # Color variables may not all be used
-    # shellcheck disable=SC2034
     RED=""
     GREEN=""
     YELLOW=""
@@ -386,6 +386,31 @@ main() {
         debug_log "API VERIFICATION: uptime=${uptime}s, software_version=$software_version"
     fi
 
+    # Extract enhanced metrics for intelligent monitoring
+    uptime_s=$(echo "$status_data" | "$JQ_CMD" -r '.deviceState.uptimeS // 0' 2>/dev/null)
+    bootcount=$(echo "$status_data" | "$JQ_CMD" -r '.deviceInfo.bootcount // 0' 2>/dev/null)
+    is_snr_above_noise_floor=$(echo "$status_data" | "$JQ_CMD" -r '.isSnrAboveNoiseFloor // true' 2>/dev/null)
+    is_snr_persistently_low=$(echo "$status_data" | "$JQ_CMD" -r '.isSnrPersistentlyLow // false' 2>/dev/null)
+    snr=$(echo "$status_data" | "$JQ_CMD" -r '.snr // 0' 2>/dev/null)
+    gps_valid=$(echo "$status_data" | "$JQ_CMD" -r '.gpsStats.gpsValid // true' 2>/dev/null)
+    gps_sats=$(echo "$status_data" | "$JQ_CMD" -r '.gpsStats.gpsSats // 0' 2>/dev/null)
+
+    debug_log "ENHANCED METRICS: uptime=${uptime_s}s, bootcount=$bootcount, SNR_above_noise=$is_snr_above_noise_floor, SNR_persistently_low=$is_snr_persistently_low, SNR_value=${snr}dB, GPS_valid=$gps_valid, GPS_sats=$gps_sats"
+
+    # Detect potential reboot and handle sample tracking auto-fix
+    uptime_hours=$((uptime_s / 3600))
+    if [ "$uptime_s" -lt 1800 ]; then # Less than 30 minutes indicates recent reboot
+        log "info" "Recent Starlink reboot detected (uptime: ${uptime_hours}h/${uptime_s}s) - checking sample tracking"
+
+        # Check if logger sample tracking exists and might need reset
+        sample_tracking_file="${STATE_DIR}/starlink_last_sample.ts"
+        if [ -f "$sample_tracking_file" ]; then
+            last_sample_tracked=$(cat "$sample_tracking_file" 2>/dev/null || echo "0")
+            log "debug" "Sample tracking file exists with value: $last_sample_tracked - may need reset due to reboot"
+            # The logger script will handle the actual reset logic
+        fi
+    fi
+
     # Validate extracted data; if missing, treat as error
     if [ -z "$obstruction" ] || [ -z "$latency" ] || [ -z "$loss" ]; then
         log "error" "Failed to parse API response data"
@@ -393,8 +418,7 @@ main() {
         return 1
     fi
 
-    # --- Quality Analysis ---
-    # --- Quality Analysis ---
+    # --- Enhanced Quality Analysis ---
     # Convert latency to integer, check if metrics exceed thresholds
     latency_int=$(echo "$latency" | cut -d'.' -f1)
     is_loss_high=$(awk -v val="$loss" -v threshold="$PACKET_LOSS_THRESHOLD" 'BEGIN { print (val > threshold) }')
@@ -406,29 +430,91 @@ main() {
         is_latency_high=1
     fi
 
-    log "debug" "Metrics - Loss: $loss (threshold: $PACKET_LOSS_THRESHOLD, high: $is_loss_high), Obstruction: $obstruction (threshold: $OBSTRUCTION_THRESHOLD, high: $is_obstructed), Latency: ${latency_int}ms (threshold: ${LATENCY_THRESHOLD_MS}ms, high: $is_latency_high)"
+    # Enhanced signal quality analysis using SNR metrics
+    is_snr_poor=0
+    snr_int=0
+    if [ -n "$snr" ] && [ "$snr" != "0" ] && [ "$snr" != "null" ]; then
+        snr_int=$(echo "$snr" | cut -d'.' -f1)
+        # Poor SNR: below 5dB is critical, below 8dB is suboptimal
+        if [ "$snr_int" -lt 5 ] 2>/dev/null || [ "$is_snr_above_noise_floor" = "false" ] || [ "$is_snr_persistently_low" = "true" ]; then
+            is_snr_poor=1
+        fi
+    fi
 
-    # Determine if quality is bad based on thresholds; build reason string for notifications
+    # GPS validity check for positioning issues
+    is_gps_poor=0
+    if [ "$gps_valid" = "false" ] || [ "$gps_sats" -lt 4 ] 2>/dev/null; then
+        is_gps_poor=1
+    fi
+
+    log "debug" "Basic Metrics - Loss: $loss (threshold: $PACKET_LOSS_THRESHOLD, high: $is_loss_high), Obstruction: $obstruction (threshold: $OBSTRUCTION_THRESHOLD, high: $is_obstructed), Latency: ${latency_int}ms (threshold: ${LATENCY_THRESHOLD_MS}ms, high: $is_latency_high)"
+    log "debug" "Enhanced Metrics - SNR: ${snr}dB (poor: $is_snr_poor, above_noise: $is_snr_above_noise_floor, persistently_low: $is_snr_persistently_low), GPS: valid=$gps_valid, sats=$gps_sats (poor: $is_gps_poor)"
+
+    # Determine if quality is bad based on enhanced thresholds; build reason string for notifications
     quality_is_bad=false
     FAIL_REASON=""
 
+    # Check basic metrics (original logic)
     if [ "$is_loss_high" -eq 1 ] || [ "$is_obstructed" -eq 1 ] || [ "$is_latency_high" -eq 1 ]; then
         quality_is_bad=true
 
         # Build detailed reason string for notification/logging (use literal brackets, not arrays)
-        [ "$is_loss_high" -eq 1 ] && FAIL_REASON="${FAIL_REASON}[High Loss: ${loss}] "
-        [ "$is_obstructed" -eq 1 ] && FAIL_REASON="${FAIL_REASON}[Obstructed: ${obstruction}] "
+        [ "$is_loss_high" -eq 1 ] && FAIL_REASON="${FAIL_REASON}[High Loss: ${loss}%] "
+        [ "$is_obstructed" -eq 1 ] && FAIL_REASON="${FAIL_REASON}[Obstructed: ${obstruction}%] "
         [ "$is_latency_high" -eq 1 ] && FAIL_REASON="${FAIL_REASON}[High Latency: ${latency_int}ms] "
     fi
 
+    # Enhanced metrics add additional intelligence but don't trigger failover alone
+    # They provide context and help prevent unnecessary failovers
+    enhanced_context=""
+    signal_degradation_score=0
+
+    if [ "$is_snr_poor" -eq 1 ]; then
+        enhanced_context="${enhanced_context}[SNR Issues: ${snr}dB"
+        [ "$is_snr_above_noise_floor" = "false" ] && enhanced_context="${enhanced_context}, below noise floor"
+        [ "$is_snr_persistently_low" = "true" ] && enhanced_context="${enhanced_context}, persistently low"
+        enhanced_context="${enhanced_context}] "
+        signal_degradation_score=$((signal_degradation_score + 2))
+    fi
+
+    if [ "$is_gps_poor" -eq 1 ]; then
+        enhanced_context="${enhanced_context}[GPS Issues: valid=$gps_valid, sats=$gps_sats] "
+        signal_degradation_score=$((signal_degradation_score + 1))
+    fi
+
+    # Recent reboot context (helps explain temporary issues)
+    if [ "$uptime_s" -lt 1800 ]; then
+        enhanced_context="${enhanced_context}[Recent Reboot: ${uptime_hours}h uptime] "
+    fi
+
+    # Log enhanced context if available
+    if [ -n "$enhanced_context" ]; then
+        log "debug" "Enhanced Context: $enhanced_context(degradation score: $signal_degradation_score)"
+    fi
+
+    # Use enhanced metrics to improve failover intelligence:
+    # - If we have severe signal degradation (score ≥3), be more aggressive about failover
+    # - If we have minor issues but good SNR/GPS, be more conservative
+    enhanced_failover_recommended=false
+    if [ "$quality_is_bad" = "true" ] && [ "$signal_degradation_score" -ge 3 ]; then
+        enhanced_failover_recommended=true
+        log "debug" "Enhanced analysis recommends failover due to severe signal degradation"
+    elif [ "$quality_is_bad" = "true" ] && [ "$signal_degradation_score" -eq 0 ]; then
+        log "debug" "Enhanced analysis suggests conservative approach - basic metrics poor but signal quality indicators good"
+    fi
+
     # --- Decision Logic ---
-    # --- Decision Logic ---
-    if [ "$quality_is_bad" = true ]; then
+    # Enhanced failover logic considers both traditional metrics and signal quality analysis
+    if [ "$quality_is_bad" = true ] || [ "$enhanced_failover_recommended" = true ]; then
         # If quality is bad, reset stability counter and perform soft failover if not already failed over
         echo "0" >"$STABILITY_FILE"
 
         if [ "$current_metric" -ne "$METRIC_BAD" ]; then
-            log "warn" "Quality degraded below threshold: $FAIL_REASON"
+            if [ "$enhanced_failover_recommended" = true ]; then
+                log "warn" "Enhanced analysis recommends failover due to signal degradation: $FAIL_REASON"
+            else
+                log "warn" "Quality degraded below threshold: $FAIL_REASON"
+            fi
             log "info" "Performing soft failover - setting metric to $METRIC_BAD"
 
             # Set metric to bad and restart mwan3 for failover

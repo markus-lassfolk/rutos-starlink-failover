@@ -1437,6 +1437,158 @@ check_starlink_script_health() {
     fi
 }
 
+# Check logger sample tracking health (Auto-fix stale tracking)
+check_logger_sample_tracking() {
+    log_debug "Checking Starlink logger sample tracking health"
+
+    # Set defaults
+    STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+    STATE_DIR="${STATE_DIR:-/tmp/run}"
+    LAST_SAMPLE_FILE="${LAST_SAMPLE_FILE:-${STATE_DIR}/starlink_last_sample.ts}"
+    GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
+    JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
+
+    # Check if binaries exist
+    if [ ! -x "$GRPCURL_CMD" ] || [ ! -x "$JQ_CMD" ]; then
+        log_debug "Required binaries (grpcurl/jq) not found - skipping logger sample tracking check"
+        return
+    fi
+
+    # Check if tracking file exists
+    if [ ! -f "$LAST_SAMPLE_FILE" ]; then
+        log_debug "Sample tracking file not found (normal for new installations)"
+        return
+    fi
+
+    # Get current API sample index (with timeout and error handling)
+    log_debug "Checking Starlink API for current sample index..."
+    current_sample_index=""
+    if history_data=$(timeout 10 "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null); then
+        if [ -n "$history_data" ]; then
+            current_sample_index=$(echo "$history_data" | "$JQ_CMD" -r '.dishGetHistory.current' 2>/dev/null)
+        fi
+    fi
+
+    # Handle API errors gracefully
+    if [ -z "$current_sample_index" ] || [ "$current_sample_index" = "null" ]; then
+        log_debug "Cannot check logger sample tracking - Starlink API not responding"
+        return
+    fi
+
+    # Get tracked sample index
+    last_sample_index=$(cat "$LAST_SAMPLE_FILE" 2>/dev/null || echo "0")
+
+    # Check for the stale tracking issue
+    if [ "$last_sample_index" -gt "$current_sample_index" ]; then
+        # This is the problem we can auto-fix!
+        difference=$((last_sample_index - current_sample_index))
+        log_issue "Logger sample tracking" "Stale tracking index detected (tracked: $last_sample_index, API: $current_sample_index, diff: +$difference)"
+
+        # Auto-fix: Reset tracking to a safe value
+        new_index=$((current_sample_index - 1))
+        log_debug "Attempting to auto-fix logger sample tracking..."
+
+        if echo "$new_index" >"$LAST_SAMPLE_FILE"; then
+            log_fix "Logger sample tracking" "Reset stale tracking index from $last_sample_index to $new_index"
+            log_info "Logger sample tracking auto-fixed: CSV logging should now work correctly"
+        else
+            log_critical "Logger sample tracking" "Failed to reset tracking file: $LAST_SAMPLE_FILE"
+        fi
+    else
+        # Tracking looks healthy
+        log_debug "Logger sample tracking appears healthy (tracked: $last_sample_index, API: $current_sample_index)"
+    fi
+}
+
+# Enhanced Starlink metrics monitoring (NEW!)
+check_enhanced_starlink_metrics() {
+    log_debug "Checking enhanced Starlink metrics for quality assessment"
+
+    # Set defaults
+    STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+    GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
+    JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
+
+    # Check if binaries exist
+    if [ ! -x "$GRPCURL_CMD" ] || [ ! -x "$JQ_CMD" ]; then
+        log_debug "Required binaries (grpcurl/jq) not found - skipping enhanced metrics check"
+        return
+    fi
+
+    # Get status data with enhanced metrics
+    status_data=""
+    if status_data=$(timeout 10 "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null); then
+        if [ -n "$status_data" ]; then
+            status_data=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus' 2>/dev/null)
+        fi
+    fi
+
+    # Handle API errors gracefully
+    if [ -z "$status_data" ] || [ "$status_data" = "null" ]; then
+        log_debug "Cannot check enhanced metrics - Starlink API not responding"
+        return
+    fi
+
+    # Extract enhanced metrics
+    uptime_s=$(echo "$status_data" | "$JQ_CMD" -r '.deviceInfo.uptimeS // 0' 2>/dev/null)
+    bootcount=$(echo "$status_data" | "$JQ_CMD" -r '.deviceInfo.bootcount // 0' 2>/dev/null)
+    is_snr_above_noise_floor=$(echo "$status_data" | "$JQ_CMD" -r '.isSnrAboveNoiseFloor // true' 2>/dev/null)
+    is_snr_persistently_low=$(echo "$status_data" | "$JQ_CMD" -r '.isSnrPersistentlyLow // false' 2>/dev/null)
+    snr=$(echo "$status_data" | "$JQ_CMD" -r '.snr // 0' 2>/dev/null)
+    gps_valid=$(echo "$status_data" | "$JQ_CMD" -r '.gpsStats.gpsValid // true' 2>/dev/null)
+    gps_sats=$(echo "$status_data" | "$JQ_CMD" -r '.gpsStats.gpsSats // 0' 2>/dev/null)
+
+    log_debug "Enhanced metrics: uptime=${uptime_s}s, bootcount=$bootcount, SNR_above_noise=$is_snr_above_noise_floor, SNR_value=${snr}dB, GPS_valid=$gps_valid"
+
+    # Check for potential issues using enhanced metrics
+    issues_found=0
+
+    # Check for frequent reboots (low uptime)
+    uptime_hours=$((uptime_s / 3600))
+    if [ "$uptime_s" -lt 1800 ]; then # Less than 30 minutes
+        record_action "FOUND" "Very low Starlink uptime" "Uptime only ${uptime_hours}h (${uptime_s}s) - recent reboot or instability"
+        issues_found=$((issues_found + 1))
+    elif [ "$uptime_s" -lt 7200 ]; then # Less than 2 hours
+        log_debug "Starlink uptime relatively low: ${uptime_hours}h (${uptime_s}s) - may indicate recent reboot"
+    fi
+
+    # Check SNR issues
+    if [ "$is_snr_above_noise_floor" = "false" ]; then
+        record_action "FOUND" "Starlink SNR below noise floor" "Signal quality degraded - may cause connection issues"
+        issues_found=$((issues_found + 1))
+    fi
+
+    if [ "$is_snr_persistently_low" = "true" ]; then
+        record_action "FOUND" "Starlink SNR persistently low" "Signal quality consistently poor (SNR: ${snr}dB) - check dish alignment"
+        issues_found=$((issues_found + 1))
+    fi
+
+    # Check SNR value if available
+    if [ -n "$snr" ] && [ "$snr" != "0" ] && [ "$snr" != "null" ]; then
+        snr_int=$(echo "$snr" | cut -d'.' -f1)
+        if [ "$snr_int" -lt 5 ]; then
+            record_action "FOUND" "Very low Starlink SNR" "SNR ${snr}dB is critically low - check for obstructions"
+            issues_found=$((issues_found + 1))
+        elif [ "$snr_int" -lt 8 ]; then
+            log_debug "Starlink SNR below optimal: ${snr}dB (recommend >8dB for best performance)"
+        fi
+    fi
+
+    # Check GPS issues
+    if [ "$gps_valid" = "false" ]; then
+        record_action "FOUND" "Starlink GPS invalid" "GPS fix lost - may affect service quality"
+        issues_found=$((issues_found + 1))
+    elif [ "$gps_sats" -lt 4 ]; then
+        log_debug "Starlink GPS satellite count low: $gps_sats (recommend ≥4 for optimal performance)"
+    fi
+
+    if [ "$issues_found" -eq 0 ]; then
+        log_debug "Enhanced Starlink metrics look healthy"
+    else
+        log_debug "Found $issues_found potential issues with enhanced Starlink metrics"
+    fi
+}
+
 # =============================================================================
 # MAIN EXECUTION FUNCTIONS
 # =============================================================================
@@ -1468,6 +1620,8 @@ run_all_checks() {
     check_time_drift_ntp
     check_network_interface_flapping
     check_starlink_script_health
+    check_logger_sample_tracking
+    check_enhanced_starlink_metrics
 
     # Add more checks here in the future
 
@@ -1531,9 +1685,6 @@ RECENT MAINTENANCE LOG (current run):
 EOF
 
     if [ -f "$MAINTENANCE_LOG" ]; then
-        # Get current run start time for filtering (format: YYYY-MM-DD HH:MM:SS)
-        current_run_start=$(date '+%Y-%m-%d %H:%M')  # Match to minute precision
-        
         # Extract entries from current run session only
         # Find the last START entry and get all entries after it
         current_run_entries=$(awk '
@@ -1554,13 +1705,15 @@ EOF
                 }
             }
         ' "$MAINTENANCE_LOG")
-        
+
         if [ -n "$current_run_entries" ] && [ "$current_run_entries" != "No current run entries found" ]; then
             echo "$current_run_entries" >>"$report_file"
         else
-            echo "" >>"$report_file"
-            echo "Recent entries (last 10):" >>"$report_file"
-            tail -10 "$MAINTENANCE_LOG" >>"$report_file"
+            {
+                echo ""
+                echo "Recent entries (last 10):"
+                tail -10 "$MAINTENANCE_LOG"
+            } >>"$report_file"
         fi
     else
         echo "No maintenance log found" >>"$report_file"

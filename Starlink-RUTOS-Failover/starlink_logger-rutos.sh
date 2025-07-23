@@ -6,6 +6,7 @@
 # Version: 2.4.12
 # Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 #
+# Starlink Logger - Enhanced CSV Logging for RUTOS
 # This script runs periodically via cron to gather real-time performance data
 # from a Starlink dish. It logs latency, packet loss, and obstruction data
 # to a CSV file for later analysis.
@@ -224,6 +225,44 @@ if [ -z "$status_data" ] || [ -z "$history_data" ]; then
     exit 0
 fi
 
+# --- Enhanced Metrics Extraction ---
+# Extract uptime and reboot-related metrics for intelligent auto-fixing
+debug_log "STEP: Extracting enhanced metrics for reboot detection"
+uptime_s=$(echo "$status_data" | $JQ_CMD -r '.deviceState.uptimeS // 0' 2>/dev/null)
+bootcount=$(echo "$status_data" | $JQ_CMD -r '.deviceInfo.bootcount // 0' 2>/dev/null)
+uptime_hours=$((uptime_s / 3600))
+
+debug_log "ENHANCED METRICS:"
+debug_log "  uptime_s=$uptime_s (${uptime_hours}h)"
+debug_log "  bootcount=$bootcount"
+
+# Enhanced reboot detection using uptime correlation
+REBOOT_DETECTED=false
+
+if [ "$uptime_s" -lt 1800 ]; then # Less than 30 minutes
+    REBOOT_DETECTED=true
+    log "INFO: Recent Starlink reboot detected (uptime: ${uptime_hours}h/${uptime_s}s)"
+    debug_log "REBOOT DETECTION: Uptime indicates recent reboot"
+
+    # Check if we should reset sample tracking due to reboot
+    if [ -f "$LAST_SAMPLE_FILE" ]; then
+        stored_sample_index=$(cat "$LAST_SAMPLE_FILE" 2>/dev/null || echo "0")
+        debug_log "REBOOT DETECTION: Found existing sample tracking: $stored_sample_index"
+
+        # Reset sample tracking for recent reboots to prevent stale tracking issues
+        if echo "0" >"$LAST_SAMPLE_FILE"; then
+            log "INFO: Auto-reset sample tracking due to recent reboot (uptime: ${uptime_s}s)"
+            debug_log "REBOOT AUTO-FIX: Sample tracking reset from $stored_sample_index to 0"
+        else
+            log "WARNING: Failed to reset sample tracking file after reboot detection"
+        fi
+    fi
+elif [ "$uptime_s" -lt 7200 ]; then # Less than 2 hours
+    debug_log "REBOOT DETECTION: Uptime relatively low (${uptime_hours}h) - may indicate recent reboot"
+else
+    debug_log "REBOOT DETECTION: Uptime normal (${uptime_hours}h) - no recent reboot"
+fi
+
 # --- Data Processing ---
 # The 'current' field is a counter that increments with each new data sample.
 # We use this to determine how many new data points are available since our last run.
@@ -235,6 +274,28 @@ debug_log "SAMPLE INDICES:"
 debug_log "  current_sample_index=$current_sample_index (from API)"
 debug_log "  last_sample_index=$last_sample_index (from $LAST_SAMPLE_FILE)"
 debug_log "  difference=$((current_sample_index - last_sample_index))"
+
+# AUTO-FIX: Detect stale tracking file (tracking index higher than API index)
+# This happens when Starlink dish reboots and resets sample indices, but tracking file persists
+if [ "$last_sample_index" -gt "$current_sample_index" ]; then
+    stale_difference=$((last_sample_index - current_sample_index))
+    log "WARNING: Stale sample tracking detected - auto-fixing"
+    log "WARNING: Tracked index ($last_sample_index) > API index ($current_sample_index), difference: $stale_difference"
+    log "WARNING: This usually happens after Starlink dish reboot/power cycle"
+
+    # Reset tracking to a safe value (current index - 1)
+    new_tracking_index=$((current_sample_index - 1))
+    if echo "$new_tracking_index" >"$LAST_SAMPLE_FILE"; then
+        log "INFO: Auto-fixed sample tracking: reset from $last_sample_index to $new_tracking_index"
+        debug_log "SAMPLE TRACKING: Auto-fix successful, continuing with corrected index"
+        # Update the variable for the rest of the script
+        last_sample_index=$new_tracking_index
+    else
+        log "ERROR: Failed to auto-fix sample tracking file: $LAST_SAMPLE_FILE"
+        debug_log "SAMPLE TRACKING: Auto-fix failed, exiting"
+        exit 1
+    fi
+fi
 
 # If the current index isn't greater than the last one, there's nothing new to log.
 if [ "$current_sample_index" -le "$last_sample_index" ]; then
@@ -253,6 +314,13 @@ debug_log "STEP: Extracting data arrays from API response"
 latency_array=$(echo "$history_data" | $JQ_CMD -r '.popPingLatencyMs')
 loss_array=$(echo "$history_data" | $JQ_CMD -r '.popPingDropRate')
 obstruction=$(echo "$status_data" | $JQ_CMD -r '.obstructionStats.fractionObstructed // 0')
+
+# Extract enhanced metrics for CSV logging
+is_snr_above_noise_floor=$(echo "$status_data" | $JQ_CMD -r '.isSnrAboveNoiseFloor // true' 2>/dev/null)
+is_snr_persistently_low=$(echo "$status_data" | $JQ_CMD -r '.isSnrPersistentlyLow // false' 2>/dev/null)
+snr=$(echo "$status_data" | $JQ_CMD -r '.snr // 0' 2>/dev/null)
+gps_valid=$(echo "$status_data" | $JQ_CMD -r '.gpsStats.gpsValid // true' 2>/dev/null)
+gps_sats=$(echo "$status_data" | $JQ_CMD -r '.gpsStats.gpsSats // 0' 2>/dev/null)
 
 debug_log "DATA ARRAYS:"
 debug_log "  latency_array length: $(echo "$latency_array" | $JQ_CMD -r 'length // 0')"
@@ -277,7 +345,7 @@ now_seconds=$(date +%s)
 
 # Create the CSV file with a header row if it doesn't already exist.
 if [ ! -f "$OUTPUT_CSV" ]; then
-    echo "Timestamp,Latency (ms),Packet Loss (%),Obstruction (%)" >"$OUTPUT_CSV"
+    echo "Timestamp,Latency (ms),Packet Loss (%),Obstruction (%),Uptime (hours),SNR (dB),SNR Above Noise,SNR Persistently Low,GPS Valid,GPS Satellites,Reboot Detected" >"$OUTPUT_CSV"
 fi
 
 # --- Loop and Log ---
@@ -372,9 +440,16 @@ while [ "$i" -lt "$new_sample_count" ]; do
         loss_pct=$(awk -v val="$loss" 'BEGIN { printf "%.2f", val * 100 }')
         obstruction_pct=$(awk -v val="$obstruction" 'BEGIN { printf "%.2f", val * 100 }')
 
-        # Append the formatted data as a new line in the CSV file.
-        echo "$human_readable_timestamp,$latency,$loss_pct,$obstruction_pct" >>"$OUTPUT_CSV"
-        debug_log "CSV WRITE: Sample $i written to CSV"
+        # Format enhanced metrics for CSV
+        snr_formatted=$(awk -v val="$snr" 'BEGIN { printf "%.1f", val }')
+        snr_above_noise_flag=$([ "$is_snr_above_noise_floor" = "true" ] && echo "1" || echo "0")
+        snr_persistently_low_flag=$([ "$is_snr_persistently_low" = "true" ] && echo "1" || echo "0")
+        gps_valid_flag=$([ "$gps_valid" = "true" ] && echo "1" || echo "0")
+        reboot_detected_flag=$([ "$REBOOT_DETECTED" = "true" ] && echo "1" || echo "0")
+
+        # Append the formatted data as a new line in the CSV file (enhanced format).
+        echo "$human_readable_timestamp,$latency,$loss_pct,$obstruction_pct,$uptime_hours,$snr_formatted,$snr_above_noise_flag,$snr_persistently_low_flag,$gps_valid_flag,$gps_sats,$reboot_detected_flag" >>"$OUTPUT_CSV"
+        debug_log "CSV WRITE: Sample $i written to CSV with enhanced metrics"
 
         samples_processed=$((samples_processed + 1))
     else
