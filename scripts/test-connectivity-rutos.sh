@@ -176,10 +176,21 @@ load_config() {
     if [ ! -f "$CONFIG_FILE" ]; then
         if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
             log_warning "Configuration file not found: $CONFIG_FILE (test mode - using defaults)"
-            # Set minimal defaults for testing
+            # Set comprehensive defaults for testing
             INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
             GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
             JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
+            
+            # Set default values for all variables that might be referenced
+            STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+            RUTOS_USERNAME="${RUTOS_USERNAME:-}"
+            RUTOS_PASSWORD="${RUTOS_PASSWORD:-}"
+            RUTOS_IP="${RUTOS_IP:-}"
+            PUSHOVER_TOKEN="${PUSHOVER_TOKEN:-}"
+            PUSHOVER_USER="${PUSHOVER_USER:-}"
+            MWAN_IFACE="${MWAN_IFACE:-}"
+            
+            log_debug "Test mode defaults set: STARLINK_IP=$STARLINK_IP, INSTALL_DIR=$INSTALL_DIR"
             return 0
         else
             log_error "Configuration file not found: $CONFIG_FILE"
@@ -320,6 +331,12 @@ test_starlink_ping_curl() {
         return 0
     fi
 
+    # Safety check for required variables
+    if [ -z "${STARLINK_IP:-}" ]; then
+        log_error "STARLINK_IP not configured - cannot test Starlink connectivity"
+        return 1
+    fi
+
     starlink_host=$(echo "$STARLINK_IP" | cut -d':' -f1)
     starlink_port=$(echo "$STARLINK_IP" | cut -d':' -f2)
 
@@ -384,6 +401,12 @@ test_starlink_api_device_info() {
         return 0
     fi
 
+    # Safety check for required variables
+    if [ -z "${STARLINK_IP:-}" ]; then
+        log_error "STARLINK_IP not configured - cannot test Starlink API"
+        return 1
+    fi
+
     starlink_host=$(echo "$STARLINK_IP" | cut -d':' -f1)
     starlink_port=$(echo "$STARLINK_IP" | cut -d':' -f2)
 
@@ -424,6 +447,12 @@ test_starlink_api() {
         log_debug "[TEST MODE] Simulating Starlink API connectivity test"
         log_debug "[TEST MODE] Would test: grpcurl GetStatus call"
         return 0
+    fi
+
+    # Safety check for required variables
+    if [ -z "${STARLINK_IP:-}" ]; then
+        log_error "STARLINK_IP not configured - cannot test Starlink API"
+        return 1
     fi
 
     # Extract IP and port from STARLINK_IP
