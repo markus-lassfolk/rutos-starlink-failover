@@ -107,7 +107,7 @@ PURPOSE:
     Generate AI-friendly error reports for debugging assistance.
 
 USAGE:
-    ./scripts/dev-testing-rutos-simplified.sh [OPTIONS]
+    ./scripts/dev-testing-rutos.sh [OPTIONS]
 
 OPTIONS:
     --debug, -d         Enable debug output
@@ -127,20 +127,20 @@ OUTPUTS:
 
 EXAMPLES:
     # Basic testing
-    ./scripts/dev-testing-rutos-simplified.sh
+    ./scripts/dev-testing-rutos.sh
 
     # With debug output
-    ./scripts/dev-testing-rutos-simplified.sh --debug
+    ./scripts/dev-testing-rutos.sh --debug
 
     # Skip auto-update (for development)
-    ./scripts/dev-testing-rutos-simplified.sh --skip-update
+    ./scripts/dev-testing-rutos.sh --skip-update
 
 DEPLOYMENT:
     # Run directly from GitHub (for RUTOS router)
-    curl -fsSL https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/$GITHUB_BRANCH/scripts/dev-testing-rutos-simplified.sh | sh
+    curl -fsSL https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/$GITHUB_BRANCH/scripts/dev-testing-rutos.sh | sh
 
     # Or download and run
-    curl -fsSL https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/$GITHUB_BRANCH/scripts/dev-testing-rutos-simplified.sh > test-scripts.sh
+    curl -fsSL https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/$GITHUB_BRANCH/scripts/dev-testing-rutos.sh > test-scripts.sh
     chmod +x test-scripts.sh
     ./test-scripts.sh
 
@@ -160,8 +160,8 @@ self_update() {
     log_step "Checking for script updates"
 
     # Download latest version
-    TEMP_SCRIPT="/tmp/dev-testing-rutos-simplified.sh.latest"
-    SCRIPT_URL="${GITHUB_RAW_BASE}/scripts/dev-testing-rutos-simplified.sh"
+    TEMP_SCRIPT="/tmp/dev-testing-rutos.sh.latest"
+    SCRIPT_URL="${GITHUB_RAW_BASE}/scripts/dev-testing-rutos.sh"
 
     log_debug "Downloading from: $SCRIPT_URL"
 
@@ -199,24 +199,31 @@ self_update() {
 find_rutos_scripts() {
     log_step "Finding *-rutos.sh scripts"
 
-    # Look for scripts in common locations
-    script_list=""
+    # Create a temporary file to collect script paths
+    temp_script_list="/tmp/rutos_scripts_$$"
+    > "$temp_script_list"
 
     # Current directory and subdirectories
     find . -name "*-rutos.sh" -type f 2>/dev/null | sort | while read -r script; do
         if [ -f "$script" ] && [ -r "$script" ]; then
             log_debug "Found script: $script"
-            echo "$script"
+            echo "$script" >> "$temp_script_list"
         fi
-    done | tr '\n' ' '
+    done
 
     # Also check for main scripts that might be RUTOS-compatible
     find . -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
         if [ -f "$script" ] && [ -r "$script" ]; then
             log_debug "Found main script: $script"
-            echo "$script"
+            echo "$script" >> "$temp_script_list"
         fi
-    done | tr '\n' ' '
+    done
+
+    # Return the list and clean up
+    if [ -f "$temp_script_list" ]; then
+        cat "$temp_script_list"
+        rm -f "$temp_script_list"
+    fi
 }
 
 # Check if script has dry-run support
@@ -398,7 +405,7 @@ COPY THIS ENTIRE SECTION TO AI FOR DEBUGGING ASSISTANCE:
 - Passed: $PASSED_SCRIPTS
 - Failed: $FAILED_SCRIPTS
 - Missing Dry-Run Support: $SCRIPTS_MISSING_DRYRUN
-- Success Rate: $((PASSED_SCRIPTS * 100 / TOTAL_SCRIPTS))%
+- Success Rate: $(if [ "$TOTAL_SCRIPTS" -gt 0 ]; then echo "$((PASSED_SCRIPTS * 100 / TOTAL_SCRIPTS))%"; else echo "N/A"; fi)
 
 ## Dry-Run Support Analysis
 $(if [ "$SCRIPTS_MISSING_DRYRUN" -gt 0 ]; then
@@ -482,25 +489,41 @@ main() {
     self_update "$@"
 
     # Step 2: Find scripts
-    if script_list=$(find_rutos_scripts); then
+    script_list=$(find_rutos_scripts)
+    if [ -n "$script_list" ]; then
         log_info "Testing scripts in safe mode (DRY_RUN=1, RUTOS_TEST_MODE=1)"
 
         # Step 3: Test each script
-        for script in $script_list; do
-            script_name=$(basename "$script")
-            if test_script "$script"; then
-                PASSED_SCRIPTS=$((PASSED_SCRIPTS + 1))
-                # Check if script has dry-run support for display
-                if check_dry_run_support "$script"; then
-                    printf "${GREEN}✅ PASS${NC} - %s ${CYAN}(dry-run ready)${NC}\n" "$script_name"
+        # Create temporary files to track results across subshells
+        temp_results="/tmp/test_results_$$"
+        > "$temp_results"
+        
+        printf "%s\n" "$script_list" | while IFS= read -r script; do
+            if [ -n "$script" ]; then
+                script_name=$(basename "$script")
+                
+                if test_script "$script"; then
+                    echo "PASS:$script_name" >> "$temp_results"
+                    # Check if script has dry-run support for display
+                    if check_dry_run_support "$script"; then
+                        printf "${GREEN}✅ PASS${NC} - %s ${CYAN}(dry-run ready)${NC}\n" "$script_name"
+                    else
+                        printf "${GREEN}✅ PASS${NC} - %s ${YELLOW}(needs dry-run)${NC}\n" "$script_name"
+                    fi
                 else
-                    printf "${GREEN}✅ PASS${NC} - %s ${YELLOW}(needs dry-run)${NC}\n" "$script_name"
+                    echo "FAIL:$script_name" >> "$temp_results"
+                    printf "${RED}❌ FAIL${NC} - %s\n" "$script_name"
                 fi
-            else
-                FAILED_SCRIPTS=$((FAILED_SCRIPTS + 1))
-                printf "${RED}❌ FAIL${NC} - %s\n" "$script_name"
             fi
         done
+        
+        # Calculate final results from temp file
+        if [ -f "$temp_results" ]; then
+            TOTAL_SCRIPTS=$(wc -l < "$temp_results")
+            PASSED_SCRIPTS=$(grep -c "^PASS:" "$temp_results" 2>/dev/null || echo "0")
+            FAILED_SCRIPTS=$(grep -c "^FAIL:" "$temp_results" 2>/dev/null || echo "0")
+            rm -f "$temp_results"
+        fi
 
         # Step 4: Generate report
         generate_error_report
