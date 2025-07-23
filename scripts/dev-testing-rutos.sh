@@ -234,10 +234,7 @@ find_rutos_scripts() {
         fi
     done
 
-    # Log the step AFTER collecting scripts to avoid contamination
-    log_step "Finding *-rutos.sh scripts"
-
-    # Return the list and clean up
+    # Return the list and clean up (NO LOGGING in this function - it contaminates output)
     if [ -f "$temp_script_list" ] && [ -s "$temp_script_list" ]; then
         cat "$temp_script_list"
         rm -f "$temp_script_list"
@@ -510,6 +507,7 @@ main() {
     self_update "$@"
 
     # Step 2: Find scripts
+    log_step "Finding *-rutos.sh scripts"
     script_list=$(find_rutos_scripts)
     if [ -n "$script_list" ]; then
         log_info "Testing scripts in safe mode (DRY_RUN=1, RUTOS_TEST_MODE=1)"
