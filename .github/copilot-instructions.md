@@ -887,6 +887,7 @@ log_step "Finding scripts"  # Safe to log after collection
 **Implementation**: NEVER put logging calls inside functions that return output via stdout. Move all logging to the calling function.
 **Impact**: Prevents critical bugs where log output like "[STEP] Finding scripts" gets treated as actual script filenames, causing syntax errors and complete system failure
 **Example**:
+
 ```bash
 # WRONG - logging inside output function contaminates return value
 get_script_list() {
@@ -895,7 +896,7 @@ get_script_list() {
 }
 script_list=$(get_script_list)  # Now contains log messages mixed with script names
 
-# RIGHT - logging outside the output function  
+# RIGHT - logging outside the output function
 get_script_list() {
     # NO LOGGING - pure output function
     find . -name "*.sh"
@@ -911,12 +912,37 @@ script_list=$(get_script_list)  # Clean script list only
 **Implementation**: Use temporary files to pass data between processing stages instead of pipes with variable updates
 **Impact**: Ensures reliable result tracking and prevents variables being reset to zero after subshell completion
 **Example**:
-
 ```bash
 # WRONG - variables lost in subshell
 find . -name "*.sh" | while read script; do
     COUNTER=$((COUNTER + 1))  # Lost when pipe ends
 done
+
+# RIGHT - file-based approach
+temp_results="/tmp/results_$$"
+find . -name "*.sh" > /tmp/scripts_$$
+while read script; do
+    echo "PASS:$script" >> "$temp_results"
+done < /tmp/scripts_$$
+COUNTER=$(wc -l < "$temp_results")
+```
+
+#### Shell Scripting - BusyBox Command Output Whitespace (Date: 2025-07-23)
+
+**Discovery**: BusyBox `wc` and `grep -c` commands can include unwanted whitespace/newlines in output, causing arithmetic errors and display issues like "0\n0" instead of "0"
+**Context**: When capturing command output in variables for arithmetic operations or display
+**Implementation**: Always strip whitespace with `tr -d ' \n\r'` when capturing numeric output from BusyBox commands
+**Impact**: Prevents "bad number" arithmetic errors and malformed display output in RUTOS environment
+**Example**:
+```bash
+# WRONG - can include newlines/whitespace causing "0\n0" display
+COUNT=$(wc -l < file)
+MATCHES=$(grep -c "pattern" file)
+
+# RIGHT - strip all whitespace for clean numbers
+COUNT=$(wc -l < file | tr -d ' \n\r')
+MATCHES=$(grep -c "pattern" file | tr -d ' \n\r')
+```
 
 # RIGHT - file-based approach
 temp_results="/tmp/results_$$"
