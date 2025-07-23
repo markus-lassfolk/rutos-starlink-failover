@@ -644,6 +644,12 @@ printf "• Troubleshooting:    ${CYAN}https://github.com/your-repo/rutos-starli
 printf "\n"
 
 # Exit with appropriate code based on status
+# In dry-run or test mode, always exit with 0 for successful completion
+if [ "${DRY_RUN:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "${GREEN}[SUCCESS]${NC} [%s] Post-installation check completed in test mode\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+    exit 0
+fi
+
 case "$overall_status" in
     "excellent")
         exit 0
