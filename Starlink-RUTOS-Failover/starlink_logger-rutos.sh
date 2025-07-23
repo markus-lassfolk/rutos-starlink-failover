@@ -516,7 +516,7 @@ fi
 
 # Calculate if we're falling behind (samples accumulating faster than processing)
 # Only warn if we're both taking too long AND unable to keep up
-expected_samples_per_run=1 # Normally expect 1-2 new samples per minute for frequent runs
+expected_samples_per_run=1                               # Normally expect 1-2 new samples per minute for frequent runs
 high_sample_threshold=$((expected_samples_per_run * 20)) # Only consider "high" if >20x normal
 
 if [ "$new_sample_count" -gt "$high_sample_threshold" ]; then
@@ -560,7 +560,7 @@ else
     if [ "$execution_time" -lt "$PERFORMANCE_ALERT_THRESHOLD" ]; then
         debug_log "PERFORMANCE: Script completed efficiently ($execution_time s < $PERFORMANCE_ALERT_THRESHOLD s)"
         debug_log "PERFORMANCE: Processing rate: $samples_per_second samples/s, Total: $samples_processed samples"
-        
+
         # Positive feedback for good performance
         if [ "$samples_processed" -gt 30 ] && [ "$execution_time" -lt 15 ]; then
             debug_log "PERFORMANCE: Excellent performance - processed $samples_processed samples in ${execution_time}s"
