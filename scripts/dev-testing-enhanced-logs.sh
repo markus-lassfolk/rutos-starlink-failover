@@ -444,18 +444,18 @@ test_script() {
     # Try to run script - it should respect our dry-run environment variables
     test_start_time=$(date '+%s')
     test_exit_code=0
-    
+
     if ! timeout $timeout_seconds sh -x "$script_path" >/tmp/test_output_$$ 2>&1; then
         test_exit_code=$?
         test_end_time=$(date '+%s')
         test_duration=$((test_end_time - test_start_time))
-        
+
         # Enhanced error analysis
         test_error=$(cat /tmp/test_output_$$ 2>/dev/null | head -5 || echo "Script execution failed")
-        
+
         # Capture additional debugging information
         debug_info="Exit Code: $test_exit_code | Duration: ${test_duration}s | Timeout: ${timeout_seconds}s"
-        
+
         # Analyze failure patterns
         failure_analysis=""
         if [ $test_exit_code -eq 124 ]; then
@@ -571,36 +571,36 @@ test_script_comprehensive() {
         # Execute with timeout and capture both stdout and stderr
         test_start_time=$(date '+%s')
         test_exit_code=0
-        
+
         # Capture system state before test execution
         capture_system_state_before "$script_name" "$test_desc"
-        
+
         # Enhanced error capture with debugging information
         debug_info_file="/tmp/debug_info_${script_name}_${test_num}_$$"
-        
+
         # Prepare enhanced debugging environment
         debug_env="$test_env"
         debug_env="${debug_env} export PS4='+ Line \$LINENO: ';"
         debug_env="${debug_env} export SCRIPT_DEBUG=1;"
-        
+
         # Run with comprehensive error capture
         if eval "$debug_env timeout $timeout_seconds sh -x '$script_path'" >"$output_file" 2>&1; then
             test_exit_code=0
         else
             test_exit_code=$?
         fi
-        
+
         test_end_time=$(date '+%s')
-        
+
         # Save individual test log
         save_script_test_log "$script_name" "$test_desc" "$output_file"
-        
+
         # Capture system state after test and detect changes
         capture_system_state_after "$script_name" "$test_desc" "$test_exit_code"
         test_duration=$((test_end_time - test_start_time))
-        
+
         # Capture additional debugging information
-        cat > "$debug_info_file" <<EOF
+        cat >"$debug_info_file" <<EOF
 === TEST EXECUTION DETAILS ===
 Exit Code: $test_exit_code
 Duration: ${test_duration}s (timeout: ${timeout_seconds}s)
@@ -609,29 +609,29 @@ End Time: $(date -d "@$test_end_time" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date)
 
 === ENVIRONMENT VARIABLES ===
 $(for var in $env_vars; do
-    if [ -n "$var" ]; then
-        echo "$var"
-    fi
-done)
+            if [ -n "$var" ]; then
+                echo "$var"
+            fi
+        done)
 
 === FAILURE ANALYSIS ===
 $(if [ $test_exit_code -eq 124 ]; then
-    echo "TIMEOUT: Script exceeded ${timeout_seconds}s timeout"
-elif [ $test_exit_code -eq 130 ]; then
-    echo "INTERRUPTED: Script was interrupted (Ctrl+C)"
-elif [ $test_exit_code -eq 137 ]; then
-    echo "KILLED: Script was killed (SIGKILL)"
-elif [ $test_exit_code -eq 143 ]; then
-    echo "TERMINATED: Script was terminated (SIGTERM)"
-elif [ $test_exit_code -ne 0 ]; then
-    echo "ERROR: Script exited with non-zero code $test_exit_code"
-else
-    echo "SUCCESS: Script completed normally"
-fi)
+            echo "TIMEOUT: Script exceeded ${timeout_seconds}s timeout"
+        elif [ $test_exit_code -eq 130 ]; then
+            echo "INTERRUPTED: Script was interrupted (Ctrl+C)"
+        elif [ $test_exit_code -eq 137 ]; then
+            echo "KILLED: Script was killed (SIGKILL)"
+        elif [ $test_exit_code -eq 143 ]; then
+            echo "TERMINATED: Script was terminated (SIGTERM)"
+        elif [ $test_exit_code -ne 0 ]; then
+            echo "ERROR: Script exited with non-zero code $test_exit_code"
+        else
+            echo "SUCCESS: Script completed normally"
+        fi)
 
 === OUTPUT SIZE ===
-Output Lines: $(wc -l < "$output_file" 2>/dev/null || echo "0")
-Output Size: $(wc -c < "$output_file" 2>/dev/null || echo "0") bytes
+Output Lines: $(wc -l <"$output_file" 2>/dev/null || echo "0")
+Output Size: $(wc -c <"$output_file" 2>/dev/null || echo "0") bytes
 
 === LAST 20 LINES OF OUTPUT (with line tracing) ===
 $(tail -20 "$output_file" 2>/dev/null || echo "No output captured")
@@ -668,18 +668,18 @@ EOF
                 head -30 "$debug_info_file" | sed 's/^/  /'
                 printf "\n"
             fi
-            
+
             # Show script output
             if [ -s "$output_file" ]; then
                 printf "${RED}Script Output:${NC}\n"
                 head -15 "$output_file" | sed 's/^/  /'
-                if [ "$(wc -l < "$output_file")" -gt 15 ]; then
-                    printf "  ${CYAN}... (truncated, %d total lines)${NC}\n" "$(wc -l < "$output_file")"
+                if [ "$(wc -l <"$output_file")" -gt 15 ]; then
+                    printf "  ${CYAN}... (truncated, %d total lines)${NC}\n" "$(wc -l <"$output_file")"
                 fi
             else
                 printf "${RED}No output captured (silent failure)${NC}\n"
             fi
-            
+
             # Prepare enhanced error content for report
             if [ -f "$debug_info_file" ]; then
                 error_content="Exit Code: $test_exit_code | Duration: ${test_duration}s | $(head -5 "$output_file" 2>/dev/null | tr '\n' ' ' || echo "No output")"
@@ -688,7 +688,7 @@ EOF
                 error_content="Script execution failed with exit code $test_exit_code"
                 debug_details="No debug information available"
             fi
-            
+
             # Write enhanced error details to file
             cat >>"$comp_errors_file" <<EOF
 COMPREHENSIVE TEST FAILURE in $script_name (Test $test_num: $test_desc):
@@ -710,18 +710,18 @@ $debug_details
   
   === QUICK DIAGNOSIS ===
 $(if [ $test_exit_code -eq 124 ]; then
-    echo "  - TIMEOUT: Script is taking too long (>${timeout_seconds}s)"
-    echo "  - Fix: Add early exit pattern or optimize performance"
-elif [ $test_exit_code -eq 1 ]; then
-    echo "  - GENERAL ERROR: Script logic error or command failure"
-    echo "  - Fix: Check script logic and error handling"
-elif [ $test_exit_code -eq 127 ]; then
-    echo "  - COMMAND NOT FOUND: Missing dependency or typo"
-    echo "  - Fix: Verify all commands exist in RUTOS environment"
-else
-    echo "  - Exit code $test_exit_code indicates specific error condition"
-    echo "  - Fix: Review script documentation for exit code meanings"
-fi)
+                echo "  - TIMEOUT: Script is taking too long (>${timeout_seconds}s)"
+                echo "  - Fix: Add early exit pattern or optimize performance"
+            elif [ $test_exit_code -eq 1 ]; then
+                echo "  - GENERAL ERROR: Script logic error or command failure"
+                echo "  - Fix: Check script logic and error handling"
+            elif [ $test_exit_code -eq 127 ]; then
+                echo "  - COMMAND NOT FOUND: Missing dependency or typo"
+                echo "  - Fix: Verify all commands exist in RUTOS environment"
+            else
+                echo "  - Exit code $test_exit_code indicates specific error condition"
+                echo "  - Fix: Review script documentation for exit code meanings"
+            fi)
   
 EOF
         fi
@@ -770,9 +770,9 @@ setup_logs_directory() {
     if [ "$SAVE_INDIVIDUAL_LOGS" = "1" ]; then
         mkdir -p "$LOGS_DIR"
         log_info "Individual logs will be saved to: $LOGS_DIR"
-        
+
         # Create summary files
-        cat > "$LOGS_DIR/summary.txt" <<EOF
+        cat >"$LOGS_DIR/summary.txt" <<EOF
 RUTOS Script Testing Summary
 ==========================
 Test Date: $(date)
@@ -788,9 +788,9 @@ Structure:
 - summary.txt: This file
 
 EOF
-        
+
         # Initialize crontab changes tracker
-        cat > "$LOGS_DIR/crontab-changes.txt" <<EOF
+        cat >"$LOGS_DIR/crontab-changes.txt" <<EOF
 Scripts That Modified Crontab
 ============================
 Test Date: $(date)
@@ -806,17 +806,17 @@ EOF
 capture_system_state_before() {
     script_name="$1"
     test_desc="$2"
-    
+
     if [ "$SAVE_INDIVIDUAL_LOGS" = "1" ]; then
         script_log_dir="$LOGS_DIR/$(echo "$script_name" | sed 's/[^a-zA-Z0-9._-]/_/g')"
         mkdir -p "$script_log_dir"
-        
+
         # Capture crontab before execution
-        crontab -l > "$script_log_dir/crontab-before-${test_desc}.txt" 2>/dev/null || \
-            echo "No crontab found" > "$script_log_dir/crontab-before-${test_desc}.txt"
-        
+        crontab -l >"$script_log_dir/crontab-before-${test_desc}.txt" 2>/dev/null ||
+            echo "No crontab found" >"$script_log_dir/crontab-before-${test_desc}.txt"
+
         # Log test start
-        cat >> "$script_log_dir/system-changes.txt" <<EOF
+        cat >>"$script_log_dir/system-changes.txt" <<EOF
 === Test: $test_desc ===
 Start Time: $(date)
 
@@ -829,18 +829,18 @@ capture_system_state_after() {
     script_name="$1"
     test_desc="$2"
     exit_code="$3"
-    
+
     if [ "$SAVE_INDIVIDUAL_LOGS" = "1" ]; then
         script_log_dir="$LOGS_DIR/$(echo "$script_name" | sed 's/[^a-zA-Z0-9._-]/_/g')"
-        
+
         # Capture crontab after execution
-        crontab -l > "$script_log_dir/crontab-after-${test_desc}.txt" 2>/dev/null || \
-            echo "No crontab found" > "$script_log_dir/crontab-after-${test_desc}.txt"
-        
+        crontab -l >"$script_log_dir/crontab-after-${test_desc}.txt" 2>/dev/null ||
+            echo "No crontab found" >"$script_log_dir/crontab-after-${test_desc}.txt"
+
         # Compare crontab changes
-        if ! diff "$script_log_dir/crontab-before-${test_desc}.txt" "$script_log_dir/crontab-after-${test_desc}.txt" > "$script_log_dir/crontab-diff-${test_desc}.txt" 2>/dev/null; then
+        if ! diff "$script_log_dir/crontab-before-${test_desc}.txt" "$script_log_dir/crontab-after-${test_desc}.txt" >"$script_log_dir/crontab-diff-${test_desc}.txt" 2>/dev/null; then
             # Crontab changed!
-            cat >> "$script_log_dir/system-changes.txt" <<EOF
+            cat >>"$script_log_dir/system-changes.txt" <<EOF
 🚨 CRONTAB MODIFIED during test: $test_desc
 Exit Code: $exit_code
 End Time: $(date)
@@ -849,9 +849,9 @@ Changes detected:
 $(cat "$script_log_dir/crontab-diff-${test_desc}.txt")
 
 EOF
-            
+
             # Add to global crontab changes tracker
-            cat >> "$LOGS_DIR/crontab-changes.txt" <<EOF
+            cat >>"$LOGS_DIR/crontab-changes.txt" <<EOF
 Script: $script_name
 Test: $test_desc
 Exit Code: $exit_code
@@ -861,10 +861,10 @@ $(cat "$script_log_dir/crontab-diff-${test_desc}.txt")
 ----------------------------------------
 
 EOF
-            
+
             log_warning "CRONTAB MODIFIED by $script_name during $test_desc test!"
         else
-            cat >> "$script_log_dir/system-changes.txt" <<EOF
+            cat >>"$script_log_dir/system-changes.txt" <<EOF
 ✅ No crontab changes detected during test: $test_desc
 Exit Code: $exit_code
 End Time: $(date)
@@ -879,18 +879,18 @@ save_script_test_log() {
     script_name="$1"
     test_desc="$2"
     output_file="$3"
-    
+
     if [ "$SAVE_INDIVIDUAL_LOGS" = "1" ]; then
         script_log_dir="$LOGS_DIR/$(echo "$script_name" | sed 's/[^a-zA-Z0-9._-]/_/g')"
         mkdir -p "$script_log_dir"
-        
+
         # Clean test description for filename
         test_file="test-$(echo "$test_desc" | tr 'A-Z ' 'a-z-').log"
-        
+
         # Copy the test output
-        cp "$output_file" "$script_log_dir/$test_file" 2>/dev/null || \
-            echo "No output captured" > "$script_log_dir/$test_file"
-        
+        cp "$output_file" "$script_log_dir/$test_file" 2>/dev/null ||
+            echo "No output captured" >"$script_log_dir/$test_file"
+
         log_debug "Saved individual log: $script_log_dir/$test_file"
     fi
 }
@@ -1214,7 +1214,7 @@ main() {
         log_error "No scripts found to test"
         exit 1
     fi
-    
+
     # Final summary for individual logs
     if [ "$SAVE_INDIVIDUAL_LOGS" = "1" ]; then
         printf "\n${BLUE}========================================${NC}\n"
@@ -1223,7 +1223,7 @@ main() {
         log_success "Individual test logs saved to: $LOGS_DIR"
         log_info "📋 Check $LOGS_DIR/crontab-changes.txt for scripts that modified crontab"
         log_info "📁 Each script has its own subdirectory with detailed logs"
-        
+
         if [ -f "$LOGS_DIR/crontab-changes.txt" ]; then
             crontab_modifications=$(grep -c "Script:" "$LOGS_DIR/crontab-changes.txt" 2>/dev/null || echo "0")
             if [ "$crontab_modifications" -gt 0 ]; then
