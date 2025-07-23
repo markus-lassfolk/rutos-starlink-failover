@@ -505,9 +505,9 @@ test_script_comprehensive() {
     # Test with different verbosity levels
     test_modes="
 1:Basic_dry-run:DRY_RUN=1
-2:Debug_dry-run:DEBUG=1:DRY_RUN=1  
-3:Test_mode:DRY_RUN=1:RUTOS_TEST_MODE=1
-4:Full_verbose:DEBUG=1:DRY_RUN=1:RUTOS_TEST_MODE=1
+2:Debug_dry-run:DEBUG=1 DRY_RUN=1  
+3:Test_mode:DRY_RUN=1 RUTOS_TEST_MODE=1
+4:Full_verbose:DEBUG=1 DRY_RUN=1 RUTOS_TEST_MODE=1
 "
 
     printf "\n${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
@@ -580,7 +580,7 @@ Start Time: $(date -d "@$test_start_time" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || da
 End Time: $(date -d "@$test_end_time" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date)
 
 === ENVIRONMENT VARIABLES ===
-$(echo "$env_vars" | tr ':' '\n' | while read -r var; do
+$(for var in $env_vars; do
     if [ -n "$var" ]; then
         echo "$var"
     fi
