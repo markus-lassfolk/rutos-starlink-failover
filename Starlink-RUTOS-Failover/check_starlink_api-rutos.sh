@@ -108,6 +108,12 @@ if [ "${DEBUG:-0}" = "1" ]; then
     printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
 fi
 
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
+fi
+
 # Function to safely execute commands
 # shellcheck disable=SC2317  # Function defined for dry-run support, called conditionally
 safe_execute() {

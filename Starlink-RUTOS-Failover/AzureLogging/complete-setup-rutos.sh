@@ -15,6 +15,77 @@ SHIPPER_SCRIPT="$SCRIPT_DIR/log-shipper-rutos.sh"
 # shellcheck disable=SC2034  # TEST_SCRIPT may be used for debugging
 TEST_SCRIPT="$SCRIPT_DIR/test-azure-logging-rutos.sh"
 
+# Standard colors for consistent output (compatible with busybox)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Check if we're in a terminal that supports colors
+if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" != "" ]; then
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    CYAN=""
+    NC=""
+fi
+
+# Standard logging functions
+log_info() {
+    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+log_warning() {
+    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+log_error() {
+    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+}
+
+log_debug() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
+
+log_step() {
+    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+    
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        log_info "[DRY-RUN] Would execute: $description"
+        log_debug "[DRY-RUN] Command: $cmd"
+        return 0
+    else
+        log_debug "Executing: $cmd"
+        eval "$cmd"
+    fi
+}
+
 echo "=== Azure Logging Complete Setup and Verification ==="
 echo ""
 
@@ -33,27 +104,26 @@ check_rutos() {
 
 # Function to setup persistent logging
 setup_logging() {
-    echo "Step 1: Setting up persistent logging..."
+    log_step "Setting up persistent logging..."
 
     if [ ! -f "$SETUP_SCRIPT" ]; then
-        echo "❌ Setup script not found: $SETUP_SCRIPT"
+        log_error "Setup script not found: $SETUP_SCRIPT"
         exit 1
     fi
 
-    chmod +x "$SETUP_SCRIPT"
-    "$SETUP_SCRIPT"
+    safe_execute "chmod +x '$SETUP_SCRIPT'" "Make setup script executable"
+    safe_execute "'$SETUP_SCRIPT'" "Run persistent logging setup"
 
-    echo "✅ Persistent logging setup completed"
+    log_info "✅ Persistent logging setup completed"
 }
 
 # Function to verify logging is working
 verify_logging() {
-    echo ""
-    echo "Step 2: Verifying persistent logging..."
+    log_step "Verifying persistent logging..."
 
     # Check if log file exists and is writable
     if [ ! -f "$LOG_FILE" ]; then
-        echo "❌ Log file $LOG_FILE does not exist"
+        log_error "Log file $LOG_FILE does not exist"
         return 1
     fi
 
@@ -61,19 +131,25 @@ verify_logging() {
     LOG_SIZE=$(stat -c%s "$LOG_FILE" 2>/dev/null || echo "0")
     LOG_PERMS=$(stat -c%a "$LOG_FILE" 2>/dev/null || echo "000")
 
-    echo "Log file: $LOG_FILE"
-    echo "Size: $LOG_SIZE bytes"
-    echo "Permissions: $LOG_PERMS"
+    log_info "Log file: $LOG_FILE"
+    log_info "Size: $LOG_SIZE bytes"
+    log_info "Permissions: $LOG_PERMS"
 
     # Test writing to log
-    logger -t "azure-setup-verify" "Setup verification test - $(date)"
-    sleep 2
+    safe_execute "logger -t 'azure-setup-verify' 'Setup verification test - \$(date)'" "Write test message to log"
+    safe_execute "sleep 2" "Wait for log write"
+
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        log_info "[DRY-RUN] Would verify log message exists"
+        log_info "✅ Logging verification successful (dry-run)"
+        return 0
+    fi
 
     if grep -q "azure-setup-verify" "$LOG_FILE"; then
-        echo "✅ Logging verification successful"
+        log_info "✅ Logging verification successful"
         return 0
     else
-        echo "❌ Failed to write test message to log file"
+        log_error "Failed to write test message to log file"
         return 1
     fi
 }

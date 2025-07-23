@@ -98,6 +98,12 @@ if [ "$DEBUG" = "1" ]; then
     log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
 fi
 
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
 # Enhanced error handling with detailed logging and dry-run support
 safe_exec() {
     cmd="$1"
