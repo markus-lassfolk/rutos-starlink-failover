@@ -880,6 +880,30 @@ find . -name "*.sh" > "$temp_file"
 log_step "Finding scripts"  # Safe to log after collection
 ```
 
+#### Shell Scripting - Function Output Contamination (Date: 2025-07-23)
+
+**Discovery**: ANY logging calls inside a function that returns output via `$()` command substitution will contaminate the return value, causing log messages to be treated as actual data
+**Context**: When functions are meant to return pure data (like script lists) that will be parsed by calling code
+**Implementation**: NEVER put logging calls inside functions that return output via stdout. Move all logging to the calling function.
+**Impact**: Prevents critical bugs where log output like "[STEP] Finding scripts" gets treated as actual script filenames, causing syntax errors and complete system failure
+**Example**:
+```bash
+# WRONG - logging inside output function contaminates return value
+get_script_list() {
+    log_step "Finding scripts"  # This becomes part of the returned data!
+    find . -name "*.sh"
+}
+script_list=$(get_script_list)  # Now contains log messages mixed with script names
+
+# RIGHT - logging outside the output function  
+get_script_list() {
+    # NO LOGGING - pure output function
+    find . -name "*.sh"
+}
+log_step "Finding scripts"      # Safe - not captured by $()
+script_list=$(get_script_list)  # Clean script list only
+```
+
 #### Testing - File-Based Processing Over Pipes (Date: 2025-07-23)
 
 **Discovery**: BusyBox subshell variable persistence issues make pipe-based processing unreliable for counters and state
