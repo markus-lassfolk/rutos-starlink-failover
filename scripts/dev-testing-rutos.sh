@@ -8,7 +8,8 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-readonly SCRIPT_VERSION="2.5.0"
+SCRIPT_VERSION="2.5.0"
+readonly SCRIPT_VERSION
 
 # GitHub repository information
 GITHUB_USER="markus-lassfolk"

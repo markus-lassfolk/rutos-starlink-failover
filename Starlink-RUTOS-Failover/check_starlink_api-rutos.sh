@@ -111,6 +111,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
 fi
 
 # Function to safely execute commands
+# shellcheck disable=SC2317  # Function defined for dry-run support, called conditionally
 safe_execute() {
     cmd="$1"
     description="$2"
@@ -125,9 +126,7 @@ safe_execute() {
         fi
         eval "$cmd"
     fi
-}
-
-# --- Helper Functions ---
+}# --- Helper Functions ---
 log() {
     # Use -- to prevent messages starting with - from being treated as options
     logger -t "$LOG_TAG" -- "$1"
