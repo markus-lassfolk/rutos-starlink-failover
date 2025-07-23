@@ -8,15 +8,6 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.5.0"
-readonly SCRIPT_VERSION# Script: dev-testing-rutos-simplified.sh
-# Version: 2.5.0
-# Description: Simple RUTOS script testing with AI-friendly error reporting
-# Usage: ./scripts/dev-testing-rutos-simplified.sh [--debug] [--help]
-
-set -e # Exit on error
-
-# Version information (auto-updated by update-version.sh)
 readonly SCRIPT_VERSION="2.5.0"
 
 # GitHub repository information

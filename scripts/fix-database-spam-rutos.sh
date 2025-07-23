@@ -66,6 +66,30 @@ if [ "$DEBUG" = "1" ]; then
     log_debug "Arguments: $*"
 fi
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "$DEBUG" = "1" ]; then
+    log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+    
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        log_info "[DRY-RUN] Would execute: $description"
+        log_debug "[DRY-RUN] Command: $cmd"
+        return 0
+    else
+        log_debug "Executing: $cmd"
+        eval "$cmd"
+    fi
+}
+
 # Check if running on RUTOS system
 check_system() {
     if [ ! -f "/etc/openwrt_release" ] && [ ! -f "/etc/rutos_version" ]; then

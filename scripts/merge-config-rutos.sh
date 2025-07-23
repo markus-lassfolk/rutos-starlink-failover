@@ -32,6 +32,32 @@ else
     NC=""
 fi
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "$DEBUG" = "1" ]; then
+    echo "[DEBUG] DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE" >&2
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+    
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        echo "[DRY-RUN] Would execute: $description" >&2
+        echo "[DRY-RUN] Command: $cmd" >&2
+        return 0
+    else
+        if [ "$DEBUG" = "1" ]; then
+            echo "[DEBUG] Executing: $cmd" >&2
+        fi
+        eval "$cmd"
+    fi
+}
+
 # Function to extract variable value from config file
 extract_variable() {
     file="$1"

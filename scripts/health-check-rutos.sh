@@ -89,10 +89,26 @@ debug_func() {
     fi
 }
 
-# Enhanced error handling with detailed logging
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "$DEBUG" = "1" ]; then
+    log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Enhanced error handling with detailed logging and dry-run support
 safe_exec() {
     cmd="$1"
     description="$2"
+
+    # Check for dry-run mode first
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        log_info "[DRY-RUN] Would execute: $description"
+        log_debug "[DRY-RUN] Command: $cmd"
+        return 0
+    fi
 
     debug_exec echo "Starting: $description"
 
