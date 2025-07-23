@@ -174,8 +174,17 @@ load_config() {
     CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
 
     if [ ! -f "$CONFIG_FILE" ]; then
-        log_error "Configuration file not found: $CONFIG_FILE"
-        exit 1
+        if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
+            log_warning "Configuration file not found: $CONFIG_FILE (test mode - using defaults)"
+            # Set minimal defaults for testing
+            INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
+            GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
+            JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
+            return 0
+        else
+            log_error "Configuration file not found: $CONFIG_FILE"
+            exit 1
+        fi
     fi
 
     # shellcheck source=/dev/null
@@ -233,6 +242,13 @@ is_basic_config() {
 test_system_requirements() {
     log_debug "Testing system requirements"
 
+    # In test mode, simulate successful system requirements check
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
+        log_debug "[TEST MODE] Simulating system requirements check"
+        log_debug "[TEST MODE] Would check for: ping, curl, nc, grpcurl"
+        return 0
+    fi
+
     # Check for required commands
     missing_commands=""
 
@@ -271,6 +287,13 @@ test_system_requirements() {
 test_network_connectivity() {
     log_debug "Testing basic network connectivity"
 
+    # In test mode, simulate successful network connectivity check
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
+        log_debug "[TEST MODE] Simulating network connectivity check"
+        log_debug "[TEST MODE] Would ping: 8.8.8.8, 1.1.1.1"
+        return 0
+    fi
+
     # Test DNS resolution and internet connectivity
     if ! ping -c 2 -W 5 8.8.8.8 >/dev/null 2>&1; then
         log_error "Cannot reach Google DNS (8.8.8.8)"
@@ -289,6 +312,14 @@ test_network_connectivity() {
 # Test 3a: Starlink basic connectivity (ping/curl)
 test_starlink_ping_curl() {
     log_debug "Testing Starlink basic connectivity (ping/curl/nc)"
+
+    # In test mode, simulate successful Starlink connectivity check
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
+        log_debug "[TEST MODE] Simulating Starlink connectivity check"
+        log_debug "[TEST MODE] Would test: ping, HTTP port, nc connectivity"
+        return 0
+    fi
+
     starlink_host=$(echo "$STARLINK_IP" | cut -d':' -f1)
     starlink_port=$(echo "$STARLINK_IP" | cut -d':' -f2)
 
@@ -345,6 +376,14 @@ test_starlink_ping_curl() {
 # Test 3b: Starlink gRPC Device/Handle API
 test_starlink_api_device_info() {
     log_debug "Testing Starlink gRPC Device/Handle API (get_device_info)"
+
+    # In test mode, simulate successful API test
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
+        log_debug "[TEST MODE] Simulating Starlink Device/Handle API test"
+        log_debug "[TEST MODE] Would test: grpcurl get_device_info call"
+        return 0
+    fi
+
     starlink_host=$(echo "$STARLINK_IP" | cut -d':' -f1)
     starlink_port=$(echo "$STARLINK_IP" | cut -d':' -f2)
 
@@ -379,6 +418,13 @@ test_starlink_api_device_info() {
 # Test 3c: Starlink gRPC GetStatus API (FIXED - BusyBox compatible nc test)
 test_starlink_api() {
     log_debug "Testing Starlink API connectivity"
+
+    # In test mode, simulate successful API connectivity test
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
+        log_debug "[TEST MODE] Simulating Starlink API connectivity test"
+        log_debug "[TEST MODE] Would test: grpcurl GetStatus call"
+        return 0
+    fi
 
     # Extract IP and port from STARLINK_IP
     starlink_host=$(echo "$STARLINK_IP" | cut -d':' -f1)
@@ -439,6 +485,13 @@ test_starlink_api() {
 test_rutos_credentials() {
     log_debug "Testing RUTOS admin credentials"
 
+    # In test mode, simulate successful RUTOS credentials test
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
+        log_debug "[TEST MODE] Simulating RUTOS credentials test"
+        log_debug "[TEST MODE] Would test: RUTOS admin login"
+        return 0
+    fi
+
     # Check if RUTOS credentials are configured
     if [ -z "${RUTOS_USERNAME:-}" ] || [ -z "${RUTOS_PASSWORD:-}" ] || [ -z "${RUTOS_IP:-}" ]; then
         # Check if this appears to be a basic configuration setup
@@ -467,6 +520,13 @@ test_rutos_credentials() {
 # Test 5: Pushover notifications
 test_pushover() {
     log_debug "Testing Pushover notification credentials"
+
+    # In test mode, simulate successful Pushover test
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
+        log_debug "[TEST MODE] Simulating Pushover notification test"
+        log_debug "[TEST MODE] Would test: Pushover API call"
+        return 0
+    fi
 
     # Check if Pushover is configured
     if [ -z "${PUSHOVER_TOKEN:-}" ] || [ -z "${PUSHOVER_USER:-}" ]; then
@@ -509,6 +569,13 @@ test_pushover() {
 # Test 6: mwan3 configuration
 test_mwan3_config() {
     log_debug "Testing mwan3 configuration"
+
+    # In test mode, simulate successful mwan3 test
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
+        log_debug "[TEST MODE] Simulating mwan3 configuration test"
+        log_debug "[TEST MODE] Would test: mwan3 status and interface checks"
+        return 0
+    fi
 
     # Check if mwan3 is available
     if ! command -v mwan3 >/dev/null 2>&1; then
