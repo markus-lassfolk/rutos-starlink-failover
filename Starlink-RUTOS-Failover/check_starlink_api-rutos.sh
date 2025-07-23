@@ -126,7 +126,9 @@ safe_execute() {
         fi
         eval "$cmd"
     fi
-}# --- Helper Functions ---
+}
+
+# --- Helper Functions ---
 log() {
     # Use -- to prevent messages starting with - from being treated as options
     logger -t "$LOG_TAG" -- "$1"

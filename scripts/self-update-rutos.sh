@@ -143,7 +143,9 @@ safe_execute() {
         log_debug "Executing: $cmd"
         eval "$cmd"
     fi
-}log_step() {
+}
+
+log_step() {
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
