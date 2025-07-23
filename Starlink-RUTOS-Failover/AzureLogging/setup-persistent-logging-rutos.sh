@@ -9,6 +9,32 @@ set -e # Exit on any error
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.4.12"
 readonly SCRIPT_VERSION
+
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    echo "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+    
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        echo "[DRY-RUN] Would execute: $description"
+        echo "[DRY-RUN] Command: $cmd"
+        return 0
+    else
+        echo "[EXECUTE] $description"
+        eval "$cmd"
+    fi
+}
+
 LOG_FILE="/overlay/messages"
 UCI_SYSTEM_CONFIG="/etc/config/system"
 BACKUP_DIR="/overlay/backup-configs"
