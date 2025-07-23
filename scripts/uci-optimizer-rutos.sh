@@ -70,6 +70,12 @@ log_success() {
     printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"
 }
 
+log_debug() {
+    if [ "$DEBUG" = "1" ]; then
+        printf "${CYAN}[DEBUG]${NC} %s\n" "$1" >&2
+    fi
+}
+
 # Create backup
 create_uci_backup() {
     log_info "Creating UCI configuration backup..."
