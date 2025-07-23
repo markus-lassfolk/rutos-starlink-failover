@@ -944,10 +944,85 @@ COUNT=$(wc -l < file | tr -d ' \n\r')
 MATCHES=$(grep -c "pattern" file | tr -d ' \n\r')
 ```
 
-# RIGHT - file-based approach
-temp_results="/tmp/results_$$"
-find . -name "*.sh" > /tmp/scripts_$$
-while read script; do
+#### System Administration - Cleanup Script Completeness (Date: 2025-07-23)
+
+**Discovery**: Installation systems often create multiple types of auto-starting components that cleanup scripts must address to be truly complete: cron entries, auto-recovery services, and version-pinned recovery scripts
+**Context**: When creating cleanup/uninstall scripts for systems that set up automated monitoring, updates, and recovery
+**Implementation**: Cleanup scripts must handle ALL installed components: monitoring crons, system maintenance crons, auto-update crons, auto-recovery init.d services, and version-pinned recovery scripts
+**Impact**: Prevents incomplete cleanup that leaves systems in hybrid states with some automation still running after "cleanup"
+**Example**:
+```bash
+# INCOMPLETE - misses system-maintenance and self-update crons
+sed 's|^\([^#].*starlink_monitor.*\)|# CLEANUP: \1|g'
+
+# COMPLETE - handles all installed automation
+sed 's|^\([^#].*\(starlink_monitor-rutos\.sh\|starlink_logger-rutos\.sh\|check_starlink_api\|system-maintenance-rutos\.sh\|self-update-rutos\.sh\).*\)|# CLEANUP COMMENTED: \1|g'
+
+# Also remove auto-recovery service
+/etc/init.d/starlink-restore disable
+rm -f /etc/init.d/starlink-restore
+
+# And version-pinned recovery scripts  
+rm -f /etc/starlink-config/install-pinned-version.sh
+```
+
+#### System Administration - Cleanup Script Safety (Date: 2025-07-23)
+
+**Discovery**: Cleanup scripts are extremely dangerous when they default to immediate execution instead of dry-run mode, causing accidental data loss
+**Context**: When creating scripts that remove files, modify configurations, or clean up installations
+**Implementation**: ALWAYS default to DRY_RUN=1 (safe mode), require explicit --execute or --force flags for real execution, include 5-second warning countdown
+**Impact**: Prevents accidental complete system cleanup and data loss during development and testing
+**Example**:
+```bash
+# DANGEROUS - executes immediately by default
+DRY_RUN="${DRY_RUN:-0}"
+
+# SAFE - defaults to dry-run, requires explicit execution
+DRY_RUN="${DRY_RUN:-1}"
+FORCE_CLEANUP="${FORCE_CLEANUP:-0}"
+
+# Require explicit flag parsing
+case "$1" in
+    --execute|--force) DRY_RUN=0; FORCE_CLEANUP=1 ;;
+    --dry-run) DRY_RUN=1 ;;
+esac
+
+# Safety warning for real execution
+if [ "$DRY_RUN" = "0" ]; then
+    print_status "$RED" "⚠️  WARNING: REAL CLEANUP MODE!"
+    print_status "$YELLOW" "Press Ctrl+C within 5 seconds to cancel..."
+    sleep 5
+fi
+```
+
+#### System Administration - Cleanup Script Safety (Date: 2025-07-23)
+
+**Discovery**: Cleanup scripts are extremely dangerous when they default to immediate execution instead of dry-run mode, causing accidental data loss
+**Context**: When creating scripts that remove files, modify configurations, or clean up installations
+**Implementation**: ALWAYS default to DRY_RUN=1 (safe mode), require explicit --execute or --force flags for real execution, include 5-second warning countdown
+**Impact**: Prevents accidental complete system cleanup and data loss during development and testing
+**Example**:
+```bash
+# DANGEROUS - executes immediately by default
+DRY_RUN="${DRY_RUN:-0}"
+
+# SAFE - defaults to dry-run, requires explicit execution
+DRY_RUN="${DRY_RUN:-1}"
+FORCE_CLEANUP="${FORCE_CLEANUP:-0}"
+
+# Require explicit flag parsing
+case "$1" in
+    --execute|--force) DRY_RUN=0; FORCE_CLEANUP=1 ;;
+    --dry-run) DRY_RUN=1 ;;
+esac
+
+# Safety warning for real execution
+if [ "$DRY_RUN" = "0" ]; then
+    print_status "$RED" "⚠️  WARNING: REAL CLEANUP MODE!"
+    print_status "$YELLOW" "Press Ctrl+C within 5 seconds to cancel..."
+    sleep 5
+fi
+```
     echo "PASS:$script" >> "$temp_results"
 done < /tmp/scripts_$$
 COUNTER=$(wc -l < "$temp_results")

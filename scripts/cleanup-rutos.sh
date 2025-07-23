@@ -46,13 +46,98 @@ print_status() {
     esac
 }
 
-# Dry-run and test mode support
-DRY_RUN="${DRY_RUN:-0}"
+# CRITICAL SAFETY: Default to dry-run mode to prevent accidental cleanup
+DRY_RUN="${DRY_RUN:-1}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+FORCE_CLEANUP="${FORCE_CLEANUP:-0}"
+
+# Parse command line arguments for safety
+parse_arguments() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --execute|--force)
+                DRY_RUN=0
+                FORCE_CLEANUP=1
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=1
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            *)
+                print_status "$RED" "Unknown argument: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# Show help and safety information
+show_help() {
+    cat <<EOF
+RUTOS Cleanup Script v$SCRIPT_VERSION - SAFETY FIRST!
+
+⚠️  WARNING: This script removes ALL Starlink Monitor installation artifacts!
+
+USAGE:
+    $0 [OPTIONS]
+
+OPTIONS:
+    --dry-run       Show what would be removed (DEFAULT - SAFE)
+    --execute       Actually perform cleanup (DESTRUCTIVE!)
+    --force         Same as --execute (DESTRUCTIVE!)
+    --help, -h      Show this help
+
+SAFETY FEATURES:
+    - Runs in DRY-RUN mode by default (shows what would happen)
+    - Requires explicit --execute or --force flag for real cleanup
+    - Creates backups before modifying crontab
+    - Comprehensive logging of all actions
+
+WHAT GETS REMOVED:
+    - All cron entries (starlink_monitor, starlink_logger, check_starlink_api, system-maintenance, self-update)
+    - Auto-restoration service (/etc/init.d/starlink-restore)
+    - Installation directory (/usr/local/starlink-monitor)
+    - Configuration directory (/etc/starlink-config)
+    - Log directory (/etc/starlink-logs)
+    - Convenience symlinks (/root/config.sh, /root/starlink-monitor)
+    - Version-pinned recovery script (/etc/starlink-config/install-pinned-version.sh)
+
+EXAMPLES:
+    # See what would be removed (SAFE)
+    $0
+    $0 --dry-run
+
+    # Actually perform cleanup (DESTRUCTIVE)
+    $0 --execute
+    $0 --force
+
+EOF
+}
+
+# Parse arguments
+parse_arguments "$@"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    print_status "$CYAN" "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+    print_status "$CYAN" "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE, FORCE_CLEANUP=$FORCE_CLEANUP"
+fi
+
+# Safety warning for real execution
+if [ "$DRY_RUN" = "0" ]; then
+    print_status "$RED" "⚠️  WARNING: REAL CLEANUP MODE ENABLED!"
+    print_status "$RED" "This will permanently remove ALL Starlink Monitor components!"
+    print_status "$YELLOW" "Press Ctrl+C within 5 seconds to cancel..."
+    sleep 5
+    print_status "$RED" "Proceeding with REAL cleanup..."
+else
+    print_status "$YELLOW" "🛡️  SAFE MODE: Running in DRY-RUN mode (no changes will be made)"
+    print_status "$BLUE" "Use --execute or --force to actually perform cleanup"
 fi
 
 # Function to safely execute commands
@@ -84,9 +169,9 @@ if [ -f "$CRON_FILE" ]; then
     # Create backup
     safe_execute "cp '$CRON_FILE' '${CRON_FILE}.cleanup.backup.$(date +%Y%m%d_%H%M%S)'" "Create crontab backup"
 
-    # Comment out starlink entries and clean up blank lines
+    # Comment out ALL starlink entries and clean up blank lines
     temp_cron="/tmp/crontab_cleanup.tmp"
-    safe_execute "sed 's|^\([^#].*\(starlink_monitor-rutos\.sh\|starlink_logger-rutos\.sh\|check_starlink_api\).*\)|# CLEANUP COMMENTED: \1|g' '$CRON_FILE' >'$temp_cron'" "Process crontab entries"
+    safe_execute "sed 's|^\([^#].*\(starlink_monitor-rutos\.sh\|starlink_logger-rutos\.sh\|check_starlink_api\|system-maintenance-rutos\.sh\|self-update-rutos\.sh\).*\)|# CLEANUP COMMENTED: \1|g' '$CRON_FILE' >'$temp_cron'" "Process crontab entries"
 
     # Remove excessive blank lines (more than 1 consecutive blank line)
     safe_execute "awk 'BEGIN { blank_count = 0 } /^$/ { blank_count++; if (blank_count <= 1) print } /^./ { blank_count = 0; print }' '$temp_cron' >'${temp_cron}.clean' && mv '${temp_cron}.clean' '$temp_cron'" "Clean up blank lines"
@@ -113,10 +198,14 @@ if [ -d "$INSTALL_DIR" ]; then
     print_status "$GREEN" "Installation directory removed"
 fi
 
-# Remove persistent config and logs
+# Remove persistent config and logs (including recovery scripts)
 for path in "/etc/starlink-config" "/etc/starlink-logs"; do
     if [ -e "$path" ]; then
         print_status "$YELLOW" "Removing $path"
+        # Show what version-pinned recovery scripts will be removed
+        if [ "$path" = "/etc/starlink-config" ] && [ -f "$path/install-pinned-version.sh" ]; then
+            print_status "$BLUE" "  → Removing version-pinned recovery script"
+        fi
         safe_execute "rm -rf '$path'" "Remove $path"
         print_status "$GREEN" "$path removed"
     fi
@@ -132,3 +221,65 @@ for link in "/root/config.sh" "/root/starlink-monitor"; do
 done
 
 print_status "$BLUE" "==== Cleanup complete ===="
+
+# Verification section
+print_status "$CYAN" "==== Cleanup Verification ===="
+
+# Verify crontab cleanup
+if [ -f "$CRON_FILE" ]; then
+    remaining_entries=$(grep -c -E "(starlink_monitor-rutos\.sh|starlink_logger-rutos\.sh|check_starlink_api|system-maintenance-rutos\.sh|self-update-rutos\.sh)" "$CRON_FILE" 2>/dev/null || echo "0")
+    commented_entries=$(grep -c "# CLEANUP COMMENTED:" "$CRON_FILE" 2>/dev/null || echo "0")
+    
+    if [ "$remaining_entries" -eq 0 ]; then
+        print_status "$GREEN" "✅ All starlink cron entries removed/commented"
+        if [ "$commented_entries" -gt 0 ]; then
+            print_status "$BLUE" "  → $commented_entries entries commented (preserved for reference)"
+        fi
+    else
+        print_status "$YELLOW" "⚠️  $remaining_entries active starlink cron entries still present"
+        print_status "$BLUE" "  → Manual cleanup may be required"
+    fi
+else
+    print_status "$BLUE" "ℹ️  Cron file not found (expected if completely cleaned)"
+fi
+
+# Verify auto-recovery cleanup
+if [ ! -f "/etc/init.d/starlink-restore" ]; then
+    print_status "$GREEN" "✅ Auto-recovery service completely removed"
+else
+    print_status "$YELLOW" "⚠️  Auto-recovery service still exists"
+fi
+
+# Verify installation directory cleanup
+if [ ! -d "/usr/local/starlink-monitor" ]; then
+    print_status "$GREEN" "✅ Installation directory completely removed"
+else
+    print_status "$YELLOW" "⚠️  Installation directory still exists"
+fi
+
+# Verify persistent config cleanup
+if [ ! -d "/etc/starlink-config" ]; then
+    print_status "$GREEN" "✅ Persistent configuration completely removed"
+    print_status "$BLUE" "  → Version-pinned recovery scripts also removed"
+else
+    print_status "$YELLOW" "⚠️  Persistent configuration still exists"
+fi
+
+print_status "$CYAN" "==== Summary ===="
+print_status "$BLUE" "The following components have been cleaned up:"
+print_status "$BLUE" "• Cron entries: starlink_monitor, starlink_logger, check_starlink_api"
+print_status "$BLUE" "• System maintenance: system-maintenance-rutos.sh (every 6 hours)"  
+print_status "$BLUE" "• Auto-updates: self-update-rutos.sh (weekly updates)"
+print_status "$BLUE" "• Auto-recovery: /etc/init.d/starlink-restore (firmware upgrade persistence)"
+print_status "$BLUE" "• Version-pinned recovery: install-pinned-version.sh"
+print_status "$BLUE" "• Installation files: /usr/local/starlink-monitor/"
+print_status "$BLUE" "• Configuration: /etc/starlink-config/"
+print_status "$BLUE" "• Logs: /etc/starlink-logs/"
+print_status "$BLUE" "• Symlinks: /root/config.sh, /root/starlink-monitor"
+
+if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+    print_status "$YELLOW" "🔍 DRY-RUN MODE: No actual changes were made"
+    print_status "$YELLOW" "Run without DRY_RUN=1 to perform actual cleanup"
+else
+    print_status "$GREEN" "🧹 System is now clean - ready for fresh installation or testing"
+fi
