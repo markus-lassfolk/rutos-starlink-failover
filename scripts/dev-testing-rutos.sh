@@ -65,6 +65,8 @@ log_step() {
 # Configuration
 DEBUG="${DEBUG:-0}"
 SKIP_UPDATE="${SKIP_UPDATE:-0}"
+COMPREHENSIVE_TEST="${COMPREHENSIVE_TEST:-0}"
+SINGLE_SCRIPT=""
 
 # Test result counters
 TOTAL_SCRIPTS=0
@@ -84,6 +86,19 @@ parse_arguments() {
             --skip-update)
                 SKIP_UPDATE=1
                 shift
+                ;;
+            --comprehensive | -c)
+                COMPREHENSIVE_TEST=1
+                shift
+                ;;
+            --script | -s)
+                if [ -n "$2" ]; then
+                    SINGLE_SCRIPT="$2"
+                    shift 2
+                else
+                    log_error "Option --script requires a script name"
+                    exit 1
+                fi
                 ;;
             --help | -h)
                 show_help
@@ -112,7 +127,18 @@ USAGE:
 OPTIONS:
     --debug, -d         Enable debug output
     --skip-update       Skip self-update check
+    --comprehensive, -c Run comprehensive testing with multiple verbosity levels
+    --script NAME, -s   Test only a specific script (e.g. --script system-status-rutos.sh)
     --help, -h          Show this help message
+
+COMPREHENSIVE TESTING MODE:
+    When --comprehensive is used, each script is tested with:
+    1. Basic dry-run     (DRY_RUN=1)
+    2. Debug dry-run     (DEBUG=1 DRY_RUN=1) 
+    3. Test mode         (DRY_RUN=1 RUTOS_TEST_MODE=1)
+    4. Full verbose      (DEBUG=1 DRY_RUN=1 RUTOS_TEST_MODE=1)
+    
+    This validates color output, user feedback, and various debugging levels.
 
 WHAT IT DOES:
     1. Auto-update itself from GitHub (unless --skip-update)
@@ -131,6 +157,12 @@ EXAMPLES:
 
     # With debug output
     ./scripts/dev-testing-rutos.sh --debug
+
+    # Comprehensive testing with all verbosity levels
+    ./scripts/dev-testing-rutos.sh --comprehensive
+
+    # Test single script comprehensively
+    ./scripts/dev-testing-rutos.sh --comprehensive --script system-status-rutos.sh
 
     # Skip auto-update (for development)
     ./scripts/dev-testing-rutos.sh --skip-update
@@ -355,46 +387,8 @@ test_script() {
 
     log_step "Testing $script_name"
 
-    # Test 1: Syntax check
-    if ! sh -n "$script_path" 2>/tmp/syntax_error_$$; then
-        syntax_error=$(cat /tmp/syntax_error_$$ 2>/dev/null || echo "Unknown syntax error")
-        ERROR_DETAILS="${ERROR_DETAILS}SYNTAX ERROR in $script_name:
-  File: $script_path
-  Error: $syntax_error
-  Fix: Check shell syntax, quotes, brackets
-  
-"
-        rm -f /tmp/syntax_error_$$
-        return 1
-    fi
-    rm -f /tmp/syntax_error_$$
-
-    # Test 2: POSIX compatibility check
-    compat_issues=""
-
-    if grep -qE '\[\[[[:space:]]+.*[[:space:]]+\]\]' "$script_path" 2>/dev/null; then
-        compat_issues="${compat_issues}[[ ]] syntax (use [ ] instead); "
-    fi
-
-    if grep -q '^[[:space:]]*local[[:space:]]' "$script_path" 2>/dev/null; then
-        compat_issues="${compat_issues}'local' keyword (not in busybox); "
-    fi
-
-    if grep -qE '^[[:space:]]*echo[[:space:]]+-e[[:space:]]' "$script_path" 2>/dev/null; then
-        compat_issues="${compat_issues}'echo -e' (use printf instead); "
-    fi
-
-    if grep -q '^[[:space:]]*source[[:space:]]' "$script_path" 2>/dev/null; then
-        compat_issues="${compat_issues}'source' command (use . instead); "
-    fi
-
-    if [ -n "$compat_issues" ]; then
-        ERROR_DETAILS="${ERROR_DETAILS}COMPATIBILITY ERROR in $script_name:
-  File: $script_path
-  Issues: $compat_issues
-  Fix: Replace bash-specific syntax with POSIX sh equivalents
-  
-"
+    # Run basic checks (syntax and compatibility)
+    if ! test_script_basic_checks "$script_path"; then
         return 1
     fi
 
@@ -444,6 +438,148 @@ test_script() {
 
     rm -f /tmp/test_output_$$
     log_debug "$script_name passed all tests"
+    return 0
+}
+
+# Comprehensive testing function - tests scripts with multiple verbosity levels
+test_script_comprehensive() {
+    script_path="$1"
+    script_name=$(basename "$script_path")
+
+    log_step "Comprehensive testing: $script_name"
+
+    # First run basic syntax/compatibility checks
+    if ! test_script_basic_checks "$script_path"; then
+        log_error "Basic checks failed for $script_name - skipping comprehensive tests"
+        return 1
+    fi
+
+    # Check if script has dry-run support - required for comprehensive testing
+    if ! check_dry_run_support "$script_path"; then
+        log_warning "$script_name lacks dry-run support - skipping comprehensive execution tests"
+        SCRIPTS_MISSING_DRYRUN=$((SCRIPTS_MISSING_DRYRUN + 1))
+        dry_run_recommendation=$(generate_dry_run_recommendation "$script_name")
+        ERROR_DETAILS="${ERROR_DETAILS}${dry_run_recommendation}"
+        return 0
+    fi
+
+    # Test with different verbosity levels
+    test_modes="
+1:Basic_dry-run:DRY_RUN=1
+2:Debug_dry-run:DEBUG=1:DRY_RUN=1  
+3:Test_mode:DRY_RUN=1:RUTOS_TEST_MODE=1
+4:Full_verbose:DEBUG=1:DRY_RUN=1:RUTOS_TEST_MODE=1
+"
+
+    printf "\n${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
+    printf "${BLUE}║                    COMPREHENSIVE TEST: %-32s ║${NC}\n" "$script_name"
+    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+
+    echo "$test_modes" | while IFS=: read -r test_num test_desc env_vars; do
+        [ -z "$test_num" ] && continue
+
+        printf "\n${CYAN}── Test %s: %s ──${NC}\n" "$test_num" "$test_desc"
+        
+        # Parse environment variables
+        test_env=""
+        for var in $env_vars; do
+            test_env="$test_env export $var;"
+        done
+
+        # Run the test
+        output_file="/tmp/comp_test_${script_name}_${test_num}_$$"
+        
+        printf "${YELLOW}Environment: %s${NC}\n" "$env_vars"
+        printf "${YELLOW}Running...${NC}\n"
+
+        # Execute with timeout and capture both stdout and stderr
+        if eval "$test_env timeout 15 sh '$script_path'" >"$output_file" 2>&1; then
+            printf "${GREEN}✅ SUCCESS${NC}\n"
+            
+            # Show first few lines of output to verify it looks good
+            if [ -s "$output_file" ]; then
+                printf "${CYAN}Output preview:${NC}\n"
+                head -10 "$output_file" | sed 's/^/  /'
+                if [ "$(wc -l < "$output_file")" -gt 10 ]; then
+                    printf "  ${CYAN}... (truncated, %d total lines)${NC}\n" "$(wc -l < "$output_file")"
+                fi
+            else
+                printf "${YELLOW}  (No output produced)${NC}\n"
+            fi
+        else
+            printf "${RED}❌ FAILED${NC}\n"
+            if [ -s "$output_file" ]; then
+                printf "${RED}Error output:${NC}\n"
+                head -10 "$output_file" | sed 's/^/  /'
+            fi
+            
+            # Add to error details
+            error_content=$(head -5 "$output_file" 2>/dev/null || echo "Unknown error")
+            ERROR_DETAILS="${ERROR_DETAILS}COMPREHENSIVE TEST FAILURE in $script_name (Test $test_num: $test_desc):
+  File: $script_path
+  Environment: $env_vars
+  Error: $error_content
+  Fix: Check script logic, error handling, and environment variable handling
+  
+"
+        fi
+
+        rm -f "$output_file"
+        printf "\n"
+    done
+
+    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n\n"
+    return 0
+}
+
+# Basic checks function (syntax, compatibility) - separated for reuse
+test_script_basic_checks() {
+    script_path="$1"
+    script_name=$(basename "$script_path")
+
+    # Test 1: Syntax check
+    if ! sh -n "$script_path" 2>/tmp/syntax_error_$$; then
+        syntax_error=$(cat /tmp/syntax_error_$$ 2>/dev/null || echo "Unknown syntax error")
+        ERROR_DETAILS="${ERROR_DETAILS}SYNTAX ERROR in $script_name:
+  File: $script_path
+  Error: $syntax_error
+  Fix: Check shell syntax, quotes, brackets
+  
+"
+        rm -f /tmp/syntax_error_$$
+        return 1
+    fi
+    rm -f /tmp/syntax_error_$$
+
+    # Test 2: POSIX compatibility check
+    compat_issues=""
+
+    if grep -qE '\[\[[[:space:]]+.*[[:space:]]+\]\]' "$script_path" 2>/dev/null; then
+        compat_issues="${compat_issues}[[ ]] syntax (use [ ] instead); "
+    fi
+
+    if grep -q '^[[:space:]]*local[[:space:]]' "$script_path" 2>/dev/null; then
+        compat_issues="${compat_issues}'local' keyword (not in busybox); "
+    fi
+
+    if grep -qE '^[[:space:]]*echo[[:space:]]+-e[[:space:]]' "$script_path" 2>/dev/null; then
+        compat_issues="${compat_issues}'echo -e' (use printf instead); "
+    fi
+
+    if grep -q '^[[:space:]]*source[[:space:]]' "$script_path" 2>/dev/null; then
+        compat_issues="${compat_issues}'source' command (use . instead); "
+    fi
+
+    if [ -n "$compat_issues" ]; then
+        ERROR_DETAILS="${ERROR_DETAILS}COMPATIBILITY ERROR in $script_name:
+  File: $script_path
+  Issues: $compat_issues
+  Fix: Replace bash-specific syntax with POSIX sh equivalents
+  
+"
+        return 1
+    fi
+
     return 0
 }
 
@@ -555,9 +691,46 @@ main() {
 
     # Step 2: Find scripts
     log_step "Finding *-rutos.sh scripts"
+    if [ -n "$SINGLE_SCRIPT" ]; then
+        # Single script mode
+        log_info "Single script mode: $SINGLE_SCRIPT"
+        
+        # Find the specific script
+        script_list=$(find_rutos_scripts | grep "$SINGLE_SCRIPT" || echo "")
+        if [ -z "$script_list" ]; then
+            log_error "Script not found: $SINGLE_SCRIPT"
+            exit 1
+        fi
+        
+        script_path=$(echo "$script_list" | head -1)
+        log_info "Found script: $script_path"
+        
+        # Test the single script
+        if [ "$COMPREHENSIVE_TEST" = "1" ]; then
+            log_info "Running comprehensive test on $SINGLE_SCRIPT"
+            test_script_comprehensive "$script_path"
+        else
+            log_info "Running basic test on $SINGLE_SCRIPT"
+            if test_script "$script_path"; then
+                log_success "✅ $SINGLE_SCRIPT passed all tests"
+            else
+                log_error "❌ $SINGLE_SCRIPT failed tests"
+            fi
+        fi
+        
+        # Generate report for single script
+        generate_error_report
+        exit 0
+    fi
+    
+    # Multi-script mode
     script_list=$(find_rutos_scripts)
     if [ -n "$script_list" ]; then
-        log_info "Testing scripts in safe mode (DRY_RUN=1, RUTOS_TEST_MODE=1)"
+        if [ "$COMPREHENSIVE_TEST" = "1" ]; then
+            log_info "Running COMPREHENSIVE tests with multiple verbosity levels"
+        else
+            log_info "Testing scripts in safe mode (DRY_RUN=1, RUTOS_TEST_MODE=1)"
+        fi
 
         # Step 3: Test each script using a simpler approach
         # Write script list to temp file to avoid subshell variable issues
@@ -572,7 +745,24 @@ main() {
             if [ -n "$script" ] && [ "$script" != "" ]; then
                 script_name=$(basename "$script")
                 
-                if test_script "$script" >/dev/null 2>&1; then
+                # Choose testing method based on mode
+                test_result=0
+                if [ "$COMPREHENSIVE_TEST" = "1" ]; then
+                    if test_script_comprehensive "$script"; then
+                        test_result=0
+                    else
+                        test_result=1
+                    fi
+                else
+                    if test_script "$script" >/dev/null 2>&1; then
+                        test_result=0
+                    else
+                        test_result=1
+                    fi
+                fi
+                
+                # Record results
+                if [ $test_result -eq 0 ]; then
                     echo "PASS:$script_name" >> "$temp_results"
                     # Check if script has dry-run support for display
                     if check_dry_run_support "$script"; then
