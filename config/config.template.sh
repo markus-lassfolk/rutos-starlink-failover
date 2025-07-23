@@ -18,10 +18,10 @@
 # Note: Only set SCRIPT_VERSION if not already set (prevents conflicts when sourced)
 if [ -z "${SCRIPT_VERSION:-}" ]; then
     # Script configuration template for Starlink RUTOS Failover
-# Version: 2.5.0
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.5.0"
-readonly SCRIPT_VERSION
+    # Version: 2.5.0
+    # Version information (auto-updated by update-version.sh)
+    SCRIPT_VERSION="2.5.0"
+    readonly SCRIPT_VERSION
 fi
 readonly SCRIPT_VERSION
 # Used for troubleshooting: echo "Config version: $SCRIPT_VERSION"
