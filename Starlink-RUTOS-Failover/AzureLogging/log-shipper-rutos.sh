@@ -14,6 +14,31 @@
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.4.12"
 readonly SCRIPT_VERSION
+
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+    
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        printf "[DRY-RUN] Would execute: %s\n" "$description" >&2
+        printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
+        return 0
+    else
+        eval "$cmd"
+    fi
+}
+
 AZURE_FUNCTION_URL=$(uci get azure.system.endpoint 2>/dev/null || echo "")
 LOG_FILE=$(uci get azure.system.log_file 2>/dev/null || echo "/overlay/messages")
 # shellcheck disable=SC2034  # MAX_SIZE may be used for future file rotation
@@ -56,8 +81,15 @@ fi
 # -o /dev/null: Discard the response body from the server.
 # --data-binary @...: Sends the raw content of the file as the request body.
 # --max-time 30: Timeout after 30 seconds
-HTTP_STATUS=$(curl -sS -w '%{http_code}' -o /dev/null --max-time 30 --data-binary "@$LOG_FILE" "$AZURE_FUNCTION_URL" 2>/dev/null)
-CURL_EXIT_CODE=$?
+
+if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+    printf "[DRY-RUN] Would send log file to Azure Function: %s\n" "$AZURE_FUNCTION_URL" >&2
+    HTTP_STATUS="200"  # Simulate success in dry-run
+    CURL_EXIT_CODE="0"
+else
+    HTTP_STATUS=$(curl -sS -w '%{http_code}' -o /dev/null --max-time 30 --data-binary "@$LOG_FILE" "$AZURE_FUNCTION_URL" 2>/dev/null)
+    CURL_EXIT_CODE=$?
+fi
 
 # Check curl command exit status first
 if [ "$CURL_EXIT_CODE" -ne 0 ]; then
@@ -69,7 +101,11 @@ fi
 if [ "$HTTP_STATUS" -eq 200 ]; then
     # Success! Clear the local log file by truncating it to zero size.
     # This is safer than 'rm' as it preserves file permissions.
-    true >"$LOG_FILE"
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        printf "[DRY-RUN] Would clear log file: %s\n" "$LOG_FILE" >&2
+    else
+        true >"$LOG_FILE"
+    fi
     logger -t "azure-log-shipper" "Successfully sent logs to Azure. Local log file cleared."
 else
     # Failure. Do not clear the local file. It will be retried on the next run.

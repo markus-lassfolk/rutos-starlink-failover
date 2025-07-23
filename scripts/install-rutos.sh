@@ -101,15 +101,15 @@ debug_log() {
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
-# Debug dry-run status
-if [ "${DEBUG:-0}" = "1" ]; then
-    debug_log "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-fi
-
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
     printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
     exit 0
+fi
+
+# Debug dry-run status  
+if [ "${DEBUG:-0}" = "1" ]; then
+    debug_log "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
 fi
 
 # Function to execute commands with debug output
