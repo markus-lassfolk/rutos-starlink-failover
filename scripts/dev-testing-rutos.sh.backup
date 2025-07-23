@@ -159,7 +159,7 @@ parse_arguments() {
 # Show help information
 show_help() {
     cat <<EOF
-RUTOS Development Testing Script v$SCRIPT_VERSION (Config-Aware Discovery)
+RUTOS Development Testing Script v$SCRIPT_VERSION (Consolidated Version)
 
 USAGE:
     ./scripts/dev-testing-rutos.sh [OPTIONS]
@@ -179,16 +179,15 @@ WORKFLOW:
     4. Comprehensive testing of deployed and development scripts:
        - Syntax validation (POSIX sh compliance)
        - RUTOS compatibility checks (busybox shell)
-       - Execution testing (dry-run mode with config sourcing)
-       - Functionality validation
+       - Execution testing (dry-run mode)
+       - Functionality validation with proper config sourcing
        - Error handling verification
     5. Generate AI-friendly error reports for debugging
 
 SCRIPT DISCOVERY:
-    📂 Deployed Scripts    - Found via /etc/starlink-config/config.sh installation directory
+    📂 Deployed Scripts    - Found via /etc/starlink-config/config.sh (STARLINK_DIR)
     📂 Development Scripts - Current directory structure (Starlink-RUTOS-Failover/, scripts/, etc.)
     🔄 Mixed Testing       - Tests both deployed and development versions when available
-    🔧 Config Sourcing     - Deployed scripts run with proper config environment
 
 TEST CATEGORIES:
     🔍 Syntax Tests     - Shell parser validation
@@ -226,26 +225,6 @@ FEATURES (WITH CONFIG-AWARE DISCOVERY):
     ✅ Complete test statistics and success rates
     ✅ Safe dry-run mode by default
     ✅ Mixed deployed/development script testing
-EOF
-    ./scripts/dev-testing-rutos.sh --no-install       # Test existing files only
-    ./scripts/dev-testing-rutos.sh --force-update     # Force update everything
-    ./scripts/dev-testing-rutos.sh --live-mode        # DANGEROUS: actual execution
-
-SAFETY:
-    By default, all tests run in DRY_RUN mode and RUTOS_TEST_MODE.
-    This prevents actual system changes during testing.
-    Use --live-mode only for final validation on actual RUTOS device.
-
-FEATURES (CONSOLIDATED FROM ALL TESTING SCRIPTS):
-    ✅ Self-updating capability with GitHub integration
-    ✅ Comprehensive syntax validation for all shell scripts
-    ✅ RUTOS compatibility checks (busybox shell compliance)
-    ✅ Execution testing with timeout protection
-    ✅ Version consistency validation across all scripts
-    ✅ Readonly variable conflict detection
-    ✅ AI-friendly error reporting with specific fixes
-    ✅ Complete test statistics and success rates
-    ✅ Safe dry-run mode by default
 EOF
 }
 
@@ -587,34 +566,24 @@ test_script_execution() {
 
     log_debug "Testing execution for $script_name (timeout: ${timeout_duration}s)"
 
-    # Convert to absolute path to avoid path resolution issues
-    if [ "${script_path#/}" = "$script_path" ]; then
-        # Relative path - convert to absolute
-        abs_script_path="$(pwd)/$script_path"
-    else
-        # Already absolute path
-        abs_script_path="$script_path"
-    fi
-
-    # Verify script exists before testing
-    if [ ! -f "$abs_script_path" ]; then
-        log_test_result "$script_name" "FAIL" "Script file not found: $abs_script_path"
+    # Check if script exists at the discovered path first
+    if [ ! -f "$script_path" ]; then
+        log_test_result "$script_name" "FAIL" "Script file not found: $script_path"
         echo "EXECUTION_ERROR: $script_name" >>"$ERROR_LOG"
         echo "  Script: $script_path" >>"$ERROR_LOG"
-        echo "  Absolute path: $abs_script_path" >>"$ERROR_LOG"
-        echo "  Error: Script file does not exist" >>"$ERROR_LOG"
+        echo "  Error: Script file does not exist at discovered path" >>"$ERROR_LOG"
         echo "  Fix: Verify script path and file system permissions" >>"$ERROR_LOG"
         echo "" >>"$ERROR_LOG"
         FAILED_TESTS=$((FAILED_TESTS + 1))
         return 1
     fi
 
-    # Set up execution environment
-    original_dir=$(pwd)
+    # Use the discovered path directly
+    abs_script_path="$script_path"
 
-    # Determine if this is a deployed script
+    # Determine if this is a deployed script and set appropriate environment
     is_deployed_script=0
-    if echo "$abs_script_path" | grep -qE "^/(opt|usr|etc|tmp)/" 2>/dev/null; then
+    if echo "$script_path" | grep -qE "^/(opt|usr|etc|tmp)/" 2>/dev/null; then
         is_deployed_script=1
         log_debug "Testing deployed script: $script_name"
     else
@@ -628,7 +597,7 @@ test_script_execution() {
         export DRY_RUN=1
         export DEBUG=0 # Reduce noise during testing
         
-        # For deployed scripts, source the config if available
+        # For deployed scripts, also source the config if available
         if [ "$is_deployed_script" = "1" ] && [ -f "/etc/starlink-config/config.sh" ]; then
             # shellcheck disable=SC1091  # Config file sourcing
             . "/etc/starlink-config/config.sh" 2>/dev/null || true
@@ -636,18 +605,6 @@ test_script_execution() {
 
         # Try execution with common test arguments using absolute path
         if command -v timeout >/dev/null 2>&1; then
-            timeout "$timeout_duration" sh "$abs_script_path" --dry-run --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                timeout "$timeout_duration" sh "$abs_script_path" --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                timeout "$timeout_duration" sh "$abs_script_path" --help >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                timeout "$timeout_duration" sh "$abs_script_path" >/dev/null 2>"$WORK_DIR/${script_name}.exec_err"
-        else
-            sh "$abs_script_path" --dry-run --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                sh "$abs_script_path" --test-mode >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                sh "$abs_script_path" --help >/dev/null 2>"$WORK_DIR/${script_name}.exec_err" ||
-                sh "$abs_script_path" >/dev/null 2>"$WORK_DIR/${script_name}.exec_err"
-        fi
-    )
-
     execution_result=$?
 
     if [ "$execution_result" -eq 0 ]; then
@@ -675,28 +632,6 @@ test_script_execution() {
         if echo "$execution_error" | grep -qi "usage\|help\|invalid.*option"; then
             if [ "$is_deployed_script" = "1" ]; then
                 log_test_result "$script_name" "PASS" "Deployed script shows graceful argument handling"
-            else
-                log_test_result "$script_name" "PASS" "Development script shows graceful argument handling"
-            fi
-            PASSED_TESTS=$((PASSED_TESTS + 1))
-            return 0
-        else
-            if [ "$is_deployed_script" = "1" ]; then
-                log_test_result "$script_name" "FAIL" "Deployed script execution failed"
-            else
-                log_test_result "$script_name" "FAIL" "Development script execution failed"
-            fi
-            echo "EXECUTION_ERROR: $script_name" >>"$ERROR_LOG"
-            echo "  Script: $script_path" >>"$ERROR_LOG"
-            echo "  Type: $(if [ "$is_deployed_script" = "1" ]; then echo "Deployed"; else echo "Development"; fi)" >>"$ERROR_LOG"
-            echo "  Exit code: $execution_result" >>"$ERROR_LOG"
-            echo "  Error: $execution_error" >>"$ERROR_LOG"
-            echo "  Fix: Check script logic, dependencies, and error handling" >>"$ERROR_LOG"
-            echo "" >>"$ERROR_LOG"
-            FAILED_TESTS=$((FAILED_TESTS + 1))
-            return 1
-        fi
-    fi
 }
 
 # Discover installation base directory from config
@@ -707,10 +642,8 @@ discover_installation_base() {
     if [ -f "/etc/starlink-config/config.sh" ]; then
         log_debug "Found deployed configuration at /etc/starlink-config/config.sh"
         
-        # Look for installation directory references in config
-        # Check for INSTALL_DIR variable (standard installation variable)
-        if install_dir_line=$(grep "^INSTALL_DIR=" "/etc/starlink-config/config.sh" 2>/dev/null | head -1); then
-            INSTALL_DIR_FROM_CONFIG=$(echo "$install_dir_line" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+        # Extract INSTALL_DIR from config file (this is the standard variable name)
+        if INSTALL_DIR_FROM_CONFIG=$(grep "^INSTALL_DIR=" "/etc/starlink-config/config.sh" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | head -1); then
             if [ -n "$INSTALL_DIR_FROM_CONFIG" ] && [ -d "$INSTALL_DIR_FROM_CONFIG" ]; then
                 log_info "Using installation base directory from config: $INSTALL_DIR_FROM_CONFIG"
                 echo "$INSTALL_DIR_FROM_CONFIG"
@@ -718,18 +651,18 @@ discover_installation_base() {
             fi
         fi
         
-        # Alternative: Check crontab for script paths to detect installation directory
+        # Fallback: try to extract any directory reference from cron entries by examining crontab
         if command -v crontab >/dev/null 2>&1; then
-            if cron_install_dir=$(crontab -l 2>/dev/null | grep "CONFIG_FILE=/etc/starlink-config/config.sh" | grep -o '/[^[:space:]]*/starlink-monitor' | head -1); then
-                if [ -n "$cron_install_dir" ] && [ -d "$cron_install_dir" ]; then
-                    log_info "Using installation directory from cron pattern: $cron_install_dir"
-                    echo "$cron_install_dir"
+            if CRON_DIR=$(crontab -l 2>/dev/null | grep "CONFIG_FILE=/etc/starlink-config/config.sh" | grep -o '/[^[:space:]]*/starlink-monitor' | head -1); then
+                if [ -n "$CRON_DIR" ] && [ -d "$CRON_DIR" ]; then
+                    log_info "Using installation directory from cron pattern: $CRON_DIR"
+                    echo "$CRON_DIR"
                     return 0
                 fi
             fi
         fi
         
-        log_debug "Could not extract valid installation directory from config file"
+        log_debug "Could not extract valid INSTALL_DIR from config file"
     fi
 
     # Check standard RUTOS installation location
@@ -757,9 +690,91 @@ discover_installation_base() {
 # Run comprehensive testing
 run_comprehensive_tests() {
     log_header "COMPREHENSIVE SCRIPT TESTING"
+        else
+            if [ "$is_deployed_script" = "1" ]; then
+                log_test_result "$script_name" "FAIL" "Deployed script execution failed"
+            else
+                log_test_result "$script_name" "FAIL" "Development script execution failed"
+            fi
+            echo "EXECUTION_ERROR: $script_name" >>"$ERROR_LOG"
+            echo "  Script: $script_path" >>"$ERROR_LOG"
+            echo "  Type: $(if [ "$is_deployed_script" = "1" ]; then echo "Deployed"; else echo "Development"; fi)" >>"$ERROR_LOG"
+            echo "  Exit code: $execution_result" >>"$ERROR_LOG"
+            echo "  Error: $execution_error" >>"$ERROR_LOG"
+            echo "  Fix: Check script logic, dependencies, and error handling" >>"$ERROR_LOG"
+            echo "" >>"$ERROR_LOG"
+            FAILED_TESTS=$((FAILED_TESTS + 1))
+            return 1
+        fi
+    fi
+}       else
+            log_test_result "$script_name" "FAIL" "Execution failed"
+            echo "EXECUTION_ERROR: $script_name" >>"$ERROR_LOG"
+            echo "  Script: $script_path" >>"$ERROR_LOG"
+            echo "  Exit code: $execution_result" >>"$ERROR_LOG"
+            echo "  Error: $execution_error" >>"$ERROR_LOG"
+            echo "  Fix: Check script logic, dependencies, and error handling" >>"$ERROR_LOG"
+            echo "" >>"$ERROR_LOG"
+            FAILED_TESTS=$((FAILED_TESTS + 1))
+            return 1
+        fi
+    fi
+}
 
-    # Discover installation base directory
-    INSTALLATION_BASE=$(discover_installation_base)
+# Discover installation base directory from config
+discover_installation_base() {
+    log_debug "Discovering installation base directory"
+
+    # Try to read from deployed configuration first
+    if [ -f "/etc/starlink-config/config.sh" ]; then
+        log_debug "Found deployed configuration at /etc/starlink-config/config.sh"
+        
+        # Extract STARLINK_DIR from config file
+        if STARLINK_DIR=$(grep "^STARLINK_DIR=" "/etc/starlink-config/config.sh" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | head -1); then
+            if [ -n "$STARLINK_DIR" ] && [ -d "$STARLINK_DIR" ]; then
+                log_info "Using installation base directory from config: $STARLINK_DIR"
+                echo "$STARLINK_DIR"
+                return 0
+            fi
+        fi
+        
+        log_debug "Could not extract valid STARLINK_DIR from config file"
+    fi
+
+    # Fallback to common RUTOS installation paths
+    for base_dir in "/opt/starlink" "/usr/local/starlink" "/tmp/starlink-monitor"; do
+        if [ -d "$base_dir" ]; then
+            log_info "Using fallback installation base directory: $base_dir"
+            echo "$base_dir"
+            return 0
+        fi
+    done
+
+    # Final fallback to current directory structure (development mode)
+    log_info "Using development directory structure (no deployment detected)"
+    echo "$(pwd)"
+    return 0
+    # Clean up script lists (remove empty entries and duplicates)
+    main_scripts=$(echo "$main_scripts" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+    utility_scripts=$(echo "$utility_scripts" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+    test_scripts=$(echo "$test_scripts" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+    config_files=$(echo "$config_files" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+
+    # Count total scripts for both deployed and development
+    total_scripts=0
+    for script_list in "$main_scripts" "$utility_scripts" "$test_scripts" "$config_files"; do
+        if [ -n "$script_list" ]; then
+            total_scripts=$((total_scripts + $(echo "$script_list" | wc -w)))
+        fi
+    done
+
+    log_info "Found $total_scripts shell scripts to test"
+    
+    if [ "$INSTALLATION_BASE" != "$(pwd)" ]; then
+        log_info "Testing mix of deployed (in $INSTALLATION_BASE) and development scripts"
+    else
+        log_info "Testing development directory structure"
+    fi
     log_debug "Installation base directory: $INSTALLATION_BASE"
 
     # Find all shell scripts to test
@@ -780,22 +795,26 @@ run_comprehensive_tests() {
             main_scripts="$INSTALLATION_BASE/starlink_monitor.sh"
         fi
         
-        # Look for scripts in installation directory (common pattern)
-        if [ -d "$INSTALLATION_BASE/scripts" ]; then
-            additional_scripts=$(find "$INSTALLATION_BASE/scripts" -name "*.sh" -type f 2>/dev/null | sort)
+        # Look for additional scripts in bin subdirectory
+        if [ -d "$INSTALLATION_BASE/bin" ]; then
+            additional_scripts=$(find "$INSTALLATION_BASE/bin" -name "*.sh" -type f 2>/dev/null | sort)
             main_scripts="$main_scripts $additional_scripts"
-        fi
-        
-        # Look for direct scripts in installation directory
-        deployed_scripts=$(find "$INSTALLATION_BASE" -maxdepth 1 -name "*-rutos.sh" -type f 2>/dev/null | sort)
-        if [ -n "$deployed_scripts" ]; then
-            main_scripts="$main_scripts $deployed_scripts"
         fi
         
         # Look for configuration scripts
         if [ -d "$INSTALLATION_BASE/config" ]; then
             config_files=$(find "$INSTALLATION_BASE/config" -name "*.sh" -type f 2>/dev/null | sort)
         fi
+        
+        # Also check for deployed RUTOS scripts in common locations
+        for rutos_script_dir in "$INSTALLATION_BASE" "/opt/starlink" "/usr/local/bin"; do
+            if [ -d "$rutos_script_dir" ]; then
+                rutos_scripts=$(find "$rutos_script_dir" -name "*-rutos.sh" -type f 2>/dev/null | sort)
+                if [ -n "$rutos_scripts" ]; then
+                    main_scripts="$main_scripts $rutos_scripts"
+                fi
+            fi
+        done
     fi
 
     # Also check development directory structure
@@ -823,27 +842,14 @@ run_comprehensive_tests() {
         config_files="$config_files $dev_config_files"
     fi
 
-    # Clean up script lists (remove empty entries and duplicates)
-    main_scripts=$(echo "$main_scripts" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
-    utility_scripts=$(echo "$utility_scripts" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
-    test_scripts=$(echo "$test_scripts" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
-    config_files=$(echo "$config_files" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
-
-    # Count total scripts for both deployed and development
     total_scripts=0
     for script_list in "$main_scripts" "$utility_scripts" "$test_scripts" "$config_files"; do
         if [ -n "$script_list" ]; then
-            total_scripts=$((total_scripts + $(echo "$script_list" | wc -w)))
+            total_scripts=$((total_scripts + $(echo "$script_list" | wc -l)))
         fi
     done
 
     log_info "Found $total_scripts shell scripts to test"
-    
-    if [ "$INSTALLATION_BASE" != "$(pwd)" ]; then
-        log_info "Testing mix of deployed (in $INSTALLATION_BASE) and development scripts"
-    else
-        log_info "Testing development directory structure"
-    fi
 
     # Test categories
     log_header "SYNTAX VALIDATION"
@@ -1051,11 +1057,23 @@ This is the consolidated version combining features from:
 - All best practices from existing testing scripts
 EOF
 
-    # Copy summary to main directory
-    cp "$SUMMARY_LOG" "./dev-test-summary.txt"
+    # Copy summary to main directory (handle different working directories)
+    if cp "$SUMMARY_LOG" "./dev-test-summary.txt" 2>/dev/null; then
+        log_debug "Summary copied to current directory"
+    else
+        # Try copying to /tmp as fallback when current directory is not writable
+        cp "$SUMMARY_LOG" "/tmp/dev-test-summary.txt" 2>/dev/null || true
+        log_debug "Summary copied to /tmp/dev-test-summary.txt"
+    fi
 
-    # Generate AI-friendly error report
-    cat >"./dev-test-errors.txt" <<EOF
+    # Generate AI-friendly error report (handle different working directories)
+    if cat >"./dev-test-errors.txt" <<EOF 2>/dev/null; then
+        report_location="./dev-test-errors.txt"
+    else
+        # Fallback to /tmp when current directory is not writable
+        report_location="/tmp/dev-test-errors.txt"
+        cat >"$report_location" <<EOF
+    fi
 AI DEBUGGING REPORT FOR RUTOS STARLINK FAILOVER
 ===============================================
 
@@ -1079,15 +1097,15 @@ EOF
 
     # Add detailed errors if any
     if [ -s "$ERROR_LOG" ]; then
-        echo "## Detailed Error Analysis" >>"./dev-test-errors.txt"
-        cat "$ERROR_LOG" >>"./dev-test-errors.txt"
+        echo "## Detailed Error Analysis" >>"$report_location"
+        cat "$ERROR_LOG" >>"$report_location"
     else
-        echo "## Detailed Error Analysis" >>"./dev-test-errors.txt"
-        echo "🎉 No errors found! All tests passed successfully." >>"./dev-test-errors.txt"
+        echo "## Detailed Error Analysis" >>"$report_location"
+        echo "🎉 No errors found! All tests passed successfully." >>"$report_location"
     fi
 
     # Add project structure for context
-    cat >>"./dev-test-errors.txt" <<EOF
+    cat >>"$report_location" <<EOF
 
 ## Project Structure
 \`\`\`
@@ -1128,8 +1146,14 @@ This report was generated by scripts/dev-testing-rutos.sh, which consolidates fe
 - Should follow project coding guidelines from .github/copilot-instructions.md
 EOF
 
-    # Generate full execution log
-    cat >"./dev-test-full-log.txt" <<EOF
+    # Generate full execution log (handle different working directories)
+    if cat >"./dev-test-full-log.txt" <<EOF 2>/dev/null; then
+        full_log_location="./dev-test-full-log.txt"
+    else
+        # Fallback to /tmp when current directory is not writable
+        full_log_location="/tmp/dev-test-full-log.txt"
+        cat >"$full_log_location" <<EOF
+    fi
 FULL DEVELOPMENT TESTING LOG (CONSOLIDATED VERSION)
 ===================================================
 Generated: $(date)
@@ -1175,16 +1199,23 @@ EOF
 
     # Include detailed test results if available
     if [ -s "$ERROR_LOG" ]; then
-        echo "" >>"./dev-test-full-log.txt"
-        echo "ERROR DETAILS:" >>"./dev-test-full-log.txt"
-        echo "==============" >>"./dev-test-full-log.txt"
-        cat "$ERROR_LOG" >>"./dev-test-full-log.txt"
+        echo "" >>"$full_log_location"
+        echo "ERROR DETAILS:" >>"$full_log_location"
+        echo "==============" >>"$full_log_location"
+        cat "$ERROR_LOG" >>"$full_log_location"
     fi
 
     log_success "Reports generated successfully:"
-    log_info "  📄 dev-test-summary.txt - Quick overview with statistics"
-    log_info "  🤖 dev-test-errors.txt - AI-friendly debugging info (copy-paste ready)"
-    log_info "  📋 dev-test-full-log.txt - Complete execution details and logs"
+    if [ "$report_location" = "./dev-test-errors.txt" ]; then
+        log_info "  📄 dev-test-summary.txt - Quick overview with statistics"
+        log_info "  🤖 dev-test-errors.txt - AI-friendly debugging info (copy-paste ready)"
+        log_info "  📋 dev-test-full-log.txt - Complete execution details and logs"
+    else
+        log_info "  📄 /tmp/dev-test-summary.txt - Quick overview with statistics"
+        log_info "  🤖 $report_location - AI-friendly debugging info (copy-paste ready)"
+        log_info "  📋 $full_log_location - Complete execution details and logs"
+        log_warning "Reports saved to /tmp due to working directory permissions"
+    fi
 }
 
 # Cleanup function
