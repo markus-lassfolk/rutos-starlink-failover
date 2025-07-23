@@ -241,8 +241,8 @@ trap cleanup EXIT INT TERM
 if [ "${TEST_MODE:-0}" = "1" ]; then
     debug_log "TEST MODE ENABLED: Running in test mode"
     DEBUG=1 # Force debug mode in test mode
-    set -x  # Enable command tracing
-    debug_log "TEST MODE: All commands will be traced"
+    # Note: set -x disabled during testing to avoid verbose output in test suite
+    debug_log "TEST MODE: Running with enhanced debug logging"
 fi
 
 # Enhanced debug mode with detailed startup logging

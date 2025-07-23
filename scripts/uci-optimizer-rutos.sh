@@ -36,6 +36,23 @@ else
     NC=""
 fi
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        log_info "[DRY-RUN] Would execute: $description"
+        return 0
+    else
+        eval "$cmd"
+    fi
+}
+
 # Logging
 log_info() {
     printf "${BLUE}[INFO]${NC} %s\n" "$1"

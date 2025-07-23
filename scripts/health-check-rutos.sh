@@ -232,8 +232,8 @@ DEBUG="${DEBUG:-0}"
 if [ "${TEST_MODE:-0}" = "1" ]; then
     log_debug "TEST MODE ENABLED: Running in test mode"
     DEBUG=1 # Force debug mode in test mode
-    set -x  # Enable command tracing
-    log_debug "TEST MODE: All commands will be traced"
+    # Note: set -x disabled during testing to avoid verbose output in test suite
+    log_debug "TEST MODE: Running with enhanced debug logging"
 fi
 
 if [ "$DEBUG" = "1" ]; then

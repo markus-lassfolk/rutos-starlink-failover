@@ -233,6 +233,15 @@ find_rutos_scripts() {
         # Search for all RUTOS scripts in installation directory and subdirectories
         find "$INSTALL_DIR" -name "*-rutos.sh" -o -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
             if [ -f "$script" ] && [ -r "$script" ]; then
+                # Skip testing the dev-testing script itself to prevent recursion
+                script_basename=$(basename "$script")
+                if [ "$script_basename" = "dev-testing-rutos.sh" ]; then
+                    if [ "$DEBUG" = "1" ]; then
+                        printf "[DEBUG] [%s] Skipping self-test: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+                    fi
+                    continue
+                fi
+                
                 if [ "$DEBUG" = "1" ]; then
                     printf "[DEBUG] [%s] Found installed script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
                 fi
@@ -249,6 +258,15 @@ find_rutos_scripts() {
         
         find . -name "*-rutos.sh" -o -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
             if [ -f "$script" ] && [ -r "$script" ]; then
+                # Skip testing the dev-testing script itself to prevent recursion
+                script_basename=$(basename "$script")
+                if [ "$script_basename" = "dev-testing-rutos.sh" ]; then
+                    if [ "$DEBUG" = "1" ]; then
+                        printf "[DEBUG] [%s] Skipping self-test: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+                    fi
+                    continue
+                fi
+                
                 if [ "$DEBUG" = "1" ]; then
                     printf "[DEBUG] [%s] Found local script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
                 fi

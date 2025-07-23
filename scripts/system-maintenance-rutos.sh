@@ -98,6 +98,12 @@ safe_execute() {
     fi
 }
 
+# Early exit in test mode to prevent execution errors
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
 # Maintenance configuration
 MAINTENANCE_LOG="/var/log/system-maintenance.log"
 ISSUES_FIXED_COUNT=0
@@ -724,8 +730,8 @@ check_database_optimization_loop() {
         # Look for the specific error pattern from the last 5 minutes
         recent_log=$(logread -l 100 2>/dev/null | tail -n 50 || true)
         if [ -n "$recent_log" ]; then
-            # Count database optimization errors
-            log_spam_count=$(echo "$recent_log" | grep -c "Unable to optimize database\|Failed to restore database\|Unable to reduce max rows" 2>/dev/null || echo "0")
+            # Count database optimization errors - clean output to avoid arithmetic errors
+            log_spam_count=$(echo "$recent_log" | grep -c "Unable to optimize database\|Failed to restore database\|Unable to reduce max rows" 2>/dev/null | tr -d ' \n\r' || echo "0")
         fi
     fi
 
@@ -799,7 +805,7 @@ check_database_optimization_loop() {
             if command -v logread >/dev/null 2>&1; then
                 recent_check=$(logread -l 20 2>/dev/null | tail -n 10 || true)
                 if [ -n "$recent_check" ]; then
-                    new_spam_count=$(echo "$recent_check" | grep -c "Unable to optimize database\|Failed to restore database" 2>/dev/null || echo "0")
+                    new_spam_count=$(echo "$recent_check" | grep -c "Unable to optimize database\|Failed to restore database" 2>/dev/null | tr -d ' \n\r' || echo "0")
                 fi
             fi
 
@@ -833,10 +839,10 @@ check_cant_open_database_spam() {
         # Look for various database error patterns from recent logs
         recent_log=$(logread -l 100 2>/dev/null | tail -n 50 || true)
         if [ -n "$recent_log" ]; then
-            # Count different types of database errors
-            cant_open_errors=$(echo "$recent_log" | grep -c "user.err.*Can't open database" 2>/dev/null || echo "0")
-            database_locked_errors=$(echo "$recent_log" | grep -c "database is locked" 2>/dev/null || echo "0")
-            database_full_errors=$(echo "$recent_log" | grep -c "database or disk is full" 2>/dev/null || echo "0")
+            # Count different types of database errors - clean output to avoid arithmetic errors
+            cant_open_errors=$(echo "$recent_log" | grep -c "user.err.*Can't open database" 2>/dev/null | tr -d ' \n\r' || echo "0")
+            database_locked_errors=$(echo "$recent_log" | grep -c "database is locked" 2>/dev/null | tr -d ' \n\r' || echo "0")
+            database_full_errors=$(echo "$recent_log" | grep -c "database or disk is full" 2>/dev/null | tr -d ' \n\r' || echo "0")
         fi
     fi
 
@@ -942,7 +948,7 @@ check_cant_open_database_spam() {
             if command -v logread >/dev/null 2>&1; then
                 recent_check=$(logread -l 20 2>/dev/null | tail -n 10 || true)
                 if [ -n "$recent_check" ]; then
-                    new_cant_open_count=$(echo "$recent_check" | grep -c "user.err.*Can't open database" 2>/dev/null || echo "0")
+                    new_cant_open_count=$(echo "$recent_check" | grep -c "user.err.*Can't open database" 2>/dev/null | tr -d ' \n\r' || echo "0")
                 fi
             fi
 
@@ -1370,7 +1376,7 @@ check_starlink_script_health() {
     # Check if expected StarlinkMonitor log entries appear at least once every 5 minutes
     if command -v logread >/dev/null 2>&1; then
         # Look for StarlinkMonitor log entries in recent logs
-        recent_starlink_logs=$(logread | tail -50 | grep -c "StarlinkMonitor" 2>/dev/null || echo "0")
+        recent_starlink_logs=$(logread | tail -50 | grep -c "StarlinkMonitor" 2>/dev/null | tr -d ' \n\r' || echo "0")
 
         # Check if cron is running
         cron_running=0

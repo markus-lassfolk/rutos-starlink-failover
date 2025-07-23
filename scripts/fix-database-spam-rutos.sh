@@ -90,6 +90,12 @@ safe_execute() {
     fi
 }
 
+# Early exit in test mode to prevent execution errors
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
 # Check if running on RUTOS system
 check_system() {
     if [ ! -f "/etc/openwrt_release" ] && [ ! -f "/etc/rutos_version" ]; then

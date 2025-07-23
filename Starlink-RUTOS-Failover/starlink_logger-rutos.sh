@@ -45,6 +45,13 @@ if [ -f "$CONFIG_FILE" ]; then
     . "$CONFIG_FILE"
 fi
 
+# Debug logging function (defined early for use throughout script)
+debug_log() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
+
 # Load placeholder utilities for graceful degradation and notifications
 script_dir="$(dirname "$0")/../scripts"
 if [ -f "$script_dir/placeholder-utils.sh" ]; then
@@ -112,12 +119,6 @@ log() {
     fi
 }
 
-debug_log() {
-    if [ "${DEBUG:-0}" = "1" ]; then
-        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
-    fi
-}
-
 # Enhanced error handling with detailed logging
 safe_exec() {
     cmd="$1"
@@ -151,8 +152,8 @@ safe_exec() {
 if [ "${TEST_MODE:-0}" = "1" ]; then
     debug_log "TEST MODE ENABLED: Running in test mode"
     DEBUG=1 # Force debug mode in test mode
-    set -x  # Enable command tracing
-    debug_log "TEST MODE: All commands will be traced"
+    # Note: set -x disabled during testing to avoid verbose output in test suite
+    debug_log "TEST MODE: Running with enhanced debug logging"
 fi
 
 # Enhanced debug mode with detailed startup logging

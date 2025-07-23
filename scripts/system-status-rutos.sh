@@ -36,6 +36,23 @@ if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
     NC=""
 fi
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        log_info "[DRY-RUN] Would execute: $description"
+        return 0
+    else
+        eval "$cmd"
+    fi
+}
+
 # Standard logging functions with consistent colors
 log_info() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
@@ -149,11 +166,11 @@ check_cron_status() {
         return
     fi
 
-    # Count monitoring entries - check ALL expected scripts dynamically
-    monitor_entries=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
-    maintenance_entries=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    # Count monitoring entries - check ALL expected scripts dynamically (cleaned for busybox)
+    monitor_entries=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
+    logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
+    api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
+    maintenance_entries=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
 
     # Clean counts (handle RUTOS busybox grep -c malformed output)
     monitor_entries=$(echo "$monitor_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
@@ -217,8 +234,8 @@ check_cron_status() {
         printf "${YELLOW}  → Add maintenance job: 0 */6 * * * CONFIG_FILE=/etc/starlink-config/config.sh %s/scripts/system-maintenance-rutos.sh auto${NC}\n" "${INSTALL_DIR:-/usr/local/starlink-monitor}"
     fi
 
-    # Check for commented entries
-    commented_entries=$(grep -c "# COMMENTED BY.*starlink" "$CRON_FILE" 2>/dev/null || echo "0")
+    # Check for commented entries (cleaned for busybox compatibility)
+    commented_entries=$(grep -c "# COMMENTED BY.*starlink" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
     if [ "$commented_entries" -gt 0 ]; then
         show_status "warn" "Found $commented_entries commented monitoring entries (cleanup recommended)"
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility

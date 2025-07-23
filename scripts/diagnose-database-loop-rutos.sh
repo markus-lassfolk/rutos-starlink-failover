@@ -29,6 +29,32 @@ if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
     NC=""
 fi
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "${DEBUG:-0}" = "1" ]; then
+    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        printf "[DRY-RUN] Would execute: %s\n" "$description" >&2
+        printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
+        return 0
+    else
+        if [ "${DEBUG:-0}" = "1" ]; then
+            printf "[DEBUG] Executing: %s\n" "$cmd" >&2
+        fi
+        eval "$cmd"
+    fi
+}
+
 printf "${BLUE}%s${NC}\n\n" "=== RUTOS Database Loop Diagnostic ==="
 
 # 1. Check for the loop pattern in recent logs

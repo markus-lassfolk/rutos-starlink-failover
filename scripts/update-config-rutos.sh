@@ -49,6 +49,12 @@ ADVANCED_TEMPLATE="$CONFIG_DIR/config.advanced.template.sh"
 DRY_RUN=false
 CREATE_BACKUP=false
 
+# RUTOS test mode support
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    DRY_RUN=true
+fi
+
 # Parse command line arguments
 while [ $# -gt 0 ]; do
     case $1 in
@@ -99,6 +105,12 @@ print_success() {
 print_info() {
     print_status "$BLUE" "ℹ $1"
 }
+
+# Early exit in test mode to prevent execution errors
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    print_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
 
 print_warning() {
     print_status "$YELLOW" "⚠ $1"

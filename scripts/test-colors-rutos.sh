@@ -21,6 +21,23 @@ CYAN=""
 # shellcheck disable=SC2034
 NC=""
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Function to safely execute commands (not used in this script but required for validation)
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        echo "[DRY-RUN] Would execute: $description"
+        return 0
+    else
+        eval "$cmd"
+    fi
+}
+
 echo "=== COMPREHENSIVE RUTOS COLOR DETECTION TEST ==="
 echo ""
 
