@@ -4,9 +4,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-# shellcheck disable=SC2034  # Version used by update-version.sh, not in script logic
 SCRIPT_VERSION="2.4.12"
-# shellcheck disable=SC2034  # readonly declaration
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)
@@ -115,7 +113,7 @@ fi
 safe_execute() {
     cmd="$1"
     description="$2"
-    
+
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
         printf "[DRY-RUN] Would execute: %s\n" "$description" >&2
         printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
@@ -250,7 +248,7 @@ fi
 
 debug_log "==================== STARLINK API CHECK START ===================="
 debug_log "Starting API version check script"
-debug_log "Script version: 2.4.0"
+debug_log "Script version: $SCRIPT_VERSION"
 debug_log "Current working directory: $(pwd)"
 debug_log "Script path: $0"
 debug_log "Process ID: $$"
