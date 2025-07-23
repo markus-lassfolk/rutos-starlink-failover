@@ -180,7 +180,7 @@ load_config() {
             INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
             GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
             JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
-            
+
             # Set default values for all variables that might be referenced
             STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
             RUTOS_USERNAME="${RUTOS_USERNAME:-}"
@@ -189,7 +189,7 @@ load_config() {
             PUSHOVER_TOKEN="${PUSHOVER_TOKEN:-}"
             PUSHOVER_USER="${PUSHOVER_USER:-}"
             MWAN_IFACE="${MWAN_IFACE:-}"
-            
+
             log_debug "Test mode defaults set: STARLINK_IP=$STARLINK_IP, INSTALL_DIR=$INSTALL_DIR"
             return 0
         else
