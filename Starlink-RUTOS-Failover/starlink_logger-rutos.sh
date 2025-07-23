@@ -195,9 +195,9 @@ script_start_time=$(date +%s)
 debug_log "PERFORMANCE: Script started at epoch $script_start_time"
 
 # Performance thresholds (configurable)
-MAX_EXECUTION_TIME_SECONDS="${MAX_EXECUTION_TIME_SECONDS:-30}"   # Maximum acceptable script runtime
-MAX_SAMPLES_PER_SECOND="${MAX_SAMPLES_PER_SECOND:-10}"           # Expected minimum processing rate
-PERFORMANCE_ALERT_THRESHOLD="${PERFORMANCE_ALERT_THRESHOLD:-15}" # Alert if script takes longer than this
+MAX_EXECUTION_TIME_SECONDS="${MAX_EXECUTION_TIME_SECONDS:-60}"   # Maximum acceptable script runtime
+MIN_SAMPLES_PER_SECOND="${MIN_SAMPLES_PER_SECOND:-3}"            # Minimum acceptable processing rate (only checked if struggling)
+PERFORMANCE_ALERT_THRESHOLD="${PERFORMANCE_ALERT_THRESHOLD:-50}" # Alert if script takes longer than this AND didn't complete all samples
 
 # --- Data Gathering ---
 # We make two API calls to get a complete set of metrics.
@@ -491,41 +491,55 @@ fi
 # Check for performance issues and generate alerts
 performance_issues=""
 
-# Check execution time threshold
+# Check execution time threshold (only warn if actually problematic)
 if [ "$execution_time" -gt "$MAX_EXECUTION_TIME_SECONDS" ]; then
     performance_issues="${performance_issues}Execution time ($execution_time s) exceeded maximum ($MAX_EXECUTION_TIME_SECONDS s). "
     log "WARNING: Logger execution took ${execution_time} seconds, exceeding maximum of ${MAX_EXECUTION_TIME_SECONDS} seconds"
 fi
 
-# Check processing rate
-if [ "$samples_per_second" -lt "$MAX_SAMPLES_PER_SECOND" ] && [ "$samples_processed" -gt 5 ]; then
-    performance_issues="${performance_issues}Processing rate ($samples_per_second samples/s) below minimum ($MAX_SAMPLES_PER_SECOND samples/s). "
-    log "WARNING: Logger processing rate ($samples_per_second samples/s) is slower than expected minimum ($MAX_SAMPLES_PER_SECOND samples/s)"
-fi
-
-# Alert threshold check
-if [ "$execution_time" -gt "$PERFORMANCE_ALERT_THRESHOLD" ]; then
-    performance_issues="${performance_issues}Script performance degraded (${execution_time}s > ${PERFORMANCE_ALERT_THRESHOLD}s threshold). "
-    log "ALERT: Logger performance degraded - execution time ${execution_time} seconds exceeded alert threshold ${PERFORMANCE_ALERT_THRESHOLD} seconds"
-fi
-
-# Calculate if we're falling behind (samples accumulating faster than processing)
-# If we consistently process fewer samples than we should, we're falling behind
-expected_samples_per_run=1 # Normally expect 1-2 new samples per minute for frequent runs
-if [ "$new_sample_count" -gt "$((expected_samples_per_run * 5))" ]; then
-    if [ "$adaptive_sampling_active" = "true" ]; then
-        performance_issues="${performance_issues}High sample load handled with adaptive sampling - $new_sample_count samples available, processed $samples_processed. "
-        log "INFO: Adaptive sampling handled high load - $new_sample_count samples available, processed $samples_processed (every ${ADAPTIVE_SAMPLING_INTERVAL}th sample)"
-    else
-        performance_issues="${performance_issues}Falling behind data generation - processed $samples_processed of $new_sample_count samples. "
-        log "WARNING: Logger may be falling behind - processed $samples_processed of $new_sample_count available samples"
+# Check processing rate (only if we're actually struggling - slow AND didn't complete samples)
+# This prevents false alarms when processing rate is reasonable but we're catching up on a backlog
+if [ "$execution_time" -gt "$PERFORMANCE_ALERT_THRESHOLD" ] && [ "$samples_limited" = "true" ]; then
+    if [ "$samples_per_second" -lt "$MIN_SAMPLES_PER_SECOND" ] && [ "$samples_processed" -gt 5 ]; then
+        performance_issues="${performance_issues}Processing rate ($samples_per_second samples/s) below minimum ($MIN_SAMPLES_PER_SECOND samples/s) while struggling with large sample count. "
+        log "WARNING: Logger processing rate ($samples_per_second samples/s) is too slow while handling large sample backlog"
     fi
 fi
 
-# Check if we had to limit sample processing
-if [ "$samples_limited" = "true" ]; then
-    performance_issues="${performance_issues}Sample processing was limited to prevent performance issues ($original_sample_count reduced to $new_sample_count). "
-    log "WARNING: Sample processing was limited - $((original_sample_count - new_sample_count)) samples were skipped"
+# Alert threshold check (only if we took too long AND couldn't complete all samples)
+if [ "$execution_time" -gt "$PERFORMANCE_ALERT_THRESHOLD" ] && [ "$samples_limited" = "true" ]; then
+    performance_issues="${performance_issues}Script performance degraded (${execution_time}s > ${PERFORMANCE_ALERT_THRESHOLD}s) and couldn't process all samples. "
+    log "ALERT: Logger performance degraded - execution time ${execution_time} seconds exceeded alert threshold while unable to complete all samples"
+elif [ "$execution_time" -gt "$PERFORMANCE_ALERT_THRESHOLD" ]; then
+    debug_log "PERFORMANCE: Script took ${execution_time}s but completed all samples successfully - no alert needed"
+fi
+
+# Calculate if we're falling behind (samples accumulating faster than processing)
+# Only warn if we're both taking too long AND unable to keep up
+expected_samples_per_run=1 # Normally expect 1-2 new samples per minute for frequent runs
+high_sample_threshold=$((expected_samples_per_run * 20)) # Only consider "high" if >20x normal
+
+if [ "$new_sample_count" -gt "$high_sample_threshold" ]; then
+    if [ "$adaptive_sampling_active" = "true" ]; then
+        # Adaptive sampling is working - this is informational, not a problem
+        debug_log "INFO: Adaptive sampling handled high load - $new_sample_count samples available, processed $samples_processed (every ${ADAPTIVE_SAMPLING_INTERVAL}th sample)"
+    elif [ "$execution_time" -gt "$PERFORMANCE_ALERT_THRESHOLD" ]; then
+        # Only warn if high sample count AND slow execution - indicates real problem
+        performance_issues="${performance_issues}Falling behind data generation - processed $samples_processed of $new_sample_count samples in ${execution_time}s. "
+        log "WARNING: Logger falling behind - processed $samples_processed of $new_sample_count samples and took ${execution_time}s"
+    else
+        # High sample count but fast processing - no problem
+        debug_log "INFO: Processed large sample backlog efficiently ($samples_processed samples in ${execution_time}s)"
+    fi
+fi
+
+# Check if we had to limit sample processing (only warn if it indicates a real problem)
+if [ "$samples_limited" = "true" ] && [ "$execution_time" -gt "$PERFORMANCE_ALERT_THRESHOLD" ]; then
+    performance_issues="${performance_issues}Sample processing was limited and still took too long ($execution_time s > $PERFORMANCE_ALERT_THRESHOLD s). "
+    log "WARNING: Sample processing was limited but still took ${execution_time}s - $((original_sample_count - new_sample_count)) samples were skipped"
+elif [ "$samples_limited" = "true" ]; then
+    # Sample limiting worked effectively - this is informational
+    debug_log "INFO: Sample limiting prevented performance issues - processed $new_sample_count of $original_sample_count samples efficiently"
 fi
 
 # Send consolidated alert if there are performance issues
@@ -544,7 +558,13 @@ if [ -n "$performance_issues" ]; then
 else
     debug_log "PERFORMANCE: No performance issues detected"
     if [ "$execution_time" -lt "$PERFORMANCE_ALERT_THRESHOLD" ]; then
-        debug_log "PERFORMANCE: Script completed within acceptable time ($execution_time s < $PERFORMANCE_ALERT_THRESHOLD s)"
+        debug_log "PERFORMANCE: Script completed efficiently ($execution_time s < $PERFORMANCE_ALERT_THRESHOLD s)"
+        debug_log "PERFORMANCE: Processing rate: $samples_per_second samples/s, Total: $samples_processed samples"
+        
+        # Positive feedback for good performance
+        if [ "$samples_processed" -gt 30 ] && [ "$execution_time" -lt 15 ]; then
+            debug_log "PERFORMANCE: Excellent performance - processed $samples_processed samples in ${execution_time}s"
+        fi
     fi
 fi
 
