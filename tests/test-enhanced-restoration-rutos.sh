@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: test-enhanced-restoration-rutos.sh
-# Version: 2.4.12
+# Version: 2.6.0
 # Description: Test the enhanced firmware upgrade restoration system
 
 set -e
@@ -9,7 +9,7 @@ set -e
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

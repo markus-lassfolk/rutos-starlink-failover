@@ -1,13 +1,13 @@
 #!/bin/sh
 # Script: test-all-scripts-rutos.sh
-# Version: 2.4.12
+# Version: 2.6.0
 # Description: Comprehensive testing of all RUTOS scripts with different verbosity levels
 # Usage: ./test-all-scripts-rutos.sh [--detailed] [--specific-script script_name]
 
 set -e
 
 # Version information
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
 # Colors (Method 5 format for RUTOS compatibility)

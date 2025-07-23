@@ -8,7 +8,7 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.5.0"
+SCRIPT_VERSION="2.6.0"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'

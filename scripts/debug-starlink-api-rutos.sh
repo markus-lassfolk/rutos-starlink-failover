@@ -2,14 +2,14 @@
 # ==============================================================================
 # Debug Starlink API and Logger Issue
 #
-# Version: 1.0.0
+# Version: 2.6.0
 # Description: Diagnoses why the logger reports "No new data samples"
 # ==============================================================================
 
 set -e
 
 # Version information
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="2.6.0"
 
 # Standard colors for output
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then

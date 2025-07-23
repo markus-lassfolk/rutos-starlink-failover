@@ -3,7 +3,7 @@
 # Quick debug script to test the cron check logic
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 CRON_FILE="/etc/crontabs/root"
 

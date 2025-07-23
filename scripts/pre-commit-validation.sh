@@ -1,6 +1,6 @@
 #!/bin/bash
 # Pre-commit validation script for RUTOS Starlink Failover Project
-# Version: 2.4.12
+# Version: 2.6.0
 # Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility
 #              and markdown files for documentation quality
 #
@@ -18,7 +18,7 @@
 
 # Version information
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
 # Files to exclude from validation (patterns supported)

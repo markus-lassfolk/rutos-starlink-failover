@@ -6,7 +6,7 @@
 # Initialize warning counter
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 warning_count=0
 

@@ -6,7 +6,7 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
 # Version information (auto-updated by update-version.sh)
@@ -32,6 +32,10 @@ if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
 fi
 
 # Standard logging functions with consistent colors
+    # Version information for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ]; then
+        log_debug "Script: system-maintenance-rutos.sh v$SCRIPT_VERSION"
+    fi
 log_info() {
     printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     # Also log to syslog for system tracking

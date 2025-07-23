@@ -2,7 +2,7 @@
 # Test configuration file with stray quotes in comments
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 export MAINTENANCE_NOTIFY_ON_FIXES="true"    # Send notification for each successful fix (recommended)"
 export MAINTENANCE_NOTIFY_ON_FAILURES="true" # Send notification for each failed fix attempt (recommended)"

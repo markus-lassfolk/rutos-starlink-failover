@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: health-check.sh
-# Version: 2.4.12
+# Version: 2.5.0
 # Description: Comprehensive system health check that orchestrates all other test scripts
 
 # RUTOS Compatibility - Using Method 5 printf format for proper color display
@@ -9,7 +9,7 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
 # Version information (auto-updated by update-version.sh)
@@ -39,6 +39,10 @@ else
 fi
 
 # Standard logging functions with consistent colors
+    # Version information for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ]; then
+        log_debug "Script: health-check-rutos.sh v$SCRIPT_VERSION"
+    fi
 log_info() {
     printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }

@@ -3,7 +3,7 @@
 # ==============================================================================
 # Starlink Proactive Quality Monitor for OpenWrt/RUTOS
 #
-# Version: 2.4.12
+# Version: 2.5.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 #
 # This script proactively monitors the quality of a Starlink internet connection
@@ -27,7 +27,7 @@ set -eu
 # CRITICAL: Use RUTOS-compatible color detection
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

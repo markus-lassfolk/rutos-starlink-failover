@@ -8,7 +8,7 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.5.0"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
 # GitHub repository information
@@ -36,6 +36,10 @@ if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" != "" ]; then
 fi
 
 # Standard logging functions with RUTOS-compatible printf format
+    # Version information for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ]; then
+        log_debug "Script: dev-testing-rutos.sh v$SCRIPT_VERSION"
+    fi
 log_info() {
     printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }

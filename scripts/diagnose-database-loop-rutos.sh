@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: diagnose-database-loop-rutos.sh
-# Version: 2.4.12
+# Version: 2.6.0
 # Description: Quick diagnostic for RUTOS database optimization loop
 
 set -e
@@ -8,7 +8,7 @@ set -e
 # Colors for output
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 RED='\033[0;31m'
 GREEN='\033[0;32m'

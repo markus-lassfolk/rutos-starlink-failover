@@ -12,7 +12,7 @@ set -eu
 # CONFIG_FILE="$SCRIPT_DIR/../config/config.sh"  # Currently unused
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 BACKUP_DIR="/tmp/uci_backup_$(date +%Y%m%d_%H%M%S)"
 

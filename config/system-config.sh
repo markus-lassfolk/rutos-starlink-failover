@@ -3,14 +3,14 @@
 # System Configuration for RUTOS Starlink Monitoring
 
 # Template version (auto-updated by update-version.sh)
-TEMPLATE_VERSION="2.4.12"
+TEMPLATE_VERSION="2.6.0"
 readonly TEMPLATE_VERSION
 # This file defines expected system components for dynamic testing and validation
 
 # Version information for validation compliance
 # Note: Only set SCRIPT_VERSION if not already set (prevents conflicts when sourced)
 if [ -z "${SCRIPT_VERSION:-}" ]; then
-    SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 fi
 
 # Expected cron jobs and their patterns

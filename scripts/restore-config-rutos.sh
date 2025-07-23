@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: restore-config-rutos.sh
-# Version: 2.4.12
+# Version: 2.6.0
 # Description: Restore user configuration from backup after installation
 
 set -e
@@ -8,7 +8,7 @@ set -e
 # Colors for output (busybox compatible)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 # Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then

@@ -3,7 +3,7 @@
 # ==============================================================================
 # Starlink API Documentation Generator
 #
-# Version: 2.4.12
+# Version: 2.6.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script is a utility for developers and enthusiasts who want to explore
@@ -25,7 +25,7 @@ set -eu
 # shellcheck disable=SC2034  # Colors may not be used but should be defined for consistency
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # shellcheck disable=SC2034

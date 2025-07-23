@@ -1,11 +1,11 @@
 #!/bin/sh
 # Configuration merging script for Starlink RUTOS Failover
-# Version: 2.4.12
+# Version: 2.6.0
 
 # Standard colors for consistent output
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
 # Use version for logging
