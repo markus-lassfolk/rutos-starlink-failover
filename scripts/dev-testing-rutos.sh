@@ -475,7 +475,18 @@ test_script_comprehensive() {
     printf "${BLUE}║                    COMPREHENSIVE TEST: %-32s ║${NC}\n" "$script_name"
     printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
 
-    echo "$test_modes" | while IFS=: read -r test_num test_desc env_vars; do
+    # Track comprehensive test results using file to avoid subshell variable issues
+    comp_results_file="/tmp/comp_results_${script_name}_$$"
+    comp_errors_file="/tmp/comp_errors_${script_name}_$$"
+    test_modes_file="/tmp/test_modes_${script_name}_$$"
+    
+    > "$comp_results_file"
+    > "$comp_errors_file"
+    
+    # Write test modes to file to avoid pipe subshell issues
+    echo "$test_modes" > "$test_modes_file"
+
+    while IFS=: read -r test_num test_desc env_vars; do
         [ -z "$test_num" ] && continue
 
         printf "\n${CYAN}── Test %s: %s ──${NC}\n" "$test_num" "$test_desc"
@@ -495,6 +506,7 @@ test_script_comprehensive() {
         # Execute with timeout and capture both stdout and stderr
         if eval "$test_env timeout 15 sh '$script_path'" >"$output_file" 2>&1; then
             printf "${GREEN}✅ SUCCESS${NC}\n"
+            echo "PASS:Test_${test_num}" >> "$comp_results_file"
             
             # Show first few lines of output to verify it looks good
             if [ -s "$output_file" ]; then
@@ -508,28 +520,63 @@ test_script_comprehensive() {
             fi
         else
             printf "${RED}❌ FAILED${NC}\n"
+            echo "FAIL:Test_${test_num}" >> "$comp_results_file"
+            
+            # Always show error details, even if file is empty
             if [ -s "$output_file" ]; then
                 printf "${RED}Error output:${NC}\n"
                 head -10 "$output_file" | sed 's/^/  /'
+                error_content=$(head -5 "$output_file" 2>/dev/null | tr '\n' ' ' || echo "Script execution failed")
+            else
+                printf "${RED}No error output captured (silent failure)${NC}\n"
+                error_content="Silent failure - script exited with error code but produced no output"
             fi
             
-            # Add to error details
-            error_content=$(head -5 "$output_file" 2>/dev/null || echo "Unknown error")
-            ERROR_DETAILS="${ERROR_DETAILS}COMPREHENSIVE TEST FAILURE in $script_name (Test $test_num: $test_desc):
+            # Write error details to file to avoid subshell variable issues
+            cat >> "$comp_errors_file" <<EOF
+COMPREHENSIVE TEST FAILURE in $script_name (Test $test_num: $test_desc):
   File: $script_path
   Environment: $env_vars
   Error: $error_content
+  Issue: Script failed during comprehensive testing
   Fix: Check script logic, error handling, and environment variable handling
+  Debug: Run manually with same environment variables to reproduce
   
-"
+EOF
         fi
 
         rm -f "$output_file"
         printf "\n"
-    done
+    done < "$test_modes_file"
 
     printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n\n"
-    return 0
+    
+    # Read error details from file and add to global ERROR_DETAILS
+    if [ -f "$comp_errors_file" ] && [ -s "$comp_errors_file" ]; then
+        ERROR_DETAILS="${ERROR_DETAILS}$(cat "$comp_errors_file")"
+    fi
+    
+    # Check results and return appropriate code
+    if [ -f "$comp_results_file" ]; then
+        failed_tests=$(grep -c "^FAIL:" "$comp_results_file" 2>/dev/null || echo "0")
+        total_tests=$(wc -l < "$comp_results_file" 2>/dev/null || echo "0")
+        
+        # Clean up temp files
+        rm -f "$comp_results_file" "$comp_errors_file" "$test_modes_file"
+        
+        if [ "$failed_tests" -gt 0 ]; then
+            log_error "Comprehensive testing failed: $failed_tests of $total_tests tests failed"
+            return 1
+        else
+            log_success "Comprehensive testing passed: all $total_tests tests successful"
+            return 0
+        fi
+    else
+        # Clean up temp files even on failure
+        rm -f "$comp_results_file" "$comp_errors_file" "$test_modes_file"
+        log_error "Comprehensive testing failed: no results recorded"
+        return 1
+    fi
 }
 
 # Basic checks function (syntax, compatibility) - separated for reuse
