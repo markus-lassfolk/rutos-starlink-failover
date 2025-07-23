@@ -166,8 +166,20 @@ self_update() {
     log_debug "Downloading from: $SCRIPT_URL"
 
     if curl -fsSL "$SCRIPT_URL" -o "$TEMP_SCRIPT" 2>/dev/null; then
-        # Extract version from downloaded script
-        if latest_version=$(grep '^readonly SCRIPT_VERSION=' "$TEMP_SCRIPT" | cut -d'"' -f2 2>/dev/null) && [ -n "$latest_version" ]; then
+        # Extract version from downloaded script - try multiple patterns
+        latest_version=""
+        
+        # Try pattern 1: readonly SCRIPT_VERSION="x.x.x"
+        if [ -z "$latest_version" ]; then
+            latest_version=$(grep '^readonly SCRIPT_VERSION=' "$TEMP_SCRIPT" | cut -d'"' -f2 2>/dev/null)
+        fi
+        
+        # Try pattern 2: SCRIPT_VERSION="x.x.x" followed by readonly
+        if [ -z "$latest_version" ]; then
+            latest_version=$(grep '^SCRIPT_VERSION=' "$TEMP_SCRIPT" | cut -d'"' -f2 2>/dev/null)
+        fi
+        
+        if [ -n "$latest_version" ]; then
             log_debug "Current: v$SCRIPT_VERSION, Latest: v$latest_version"
 
             if [ "$SCRIPT_VERSION" != "$latest_version" ]; then
@@ -197,16 +209,17 @@ self_update() {
 
 # Find all RUTOS scripts in the project
 find_rutos_scripts() {
-    log_step "Finding *-rutos.sh scripts"
-
     # Create a temporary file to collect script paths
     temp_script_list="/tmp/rutos_scripts_$$"
     > "$temp_script_list"
 
-    # Current directory and subdirectories
+    # Current directory and subdirectories - suppress all output during find
     find . -name "*-rutos.sh" -type f 2>/dev/null | sort | while read -r script; do
         if [ -f "$script" ] && [ -r "$script" ]; then
-            log_debug "Found script: $script"
+            # Only output to debug if debug is enabled, but don't let it contaminate the script list
+            if [ "$DEBUG" = "1" ]; then
+                printf "[DEBUG] [%s] Found script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+            fi
             echo "$script" >> "$temp_script_list"
         fi
     done
@@ -214,15 +227,23 @@ find_rutos_scripts() {
     # Also check for main scripts that might be RUTOS-compatible
     find . -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
         if [ -f "$script" ] && [ -r "$script" ]; then
-            log_debug "Found main script: $script"
+            if [ "$DEBUG" = "1" ]; then
+                printf "[DEBUG] [%s] Found main script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+            fi
             echo "$script" >> "$temp_script_list"
         fi
     done
 
+    # Log the step AFTER collecting scripts to avoid contamination
+    log_step "Finding *-rutos.sh scripts"
+
     # Return the list and clean up
-    if [ -f "$temp_script_list" ]; then
+    if [ -f "$temp_script_list" ] && [ -s "$temp_script_list" ]; then
         cat "$temp_script_list"
         rm -f "$temp_script_list"
+    else
+        rm -f "$temp_script_list"
+        return 1
     fi
 }
 
@@ -493,16 +514,20 @@ main() {
     if [ -n "$script_list" ]; then
         log_info "Testing scripts in safe mode (DRY_RUN=1, RUTOS_TEST_MODE=1)"
 
-        # Step 3: Test each script
-        # Create temporary files to track results across subshells
+        # Step 3: Test each script using a simpler approach
+        # Write script list to temp file to avoid subshell variable issues
+        temp_script_file="/tmp/scripts_to_test_$$"
         temp_results="/tmp/test_results_$$"
+        
+        printf "%s\n" "$script_list" > "$temp_script_file"
         > "$temp_results"
         
-        printf "%s\n" "$script_list" | while IFS= read -r script; do
-            if [ -n "$script" ]; then
+        # Process each script
+        while IFS= read -r script; do
+            if [ -n "$script" ] && [ "$script" != "" ]; then
                 script_name=$(basename "$script")
                 
-                if test_script "$script"; then
+                if test_script "$script" >/dev/null 2>&1; then
                     echo "PASS:$script_name" >> "$temp_results"
                     # Check if script has dry-run support for display
                     if check_dry_run_support "$script"; then
@@ -515,15 +540,21 @@ main() {
                     printf "${RED}❌ FAIL${NC} - %s\n" "$script_name"
                 fi
             fi
-        done
+        done < "$temp_script_file"
         
-        # Calculate final results from temp file
-        if [ -f "$temp_results" ]; then
+        # Calculate final results
+        if [ -f "$temp_results" ] && [ -s "$temp_results" ]; then
             TOTAL_SCRIPTS=$(wc -l < "$temp_results")
             PASSED_SCRIPTS=$(grep -c "^PASS:" "$temp_results" 2>/dev/null || echo "0")
             FAILED_SCRIPTS=$(grep -c "^FAIL:" "$temp_results" 2>/dev/null || echo "0")
-            rm -f "$temp_results"
+        else
+            TOTAL_SCRIPTS=0
+            PASSED_SCRIPTS=0
+            FAILED_SCRIPTS=0
         fi
+        
+        # Clean up temp files
+        rm -f "$temp_script_file" "$temp_results"
 
         # Step 4: Generate report
         generate_error_report
