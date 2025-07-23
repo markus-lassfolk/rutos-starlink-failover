@@ -76,6 +76,10 @@ export OBSTRUCTION_THRESHOLD="0.001"
 # Latency threshold in milliseconds
 export LATENCY_THRESHOLD_MS="150"
 
+# Stability checks required before failback (consecutive good checks)
+# Higher values = more stable failback, lower values = faster failback
+export STABILITY_CHECKS_REQUIRED="5"
+
 # --- System Settings ---
 
 # Check interval in seconds (how often to test Starlink)

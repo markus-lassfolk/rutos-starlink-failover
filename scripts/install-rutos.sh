@@ -1291,6 +1291,9 @@ install_scripts() {
         fix-database-loop-rutos.sh \
         diagnose-database-loop-rutos.sh \
         fix-database-spam-rutos.sh \
+        fix-stability-checks-rutos.sh \
+        debug-starlink-api-rutos.sh \
+        repair-system-rutos.sh \
         system-maintenance-rutos.sh \
         view-logs-rutos.sh \
         dev-testing-rutos.sh; do

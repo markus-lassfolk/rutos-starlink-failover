@@ -110,6 +110,10 @@ STABILITY_FILE="${STATE_DIR}/starlink_monitor.stability"
 HEALTH_FILE="${STATE_DIR}/starlink_monitor.health"
 LOCK_FILE="${STATE_DIR}/starlink_monitor.lock"
 
+# --- Critical Safety Defaults ---
+# Ensure STABILITY_CHECKS_REQUIRED is always defined to prevent infinite failover loops
+STABILITY_CHECKS_REQUIRED="${STABILITY_CHECKS_REQUIRED:-5}"
+
 # --- Helper Functions ---
 
 debug_log() {
@@ -317,6 +321,10 @@ main() {
     debug_log "  current_metric=$current_metric (from mwan3.$MWAN_MEMBER.metric)"
     debug_log "  MWAN_MEMBER=${MWAN_MEMBER:-not_set}"
     debug_log "  METRIC_GOOD=${METRIC_GOOD:-not_set}"
+    debug_log "  STABILITY_CHECKS_REQUIRED=${STABILITY_CHECKS_REQUIRED:-not_set}"
+    debug_log "  current_metric=$current_metric (from mwan3.$MWAN_MEMBER.metric)"
+    debug_log "  MWAN_MEMBER=${MWAN_MEMBER:-not_set}"
+    debug_log "  METRIC_GOOD=${METRIC_GOOD:-not_set}"
 
     log "info" "Current state: $last_state, Stability: $stability_count, Metric: $current_metric"
 
@@ -450,6 +458,15 @@ main() {
             # In recovery process: increment stability counter and check if enough for failback
             stability_count=$((stability_count + 1))
             echo "$stability_count" >"$STABILITY_FILE"
+
+            # Safety check for configuration issues
+            if [ -z "$STABILITY_CHECKS_REQUIRED" ] || [ "$STABILITY_CHECKS_REQUIRED" -eq 0 ] 2>/dev/null; then
+                log "error" "STABILITY_CHECKS_REQUIRED is not set or is 0 - this prevents failback!"
+                log "error" "Please add 'export STABILITY_CHECKS_REQUIRED=\"5\"' to your config file"
+                # Use safe default to allow failback
+                STABILITY_CHECKS_REQUIRED=5
+                log "warn" "Using emergency default STABILITY_CHECKS_REQUIRED=5 for this run"
+            fi
 
             log "info" "Quality recovered - stability check $stability_count/$STABILITY_CHECKS_REQUIRED"
             update_health_status "recovering" "Stability check $stability_count/$STABILITY_CHECKS_REQUIRED"

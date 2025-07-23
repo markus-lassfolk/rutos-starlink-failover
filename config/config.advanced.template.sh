@@ -64,6 +64,10 @@ OBSTRUCTION_CRITICAL=0.005  # 0.5% - immediate failover (unusable)
 LATENCY_THRESHOLD_MS=200 # 200ms - realistic for satellite (above normal)
 LATENCY_CRITICAL_MS=500  # 500ms - unusable for most apps (immediate failover)
 
+# Stability checks required before failback (consecutive good checks)
+# Mobile environment needs more stability due to signal variations
+STABILITY_CHECKS_REQUIRED=6 # 6 checks = 6 minutes stability for mobile use
+
 # Signal strength monitoring (matches your cellular config)
 # RSSI values: -70 dBm (excellent) to -120 dBm (no signal)
 SIGNAL_RESET_THRESHOLD=-90 # dBm - reset modem when signal drops below this
