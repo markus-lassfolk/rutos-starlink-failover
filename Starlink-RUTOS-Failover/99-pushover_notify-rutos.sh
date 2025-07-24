@@ -74,9 +74,13 @@ log() {
     log_message="$2"
     log_timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    logger -t "PushoverNotifier" -p "daemon.$log_level" -- "$log_message"
+    # Log to syslog with more specific tag for easier filtering
+    logger -t "PushoverNotifier" -p "daemon.$log_level" -- "[PUSHOVER] $log_message"
+    
+    # Also log to our dedicated notification log
     echo "$log_timestamp [$log_level] $log_message" >>"$NOTIFICATION_LOG"
 
+    # Show on console if terminal available
     if [ -t 1 ]; then
         echo "[$log_level] $log_message"
     fi

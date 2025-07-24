@@ -525,7 +525,28 @@ main() {
 
                     # Notify via external script if enabled
                     if [ "${NOTIFY_ON_SOFT_FAIL:-1}" = "1" ] && [ -x "$NOTIFIER_SCRIPT" ]; then
-                        safe_notify "soft_failover" "$FAIL_REASON" || log "warn" "Notification failed"
+                        log "info" "PUSHOVER: Triggering soft failover notification"
+                        log "debug" "PUSHOVER: NOTIFY_ON_SOFT_FAIL=${NOTIFY_ON_SOFT_FAIL:-1}"
+                        log "debug" "PUSHOVER: NOTIFIER_SCRIPT=$NOTIFIER_SCRIPT (executable: $([ -x "$NOTIFIER_SCRIPT" ] && echo "YES" || echo "NO"))"
+                        log "debug" "PUSHOVER: FAIL_REASON=$FAIL_REASON"
+                        
+                        # Log to syslog for logread visibility
+                        logger -t "StarLinkMonitor" -p daemon.info "PUSHOVER: Sending soft failover notification - Reason: $FAIL_REASON"
+                        
+                        safe_notify "soft_failover" "$FAIL_REASON" || {
+                            log "warn" "Notification failed"
+                            logger -t "StarLinkMonitor" -p daemon.warn "PUSHOVER: Soft failover notification FAILED"
+                        }
+                    else
+                        log "info" "PUSHOVER: Soft failover notification SKIPPED"
+                        if [ "${NOTIFY_ON_SOFT_FAIL:-1}" != "1" ]; then
+                            log "debug" "PUSHOVER: SKIP REASON - NOTIFY_ON_SOFT_FAIL disabled (${NOTIFY_ON_SOFT_FAIL:-1})"
+                            logger -t "StarLinkMonitor" -p daemon.info "PUSHOVER: Soft failover notification disabled by config"
+                        fi
+                        if [ ! -x "$NOTIFIER_SCRIPT" ]; then
+                            log "debug" "PUSHOVER: SKIP REASON - NOTIFIER_SCRIPT not executable ($NOTIFIER_SCRIPT)"
+                            logger -t "StarLinkMonitor" -p daemon.warn "PUSHOVER: Notifier script not found or not executable: $NOTIFIER_SCRIPT"
+                        fi
                     fi
 
                     log "info" "Soft failover completed successfully"
@@ -569,7 +590,28 @@ main() {
 
                         # Notify via external script if enabled
                         if [ "${NOTIFY_ON_RECOVERY:-1}" = "1" ] && [ -x "$NOTIFIER_SCRIPT" ]; then
-                            safe_notify "soft_recovery" || log "warn" "Notification failed"
+                            log "info" "PUSHOVER: Triggering soft recovery notification"
+                            log "debug" "PUSHOVER: NOTIFY_ON_RECOVERY=${NOTIFY_ON_RECOVERY:-1}"
+                            log "debug" "PUSHOVER: NOTIFIER_SCRIPT=$NOTIFIER_SCRIPT (executable: $([ -x "$NOTIFIER_SCRIPT" ] && echo "YES" || echo "NO"))"
+                            log "debug" "PUSHOVER: Recovery after $stability_count stability checks"
+                            
+                            # Log to syslog for logread visibility
+                            logger -t "StarLinkMonitor" -p daemon.info "PUSHOVER: Sending soft recovery notification - Stability: $stability_count/$STABILITY_CHECKS_REQUIRED"
+                            
+                            safe_notify "soft_recovery" || {
+                                log "warn" "Notification failed"
+                                logger -t "StarLinkMonitor" -p daemon.warn "PUSHOVER: Soft recovery notification FAILED"
+                            }
+                        else
+                            log "info" "PUSHOVER: Soft recovery notification SKIPPED"
+                            if [ "${NOTIFY_ON_RECOVERY:-1}" != "1" ]; then
+                                log "debug" "PUSHOVER: SKIP REASON - NOTIFY_ON_RECOVERY disabled (${NOTIFY_ON_RECOVERY:-1})"
+                                logger -t "StarLinkMonitor" -p daemon.info "PUSHOVER: Soft recovery notification disabled by config"
+                            fi
+                            if [ ! -x "$NOTIFIER_SCRIPT" ]; then
+                                log "debug" "PUSHOVER: SKIP REASON - NOTIFIER_SCRIPT not executable ($NOTIFIER_SCRIPT)"
+                                logger -t "StarLinkMonitor" -p daemon.warn "PUSHOVER: Notifier script not found or not executable: $NOTIFIER_SCRIPT"
+                            fi
                         fi
 
                         log "info" "Soft failback completed successfully"
