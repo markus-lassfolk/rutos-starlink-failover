@@ -63,6 +63,7 @@ safe_execute() {
 
 # Early exit in test mode to prevent execution errors
 if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
     printf "${GREEN}RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution${NC}\n"
     exit 0
 fi
