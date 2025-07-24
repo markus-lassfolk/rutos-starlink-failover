@@ -46,8 +46,15 @@ jobs:
       actions: write
 
     steps:
-      - name: Install gh CLI (if needed)
-        run: sudo apt-get install gh -y
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Required Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh shellcheck
 
       - name: Enable Debug Mode
         run: set -x
@@ -569,21 +576,99 @@ jobs:
             
             echo "🤖 This is a Copilot PR - checking validation status before approval"
             
-            # Check for blocking labels first
+            # Check for blocking labels and re-validate if present
             BLOCKING_LABELS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.labels[] | select(.name | test("blocked-critical-issues|validation-failed|critical-")) | .name')
             
             if [ -n "$BLOCKING_LABELS" ]; then
-              echo "🚫 PR has blocking labels: $BLOCKING_LABELS"
-              echo "   Waiting for issues to be resolved before auto-approval"
+              echo "🔍 Found blocking labels: $BLOCKING_LABELS"
+              echo "🔄 Re-running validation to check if issues are resolved..."
               
-              # Comment about waiting for fixes
-              RECENT_BLOCK_COMMENTS=$(gh api repos/${{ github.repository }}/issues/${{ github.event.number }}/comments --jq '.[] | select(.created_at > (now - 1800 | todate)) | select(.body | test("auto-approval blocked"; "i")) | .id')
+              # Re-run validation to check current status
+              COMMIT_SHA=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.head.sha')
               
-              if [ -z "$RECENT_BLOCK_COMMENTS" ]; then
-                gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "🤖 **Auto-approval blocked**: This PR has critical RUTOS compatibility issues. The autonomous system will wait for fixes before proceeding with approval. Blocking labels: \`$(echo "$BLOCKING_LABELS" | tr '\n' ' ')\`"
+              # Trigger fresh validation check
+              if [ -f "scripts/pre-commit-validation.sh" ]; then
+                echo "🔍 Running comprehensive validation check..."
+                chmod +x scripts/pre-commit-validation.sh
+                
+                # Get changed files for this PR
+                CHANGED_FILES=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }}/files --jq '.[].filename')
+                VALIDATION_PASSED=true
+                
+                for file in $CHANGED_FILES; do
+                  if [[ "$file" =~ \.(sh|md)$ ]] && [[ -f "$file" ]]; then
+                    echo "  Validating: $file"
+                    
+                    # Run comprehensive validation
+                    if ./scripts/pre-commit-validation.sh "$file" >/dev/null 2>&1; then
+                      echo "  ✅ Validation passed for $file"
+                    else
+                      echo "  ❌ Validation failed for $file"
+                      VALIDATION_PASSED=false
+                    fi
+                  fi
+                done
+              elif command -v shellcheck >/dev/null 2>&1; then
+                echo "🔍 Running basic shellcheck validation..."
+                
+                # Get changed files for this PR
+                CHANGED_FILES=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }}/files --jq '.[].filename')
+                VALIDATION_PASSED=true
+                
+                for file in $CHANGED_FILES; do
+                  if [[ "$file" =~ \.(sh|md)$ ]] && [[ -f "$file" ]]; then
+                    echo "  Checking: $file"
+                    
+                    # Run basic validation
+                    if [[ "$file" =~ \.sh$ ]]; then
+                      if ! shellcheck "$file" >/dev/null 2>&1; then
+                        echo "  ❌ ShellCheck failed for $file"
+                        VALIDATION_PASSED=false
+                      fi
+                    fi
+                  fi
+                done
+                
+                if [ "$VALIDATION_PASSED" = "true" ]; then
+                  echo "✅ Validation passed - removing blocking labels"
+                  
+                  # Remove blocking labels
+                  for label in $BLOCKING_LABELS; do
+                    gh pr edit ${{ github.event.number }} --remove-label "$label" --repo ${{ github.repository }} || echo "Failed to remove $label"
+                  done
+                  
+                  # Add success label
+                  gh pr edit ${{ github.event.number }} --add-label "validation-passed" --repo ${{ github.repository }}
+                  
+                  # Comment about resolution
+                  gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "✅ **Validation issues resolved**: Previous blocking issues have been fixed. Removing blocking labels and proceeding with autonomous approval process."
+                  
+                  echo "🎉 Blocking labels removed - proceeding with approval"
+                else
+                  echo "❌ Validation still failing - keeping blocking labels"
+                  
+                  # Comment about still blocked
+                  RECENT_BLOCK_COMMENTS=$(gh api repos/${{ github.repository }}/issues/${{ github.event.number }}/comments --jq '.[] | select(.created_at > (now - 1800 | todate)) | select(.body | test("auto-approval blocked"; "i")) | .id')
+                  
+                  if [ -z "$RECENT_BLOCK_COMMENTS" ]; then
+                    gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "🤖 **Auto-approval still blocked**: RUTOS validation is still failing. Please fix all critical issues before this PR can be automatically approved. Blocking labels: \`$(echo "$BLOCKING_LABELS" | tr '\n' ' ')\`"
+                  fi
+                  
+                  exit 0
+                fi
+              else
+                echo "⚠️ ShellCheck not available - cannot re-validate"
+                echo "   Waiting for explicit validation workflow completion"
+                
+                # Comment about waiting for validation
+                RECENT_BLOCK_COMMENTS=$(gh api repos/${{ github.repository }}/issues/${{ github.event.number }}/comments --jq '.[] | select(.created_at > (now - 1800 | todate)) | select(.body | test("auto-approval blocked"; "i")) | .id')
+                
+                if [ -z "$RECENT_BLOCK_COMMENTS" ]; then
+                  gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "🤖 **Auto-approval blocked**: This PR has blocking labels from previous validation failures. The autonomous system will wait for fresh validation results before proceeding. Blocking labels: \`$(echo "$BLOCKING_LABELS" | tr '\n' ' ')\`"
+                fi
+                
+                exit 0
               fi
-              
-              exit 0
             fi
             
             # Check RUTOS validation status via commit status
@@ -674,12 +759,30 @@ jobs:
             
             echo "🤖 This is a Copilot PR - checking validation status before auto-merge"
             
-            # Check for blocking labels
+            # Check for blocking labels and re-validate if present
             BLOCKING_LABELS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.labels[] | select(.name | test("blocked-critical-issues|validation-failed|critical-")) | .name')
             
             if [ -n "$BLOCKING_LABELS" ]; then
-              echo "🚫 Auto-merge blocked by labels: $BLOCKING_LABELS"
-              exit 0
+              echo "🔍 Found blocking labels for auto-merge: $BLOCKING_LABELS"
+              echo "🔄 Re-checking if validation issues are resolved..."
+              
+              # Check if validation-passed label exists (indicating issues were resolved)
+              VALIDATION_PASSED_LABEL=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.labels[] | select(.name=="validation-passed") | .name')
+              
+              if [ -n "$VALIDATION_PASSED_LABEL" ]; then
+                echo "✅ Found validation-passed label - removing blocking labels for auto-merge"
+                
+                # Remove blocking labels
+                for label in $BLOCKING_LABELS; do
+                  gh pr edit ${{ github.event.number }} --remove-label "$label" --repo ${{ github.repository }} || echo "Failed to remove $label"
+                done
+                
+                echo "🎉 Blocking labels removed - proceeding with auto-merge check"
+              else
+                echo "🚫 Auto-merge blocked by labels: $BLOCKING_LABELS"
+                echo "   Waiting for validation to pass before auto-merge"
+                exit 0
+              fi
             fi
             
             # Check RUTOS validation status
