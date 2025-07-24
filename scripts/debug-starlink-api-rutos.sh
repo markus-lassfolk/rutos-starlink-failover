@@ -8,8 +8,9 @@
 
 set -e
 
-# Version information
+# Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
+readonly SCRIPT_VERSION
 
 # Standard colors for output
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
@@ -52,6 +53,7 @@ log_debug() {
 # Load configuration
 CONFIG_FILE="/etc/starlink-config/config.sh"
 if [ -f "$CONFIG_FILE" ]; then
+    # shellcheck disable=SC1090
     . "$CONFIG_FILE"
 fi
 
