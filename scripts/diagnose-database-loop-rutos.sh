@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2059
 # Script: diagnose-database-loop-rutos.sh
 # Version: 2.6.0
 # Description: Quick diagnostic for RUTOS database optimization loop

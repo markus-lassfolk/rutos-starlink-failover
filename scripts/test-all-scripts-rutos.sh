@@ -1,8 +1,10 @@
 #!/bin/sh
-# Script: test-all-scripts-rutos.sh
+# shellcheck disable=SC2059
+# Script: test-all-scripts-rutos.sh  
 # Version: 2.6.0
 # Description: Comprehensive testing of all RUTOS scripts with different verbosity levels
 # Usage: ./test-all-scripts-rutos.sh [--detailed] [--specific-script script_name]
+# Note: SC2059 disabled - Using Method 5 printf format for RUTOS compatibility
 
 set -e
 
