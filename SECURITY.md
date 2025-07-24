@@ -1,5 +1,7 @@
 # Security Policy
 
+Version: 2.6.0 | Updated: 2025-07-24
+
 ## Supported Versions
 
 This project consists of a collection of scripts and is maintained on a best-effort basis. Security updates will only be

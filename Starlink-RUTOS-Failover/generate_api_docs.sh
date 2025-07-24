@@ -20,28 +20,23 @@
 # Exit on first error, undefined variable, or pipe failure for script robustness.
 set -eu
 
-# Standard colors for consistent output (compatible with busybox)
-# Note: Colors defined for consistency but not used in this documentation script
-# shellcheck disable=SC2034  # Colors may not be used but should be defined for consistency
-
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
+
+# Standard colors for consistent output (compatible with busybox)
+# shellcheck disable=SC2034  # Color variables may not all be used in every script
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    # shellcheck disable=SC2034
-    # shellcheck disable=SC2034  # Color variables may not all be used
+    # Colors enabled
     RED='\033[0;31m'
-    # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[1;35m'
     CYAN='\033[0;36m'
     NC='\033[0m'
 else
-    # shellcheck disable=SC2034
-    # shellcheck disable=SC2034  # Color variables may not all be used
+    # Colors disabled
     RED=""
-    # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN=""
     YELLOW=""
     BLUE=""
