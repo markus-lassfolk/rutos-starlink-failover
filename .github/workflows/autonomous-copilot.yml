@@ -210,11 +210,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          printf "❌ VALIDATION FAILED - Requesting fixes from Copilot\n"
+          printf "VALIDATION FAILED - Requesting fixes from Copilot\n"
+          
           PR_NUMBER="${{ steps.orchestration.outputs.PR_NUMBER }}"
 
           # Get validation details
-          printf "🔍 Getting validation failure details...\n"
+          printf "Getting validation failure details...\n"
+          
           # Add blocking label
           gh pr edit $PR_NUMBER --add-label "validation-failed,blocked-critical-issues" --repo ${{ github.repository }}
 
@@ -257,8 +259,8 @@ jobs:
           # Send fix request to Copilot
           gh pr comment $PR_NUMBER --repo ${{ github.repository }} --body-file fix_request.md
               
-          printf "✅ Fix request sent to Copilot for PR %s\n" "$PR_NUMBER"
-          printf "⏳ Autonomous system will wait for fixes and re-validate automatically\n"
+          printf "Fix request sent to Copilot for PR %s\n" "$PR_NUMBER"
+          printf "Autonomous system will wait for fixes and re-validate automatically\n"
               
           # Exit gracefully instead of with error code
           exit 0
@@ -469,13 +471,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          printf "🎯 VALIDATION-FIRST AUTONOMOUS WORKFLOW SUMMARY\n"
+          printf "VALIDATION-FIRST AUTONOMOUS WORKFLOW SUMMARY\n"
           printf "==============================================\n"
           printf "Workflow Action: %s\n" "${{ steps.orchestration.outputs.WORKFLOW_ACTION }}"
           printf "PR Number: %s\n" "${{ steps.orchestration.outputs.PR_NUMBER }}"
           printf "Validation Status: %s\n" "${{ steps.orchestration.outputs.VALIDATION_STATUS }}"
           printf "Event: %s\n" "${{ github.event_name }}"
           printf "Action: %s\n" "${{ github.event.action }}"
+          
           case "${{ steps.orchestration.outputs.WORKFLOW_ACTION }}" in
             "request-fixes")
               printf "Requested fixes from Copilot for validation failures\n"
@@ -499,7 +502,7 @@ jobs:
           esac
           
           printf "\n"
-          printf "🤖 Autonomous RUTOS Compatibility System - Ready for next iteration\n"
+          printf "Autonomous RUTOS Compatibility System - Ready for next iteration\n"
 
       #########################################################
       # 3.7. Setup Copilot Self-Review for All Copilot PRs
@@ -721,8 +724,9 @@ jobs:
                 ;;
 
               "failure")
-                printf "❌ RUTOS validation failed - blocking auto-approval\n"
-                gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "❌ **Auto-approval blocked**: RUTOS validation failed. Please review validation results and fix critical issues before re-requesting review."
+                printf "RUTOS validation failed - blocking auto-approval\n"
+                gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "Auto-approval blocked: RUTOS validation failed. Please review validation results and fix critical issues before re-requesting review." || printf "Failed to post validation failure comment\n"
+                
                 # Add blocking label
                 gh pr edit ${{ github.event.number }} --add-label "validation-failed" || printf "Failed to add validation-failed label\n"
                 ;;
