@@ -850,9 +850,33 @@ check_configuration_health() {
 
         log_debug "PUSHOVER CHECK: Testing if Pushover is configured properly"
         if is_pushover_configured; then
-            show_health_status "healthy" "Pushover Config" "Pushover properly configured"
-            increment_counter "healthy"
-            log_debug "PUSHOVER CHECK: SUCCESS - properly configured"
+            log_debug "PUSHOVER CHECK: Configuration valid, testing API connectivity"
+
+            # Test actual Pushover API if curl is available
+            if command -v curl >/dev/null 2>&1; then
+                test_message="Health check test from RUTOS router at $(date '+%Y-%m-%d %H:%M:%S')"
+                api_response=$(curl -s \
+                    -F "token=$PUSHOVER_TOKEN" \
+                    -F "user=$PUSHOVER_USER" \
+                    -F "message=$test_message" \
+                    -F "title=🏥 RUTOS Health Check" \
+                    -F "priority=-2" \
+                    https://api.pushover.net/1/messages.json 2>&1)
+
+                if echo "$api_response" | grep -q '"status":1'; then
+                    show_health_status "healthy" "Pushover API" "Pushover API test successful"
+                    increment_counter "healthy"
+                    log_debug "PUSHOVER CHECK: SUCCESS - API test passed"
+                else
+                    show_health_status "warning" "Pushover API" "API test failed: $(echo "$api_response" | grep -o '"errors":\[[^]]*\]' || echo "Unknown error")"
+                    increment_counter "warning"
+                    log_debug "PUSHOVER CHECK: WARNING - API test failed: $api_response"
+                fi
+            else
+                show_health_status "healthy" "Pushover Config" "Pushover properly configured (no curl for API test)"
+                increment_counter "healthy"
+                log_debug "PUSHOVER CHECK: SUCCESS - properly configured (API test skipped)"
+            fi
         else
             show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
             increment_counter "warning"
@@ -1260,6 +1284,7 @@ show_usage() {
     echo "  --monitoring       Check monitoring system only"
     echo "  --config           Check configuration only"
     echo "  --resources        Check system resources only"
+    echo "  --test-pushover    Test Pushover notifications only"
     echo ""
     echo "Environment variables:"
     echo "  DEBUG=1            Enable detailed debug output"
@@ -1371,6 +1396,68 @@ main() {
             log_debug "MONITORING MODE: Running system monitoring checks only"
             check_system_resources
             check_firmware_persistence
+            ;;
+        "--test-pushover")
+            log_debug "PUSHOVER TEST MODE: Running dedicated Pushover notification test"
+            echo ""
+            log_step "Testing Pushover notification system"
+
+            # Load configuration if available
+            if [ -f "$CONFIG_FILE" ]; then
+                # shellcheck source=/dev/null
+                . "$CONFIG_FILE" 2>/dev/null || {
+                    log_error "Failed to load configuration file: $CONFIG_FILE"
+                    exit 1
+                }
+            else
+                log_warning "Configuration file not found: $CONFIG_FILE"
+                log_info "Using environment variables or defaults"
+            fi
+
+            # Check configuration
+            if [ -z "${PUSHOVER_TOKEN:-}" ] || [ -z "${PUSHOVER_USER:-}" ]; then
+                log_error "Pushover credentials not configured"
+                printf "PUSHOVER_TOKEN: %s\n" "${PUSHOVER_TOKEN:-NOT_SET}"
+                printf "PUSHOVER_USER: %s\n" "${PUSHOVER_USER:-NOT_SET}"
+                exit 1
+            fi
+
+            # Check for placeholders
+            if [ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] || [ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ]; then
+                log_error "Pushover credentials still have placeholder values"
+                printf "Please update your configuration with real Pushover credentials\n"
+                exit 1
+            fi
+
+            # Test API
+            if command -v curl >/dev/null 2>&1; then
+                log_step "Sending test notification via Pushover API"
+                timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+                test_response=$(curl -s \
+                    -F "token=$PUSHOVER_TOKEN" \
+                    -F "user=$PUSHOVER_USER" \
+                    -F "message=Test notification from RUTOS health check at $timestamp. Your Pushover notifications are working correctly!" \
+                    -F "title=🧪 RUTOS Health Check Test" \
+                    -F "priority=0" \
+                    https://api.pushover.net/1/messages.json 2>&1)
+
+                if echo "$test_response" | grep -q '"status":1'; then
+                    show_health_status "healthy" "Pushover Test" "Test notification sent successfully"
+                    log_info "✅ SUCCESS! Check your Pushover app for the test message"
+                    printf "\n${GREEN}Test completed successfully!${NC}\n"
+                    printf "If you received the notification, your Pushover system is working.\n"
+                    printf "If no notification arrived, check your Pushover app settings.\n"
+                    exit 0
+                else
+                    show_health_status "critical" "Pushover Test" "API call failed"
+                    log_error "❌ API test failed"
+                    printf "Response: %s\n" "$test_response"
+                    exit 1
+                fi
+            else
+                log_error "curl not available - cannot test Pushover API"
+                exit 1
+            fi
             ;;
         "--full" | *)
             log_debug "FULL MODE: Running comprehensive health checks"

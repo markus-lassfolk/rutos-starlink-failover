@@ -3,6 +3,7 @@
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
+readonly SCRIPT_VERSION
 
 # ==============================================================================
 # STARLINK MONITOR BASIC CONFIGURATION
@@ -21,6 +22,8 @@ SCRIPT_VERSION="2.6.0"
 
 # Starlink gRPC endpoint IP and port
 # Default: 192.168.100.1:9200 (standard Starlink configuration)
+# shellcheck disable=SC2034  # Template version variables used by scripts that source this
+# Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 export STARLINK_IP="192.168.100.1:9200"
 
 # MWAN3 interface name for Starlink connection
