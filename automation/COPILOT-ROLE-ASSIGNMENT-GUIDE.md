@@ -1,4 +1,6 @@
-# Comprehensive Copilot Role Assignment Guide
+# Comprehensive Copilot Role Assignment Guide v2.6.0
+
+**Version:** 2.6.0 | **Updated:** 2025-07-24
 
 ## Overview
 
