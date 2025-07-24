@@ -184,7 +184,9 @@ time_to_seconds() {
     
     log_debug "time_to_seconds: converting '$time_str' (hour='$hour', minute='$minute', seconds='$seconds_part')"
     echo $((hour * 3600 + minute * 60 + seconds_part))
-}# Convert seconds since midnight to HH:MM format
+}
+
+# Convert seconds since midnight to HH:MM format
 seconds_to_time() {
     seconds="$1"
 
