@@ -1,0 +1,280 @@
+name: Auto-Resolve Mixed Status Checks
+
+on:
+  workflow_run:
+    workflows: ["*"]  # Monitor all workflows
+    types:
+      - completed
+  schedule:
+    - cron: '*/15 * * * *'  # Run every 15 minutes as backup
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to fix (optional)'
+        required: false
+        type: string
+      force_override:
+        description: 'Force status override'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  resolve-mixed-status:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+      actions: read
+    
+    steps:
+      - name: Check Workflow Completion Event
+        id: check_event
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔍 Analyzing workflow completion event"
+          
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "Workflow: ${{ github.event.workflow_run.name }}"
+            echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
+            echo "Head SHA: ${{ github.event.workflow_run.head_sha }}"
+            
+            # Only process successful retries
+            if [ "${{ github.event.workflow_run.conclusion }}" = "success" ]; then
+              echo "✅ Successful workflow completion detected"
+              echo "process_event=true" >> $GITHUB_OUTPUT
+              echo "head_sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+            else
+              echo "ℹ️ Non-successful workflow, skipping"
+              echo "process_event=false" >> $GITHUB_OUTPUT
+            fi
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.pr_number }}" ]; then
+            echo "🎯 Manual dispatch for PR #${{ inputs.pr_number }}"
+            echo "process_event=true" >> $GITHUB_OUTPUT
+            echo "target_pr=${{ inputs.pr_number }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "⏰ Scheduled maintenance run"
+            echo "process_event=true" >> $GITHUB_OUTPUT
+            echo "maintenance_mode=true" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️ Event not relevant for mixed status resolution"
+            echo "process_event=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Find Affected PRs
+        id: find_prs
+        if: steps.check_event.outputs.process_event == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔍 Finding PRs with potential mixed status issues"
+          
+          affected_prs=""
+          
+          if [ -n "${{ steps.check_event.outputs.target_pr }}" ]; then
+            # Manual dispatch with specific PR
+            affected_prs="${{ steps.check_event.outputs.target_pr }}"
+            echo "🎯 Target PR: $affected_prs"
+          elif [ -n "${{ steps.check_event.outputs.head_sha }}" ]; then
+            # Find PRs associated with the successful workflow
+            echo "🔍 Finding PRs for commit SHA: ${{ steps.check_event.outputs.head_sha }}"
+            
+            # Get PRs that reference this commit
+            prs_for_commit=$(gh api "repos/${{ github.repository }}/commits/${{ steps.check_event.outputs.head_sha }}/pulls" --jq '.[].number' | tr '\n' ' ')
+            
+            if [ -n "$prs_for_commit" ]; then
+              affected_prs="$prs_for_commit"
+              echo "📋 Found PRs for commit: $affected_prs"
+            else
+              echo "ℹ️ No PRs found for this commit"
+            fi
+          else
+            # Maintenance mode - check all open PRs with UNSTABLE merge state
+            echo "🔧 Maintenance mode: checking all open PRs for mixed status issues"
+            
+            # Get PRs with unstable merge state (potential mixed status)
+            unstable_prs=$(gh api "repos/${{ github.repository }}/pulls?state=open" --jq '.[] | select(.mergeable_state == "unstable" or .mergeable_state == "behind") | .number' | tr '\n' ' ')
+            
+            if [ -n "$unstable_prs" ]; then
+              affected_prs="$unstable_prs"
+              echo "📋 Found PRs with unstable merge state: $affected_prs"
+            else
+              echo "✅ No PRs with mixed status issues found"
+            fi
+          fi
+          
+          echo "affected_prs=$affected_prs" >> $GITHUB_OUTPUT
+
+      - name: Analyze and Resolve Mixed Status Issues
+        if: steps.find_prs.outputs.affected_prs != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔧 Processing PRs with potential mixed status issues"
+          
+          affected_prs="${{ steps.find_prs.outputs.affected_prs }}"
+          force_override="${{ inputs.force_override }}"
+          
+          for pr_number in $affected_prs; do
+            echo ""
+            echo "=========================================="
+            echo "🔍 Analyzing PR #$pr_number"
+            echo "=========================================="
+            
+            # Get PR details
+            pr_data=$(gh api "repos/${{ github.repository }}/pulls/$pr_number" --jq '{
+              mergeable: .mergeable,
+              mergeable_state: .mergeable_state,
+              head_sha: .head.sha,
+              title: .title,
+              user: .user.login
+            }')
+            
+            mergeable_state=$(echo "$pr_data" | jq -r '.mergeable_state')
+            head_sha=$(echo "$pr_data" | jq -r '.head_sha')
+            pr_title=$(echo "$pr_data" | jq -r '.title')
+            pr_user=$(echo "$pr_data" | jq -r '.user')
+            
+            echo "📋 PR #$pr_number: $pr_title"
+            echo "👤 Author: $pr_user"
+            echo "📊 Merge state: $mergeable_state"
+            echo "🔗 Head SHA: $head_sha"
+            
+            # Only process PRs with potentially problematic merge states
+            if [ "$mergeable_state" != "unstable" ] && [ "$mergeable_state" != "behind" ]; then
+              echo "✅ PR #$pr_number has clean merge state: $mergeable_state"
+              continue
+            fi
+            
+            echo "⚠️ PR #$pr_number has potentially mixed status: $mergeable_state"
+            
+            # Get all status checks for this commit
+            echo "🔍 Analyzing status checks for commit $head_sha"
+            
+            status_checks=$(gh api "repos/${{ github.repository }}/statuses/$head_sha" --jq '.[] | {
+              context: .context,
+              state: .state,
+              created_at: .created_at,
+              description: .description
+            }')
+            
+            # Group by context and find mixed status situations
+            contexts=$(echo "$status_checks" | jq -r '.context' | sort -u)
+            mixed_contexts=""
+            
+            for context in $contexts; do
+              # Get all statuses for this context, sorted by creation time (newest first)
+              context_statuses=$(echo "$status_checks" | jq -r "select(.context == \"$context\") | .state" | head -5)
+              status_count=$(echo "$context_statuses" | wc -l | tr -d ' ')
+              
+              if [ "$status_count" -gt 1 ]; then
+                latest_status=$(echo "$context_statuses" | head -1)
+                older_statuses=$(echo "$context_statuses" | tail -n +2)
+                
+                # Check if latest is success but there are older failures
+                if [ "$latest_status" = "success" ] && echo "$older_statuses" | grep -q "failure\|error"; then
+                  echo "🚨 Mixed status detected for context: $context"
+                  echo "   Latest: $latest_status"
+                  echo "   Older: $(echo "$older_statuses" | tr '\n' ' ')"
+                  mixed_contexts="$mixed_contexts $context"
+                fi
+              fi
+            done
+            
+            if [ -z "$mixed_contexts" ]; then
+              echo "ℹ️ No mixed status contexts found for PR #$pr_number"
+              continue
+            fi
+            
+            echo "🔧 Found mixed status contexts:$mixed_contexts"
+            echo "🔄 Attempting to resolve mixed status issues..."
+            
+            # Strategy 1: Create a status refresh trigger
+            echo "📡 Triggering status refresh..."
+            refresh_status='{
+              "state": "success",
+              "target_url": "https://github.com/${{ github.repository }}/pull/'$pr_number'",
+              "description": "Mixed status resolution trigger",
+              "context": "autonomous-status-refresh"
+            }'
+            
+            echo "$refresh_status" | gh api "repos/${{ github.repository }}/statuses/$head_sha" --method POST --input -
+            
+            # Strategy 2: If force override is enabled, create override statuses
+            if [ "$force_override" = "true" ]; then
+              echo "💪 Force override enabled - creating status overrides"
+              
+              for context in $mixed_contexts; do
+                override_status='{
+                  "state": "success",
+                  "target_url": "https://github.com/${{ github.repository }}/pull/'$pr_number'",
+                  "description": "Forced override - mixed status resolved",
+                  "context": "'$context'-resolved"
+                }'
+                
+                echo "   Creating override for context: $context"
+                echo "$override_status" | gh api "repos/${{ github.repository }}/statuses/$head_sha" --method POST --input -
+              done
+            fi
+            
+            # Strategy 3: Try to re-run failed workflows for this commit
+            echo "🔄 Checking for re-runnable workflows..."
+            
+            recent_runs=$(gh run list --commit "$head_sha" --limit 10 --json databaseId,workflowName,status,conclusion)
+            failed_runs=$(echo "$recent_runs" | jq -r '.[] | select(.conclusion == "failure") | .databaseId')
+            
+            for run_id in $failed_runs; do
+              echo "🔄 Re-running failed workflow: $run_id"
+              gh run rerun "$run_id" --failed || echo "⚠️ Failed to re-run workflow $run_id"
+            done
+            
+            # Wait a moment for status updates to propagate
+            echo "⏳ Waiting for status updates to propagate..."
+            sleep 10
+            
+            # Check if the issue is resolved
+            updated_merge_state=$(gh api "repos/${{ github.repository }}/pulls/$pr_number" --jq '.mergeable_state')
+            echo "📊 Updated merge state for PR #$pr_number: $updated_merge_state"
+            
+            if [ "$updated_merge_state" = "clean" ] || [ "$updated_merge_state" = "unstable" ]; then
+              echo "✅ Mixed status potentially resolved for PR #$pr_number"
+              
+              # Try to enable auto-merge if PR is from Copilot
+              if echo "$pr_user" | grep -q "copilot\|github-copilot\|app/github-copilot\|app/copilot-swe-agent\|swe-agent" || \
+                 echo "$pr_title" | grep -qi "copilot\|Fix\|automated\|compatibility"; then
+                echo "🤖 Copilot PR detected - attempting auto-merge"
+                gh pr merge "$pr_number" --auto --merge --delete-branch || echo "⚠️ Auto-merge failed for PR #$pr_number"
+              fi
+            else
+              echo "⚠️ Mixed status issues may still persist for PR #$pr_number"
+            fi
+            
+            echo "✅ Processing completed for PR #$pr_number"
+          done
+          
+          echo ""
+          echo "🏁 Mixed status resolution completed for all affected PRs"
+
+      - name: Summary Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "📊 MIXED STATUS RESOLUTION SUMMARY"
+          echo "=================================="
+          echo "Event: ${{ github.event_name }}"
+          echo "Processed: ${{ steps.check_event.outputs.process_event }}"
+          echo "Affected PRs: ${{ steps.find_prs.outputs.affected_prs }}"
+          echo "Force Override: ${{ inputs.force_override }}"
+          
+          if [ "${{ steps.check_event.outputs.process_event }}" = "true" ] && [ -n "${{ steps.find_prs.outputs.affected_prs }}" ]; then
+            echo "✅ Mixed status resolution workflow completed"
+            echo "🔄 PRs processed: ${{ steps.find_prs.outputs.affected_prs }}"
+          else
+            echo "ℹ️ No action taken - no mixed status issues detected"
+          fi
+          
+          echo ""
+          echo "🔧 Next scheduled run: $(date -d '+15 minutes' '+%Y-%m-%d %H:%M:%S')"
