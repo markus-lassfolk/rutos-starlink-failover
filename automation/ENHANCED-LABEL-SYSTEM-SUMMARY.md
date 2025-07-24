@@ -1,5 +1,7 @@
 # 🏷️ Enhanced GitHub Label System - Implementation Summary
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Overview
 
 We've successfully implemented a comprehensive GitHub labeling system for the RUTOS Starlink Failover project, expanding

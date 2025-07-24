@@ -2,6 +2,7 @@
 # Script: test-all-scripts-rutos.sh
 # Version: 2.6.0
 # Description: Comprehensive testing of all RUTOS scripts with different verbosity levels
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # Usage: ./test-all-scripts-rutos.sh [--detailed] [--specific-script script_name]
 
 set -e

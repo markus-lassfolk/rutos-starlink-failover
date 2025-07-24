@@ -4,6 +4,7 @@
 #
 # Version: 2.6.0
 # Description: Diagnoses why the logger reports "No new data samples"
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # ==============================================================================
 
 set -e

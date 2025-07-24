@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # ==============================================================================
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # Starlink Monitoring System Installation Script
 #
 # This script automates the installation and configuration of the Starlink

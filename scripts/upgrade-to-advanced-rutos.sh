@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # ==============================================================================
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # Upgrade to Advanced Configuration Script
 #
 # This script upgrades from basic configuration to advanced configuration

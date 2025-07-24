@@ -1,5 +1,7 @@
 # Network Performance Analysis Guide
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Overview
 
 The Network Performance Analysis tool helps you understand your RUTOS device behavior, Starlink performance patterns,

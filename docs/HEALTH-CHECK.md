@@ -1,5 +1,7 @@
 # Health Check System Documentation
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 This document describes the comprehensive health monitoring system for the RUTOS Starlink Failover solution.
 
 ## Overview

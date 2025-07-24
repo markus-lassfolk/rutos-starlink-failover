@@ -1,5 +1,7 @@
 # RUTOS Busybox Compatibility Validation System
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Overview
 
 This document describes the comprehensive pre-commit validation system designed to catch busybox compatibility issues

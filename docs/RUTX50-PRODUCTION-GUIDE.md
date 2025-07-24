@@ -1,5 +1,7 @@
 # RUTX50 Production Deployment Guide
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 This guide provides step-by-step instructions for deploying the Starlink failover solution on a RUTX50 router based on
 real-world production configuration analysis.
 

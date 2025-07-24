@@ -1,6 +1,7 @@
 #!/bin/sh
 # upgrade.sh: Safely upgrade scripts/configs without overwriting user changes
 # Usage: ./scripts/upgrade.sh
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 set -eu
 

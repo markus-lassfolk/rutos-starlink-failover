@@ -2,6 +2,7 @@
 # Comprehensive Code Quality Validation Script
 # Version: 2.4.12
 # Description: Multi-language code quality validation for RUTOS Starlink Failover Project
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 #              Includes all RUTOS/busybox compatibility checks from pre-commit-validation.sh
 #
 # This script validates code quality across multiple languages:

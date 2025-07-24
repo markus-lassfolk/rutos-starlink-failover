@@ -2,6 +2,7 @@
 # Test script for cron cleanup functionality
 # Version: 2.6.0
 # Description: Tests the intelligent cron management in install-rutos.sh
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 set -e
 

@@ -1,5 +1,7 @@
 # Comprehensive Copilot Role Assignment Guide
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Overview
 
 Our enhanced Copilot assignment system provides comprehensive GitHub role management for both Issues and Pull Requests,

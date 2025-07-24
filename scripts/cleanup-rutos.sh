@@ -2,6 +2,7 @@
 # Script: cleanup-rutos.sh
 # Version: 2.5.0
 # Description: Cleanup and undo Starlink Monitor installation artifacts for testing
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 set -eu
 

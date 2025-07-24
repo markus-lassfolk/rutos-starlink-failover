@@ -1,6 +1,7 @@
 #!/bin/sh
 # ==============================================================================
 # Test script for notification settings merge simulation
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # This script helps test the config merge process specifically for notification settings
 # ==============================================================================
 

@@ -2,6 +2,7 @@
 # Setup script for RUTOS development environment
 # Version: 2.6.0
 # Description: Sets up pre-commit hooks and validation tools
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 set -e
 

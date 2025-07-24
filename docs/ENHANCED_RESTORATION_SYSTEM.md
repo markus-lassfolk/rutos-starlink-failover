@@ -1,5 +1,7 @@
 # Enhanced Firmware Upgrade Restoration System
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Overview
 
 The RUTOS Starlink Failover system now includes an **Enhanced Firmware Upgrade Restoration System**

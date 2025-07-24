@@ -1,5 +1,7 @@
 # RUTOS Compatibility Fixes
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 This document outlines the specific changes made to ensure compatibility with RUTOS embedded Linux environment.
 
 ## Background

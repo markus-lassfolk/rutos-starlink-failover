@@ -1,5 +1,7 @@
 # Post-Install Check Script Improvements
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Issues Fixed
 
 ### ✅ **1. Starlink IP Address Testing**

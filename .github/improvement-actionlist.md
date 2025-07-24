@@ -1,5 +1,7 @@
 # Live Improvement Action List (Branch: improvements/actionlist-2025-07)
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 This document tracks ongoing improvements for the July 2025 enhancement cycle. Each item will be checked off as it is
 completed in this branch/PR.
 
