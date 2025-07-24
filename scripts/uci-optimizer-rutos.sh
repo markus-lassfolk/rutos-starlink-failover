@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # ==============================================================================
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # UCI Configuration Analyzer and Optimizer for Starlink Failover
 # Analyzes existing RUTX50 configuration and applies optimizations
 # ==============================================================================

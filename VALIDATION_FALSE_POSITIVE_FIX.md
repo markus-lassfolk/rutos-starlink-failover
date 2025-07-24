@@ -1,5 +1,7 @@
 # Validation Script False Positive Fix
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Issue Analysis
 
 The validation script was reporting **false positives** - flagging perfectly valid configuration lines as having errors.

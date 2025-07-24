@@ -2,6 +2,7 @@
 # Setup script for comprehensive code quality tools
 # Version: 2.6.0
 # Description: Installs all code quality tools for the RUTOS Starlink Failover project
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 set -e
 

@@ -7,7 +7,7 @@
 # shellcheck disable=SC2034  # SCRIPT_VERSION used in debugging output
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
-# Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
+echo "Configuration version: $SCRIPT_VERSION" # Used for troubleshooting
 mkdir -p /tmp/config-test
 
 # Create a "current" template (simulating new version)

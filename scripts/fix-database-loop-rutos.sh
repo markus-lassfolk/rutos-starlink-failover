@@ -2,6 +2,7 @@
 # Script: fix-database-loop-rutos.sh
 # Version: 2.6.0
 # Description: Fix RUTOS database optimization loop issue
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 set -e # Exit on error
 

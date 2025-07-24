@@ -2,6 +2,7 @@
 # Script: test-monitoring.sh
 # Version: 2.4.12
 # Description: Test monitoring system connectivity and configuration
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 # RUTOS Compatibility - Dynamic sourcing patterns
 # shellcheck disable=SC1090  # Can't follow dynamic source - this is intentional

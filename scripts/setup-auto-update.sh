@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # ==============================================================================
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # Auto-Update Setup Script for RUTOS Starlink Failover System
 #
 # This script can be called during installation to set up automatic updates

@@ -57,6 +57,39 @@ fi
 # CRITICAL: Use RUTOS-compatible color detection
 # shellcheck disable=SC2034  # Colors defined for consistent interface
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # Colors enabled - defined for consistency even if not all used
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    RED='\033[0;31m'
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    GREEN='\033[0;32m'
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    YELLOW='\033[1;33m'
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    BLUE='\033[1;35m'
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    CYAN='\033[0;36m'
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    NC='\033[0m'
+else
+    # Colors disabled
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    RED=""
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    GREEN=""
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    YELLOW=""
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    BLUE=""
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    CYAN=""
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    NC=""
+fi
+
+# Standard colors for consistent output (compatible with busybox)
+# CRITICAL: Use RUTOS-compatible color detection
+# shellcheck disable=SC2034  # Colors defined for consistent interface
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
     RED='\033[0;31m'
     GREEN='\033[0;32m'

@@ -2,6 +2,7 @@
 # Script: system-maintenance-rutos.sh
 # Version: 2.4.12
 # Description: Generic RUTOS system maintenance script that checks for common issues and fixes them
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 set -e # Exit on error
 
