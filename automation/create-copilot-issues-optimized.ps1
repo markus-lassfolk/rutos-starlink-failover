@@ -340,37 +340,70 @@ function Invoke-FullValidation {
     }
 }
 
-# Run validation on individual file (kept for compatibility)
-function Invoke-ValidationOnFile {
-    param([string]$FilePath)
+# Run full validation and cache results for all files
+$global:FullValidationResults = $null
+
+function Invoke-FullValidation {
+    Write-DebugMessage "Running full validation on all files"
     
-    Write-DebugMessage "Running validation on file: $FilePath"
+    if ($global:FullValidationResults -ne $null) {
+        Write-DebugMessage "Using cached validation results"
+        return $global:FullValidationResults
+    }
     
     try {
-        $validationCmd = "wsl bash -c `"cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT '$FilePath'`""
-        Write-DebugMessage "Executing: $validationCmd"
+        $validationCmd = "wsl bash -c `"cd /mnt/c/GitHub/rutos-starlink-failover && ./$VALIDATION_SCRIPT`""
+        Write-DebugMessage "Executing full validation: $validationCmd"
         
         $validationOutput = Invoke-Expression $validationCmd 2>&1
         $exitCode = $LASTEXITCODE
         
-        Write-DebugMessage "Validation exit code: $exitCode"
+        Write-DebugMessage "Full validation exit code: $exitCode"
         
-        # Parse the validation output to extract issues
-        $issues = Parse-ValidationOutput -Output $validationOutput -FilePath $FilePath
+        # Parse the validation output to extract all issues
+        $allFileIssues = Parse-FullValidationOutput -Output $validationOutput
         
-        return @{
+        $global:FullValidationResults = @{
             Success = $exitCode -eq 0
             ExitCode = $exitCode
-            Issues = $issues
+            FileIssues = $allFileIssues
             Output = $validationOutput
         }
+        
+        return $global:FullValidationResults
     } catch {
-        Add-CollectedError -ErrorMessage "Failed to validate file: $($_.Exception.Message)" -FunctionName "Invoke-ValidationOnFile" -Exception $_.Exception -Context "Validating file $FilePath"
+        Add-CollectedError -ErrorMessage "Failed to run full validation: $($_.Exception.Message)" -FunctionName "Invoke-FullValidation" -Exception $_.Exception -Context "Running full validation"
         return @{
             Success = $false
             ExitCode = -1
-            Issues = @()
+            FileIssues = @{}
             Error = $_.Exception.Message
+        }
+    }
+}
+
+# Run validation on individual file (now uses cached full validation results)
+function Invoke-ValidationOnFile {
+    param([string]$FilePath)
+    
+    Write-DebugMessage "Getting validation results for file: $FilePath"
+    
+    $fullResults = Invoke-FullValidation
+    
+    if ($fullResults.FileIssues.ContainsKey($FilePath)) {
+        $fileIssues = $fullResults.FileIssues[$FilePath].Issues
+        return @{
+            Success = $fileIssues.Count -eq 0
+            ExitCode = if ($fileIssues.Count -eq 0) { 0 } else { 1 }
+            Issues = $fileIssues
+            Output = $fullResults.Output
+        }
+    } else {
+        return @{
+            Success = $true
+            ExitCode = 0
+            Issues = @()
+            Output = @()
         }
     }
 }
@@ -439,7 +472,52 @@ function Parse-FullValidationOutput {
                 "Warning" { $fileIssues[$filepath].MinorCount++ }
             }
             
-            Write-DebugMessage "Added issue to $filepath`: Type=$issueType, Line=$lineNumber"
+            Write-DebugMessage "Added issue to $filepath`: Type=$issueType, Line=0"
+        }
+        # Handle markdown format: [SEVERITY] filepath:line description (without SCcode)
+        elseif ($line -match "^\[(CRITICAL|MAJOR|MINOR|WARNING)\]\s+(.+?):(\d+)\s+(.+)$") {
+            $severity = $Matches[1]
+            $filepath = $Matches[2] -replace "^\.\/", ""
+            $lineNumber = $Matches[3]
+            $description = $Matches[4]
+            
+            Write-DebugMessage "Found markdown issue: [$severity] $filepath`:$lineNumber $description"
+            
+            $issueType = switch ($severity) {
+                "CRITICAL" { "Critical" }
+                "MAJOR" { "Major" }
+                "MINOR" { "Minor" }
+                "WARNING" { "Warning" }
+                default { "Minor" }
+            }
+            
+            # Initialize file entry if not exists
+            if (-not $fileIssues.ContainsKey($filepath)) {
+                $fileIssues[$filepath] = @{
+                    Issues = @()
+                    CriticalCount = 0
+                    MajorCount = 0
+                    MinorCount = 0
+                }
+            }
+            
+            # Add issue to file
+            $fileIssues[$filepath].Issues += @{
+                Line = [int]$lineNumber
+                Description = $description
+                Type = $issueType
+                Severity = $severity
+            }
+            
+            # Update counts
+            switch ($issueType) {
+                "Critical" { $fileIssues[$filepath].CriticalCount++ }
+                "Major" { $fileIssues[$filepath].MajorCount++ }
+                "Minor" { $fileIssues[$filepath].MinorCount++ }
+                "Warning" { $fileIssues[$filepath].MinorCount++ }
+            }
+            
+            Write-DebugMessage "Added markdown issue to $filepath`: Type=$issueType, Line=$lineNumber"
         }
         # Handle ShellCheck format: filepath:line:column: note/warning/error: description
         elseif ($line -match "^(.+?):(\d+):(\d+):\s+(note|warning|error):\s+(.+)$") {

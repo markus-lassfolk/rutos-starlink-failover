@@ -1,5 +1,7 @@
 # RUTOS Compatibility Test Analysis
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Test Results Summary
 
 - **Device**: RUTX50 (armv7l)

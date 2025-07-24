@@ -1,0 +1,248 @@
+name: Autonomous PR Merger
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, labeled]
+    branches: [main]
+  schedule:
+    # Run every 15 minutes during active hours
+    - cron: '*/15 13-21 * * 1-5'  # 8 AM - 4 PM EST, Mon-Fri
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Specific PR number to process'
+        type: number
+        required: false
+      force_merge:
+        description: 'Force merge eligible PRs'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+  checks: write
+
+jobs:
+  auto-merge-copilot-prs:
+    runs-on: ubuntu-latest
+    name: Autonomous PR Merger
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.COPILOT_TOKEN }}
+          fetch-depth: 0
+          
+      - name: Setup GitHub CLI
+        run: |
+          gh --version
+          gh auth status
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+          
+      - name: Discover Eligible PRs
+        id: discover
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "🔍 Discovering PRs eligible for autonomous merge"
+          
+          # Determine target PR(s)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBERS="${{ github.event.number }}"
+            echo "📋 Processing PR from event: $PR_NUMBERS"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.pr_number }}" ]; then
+            PR_NUMBERS="${{ inputs.pr_number }}"
+            echo "📋 Processing PR from input: $PR_NUMBERS"
+          else
+            # Scheduled or manual - find all eligible Copilot PRs
+            echo "🕐 Scheduled/manual run - scanning for eligible Copilot PRs"
+            PR_NUMBERS=$(gh pr list --state open --author app/copilot-swe-agent --json number,labels,mergeable,mergeStateStatus --jq '.[] | select(.mergeable == "MERGEABLE") | select(.labels[] | .name == "ready-for-merge") | .number' | tr '\n' ' ')
+          fi
+          
+          if [ -z "$PR_NUMBERS" ]; then
+            echo "ℹ️ No eligible PRs found"
+            echo "eligible-prs=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "🎯 Found eligible PRs: $PR_NUMBERS"
+          echo "eligible-prs=$PR_NUMBERS" >> $GITHUB_OUTPUT
+          
+      - name: Process Each Eligible PR
+        if: steps.discover.outputs.eligible-prs != ''
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
+        run: |
+          echo "🤖 Processing eligible PRs for autonomous merge"
+          
+          ELIGIBLE_PRS="${{ steps.discover.outputs.eligible-prs }}"
+          MERGED_COUNT=0
+          SKIPPED_COUNT=0
+          FAILED_COUNT=0
+          
+          for PR_NUMBER in $ELIGIBLE_PRS; do
+            echo ""
+            echo "🔍 Evaluating PR #$PR_NUMBER for autonomous merge..."
+            
+            # Get comprehensive PR data
+            PR_DATA=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER" --jq '{
+              user: .user.login,
+              title: .title,
+              body: .body,
+              draft: .draft,
+              state: .state,
+              mergeable: .mergeable,
+              mergeable_state: .mergeable_state,
+              base: .base.ref,
+              changed_files: .changed_files,
+              additions: .additions,
+              deletions: .deletions,
+              commits: .commits,
+              labels: [.labels[].name]
+            }')
+            
+            # Extract key properties
+            AUTHOR=$(echo "$PR_DATA" | jq -r '.user')
+            TITLE=$(echo "$PR_DATA" | jq -r '.title')
+            DRAFT=$(echo "$PR_DATA" | jq -r '.draft')
+            MERGEABLE=$(echo "$PR_DATA" | jq -r '.mergeable')
+            MERGEABLE_STATE=$(echo "$PR_DATA" | jq -r '.mergeable_state')
+            CHANGED_FILES=$(echo "$PR_DATA" | jq -r '.changed_files')
+            ADDITIONS=$(echo "$PR_DATA" | jq -r '.additions')
+            DELETIONS=$(echo "$PR_DATA" | jq -r '.deletions')
+            BASE=$(echo "$PR_DATA" | jq -r '.base')
+            LABELS=$(echo "$PR_DATA" | jq -r '.labels[]' | tr '\n' ' ')
+            
+            echo "   📊 PR #$PR_NUMBER Details:"
+            echo "      Author: $AUTHOR"
+            echo "      Title: $TITLE"
+            echo "      Draft: $DRAFT"
+            echo "      Mergeable: $MERGEABLE"
+            echo "      Merge State: $MERGEABLE_STATE"
+            echo "      Changed Files: $CHANGED_FILES"
+            echo "      Additions: $ADDITIONS, Deletions: $DELETIONS"
+            echo "      Labels: $LABELS"
+            
+            # Comprehensive Safety Checks
+            SAFETY_PASSED=true
+            FAILED_CHECKS=""
+            
+            # Check 1: Trusted author
+            if [ "$AUTHOR" != "app/copilot-swe-agent" ] && [ "$AUTHOR" != "github-copilot[bot]" ]; then
+              SAFETY_PASSED=false
+              FAILED_CHECKS="$FAILED_CHECKS UntrustedAuthor"
+            fi
+            
+            # Check 2: Not a draft
+            if [ "$DRAFT" = "true" ]; then
+              SAFETY_PASSED=false
+              FAILED_CHECKS="$FAILED_CHECKS IsDraft"
+            fi
+            
+            # Check 3: Mergeable (accept both MERGEABLE and null for no conflicts)
+            if [ "$MERGEABLE" != "MERGEABLE" ] && [ "$MERGEABLE" != "null" ]; then
+              SAFETY_PASSED=false
+              FAILED_CHECKS="$FAILED_CHECKS NotMergeable"
+            fi
+            
+            # Check 4: Reasonable size (max 1000 changes, 20 files)
+            TOTAL_CHANGES=$((ADDITIONS + DELETIONS))
+            if [ "$TOTAL_CHANGES" -gt 1000 ] || [ "$CHANGED_FILES" -gt 20 ]; then
+              SAFETY_PASSED=false
+              FAILED_CHECKS="$FAILED_CHECKS TooLarge"
+            fi
+            
+            # Check 5: Target branch is main
+            if [ "$BASE" != "main" ]; then
+              SAFETY_PASSED=false
+              FAILED_CHECKS="$FAILED_CHECKS WrongTargetBranch"
+            fi
+            
+            # Check 6: Has ready-for-merge label
+            if ! echo "$LABELS" | grep -q "ready-for-merge"; then
+              SAFETY_PASSED=false
+              FAILED_CHECKS="$FAILED_CHECKS MissingReadyLabel"
+            fi
+            
+            # Check 7: Safe title patterns
+            SAFE_TITLE=false
+            if echo "$TITLE" | grep -qE "(Fix.*RUTOS.*compatibility|Fix:.*version.*information|Add.*version.*information|\[MINOR\].*version)"; then
+              SAFE_TITLE=true
+            fi
+            
+            if [ "$SAFE_TITLE" != "true" ]; then
+              SAFETY_PASSED=false
+              FAILED_CHECKS="$FAILED_CHECKS UnsafeTitle"
+            fi
+            
+            # Check 8: No risky keywords in body
+            if echo "$PR_DATA" | jq -r '.body' | grep -qiE "(delete|remove|DROP|rm -rf|sudo|password|secret|token)"; then
+              SAFETY_PASSED=false
+              FAILED_CHECKS="$FAILED_CHECKS RiskyContent"
+            fi
+            
+            # Check merge eligibility
+            if [ "$SAFETY_PASSED" != "true" ]; then
+              echo "   ⚠️  PR #$PR_NUMBER failed safety checks:$FAILED_CHECKS"
+              SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+              continue
+            fi
+            
+            # Additional check: Ensure not blocked by status checks
+            if [ "$MERGEABLE_STATE" = "blocked" ]; then
+              echo "   🚫 PR #$PR_NUMBER is blocked by required status checks"
+              SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+              continue
+            fi
+            
+            # Attempt the merge
+            echo "   ✅ PR #$PR_NUMBER passed all safety checks - attempting merge"
+            
+            # Use squash merge with auto-delete branch
+            if gh pr merge "$PR_NUMBER" --squash --auto --delete-branch; then
+              echo "   🎉 Successfully merged PR #$PR_NUMBER"
+              MERGED_COUNT=$((MERGED_COUNT + 1))
+              
+              # Add success comment
+              gh pr comment "$PR_NUMBER" --body "🤖 **Autonomous Merge Successful**
+
+          This PR was automatically merged by the autonomous system after passing all safety checks:
+          - ✅ Trusted Copilot author
+          - ✅ Not a draft  
+          - ✅ Mergeable state
+          - ✅ Reasonable size ($TOTAL_CHANGES changes, $CHANGED_FILES files)
+          - ✅ Safe title pattern
+          - ✅ No risky content detected
+          - ✅ Has 'ready-for-merge' label
+
+          Merge method: Squash merge with branch deletion" || true
+              
+            else
+              echo "   ❌ Failed to merge PR #$PR_NUMBER"
+              FAILED_COUNT=$((FAILED_COUNT + 1))
+              
+              # Add failure comment with proper escaping
+              gh pr comment "$PR_NUMBER" --body "🤖 **Autonomous Merge Failed**
+
+          This PR passed safety checks but failed to merge automatically. This may be due to merge conflicts, required status checks, or GitHub API limitations. Please check the merge status and retry manually if needed." || true
+            fi
+            
+            # Rate limiting - wait between operations
+            sleep 2
+          done
+          
+          echo ""
+          echo "📊 Autonomous Merge Summary:"
+          echo "   PRs Processed: $(echo $ELIGIBLE_PRS | wc -w)"
+          echo "   Successfully Merged: $MERGED_COUNT"
+          echo "   Skipped (safety): $SKIPPED_COUNT" 
+          echo "   Failed (merge): $FAILED_COUNT"
+          
+      - name: Report Results
+        if: always()
+        run: |
+          echo "🤖 Autonomous PR Merger completed"
+          echo "This workflow provides hands-off management of Copilot PRs with comprehensive safety checks."

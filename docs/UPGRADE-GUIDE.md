@@ -1,5 +1,7 @@
 # Configuration Upgrade Script
 
+Upgrade Guide Version: 1.2.6
+
 ## Overview
 
 The `upgrade-to-advanced.sh` script allows you to seamlessly upgrade from basic Starlink configuration to advanced

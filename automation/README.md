@@ -1,3 +1,4 @@
+<!-- Version: 2.6.0 -->
 # Enhanced RUTOS Automation System
 
 **Version:** 2.6.0 | **Updated:** 2025-07-24

@@ -1,5 +1,7 @@
 # Enhanced RUTOS System Maintenance - Implementation Summary
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## ✅ New Checks Implemented
 
 Based on the excellent feedback provided, I've implemented the following new checks and enhancements to our
