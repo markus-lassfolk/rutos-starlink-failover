@@ -16,7 +16,7 @@ readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # shellcheck disable=SC2034
     # shellcheck disable=SC2034  # Color variables may not all be used in every script
-# shellcheck disable=SC2034 # Color variables may be unused but defined for consistency
+    # shellcheck disable=SC2034 # Color variables may be unused but defined for consistency
     RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
@@ -27,7 +27,7 @@ else
     # Fallback to no colors if terminal doesn't support them
     # shellcheck disable=SC2034
     # shellcheck disable=SC2034  # Color variables may not all be used in every script
-# shellcheck disable=SC2034 # Color variables may be unused but defined for consistency
+    # shellcheck disable=SC2034 # Color variables may be unused but defined for consistency
     RED=""
     GREEN=""
     YELLOW=""
