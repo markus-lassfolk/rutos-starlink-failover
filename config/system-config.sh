@@ -10,13 +10,14 @@ readonly TEMPLATE_VERSION
 # Version information for validation compliance
 # Note: Only set SCRIPT_VERSION if not already set (prevents conflicts when sourced)
 if [ -z "${SCRIPT_VERSION:-}" ]; then
+    # Version information (auto-updated by update-version.sh)
     SCRIPT_VERSION="2.6.0"
+    readonly SCRIPT_VERSION
 fi
+# Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 
 # Expected cron jobs and their patterns
 
-# Version information (auto-updated by update-version.sh)
-# Used for troubleshooting: echo "Configuration version: $TEMPLATE_VERSION"
 EXPECTED_CRON_JOBS="
 starlink_monitor-rutos.sh:every_minute:Monitor primary connectivity and failover
 starlink_logger-rutos.sh:every_minute:Log connection status and events  

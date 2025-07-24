@@ -1,5 +1,7 @@
 # Configuration Preservation in Install Script
 
+Version: 2.6.0 | Updated: 2025-07-24
+
 ## Question: Configuration File Safety
 
 > "If there is a configuration file, I hope we are not overwriting that if we re-run the install script. Is that right?"

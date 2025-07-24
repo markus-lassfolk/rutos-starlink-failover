@@ -117,19 +117,38 @@ safe_notify() {
     message="$2"
     priority="${3:-0}"
 
+    # Log the notification attempt for troubleshooting
+    logger -t "SafeNotify" -p daemon.info "PUSHOVER: Notification requested - Title: '$title', Priority: $priority"
+
     if is_pushover_configured; then
+        logger -t "SafeNotify" -p daemon.info "PUSHOVER: Configuration valid, attempting to send notification"
+
         # Send notification using existing notification function
         if command -v send_notification >/dev/null 2>&1; then
+            logger -t "SafeNotify" -p daemon.info "PUSHOVER: Calling send_notification function"
             send_notification "$title" "$message" "$priority"
+            notify_result=$?
+
+            if [ $notify_result -eq 0 ]; then
+                logger -t "SafeNotify" -p daemon.info "PUSHOVER: Notification sent successfully"
+            else
+                logger -t "SafeNotify" -p daemon.warn "PUSHOVER: send_notification failed with exit code $notify_result"
+            fi
+
+            return $notify_result
         else
+            logger -t "SafeNotify" -p daemon.warn "PUSHOVER: send_notification function not available"
             # Version information for troubleshooting
             if [ "${DEBUG:-0}" = "1" ]; then
                 log_debug "Script: placeholder-utils.sh v$SCRIPT_VERSION"
             fi
             echo "INFO: Would send notification: $title - $message"
+            return 1
         fi
     else
+        logger -t "SafeNotify" -p daemon.info "PUSHOVER: Configuration not valid, skipping notification"
         echo "INFO: Notification skipped (Pushover not configured): $title - $message"
+        return 1
     fi
 }
 

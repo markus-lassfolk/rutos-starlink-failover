@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2317
 # Script: validate-persistent-config-rutos.sh
 # Version: 2.5.0
 # Description: Validate persistent configuration for firmware upgrade restoration
