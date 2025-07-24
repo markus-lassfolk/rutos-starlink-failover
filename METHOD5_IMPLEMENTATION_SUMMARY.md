@@ -1,5 +1,7 @@
 # Method 5 Color Format Implementation Summary
 
+**Version:** v2.6.0 | **Updated:** 2025-07-24
+
 ## Background
 
 During testing on RUTOS (RUTX50 router), we discovered that most printf color formats showed literal escape codes
