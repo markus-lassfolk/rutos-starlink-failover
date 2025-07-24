@@ -1,0 +1,25 @@
+[INFO] [2025-07-24 20:32:06] Starting RUTOS busybox compatibility and markdown validation v2.6.0
+[STEP] [2025-07-24 20:32:06] Self-validation: Skipped - this script is excluded from validation
+[INFO] [2025-07-24 20:32:06] Running in specific file mode
+[STEP] [2025-07-24 20:32:06] Processing 1 files
+[INFO] [2025-07-24 20:32:06] Validating markdown files
+[STEP] [2025-07-24 20:32:06] Validating: automation/ENHANCED-LABEL-SYSTEM-SUMMARY.md
+[INFO] [2025-07-24 20:32:06] Applied auto-fixes to automation/ENHANCED-LABEL-SYSTEM-SUMMARY.md
+[WARNING] [2025-07-24 20:32:06] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:32:06] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:32:06] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:32:06] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:32:06] ✓ automation/ENHANCED-LABEL-SYSTEM-SUMMARY.md: All checks passed
+[STEP] [2025-07-24 20:32:06] Generating validation summary
+
+=== VALIDATION SUMMARY ===
+Files processed: 1
+Files passed: 1
+Files failed: 0
+
+Total issues: 0
+Critical issues: 0
+Major issues: 0
+Minor issues: 0
+
+[SUCCESS] [2025-07-24 20:32:06] All validations passed!
