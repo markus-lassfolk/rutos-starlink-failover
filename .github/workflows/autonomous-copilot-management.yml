@@ -1,0 +1,199 @@
+name: Autonomous Copilot PR Management
+
+on:
+  schedule:
+    # Run every 30 minutes during work hours (UTC)
+    - cron: '0,30 13-21 * * 1-5'  # 8 AM - 4:30 PM EST, Mon-Fri
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Operation mode'
+        required: true
+        default: 'monitor'
+        type: choice
+        options:
+        - monitor
+        - auto-approve
+        - auto-merge
+        - full-autonomous
+      pr_number:
+        description: 'Specific PR number (optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+  checks: write
+
+jobs:
+  autonomous-monitoring:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup PowerShell
+      uses: azure/powershell@v1
+      with:
+        inlineScript: |
+          Write-Host "PowerShell version: $($PSVersionTable.PSVersion)"
+        azPSVersion: 'latest'
+        
+    - name: Setup GitHub CLI
+      run: |
+        gh --version
+        gh auth status
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Run Integrated Autonomous PR Management
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Continue"
+        
+        # Determine operation mode
+        $mode = "${{ github.event.inputs.mode }}"
+        $prNumber = "${{ github.event.inputs.pr_number }}"
+        $isScheduled = "${{ github.event_name }}" -eq "schedule"
+        
+        if ($isScheduled) {
+          $mode = "full-autonomous"
+        }
+        
+        Write-Host "🤖 Starting integrated autonomous operation in mode: $mode"
+        
+        # Set base parameters for integrated script
+        $params = @()
+        
+        if ($prNumber) {
+          $params += "-PRNumber", $prNumber
+        }
+        
+        # Configure based on mode - all features now integrated in main script
+        switch ($mode) {
+          "monitor" {
+            $params += "-MonitorOnly"
+            $params += "-VerboseOutput"
+          }
+          "auto-approve" {
+            $params += "-AutoApproveWorkflows"
+            $params += "-VerboseOutput"
+          }
+          "auto-merge" {
+            $params += "-AutoApproveWorkflows"  # Includes auto-merge functionality
+            $params += "-VerboseOutput"
+          }
+          "full-autonomous" {
+            $params += "-AutoApproveWorkflows"  # Includes all autonomous features
+            $params += "-QuietMode"
+          }
+        }
+        
+        # Run integrated monitoring with all autonomous features
+        Write-Host "🔄 Executing integrated script: .\automation\Monitor-CopilotPRs-Complete.ps1 $($params -join ' ')"
+        & .\automation\Monitor-CopilotPRs-Complete.ps1 @params
+        
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "⚠️ Autonomous operation completed with warnings (exit code: $LASTEXITCODE)"
+        } else {
+          Write-Host "✅ Autonomous operation completed successfully"
+        }
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  rate-limit-monitoring:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.mode == 'full-autonomous'
+    needs: [autonomous-monitoring]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup GitHub CLI
+      run: |
+        gh --version
+        gh auth status
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Check Rate Limit Status
+      shell: pwsh
+      run: |
+        Write-Host "📊 Checking GitHub API rate limit status..."
+        
+        try {
+          $rateLimitInfo = gh api rate_limit | ConvertFrom-Json
+          
+          $coreRemaining = $rateLimitInfo.rate.remaining
+          $coreLimit = $rateLimitInfo.rate.limit
+          $percentUsed = [math]::Round(($coreLimit - $coreRemaining) / $coreLimit * 100, 2)
+          $resetTime = [DateTimeOffset]::FromUnixTimeSeconds($rateLimitInfo.rate.reset).LocalDateTime
+          
+          Write-Host "📈 Rate Limit Status:"
+          Write-Host "   Core API: $coreRemaining/$coreLimit remaining ($percentUsed% used)"
+          Write-Host "   Reset at: $resetTime"
+          
+          if ($coreRemaining -lt 100) {
+            Write-Host "⚠️ Rate limit low - consider reducing frequency" -ForegroundColor Yellow
+          } else {
+            Write-Host "✅ Rate limit healthy" -ForegroundColor Green
+          }
+        }
+        catch {
+          Write-Host "❌ Failed to check rate limit: $_" -ForegroundColor Red
+        }
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  summary-report:
+    runs-on: ubuntu-latest
+    needs: [autonomous-monitoring, rate-limit-monitoring]
+    if: always() && (github.event_name == 'schedule' || github.event.inputs.mode == 'full-autonomous')
+    
+    steps:
+    - name: Generate Summary Report
+      shell: pwsh
+      run: |
+        Write-Host "📋 Autonomous Operation Summary Report"
+        Write-Host "====================================="
+        Write-Host "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')"
+        Write-Host "Trigger: ${{ github.event_name }}"
+        Write-Host "Mode: ${{ github.event.inputs.mode || 'full-autonomous' }}"
+        Write-Host ""
+        
+        # Job status summary - Updated for integrated approach
+        $jobs = @(
+          @{ Name = "Integrated Autonomous Management"; Status = "${{ needs.autonomous-monitoring.result || 'skipped' }}" },
+          @{ Name = "Rate Limit Check"; Status = "${{ needs.rate-limit-monitoring.result || 'skipped' }}" }
+        )
+        
+        Write-Host "Job Results:"
+        foreach ($job in $jobs) {
+          $icon = switch ($job.Status) {
+            "success" { "✅" }
+            "failure" { "❌" }
+            "cancelled" { "⏸️" }
+            "skipped" { "⏭️" }
+            default { "❓" }
+          }
+          Write-Host "  $icon $($job.Name): $($job.Status)"
+        }
+        
+        $successCount = ($jobs | Where-Object { $_.Status -eq "success" }).Count
+        $totalCount = $jobs.Count
+        $successRate = [math]::Round($successCount / $totalCount * 100, 1)
+        
+        Write-Host ""
+        Write-Host "Overall Success Rate: $successRate% ($successCount/$totalCount)"
+        
+        if ($successRate -ge 75) {
+          Write-Host "🎉 Autonomous operation performing well!" -ForegroundColor Green
+        } elseif ($successRate -ge 50) {
+          Write-Host "⚠️ Autonomous operation has some issues" -ForegroundColor Yellow
+        } else {
+          Write-Host "🚨 Autonomous operation needs attention" -ForegroundColor Red
+        }
