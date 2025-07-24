@@ -502,7 +502,10 @@ validate_markdown_version() {
     local has_version=false
 
     # Look for various version patterns in markdown
-    if grep -q "^# Version:" "$file" || grep -q "Version: [0-9]" "$file" || grep -q "v[0-9]\+\.[0-9]\+\.[0-9]\+" "$file"; then
+    if grep -q "^# Version:" "$file" || \
+       grep -q "Version: [0-9]" "$file" || \
+       grep -q "\*\*Version:\*\* [0-9]" "$file" || \
+       grep -q "v[0-9]\+\.[0-9]\+\.[0-9]\+" "$file"; then
         has_version=true
     fi
 

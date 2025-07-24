@@ -8,7 +8,7 @@
 set -eu
 
 # Check if terminal supports colors
-# shellcheck disable=SC2034  # Color variables may not all be used in every script
+# shellcheck disable=SC2034,SC2059  # Color variables may not all be used in every script; Method 5 printf for RUTOS
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
@@ -72,6 +72,7 @@ safe_execute() {
 
 # Early exit in test mode to prevent execution errors
 if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${GREEN}RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution${NC}\n"
     exit 0

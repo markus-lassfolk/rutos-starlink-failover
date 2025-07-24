@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2317
 
 # === RUTOS Log Shipper for Azure ===
 # This script reads the local log file, sends its content to an Azure Function,

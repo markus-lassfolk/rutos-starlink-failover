@@ -1,6 +1,6 @@
 # Configuration Upgrade Script
 
-**Version:** 2.6.0 | **Updated:** 2025-07-24
+**Version:** v2.6.0 | **Updated:** 2025-07-24
 
 ## Overview
 

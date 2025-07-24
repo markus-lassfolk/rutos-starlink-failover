@@ -4,8 +4,7 @@
 # Description: Standalone cron configuration verification for Starlink monitoring
 
 # RUTOS Compatibility - Using Method 5 printf format for proper color display
-# shellcheck disable=SC2059  # Method 5 printf format required for RUTOS color support
-# shellcheck disable=SC2317  # Allow functions with conditional unreachable code (exit paths)
+# shellcheck disable=SC2059,SC2317  # Method 5 printf format required for RUTOS color support; Functions after early exit OK
 
 set -e # Exit on error
 

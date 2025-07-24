@@ -152,9 +152,14 @@ time_to_seconds() {
         return 1
     fi
 
-    # Extract hour and minute with validation
+    # Extract hour, minute, and optional seconds with validation
     hour=$(echo "$time_str" | cut -d: -f1 | tr -d ' ')
     minute=$(echo "$time_str" | cut -d: -f2 | tr -d ' ')
+    # Handle optional seconds (HH:MM or HH:MM:SS format)
+    seconds_part=$(echo "$time_str" | cut -d: -f3 | tr -d ' ')
+    if [ -z "$seconds_part" ]; then
+        seconds_part="0"
+    fi
 
     # Validate hour and minute are numeric
     if ! echo "$hour" | grep -q '^[0-9]\+$' || ! echo "$minute" | grep -q '^[0-9]\+$'; then
@@ -163,15 +168,27 @@ time_to_seconds() {
         return 1
     fi
 
-    # Ensure values are within valid ranges
-    if [ "$hour" -gt 23 ] || [ "$minute" -gt 59 ]; then
-        log_debug "time_to_seconds: time out of range '$time_str' (hour='$hour', minute='$minute')"
+    # Validate seconds is numeric (if provided)
+    if ! echo "$seconds_part" | grep -q '^[0-9]\+$'; then
+        log_debug "time_to_seconds: invalid seconds '$seconds_part' in '$time_str'"
         echo "0"
         return 1
     fi
 
-    log_debug "time_to_seconds: converting '$time_str' (hour='$hour', minute='$minute')"
-    echo $((hour * 3600 + minute * 60))
+    # Ensure values are within valid ranges
+    if [ "$hour" -gt 23 ] || [ "$minute" -gt 59 ] || [ "$seconds_part" -gt 59 ]; then
+        log_debug "time_to_seconds: time out of range '$time_str' (hour='$hour', minute='$minute', seconds='$seconds_part')"
+        echo "0"
+        return 1
+    fi
+
+    # Ensure all variables are clean integers for busybox arithmetic
+    hour=$(printf "%d" "$hour" 2>/dev/null || echo "0")
+    minute=$(printf "%d" "$minute" 2>/dev/null || echo "0")
+    seconds_part=$(printf "%d" "$seconds_part" 2>/dev/null || echo "0")
+
+    log_debug "time_to_seconds: converting '$time_str' (hour='$hour', minute='$minute', seconds='$seconds_part')"
+    echo $((hour * 3600 + minute * 60 + seconds_part))
 }
 
 # Convert seconds since midnight to HH:MM format
