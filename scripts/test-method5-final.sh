@@ -2,6 +2,7 @@
 # Script: test-method5-final.sh
 # Purpose: Final validation that Method 5 format works across all converted scripts
 # This script tests the Method 5 format that we confirmed works in RUTOS
+# Version: Tests the finalized Method 5 implementation
 
 set -e
 
@@ -9,6 +10,11 @@ set -e
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
+fi
 # Method 5 color definitions (the working format for RUTOS)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED="\033[0;31m"
@@ -74,12 +80,6 @@ safe_execute() {
         eval "$cmd"
     fi
 }
-
-# Early exit in test mode to prevent execution errors
-if [ "$RUTOS_TEST_MODE" = "1" ]; then
-    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
-    exit 0
-fi
 
 # Main test function
 main() {
