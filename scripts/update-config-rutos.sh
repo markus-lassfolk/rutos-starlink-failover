@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # ==============================================================================
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # Configuration Update Script
 #
 # This script merges new configuration options from templates into existing

@@ -1,5 +1,7 @@
 # Troubleshooting Guide
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Common Issues and Solutions
 
 ### Installation Issues

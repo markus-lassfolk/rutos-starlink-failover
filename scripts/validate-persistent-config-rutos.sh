@@ -3,6 +3,8 @@
 # Script: validate-persistent-config-rutos.sh
 # Version: 2.5.0
 # Description: Validate persistent configuration for firmware upgrade restoration
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
+# shellcheck disable=SC2317 # Allow functions with conditional unreachable code (exit paths)
 
 set -e
 

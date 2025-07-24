@@ -1,6 +1,7 @@
 #!/bin/bash
 # Setup script for local development tools
 # Installs markdownlint, prettier, and other code quality tools locally
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 set -e
 

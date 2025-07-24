@@ -1,0 +1,1180 @@
+[INFO] [2025-07-24 20:33:54] Starting RUTOS busybox compatibility and markdown validation v2.6.0
+[STEP] [2025-07-24 20:33:54] Self-validation: Skipped - this script is excluded from validation
+[INFO] [2025-07-24 20:33:54] Running in full validation mode (all shell and markdown files)
+[STEP] [2025-07-24 20:33:54] Processing 161 files
+[INFO] [2025-07-24 20:33:54] Validating shell script files
+[STEP] [2025-07-24 20:33:54] Validating: ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh
+[WARNING] [2025-07-24 20:33:54] ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: ShellCheck found issues
+
+In ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh line 40:
+    GREEN=""
+    ^---^ SC2034 (warning): GREEN appears unused. Verify use (or export if used externally).
+
+
+In ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh line 41:
+    YELLOW=""
+    ^----^ SC2034 (warning): YELLOW appears unused. Verify use (or export if used externally).
+
+[MAJOR] ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC2034: GREEN appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC2034: YELLOW appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC2034: BLUE appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC2034: CYAN appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC2034: NC appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: SC2034:   https://www.shellcheck.net/wiki/SC2034 -- BLUE appears unused. Verify use (...
+[WARNING] [2025-07-24 20:33:55] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:33:55] ✗ ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh: 6 issues found
+[STEP] [2025-07-24 20:33:55] Validating: ./Starlink-RUTOS-Failover/AzureLogging/complete-setup-rutos.sh
+[WARNING] [2025-07-24 20:33:55] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:33:55] ✓ ./Starlink-RUTOS-Failover/AzureLogging/complete-setup-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:33:55] Validating: ./Starlink-RUTOS-Failover/AzureLogging/complete-setup.sh
+[WARNING] [2025-07-24 20:33:55] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:33:55] ✓ ./Starlink-RUTOS-Failover/AzureLogging/complete-setup.sh: All checks passed
+[STEP] [2025-07-24 20:33:55] Validating: ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh
+[WARNING] [2025-07-24 20:33:55] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: ShellCheck found issues
+
+In ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh line 30:
+    cmd="$1"
+    ^------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+
+In ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh line 31:
+    description="$2"
+    ^--------------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: SC2317:   https://www.shellcheck.net/wiki/SC2317 -- Command appears to be unreachable...
+[WARNING] [2025-07-24 20:33:55] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:33:55] ✗ ./Starlink-RUTOS-Failover/AzureLogging/log-shipper-rutos.sh: 10 issues found
+[STEP] [2025-07-24 20:33:55] Validating: ./Starlink-RUTOS-Failover/AzureLogging/setup-analysis-environment.sh
+[WARNING] [2025-07-24 20:33:55] ./Starlink-RUTOS-Failover/AzureLogging/setup-analysis-environment.sh: ShellCheck found issues
+
+In ./Starlink-RUTOS-Failover/AzureLogging/setup-analysis-environment.sh line 34:
+    BLUE=""
+    ^--^ SC2034 (warning): BLUE appears unused. Verify use (or export if used externally).
+
+
+In ./Starlink-RUTOS-Failover/AzureLogging/setup-analysis-environment.sh line 35:
+    CYAN=""
+    ^--^ SC2034 (warning): CYAN appears unused. Verify use (or export if used externally).
+
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/setup-analysis-environment.sh: SC2034: BLUE appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/setup-analysis-environment.sh: SC2034: CYAN appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/AzureLogging/setup-analysis-environment.sh: SC2034:   https://www.shellcheck.net/wiki/SC2034 -- BLUE appears unused. Verify use (...
+[WARNING] [2025-07-24 20:33:56] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:33:56] ✗ ./Starlink-RUTOS-Failover/AzureLogging/setup-analysis-environment.sh: 3 issues found
+[STEP] [2025-07-24 20:33:56] Validating: ./Starlink-RUTOS-Failover/AzureLogging/setup-persistent-logging-rutos.sh
+[WARNING] [2025-07-24 20:33:56] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:33:56] ✓ ./Starlink-RUTOS-Failover/AzureLogging/setup-persistent-logging-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:33:56] Validating: ./Starlink-RUTOS-Failover/AzureLogging/setup-persistent-logging.sh
+[WARNING] [2025-07-24 20:33:56] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:33:56] ✓ ./Starlink-RUTOS-Failover/AzureLogging/setup-persistent-logging.sh: All checks passed
+[STEP] [2025-07-24 20:33:56] Validating: ./Starlink-RUTOS-Failover/AzureLogging/starlink-azure-monitor-rutos.sh
+[WARNING] [2025-07-24 20:33:57] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:33:57] ✓ ./Starlink-RUTOS-Failover/AzureLogging/starlink-azure-monitor-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:33:57] Validating: ./Starlink-RUTOS-Failover/AzureLogging/test-azure-logging-rutos.sh
+[WARNING] [2025-07-24 20:33:57] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:33:57] ✓ ./Starlink-RUTOS-Failover/AzureLogging/test-azure-logging-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:33:57] Validating: ./Starlink-RUTOS-Failover/AzureLogging/unified-azure-setup-rutos.sh
+[WARNING] [2025-07-24 20:33:57] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:33:57] ✓ ./Starlink-RUTOS-Failover/AzureLogging/unified-azure-setup-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:33:57] Validating: ./Starlink-RUTOS-Failover/AzureLogging/verify-azure-setup-rutos.sh
+[WARNING] [2025-07-24 20:33:58] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:33:58] ✓ ./Starlink-RUTOS-Failover/AzureLogging/verify-azure-setup-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:33:58] Validating: ./Starlink-RUTOS-Failover/check_starlink_api-rutos.sh
+[WARNING] [2025-07-24 20:33:58] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:33:58] ✓ ./Starlink-RUTOS-Failover/check_starlink_api-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:33:58] Validating: ./Starlink-RUTOS-Failover/generate_api_docs.sh
+[WARNING] [2025-07-24 20:33:58] ./Starlink-RUTOS-Failover/generate_api_docs.sh: ShellCheck found issues
+
+In ./Starlink-RUTOS-Failover/generate_api_docs.sh line 46:
+    YELLOW=""
+    ^----^ SC2034 (warning): YELLOW appears unused. Verify use (or export if used externally).
+
+
+In ./Starlink-RUTOS-Failover/generate_api_docs.sh line 47:
+    BLUE=""
+    ^--^ SC2034 (warning): BLUE appears unused. Verify use (or export if used externally).
+
+[MAJOR] ./Starlink-RUTOS-Failover/generate_api_docs.sh: SC2034: YELLOW appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/generate_api_docs.sh: SC2034: BLUE appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/generate_api_docs.sh: SC2034: CYAN appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/generate_api_docs.sh: SC2034: NC appears unused. Verify use (or export if used externally).
+[MAJOR] ./Starlink-RUTOS-Failover/generate_api_docs.sh: SC2034:   https://www.shellcheck.net/wiki/SC2034 -- BLUE appears unused. Verify use (...
+[WARNING] [2025-07-24 20:33:58] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:33:58] ✗ ./Starlink-RUTOS-Failover/generate_api_docs.sh: 5 issues found
+[STEP] [2025-07-24 20:33:58] Validating: ./Starlink-RUTOS-Failover/starlink_logger-rutos.sh
+[WARNING] [2025-07-24 20:33:59] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:33:59] ✓ ./Starlink-RUTOS-Failover/starlink_logger-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:33:59] Validating: ./Starlink-RUTOS-Failover/starlink_monitor-rutos.sh
+[WARNING] [2025-07-24 20:34:00] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:00] ✓ ./Starlink-RUTOS-Failover/starlink_monitor-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:00] Validating: ./Starlink-RUTOS-Failover/starlink_monitor_old.sh
+[WARNING] [2025-07-24 20:34:00] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:00] ✓ ./Starlink-RUTOS-Failover/starlink_monitor_old.sh: All checks passed
+[STEP] [2025-07-24 20:34:00] Validating: ./config/config.advanced.template.sh
+[WARNING] [2025-07-24 20:34:00] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:00] ✓ ./config/config.advanced.template.sh: All checks passed
+[STEP] [2025-07-24 20:34:00] Validating: ./config/config.template.sh
+[WARNING] [2025-07-24 20:34:00] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:00] ✓ ./config/config.template.sh: All checks passed
+[STEP] [2025-07-24 20:34:00] Validating: ./config/system-config.sh
+[MINOR] ./config/system-config.sh:13 Consider using 'readonly SCRIPT_VERSION' for immutable version
+[MINOR] ./config/system-config.sh:12 Consider adding automation comment: # Version information (auto-updated by update-version.sh)
+[MINOR] ./config/system-config.sh:13 SCRIPT_VERSION is defined but never used - consider displaying in logs or help
+[WARNING] [2025-07-24 20:34:00] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:00] ✗ ./config/system-config.sh: 3 issues found
+[STEP] [2025-07-24 20:34:00] Validating: ./config_merged_example.sh
+[CRITICAL] ./config_merged_example.sh:1 Missing SCRIPT_VERSION variable - all scripts must define version
+[WARNING] [2025-07-24 20:34:00] ./config_merged_example.sh: ShellCheck found issues
+
+In ./config_merged_example.sh line 2:
+#!/bin/sh
+^-- SC1128 (error): The shebang must be on the first line. Delete blanks and move comments.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC1128 -- The shebang must be on the first ...
+[MAJOR] ./config_merged_example.sh: SC1128: The shebang must be on the first line. Delete blanks and move comments.
+[MAJOR] ./config_merged_example.sh: SC1128:   https://www.shellcheck.net/wiki/SC1128 -- The shebang must be on the first ...
+[WARNING] [2025-07-24 20:34:00] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:00] ✗ ./config_merged_example.sh: 3 issues found
+[STEP] [2025-07-24 20:34:00] Validating: ./debug-config.sh
+[WARNING] [2025-07-24 20:34:01] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:01] ✓ ./debug-config.sh: All checks passed
+[STEP] [2025-07-24 20:34:01] Validating: ./debug-cron-logic.sh
+[WARNING] [2025-07-24 20:34:01] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:01] ✓ ./debug-cron-logic.sh: All checks passed
+[STEP] [2025-07-24 20:34:01] Validating: ./debug-extract.sh
+[WARNING] [2025-07-24 20:34:01] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:01] ✓ ./debug-extract.sh: All checks passed
+[STEP] [2025-07-24 20:34:01] Validating: ./debug-merge-direct.sh
+[WARNING] [2025-07-24 20:34:01] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:01] ✓ ./debug-merge-direct.sh: All checks passed
+[STEP] [2025-07-24 20:34:01] Validating: ./debug-minimal.sh
+[WARNING] [2025-07-24 20:34:01] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:01] ✓ ./debug-minimal.sh: All checks passed
+[STEP] [2025-07-24 20:34:01] Validating: ./debug-simple.sh
+[WARNING] [2025-07-24 20:34:01] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:01] ✓ ./debug-simple.sh: All checks passed
+[STEP] [2025-07-24 20:34:01] Validating: ./debug-variable-exists.sh
+[WARNING] [2025-07-24 20:34:01] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:01] ✓ ./debug-variable-exists.sh: All checks passed
+[STEP] [2025-07-24 20:34:01] Validating: ./deploy-starlink-solution-rutos.sh
+[WARNING] [2025-07-24 20:34:02] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:02] ✓ ./deploy-starlink-solution-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:02] Validating: ./deploy-starlink-solution.sh
+[WARNING] [2025-07-24 20:34:03] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:03] ✓ ./deploy-starlink-solution.sh: All checks passed
+[STEP] [2025-07-24 20:34:03] Validating: ./fix-check-interval.sh
+[WARNING] [2025-07-24 20:34:03] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:03] ✓ ./fix-check-interval.sh: All checks passed
+[STEP] [2025-07-24 20:34:03] Validating: ./fix-markdown-issues.sh
+[WARNING] [2025-07-24 20:34:03] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:03] ✓ ./fix-markdown-issues.sh: All checks passed
+[STEP] [2025-07-24 20:34:03] Validating: ./scripts/auto-detect-config-rutos.sh
+[WARNING] [2025-07-24 20:34:04] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:04] ✓ ./scripts/auto-detect-config-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:04] Validating: ./scripts/check-security.sh
+[WARNING] [2025-07-24 20:34:04] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:04] ✓ ./scripts/check-security.sh: All checks passed
+[STEP] [2025-07-24 20:34:04] Validating: ./scripts/check_starlink_api_change.sh
+[WARNING] [2025-07-24 20:34:04] ./scripts/check_starlink_api_change.sh: ShellCheck found issues
+
+In ./scripts/check_starlink_api_change.sh line 31:
+    GREEN=""
+    ^---^ SC2034 (warning): GREEN appears unused. Verify use (or export if used externally).
+
+
+In ./scripts/check_starlink_api_change.sh line 32:
+    YELLOW=""
+    ^----^ SC2034 (warning): YELLOW appears unused. Verify use (or export if used externally).
+
+[MAJOR] ./scripts/check_starlink_api_change.sh: SC2034: GREEN appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/check_starlink_api_change.sh: SC2034: YELLOW appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/check_starlink_api_change.sh: SC2034: BLUE appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/check_starlink_api_change.sh: SC2034: CYAN appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/check_starlink_api_change.sh: SC2034: NC appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/check_starlink_api_change.sh: SC2034:   https://www.shellcheck.net/wiki/SC2034 -- BLUE appears unused. Verify use (...
+[WARNING] [2025-07-24 20:34:05] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:05] ✗ ./scripts/check_starlink_api_change.sh: 6 issues found
+[STEP] [2025-07-24 20:34:05] Validating: ./scripts/cleanup-rutos.sh
+[WARNING] [2025-07-24 20:34:05] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:05] ✓ ./scripts/cleanup-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:05] Validating: ./scripts/comprehensive-validation.sh
+[WARNING] [2025-07-24 20:34:05] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:05] ✓ ./scripts/comprehensive-validation.sh: All checks passed
+[STEP] [2025-07-24 20:34:05] Validating: ./scripts/debug-notification-merge-rutos.sh
+[WARNING] [2025-07-24 20:34:06] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:06] ✓ ./scripts/debug-notification-merge-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:06] Validating: ./scripts/debug-starlink-api-rutos.sh
+[MINOR] ./scripts/debug-starlink-api-rutos.sh:12 Consider using 'readonly SCRIPT_VERSION' for immutable version
+[MINOR] ./scripts/debug-starlink-api-rutos.sh:11 Consider adding automation comment: # Version information (auto-updated by update-version.sh)
+[WARNING] [2025-07-24 20:34:06] ./scripts/debug-starlink-api-rutos.sh: ShellCheck found issues
+
+In ./scripts/debug-starlink-api-rutos.sh line 55:
+    . "$CONFIG_FILE"
+      ^------------^ SC1090 (warning): ShellCheck can't follow non-constant source. Use a directive to specify location.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC1090 -- ShellCheck can't follow non-const...
+[MAJOR] ./scripts/debug-starlink-api-rutos.sh: SC1090: ShellCheck can't follow non-constant source. Use a directive to specify location.
+[MAJOR] ./scripts/debug-starlink-api-rutos.sh: SC1090:   https://www.shellcheck.net/wiki/SC1090 -- ShellCheck can't follow non-const...
+[WARNING] [2025-07-24 20:34:06] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:06] ✗ ./scripts/debug-starlink-api-rutos.sh: 4 issues found
+[STEP] [2025-07-24 20:34:06] Validating: ./scripts/dev-testing-enhanced-logs.sh
+[WARNING] [2025-07-24 20:34:07] ./scripts/dev-testing-enhanced-logs.sh: ShellCheck found issues
+
+In ./scripts/dev-testing-enhanced-logs.sh line 265:
+    >"$temp_script_list"
+    ^------------------^ SC2188 (warning): This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+
+
+In ./scripts/dev-testing-enhanced-logs.sh line 457:
+        debug_info="Exit Code: $test_exit_code | Duration: ${test_duration}s | Timeout: ${timeout_seconds}s"
+        ^--------^ SC2034 (warning): debug_info appears unused. Verify use (or export if used externally).
+
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2188: This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2034: debug_info appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2188: This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2188: This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2001: See if you can use ${variable//search/replace} instead.
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2001: See if you can use ${variable//search/replace} instead.
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2001: See if you can use ${variable//search/replace} instead.
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2188: This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2034:   https://www.shellcheck.net/wiki/SC2034 -- debug_info appears unused. Verify...
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2188:   https://www.shellcheck.net/wiki/SC2188 -- This redirection doesn't have a c...
+[MAJOR] ./scripts/dev-testing-enhanced-logs.sh: SC2317:   https://www.shellcheck.net/wiki/SC2317 -- Command appears to be unreachable...
+[WARNING] [2025-07-24 20:34:08] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:08] ✗ ./scripts/dev-testing-enhanced-logs.sh: 29 issues found
+[STEP] [2025-07-24 20:34:08] Validating: ./scripts/dev-testing-rutos.sh
+[MAJOR] ./scripts/dev-testing-rutos.sh:771 Uses 'echo -e' - use printf for busybox compatibility
+[MAJOR] ./scripts/dev-testing-rutos.sh:843 Uses 'echo -e' - use printf for busybox compatibility
+[WARNING] [2025-07-24 20:34:09] ./scripts/dev-testing-rutos.sh: ShellCheck found issues
+
+In ./scripts/dev-testing-rutos.sh line 250:
+    >"$temp_script_list"
+    ^------------------^ SC2188 (warning): This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+
+
+In ./scripts/dev-testing-rutos.sh line 442:
+        debug_info="Exit Code: $test_exit_code | Duration: ${test_duration}s | Timeout: ${timeout_seconds}s"
+        ^--------^ SC2034 (warning): debug_info appears unused. Verify use (or export if used externally).
+
+[MAJOR] ./scripts/dev-testing-rutos.sh: SC2188: This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+[MAJOR] ./scripts/dev-testing-rutos.sh: SC2034: debug_info appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/dev-testing-rutos.sh: SC2188: This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+[MAJOR] ./scripts/dev-testing-rutos.sh: SC2188: This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+[MAJOR] ./scripts/dev-testing-rutos.sh: SC2188: This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+[MAJOR] ./scripts/dev-testing-rutos.sh: SC2034:   https://www.shellcheck.net/wiki/SC2034 -- debug_info appears unused. Verify...
+[MAJOR] ./scripts/dev-testing-rutos.sh: SC2188:   https://www.shellcheck.net/wiki/SC2188 -- This redirection doesn't have a c...
+[WARNING] [2025-07-24 20:34:09] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:09] ✗ ./scripts/dev-testing-rutos.sh: 9 issues found
+[STEP] [2025-07-24 20:34:09] Validating: ./scripts/diagnose-database-loop-rutos.sh
+[WARNING] [2025-07-24 20:34:09] ./scripts/diagnose-database-loop-rutos.sh: ShellCheck found issues
+
+In ./scripts/diagnose-database-loop-rutos.sh line 60:
+    printf "${GREEN}RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution${NC}\n"
+           ^-- SC2059 (info): Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2059 -- Don't use variables in the printf...
+[MAJOR] ./scripts/diagnose-database-loop-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/diagnose-database-loop-rutos.sh: SC2059:   https://www.shellcheck.net/wiki/SC2059 -- Don't use variables in the printf...
+[WARNING] [2025-07-24 20:34:09] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:09] ✗ ./scripts/diagnose-database-loop-rutos.sh: 2 issues found
+[STEP] [2025-07-24 20:34:09] Validating: ./scripts/fix-database-loop-rutos.sh
+[WARNING] [2025-07-24 20:34:10] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:10] ✓ ./scripts/fix-database-loop-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:10] Validating: ./scripts/fix-database-spam-rutos.sh
+[WARNING] [2025-07-24 20:34:10] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:10] ✓ ./scripts/fix-database-spam-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:10] Validating: ./scripts/fix-logger-tracking-rutos.sh
+[WARNING] [2025-07-24 20:34:10] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:10] ✓ ./scripts/fix-logger-tracking-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:10] Validating: ./scripts/fix-stability-checks-rutos.sh
+[WARNING] [2025-07-24 20:34:11] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:11] ✓ ./scripts/fix-stability-checks-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:11] Validating: ./scripts/format-markdown.sh
+[WARNING] [2025-07-24 20:34:11] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:11] ✓ ./scripts/format-markdown.sh: All checks passed
+[STEP] [2025-07-24 20:34:11] Validating: ./scripts/health-check-rutos.sh
+[WARNING] [2025-07-24 20:34:12] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:12] ✓ ./scripts/health-check-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:12] Validating: ./scripts/install-rutos.sh
+[WARNING] [2025-07-24 20:34:14] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:14] ✓ ./scripts/install-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:14] Validating: ./scripts/intelligent-config-merge.sh
+[WARNING] [2025-07-24 20:34:14] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:14] ✓ ./scripts/intelligent-config-merge.sh: All checks passed
+[STEP] [2025-07-24 20:34:14] Validating: ./scripts/merge-config-rutos.sh
+[WARNING] [2025-07-24 20:34:15] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:15] ✓ ./scripts/merge-config-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:15] Validating: ./scripts/placeholder-utils.sh
+[MINOR] ./scripts/placeholder-utils.sh:15 Consider using 'readonly SCRIPT_VERSION' for immutable version
+[MINOR] ./scripts/placeholder-utils.sh:14 Consider adding automation comment: # Version information (auto-updated by update-version.sh)
+[WARNING] [2025-07-24 20:34:15] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:15] ✗ ./scripts/placeholder-utils.sh: 2 issues found
+[STEP] [2025-07-24 20:34:15] Validating: ./scripts/post-install-check-rutos.sh
+[WARNING] [2025-07-24 20:34:15] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:16] ✓ ./scripts/post-install-check-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:16] Validating: ./scripts/pre-commit-validation.sh
+[WARNING] [2025-07-24 20:34:17] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:17] ✓ ./scripts/pre-commit-validation.sh: All checks passed
+[STEP] [2025-07-24 20:34:17] Validating: ./scripts/repair-system-rutos.sh
+[WARNING] [2025-07-24 20:34:17] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:17] ✓ ./scripts/repair-system-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:17] Validating: ./scripts/restore-config-rutos.sh
+[WARNING] [2025-07-24 20:34:17] ./scripts/restore-config-rutos.sh: ShellCheck found issues
+
+In ./scripts/restore-config-rutos.sh line 12:
+readonly SCRIPT_VERSION
+         ^------------^ SC2034 (warning): SCRIPT_VERSION appears unused. Verify use (or export if used externally).
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2034 -- SCRIPT_VERSION appears unused. Ve...
+[MAJOR] ./scripts/restore-config-rutos.sh: SC: SCRIPT_VERSION appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/restore-config-rutos.sh: SC:   https://www.shellcheck.net/wiki/SC2034 -- SCRIPT_VERSION appears unused. Ve...
+[WARNING] [2025-07-24 20:34:17] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:17] ✗ ./scripts/restore-config-rutos.sh: 2 issues found
+[STEP] [2025-07-24 20:34:17] Validating: ./scripts/self-update-rutos.sh
+[WARNING] [2025-07-24 20:34:18] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:18] ✓ ./scripts/self-update-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:18] Validating: ./scripts/setup-auto-update.sh
+[WARNING] [2025-07-24 20:34:18] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:19] ✓ ./scripts/setup-auto-update.sh: All checks passed
+[STEP] [2025-07-24 20:34:19] Validating: ./scripts/setup-code-quality-tools.sh
+[WARNING] [2025-07-24 20:34:19] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:19] ✓ ./scripts/setup-code-quality-tools.sh: All checks passed
+[STEP] [2025-07-24 20:34:19] Validating: ./scripts/setup-dev-environment.sh
+[WARNING] [2025-07-24 20:34:19] ./scripts/setup-dev-environment.sh: ShellCheck found issues
+
+In ./scripts/setup-dev-environment.sh line 32:
+    CYAN=""
+    ^--^ SC2034 (warning): CYAN appears unused. Verify use (or export if used externally).
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2034 -- CYAN appears unused. Verify use (...
+[MAJOR] ./scripts/setup-dev-environment.sh: SC2034: CYAN appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/setup-dev-environment.sh: SC2034:   https://www.shellcheck.net/wiki/SC2034 -- CYAN appears unused. Verify use (...
+[WARNING] [2025-07-24 20:34:19] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:19] ✗ ./scripts/setup-dev-environment.sh: 2 issues found
+[STEP] [2025-07-24 20:34:19] Validating: ./scripts/setup-dev-tools.sh
+[WARNING] [2025-07-24 20:34:19] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:20] ✓ ./scripts/setup-dev-tools.sh: All checks passed
+[STEP] [2025-07-24 20:34:20] Validating: ./scripts/system-maintenance-rutos.sh
+[WARNING] [2025-07-24 20:34:21] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:21] ✓ ./scripts/system-maintenance-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:21] Validating: ./scripts/system-status-rutos.sh
+[WARNING] [2025-07-24 20:34:22] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:22] ✓ ./scripts/system-status-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:22] Validating: ./scripts/test-all-scripts-rutos.sh
+[MINOR] ./scripts/test-all-scripts-rutos.sh:9 Consider adding automation comment: # Version information (auto-updated by update-version.sh)
+[WARNING] [2025-07-24 20:34:22] ./scripts/test-all-scripts-rutos.sh: ShellCheck found issues
+
+In ./scripts/test-all-scripts-rutos.sh line 147:
+    has_colors=$(grep -c "\\033\[" "$output_file" 2>/dev/null || echo "0")
+    ^--------^ SC2034 (warning): has_colors appears unused. Verify use (or export if used externally).
+
+
+In ./scripts/test-all-scripts-rutos.sh line 181:
+        printf "${CYAN}--- End Output ---${NC}\n\n"
+               ^-- SC2059 (info): Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2034: has_colors appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2034:   https://www.shellcheck.net/wiki/SC2034 -- has_colors appears unused. Verify...
+[MAJOR] ./scripts/test-all-scripts-rutos.sh: SC2059:   https://www.shellcheck.net/wiki/SC2059 -- Don't use variables in the printf...
+[WARNING] [2025-07-24 20:34:22] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:23] ✗ ./scripts/test-all-scripts-rutos.sh: 13 issues found
+[STEP] [2025-07-24 20:34:23] Validating: ./scripts/test-colors-rutos.sh
+[WARNING] [2025-07-24 20:34:23] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:23] ✓ ./scripts/test-colors-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:23] Validating: ./scripts/test-connectivity-rutos-fixed.sh
+[WARNING] [2025-07-24 20:34:23] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:23] ✓ ./scripts/test-connectivity-rutos-fixed.sh: All checks passed
+[STEP] [2025-07-24 20:34:23] Validating: ./scripts/test-connectivity-rutos.sh
+[WARNING] [2025-07-24 20:34:24] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:24] ✓ ./scripts/test-connectivity-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:24] Validating: ./scripts/test-cron-cleanup-rutos.sh
+[WARNING] [2025-07-24 20:34:24] ./scripts/test-cron-cleanup-rutos.sh: ShellCheck found issues
+
+In ./scripts/test-cron-cleanup-rutos.sh line 73:
+    cmd="$1"
+    ^------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+
+In ./scripts/test-cron-cleanup-rutos.sh line 74:
+    description="$2"
+    ^--------------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/test-cron-cleanup-rutos.sh: SC2317:   https://www.shellcheck.net/wiki/SC2317 -- Command appears to be unreachable...
+[WARNING] [2025-07-24 20:34:24] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:24] ✗ ./scripts/test-cron-cleanup-rutos.sh: 11 issues found
+[STEP] [2025-07-24 20:34:24] Validating: ./scripts/test-method5-final.sh
+[CRITICAL] ./scripts/test-method5-final.sh:1 Missing SCRIPT_VERSION variable - all scripts must define version
+[WARNING] [2025-07-24 20:34:24] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:24] ✗ ./scripts/test-method5-final.sh: 1 issues found
+[STEP] [2025-07-24 20:34:24] Validating: ./scripts/test-method5-rutos.sh
+[WARNING] [2025-07-24 20:34:25] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:25] ✓ ./scripts/test-method5-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:25] Validating: ./scripts/test-monitoring-rutos.sh
+[WARNING] [2025-07-24 20:34:25] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:25] ✓ ./scripts/test-monitoring-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:25] Validating: ./scripts/test-notification-merge-rutos.sh
+[WARNING] [2025-07-24 20:34:25] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:25] ✓ ./scripts/test-notification-merge-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:25] Validating: ./scripts/test-pushover-rutos.sh
+[WARNING] [2025-07-24 20:34:26] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:26] ✓ ./scripts/test-pushover-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:26] Validating: ./scripts/test-rutos-colors.sh
+[CRITICAL] ./scripts/test-rutos-colors.sh:1 Missing SCRIPT_VERSION variable - all scripts must define version
+[WARNING] [2025-07-24 20:34:26] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:26] ✗ ./scripts/test-rutos-colors.sh: 1 issues found
+[STEP] [2025-07-24 20:34:26] Validating: ./scripts/tests/test-connectivity-rutos.sh
+[MINOR] ./scripts/tests/test-connectivity-rutos.sh:11 Consider using 'readonly SCRIPT_VERSION' for immutable version
+[WARNING] [2025-07-24 20:34:26] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:26] ✗ ./scripts/tests/test-connectivity-rutos.sh: 1 issues found
+[STEP] [2025-07-24 20:34:26] Validating: ./scripts/uci-optimizer-rutos.sh
+[WARNING] [2025-07-24 20:34:26] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:26] ✓ ./scripts/uci-optimizer-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:26] Validating: ./scripts/update-config-rutos.sh
+[WARNING] [2025-07-24 20:34:27] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:27] ✓ ./scripts/update-config-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:27] Validating: ./scripts/update-cron-config-path-rutos.sh
+[WARNING] [2025-07-24 20:34:27] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:27] ✓ ./scripts/update-cron-config-path-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:27] Validating: ./scripts/update-version.sh
+[WARNING] [2025-07-24 20:34:27] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:27] ✓ ./scripts/update-version.sh: All checks passed
+[STEP] [2025-07-24 20:34:27] Validating: ./scripts/upgrade-rutos.sh
+[WARNING] [2025-07-24 20:34:28] ./scripts/upgrade-rutos.sh: ShellCheck found issues
+
+In ./scripts/upgrade-rutos.sh line 31:
+    BLUE=""
+    ^--^ SC2034 (warning): BLUE appears unused. Verify use (or export if used externally).
+
+
+In ./scripts/upgrade-rutos.sh line 66:
+    printf "${GREEN}RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution${NC}\n"
+           ^-- SC2059 (info): Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+
+[MAJOR] ./scripts/upgrade-rutos.sh: SC2034: BLUE appears unused. Verify use (or export if used externally).
+[MAJOR] ./scripts/upgrade-rutos.sh: SC2059: Don't use variables in the printf format string. Use printf '..%s..' "$foo".
+[MAJOR] ./scripts/upgrade-rutos.sh: SC2034:   https://www.shellcheck.net/wiki/SC2034 -- BLUE appears unused. Verify use (...
+[MAJOR] ./scripts/upgrade-rutos.sh: SC2059:   https://www.shellcheck.net/wiki/SC2059 -- Don't use variables in the printf...
+[WARNING] [2025-07-24 20:34:28] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:28] ✗ ./scripts/upgrade-rutos.sh: 4 issues found
+[STEP] [2025-07-24 20:34:28] Validating: ./scripts/upgrade-to-advanced-rutos.sh
+[WARNING] [2025-07-24 20:34:28] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:28] ✓ ./scripts/upgrade-to-advanced-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:28] Validating: ./scripts/validate-config-rutos.sh
+[WARNING] [2025-07-24 20:34:29] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:30] ✓ ./scripts/validate-config-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:30] Validating: ./scripts/validate-markdown.sh
+[WARNING] [2025-07-24 20:34:30] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:30] ✓ ./scripts/validate-markdown.sh: All checks passed
+[STEP] [2025-07-24 20:34:30] Validating: ./scripts/validate-persistent-config-rutos.sh
+[WARNING] [2025-07-24 20:34:30] ./scripts/validate-persistent-config-rutos.sh: ShellCheck found issues
+
+In ./scripts/validate-persistent-config-rutos.sh line 63:
+    cmd="$1"
+    ^------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+
+In ./scripts/validate-persistent-config-rutos.sh line 64:
+    description="$2"
+    ^--------------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/validate-persistent-config-rutos.sh: SC2317:   https://www.shellcheck.net/wiki/SC2317 -- Command appears to be unreachable...
+[WARNING] [2025-07-24 20:34:30] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:30] ✗ ./scripts/validate-persistent-config-rutos.sh: 11 issues found
+[STEP] [2025-07-24 20:34:30] Validating: ./scripts/verify-cron-rutos.sh
+[WARNING] [2025-07-24 20:34:31] ./scripts/verify-cron-rutos.sh: ShellCheck found issues
+
+In ./scripts/verify-cron-rutos.sh line 82:
+    cmd="$1"
+    ^------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+
+In ./scripts/verify-cron-rutos.sh line 83:
+    description="$2"
+    ^--------------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./scripts/verify-cron-rutos.sh: SC2317:   https://www.shellcheck.net/wiki/SC2317 -- Command appears to be unreachable...
+[WARNING] [2025-07-24 20:34:31] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:31] ✗ ./scripts/verify-cron-rutos.sh: 11 issues found
+[STEP] [2025-07-24 20:34:31] Validating: ./scripts/view-logs-rutos.sh
+[WARNING] [2025-07-24 20:34:31] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:31] ✓ ./scripts/view-logs-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:31] Validating: ./test-config-detection.sh
+[WARNING] [2025-07-24 20:34:31] ./test-config-detection.sh: ShellCheck found issues
+
+In ./test-config-detection.sh line 6:
+readonly SCRIPT_VERSION
+         ^------------^ SC2034 (warning): SCRIPT_VERSION appears unused. Verify use (or export if used externally).
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2034 -- SCRIPT_VERSION appears unused. Ve...
+[MAJOR] ./test-config-detection.sh: SC: SCRIPT_VERSION appears unused. Verify use (or export if used externally).
+[MAJOR] ./test-config-detection.sh: SC:   https://www.shellcheck.net/wiki/SC2034 -- SCRIPT_VERSION appears unused. Ve...
+[WARNING] [2025-07-24 20:34:31] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:31] ✗ ./test-config-detection.sh: 2 issues found
+[STEP] [2025-07-24 20:34:31] Validating: ./test-config-merge.sh
+[WARNING] [2025-07-24 20:34:31] ./test-config-merge.sh: ShellCheck found issues
+
+In ./test-config-merge.sh line 8:
+readonly SCRIPT_VERSION
+         ^------------^ SC2034 (warning): SCRIPT_VERSION appears unused. Verify use (or export if used externally).
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2034 -- SCRIPT_VERSION appears unused. Ve...
+[MAJOR] ./test-config-merge.sh: SC: SCRIPT_VERSION appears unused. Verify use (or export if used externally).
+[MAJOR] ./test-config-merge.sh: SC:   https://www.shellcheck.net/wiki/SC2034 -- SCRIPT_VERSION appears unused. Ve...
+[WARNING] [2025-07-24 20:34:31] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:31] ✗ ./test-config-merge.sh: 2 issues found
+[STEP] [2025-07-24 20:34:31] Validating: ./test-install-completeness.sh
+[WARNING] [2025-07-24 20:34:32] ./test-install-completeness.sh: ShellCheck found issues
+
+In ./test-install-completeness.sh line 128:
+    if [ "$DEBUG" = "1" ]; then
+    ^-- SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+       ^----------------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+
+In ./test-install-completeness.sh line 129:
+        printf "Script version: %s\n" "$SCRIPT_VERSION"
+        ^-- SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./test-install-completeness.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./test-install-completeness.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./test-install-completeness.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./test-install-completeness.sh: SC2317:   https://www.shellcheck.net/wiki/SC2317 -- Command appears to be unreachable...
+[WARNING] [2025-07-24 20:34:32] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:32] ✗ ./test-install-completeness.sh: 4 issues found
+[STEP] [2025-07-24 20:34:32] Validating: ./test-intelligent-merge-rutos.sh
+[WARNING] [2025-07-24 20:34:32] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:32] ✓ ./test-intelligent-merge-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:32] Validating: ./test-merge-enhanced.sh
+[WARNING] [2025-07-24 20:34:32] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:32] ✓ ./test-merge-enhanced.sh: All checks passed
+[STEP] [2025-07-24 20:34:32] Validating: ./test-quote-issues.sh
+[WARNING] [2025-07-24 20:34:32] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:32] ✓ ./test-quote-issues.sh: All checks passed
+[STEP] [2025-07-24 20:34:32] Validating: ./test-validation-fix.sh
+[WARNING] [2025-07-24 20:34:32] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:32] ✓ ./test-validation-fix.sh: All checks passed
+[STEP] [2025-07-24 20:34:32] Validating: ./test-validation-patterns.sh
+[WARNING] [2025-07-24 20:34:32] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:32] ✓ ./test-validation-patterns.sh: All checks passed
+[STEP] [2025-07-24 20:34:32] Validating: ./test_config.sh
+[WARNING] [2025-07-24 20:34:32] ./test_config.sh: ShellCheck found issues
+
+In ./test_config.sh line 17:
+readonly SCRIPT_VERSION
+         ^------------^ SC2034 (warning): SCRIPT_VERSION appears unused. Verify use (or export if used externally).
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2034 -- SCRIPT_VERSION appears unused. Ve...
+[MAJOR] ./test_config.sh: SC: SCRIPT_VERSION appears unused. Verify use (or export if used externally).
+[MAJOR] ./test_config.sh: SC:   https://www.shellcheck.net/wiki/SC2034 -- SCRIPT_VERSION appears unused. Ve...
+[WARNING] [2025-07-24 20:34:33] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:33] ✗ ./test_config.sh: 2 issues found
+[STEP] [2025-07-24 20:34:33] Validating: ./test_template_detection.sh
+[WARNING] [2025-07-24 20:34:33] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:33] ✓ ./test_template_detection.sh: All checks passed
+[STEP] [2025-07-24 20:34:33] Validating: ./tests/audit-rutos-compatibility.sh
+[WARNING] [2025-07-24 20:34:33] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:33] ✓ ./tests/audit-rutos-compatibility.sh: All checks passed
+[STEP] [2025-07-24 20:34:33] Validating: ./tests/rutos-compatibility-test.sh
+[WARNING] [2025-07-24 20:34:33] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:33] ✓ ./tests/rutos-compatibility-test.sh: All checks passed
+[STEP] [2025-07-24 20:34:33] Validating: ./tests/test-comprehensive-scenarios.sh
+[WARNING] [2025-07-24 20:34:33] ./tests/test-comprehensive-scenarios.sh: ShellCheck found issues
+
+In ./tests/test-comprehensive-scenarios.sh line 323:
+    if [ "$DEBUG" = "1" ]; then
+    ^-- SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+       ^----------------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+
+In ./tests/test-comprehensive-scenarios.sh line 324:
+        printf "Script version: %s\n" "$SCRIPT_VERSION"
+        ^-- SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./tests/test-comprehensive-scenarios.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./tests/test-comprehensive-scenarios.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./tests/test-comprehensive-scenarios.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./tests/test-comprehensive-scenarios.sh: SC2317:   https://www.shellcheck.net/wiki/SC2317 -- Command appears to be unreachable...
+[WARNING] [2025-07-24 20:34:33] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:33] ✗ ./tests/test-comprehensive-scenarios.sh: 4 issues found
+[STEP] [2025-07-24 20:34:33] Validating: ./tests/test-core-logic.sh
+[WARNING] [2025-07-24 20:34:34] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:34] ✓ ./tests/test-core-logic.sh: All checks passed
+[STEP] [2025-07-24 20:34:34] Validating: ./tests/test-deployment-functions.sh
+[WARNING] [2025-07-24 20:34:34] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:34] ✓ ./tests/test-deployment-functions.sh: All checks passed
+[STEP] [2025-07-24 20:34:34] Validating: ./tests/test-enhanced-restoration-rutos.sh
+[WARNING] [2025-07-24 20:34:34] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:34] ✓ ./tests/test-enhanced-restoration-rutos.sh: All checks passed
+[STEP] [2025-07-24 20:34:34] Validating: ./tests/test-final-verification.sh
+[WARNING] [2025-07-24 20:34:35] ./tests/test-final-verification.sh: ShellCheck found issues
+
+In ./tests/test-final-verification.sh line 316:
+    if [ "$DEBUG" = "1" ]; then
+    ^-- SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+       ^----------------^ SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+
+
+In ./tests/test-final-verification.sh line 317:
+        printf "Script version: %s\n" "$SCRIPT_VERSION"
+        ^-- SC2317 (info): Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./tests/test-final-verification.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./tests/test-final-verification.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./tests/test-final-verification.sh: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+[MAJOR] ./tests/test-final-verification.sh: SC2317:   https://www.shellcheck.net/wiki/SC2317 -- Command appears to be unreachable...
+[WARNING] [2025-07-24 20:34:35] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:35] ✗ ./tests/test-final-verification.sh: 4 issues found
+[STEP] [2025-07-24 20:34:35] Validating: ./tests/test-mwan3-autoconfig.sh
+[WARNING] [2025-07-24 20:34:35] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:35] ✓ ./tests/test-mwan3-autoconfig.sh: All checks passed
+[STEP] [2025-07-24 20:34:35] Validating: ./tests/test-suite.sh
+[WARNING] [2025-07-24 20:34:35] ./tests/test-suite.sh: ShellCheck found issues
+
+In ./tests/test-suite.sh line 37:
+    YELLOW=""
+    ^----^ SC2034 (warning): YELLOW appears unused. Verify use (or export if used externally).
+
+
+In ./tests/test-suite.sh line 39:
+    CYAN=""
+    ^--^ SC2034 (warning): CYAN appears unused. Verify use (or export if used externally).
+
+[MAJOR] ./tests/test-suite.sh: SC2034: YELLOW appears unused. Verify use (or export if used externally).
+[MAJOR] ./tests/test-suite.sh: SC2034: CYAN appears unused. Verify use (or export if used externally).
+[MAJOR] ./tests/test-suite.sh: SC2034:   https://www.shellcheck.net/wiki/SC2034 -- CYAN appears unused. Verify use (...
+[WARNING] [2025-07-24 20:34:35] shfmt not available - skipping formatting validation
+[ERROR] [2025-07-24 20:34:36] ✗ ./tests/test-suite.sh: 3 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./tests/test-validation-features.sh
+[WARNING] [2025-07-24 20:34:36] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:36] ✓ ./tests/test-validation-features.sh: All checks passed
+[STEP] [2025-07-24 20:34:36] Validating: ./tests/test-validation-fix.sh
+[WARNING] [2025-07-24 20:34:36] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:36] ✓ ./tests/test-validation-fix.sh: All checks passed
+[STEP] [2025-07-24 20:34:36] Validating: ./tests/verify-deployment-script.sh
+[WARNING] [2025-07-24 20:34:36] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:36] ✓ ./tests/verify-deployment-script.sh: All checks passed
+[STEP] [2025-07-24 20:34:36] Validating: ./tests/verify-deployment.sh
+[WARNING] [2025-07-24 20:34:36] shfmt not available - skipping formatting validation
+[SUCCESS] [2025-07-24 20:34:36] ✓ ./tests/verify-deployment.sh: All checks passed
+[INFO] [2025-07-24 20:34:36] Validating markdown files
+[STEP] [2025-07-24 20:34:36] Validating: ./ADAPTIVE_SAMPLING_IMPLEMENTATION.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./ADAPTIVE_SAMPLING_IMPLEMENTATION.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:34:36] ✓ ./ADAPTIVE_SAMPLING_IMPLEMENTATION.md: All checks passed
+[STEP] [2025-07-24 20:34:36] Validating: ./AUTONOMOUS_SYSTEM_COMPLETE.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./AUTONOMOUS_SYSTEM_COMPLETE.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./AUTONOMOUS_SYSTEM_COMPLETE.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./AUTONOMOUS_SYSTEM_COMPLETE.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./CLEANUP_SUMMARY.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./CLEANUP_SUMMARY.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./CLEANUP_SUMMARY.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./CLEANUP_SUMMARY.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./CONFIGURATION_MANAGEMENT.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./CONFIGURATION_MANAGEMENT.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./CONFIGURATION_MANAGEMENT.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./CONFIGURATION_MANAGEMENT.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./DEPLOYMENT-GUIDE.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./DEPLOYMENT-GUIDE.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:34:36] ✓ ./DEPLOYMENT-GUIDE.md: All checks passed
+[STEP] [2025-07-24 20:34:36] Validating: ./DEPLOYMENT-READY.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./DEPLOYMENT-READY.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./DEPLOYMENT-READY.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./DEPLOYMENT-READY.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./DEPLOYMENT_SUMMARY.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./DEPLOYMENT_SUMMARY.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./DEPLOYMENT_SUMMARY.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./DEPLOYMENT_SUMMARY.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./ENHANCED_INTEGRATION_SUMMARY.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./ENHANCED_INTEGRATION_SUMMARY.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:34:36] ✓ ./ENHANCED_INTEGRATION_SUMMARY.md: All checks passed
+[STEP] [2025-07-24 20:34:36] Validating: ./ENHANCED_NOTIFICATIONS.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./ENHANCED_NOTIFICATIONS.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./ENHANCED_NOTIFICATIONS.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./ENHANCED_NOTIFICATIONS.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./ENHANCED_STARLINK_MONITORING_SUMMARY.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./ENHANCED_STARLINK_MONITORING_SUMMARY.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:34:36] ✓ ./ENHANCED_STARLINK_MONITORING_SUMMARY.md: All checks passed
+[STEP] [2025-07-24 20:34:36] Validating: ./ENHANCED_SYSTEM_MAINTENANCE_SUMMARY.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./ENHANCED_SYSTEM_MAINTENANCE_SUMMARY.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./ENHANCED_SYSTEM_MAINTENANCE_SUMMARY.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./ENHANCED_SYSTEM_MAINTENANCE_SUMMARY.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./INSTALLATION_STATUS.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./INSTALLATION_STATUS.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./INSTALLATION_STATUS.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./INSTALLATION_STATUS.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./METHOD5_IMPLEMENTATION_SUMMARY.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./METHOD5_IMPLEMENTATION_SUMMARY.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./METHOD5_IMPLEMENTATION_SUMMARY.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./METHOD5_IMPLEMENTATION_SUMMARY.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./README.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./README.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:34:36] ✓ ./README.md: All checks passed
+[STEP] [2025-07-24 20:34:36] Validating: ./RUTOS-COMPATIBILITY-FIXES.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./RUTOS-COMPATIBILITY-FIXES.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./RUTOS-COMPATIBILITY-FIXES.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./RUTOS-COMPATIBILITY-FIXES.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./RUTOS-NAMING-CONVENTION-SUMMARY.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./RUTOS-NAMING-CONVENTION-SUMMARY.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./RUTOS-NAMING-CONVENTION-SUMMARY.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./RUTOS-NAMING-CONVENTION-SUMMARY.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./RUTOS-TEST-ANALYSIS.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./RUTOS-TEST-ANALYSIS.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./RUTOS-TEST-ANALYSIS.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:36] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:36] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:36] ✗ ./RUTOS-TEST-ANALYSIS.md: 1 issues found
+[STEP] [2025-07-24 20:34:36] Validating: ./SECURITY.md
+[INFO] [2025-07-24 20:34:36] Applied auto-fixes to ./SECURITY.md
+[WARNING] [2025-07-24 20:34:36] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./SECURITY.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./SECURITY.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./SECURITY_GUIDELINES.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./SECURITY_GUIDELINES.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./SECURITY_GUIDELINES.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./SECURITY_GUIDELINES.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./SHELL-COMPATIBILITY-STRATEGY.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./SHELL-COMPATIBILITY-STRATEGY.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./SHELL-COMPATIBILITY-STRATEGY.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./SHELL-COMPATIBILITY-STRATEGY.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./STATUS.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./STATUS.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./STATUS.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./STATUS.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./Starlink-RUTOS-Failover/AzureLogging/ANALYSIS_GUIDE.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./Starlink-RUTOS-Failover/AzureLogging/ANALYSIS_GUIDE.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./Starlink-RUTOS-Failover/AzureLogging/ANALYSIS_GUIDE.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./Starlink-RUTOS-Failover/AzureLogging/ANALYSIS_GUIDE.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./Starlink-RUTOS-Failover/AzureLogging/DEPLOYMENT_CHECKLIST.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./Starlink-RUTOS-Failover/AzureLogging/DEPLOYMENT_CHECKLIST.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./Starlink-RUTOS-Failover/AzureLogging/DEPLOYMENT_CHECKLIST.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./Starlink-RUTOS-Failover/AzureLogging/DEPLOYMENT_CHECKLIST.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./Starlink-RUTOS-Failover/AzureLogging/GPS_INTEGRATION_GUIDE.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./Starlink-RUTOS-Failover/AzureLogging/GPS_INTEGRATION_GUIDE.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./Starlink-RUTOS-Failover/AzureLogging/GPS_INTEGRATION_GUIDE.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./Starlink-RUTOS-Failover/AzureLogging/GPS_INTEGRATION_GUIDE.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./Starlink-RUTOS-Failover/AzureLogging/INSTALLATION_GUIDE.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./Starlink-RUTOS-Failover/AzureLogging/INSTALLATION_GUIDE.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./Starlink-RUTOS-Failover/AzureLogging/INSTALLATION_GUIDE.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./Starlink-RUTOS-Failover/AzureLogging/INSTALLATION_GUIDE.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./Starlink-RUTOS-Failover/AzureLogging/README.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./Starlink-RUTOS-Failover/AzureLogging/README.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./Starlink-RUTOS-Failover/AzureLogging/README.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./Starlink-RUTOS-Failover/AzureLogging/README.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./Starlink-RUTOS-Failover/AzureLogging/SOLUTION_OVERVIEW.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./Starlink-RUTOS-Failover/AzureLogging/SOLUTION_OVERVIEW.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./Starlink-RUTOS-Failover/AzureLogging/SOLUTION_OVERVIEW.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./Starlink-RUTOS-Failover/AzureLogging/SOLUTION_OVERVIEW.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./Starlink-RUTOS-Failover/AzureLogging/analysis/README.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./Starlink-RUTOS-Failover/AzureLogging/analysis/README.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./Starlink-RUTOS-Failover/AzureLogging/analysis/README.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./Starlink-RUTOS-Failover/AzureLogging/analysis/README.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./Starlink-RUTOS-Failover/README.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./Starlink-RUTOS-Failover/README.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:34:37] ✓ ./Starlink-RUTOS-Failover/README.md: All checks passed
+[STEP] [2025-07-24 20:34:37] Validating: ./TESTING.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./TESTING.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./TESTING.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./TESTING.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./VALIDATION_FALSE_POSITIVE_FIX.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./VALIDATION_FALSE_POSITIVE_FIX.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./VALIDATION_FALSE_POSITIVE_FIX.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./VALIDATION_FALSE_POSITIVE_FIX.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./automation/COPILOT-ASSIGNMENT-FIX.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./automation/COPILOT-ASSIGNMENT-FIX.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./automation/COPILOT-ASSIGNMENT-FIX.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./automation/COPILOT-ASSIGNMENT-FIX.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./automation/COPILOT-ASSIGNMENT-IMPLEMENTATION.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./automation/COPILOT-ASSIGNMENT-IMPLEMENTATION.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./automation/COPILOT-ASSIGNMENT-IMPLEMENTATION.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./automation/COPILOT-ASSIGNMENT-IMPLEMENTATION.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./automation/COPILOT-ROLE-ASSIGNMENT-GUIDE.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./automation/COPILOT-ROLE-ASSIGNMENT-GUIDE.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./automation/COPILOT-ROLE-ASSIGNMENT-GUIDE.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./automation/COPILOT-ROLE-ASSIGNMENT-GUIDE.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./automation/ENHANCED-LABEL-SYSTEM-SUMMARY.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./automation/ENHANCED-LABEL-SYSTEM-SUMMARY.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./automation/ENHANCED-LABEL-SYSTEM-SUMMARY.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./automation/ENHANCED-LABEL-SYSTEM-SUMMARY.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./automation/README.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./automation/README.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./automation/README.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./automation/README.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/API_CHANGE_RESPONSE.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/API_CHANGE_RESPONSE.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/API_CHANGE_RESPONSE.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/API_CHANGE_RESPONSE.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/API_REFERENCE.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/API_REFERENCE.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/API_REFERENCE.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/API_REFERENCE.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/BRANCH_TESTING.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/BRANCH_TESTING.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/BRANCH_TESTING.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/BRANCH_TESTING.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/CODE_QUALITY_SYSTEM.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/CODE_QUALITY_SYSTEM.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/CODE_QUALITY_SYSTEM.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/CODE_QUALITY_SYSTEM.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/CONFIG_PRESERVATION.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/CONFIG_PRESERVATION.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/CONFIG_PRESERVATION.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/CONFIG_PRESERVATION.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/DEVELOPMENT-TOOLS.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/DEVELOPMENT-TOOLS.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/DEVELOPMENT-TOOLS.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/DEVELOPMENT-TOOLS.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/ENHANCED_RESTORATION_SYSTEM.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/ENHANCED_RESTORATION_SYSTEM.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/ENHANCED_RESTORATION_SYSTEM.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/ENHANCED_RESTORATION_SYSTEM.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/HEALTH-CHECK.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/HEALTH-CHECK.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:34:37] ✓ ./docs/HEALTH-CHECK.md: All checks passed
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/POST_INSTALL_CHECK_IMPROVEMENTS.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/POST_INSTALL_CHECK_IMPROVEMENTS.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/POST_INSTALL_CHECK_IMPROVEMENTS.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/POST_INSTALL_CHECK_IMPROVEMENTS.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/RUTOS-TESTING-GUIDE.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/RUTOS-TESTING-GUIDE.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:34:37] ✓ ./docs/RUTOS-TESTING-GUIDE.md: All checks passed
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/RUTX50-PRODUCTION-GUIDE.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/RUTX50-PRODUCTION-GUIDE.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/RUTX50-PRODUCTION-GUIDE.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/RUTX50-PRODUCTION-GUIDE.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/SYSTEM_MAINTENANCE.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/SYSTEM_MAINTENANCE.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:34:37] ✓ ./docs/SYSTEM_MAINTENANCE.md: All checks passed
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/TROUBLESHOOTING.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/TROUBLESHOOTING.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[SUCCESS] [2025-07-24 20:34:37] ✓ ./docs/TROUBLESHOOTING.md: All checks passed
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/UPGRADE-GUIDE.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/UPGRADE-GUIDE.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/UPGRADE-GUIDE.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/UPGRADE-GUIDE.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/VALIDATE_CONFIG_FIX.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/VALIDATE_CONFIG_FIX.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/VALIDATE_CONFIG_FIX.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/VALIDATE_CONFIG_FIX.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./docs/VALIDATION_SYSTEM.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./docs/VALIDATION_SYSTEM.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./docs/VALIDATION_SYSTEM.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./docs/VALIDATION_SYSTEM.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Validating: ./tests/README.md
+[INFO] [2025-07-24 20:34:37] Applied auto-fixes to ./tests/README.md
+[WARNING] [2025-07-24 20:34:37] markdownlint not available - skipping markdown validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g markdownlint-cli'
+[MINOR] ./tests/README.md:1 Consider adding version information to documentation file
+[WARNING] [2025-07-24 20:34:37] prettier not available - skipping markdown formatting validation
+[WARNING] [2025-07-24 20:34:37] 💡 To install: run './scripts/setup-dev-tools.sh' or 'npm install -g prettier'
+[ERROR] [2025-07-24 20:34:37] ✗ ./tests/README.md: 1 issues found
+[STEP] [2025-07-24 20:34:37] Generating validation summary
+
+=== VALIDATION SUMMARY ===
+Files processed: 161
+Files passed: 89
+Files failed: 72
+
+Total issues: 203
+Critical issues: 3
+Major issues: 148
+Minor issues: 52
+
+
+=== ISSUE BREAKDOWN ===
+Most common issues found:
+
+66x / 8 files: SC2317: Command appears to be unreachable. Check usage (or ignore if invoked indirectly).
+43x / 43 files: Consider adding version information to documentation file
+33x / 10 files: SC2034: Variable appears unused in template/config file
+14x / 3 files: SC2059: Printf format string contains variables
+8x / 8 files: SC2317: https://www.shellcheck.net/wiki/SC2317 -- Command appears to be unreachable...
+8x / 2 files: SC2188: This redirection doesn't have a command. Move to its command (or use 'true' as no-op).
+4x / 4 files: SC: https://www.shellcheck.net/wiki/SC2034 -- SCRIPT_VERSION appears unused. Ve...
+4x / 4 files: SC: SCRIPT_VERSION appears unused. Verify use (or export if used externally).
+4x / 4 files: Consider using 'readonly SCRIPT_VERSION' for immutable version
+4x / 4 files: Consider adding automation comment: # Version information (auto-updated by update-version.sh)
+3x / 1 files: SC2001: See if you can use ${variable//search/replace} instead.
+3x / 3 files: Missing SCRIPT_VERSION variable - all scripts must define version
+2x / 1 files: Uses 'echo -e' - use printf for busybox compatibility
+2x / 2 files: SC2188: https://www.shellcheck.net/wiki/SC2188 -- This redirection doesn't have a c...
+2x / 1 files: SC1090: Cannot follow dynamic source files
+1x / 1 files: SCRIPT_VERSION is defined but never used - consider displaying in logs or help
+1x / 1 files: SC1128: https://www.shellcheck.net/wiki/SC1128 -- The shebang must be on the first ...
+1x / 1 files: SC1128: The shebang must be on the first line. Delete blanks and move comments.
+
+[ERROR] [2025-07-24 20:34:38] Validation failed with 203 issues

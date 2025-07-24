@@ -2,6 +2,7 @@
 # Script: test-pushover.sh
 # Version: 2.6.0
 # Description: Simple Pushover notification test script
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 # RUTOS Compatibility - Dynamic sourcing and intentional variables
 # shellcheck disable=SC1090  # Can't follow dynamic source - this is intentional

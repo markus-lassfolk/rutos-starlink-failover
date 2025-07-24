@@ -1,6 +1,6 @@
 # Configuration Upgrade Script
 
-Upgrade Guide Version: 1.2.6
+**Version:** v2.6.0 | **Updated:** 2025-07-24
 
 ## Overview
 

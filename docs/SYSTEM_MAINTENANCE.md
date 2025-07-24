@@ -1,5 +1,7 @@
 # System Maintenance Script for RUTOS
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Overview
 
 The `system-maintenance-rutos.sh` script is a generic system health checker and issue resolver for RUTOS systems.

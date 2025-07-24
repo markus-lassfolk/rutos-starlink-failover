@@ -2,6 +2,7 @@
 # Script: fix-database-spam-rutos.sh
 # Version: 2.4.12
 # Description: Fix RUTOS database spam issues including "Can't open database" and optimization loops
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # Based on user's manual solutions but enhanced for safety and integration
 
 set -e # Exit on error

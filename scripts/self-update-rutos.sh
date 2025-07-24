@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # ==================================# Configuration
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 GITHUB_REPO="markus-lassfolk/rutos-starlink-failover"
 GITHUB_BRANCH="main"
 RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"

@@ -1,6 +1,7 @@
 #!/bin/sh
 # ==============================================================================
 # Debug script for notification settings merge issue
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # This script helps troubleshoot why notification trigger settings might be lost
 # during config.sh merge operations
 # ==============================================================================

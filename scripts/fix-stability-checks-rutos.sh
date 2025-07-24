@@ -4,6 +4,7 @@
 #
 # Version: 2.6.0
 # Description: Fixes the infinite failover loop caused by missing
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 #              STABILITY_CHECKS_REQUIRED configuration
 # ==============================================================================
 

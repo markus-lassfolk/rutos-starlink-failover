@@ -2,6 +2,7 @@
 # Pre-commit validation script for RUTOS Starlink Failover Project
 # Version: 2.6.0
 # Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 #              and markdown files for documentation quality
 #
 # NOTE: This script runs in the development environment (WSL/Linux), NOT on RUTOS,
@@ -509,7 +510,7 @@ validate_markdown_version() {
     fi
 
     # Look for YAML frontmatter version
-    if head -10 "$file" | grep -q "^version:" || head -10 "$file" | grep -q "^Version:"; then
+    if head -10 "$file" | grep -q "^version:" || head -10 "$file" | grep -q "^Version:" || head -10 "$file" | grep -q "\*\*Version:\*\*"; then
         has_version=true
     fi
 
