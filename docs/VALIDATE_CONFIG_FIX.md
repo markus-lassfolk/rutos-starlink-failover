@@ -1,5 +1,7 @@
 # Issue Analysis: validate-config.sh Not Downloaded
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Problem Report
 
 ```text
