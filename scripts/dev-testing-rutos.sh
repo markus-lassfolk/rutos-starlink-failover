@@ -247,7 +247,7 @@ self_update() {
 find_rutos_scripts() {
     # Create a temporary file to collect script paths
     temp_script_list="/tmp/rutos_scripts_$$"
-    >"$temp_script_list"
+    true >"$temp_script_list"  # Create empty file
 
     # Try to read the installation directory from config
     INSTALL_DIR=""
@@ -523,8 +523,8 @@ test_script_comprehensive() {
     comp_errors_file="/tmp/comp_errors_${script_name}_$$"
     test_modes_file="/tmp/test_modes_${script_name}_$$"
 
-    >"$comp_results_file"
-    >"$comp_errors_file"
+    true >"$comp_results_file"  # Create empty results file
+    true >"$comp_errors_file"   # Create empty errors file
 
     # Write test modes to file to avoid pipe subshell issues
     echo "$test_modes" >"$test_modes_file"
@@ -957,7 +957,7 @@ main() {
         temp_results="/tmp/test_results_$$"
 
         printf "%s\n" "$script_list" >"$temp_script_file"
-        >"$temp_results"
+        true >"$temp_results"  # Create empty temp results file
 
         # Process each script
         while IFS= read -r script; do

@@ -5,6 +5,7 @@
 
 # RUTOS Compatibility - Using Method 5 printf format for proper color display
 # shellcheck disable=SC2059  # Method 5 printf format required for RUTOS color support
+# shellcheck disable=SC2317  # Allow functions with conditional unreachable code (exit paths)
 
 set -e # Exit on error
 
