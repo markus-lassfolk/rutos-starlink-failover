@@ -23,9 +23,13 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'
     # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN='\033[0;32m'
+    # shellcheck disable=SC2034  # Color variables may not all be used
     YELLOW='\033[1;33m'
+    # shellcheck disable=SC2034  # Color variables may not all be used
     BLUE='\033[0;34m'
+    # shellcheck disable=SC2034  # Color variables may not all be used
     CYAN='\033[0;36m'
+    # shellcheck disable=SC2034  # Color variables may not all be used
     NC='\033[0m' # No Color
 else
     # Fallback to no colors if terminal doesn't support them
@@ -34,9 +38,13 @@ else
     RED=""
     # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     YELLOW=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     BLUE=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     CYAN=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     NC=""
 fi
 
