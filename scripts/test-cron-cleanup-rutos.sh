@@ -69,6 +69,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
 fi
 
 # Function to safely execute commands
+# shellcheck disable=SC2317 # Function defined for future use, may be unreachable in test mode
 safe_execute() {
     cmd="$1"
     description="$2"
