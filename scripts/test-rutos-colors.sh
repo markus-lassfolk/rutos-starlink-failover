@@ -84,10 +84,10 @@ safe_execute() {
 # Main color testing function
 test_rutos_colors() {
     log_info "Starting RUTOS color test v$SCRIPT_VERSION"
-    
+
     log_step "Testing color detection"
     printf "Environment: Terminal=%s, TERM=%s\n" "$([ -t 1 ] && echo "yes" || echo "no")" "${TERM:-unset}"
-    
+
     log_step "Testing color output"
     # shellcheck disable=SC2059
     printf "${RED}RED text${NC}\n"
@@ -99,7 +99,7 @@ test_rutos_colors() {
     printf "${BLUE}BLUE text${NC}\n"
     # shellcheck disable=SC2059
     printf "${CYAN}CYAN text${NC}\n"
-    
+
     log_step "Testing logging functions"
     log_info "This is an info message"
     log_warning "This is a warning message"
@@ -112,9 +112,9 @@ main() {
     if [ "$DRY_RUN" = "1" ]; then
         log_info "Running in dry-run mode"
     fi
-    
+
     test_rutos_colors
-    
+
     log_success "RUTOS color test completed successfully"
 }
 
