@@ -1,5 +1,6 @@
 #!/bin/sh
 # shellcheck shell=sh
+# shellcheck disable=SC2034 # Color variables defined for consistency but may not all be used
 
 # ==============================================================================
 # Enhanced Pushover Notifier for Starlink Monitoring System
@@ -25,6 +26,7 @@ readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
     # shellcheck disable=SC2034
+# shellcheck disable=SC2034 # Color variables may be unused but defined for consistency
     RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
@@ -36,6 +38,7 @@ else
     # shellcheck disable=SC2034  # Color variables may not all be used
     # shellcheck disable=SC2034  # Color variables may not all be used
     # shellcheck disable=SC2034
+# shellcheck disable=SC2034 # Color variables may be unused but defined for consistency
     RED=""
     GREEN=""
     YELLOW=""

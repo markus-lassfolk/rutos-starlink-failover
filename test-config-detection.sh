@@ -4,7 +4,7 @@
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
-# Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
+echo "Configuration version: $SCRIPT_VERSION"
 echo "Testing config type detection logic"
 echo "=================================="
 
