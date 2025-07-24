@@ -1,5 +1,9 @@
-# shellcheck disable=SC1091,SC2034,SC2154
 #!/bin/sh
+# shellcheck disable=SC1091,SC2034,SC2154
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.6.0"
+readonly SCRIPT_VERSION
 
 # ==============================================================================
 # STARLINK MONITOR BASIC CONFIGURATION
