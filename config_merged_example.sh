@@ -20,7 +20,7 @@
 # Default: 192.168.100.1:9200 (standard Starlink configuration)
 
 # Version information (auto-updated by update-version.sh)
-readonly SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.4.12"
 # shellcheck disable=SC2034  # Template version variables used by scripts that source this
 readonly SCRIPT_VERSION
 # Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"

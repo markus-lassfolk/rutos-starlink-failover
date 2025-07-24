@@ -144,7 +144,6 @@ run_test() {
     line_count=$(wc -l <"$output_file" 2>/dev/null || echo "0")
 
     # Check for common issues
-    has_colors=$(grep -c "\\033\[" "$output_file" 2>/dev/null || echo "0")
     has_errors=$(grep -ci "error\|fail\|exception" "$output_file" 2>/dev/null || echo "0")
     has_debug=$(grep -c "\[DEBUG\]" "$output_file" 2>/dev/null || echo "0")
     has_dry_run=$(grep -c "DRY-RUN\|dry.run\|test.mode" "$output_file" 2>/dev/null || echo "0")
@@ -178,6 +177,7 @@ run_test() {
         if [ "$line_count" -gt 20 ]; then
             printf "${CYAN}... (%d more lines, see %s)${NC}\n" $((line_count - 20)) "$output_file"
         fi
+        # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
         printf "${CYAN}--- End Output ---${NC}\n\n"
     fi
 }
@@ -226,9 +226,12 @@ test_script() {
 
 # Main execution
 main() {
+    # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
     printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
+    # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
     printf "${PURPLE}║                    RUTOS SCRIPT COMPREHENSIVE TESTING                   ║${NC}\n"
     printf "${PURPLE}║                         Version %s                                ║${NC}\n" "$SCRIPT_VERSION"
+    # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
     printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n\n"
 
     test_log "Starting comprehensive RUTOS script testing"
@@ -266,8 +269,12 @@ main() {
     fi
 
     # Generate summary
-    printf "\n${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}\n"
+    printf "\n"
+    # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
+    printf "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}\n"
+    # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
     printf "${BLUE}                              TEST SUMMARY                               ${NC}\n"
+    # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
     printf "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}\n\n"
 
     # Count results
@@ -282,6 +289,7 @@ main() {
     printf "📊 Total Tests: %d\n\n" "$total_tests"
 
     if [ "$failed_tests" -gt 0 ]; then
+        # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
         printf "${RED}FAILED TESTS:${NC}\n"
         grep "FAIL" "$TEST_LOG" | while IFS= read -r line; do
             printf "${RED}  %s${NC}\n" "$line"
@@ -290,6 +298,7 @@ main() {
     fi
 
     if [ "$warned_tests" -gt 0 ]; then
+        # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
         printf "${YELLOW}WARNINGS:${NC}\n"
         grep "WARN" "$TEST_LOG" | while IFS= read -r line; do
             printf "${YELLOW}  %s${NC}\n" "$line"
