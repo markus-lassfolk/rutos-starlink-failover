@@ -1,5 +1,7 @@
 # Enhanced Pushover Notification System
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Overview
 
 The system maintenance script now provides real-time Pushover notifications for every maintenance action,
