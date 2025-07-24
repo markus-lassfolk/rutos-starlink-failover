@@ -787,6 +787,100 @@ check_starlink_connectivity() {
     log_debug "Starlink connectivity checks completed"
 }
 
+# Function to check notification system files and permissions
+check_notification_system() {
+    log_step "Checking notification system components"
+    debug_func "check_notification_system"
+
+    # Define expected paths for notification components
+    HOTPLUG_NOTIFY="/etc/hotplug.d/iface/99-pushover_notify-rutos.sh"
+    STARLINK_NOTIFY="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh"
+    MAIN_MONITOR="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor-rutos.sh"
+    UTILS_SCRIPT="/usr/local/starlink-monitor/scripts/placeholder-utils.sh"
+
+    # Check hotplug notification script (critical for failover notifications)
+    log_debug "NOTIFICATION CHECK: Checking hotplug notification script"
+    if [ -f "$HOTPLUG_NOTIFY" ]; then
+        if [ -x "$HOTPLUG_NOTIFY" ]; then
+            file_size=$(wc -c <"$HOTPLUG_NOTIFY" 2>/dev/null || echo "0")
+            if [ "$file_size" -gt 100 ]; then
+                show_health_status "healthy" "Hotplug Notify" "Installed and executable ($file_size bytes)"
+                increment_counter "healthy"
+                log_debug "NOTIFICATION CHECK: HEALTHY - Hotplug script exists, executable, and has content"
+            else
+                show_health_status "warning" "Hotplug Notify" "File too small ($file_size bytes) - may be corrupted"
+                increment_counter "warning"
+                log_debug "NOTIFICATION CHECK: WARNING - Hotplug script too small"
+            fi
+        else
+            show_health_status "critical" "Hotplug Notify" "File exists but not executable"
+            increment_counter "critical"
+            log_debug "NOTIFICATION CHECK: CRITICAL - Hotplug script not executable"
+        fi
+    else
+        show_health_status "critical" "Hotplug Notify" "Missing: $HOTPLUG_NOTIFY"
+        increment_counter "critical"
+        log_debug "NOTIFICATION CHECK: CRITICAL - Hotplug script missing"
+    fi
+
+    # Check Starlink notification script (backup location)
+    log_debug "NOTIFICATION CHECK: Checking Starlink notification script"
+    if [ -f "$STARLINK_NOTIFY" ]; then
+        if [ -x "$STARLINK_NOTIFY" ]; then
+            file_size=$(wc -c <"$STARLINK_NOTIFY" 2>/dev/null || echo "0")
+            show_health_status "healthy" "Starlink Notify" "Available and executable ($file_size bytes)"
+            increment_counter "healthy"
+            log_debug "NOTIFICATION CHECK: HEALTHY - Starlink notify script OK"
+        else
+            show_health_status "warning" "Starlink Notify" "File exists but not executable"
+            increment_counter "warning"
+            log_debug "NOTIFICATION CHECK: WARNING - Starlink notify script not executable"
+        fi
+    else
+        show_health_status "warning" "Starlink Notify" "Missing backup script: $STARLINK_NOTIFY"
+        increment_counter "warning"
+        log_debug "NOTIFICATION CHECK: WARNING - Starlink notify script missing"
+    fi
+
+    # Check main monitoring script
+    log_debug "NOTIFICATION CHECK: Checking main monitoring script"
+    if [ -f "$MAIN_MONITOR" ]; then
+        if [ -x "$MAIN_MONITOR" ]; then
+            show_health_status "healthy" "Main Monitor" "Installed and executable"
+            increment_counter "healthy"
+            log_debug "NOTIFICATION CHECK: HEALTHY - Main monitor script OK"
+        else
+            show_health_status "critical" "Main Monitor" "File exists but not executable"
+            increment_counter "critical"
+            log_debug "NOTIFICATION CHECK: CRITICAL - Main monitor script not executable"
+        fi
+    else
+        show_health_status "critical" "Main Monitor" "Missing: $MAIN_MONITOR"
+        increment_counter "critical"
+        log_debug "NOTIFICATION CHECK: CRITICAL - Main monitor script missing"
+    fi
+
+    # Check utility functions script
+    log_debug "NOTIFICATION CHECK: Checking utility functions script"
+    if [ -f "$UTILS_SCRIPT" ]; then
+        if [ -r "$UTILS_SCRIPT" ]; then
+            show_health_status "healthy" "Utils Script" "Available and readable"
+            increment_counter "healthy"
+            log_debug "NOTIFICATION CHECK: HEALTHY - Utils script OK"
+        else
+            show_health_status "warning" "Utils Script" "File exists but not readable"
+            increment_counter "warning"
+            log_debug "NOTIFICATION CHECK: WARNING - Utils script not readable"
+        fi
+    else
+        show_health_status "warning" "Utils Script" "Missing: $UTILS_SCRIPT"
+        increment_counter "warning"
+        log_debug "NOTIFICATION CHECK: WARNING - Utils script missing"
+    fi
+
+    log_debug "NOTIFICATION CHECK: Notification system component check completed"
+}
+
 # Function to check configuration health
 check_configuration_health() {
     log_step "Checking configuration health"
@@ -885,6 +979,9 @@ check_configuration_health() {
     else
         log_debug "PLACEHOLDER CHECK: Utils script not found, skipping placeholder validation"
     fi
+
+    # Check notification system components (files, permissions, locations)
+    check_notification_system
 
     log_debug "Configuration health checks completed"
 }

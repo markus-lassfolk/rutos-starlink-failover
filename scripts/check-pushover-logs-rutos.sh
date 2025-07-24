@@ -45,7 +45,7 @@ log_step() {
 main() {
     log_info "Pushover Notification Log Checker v$SCRIPT_VERSION"
     echo ""
-    
+
     # Check recent syslog entries for Pushover
     log_step "Recent Pushover entries in syslog (logread)"
     if command -v logread >/dev/null 2>&1; then
@@ -58,14 +58,14 @@ main() {
         echo "logread not available"
     fi
     echo ""
-    
+
     # Check notification log file
     log_step "Checking notification log file"
     CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
     if [ -f "$CONFIG_FILE" ]; then
         # shellcheck source=/dev/null
         . "$CONFIG_FILE" 2>/dev/null || echo "Failed to source config"
-        
+
         NOTIFICATION_LOG="${LOG_DIR:-/var/log/starlink-monitor}/notifications.log"
         if [ -f "$NOTIFICATION_LOG" ]; then
             echo "Recent notification log entries:"
@@ -78,18 +78,18 @@ main() {
         echo "Config file not found: $CONFIG_FILE"
     fi
     echo ""
-    
+
     # Check monitoring script status
     log_step "Checking monitoring script configuration"
     if [ -f "$CONFIG_FILE" ]; then
         # shellcheck source=/dev/null
         . "$CONFIG_FILE" 2>/dev/null || echo "Failed to source config"
-        
+
         echo "Notification settings:"
         echo "  NOTIFY_ON_SOFT_FAIL: ${NOTIFY_ON_SOFT_FAIL:-1}"
         echo "  NOTIFY_ON_RECOVERY: ${NOTIFY_ON_RECOVERY:-1}"
         echo "  NOTIFIER_SCRIPT: ${NOTIFIER_SCRIPT:-/usr/local/starlink-monitor/Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh}"
-        
+
         if [ -n "${NOTIFIER_SCRIPT:-}" ] && [ -f "$NOTIFIER_SCRIPT" ]; then
             if [ -x "$NOTIFIER_SCRIPT" ]; then
                 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
@@ -104,7 +104,7 @@ main() {
         fi
     fi
     echo ""
-    
+
     # Check recent monitoring activity
     log_step "Recent monitoring activity"
     if [ -n "${LOG_DIR:-}" ] && [ -d "$LOG_DIR" ]; then
@@ -120,14 +120,14 @@ main() {
         fi
     fi
     echo ""
-    
+
     # Show current connection status
     log_step "Current system status"
     STATE_FILE="${STATE_DIR:-/var/lib/starlink-monitor}/starlink_state"
     if [ -f "$STATE_FILE" ]; then
         current_state=$(cat "$STATE_FILE")
         echo "Current Starlink state: $current_state"
-        
+
         if [ "$current_state" = "down" ]; then
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
             printf "${RED}System is currently in failover mode${NC}\n"
@@ -140,7 +140,7 @@ main() {
         echo "State file not found: $STATE_FILE"
     fi
     echo ""
-    
+
     log_step "Manual test recommendation"
     echo "To manually test notifications:"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
