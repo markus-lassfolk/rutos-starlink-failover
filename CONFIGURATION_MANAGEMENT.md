@@ -1,8 +1,7 @@
-# Configuration Management System Summary v2.6.0
+# Configuration Management System Summary
+<!-- Version: 2.6.0 | Updated: 2025-07-24 -->
 
 **Version:** 2.6.0 | **Updated:** 2025-07-24
-
-**Version:** 2.5.0 | **Updated:** 2025-07-24
 
 **Version:** 2.4.12 | **Updated:** 2025-07-21
 

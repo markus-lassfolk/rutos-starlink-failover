@@ -643,4 +643,6 @@ Export-ModuleMember -Function @(
 # Module initialization
 Write-Host "🏷️  GitHub Label Management Module Loaded" -ForegroundColor Green
 Write-Host "   Available Labels: $($script:LabelDefinitions.Count)" -ForegroundColor Cyan
-Write-Host "   Categories: $($script:LabelDefinitions.Values.Category | Sort-Object -Unique | Measure-Object).Count" -ForegroundColor Yellow
+
+$uniqueCategories = $script:LabelDefinitions.Values.Category | Sort-Object -Unique
+Write-Host "   Categories: $($uniqueCategories.Count)" -ForegroundColor Yellow

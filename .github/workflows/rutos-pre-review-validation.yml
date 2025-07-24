@@ -115,7 +115,7 @@ jobs:
           
           # Validate each changed file
           while IFS= read -r file; do
-            if [[ "$file" =~ \.(sh|md)$ ]] && [[ -f "$file" ]]; then
+            if echo "$file" | grep -E '\.(sh|md)$' >/dev/null && [ -f "$file" ]; then
               echo "🔍 Validating: $file"
               echo "- \`$file\`" >> validation_report.md
               
@@ -211,6 +211,10 @@ jobs:
                 --field state="success" \
                 --field description="RUTOS validation passed" \
                 --field context="rutos-validation"
+              
+              # Clear any previous blocking labels
+              echo "🧹 Clearing previous validation-failed labels"
+              gh pr edit $PR_NUMBER --remove-label "validation-failed,blocked-critical-issues" --repo ${{ github.repository }} 2>/dev/null || echo "No blocking labels to remove"
               ;;
             "warning")
               echo "⚠️ Setting warning status"
@@ -218,6 +222,10 @@ jobs:
                 --field state="success" \
                 --field description="RUTOS validation: $ISSUES issues found" \
                 --field context="rutos-validation"
+              
+              # Clear critical blocking labels but keep warning labels
+              echo "🧹 Clearing critical blocking labels"
+              gh pr edit $PR_NUMBER --remove-label "blocked-critical-issues" --repo ${{ github.repository }} 2>/dev/null || echo "No critical blocking labels to remove"
               ;;
             "failure"|"error")
               echo "❌ Setting failure status"

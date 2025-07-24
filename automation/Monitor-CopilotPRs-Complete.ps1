@@ -94,6 +94,7 @@ AUTONOMOUS FEATURES:
     • Intelligent rate limit recovery with exponential backoff
     • Mixed status check resolution with 3-strategy approach
     • Full consolidation in main script - no external dependencies
+
 RATE LIMIT FEATURES:
     • Automatic detection when API limits approach (< 100 requests remaining)
     • Intelligent backoff with minute-by-minute countdown
@@ -254,8 +255,12 @@ function Show-CollectedErrors {
     
     Write-StatusMessage "`n📊 ERROR SUMMARY:" -Color $RED
     Write-StatusMessage "   Total Errors: $($global:CollectedErrors.Count)" -Color $RED
-    Write-StatusMessage "   Functions with Errors: $($global:CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -Color $YELLOW
-    Write-StatusMessage "   Exception Types: $($global:CollectedErrors | Where-Object { $_.ExceptionType -ne 'N/A' } | Select-Object -Unique ExceptionType | Measure-Object).Count" -Color $PURPLE
+    
+    $uniqueFunctions = $global:CollectedErrors | Select-Object -Unique FunctionName
+    $uniqueExceptionTypes = $global:CollectedErrors | Where-Object { $_.ExceptionType -ne 'N/A' } | Select-Object -Unique ExceptionType
+    
+    Write-StatusMessage "   Functions with Errors: $($uniqueFunctions.Count)" -Color $YELLOW
+    Write-StatusMessage "   Exception Types: $($uniqueExceptionTypes.Count)" -Color $PURPLE
     
     # Most common error types
     $errorTypes = $global:CollectedErrors | Group-Object -Property ExceptionType | Sort-Object Count -Descending
@@ -365,7 +370,7 @@ function Approve-CopilotWorkflows {
     
     try {
         # Check if PR is from trusted Copilot
-        $prData = gh api "repos/$env:GITHUB_REPOSITORY/pulls/$PRNumber" --jq '{
+        $prData = gh api "repos/markus-lassfolk/rutos-starlink-failover/pulls/$PRNumber" --jq '{
             user: .user.login,
             title: .title,
             body: .body,
@@ -435,7 +440,7 @@ function Approve-CopilotWorkflows {
             }
             
             try {
-                gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$($run.databaseId)/approve" --method POST | Out-Null
+                gh api "repos/markus-lassfolk/rutos-starlink-failover/actions/runs/$($run.databaseId)/approve" --method POST | Out-Null
                 $approvedCount++
                 $approvedWorkflows += $run.workflowName
                 Start-Sleep -Seconds 2
@@ -478,7 +483,7 @@ function Invoke-IntelligentAutoMerge {
     
     try {
         # Get comprehensive PR data
-        $prData = gh api "repos/$env:GITHUB_REPOSITORY/pulls/$PRNumber" --jq '{
+        $prData = gh api "repos/markus-lassfolk/rutos-starlink-failover/pulls/$PRNumber" --jq '{
             user: .user.login,
             title: .title,
             body: .body,
@@ -559,7 +564,7 @@ function Invoke-IntelligentAutoMerge {
         
         # Check 8: All status checks pass
         try {
-            $statusChecks = gh api "repos/$env:GITHUB_REPOSITORY/commits/$($prData.head.sha)/status" --jq '.state' 2>/dev/null
+            $statusChecks = gh api "repos/markus-lassfolk/rutos-starlink-failover/commits/$($prData.head.sha)/status" --jq '.state' 2>/dev/null
             $safetyChecks.PassesAllChecks = $statusChecks -eq "success"
         } catch {
             $safetyChecks.PassesAllChecks = $false
@@ -727,6 +732,7 @@ function Process-SinglePR {
                 Write-StatusMessage "⚠️ PR #$PRNumber was safe but merge failed: $($mergeResult.Error)" -Color $YELLOW
             }
         }
+        
         return $true
         
     } catch {
@@ -2238,10 +2244,22 @@ try {
         exit 1
     }
     
-    # Verify GitHub CLI authentication
-    gh auth status 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Add-CollectedError -ErrorMessage "GitHub CLI is not authenticated" -FunctionName "Main" -Context "GitHub CLI authentication check failed" -AdditionalInfo @{LastExitCode=$LASTEXITCODE}
+    # Verify GitHub CLI authentication with improved check
+    try {
+        $authOutput = gh auth status 2>&1
+        $authSuccessful = $LASTEXITCODE -eq 0
+        
+        if (-not $authSuccessful) {
+            Add-CollectedError -ErrorMessage "GitHub CLI is not authenticated" -FunctionName "Main" -Context "GitHub CLI authentication check failed" -AdditionalInfo @{LastExitCode=$LASTEXITCODE; AuthOutput=$authOutput}
+            Write-StatusMessage "🔐 Run: gh auth login" -Color $CYAN
+            exit 1
+        } else {
+            if ($DebugMode) {
+                Write-StatusMessage "✅ GitHub CLI authentication verified" -Color $GREEN
+            }
+        }
+    } catch {
+        Add-CollectedError -ErrorMessage "GitHub CLI authentication check failed" -FunctionName "Main" -Context "Error running gh auth status" -AdditionalInfo @{Exception=$_.Exception.Message}
         Write-StatusMessage "🔐 Run: gh auth login" -Color $CYAN
         exit 1
     }
