@@ -1,5 +1,7 @@
 # Azure Logging Solution Overview
 
+Version: 2.6.0 | Updated: 2025-07-24
+
 ## Complete Unified System
 
 This Azure logging solution provides comprehensive monitoring for RUTOS devices with optional Starlink performance data

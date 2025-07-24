@@ -1,5 +1,6 @@
 #!/bin/sh
 # shellcheck shell=sh
+# shellcheck disable=SC2034
 
 # ==============================================================================
 # Enhanced Pushover Notifier for Starlink Monitoring System
@@ -15,16 +16,44 @@
 
 set -eu
 
-# Standard colors for consistent output (compatible with busybox)
-# shellcheck disable=SC2034  # Color variables may not all be used in every script
-# CRITICAL: Use RUTOS-compatible color detection
-
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # Colors enabled - defined for consistency even if not all used
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    RED='\033[0;31m'
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    GREEN='\033[0;32m'
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    YELLOW='\033[1;33m'
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    BLUE='\033[1;35m'
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    CYAN='\033[0;36m'
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    NC='\033[0m'
+else
+    # Colors disabled
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    RED=""
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    GREEN=""
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    YELLOW=""
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    BLUE=""
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    CYAN=""
+    # shellcheck disable=SC2034 # Color variables standardized across scripts
+    NC=""
+fi
+
+# Standard colors for consistent output (compatible with busybox)
+# CRITICAL: Use RUTOS-compatible color detection
+# shellcheck disable=SC2034  # Colors defined for consistent interface
+if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
-    # shellcheck disable=SC2034
     RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
@@ -33,9 +62,6 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     NC='\033[0m'
 else
     # Colors disabled
-    # shellcheck disable=SC2034  # Color variables may not all be used
-    # shellcheck disable=SC2034  # Color variables may not all be used
-    # shellcheck disable=SC2034
     RED=""
     GREEN=""
     YELLOW=""
@@ -86,15 +112,26 @@ safe_execute() {
 
 # --- Helper Functions ---
 
+# Standard logging functions for consistency with other scripts
+log_debug() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
+
 # Enhanced logging
 log() {
     log_level="$1"
     log_message="$2"
     log_timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    logger -t "PushoverNotifier" -p "daemon.$log_level" -- "$log_message"
+    # Log to syslog with more specific tag for easier filtering
+    logger -t "PushoverNotifier" -p "daemon.$log_level" -- "[PUSHOVER] $log_message"
+
+    # Also log to our dedicated notification log
     echo "$log_timestamp [$log_level] $log_message" >>"$NOTIFICATION_LOG"
 
+    # Show on console if terminal available
     if [ -t 1 ]; then
         echo "[$log_level] $log_message"
     fi

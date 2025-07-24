@@ -523,9 +523,56 @@ main() {
                     echo "down" >"$STATE_FILE"
                     update_health_status "degraded" "Soft failover active: $FAIL_REASON"
 
-                    # Notify via external script if enabled
+                    # Notify via external script if enabled - with failover delay
                     if [ "${NOTIFY_ON_SOFT_FAIL:-1}" = "1" ] && [ -x "$NOTIFIER_SCRIPT" ]; then
-                        safe_notify "soft_failover" "$FAIL_REASON" || log "warn" "Notification failed"
+                        log "info" "PUSHOVER: Scheduling soft failover notification (delayed for network stability)"
+                        log "debug" "PUSHOVER: NOTIFY_ON_SOFT_FAIL=${NOTIFY_ON_SOFT_FAIL:-1}"
+                        log "debug" "PUSHOVER: NOTIFIER_SCRIPT=$NOTIFIER_SCRIPT (executable: $([ -x "$NOTIFIER_SCRIPT" ] && echo "YES" || echo "NO"))"
+                        log "debug" "PUSHOVER: FAIL_REASON=$FAIL_REASON"
+
+                        # Log to syslog for logread visibility
+                        logger -t "StarLinkMonitor" -p daemon.info "PUSHOVER: Scheduling soft failover notification with network stability delay - Reason: $FAIL_REASON"
+
+                        # Use background notification with network readiness check
+                        # This avoids the race condition where notification fails because network isn't ready
+                        {
+                            sleep 10 # Initial delay for MWAN3 to stabilize routing
+
+                            # Check for network connectivity before sending notification
+                            network_ready=0
+                            network_attempts=0
+                            network_max_attempts=6 # 1 minute total (10s initial + 6*5s = 40s)
+
+                            while [ $network_ready -eq 0 ] && [ $network_attempts -lt $network_max_attempts ]; do
+                                # Test connectivity to a reliable endpoint
+                                if curl -s --max-time 5 --connect-timeout 3 "https://api.pushover.net" >/dev/null 2>&1; then
+                                    network_ready=1
+                                    logger -t "StarLinkMonitor" -p daemon.info "PUSHOVER: Network ready after failover, sending notification"
+                                else
+                                    network_attempts=$((network_attempts + 1))
+                                    logger -t "StarLinkMonitor" -p daemon.info "PUSHOVER: Network not ready, waiting... (attempt $network_attempts/$network_max_attempts)"
+                                    sleep 5
+                                fi
+                            done
+
+                            if [ $network_ready -eq 1 ]; then
+                                safe_notify "soft_failover" "$FAIL_REASON" || {
+                                    logger -t "StarLinkMonitor" -p daemon.warn "PUSHOVER: Soft failover notification FAILED even after network ready"
+                                }
+                            else
+                                logger -t "StarLinkMonitor" -p daemon.error "PUSHOVER: Network never became ready for notification, giving up"
+                            fi
+                        } & # Run in background to not block monitoring
+                    else
+                        log "info" "PUSHOVER: Soft failover notification SKIPPED"
+                        if [ "${NOTIFY_ON_SOFT_FAIL:-1}" != "1" ]; then
+                            log "debug" "PUSHOVER: SKIP REASON - NOTIFY_ON_SOFT_FAIL disabled (${NOTIFY_ON_SOFT_FAIL:-1})"
+                            logger -t "StarLinkMonitor" -p daemon.info "PUSHOVER: Soft failover notification disabled by config"
+                        fi
+                        if [ ! -x "$NOTIFIER_SCRIPT" ]; then
+                            log "debug" "PUSHOVER: SKIP REASON - NOTIFIER_SCRIPT not executable ($NOTIFIER_SCRIPT)"
+                            logger -t "StarLinkMonitor" -p daemon.warn "PUSHOVER: Notifier script not found or not executable: $NOTIFIER_SCRIPT"
+                        fi
                     fi
 
                     log "info" "Soft failover completed successfully"
@@ -567,9 +614,39 @@ main() {
                         echo "0" >"$STABILITY_FILE"
                         update_health_status "healthy" "Connection restored"
 
-                        # Notify via external script if enabled
+                        # Notify via external script if enabled - immediate for recovery
                         if [ "${NOTIFY_ON_RECOVERY:-1}" = "1" ] && [ -x "$NOTIFIER_SCRIPT" ]; then
-                            safe_notify "soft_recovery" || log "warn" "Notification failed"
+                            log "info" "PUSHOVER: Triggering soft recovery notification"
+                            log "debug" "PUSHOVER: NOTIFY_ON_RECOVERY=${NOTIFY_ON_RECOVERY:-1}"
+                            log "debug" "PUSHOVER: NOTIFIER_SCRIPT=$NOTIFIER_SCRIPT (executable: $([ -x "$NOTIFIER_SCRIPT" ] && echo "YES" || echo "NO"))"
+                            log "debug" "PUSHOVER: Recovery after $stability_count stability checks"
+
+                            # Log to syslog for logread visibility
+                            logger -t "StarLinkMonitor" -p daemon.info "PUSHOVER: Sending soft recovery notification - Stability: $stability_count/$STABILITY_CHECKS_REQUIRED"
+
+                            # Recovery notifications can be immediate since Starlink should be working
+                            safe_notify "soft_recovery" || {
+                                log "warn" "Recovery notification failed - trying delayed send"
+                                logger -t "StarLinkMonitor" -p daemon.warn "PUSHOVER: Soft recovery notification FAILED, trying delayed send"
+
+                                # Fallback: delayed send in background if immediate fails
+                                {
+                                    sleep 5
+                                    safe_notify "soft_recovery" || {
+                                        logger -t "StarLinkMonitor" -p daemon.error "PUSHOVER: Delayed recovery notification also failed"
+                                    }
+                                } &
+                            }
+                        else
+                            log "info" "PUSHOVER: Soft recovery notification SKIPPED"
+                            if [ "${NOTIFY_ON_RECOVERY:-1}" != "1" ]; then
+                                log "debug" "PUSHOVER: SKIP REASON - NOTIFY_ON_RECOVERY disabled (${NOTIFY_ON_RECOVERY:-1})"
+                                logger -t "StarLinkMonitor" -p daemon.info "PUSHOVER: Soft recovery notification disabled by config"
+                            fi
+                            if [ ! -x "$NOTIFIER_SCRIPT" ]; then
+                                log "debug" "PUSHOVER: SKIP REASON - NOTIFIER_SCRIPT not executable ($NOTIFIER_SCRIPT)"
+                                logger -t "StarLinkMonitor" -p daemon.warn "PUSHOVER: Notifier script not found or not executable: $NOTIFIER_SCRIPT"
+                            fi
                         fi
 
                         log "info" "Soft failback completed successfully"

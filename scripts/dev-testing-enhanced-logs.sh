@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC2059  # RUTOS requires Method 5 printf format (embedded variables)
+# shellcheck disable=SC2059,SC2317  # RUTOS requires Method 5 printf format (embedded variables); Functions after early exit OK
 # Script: dev-testing-enhanced-logs.sh
 # Version: 2.5.1
 # Description: RUTOS script testing with individual log file support for debugging crontab issues
@@ -262,7 +262,7 @@ self_update() {
 find_rutos_scripts() {
     # Create a temporary file to collect script paths
     temp_script_list="/tmp/rutos_scripts_$$"
-    >"$temp_script_list"
+    : >"$temp_script_list"
 
     # Try to read the installation directory from config
     INSTALL_DIR=""
@@ -453,9 +453,6 @@ test_script() {
         # Enhanced error analysis
         test_error=$(cat /tmp/test_output_$$ 2>/dev/null | head -5 || echo "Script execution failed")
 
-        # Capture additional debugging information
-        debug_info="Exit Code: $test_exit_code | Duration: ${test_duration}s | Timeout: ${timeout_seconds}s"
-
         # Analyze failure patterns
         failure_analysis=""
         if [ $test_exit_code -eq 124 ]; then
@@ -538,8 +535,8 @@ test_script_comprehensive() {
     comp_errors_file="/tmp/comp_errors_${script_name}_$$"
     test_modes_file="/tmp/test_modes_${script_name}_$$"
 
-    >"$comp_results_file"
-    >"$comp_errors_file"
+    : >"$comp_results_file"
+    : >"$comp_errors_file"
 
     # Write test modes to file to avoid pipe subshell issues
     echo "$test_modes" >"$test_modes_file"
@@ -808,6 +805,7 @@ capture_system_state_before() {
     test_desc="$2"
 
     if [ "$SAVE_INDIVIDUAL_LOGS" = "1" ]; then
+        # shellcheck disable=SC2001  # sed needed for complex character class replacement in busybox
         script_log_dir="$LOGS_DIR/$(echo "$script_name" | sed 's/[^a-zA-Z0-9._-]/_/g')"
         mkdir -p "$script_log_dir"
 
@@ -831,6 +829,7 @@ capture_system_state_after() {
     exit_code="$3"
 
     if [ "$SAVE_INDIVIDUAL_LOGS" = "1" ]; then
+        # shellcheck disable=SC2001  # sed needed for complex character class replacement in busybox
         script_log_dir="$LOGS_DIR/$(echo "$script_name" | sed 's/[^a-zA-Z0-9._-]/_/g')"
 
         # Capture crontab after execution
@@ -881,6 +880,7 @@ save_script_test_log() {
     output_file="$3"
 
     if [ "$SAVE_INDIVIDUAL_LOGS" = "1" ]; then
+        # shellcheck disable=SC2001  # sed needed for complex character class replacement in busybox
         script_log_dir="$LOGS_DIR/$(echo "$script_name" | sed 's/[^a-zA-Z0-9._-]/_/g')"
         mkdir -p "$script_log_dir"
 
@@ -1122,7 +1122,7 @@ main() {
         temp_results="/tmp/test_results_$$"
 
         printf "%s\n" "$script_list" >"$temp_script_file"
-        >"$temp_results"
+        : >"$temp_results"
 
         # Process each script
         while IFS= read -r script; do
@@ -1188,6 +1188,26 @@ main() {
         # Step 4: Generate report
         generate_error_report
 
+        # Final summary for individual logs (before exit logic)
+        if [ "$SAVE_INDIVIDUAL_LOGS" = "1" ]; then
+            printf "\n${BLUE}========================================${NC}\n"
+            printf "${BLUE}INDIVIDUAL LOGS SUMMARY${NC}\n"
+            printf "${BLUE}========================================${NC}\n"
+            log_success "Individual test logs saved to: $LOGS_DIR"
+            log_info "📋 Check $LOGS_DIR/crontab-changes.txt for scripts that modified crontab"
+            log_info "📁 Each script has its own subdirectory with detailed logs"
+
+            if [ -f "$LOGS_DIR/crontab-changes.txt" ]; then
+                crontab_modifications=$(grep -c "Script:" "$LOGS_DIR/crontab-changes.txt" 2>/dev/null || echo "0")
+                if [ "$crontab_modifications" -gt 0 ]; then
+                    log_warning "🚨 $crontab_modifications script(s) modified crontab during testing!"
+                    log_info "Review: $LOGS_DIR/crontab-changes.txt"
+                else
+                    log_success "✅ No crontab modifications detected during testing"
+                fi
+            fi
+        fi
+
         # Step 5: Summary
         printf "\n${BLUE}========================================${NC}\n"
         printf "${BLUE}TESTING COMPLETE${NC}\n"
@@ -1213,26 +1233,6 @@ main() {
     else
         log_error "No scripts found to test"
         exit 1
-    fi
-
-    # Final summary for individual logs
-    if [ "$SAVE_INDIVIDUAL_LOGS" = "1" ]; then
-        printf "\n${BLUE}========================================${NC}\n"
-        printf "${BLUE}INDIVIDUAL LOGS SUMMARY${NC}\n"
-        printf "${BLUE}========================================${NC}\n"
-        log_success "Individual test logs saved to: $LOGS_DIR"
-        log_info "📋 Check $LOGS_DIR/crontab-changes.txt for scripts that modified crontab"
-        log_info "📁 Each script has its own subdirectory with detailed logs"
-
-        if [ -f "$LOGS_DIR/crontab-changes.txt" ]; then
-            crontab_modifications=$(grep -c "Script:" "$LOGS_DIR/crontab-changes.txt" 2>/dev/null || echo "0")
-            if [ "$crontab_modifications" -gt 0 ]; then
-                log_warning "🚨 $crontab_modifications script(s) modified crontab during testing!"
-                log_info "Review: $LOGS_DIR/crontab-changes.txt"
-            else
-                log_success "✅ No crontab modifications detected during testing"
-            fi
-        fi
     fi
 }
 

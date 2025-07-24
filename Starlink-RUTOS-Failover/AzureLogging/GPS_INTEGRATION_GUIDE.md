@@ -1,5 +1,7 @@
 # GPS and Mobility Integration Guide
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Overview
 
 The Azure logging solution integrates with the existing repository GPS infrastructure to provide location-aware network
