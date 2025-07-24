@@ -5,7 +5,7 @@
 set -eu
 
 # Check if terminal supports colors
-# shellcheck disable=SC2034  # Color variables may not all be used in every script
+# shellcheck disable=SC2034,SC2059  # Color variables may not all be used in every script; Method 5 printf for RUTOS
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
