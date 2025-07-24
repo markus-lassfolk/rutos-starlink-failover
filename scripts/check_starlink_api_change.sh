@@ -19,19 +19,29 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
     # shellcheck disable=SC2034  # Color variables may not all be used in every script
     RED='\033[0;31m'
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     GREEN='\033[0;32m'
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     YELLOW='\033[1;33m'
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     BLUE='\033[1;35m'
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     CYAN='\033[0;36m'
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     NC='\033[0m'
 else
     # Colors disabled
     # shellcheck disable=SC2034  # Color variables may not all be used in every script
     RED=""
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     GREEN=""
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     YELLOW=""
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     BLUE=""
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     CYAN=""
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     NC=""
 fi
 
