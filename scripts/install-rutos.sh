@@ -1108,6 +1108,8 @@ This document lists all scripts installed by the Starlink monitoring system.
 - `diagnose-database-loop-rutos.sh` - Database loop diagnostic
 - `fix-database-spam-rutos.sh` - Fix database spam issues including "Can't open database" and optimization loops
 - `system-maintenance-rutos.sh` - Generic system maintenance and issue fixing
+- `view-logs-rutos.sh` - Log viewing and analysis utility
+- `analyze-outage-correlation-rutos.sh` - Correlates monitoring logs with outages to optimize failover behavior
 
 ### Test Scripts (in scripts/tests/)
 - `test-pushover-rutos.sh` - Test Pushover notifications
@@ -1298,6 +1300,7 @@ install_scripts() {
         repair-system-rutos.sh \
         system-maintenance-rutos.sh \
         view-logs-rutos.sh \
+        analyze-outage-correlation-rutos.sh \
         dev-testing-rutos.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then

@@ -1,9 +1,6 @@
 #!/bin/sh
 # shellcheck disable=SC1091,SC2034,SC2154
 
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
-
 # ==============================================================================
 # STARLINK MONITOR BASIC CONFIGURATION
 # ==============================================================================
@@ -23,7 +20,7 @@ SCRIPT_VERSION="2.6.0"
 # Default: 192.168.100.1:9200 (standard Starlink configuration)
 
 # Version information (auto-updated by update-version.sh)
-readonly SCRIPT_VERSION="2.4.12"
+SCRIPT_VERSION="2.4.12"
 # shellcheck disable=SC2034  # Template version variables used by scripts that source this
 readonly SCRIPT_VERSION
 # Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"

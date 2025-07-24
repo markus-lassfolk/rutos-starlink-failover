@@ -1,6 +1,5 @@
 #!/bin/sh
 # shellcheck shell=sh
-# shellcheck disable=SC2034 # Color variables defined for consistency but may not all be used
 
 # ==============================================================================
 # Enhanced Pushover Notifier for Starlink Monitoring System
@@ -16,36 +15,9 @@
 
 set -eu
 
-# Standard colors for consistent output (compatible with busybox)
-# shellcheck disable=SC2034  # Color variables may not all be used in every script
-# CRITICAL: Use RUTOS-compatible color detection
-
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
-if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    # Colors enabled
-    # shellcheck disable=SC2034
-# shellcheck disable=SC2034 # Color variables may be unused but defined for consistency
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
-else
-    # Colors disabled
-    # shellcheck disable=SC2034  # Color variables may not all be used
-    # shellcheck disable=SC2034  # Color variables may not all be used
-    # shellcheck disable=SC2034
-# shellcheck disable=SC2034 # Color variables may be unused but defined for consistency
-    RED=""
-    GREEN=""
-    YELLOW=""
-    BLUE=""
-    CYAN=""
-    NC=""
-fi
 
 # --- Configuration Loading ---
 CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
@@ -88,6 +60,13 @@ safe_execute() {
 }
 
 # --- Helper Functions ---
+
+# Standard logging functions for consistency with other scripts
+log_debug() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
 
 # Enhanced logging
 log() {

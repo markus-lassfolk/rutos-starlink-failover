@@ -1152,19 +1152,93 @@ main() {
 
     # Perform update if available
     if [ "$update_available" = "true" ]; then
-        log_warning "Update functionality not yet implemented in this version"
-        log_info "This is a placeholder - actual update would happen here"
-        log_info "To update manually: download and run the installation script"
+        log_step "Starting system update from v${local_version} to v${remote_version}"
 
-        # When update is actually implemented, store version info for recovery
-        log_info "When update completes, will store version information for recovery"
-        log_info "Future firmware upgrades will reinstall the same version to respect your delay policies"
+        # Create backup before update
+        log_step "Creating backup of current installation"
+        if ! create_backup; then
+            log_error "Failed to create backup - aborting update for safety"
+            exit 1
+        fi
+
+        # Download and execute the installation script
+        log_step "Downloading latest installation script"
+        installation_script="/tmp/install-rutos-update.sh"
+
+        if ! download_file "${RAW_URL}/scripts/install-rutos.sh" "$installation_script"; then
+            log_error "Failed to download installation script"
+            exit 1
+        fi
+
+        # Make installation script executable
+        chmod +x "$installation_script"
+
+        # Run the installation script (note: install script needs --update flag support)
+        log_step "Executing installation script for update"
+        log_info "Running: $installation_script"
+
+        # Set environment variables to make installation quieter and indicate update mode
+        export UPDATE_MODE=1
+        export QUIET_INSTALL=1
+
+        if ! "$installation_script"; then
+            log_error "Installation script failed - attempting rollback"
+            if restore_backup; then
+                log_warning "Rollback completed - system restored to v${local_version}"
+                exit 3 # Exit code 3 = update failed, rollback performed
+            else
+                log_error "CRITICAL: Update failed and rollback failed"
+                exit 1
+            fi
+        fi
+
+        # Verify update was successful
+        log_step "Verifying update completion"
+        if [ -f "$VERSION_FILE" ]; then
+            new_version=$(cat "$VERSION_FILE" 2>/dev/null || echo "unknown")
+            log_info "New version detected: $new_version"
+
+            if [ "$new_version" = "$remote_version" ]; then
+                log_success "Update verified successfully"
+            else
+                log_warning "Version mismatch after update (expected: $remote_version, got: $new_version)"
+            fi
+        else
+            log_warning "Version file not found after update"
+        fi
+
+        # Store version information for recovery
+        log_step "Storing version information for firmware upgrade recovery"
+        if store_version_for_recovery "$remote_version"; then
+            log_debug "Version $remote_version stored for recovery"
+        else
+            log_warning "Failed to store version for recovery (non-critical)"
+        fi
+
+        # Create/update version-pinned recovery script
+        if create_recovery_script "$remote_version"; then
+            log_debug "Version-pinned recovery script created for v$remote_version"
+        else
+            log_warning "Failed to create recovery script (non-critical)"
+        fi
+
+        # Update recovery system
+        if update_recovery_system "$remote_version"; then
+            log_debug "Recovery system updated for version pinning"
+        else
+            log_warning "Recovery system update failed (non-critical)"
+        fi
+
+        # Clean up temporary files
+        rm -f "$installation_script" 2>/dev/null || true
 
         # Send success notification
         if [ "$AUTO_UPDATE_NOTIFICATIONS_ENABLED" = "true" ]; then
             send_notification "Update Complete" "Successfully updated from ${local_version} to ${remote_version}" 0
         fi
 
+        log_success "System successfully updated from v${local_version} to v${remote_version}"
+        log_info "Firmware upgrade recovery configured for current version: v$remote_version"
         exit 0
     else
         # Even when no update is performed, ensure current version is stored for recovery
@@ -1197,11 +1271,140 @@ main() {
     fi
 }
 
-# Simple backup function (placeholder for now)
+# Backup function to create safety backup before update
 create_backup() {
-    log_step "Creating backup (placeholder)"
-    log_info "Backup functionality not yet implemented"
+    log_step "Creating backup of current installation"
+
+    # Ensure backup directory exists
+    if ! mkdir -p "$BACKUP_DIR" 2>/dev/null; then
+        log_error "Failed to create backup directory: $BACKUP_DIR"
+        return 1
+    fi
+
+    # Create timestamped backup
+    backup_timestamp=$(date '+%Y%m%d_%H%M%S')
+    backup_name="starlink-backup-${backup_timestamp}"
+    backup_path="${BACKUP_DIR}/${backup_name}"
+
+    log_info "Creating backup: $backup_path"
+
+    # Copy entire installation directory
+    if ! cp -r "$INSTALL_DIR" "$backup_path" 2>/dev/null; then
+        log_error "Failed to copy installation directory"
+        return 1
+    fi
+
+    # Also backup configuration if it exists outside install dir
+    if [ -d "/etc/starlink-config" ]; then
+        config_backup_path="${backup_path}/etc-starlink-config"
+        if ! cp -r "/etc/starlink-config" "$config_backup_path" 2>/dev/null; then
+            log_warning "Failed to backup configuration directory (non-critical)"
+        else
+            log_debug "Configuration directory backed up"
+        fi
+    fi
+
+    # Create backup metadata
+    backup_info="${backup_path}/backup-info.txt"
+    {
+        echo "Backup created: $(date)"
+        echo "Original version: $(cat "$VERSION_FILE" 2>/dev/null || echo 'unknown')"
+        echo "Backup path: $backup_path"
+        echo "Installation directory: $INSTALL_DIR"
+    } >"$backup_info"
+
+    # Create symlink to latest backup
+    latest_link="${BACKUP_DIR}/latest"
+    rm -f "$latest_link" 2>/dev/null || true
+    if ! ln -s "$backup_name" "$latest_link" 2>/dev/null; then
+        log_warning "Failed to create latest backup symlink (non-critical)"
+    fi
+
+    # Clean up old backups (keep last 3)
+    log_debug "Cleaning up old backups (keeping last 3)"
+    backup_count=$(find "$BACKUP_DIR" -maxdepth 1 -name "starlink-backup-*" -type d | wc -l)
+    if [ "$backup_count" -gt 3 ]; then
+        find "$BACKUP_DIR" -maxdepth 1 -name "starlink-backup-*" -type d |
+            head -n $((backup_count - 3)) |
+            while read -r old_backup; do
+                log_debug "Removing old backup: $(basename "$old_backup")"
+                rm -rf "$old_backup" 2>/dev/null || true
+            done
+    fi
+
+    log_success "Backup created successfully: $backup_path"
     return 0
+}
+
+# Restore from backup in case of update failure
+restore_backup() {
+    log_step "Attempting to restore from backup"
+
+    latest_backup="${BACKUP_DIR}/latest"
+    if [ ! -L "$latest_backup" ]; then
+        log_error "No backup symlink found"
+        return 1
+    fi
+
+    backup_path=$(readlink -f "$latest_backup" 2>/dev/null)
+    if [ ! -d "$backup_path" ]; then
+        log_error "Backup directory not found: $backup_path"
+        return 1
+    fi
+
+    log_info "Restoring from backup: $backup_path"
+
+    # Remove current (failed) installation
+    if [ -d "$INSTALL_DIR" ]; then
+        rm -rf "$INSTALL_DIR" 2>/dev/null || true
+    fi
+
+    # Restore from backup
+    if ! cp -r "$backup_path" "$INSTALL_DIR" 2>/dev/null; then
+        log_error "Failed to restore from backup"
+        return 1
+    fi
+
+    # Restore configuration if backed up
+    config_backup="${backup_path}/etc-starlink-config"
+    if [ -d "$config_backup" ]; then
+        if ! cp -r "$config_backup" "/etc/starlink-config" 2>/dev/null; then
+            log_warning "Failed to restore configuration (non-critical)"
+        else
+            log_debug "Configuration restored from backup"
+        fi
+    fi
+
+    log_success "System restored from backup successfully"
+    return 0
+}
+
+# Download file with retry logic
+download_file() {
+    url="$1"
+    output_file="$2"
+    max_attempts=3
+    attempt=1
+
+    log_debug "Downloading: $url -> $output_file"
+
+    while [ $attempt -le $max_attempts ]; do
+        log_debug "Download attempt $attempt of $max_attempts"
+
+        if curl -fsSL "$url" -o "$output_file" 2>/dev/null; then
+            log_debug "Download successful"
+            return 0
+        else
+            log_warning "Download attempt $attempt failed"
+            attempt=$((attempt + 1))
+            if [ $attempt -le $max_attempts ]; then
+                sleep 2
+            fi
+        fi
+    done
+
+    log_error "All download attempts failed for: $url"
+    return 1
 }
 
 # Trap to ensure cleanup on exit

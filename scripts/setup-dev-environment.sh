@@ -52,6 +52,12 @@ log_step() {
     printf "${BLUE}[STEP]${NC} %s\n" "$1"
 }
 
+log_debug() {
+    if [ "$DEBUG" = "1" ]; then
+        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
+
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1

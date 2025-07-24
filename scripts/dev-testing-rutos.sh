@@ -247,7 +247,7 @@ self_update() {
 find_rutos_scripts() {
     # Create a temporary file to collect script paths
     temp_script_list="/tmp/rutos_scripts_$$"
-    true >"$temp_script_list"  # Create empty file
+    : >"$temp_script_list"
 
     # Try to read the installation directory from config
     INSTALL_DIR=""
@@ -438,9 +438,6 @@ test_script() {
         # Enhanced error analysis
         test_error=$(cat /tmp/test_output_$$ 2>/dev/null | head -5 || echo "Script execution failed")
 
-        # Capture additional debugging information
-        debug_info="Exit Code: $test_exit_code | Duration: ${test_duration}s | Timeout: ${timeout_seconds}s"
-
         # Analyze failure patterns
         failure_analysis=""
         if [ $test_exit_code -eq 124 ]; then
@@ -523,8 +520,8 @@ test_script_comprehensive() {
     comp_errors_file="/tmp/comp_errors_${script_name}_$$"
     test_modes_file="/tmp/test_modes_${script_name}_$$"
 
-    true >"$comp_results_file"  # Create empty results file
-    true >"$comp_errors_file"   # Create empty errors file
+    : >"$comp_results_file"
+    : >"$comp_errors_file"
 
     # Write test modes to file to avoid pipe subshell issues
     echo "$test_modes" >"$test_modes_file"
@@ -768,7 +765,7 @@ test_script_basic_checks() {
     fi
 
     if grep -qE '^[[:space:]]*echo[[:space:]]+-e[[:space:]]' "$script_path" 2>/dev/null; then
-        compat_issues="${compat_issues}'echo -e' (use printf instead); "
+        compat_issues="${compat_issues}'echo with -e flag' (use printf instead); "
     fi
 
     if grep -q '^[[:space:]]*source[[:space:]]' "$script_path" 2>/dev/null; then
@@ -840,7 +837,7 @@ $(if [ -n "$ERROR_DETAILS" ]; then
 4. Ensure all solutions are POSIX sh compatible
 5. For scripts missing dry-run support, implement the recommended pattern
 6. Check for common RUTOS pitfalls:
-   - bash-specific syntax ([[]], local, echo -e)
+   - bash-specific syntax ([[]], local, echo with -e flag)
    - Missing dependencies or commands
    - Incorrect file paths or permissions
    - Shell compatibility issues
@@ -957,7 +954,7 @@ main() {
         temp_results="/tmp/test_results_$$"
 
         printf "%s\n" "$script_list" >"$temp_script_file"
-        true >"$temp_results"  # Create empty temp results file
+        : >"$temp_results"
 
         # Process each script
         while IFS= read -r script; do
