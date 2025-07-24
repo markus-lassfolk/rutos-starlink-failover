@@ -1,5 +1,7 @@
 # RUTOS Naming Convention Implementation Summary
 
+<!-- Version: 2.6.0 -->
+
 ## Overview
 
 Successfully implemented the proper RUTOS naming convention across the entire project, ensuring all RUTOS-specific
