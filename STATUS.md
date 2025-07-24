@@ -1,5 +1,7 @@
 # 🤖 Autonomous System Status
 
+<!-- Version: 2.6.0 -->
+
 **Health:** 🟢 GOOD (100/100)
 
 - **Open PRs:** 0
@@ -12,4 +14,4 @@
 - ✅ Documentation Validation
 - ✅ Intelligent Merge Engine
 
-_Last updated: Wed Jul 23 18:08:31 UTC 2025_
+**Last updated:** Wed Jul 23 18:08:31 UTC 2025
