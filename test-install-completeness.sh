@@ -1,6 +1,6 @@
 #!/bin/sh
 # Test script to verify all RUTOS scripts are included in install-rutos.sh
-# shellcheck disable=SC2034  # Colors may appear unused but are used in printf
+# shellcheck disable=SC2034,SC2317  # Colors may appear unused but are used in printf; Functions after early exit OK
 
 set -e
 

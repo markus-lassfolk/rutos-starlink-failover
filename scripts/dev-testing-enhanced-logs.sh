@@ -1,5 +1,5 @@
 #!/bin/sh
-# shellcheck disable=SC2059  # RUTOS requires Method 5 printf format (embedded variables)
+# shellcheck disable=SC2059,SC2317  # RUTOS requires Method 5 printf format (embedded variables); Functions after early exit OK
 # Script: dev-testing-enhanced-logs.sh
 # Version: 2.5.1
 # Description: RUTOS script testing with individual log file support for debugging crontab issues

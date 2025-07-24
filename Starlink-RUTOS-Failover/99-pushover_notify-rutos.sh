@@ -1,5 +1,6 @@
 #!/bin/sh
 # shellcheck shell=sh
+# shellcheck disable=SC2034
 
 # ==============================================================================
 # Enhanced Pushover Notifier for Starlink Monitoring System

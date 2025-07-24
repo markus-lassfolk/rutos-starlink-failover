@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2317
 
 # Final verification test that matches the exact deployment script logic
 

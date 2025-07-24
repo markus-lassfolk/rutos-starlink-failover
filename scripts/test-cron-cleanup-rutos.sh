@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2317
 # Test script for cron cleanup functionality
 # Version: 2.6.0
 # Description: Tests the intelligent cron management in install-rutos.sh
