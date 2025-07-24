@@ -1,5 +1,5 @@
-# shellcheck disable=SC1091,SC2034,SC2154
 #!/bin/sh
+# shellcheck disable=SC1091,SC2034,SC2154
 
 # ==============================================================================
 # STARLINK MONITOR BASIC CONFIGURATION

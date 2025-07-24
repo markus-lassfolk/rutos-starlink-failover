@@ -26,43 +26,43 @@ jobs:
       issues-found: ${{ steps.analysis.outputs.issues-found }}
       auto-fixable: ${{ steps.analysis.outputs.auto-fixable }}
       needs-review: ${{ steps.analysis.outputs.needs-review }}
-      
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.COPILOT_TOKEN }}
           fetch-depth: 0
-          
+
       - name: Setup Quality Analysis Environment
         run: |
           # Install comprehensive tooling
           sudo apt-get update
           sudo apt-get install -y shellcheck shfmt jq yamllint gh curl
-          
+
           # Install additional quality tools
           pip install --user bandit pylint black mypy
           npm install -g markdownlint-cli @prettier/plugin-ruby
-          
+
           # Install specialized RUTOS validation
           chmod +x scripts/pre-commit-validation.sh
-          
+
       - name: Get Changed Files with Intelligence
         id: changed-files
         env:
           GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
         run: |
           echo "🔍 Intelligent file change detection..."
-          
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PR_NUMBER="${{ github.event.number }}"
           else
             PR_NUMBER="${{ inputs.pr_number }}"
           fi
-          
+
           if [ -n "$PR_NUMBER" ]; then
             echo "Analyzing PR #$PR_NUMBER"
-            
+
             # Get comprehensive file changes
             git fetch origin main:main
             ALL_CHANGED=$(git diff --name-only main..HEAD)
@@ -71,35 +71,35 @@ jobs:
             CONFIG_FILES=$(echo "$ALL_CHANGED" | grep -E '\.(yml|yaml|json|toml|cfg|ini)$' || echo "")
             PYTHON_FILES=$(echo "$ALL_CHANGED" | grep -E '\.py$' || echo "")
             PS1_FILES=$(echo "$ALL_CHANGED" | grep -E '\.ps1$' || echo "")
-            
+
             echo "all-files<<EOF" >> $GITHUB_OUTPUT
             echo "$ALL_CHANGED" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            
+
             echo "shell-files<<EOF" >> $GITHUB_OUTPUT
             echo "$SHELL_FILES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            
+
             echo "markdown-files<<EOF" >> $GITHUB_OUTPUT
             echo "$MD_FILES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            
+
             echo "config-files<<EOF" >> $GITHUB_OUTPUT
             echo "$CONFIG_FILES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            
+
             echo "python-files<<EOF" >> $GITHUB_OUTPUT
             echo "$PYTHON_FILES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            
+
             echo "ps1-files<<EOF" >> $GITHUB_OUTPUT
             echo "$PS1_FILES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            
+
             # File type analysis
             TOTAL_FILES=$(echo "$ALL_CHANGED" | wc -l)
             echo "file-count=$TOTAL_FILES" >> $GITHUB_OUTPUT
-            
+
             echo "📊 Change Analysis:"
             echo "   Total files: $TOTAL_FILES"
             echo "   Shell scripts: $(echo "$SHELL_FILES" | grep -c . || echo 0)"
@@ -108,21 +108,21 @@ jobs:
             echo "   Python files: $(echo "$PYTHON_FILES" | grep -c . || echo 0)"
             echo "   PowerShell files: $(echo "$PS1_FILES" | grep -c . || echo 0)"
           fi
-          
+
       - name: Advanced Quality Analysis
         id: analysis
         env:
           GH_TOKEN: ${{ secrets.COPILOT_TOKEN }}
         run: |
           echo "🧠 Running Advanced Quality Analysis..."
-          
+
           QUALITY_SCORE=100
           TOTAL_ISSUES=0
           AUTO_FIXABLE_ISSUES=0
           CRITICAL_ISSUES=0
           MAJOR_ISSUES=0
           MINOR_ISSUES=0
-          
+
           # Create comprehensive quality report
           REPORT_FILE="quality-report.md"
           echo "# 🎯 Advanced Quality Analysis Report" > $REPORT_FILE
@@ -130,7 +130,7 @@ jobs:
           echo "**Generated:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $REPORT_FILE
           echo "**PR:** #${{ github.event.number || inputs.pr_number }}" >> $REPORT_FILE
           echo "" >> $REPORT_FILE
-          
+
           # 1. RUTOS Compatibility Analysis
           echo "## 🔧 RUTOS Compatibility Analysis" >> $REPORT_FILE
           if [ -n "${{ steps.changed-files.outputs.shell-files }}" ]; then
@@ -138,7 +138,7 @@ jobs:
             echo "${{ steps.changed-files.outputs.shell-files }}" | while IFS= read -r file; do
               if [ -n "$file" ] && [ -f "$file" ]; then
                 echo "#### Analyzing: \`$file\`" >> $REPORT_FILE
-                
+
                 # Run comprehensive RUTOS validation
                 if ./scripts/pre-commit-validation.sh "$file" > "validation_$$.log" 2>&1; then
                   echo "✅ RUTOS compatible" >> $REPORT_FILE
@@ -147,17 +147,17 @@ jobs:
                   echo "\`\`\`" >> $REPORT_FILE
                   head -20 "validation_$$.log" >> $REPORT_FILE
                   echo "\`\`\`" >> $REPORT_FILE
-                  
+
                   # Parse issues for scoring
                   CRITICAL_COUNT=$(grep -c "^\[CRITICAL\]" "validation_$$.log" || echo 0)
                   MAJOR_COUNT=$(grep -c "^\[MAJOR\]" "validation_$$.log" || echo 0)
                   MINOR_COUNT=$(grep -c "^\[MINOR\]" "validation_$$.log" || echo 0)
-                  
+
                   TOTAL_ISSUES=$((TOTAL_ISSUES + CRITICAL_COUNT + MAJOR_COUNT + MINOR_COUNT))
                   CRITICAL_ISSUES=$((CRITICAL_ISSUES + CRITICAL_COUNT))
                   MAJOR_ISSUES=$((MAJOR_ISSUES + MAJOR_COUNT))
                   MINOR_ISSUES=$((MINOR_ISSUES + MINOR_COUNT))
-                  
+
                   # Quality score impact
                   QUALITY_SCORE=$((QUALITY_SCORE - CRITICAL_COUNT * 20 - MAJOR_COUNT * 10 - MINOR_COUNT * 2))
                 fi
@@ -165,7 +165,7 @@ jobs:
               fi
             done
           fi
-          
+
           # 2. Documentation Quality Analysis
           echo "" >> $REPORT_FILE
           echo "## 📚 Documentation Quality Analysis" >> $REPORT_FILE
@@ -173,7 +173,7 @@ jobs:
             echo "${{ steps.changed-files.outputs.markdown-files }}" | while IFS= read -r file; do
               if [ -n "$file" ] && [ -f "$file" ]; then
                 echo "### \`$file\`" >> $REPORT_FILE
-                
+
                 # Check markdown syntax
                 if command -v markdownlint >/dev/null 2>&1; then
                   if markdownlint "$file" > "md_lint_$$.log" 2>&1; then
@@ -188,11 +188,11 @@ jobs:
                   fi
                   rm -f "md_lint_$$.log"
                 fi
-                
+
                 # Check for broken file references
                 echo "#### File Reference Validation" >> $REPORT_FILE
                 BROKEN_REFS=0
-                
+
                 # Extract file references from markdown
                 grep -o '\[\[.*\]\]' "$file" | sed 's/\[\[\(.*\)\]\]/\1/' | while IFS= read -r ref; do
                   if [ -n "$ref" ] && [ ! -f "$ref" ] && [ ! -d "$ref" ]; then
@@ -200,14 +200,14 @@ jobs:
                     BROKEN_REFS=$((BROKEN_REFS + 1))
                   fi
                 done
-                
+
                 grep -oE '\]\([^)]+\)' "$file" | sed 's/](\(.*\))/\1/' | while IFS= read -r ref; do
                   if [[ "$ref" != http* ]] && [ -n "$ref" ] && [ ! -f "$ref" ] && [ ! -d "$ref" ]; then
                     echo "❌ Broken file link: \`$ref\`" >> $REPORT_FILE
                     BROKEN_REFS=$((BROKEN_REFS + 1))
                   fi
                 done
-                
+
                 if [ $BROKEN_REFS -eq 0 ]; then
                   echo "✅ All file references valid" >> $REPORT_FILE
                 else
@@ -217,7 +217,7 @@ jobs:
               fi
             done
           fi
-          
+
           # 3. Security Analysis
           echo "" >> $REPORT_FILE
           echo "## 🔒 Security Analysis" >> $REPORT_FILE
@@ -232,7 +232,7 @@ jobs:
             AUTO_FIXABLE_ISSUES=$((AUTO_FIXABLE_ISSUES + 1))
           fi
           rm -f "security_$$.log"
-          
+
           # 4. Configuration Validation
           echo "" >> $REPORT_FILE
           echo "## ⚙️ Configuration Analysis" >> $REPORT_FILE
@@ -264,33 +264,33 @@ jobs:
                 esac
               fi
             done
-            
+
             if [ "$CONFIG_VALID" = false ]; then
               CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1))
               QUALITY_SCORE=$((QUALITY_SCORE - 15))
             fi
           fi
-          
+
           # Calculate final quality metrics
           TOTAL_ISSUES=$((CRITICAL_ISSUES + MAJOR_ISSUES + MINOR_ISSUES))
-          
+
           # Quality score boundaries
           if [ $QUALITY_SCORE -lt 0 ]; then
             QUALITY_SCORE=0
           fi
-          
+
           # Determine review requirements
           NEEDS_REVIEW="false"
           if [ $CRITICAL_ISSUES -gt 0 ] || [ $QUALITY_SCORE -lt 70 ]; then
             NEEDS_REVIEW="true"
           fi
-          
+
           # Auto-fix determination
           AUTO_FIX_AVAILABLE="false"
           if [ $AUTO_FIXABLE_ISSUES -gt 0 ] && [ $CRITICAL_ISSUES -eq 0 ]; then
             AUTO_FIX_AVAILABLE="true"
           fi
-          
+
           # Add summary to report
           echo "" >> $REPORT_FILE
           echo "## 📊 Quality Summary" >> $REPORT_FILE
@@ -305,7 +305,7 @@ jobs:
           echo "| **Auto-fixable** | $AUTO_FIXABLE_ISSUES |" >> $REPORT_FILE
           echo "| **Needs Review** | $NEEDS_REVIEW |" >> $REPORT_FILE
           echo "" >> $REPORT_FILE
-          
+
           # Quality gate determination
           if [ $QUALITY_SCORE -ge 90 ]; then
             echo "🎉 **EXCELLENT** - Ready for autonomous merge" >> $REPORT_FILE
@@ -316,26 +316,26 @@ jobs:
           else
             echo "❌ **NEEDS WORK** - Significant issues require attention" >> $REPORT_FILE
           fi
-          
+
           # Set outputs
           echo "quality-score=$QUALITY_SCORE" >> $GITHUB_OUTPUT
           echo "issues-found=$TOTAL_ISSUES" >> $GITHUB_OUTPUT
           echo "auto-fixable=$AUTO_FIX_AVAILABLE" >> $GITHUB_OUTPUT
           echo "needs-review=$NEEDS_REVIEW" >> $GITHUB_OUTPUT
-          
+
           echo "🎯 Quality Analysis Complete"
           echo "   Score: $QUALITY_SCORE/100"
           echo "   Issues: $TOTAL_ISSUES"
           echo "   Auto-fixable: $AUTO_FIX_AVAILABLE"
           echo "   Needs review: $NEEDS_REVIEW"
-          
+
       - name: Upload Quality Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: quality-analysis-report
           path: quality-report.md
-          
+
       - name: Comment Quality Report on PR
         if: github.event_name == 'pull_request'
         env:
@@ -344,11 +344,11 @@ jobs:
           if [ -f quality-report.md ]; then
             # Create or update PR comment with quality report
             COMMENT_BODY=$(cat quality-report.md)
-            
+
             # Check if we already have a quality report comment
             EXISTING_COMMENT=$(gh api repos/${{ github.repository }}/issues/${{ github.event.number }}/comments \
               --jq '.[] | select(.body | contains("Advanced Quality Analysis Report")) | .id' | head -1)
-            
+
             if [ -n "$EXISTING_COMMENT" ]; then
               echo "Updating existing quality report comment..."
               gh api repos/${{ github.repository }}/issues/comments/$EXISTING_COMMENT \

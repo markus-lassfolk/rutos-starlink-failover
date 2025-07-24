@@ -34,13 +34,16 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
 else
     # Colors disabled
     # shellcheck disable=SC2034  # Color variables may not all be used
-    # shellcheck disable=SC2034  # Color variables may not all be used
-    # shellcheck disable=SC2034
     RED=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     YELLOW=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     BLUE=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     CYAN=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     NC=""
 fi
 

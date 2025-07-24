@@ -35,7 +35,7 @@ on:
       action:
         description: 'Action to perform (validate-first, review-approved, conflict-detected)'
         required: false
-        type: string 
+        type: string
 
 jobs:
   autonomous-manager:
@@ -53,7 +53,7 @@ jobs:
         run: set -x
 
       #########################################################
-      # 0. VALIDATION-FIRST WORKFLOW ORCHESTRATION 
+      # 0. VALIDATION-FIRST WORKFLOW ORCHESTRATION
       #########################################################
       - name: Validation-First Workflow Orchestration
         id: orchestration
@@ -65,60 +65,60 @@ jobs:
           echo "Event: ${{ github.event_name }}"
           echo "Action: ${{ github.event.action }}"
           echo "Input Action: ${{ inputs.action }}"
-          
+
           # Set default action
           WORKFLOW_ACTION="maintenance"
           PR_NUMBER=""
           VALIDATION_STATUS=""
-          
+
           # Determine workflow strategy based on trigger
           if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.action }}" = "review_requested" ]; then
             echo "🤖 COPILOT REVIEW REQUESTED - Starting validation-first pipeline"
-            
+
             # Get PR details
             PR_NUMBER="${{ github.event.number }}"
             PR_AUTHOR=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.user.login')
             PR_TITLE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.title')
-            
+
             echo "📋 PR #$PR_NUMBER: $PR_TITLE (by $PR_AUTHOR)"
-            
+
             # Check if this is a Copilot PR
             if echo "$PR_AUTHOR" | grep -q "copilot\|github-copilot\|app/github-copilot\|app/copilot-swe-agent\|swe-agent" || \
                echo "$PR_TITLE" | grep -qi "copilot\|Fix\|automated\|compatibility"; then
-              
+
               echo "✅ Confirmed: This is a Copilot PR"
               echo "🔄 STEP 1: Triggering RUTOS Pre-Review Validation..."
-              
+
               # Trigger RUTOS validation workflow
               gh workflow run "RUTOS Pre-Review Validation" \
                 --repo ${{ github.repository }} \
                 --field pr_number="$PR_NUMBER" || echo "⚠️ Failed to trigger validation"
-              
+
               echo "⏳ Validation triggered - autonomous system will wait for results"
               echo "💡 Next: Validation results will trigger continuation of this workflow"
               WORKFLOW_ACTION="validation-triggered"
-              
+
             else
               echo "ℹ️  Not a Copilot PR - standard review process applies"
               WORKFLOW_ACTION="maintenance"
             fi
-            
+
           elif [ "${{ github.event_name }}" = "workflow_run" ] && [ "${{ github.event.workflow_run.name }}" = "RUTOS Pre-Review Validation" ]; then
             echo "📊 RUTOS VALIDATION COMPLETED - Processing results"
-            
+
             # Get validation results
             VALIDATION_CONCLUSION="${{ github.event.workflow_run.conclusion }}"
             echo "🔍 Validation result: $VALIDATION_CONCLUSION"
-            
+
             # Find the PR number from the validation workflow
             PR_NUMBER=$(gh run view ${{ github.event.workflow_run.id }} --repo ${{ github.repository }} --json headBranch --jq '.headBranch' | sed 's/.*pull\/\([0-9]*\)\/.*/\1/')
-            
+
             if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
               echo "⚠️ Could not determine PR number from validation workflow"
               WORKFLOW_ACTION="maintenance"
             else
               echo "🎯 Processing validation results for PR #$PR_NUMBER"
-              
+
               case "$VALIDATION_CONCLUSION" in
                 "success")
                   echo "✅ VALIDATION PASSED - Proceeding with autonomous review and merge"
@@ -139,24 +139,24 @@ jobs:
             fi
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.action }}" = "validation-completed" ]; then
             echo "🎯 WORKFLOW_DISPATCH: VALIDATION COMPLETED - Processing results"
-            
+
             # Get validation results from inputs
             VALIDATION_STATUS="${{ inputs.validation_status }}"
             PR_NUMBER="${{ inputs.pr_number }}"
             ISSUES_FOUND="${{ inputs.issues_found }}"
             CRITICAL_ISSUES="${{ inputs.critical_issues }}"
-            
+
             echo "📊 Validation Status: $VALIDATION_STATUS"
             echo "📋 PR Number: $PR_NUMBER"
             echo "🔍 Issues Found: $ISSUES_FOUND"
             echo "⚠️ Critical Issues: $CRITICAL_ISSUES"
-            
+
             if [ -z "$PR_NUMBER" ]; then
               echo "⚠️ No PR number provided in workflow_dispatch"
               WORKFLOW_ACTION="maintenance"
             else
               echo "🎯 Processing validation results for PR #$PR_NUMBER"
-              
+
               case "$VALIDATION_STATUS" in
                 "success")
                   if [ "$CRITICAL_ISSUES" = "0" ]; then
@@ -181,12 +181,12 @@ jobs:
             echo "ℹ️  Standard autonomous workflow - checking for maintenance tasks"
             WORKFLOW_ACTION="maintenance"
           fi
-          
+
           # Output variables for subsequent steps
           echo "WORKFLOW_ACTION=$WORKFLOW_ACTION" >> $GITHUB_OUTPUT
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
           echo "VALIDATION_STATUS=$VALIDATION_STATUS" >> $GITHUB_OUTPUT
-          
+
           echo "🎯 Workflow Action: $WORKFLOW_ACTION"
           echo "📋 PR Number: $PR_NUMBER"
           echo "📊 Validation Status: $VALIDATION_STATUS"
@@ -200,54 +200,54 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "❌ VALIDATION FAILED - Requesting fixes from Copilot"
-          
+
           PR_NUMBER="${{ steps.orchestration.outputs.PR_NUMBER }}"
-          
+
           # Get validation details
           echo "🔍 Getting validation failure details..."
-          
+
           # Add blocking label
           gh pr edit $PR_NUMBER --add-label "validation-failed,blocked-critical-issues" --repo ${{ github.repository }}
-          
+
           # Get the latest validation run details
           VALIDATION_RUN_ID="${{ github.event.workflow_run.id }}"
           VALIDATION_LOGS=$(gh run view $VALIDATION_RUN_ID --repo ${{ github.repository }} --log 2>/dev/null || echo "Could not retrieve detailed logs")
-          
+
           # Create comprehensive fix request
           cat > fix_request.md << 'EOF'
           🤖 **Autonomous Validation Failed - Fixes Required**
-          
+
           ## ❌ RUTOS Validation Issues Detected
-          
+
           The autonomous RUTOS validation system has detected critical compatibility issues that must be fixed before this PR can be approved and merged.
-          
+
           ### 🎯 **Required Actions:**
           1. **Fix all RUTOS compatibility issues** identified by the validation system
           2. **Ensure POSIX sh compliance** (no bash-specific syntax)
           3. **Test changes** work correctly on RUTX50 hardware environment
           4. **Push updated code** to trigger re-validation
-          
+
           ### 🔧 **Common RUTOS Issues to Check:**
           - ❌ **Arrays or bash syntax** - Use POSIX alternatives
           - ❌ **`local` variables** - Use regular variables in busybox
-          - ❌ **`[[]]` conditions** - Use `[]` instead  
+          - ❌ **`[[]]` conditions** - Use `[]` instead
           - ❌ **`echo -e`** - Use `printf` instead
           - ❌ **Function syntax** - Use `function_name() {` format
-          
+
           ### 🔄 **Next Steps:**
           1. The autonomous system will **re-validate** after you push fixes
           2. If validation **passes**, the system will **auto-approve and merge**
           3. If validation **fails again**, this process will repeat
-          
+
           ### 📊 **Validation Details:**
           See the [RUTOS Pre-Review Validation workflow](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}) for detailed error information.
-          
+
           **🤖 This is an automated message from the Autonomous RUTOS Compatibility System**
           EOF
-          
+
           # Send fix request to Copilot
           gh pr comment $PR_NUMBER --repo ${{ github.repository }} --body-file fix_request.md
-          
+
           echo "✅ Fix request sent to Copilot for PR #$PR_NUMBER"
           echo "⏳ Autonomous system will wait for fixes and re-validate automatically"
 
@@ -260,30 +260,30 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "✅ VALIDATION PASSED - Proceeding with autonomous review and merge"
-          
+
           PR_NUMBER="${{ steps.orchestration.outputs.PR_NUMBER }}"
-          
+
           # Remove any blocking labels
           gh pr edit $PR_NUMBER --remove-label "validation-failed,blocked-critical-issues" --repo ${{ github.repository }} 2>/dev/null || echo "No blocking labels to remove"
-          
+
           # Add success labels
           gh pr edit $PR_NUMBER --add-label "validation-passed,ready-for-merge" --repo ${{ github.repository }}
-          
+
           # Check PR readiness
           MERGEABLE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.mergeable')
           MERGE_STATE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.mergeable_state')
-          
+
           echo "📊 PR Status: mergeable=$MERGEABLE, state=$MERGE_STATE"
-          
+
           if [ "$MERGEABLE" = "false" ]; then
             echo "⚠️ Merge conflicts detected - requesting resolution"
             gh pr comment $PR_NUMBER --repo ${{ github.repository }} --body "⚠️ **Merge conflicts detected**: Please resolve merge conflicts and push the updated code. The autonomous system will re-validate and proceed with merge once conflicts are resolved."
-            
+
             # Label for conflict resolution
             gh pr edit $PR_NUMBER --add-label "merge-conflicts" --repo ${{ github.repository }}
             exit 0
           fi
-          
+
           # Auto-approve the PR
           echo "🤖 Auto-approving validated Copilot PR #$PR_NUMBER"
           gh pr review $PR_NUMBER \
@@ -293,19 +293,19 @@ jobs:
 
           ✅ **Validation Results:**
           - RUTOS compatibility: ✅ PASSED
-          - Shell script compliance: ✅ VERIFIED  
+          - Shell script compliance: ✅ VERIFIED
           - Critical issues: ✅ NONE FOUND
           - Merge conflicts: ✅ RESOLVED
-          
+
           🚀 **Auto-merging** this PR as all validation gates have passed.
-          
+
           **Validation Report**: See [RUTOS Pre-Review Validation](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}) for details."
-          
+
           # Enable auto-merge
           echo "🔄 Enabling auto-merge for PR #$PR_NUMBER"
           if gh pr merge $PR_NUMBER --repo ${{ github.repository }} --auto --merge --delete-branch; then
             echo "✅ Auto-merge enabled successfully"
-            
+
             # Success notification
             gh pr comment $PR_NUMBER --repo ${{ github.repository }} --body "🎉 **Autonomous Merge Successful**: This Copilot PR has been automatically merged after passing all RUTOS validation checks. The validation-first autonomous workflow ensures all code maintains RUTX50 compatibility before integration."
           else
@@ -403,7 +403,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "🔍 Checking ALL open Copilot PRs for conflicts..."
-          
+
           # Get all open Copilot PRs
           COPILOT_PRS=$(gh api repos/${{ github.repository }}/pulls --jq '.[] | select(.state=="open") | select((.user.login | test("copilot|github-copilot|app/github-copilot|app/copilot-swe-agent|swe-agent")) or (.title | test("copilot|Fix|automated|compatibility"; "i")) or (.head.ref | test("copilot|fix-|automated"; "i"))) | .number')
 
@@ -417,22 +417,22 @@ jobs:
           # Check each PR for conflicts
           for PR_NUMBER in $COPILOT_PRS; do
             echo "🔍 Checking PR #$PR_NUMBER..."
-            
+
             MERGEABLE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.mergeable')
             MERGE_STATE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.mergeable_state')
-            
+
             echo "   Status: mergeable=$MERGEABLE, state=$MERGE_STATE"
 
             if [ "$MERGEABLE" = "false" ] || [ "$MERGE_STATE" = "dirty" ]; then
               echo "⚠️  Conflicts detected in PR #$PR_NUMBER!"
-              
+
               # Check for recent conflict resolution requests
               RECENT_REQUESTS=$(gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments --jq '.[] | select(.created_at > (now - 3600 | todate)) | select(.body | test("resolve merge conflicts"; "i")) | .id')
-              
+
               if [ -z "$RECENT_REQUESTS" ]; then
                 echo "🤖 Requesting Copilot conflict resolution..."
                 gh pr comment $PR_NUMBER --repo ${{ github.repository }} --body "@copilot resolve merge conflicts and push the fixed version. This PR has conflicts detected by autonomous monitoring. Please resolve all conflicts while maintaining RUTOS compatibility and existing functionality."
-                
+
                 if [ $? -eq 0 ]; then
                   echo "✅ Conflict resolution requested for PR #$PR_NUMBER"
                 else
@@ -464,7 +464,7 @@ jobs:
           echo "Validation Status: ${{ steps.orchestration.outputs.VALIDATION_STATUS }}"
           echo "Event: ${{ github.event_name }}"
           echo "Action: ${{ github.event.action }}"
-          
+
           case "${{ steps.orchestration.outputs.WORKFLOW_ACTION }}" in
             "request-fixes")
               echo "✅ Requested fixes from Copilot for validation failures"
@@ -486,7 +486,7 @@ jobs:
               echo "ℹ️  No specific action taken"
               ;;
           esac
-          
+
           echo ""
           echo "🤖 Autonomous RUTOS Compatibility System - Ready for next iteration"
 
@@ -499,7 +499,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "🤖 Setting up Copilot self-review for all Copilot PRs..."
-          
+
           # Get all open Copilot PRs that need self-review setup
           COPILOT_PRS=$(gh api repos/${{ github.repository }}/pulls --jq '.[] | select(.state=="open") | select((.user.login | test("copilot|github-copilot|app/github-copilot|app/copilot-swe-agent|swe-agent")) or (.title | test("copilot|Fix|automated|compatibility"; "i")) or (.head.ref | test("copilot|fix-|automated"; "i"))) | .number')
 
@@ -510,10 +510,10 @@ jobs:
 
             for PR_NUMBER in $COPILOT_PRS; do
               echo "🔧 Setting up self-review for PR #$PR_NUMBER..."
-              
+
               # Get current reviewers
               CURRENT_REVIEWERS=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers --jq '.users[].login' 2>/dev/null || echo "")
-              
+
               # Check if Copilot is already a reviewer
               if echo "$CURRENT_REVIEWERS" | grep -q "github-copilot\|copilot"; then
                 echo "✅ Copilot already set as reviewer for PR #$PR_NUMBER"
@@ -523,22 +523,22 @@ jobs:
                 gh api --method POST repos/${{ github.repository }}/pulls/$PR_NUMBER/requested_reviewers \
                   --field reviewers='["github-copilot"]' 2>/dev/null || echo "⚠️ Could not add Copilot as reviewer (API limitation)"
               fi
-              
+
               # Check if PR is ready for auto-approval (no conflicts, checks passing)
               MERGEABLE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.mergeable')
               MERGE_STATE=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.mergeable_state')
-              
+
               if [ "$MERGEABLE" = "true" ] && [ "$MERGE_STATE" = "clean" ]; then
                 echo "✅ PR #$PR_NUMBER is ready for auto-approval"
-                
+
                 # Auto-approve the PR
                 echo "🤖 Auto-approving Copilot PR #$PR_NUMBER..."
                 gh pr review $PR_NUMBER --repo ${{ github.repository }} --approve --body "🤖 Autonomous approval: Copilot PR passed all checks and has no conflicts. Auto-approved for RUTOS compatibility fixes." || echo "⚠️ Failed to approve PR #$PR_NUMBER"
-                
+
                 # Enable auto-merge
                 echo "🔄 Enabling auto-merge for PR #$PR_NUMBER..."
                 gh pr merge $PR_NUMBER --repo ${{ github.repository }} --auto --merge || echo "⚠️ Failed to enable auto-merge for PR #$PR_NUMBER"
-                
+
               else
                 echo "⏳ PR #$PR_NUMBER not ready: mergeable=$MERGEABLE, state=$MERGE_STATE"
               fi
@@ -554,72 +554,72 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "🔍 Checking if PR #${{ github.event.number }} is ready for validation-aware approval..."
-          
+
           # Get PR details
           PR_AUTHOR=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.user.login')
           PR_TITLE=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.title')
           PR_BRANCH=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.head.ref')
-          
+
           echo "📋 PR Details: Author=$PR_AUTHOR, Title=$PR_TITLE, Branch=$PR_BRANCH"
-          
+
           # Check if this is a Copilot PR
           if echo "$PR_AUTHOR" | grep -q "copilot\|github-copilot\|app/github-copilot\|app/copilot-swe-agent\|swe-agent" || \
              echo "$PR_TITLE" | grep -qi "copilot\|Fix\|automated\|compatibility" || \
              echo "$PR_BRANCH" | grep -qi "copilot\|fix-\|automated"; then
-            
+
             echo "🤖 This is a Copilot PR - checking validation status before approval"
-            
+
             # Check for blocking labels first
             BLOCKING_LABELS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.labels[] | select(.name | test("blocked-critical-issues|validation-failed|critical-")) | .name')
-            
+
             if [ -n "$BLOCKING_LABELS" ]; then
               echo "🚫 PR has blocking labels: $BLOCKING_LABELS"
               echo "   Waiting for issues to be resolved before auto-approval"
-              
+
               # Comment about waiting for fixes
               RECENT_BLOCK_COMMENTS=$(gh api repos/${{ github.repository }}/issues/${{ github.event.number }}/comments --jq '.[] | select(.created_at > (now - 1800 | todate)) | select(.body | test("auto-approval blocked"; "i")) | .id')
-              
+
               if [ -z "$RECENT_BLOCK_COMMENTS" ]; then
                 gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "🤖 **Auto-approval blocked**: This PR has critical RUTOS compatibility issues. The autonomous system will wait for fixes before proceeding with approval. Blocking labels: \`$(echo "$BLOCKING_LABELS" | tr '\n' ' ')\`"
               fi
-              
+
               exit 0
             fi
-            
+
             # Check RUTOS validation status via commit status
             echo "🔍 Checking RUTOS validation status..."
             COMMIT_SHA=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.head.sha')
             VALIDATION_STATUS=$(gh api repos/${{ github.repository }}/statuses/$COMMIT_SHA --jq '.[] | select(.context=="rutos-validation") | .state' | head -1)
-            
+
             echo "📊 RUTOS Validation Status: $VALIDATION_STATUS"
-            
+
             # Wait for validation if it's still pending
             if [ "$VALIDATION_STATUS" = "pending" ] || [ -z "$VALIDATION_STATUS" ]; then
               echo "⏳ RUTOS validation still pending - waiting..."
-              
+
               # Wait up to 5 minutes for validation to complete
               for i in {1..10}; do
                 sleep 30
                 VALIDATION_STATUS=$(gh api repos/${{ github.repository }}/statuses/$COMMIT_SHA --jq '.[] | select(.context=="rutos-validation") | .state' | head -1)
                 echo "   Check $i/10: Validation status = $VALIDATION_STATUS"
-                
+
                 if [ "$VALIDATION_STATUS" = "success" ] || [ "$VALIDATION_STATUS" = "failure" ]; then
                   break
                 fi
               done
             fi
-            
+
             # Proceed based on validation results
             case "$VALIDATION_STATUS" in
               "success")
                 echo "✅ RUTOS validation passed - proceeding with auto-approval"
-                
+
                 # Check general PR readiness
                 MERGEABLE=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.mergeable')
                 MERGE_STATE=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.mergeable_state')
-                
+
                 echo "📊 PR Status: mergeable=$MERGEABLE, state=$MERGE_STATE"
-                
+
                 if [ "$MERGEABLE" = "true" ] || [ "$MERGE_STATE" = "clean" ] || [ "$MERGE_STATE" = "unstable" ]; then
                   echo "🤖 Auto-approving validated Copilot PR #${{ github.event.number }}"
                   gh pr review ${{ github.event.number }} \
@@ -630,20 +630,20 @@ jobs:
                   echo "⏳ PR not ready for approval: mergeable=$MERGEABLE, state=$MERGE_STATE"
                 fi
                 ;;
-                
+
               "failure")
                 echo "❌ RUTOS validation failed - blocking auto-approval"
                 gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "❌ **Auto-approval blocked**: RUTOS validation failed. Please review validation results and fix critical issues before re-requesting review."
-                
+
                 # Add blocking label
                 gh pr edit ${{ github.event.number }} --add-label "validation-failed"
                 ;;
-                
+
               "")
                 echo "⚠️ No RUTOS validation status found - manual review required"
                 gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "⚠️ **Manual review required**: No RUTOS validation status found. Please ensure the RUTOS Pre-Review Validation workflow has run successfully."
                 ;;
-                
+
               *)
                 echo "⚠️ Unknown validation status: $VALIDATION_STATUS"
                 ;;
@@ -661,37 +661,37 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           echo "🔍 Checking if PR #${{ github.event.number }} should be auto-merged..."
-          
+
           # Get PR details
           PR_AUTHOR=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.user.login')
           PR_TITLE=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.title')
           PR_BRANCH=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.head.ref')
-          
+
           # Check if this is a Copilot PR
           if echo "$PR_AUTHOR" | grep -q "copilot\|github-copilot\|app/github-copilot\|app/copilot-swe-agent\|swe-agent" || \
              echo "$PR_TITLE" | grep -qi "copilot\|Fix\|automated\|compatibility" || \
              echo "$PR_BRANCH" | grep -qi "copilot\|fix-\|automated"; then
-            
+
             echo "🤖 This is a Copilot PR - checking validation status before auto-merge"
-            
+
             # Check for blocking labels
             BLOCKING_LABELS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.labels[] | select(.name | test("blocked-critical-issues|validation-failed|critical-")) | .name')
-            
+
             if [ -n "$BLOCKING_LABELS" ]; then
               echo "🚫 Auto-merge blocked by labels: $BLOCKING_LABELS"
               exit 0
             fi
-            
+
             # Check RUTOS validation status
             COMMIT_SHA=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.head.sha')
             VALIDATION_STATUS=$(gh api repos/${{ github.repository }}/statuses/$COMMIT_SHA --jq '.[] | select(.context=="rutos-validation") | .state' | head -1)
-            
+
             # Check if PR is approved and mergeable
             MERGEABLE=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.mergeable')
             MERGE_STATE=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.mergeable_state')
-            
+
             echo "📊 Merge Status: mergeable=$MERGEABLE, state=$MERGE_STATE, validation=$VALIDATION_STATUS"
-            
+
             # Only auto-merge if validation passed and PR is ready
             if [ "$VALIDATION_STATUS" = "success" ] && [ "$MERGEABLE" = "true" ] && [ "$MERGE_STATE" = "clean" ]; then
               echo "✅ All conditions met - enabling auto-merge for Copilot PR #${{ github.event.number }}"

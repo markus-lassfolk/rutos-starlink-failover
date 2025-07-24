@@ -27,12 +27,17 @@ else
     # Fallback to no colors if terminal doesn't support them
     # shellcheck disable=SC2034
     # shellcheck disable=SC2034  # Color variables may not all be used
+    # shellcheck disable=SC2034  # Color variables may not all be used
     RED=""
     # shellcheck disable=SC2034  # Color variables may not all be used
     GREEN=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     YELLOW=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     BLUE=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     CYAN=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
     NC=""
 fi
 
