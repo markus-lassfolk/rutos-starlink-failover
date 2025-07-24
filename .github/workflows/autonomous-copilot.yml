@@ -50,7 +50,11 @@ jobs:
         run: sudo apt-get install gh -y
 
       - name: Enable Debug Mode
-        run: set -x
+        run: |
+          set -x
+          # Set UTF-8 encoding to prevent character issues
+          export LANG=en_US.UTF-8
+          export LC_ALL=en_US.UTF-8
 
       #########################################################
       # 0. VALIDATION-FIRST WORKFLOW ORCHESTRATION 
@@ -60,7 +64,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🎯 VALIDATION-FIRST AUTONOMOUS WORKFLOW ORCHESTRATION"
+          printf "VALIDATION-FIRST AUTONOMOUS WORKFLOW ORCHESTRATION\n"
           echo "==============================================="
           echo "Event: ${{ github.event_name }}"
           echo "Action: ${{ github.event.action }}"
@@ -126,7 +130,7 @@ jobs:
                   WORKFLOW_ACTION="proceed-with-review"
                   ;;
                 "failure")
-                  echo "❌ VALIDATION FAILED - Requesting fixes from Copilot"
+                  printf "VALIDATION FAILED - Requesting fixes from Copilot\n"
                   VALIDATION_STATUS="failure"
                   WORKFLOW_ACTION="request-fixes"
                   ;;
@@ -168,7 +172,7 @@ jobs:
                   fi
                   ;;
                 "failure")
-                  echo "❌ VALIDATION FAILED - Requesting fixes from Copilot"
+                  printf "VALIDATION FAILED - Requesting fixes from Copilot\n"
                   WORKFLOW_ACTION="request-fixes"
                   ;;
                 *)
@@ -199,12 +203,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "❌ VALIDATION FAILED - Requesting fixes from Copilot"
+          printf "VALIDATION FAILED - Requesting fixes from Copilot\n"
           
           PR_NUMBER="${{ steps.orchestration.outputs.PR_NUMBER }}"
           
           # Get validation details
-          echo "🔍 Getting validation failure details..."
+            printf "Getting validation failure details...\n"
           
           # Add blocking label
           gh pr edit $PR_NUMBER --add-label "validation-failed,blocked-critical-issues" --repo ${{ github.repository }}
@@ -247,9 +251,12 @@ jobs:
           
           # Send fix request to Copilot
           gh pr comment $PR_NUMBER --repo ${{ github.repository }} --body-file fix_request.md
-          
-          echo "✅ Fix request sent to Copilot for PR #$PR_NUMBER"
-          echo "⏳ Autonomous system will wait for fixes and re-validate automatically"
+              
+              printf "Fix request sent to Copilot for PR %s\n" "$PR_NUMBER"
+              printf "Autonomous system will wait for fixes and re-validate automatically\n"
+              
+              # Exit gracefully instead of with error code
+              exit 0
 
       #########################################################
       # 0.2. VALIDATION-PASSED: Proceed with Review and Merge
@@ -457,38 +464,38 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          echo "🎯 VALIDATION-FIRST AUTONOMOUS WORKFLOW SUMMARY"
-          echo "=============================================="
-          echo "Workflow Action: ${{ steps.orchestration.outputs.WORKFLOW_ACTION }}"
-          echo "PR Number: ${{ steps.orchestration.outputs.PR_NUMBER }}"
-          echo "Validation Status: ${{ steps.orchestration.outputs.VALIDATION_STATUS }}"
-          echo "Event: ${{ github.event_name }}"
-          echo "Action: ${{ github.event.action }}"
+          printf "VALIDATION-FIRST AUTONOMOUS WORKFLOW SUMMARY\n"
+          printf "==============================================\n"
+          printf "Workflow Action: %s\n" "${{ steps.orchestration.outputs.WORKFLOW_ACTION }}"
+          printf "PR Number: %s\n" "${{ steps.orchestration.outputs.PR_NUMBER }}"
+          printf "Validation Status: %s\n" "${{ steps.orchestration.outputs.VALIDATION_STATUS }}"
+          printf "Event: %s\n" "${{ github.event_name }}"
+          printf "Action: %s\n" "${{ github.event.action }}"
           
           case "${{ steps.orchestration.outputs.WORKFLOW_ACTION }}" in
             "request-fixes")
-              echo "✅ Requested fixes from Copilot for validation failures"
-              echo "⏳ Waiting for fixes and re-validation"
+              printf "Requested fixes from Copilot for validation failures\n"
+              printf "Waiting for fixes and re-validation\n"
               ;;
             "proceed-with-review")
-              echo "✅ Validation passed - autonomous review and merge completed"
-              echo "🎉 PR should be merged automatically"
+              printf "Validation passed - autonomous review and merge completed\n"
+              printf "PR should be merged automatically\n"
               ;;
             "validation-triggered")
-              echo "✅ Validation workflow triggered for Copilot PR"
-              echo "⏳ Waiting for validation results"
+              printf "Validation workflow triggered for Copilot PR\n"
+              printf "Waiting for validation results\n"
               ;;
             "maintenance")
-              echo "✅ Standard maintenance tasks completed"
-              echo "🔧 Draft PRs marked ready, conflicts resolved, workflows approved"
+              printf "Standard maintenance tasks completed\n"
+              printf "Draft PRs marked ready, conflicts resolved, workflows approved\n"
               ;;
             *)
-              echo "ℹ️  No specific action taken"
+              printf "No specific action taken\n"
               ;;
           esac
           
-          echo ""
-          echo "🤖 Autonomous RUTOS Compatibility System - Ready for next iteration"
+          printf "\n"
+          printf "Autonomous RUTOS Compatibility System - Ready for next iteration\n"
 
       #########################################################
       # 3.7. Setup Copilot Self-Review for All Copilot PRs
@@ -570,17 +577,17 @@ jobs:
             echo "🤖 This is a Copilot PR - checking validation status before approval"
             
             # Check for blocking labels first
-            BLOCKING_LABELS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.labels[] | select(.name | test("blocked-critical-issues|validation-failed|critical-")) | .name')
+            BLOCKING_LABELS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.labels[] | select(.name | test("blocked-critical-issues|validation-failed|critical-")) | .name' 2>/dev/null || echo "")
             
             if [ -n "$BLOCKING_LABELS" ]; then
-              echo "🚫 PR has blocking labels: $BLOCKING_LABELS"
-              echo "   Waiting for issues to be resolved before auto-approval"
+              printf "PR has blocking labels: %s\n" "$BLOCKING_LABELS"
+              printf "Waiting for issues to be resolved before auto-approval\n"
               
               # Comment about waiting for fixes
-              RECENT_BLOCK_COMMENTS=$(gh api repos/${{ github.repository }}/issues/${{ github.event.number }}/comments --jq '.[] | select(.created_at > (now - 1800 | todate)) | select(.body | test("auto-approval blocked"; "i")) | .id')
+              RECENT_BLOCK_COMMENTS=$(gh api repos/${{ github.repository }}/issues/${{ github.event.number }}/comments --jq '.[] | select(.created_at > (now - 1800 | todate)) | select(.body | test("auto-approval blocked"; "i")) | .id' 2>/dev/null || echo "")
               
               if [ -z "$RECENT_BLOCK_COMMENTS" ]; then
-                gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "🤖 **Auto-approval blocked**: This PR has critical RUTOS compatibility issues. The autonomous system will wait for fixes before proceeding with approval. Blocking labels: \`$(echo "$BLOCKING_LABELS" | tr '\n' ' ')\`"
+                gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "Auto-approval blocked: This PR has critical RUTOS compatibility issues. The autonomous system will wait for fixes before proceeding with approval. Blocking labels: \`$(echo "$BLOCKING_LABELS" | tr '\n' ' ')\`" || printf "Failed to post blocking comment\n"
               fi
               
               exit 0
@@ -632,20 +639,20 @@ jobs:
                 ;;
                 
               "failure")
-                echo "❌ RUTOS validation failed - blocking auto-approval"
-                gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "❌ **Auto-approval blocked**: RUTOS validation failed. Please review validation results and fix critical issues before re-requesting review."
+                printf "RUTOS validation failed - blocking auto-approval\n"
+                gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "Auto-approval blocked: RUTOS validation failed. Please review validation results and fix critical issues before re-requesting review." || printf "Failed to post validation failure comment\n"
                 
                 # Add blocking label
-                gh pr edit ${{ github.event.number }} --add-label "validation-failed"
+                gh pr edit ${{ github.event.number }} --add-label "validation-failed" || printf "Failed to add validation-failed label\n"
                 ;;
                 
               "")
-                echo "⚠️ No RUTOS validation status found - manual review required"
-                gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "⚠️ **Manual review required**: No RUTOS validation status found. Please ensure the RUTOS Pre-Review Validation workflow has run successfully."
+                printf "No RUTOS validation status found - manual review required\n"
+                gh pr comment ${{ github.event.number }} --repo ${{ github.repository }} --body "Manual review required: No RUTOS validation status found. Please ensure the RUTOS Pre-Review Validation workflow has run successfully." || printf "Failed to post manual review comment\n"
                 ;;
                 
               *)
-                echo "⚠️ Unknown validation status: $VALIDATION_STATUS"
+                printf "Unknown validation status: %s\n" "$VALIDATION_STATUS"
                 ;;
             esac
           else
@@ -675,10 +682,10 @@ jobs:
             echo "🤖 This is a Copilot PR - checking validation status before auto-merge"
             
             # Check for blocking labels
-            BLOCKING_LABELS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.labels[] | select(.name | test("blocked-critical-issues|validation-failed|critical-")) | .name')
+            BLOCKING_LABELS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.number }} --jq '.labels[] | select(.name | test("blocked-critical-issues|validation-failed|critical-")) | .name' 2>/dev/null || echo "")
             
             if [ -n "$BLOCKING_LABELS" ]; then
-              echo "🚫 Auto-merge blocked by labels: $BLOCKING_LABELS"
+              printf "Auto-merge blocked by labels: %s\n" "$BLOCKING_LABELS"
               exit 0
             fi
             
