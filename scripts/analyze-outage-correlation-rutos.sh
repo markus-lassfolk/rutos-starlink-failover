@@ -182,6 +182,11 @@ time_to_seconds() {
         return 1
     fi
 
+    # Ensure all variables are clean integers for busybox arithmetic
+    hour=$(printf "%d" "$hour" 2>/dev/null || echo "0")
+    minute=$(printf "%d" "$minute" 2>/dev/null || echo "0")
+    seconds_part=$(printf "%d" "$seconds_part" 2>/dev/null || echo "0")
+
     log_debug "time_to_seconds: converting '$time_str' (hour='$hour', minute='$minute', seconds='$seconds_part')"
     echo $((hour * 3600 + minute * 60 + seconds_part))
 }
