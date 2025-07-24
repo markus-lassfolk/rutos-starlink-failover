@@ -1,5 +1,9 @@
-# Advanced Copilot PR Monitoring System with Enhanced Error Handling and Rate Limit Management
+# Advanced Copilot PR Monitoring System with Integrated Autonomous Management
 # This script monitors Copilot-generated PRs and provides intelligent automation with GitHub API rate limit protection
+# AUTONOMOUS INTEGRATION: All autonomous workflow approval and auto-merge functionality integrated directly
+# - No external script dependencies - fully self-contained
+# - Comprehensive trust validation and safety checks
+# - GitHub workflow orchestration support
 
 param(
     [int]$PRNumber,
@@ -13,6 +17,12 @@ param(
     [switch]$DebugMode,
     [switch]$AnalyzeWorkflowFailures = $true,
     [switch]$ProcessMixedStatus = $true,
+    [switch]$DaemonMode,
+    [switch]$AutoMode,
+    [switch]$QuietMode,
+    [int]$DaemonInterval = 300, # 5 minutes default
+    [int]$MaxDaemonRuns = 0,    # 0 = infinite
+    [switch]$AutoApproveWorkflows,  # Enable autonomous workflow approval and auto-merge
     [switch]$Help
 )
 
@@ -63,6 +73,27 @@ EXAMPLES:
 
     # Skip workflow failure analysis (still includes rate limit management)
     .\Monitor-CopilotPRs-Complete.ps1 -AnalyzeWorkflowFailures:`$false
+
+    # Autonomous daemon mode - runs continuously every 5 minutes
+    .\Monitor-CopilotPRs-Complete.ps1 -DaemonMode
+
+    # Autonomous mode with auto-workflow approval (fully hands-off)
+    .\Monitor-CopilotPRs-Complete.ps1 -DaemonMode -AutoApproveWorkflows -QuietMode
+
+    # Run 12 times every 10 minutes (2 hours of monitoring)
+    .\Monitor-CopilotPRs-Complete.ps1 -DaemonMode -DaemonInterval 600 -MaxDaemonRuns 12
+
+AUTONOMOUS FEATURES:
+    • Daemon mode for continuous monitoring without user intervention
+    • Auto-workflow approval for trusted Copilot PRs with comprehensive trust validation
+    • Intelligent auto-merge with 8-point safety assessment system
+    • Trust validation for known Copilot authors (app/copilot-swe-agent, github-copilot[bot], etc.)
+    • Risk assessment for PR content and patterns (no risky keywords, safe titles)
+    • Automatic status verification before merge (checks passing, not draft)
+    • Bulk processing of eligible PRs during monitoring cycles
+    • Intelligent rate limit recovery with exponential backoff
+    • Mixed status check resolution with 3-strategy approach
+    • Full consolidation in main script - no external dependencies
 
 RATE LIMIT FEATURES:
     • Automatic detection when API limits approach (< 100 requests remaining)
@@ -224,8 +255,12 @@ function Show-CollectedErrors {
     
     Write-StatusMessage "`n📊 ERROR SUMMARY:" -Color $RED
     Write-StatusMessage "   Total Errors: $($global:CollectedErrors.Count)" -Color $RED
-    Write-StatusMessage "   Functions with Errors: $($global:CollectedErrors | Select-Object -Unique FunctionName | Measure-Object).Count" -Color $YELLOW
-    Write-StatusMessage "   Exception Types: $($global:CollectedErrors | Where-Object { $_.ExceptionType -ne 'N/A' } | Select-Object -Unique ExceptionType | Measure-Object).Count" -Color $PURPLE
+    
+    $uniqueFunctions = $global:CollectedErrors | Select-Object -Unique FunctionName
+    $uniqueExceptionTypes = $global:CollectedErrors | Where-Object { $_.ExceptionType -ne 'N/A' } | Select-Object -Unique ExceptionType
+    
+    Write-StatusMessage "   Functions with Errors: $($uniqueFunctions.Count)" -Color $YELLOW
+    Write-StatusMessage "   Exception Types: $($uniqueExceptionTypes.Count)" -Color $PURPLE
     
     # Most common error types
     $errorTypes = $global:CollectedErrors | Group-Object -Property ExceptionType | Sort-Object Count -Descending
@@ -322,6 +357,286 @@ function Get-CopilotPRs {
     }
 }
 
+# Integrated autonomous workflow approval function
+function Approve-CopilotWorkflows {
+    param(
+        [string]$PRNumber,
+        [switch]$QuietMode
+    )
+    
+    if (-not $QuietMode) {
+        Write-StatusMessage "🤖 Checking for workflows requiring approval..." -Color $BLUE
+    }
+    
+    try {
+        # Check if PR is from trusted Copilot
+        $prData = gh api "repos/markus-lassfolk/rutos-starlink-failover/pulls/$PRNumber" --jq '{
+            user: .user.login,
+            title: .title,
+            body: .body,
+            draft: .draft
+        }' | ConvertFrom-Json
+        
+        $trustedAuthors = @(
+            "app/copilot-swe-agent",
+            "copilot-swe-agent",
+            "github-copilot[bot]",
+            "app/github-copilot"
+        )
+        
+        $trustedTitlePatterns = @(
+            "Fix.*RUTOS.*compatibility",
+            "Fix:.*version.*information",
+            "Add.*version.*information",
+            "\[MINOR\].*version.*information"
+        )
+        
+        # Check if author is trusted
+        $isTrustedAuthor = $trustedAuthors -contains $prData.user
+        
+        # Check if title matches trusted patterns
+        $isTrustedTitle = $false
+        foreach ($pattern in $trustedTitlePatterns) {
+            if ($prData.title -match $pattern) {
+                $isTrustedTitle = $true
+                break
+            }
+        }
+        
+        # Safety checks
+        $isDraft = $prData.draft
+        $hasRiskyKeywords = $prData.body -match "(delete|remove|DROP|rm -rf|sudo|password|secret|token)"
+        
+        $isTrusted = $isTrustedAuthor -and $isTrustedTitle -and -not $isDraft -and -not $hasRiskyKeywords
+        
+        if (-not $isTrusted) {
+            if (-not $QuietMode) {
+                Write-StatusMessage "⚠️ PR #$PRNumber not eligible for auto-approval" -Color $YELLOW
+            }
+            return @{ Success = $false; Reason = "Failed trust checks"; ApprovedCount = 0 }
+        }
+        
+        # Get workflow runs that need approval
+        $workflowRuns = gh run list --limit 50 --json databaseId,status,workflowName,headBranch,conclusion | ConvertFrom-Json
+        
+        $needingApproval = $workflowRuns | Where-Object { 
+            $_.status -eq "action_required" -and 
+            $_.headBranch -like "*$PRNumber*" 
+        }
+        
+        if (-not $needingApproval) {
+            if (-not $QuietMode) {
+                Write-StatusMessage "✅ No workflow runs requiring approval for PR #$PRNumber" -Color $GREEN
+            }
+            return @{ Success = $true; ApprovedCount = 0; Workflows = @() }
+        }
+        
+        $approvedCount = 0
+        $approvedWorkflows = @()
+        
+        foreach ($run in $needingApproval) {
+            if (-not $QuietMode) {
+                Write-StatusMessage "🔓 Approving workflow: $($run.workflowName)" -Color $CYAN
+            }
+            
+            try {
+                gh api "repos/markus-lassfolk/rutos-starlink-failover/actions/runs/$($run.databaseId)/approve" --method POST | Out-Null
+                $approvedCount++
+                $approvedWorkflows += $run.workflowName
+                Start-Sleep -Seconds 2
+            }
+            catch {
+                if (-not $QuietMode) {
+                    Write-StatusMessage "⚠️ Failed to approve workflow $($run.workflowName): $_" -Color $YELLOW
+                }
+            }
+        }
+        
+        if (-not $QuietMode -and $approvedCount -gt 0) {
+            Write-StatusMessage "✅ Auto-approved $approvedCount workflow(s) for PR #$PRNumber" -Color $GREEN
+        }
+        
+        return @{
+            Success = $true
+            ApprovedCount = $approvedCount
+            Workflows = $approvedWorkflows
+            TotalFound = $needingApproval.Count
+        }
+        
+    } catch {
+        Add-CollectedError -ErrorMessage "Error in autonomous workflow approval" -FunctionName "Approve-CopilotWorkflows" -Context "Auto-approval failed" -Exception $_.Exception
+        return @{ Success = $false; Error = $_.Exception.Message; ApprovedCount = 0 }
+    }
+}
+
+# Integrated intelligent auto-merge function
+function Invoke-IntelligentAutoMerge {
+    param(
+        [string]$PRNumber,
+        [string]$MergeMethod = "squash",
+        [switch]$QuietMode
+    )
+    
+    if (-not $QuietMode) {
+        Write-StatusMessage "🎯 Evaluating PR #$PRNumber for auto-merge..." -Color $BLUE
+    }
+    
+    try {
+        # Get comprehensive PR data
+        $prData = gh api "repos/markus-lassfolk/rutos-starlink-failover/pulls/$PRNumber" --jq '{
+            user: .user.login,
+            title: .title,
+            body: .body,
+            draft: .draft,
+            state: .state,
+            mergeable: .mergeable,
+            mergeable_state: .mergeable_state,
+            base: .base.ref,
+            head: .head.ref,
+            changed_files: .changed_files,
+            additions: .additions,
+            deletions: .deletions,
+            commits: .commits
+        }' | ConvertFrom-Json
+        
+        # Safety checks
+        $safetyChecks = @{
+            IsTrustedAuthor = $false
+            IsNonDraft = $false
+            IsMergeable = $false
+            HasReasonableSize = $false
+            IsTrustedBranch = $false
+            HasSafeTitle = $false
+            HasNoRiskyChanges = $false
+            PassesAllChecks = $false
+        }
+        
+        # Check 1: Trusted author
+        $trustedAuthors = @(
+            "app/copilot-swe-agent",
+            "copilot-swe-agent", 
+            "github-copilot[bot]",
+            "app/github-copilot"
+        )
+        $safetyChecks.IsTrustedAuthor = $trustedAuthors -contains $prData.user
+        
+        # Check 2: Not a draft
+        $safetyChecks.IsNonDraft = -not $prData.draft
+        
+        # Check 3: Mergeable state
+        $safetyChecks.IsMergeable = $prData.mergeable -eq $true -and $prData.mergeable_state -eq "clean"
+        
+        # Check 4: Reasonable size (not massive changes)
+        $totalChanges = $prData.additions + $prData.deletions
+        $safetyChecks.HasReasonableSize = $totalChanges -le 1000 -and $prData.changed_files -le 20
+        
+        # Check 5: Trusted branch (typically main or develop)
+        $trustedTargetBranches = @("main", "master", "develop", "dev")
+        $safetyChecks.IsTrustedBranch = $trustedTargetBranches -contains $prData.base
+        
+        # Check 6: Safe title patterns
+        $safeTitlePatterns = @(
+            "Fix.*RUTOS.*compatibility",
+            "Fix:.*version.*information", 
+            "Add.*version.*information",
+            "\[MINOR\].*version.*information",
+            "Update.*version.*to.*",
+            "Fix.*shell.*compatibility",
+            "Add.*missing.*dry-run.*support"
+        )
+        $safetyChecks.HasSafeTitle = $false
+        foreach ($pattern in $safeTitlePatterns) {
+            if ($prData.title -match $pattern) {
+                $safetyChecks.HasSafeTitle = $true
+                break
+            }
+        }
+        
+        # Check 7: No risky changes in body/description
+        $riskyKeywords = @("delete", "remove", "DROP", "rm -rf", "sudo", "password", "secret", "token", "DROP TABLE", "DELETE FROM")
+        $safetyChecks.HasNoRiskyChanges = $true
+        foreach ($keyword in $riskyKeywords) {
+            if ($prData.body -match $keyword) {
+                $safetyChecks.HasNoRiskyChanges = $false
+                break
+            }
+        }
+        
+        # Check 8: All status checks pass
+        try {
+            $statusChecks = gh api "repos/markus-lassfolk/rutos-starlink-failover/commits/$($prData.head.sha)/status" --jq '.state' 2>/dev/null
+            $safetyChecks.PassesAllChecks = $statusChecks -eq "success"
+        } catch {
+            $safetyChecks.PassesAllChecks = $false
+        }
+        
+        # Overall safety assessment
+        $allChecksPassed = ($safetyChecks.Values | Where-Object { $_ -eq $false }).Count -eq 0
+        
+        if (-not $allChecksPassed) {
+            $failedChecks = ($safetyChecks.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { $_.Key })
+            if (-not $QuietMode) {
+                Write-StatusMessage "⚠️ PR #$PRNumber failed safety checks: $($failedChecks -join ', ')" -Color $YELLOW
+            }
+            return @{
+                Success = $false
+                IsSafe = $false
+                FailedChecks = $failedChecks
+                MergeAttempted = $false
+            }
+        }
+        
+        # Attempt the merge
+        if (-not $QuietMode) {
+            Write-StatusMessage "✅ PR #$PRNumber passed all safety checks - attempting merge" -Color $GREEN
+        }
+        
+        try {
+            $mergeResult = gh pr merge $PRNumber --$MergeMethod --auto --delete-branch 2>&1
+            
+            if ($LASTEXITCODE -eq 0) {
+                if (-not $QuietMode) {
+                    Write-StatusMessage "🎉 Successfully auto-merged PR #$PRNumber" -Color $GREEN
+                }
+                return @{ 
+                    Success = $true
+                    IsSafe = $true
+                    MergeAttempted = $true
+                    MergeSuccessful = $true
+                    Method = $MergeMethod
+                }
+            } else {
+                if (-not $QuietMode) {
+                    Write-StatusMessage "❌ Failed to merge PR #$PRNumber`: $mergeResult" -Color $RED
+                }
+                return @{
+                    Success = $false
+                    IsSafe = $true
+                    MergeAttempted = $true
+                    MergeSuccessful = $false
+                    Error = $mergeResult
+                }
+            }
+        }
+        catch {
+            if (-not $QuietMode) {
+                Write-StatusMessage "❌ Exception during merge: $_" -Color $RED
+            }
+            return @{
+                Success = $false
+                IsSafe = $true
+                MergeAttempted = $true
+                MergeSuccessful = $false
+                Error = $_.Exception.Message
+            }
+        }
+        
+    } catch {
+        Add-CollectedError -ErrorMessage "Error in intelligent auto-merge" -FunctionName "Invoke-IntelligentAutoMerge" -Context "Auto-merge evaluation failed" -Exception $_.Exception
+        return @{ Success = $false; Error = $_.Exception.Message }
+    }
+}
+
 # Process a single PR with comprehensive automation
 function Process-SinglePR {
     param(
@@ -397,6 +712,25 @@ function Process-SinglePR {
             }
         } else {
             Write-StatusMessage "⏭️  Workflow failure analysis skipped (disabled)" -Color $GRAY
+        }
+        
+        # Integrated autonomous workflow approval
+        if ($AutoApproveWorkflows) {
+            $approvalResult = Approve-CopilotWorkflows -PRNumber $PRNumber -QuietMode:$QuietMode
+            if ($approvalResult.Success -and $approvalResult.ApprovedCount -gt 0) {
+                Write-StatusMessage "✅ Auto-approved $($approvalResult.ApprovedCount) workflow(s)" -Color $GREEN
+            }
+        }
+        
+        # Integrated intelligent auto-merge
+        if ($AutoApproveWorkflows) {
+            $mergeResult = Invoke-IntelligentAutoMerge -PRNumber $PRNumber -QuietMode:$QuietMode
+            if ($mergeResult.Success -and $mergeResult.MergeSuccessful) {
+                Write-StatusMessage "🎉 Successfully auto-merged PR #$PRNumber" -Color $GREEN
+                return $true
+            } elseif ($mergeResult.IsSafe -and -not $mergeResult.MergeSuccessful) {
+                Write-StatusMessage "⚠️ PR #$PRNumber was safe but merge failed: $($mergeResult.Error)" -Color $YELLOW
+            }
         }
         
         return $true
@@ -477,6 +811,29 @@ function Start-CopilotPRMonitoring {
                         $workflowResult = Process-SinglePR -PRNumber $pr.Number
                         if (-not $workflowResult) {
                             Add-CollectedError -ErrorMessage "PR #$($pr.Number) workflow failed" -FunctionName "Start-CopilotPRMonitoring" -Context "PR processing failed in monitoring loop" -AdditionalInfo @{PRNumber=$pr.Number; Error=$workflowResult.Error}
+                        }
+                    }
+                }
+                
+                # Bulk auto-merge for eligible PRs if autonomous mode is enabled
+                if (-not $MonitorOnly -and $AutoApproveWorkflows -and $copilotPRs.Count -gt 0) {
+                    Write-StatusMessage "🎯 Checking for additional PRs eligible for auto-merge..." -Color $BLUE
+                    
+                    $eligibleForMerge = @()
+                    foreach ($pr in $copilotPRs) {
+                        $mergeCheck = Invoke-IntelligentAutoMerge -PRNumber $pr.Number -QuietMode:$true
+                        if ($mergeCheck.IsSafe -and -not $mergeCheck.MergeAttempted) {
+                            $eligibleForMerge += $pr
+                        }
+                    }
+                    
+                    if ($eligibleForMerge.Count -gt 0) {
+                        Write-StatusMessage "🚀 Found $($eligibleForMerge.Count) additional PR(s) eligible for auto-merge" -Color $GREEN
+                        foreach ($pr in $eligibleForMerge) {
+                            $mergeResult = Invoke-IntelligentAutoMerge -PRNumber $pr.Number -QuietMode:$QuietMode
+                            if ($mergeResult.MergeSuccessful) {
+                                Write-StatusMessage "🎉 Auto-merged PR #$($pr.Number): $($pr.Title)" -Color $GREEN
+                            }
                         }
                     }
                 }
@@ -1284,19 +1641,31 @@ function Test-MixedStatusChecks {
             return @{ HasMixedStatus = $false; Error = $null; CleanState = $true }
         }
         
-        # Get all check runs for this PR (more comprehensive than statuses)
-        $statusChecksJson = gh api "repos/markus-lassfolk/rutos-starlink-failover/pulls/$PRNumber" --jq '.statusCheckRollup[] | {
+        # Get all check runs for this PR using the correct API endpoint
+        $statusChecksJson = gh api "repos/markus-lassfolk/rutos-starlink-failover/commits/$($prData.head_sha)/check-runs" --jq '.check_runs[] | {
             name: .name,
             conclusion: .conclusion,
             status: .status,
-            completedAt: .completedAt,
-            workflowName: .workflowName,
-            typename: .__typename
+            completedAt: .completed_at,
+            workflowName: .app.name,
+            typename: "CheckRun"
         }' 2>&1
         
         if ($LASTEXITCODE -ne 0) {
-            Add-CollectedError -ErrorMessage "Failed to get status checks for PR #$PRNumber" -FunctionName "Test-MixedStatusChecks" -Context "GitHub CLI status checks failed" -AdditionalInfo @{PRNumber=$PRNumber; Error=$statusChecksJson}
-            return @{ HasMixedStatus = $false; Error = "Failed to get status checks: $statusChecksJson" }
+            # Fallback to commit status API
+            $statusChecksJson = gh api "repos/markus-lassfolk/rutos-starlink-failover/commits/$($prData.head_sha)/status" --jq '.statuses[] | {
+                name: .context,
+                conclusion: .state,
+                status: .state,
+                completedAt: .created_at,
+                workflowName: .context,
+                typename: "StatusContext"
+            }' 2>&1
+            
+            if ($LASTEXITCODE -ne 0) {
+                Write-StatusMessage "ℹ️  No status checks found for PR #$PRNumber (this is normal for new PRs)" -Color $YELLOW
+                return @{ HasMixedStatus = $false; Error = $null; NoChecks = $true }
+            }
         }
         
         # Parse status checks and group by workflow/context name
@@ -1875,10 +2244,22 @@ try {
         exit 1
     }
     
-    # Verify GitHub CLI authentication
-    gh auth status 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Add-CollectedError -ErrorMessage "GitHub CLI is not authenticated" -FunctionName "Main" -Context "GitHub CLI authentication check failed" -AdditionalInfo @{LastExitCode=$LASTEXITCODE}
+    # Verify GitHub CLI authentication with improved check
+    try {
+        $authOutput = gh auth status 2>&1
+        $authSuccessful = $LASTEXITCODE -eq 0
+        
+        if (-not $authSuccessful) {
+            Add-CollectedError -ErrorMessage "GitHub CLI is not authenticated" -FunctionName "Main" -Context "GitHub CLI authentication check failed" -AdditionalInfo @{LastExitCode=$LASTEXITCODE; AuthOutput=$authOutput}
+            Write-StatusMessage "🔐 Run: gh auth login" -Color $CYAN
+            exit 1
+        } else {
+            if ($DebugMode) {
+                Write-StatusMessage "✅ GitHub CLI authentication verified" -Color $GREEN
+            }
+        }
+    } catch {
+        Add-CollectedError -ErrorMessage "GitHub CLI authentication check failed" -FunctionName "Main" -Context "Error running gh auth status" -AdditionalInfo @{Exception=$_.Exception.Message}
         Write-StatusMessage "🔐 Run: gh auth login" -Color $CYAN
         exit 1
     }
@@ -1894,9 +2275,69 @@ try {
     Write-StatusMessage "   TestMode: $TestMode" -Color $GRAY
     Write-StatusMessage "   DebugMode: $DebugMode" -Color $GRAY
     Write-StatusMessage "   AnalyzeWorkflowFailures: $AnalyzeWorkflowFailures (with rate limit retry)" -Color $GRAY
+    Write-StatusMessage "   DaemonMode: $DaemonMode" -Color $GRAY
+    Write-StatusMessage "   AutoApproveWorkflows: $AutoApproveWorkflows" -Color $GRAY
     Write-StatusMessage "   Rate Limit Management: Automatic detection and backoff" -Color $GRAY
     
-    # Run the intelligent monitoring system
+    # Daemon mode - continuous autonomous operation
+    if ($DaemonMode) {
+        Write-StatusMessage "🤖 Starting autonomous daemon mode..." -Color $GREEN
+        Write-StatusMessage "   Interval: $DaemonInterval seconds ($([math]::Round($DaemonInterval/60, 1)) minutes)" -Color $GRAY
+        Write-StatusMessage "   Max runs: $(if ($MaxDaemonRuns -eq 0) { 'Infinite' } else { $MaxDaemonRuns })" -Color $GRAY
+        Write-StatusMessage "   Auto-approve workflows: $AutoApproveWorkflows" -Color $GRAY
+        
+        $runCount = 0
+        $startTime = Get-Date
+        
+        while ($true) {
+            $runCount++
+            $currentTime = Get-Date
+            $elapsed = $currentTime - $startTime
+            
+            if (-not $QuietMode) {
+                Write-StatusMessage "🔄 Daemon run #$runCount (Elapsed: $($elapsed.ToString('hh\:mm\:ss')))" -Color $BLUE
+            }
+            
+            try {
+                # Run main monitoring
+                if ($PRNumber) {
+                    $result = Process-SinglePR -PRNumber $PRNumber
+                    
+                    if (-not $QuietMode -and $result) {
+                        Write-StatusMessage "✅ PR #$PRNumber processed successfully" -Color $GREEN
+                    }
+                } else {
+                    Start-CopilotPRMonitoring -IntervalSeconds 0 -MaxIterations 1
+                }
+                
+                if (-not $QuietMode) {
+                    Write-StatusMessage "✅ Daemon run #$runCount completed successfully" -Color $GREEN
+                }
+            }
+            catch {
+                if (-not $QuietMode) {
+                    Write-StatusMessage "❌ Daemon run #$runCount failed: $_" -Color $RED
+                }
+                Add-CollectedError -ErrorMessage $_.Exception.Message -FunctionName "DaemonMode" -Context "Run #$runCount"
+            }
+            
+            # Check if we should stop
+            if ($MaxDaemonRuns -gt 0 -and $runCount -ge $MaxDaemonRuns) {
+                Write-StatusMessage "🏁 Daemon completed $runCount runs as requested" -Color $GREEN
+                break
+            }
+            
+            # Wait for next iteration
+            if (-not $QuietMode) {
+                Write-StatusMessage "⏳ Waiting $([math]::Round($DaemonInterval/60, 1)) minutes until next run..." -Color $CYAN
+            }
+            Start-Sleep -Seconds $DaemonInterval
+        }
+        
+        return
+    }
+    
+    # Run the intelligent monitoring system (non-daemon mode)
     if ($PRNumber) {
         Write-StatusMessage "🎯 Processing specific PR #$PRNumber..." -Color $GREEN
         $singlePRResult = Process-SinglePR -PRNumber $PRNumber

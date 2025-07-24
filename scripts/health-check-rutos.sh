@@ -787,6 +787,100 @@ check_starlink_connectivity() {
     log_debug "Starlink connectivity checks completed"
 }
 
+# Function to check notification system files and permissions
+check_notification_system() {
+    log_step "Checking notification system components"
+    debug_func "check_notification_system"
+
+    # Define expected paths for notification components
+    HOTPLUG_NOTIFY="/etc/hotplug.d/iface/99-pushover_notify-rutos.sh"
+    STARLINK_NOTIFY="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh"
+    MAIN_MONITOR="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor-rutos.sh"
+    UTILS_SCRIPT="/usr/local/starlink-monitor/scripts/placeholder-utils.sh"
+
+    # Check hotplug notification script (critical for failover notifications)
+    log_debug "NOTIFICATION CHECK: Checking hotplug notification script"
+    if [ -f "$HOTPLUG_NOTIFY" ]; then
+        if [ -x "$HOTPLUG_NOTIFY" ]; then
+            file_size=$(wc -c <"$HOTPLUG_NOTIFY" 2>/dev/null || echo "0")
+            if [ "$file_size" -gt 100 ]; then
+                show_health_status "healthy" "Hotplug Notify" "Installed and executable ($file_size bytes)"
+                increment_counter "healthy"
+                log_debug "NOTIFICATION CHECK: HEALTHY - Hotplug script exists, executable, and has content"
+            else
+                show_health_status "warning" "Hotplug Notify" "File too small ($file_size bytes) - may be corrupted"
+                increment_counter "warning"
+                log_debug "NOTIFICATION CHECK: WARNING - Hotplug script too small"
+            fi
+        else
+            show_health_status "critical" "Hotplug Notify" "File exists but not executable"
+            increment_counter "critical"
+            log_debug "NOTIFICATION CHECK: CRITICAL - Hotplug script not executable"
+        fi
+    else
+        show_health_status "critical" "Hotplug Notify" "Missing: $HOTPLUG_NOTIFY"
+        increment_counter "critical"
+        log_debug "NOTIFICATION CHECK: CRITICAL - Hotplug script missing"
+    fi
+
+    # Check Starlink notification script (backup location)
+    log_debug "NOTIFICATION CHECK: Checking Starlink notification script"
+    if [ -f "$STARLINK_NOTIFY" ]; then
+        if [ -x "$STARLINK_NOTIFY" ]; then
+            file_size=$(wc -c <"$STARLINK_NOTIFY" 2>/dev/null || echo "0")
+            show_health_status "healthy" "Starlink Notify" "Available and executable ($file_size bytes)"
+            increment_counter "healthy"
+            log_debug "NOTIFICATION CHECK: HEALTHY - Starlink notify script OK"
+        else
+            show_health_status "warning" "Starlink Notify" "File exists but not executable"
+            increment_counter "warning"
+            log_debug "NOTIFICATION CHECK: WARNING - Starlink notify script not executable"
+        fi
+    else
+        show_health_status "warning" "Starlink Notify" "Missing backup script: $STARLINK_NOTIFY"
+        increment_counter "warning"
+        log_debug "NOTIFICATION CHECK: WARNING - Starlink notify script missing"
+    fi
+
+    # Check main monitoring script
+    log_debug "NOTIFICATION CHECK: Checking main monitoring script"
+    if [ -f "$MAIN_MONITOR" ]; then
+        if [ -x "$MAIN_MONITOR" ]; then
+            show_health_status "healthy" "Main Monitor" "Installed and executable"
+            increment_counter "healthy"
+            log_debug "NOTIFICATION CHECK: HEALTHY - Main monitor script OK"
+        else
+            show_health_status "critical" "Main Monitor" "File exists but not executable"
+            increment_counter "critical"
+            log_debug "NOTIFICATION CHECK: CRITICAL - Main monitor script not executable"
+        fi
+    else
+        show_health_status "critical" "Main Monitor" "Missing: $MAIN_MONITOR"
+        increment_counter "critical"
+        log_debug "NOTIFICATION CHECK: CRITICAL - Main monitor script missing"
+    fi
+
+    # Check utility functions script
+    log_debug "NOTIFICATION CHECK: Checking utility functions script"
+    if [ -f "$UTILS_SCRIPT" ]; then
+        if [ -r "$UTILS_SCRIPT" ]; then
+            show_health_status "healthy" "Utils Script" "Available and readable"
+            increment_counter "healthy"
+            log_debug "NOTIFICATION CHECK: HEALTHY - Utils script OK"
+        else
+            show_health_status "warning" "Utils Script" "File exists but not readable"
+            increment_counter "warning"
+            log_debug "NOTIFICATION CHECK: WARNING - Utils script not readable"
+        fi
+    else
+        show_health_status "warning" "Utils Script" "Missing: $UTILS_SCRIPT"
+        increment_counter "warning"
+        log_debug "NOTIFICATION CHECK: WARNING - Utils script missing"
+    fi
+
+    log_debug "NOTIFICATION CHECK: Notification system component check completed"
+}
+
 # Function to check configuration health
 check_configuration_health() {
     log_step "Checking configuration health"
@@ -850,9 +944,33 @@ check_configuration_health() {
 
         log_debug "PUSHOVER CHECK: Testing if Pushover is configured properly"
         if is_pushover_configured; then
-            show_health_status "healthy" "Pushover Config" "Pushover properly configured"
-            increment_counter "healthy"
-            log_debug "PUSHOVER CHECK: SUCCESS - properly configured"
+            log_debug "PUSHOVER CHECK: Configuration valid, testing API connectivity"
+
+            # Test actual Pushover API if curl is available
+            if command -v curl >/dev/null 2>&1; then
+                test_message="Health check test from RUTOS router at $(date '+%Y-%m-%d %H:%M:%S')"
+                api_response=$(curl -s \
+                    -F "token=$PUSHOVER_TOKEN" \
+                    -F "user=$PUSHOVER_USER" \
+                    -F "message=$test_message" \
+                    -F "title=🏥 RUTOS Health Check" \
+                    -F "priority=-2" \
+                    https://api.pushover.net/1/messages.json 2>&1)
+
+                if echo "$api_response" | grep -q '"status":1'; then
+                    show_health_status "healthy" "Pushover API" "Pushover API test successful"
+                    increment_counter "healthy"
+                    log_debug "PUSHOVER CHECK: SUCCESS - API test passed"
+                else
+                    show_health_status "warning" "Pushover API" "API test failed: $(echo "$api_response" | grep -o '"errors":\[[^]]*\]' || echo "Unknown error")"
+                    increment_counter "warning"
+                    log_debug "PUSHOVER CHECK: WARNING - API test failed: $api_response"
+                fi
+            else
+                show_health_status "healthy" "Pushover Config" "Pushover properly configured (no curl for API test)"
+                increment_counter "healthy"
+                log_debug "PUSHOVER CHECK: SUCCESS - properly configured (API test skipped)"
+            fi
         else
             show_health_status "warning" "Pushover Config" "Pushover using placeholder values"
             increment_counter "warning"
@@ -861,6 +979,9 @@ check_configuration_health() {
     else
         log_debug "PLACEHOLDER CHECK: Utils script not found, skipping placeholder validation"
     fi
+
+    # Check notification system components (files, permissions, locations)
+    check_notification_system
 
     log_debug "Configuration health checks completed"
 }
@@ -1260,6 +1381,7 @@ show_usage() {
     echo "  --monitoring       Check monitoring system only"
     echo "  --config           Check configuration only"
     echo "  --resources        Check system resources only"
+    echo "  --test-pushover    Test Pushover notifications only"
     echo ""
     echo "Environment variables:"
     echo "  DEBUG=1            Enable detailed debug output"
@@ -1371,6 +1493,68 @@ main() {
             log_debug "MONITORING MODE: Running system monitoring checks only"
             check_system_resources
             check_firmware_persistence
+            ;;
+        "--test-pushover")
+            log_debug "PUSHOVER TEST MODE: Running dedicated Pushover notification test"
+            echo ""
+            log_step "Testing Pushover notification system"
+
+            # Load configuration if available
+            if [ -f "$CONFIG_FILE" ]; then
+                # shellcheck source=/dev/null
+                . "$CONFIG_FILE" 2>/dev/null || {
+                    log_error "Failed to load configuration file: $CONFIG_FILE"
+                    exit 1
+                }
+            else
+                log_warning "Configuration file not found: $CONFIG_FILE"
+                log_info "Using environment variables or defaults"
+            fi
+
+            # Check configuration
+            if [ -z "${PUSHOVER_TOKEN:-}" ] || [ -z "${PUSHOVER_USER:-}" ]; then
+                log_error "Pushover credentials not configured"
+                printf "PUSHOVER_TOKEN: %s\n" "${PUSHOVER_TOKEN:-NOT_SET}"
+                printf "PUSHOVER_USER: %s\n" "${PUSHOVER_USER:-NOT_SET}"
+                exit 1
+            fi
+
+            # Check for placeholders
+            if [ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] || [ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ]; then
+                log_error "Pushover credentials still have placeholder values"
+                printf "Please update your configuration with real Pushover credentials\n"
+                exit 1
+            fi
+
+            # Test API
+            if command -v curl >/dev/null 2>&1; then
+                log_step "Sending test notification via Pushover API"
+                timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+                test_response=$(curl -s \
+                    -F "token=$PUSHOVER_TOKEN" \
+                    -F "user=$PUSHOVER_USER" \
+                    -F "message=Test notification from RUTOS health check at $timestamp. Your Pushover notifications are working correctly!" \
+                    -F "title=🧪 RUTOS Health Check Test" \
+                    -F "priority=0" \
+                    https://api.pushover.net/1/messages.json 2>&1)
+
+                if echo "$test_response" | grep -q '"status":1'; then
+                    show_health_status "healthy" "Pushover Test" "Test notification sent successfully"
+                    log_info "✅ SUCCESS! Check your Pushover app for the test message"
+                    printf "\n${GREEN}Test completed successfully!${NC}\n"
+                    printf "If you received the notification, your Pushover system is working.\n"
+                    printf "If no notification arrived, check your Pushover app settings.\n"
+                    exit 0
+                else
+                    show_health_status "critical" "Pushover Test" "API call failed"
+                    log_error "❌ API test failed"
+                    printf "Response: %s\n" "$test_response"
+                    exit 1
+                fi
+            else
+                log_error "curl not available - cannot test Pushover API"
+                exit 1
+            fi
             ;;
         "--full" | *)
             log_debug "FULL MODE: Running comprehensive health checks"

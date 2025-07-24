@@ -144,14 +144,71 @@ show_help() {
 # Convert time to seconds since midnight
 time_to_seconds() {
     time_str="$1"
-    hour=$(echo "$time_str" | cut -d: -f1)
-    minute=$(echo "$time_str" | cut -d: -f2)
-    echo $((hour * 3600 + minute * 60))
+
+    # Validate input
+    if [ -z "$time_str" ]; then
+        log_debug "time_to_seconds: empty input"
+        echo "0"
+        return 1
+    fi
+
+    # Extract hour, minute, and optional seconds with validation
+    hour=$(echo "$time_str" | cut -d: -f1 | tr -d ' ')
+    minute=$(echo "$time_str" | cut -d: -f2 | tr -d ' ')
+    # Handle optional seconds (HH:MM or HH:MM:SS format)
+    seconds_part=$(echo "$time_str" | cut -d: -f3 | tr -d ' ')
+    if [ -z "$seconds_part" ]; then
+        seconds_part="0"
+    fi
+
+    # Validate hour and minute are numeric
+    if ! echo "$hour" | grep -q '^[0-9]\+$' || ! echo "$minute" | grep -q '^[0-9]\+$'; then
+        log_debug "time_to_seconds: invalid time format '$time_str' (hour='$hour', minute='$minute')"
+        echo "0"
+        return 1
+    fi
+
+    # Validate seconds is numeric (if provided)
+    if ! echo "$seconds_part" | grep -q '^[0-9]\+$'; then
+        log_debug "time_to_seconds: invalid seconds '$seconds_part' in '$time_str'"
+        echo "0"
+        return 1
+    fi
+
+    # Ensure values are within valid ranges
+    if [ "$hour" -gt 23 ] || [ "$minute" -gt 59 ] || [ "$seconds_part" -gt 59 ]; then
+        log_debug "time_to_seconds: time out of range '$time_str' (hour='$hour', minute='$minute', seconds='$seconds_part')"
+        echo "0"
+        return 1
+    fi
+
+    # Ensure all variables are clean integers for busybox arithmetic
+    hour=$(printf "%d" "$hour" 2>/dev/null || echo "0")
+    minute=$(printf "%d" "$minute" 2>/dev/null || echo "0")
+    seconds_part=$(printf "%d" "$seconds_part" 2>/dev/null || echo "0")
+
+    log_debug "time_to_seconds: converting '$time_str' (hour='$hour', minute='$minute', seconds='$seconds_part')"
+    echo $((hour * 3600 + minute * 60 + seconds_part))
 }
 
 # Convert seconds since midnight to HH:MM format
 seconds_to_time() {
     seconds="$1"
+
+    # Validate input
+    if [ -z "$seconds" ] || ! echo "$seconds" | grep -q '^[0-9]\+$'; then
+        log_debug "seconds_to_time: invalid input '$seconds'"
+        printf "00:00"
+        return 1
+    fi
+
+    # Ensure seconds is within valid range (0-86399 for a day)
+    if [ "$seconds" -lt 0 ] || [ "$seconds" -ge 86400 ]; then
+        log_debug "seconds_to_time: seconds out of range '$seconds'"
+        printf "00:00"
+        return 1
+    fi
+
     hour=$((seconds / 3600))
     minute=$(((seconds % 3600) / 60))
     printf "%02d:%02d" "$hour" "$minute"
@@ -160,14 +217,58 @@ seconds_to_time() {
 # Extract timestamp from log line
 extract_log_timestamp() {
     log_line="$1"
+
+    # Validate input
+    if [ -z "$log_line" ]; then
+        log_debug "extract_log_timestamp: empty log line"
+        echo ""
+        return 1
+    fi
+
     # Extract timestamp in format: 2025-07-24 13:43:12
-    echo "$log_line" | sed 's/^\([0-9-]* [0-9:]*\).*/\1/' 2>/dev/null || echo ""
+    # More robust extraction using multiple patterns
+    timestamp=""
+
+    # Try standard format first: YYYY-MM-DD HH:MM:SS
+    timestamp=$(echo "$log_line" | sed -n 's/^\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*/\1/p' 2>/dev/null)
+
+    # If that didn't work, try more permissive pattern
+    if [ -z "$timestamp" ]; then
+        timestamp=$(echo "$log_line" | sed -n 's/^\([0-9-]* [0-9:]*\).*/\1/p' 2>/dev/null)
+    fi
+
+    # Final validation
+    if [ -z "$timestamp" ]; then
+        log_debug "extract_log_timestamp: could not extract timestamp from '$log_line'"
+    else
+        log_debug "extract_log_timestamp: extracted '$timestamp' from log line"
+    fi
+
+    echo "$timestamp"
 }
 
 # Convert log timestamp to seconds since midnight
 log_timestamp_to_seconds() {
     timestamp="$1"
+
+    # Validate input
+    if [ -z "$timestamp" ]; then
+        log_debug "log_timestamp_to_seconds: empty timestamp"
+        echo "0"
+        return 1
+    fi
+
+    # Extract time part (should be after space)
     time_part=$(echo "$timestamp" | cut -d' ' -f2)
+
+    # Validate time part exists
+    if [ -z "$time_part" ] || [ "$time_part" = "$timestamp" ]; then
+        log_debug "log_timestamp_to_seconds: could not extract time from '$timestamp'"
+        echo "0"
+        return 1
+    fi
+
+    log_debug "log_timestamp_to_seconds: processing timestamp '$timestamp' -> time_part '$time_part'"
     time_to_seconds "$time_part"
 }
 
