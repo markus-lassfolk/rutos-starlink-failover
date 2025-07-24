@@ -2,6 +2,7 @@
 # Script: test-connectivity.sh
 # Version: 2.6.0
 # Description: Comprehensive connectivity and credential testing for Starlink monitoring system
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 
 # RUTOS Compatibility - Dynamic sourcing patterns
 # shellcheck disable=SC1090  # Can't follow dynamic source - this is intentional

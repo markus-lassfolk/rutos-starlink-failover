@@ -1,5 +1,7 @@
 # RUTOS Shell Compatibility Strategy
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Problem
 
 RUTOS uses ash/dash shell, but our CI/CD workflows expect bash syntax for proper validation.

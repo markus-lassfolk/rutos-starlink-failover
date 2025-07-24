@@ -4,6 +4,7 @@
 #
 # Version: 1.0.0
 # Description: Fixes the sample tracking file when it has a stale high index
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # ==============================================================================
 
 set -e

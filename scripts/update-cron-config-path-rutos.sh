@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # ==============================================================================
+# shellcheck disable=SC2059 # Method 5 printf format required for RUTOS color compatibility
 # Update Cron Configuration Path Script
 #
 # This script updates existing cron entries to use the new persistent
