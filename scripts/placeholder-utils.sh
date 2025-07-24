@@ -9,10 +9,11 @@
 
 # Function to check if a value is a placeholder
 
-# Version information (auto-updated by update-version.sh)
 # Note: This utility is sourced, so only set version if not already set
 if [ -z "${SCRIPT_VERSION:-}" ]; then
+    # Version information (auto-updated by update-version.sh)
     SCRIPT_VERSION="2.6.0"
+    readonly SCRIPT_VERSION
 fi
 
 is_placeholder() {

@@ -3,7 +3,7 @@
 # Script: diagnose-database-loop-rutos.sh
 # Version: 2.6.0
 # Description: Quick diagnostic for RUTOS database optimization loop
-# Note: SC2059 disabled - Using Method 5 printf format for RUTOS compatibility
+# shellcheck disable=SC2059  # Using Method 5 printf format for RUTOS compatibility
 
 set -e
 
@@ -67,7 +67,7 @@ printf "${BLUE}%s${NC}\n\n" "=== RUTOS Database Loop Diagnostic ==="
 
 # 1. Check for the loop pattern in recent logs
 printf "\n${BLUE}%s${NC}\n" "1. Checking for database loop pattern in logs:"
-recent_errors=$(logread | tail -100 | grep -c "Unable to reduce max rows\|Unable to optimize database\|Failed to restore database" 2>/dev/null || echo "0")
+recent_errors=$(logread | tail -100 | grep -c "Unable to reduce max rows\|Unable to optimize database\|Failed to restore database" 2>/dev/null | tr -d ' \n\r' || echo "0")
 if [ "$recent_errors" -gt 0 ]; then
     printf "${RED}   ✗ FOUND: %d database optimization errors in recent logs${NC}\n" "$recent_errors"
 
