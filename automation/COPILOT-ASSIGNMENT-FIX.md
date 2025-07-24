@@ -1,5 +1,7 @@
 # 🤖 Copilot Assignment Fix - Implementation Summary
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Problem Identified
 
 The `create-copilot-issues.ps1` script was only posting a comment to assign Copilot, but wasn't actually assigning them

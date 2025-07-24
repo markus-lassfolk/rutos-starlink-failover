@@ -15,10 +15,6 @@
 
 set -eu
 
-# Standard colors for consistent output (compatible with busybox)
-# shellcheck disable=SC2034  # Color variables may not all be used in every script
-# CRITICAL: Use RUTOS-compatible color detection
-
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
@@ -93,6 +89,13 @@ safe_execute() {
 }
 
 # --- Helper Functions ---
+
+# Standard logging functions for consistency with other scripts
+log_debug() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
 
 # Enhanced logging
 log() {

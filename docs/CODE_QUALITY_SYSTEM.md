@@ -1,5 +1,7 @@
 # Comprehensive Code Quality System
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 This document describes the comprehensive code quality system for the RUTOS Starlink Failover project.
 
 ## Overview

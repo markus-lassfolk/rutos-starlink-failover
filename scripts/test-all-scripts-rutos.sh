@@ -153,7 +153,6 @@ run_test() {
     line_count=$(wc -l <"$output_file" 2>/dev/null || echo "0")
 
     # Check for common issues
-    has_colors=$(grep -c "\\033\[" "$output_file" 2>/dev/null || echo "0")
     has_errors=$(grep -ci "error\|fail\|exception" "$output_file" 2>/dev/null || echo "0")
     has_debug=$(grep -c "\[DEBUG\]" "$output_file" 2>/dev/null || echo "0")
     has_dry_run=$(grep -c "DRY-RUN\|dry.run\|test.mode" "$output_file" 2>/dev/null || echo "0")
@@ -190,6 +189,7 @@ run_test() {
             printf "${CYAN}... (%d more lines, see %s)${NC}\n" $((line_count - 20)) "$output_file"
         fi
         # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
+        # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
         printf "${CYAN}--- End Output ---${NC}\n\n"
     fi
 }
@@ -287,6 +287,12 @@ main() {
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
     printf "${BLUE}                              TEST SUMMARY                               ${NC}\n"
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
+    printf "\n"
+    # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
+    printf "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}\n"
+    # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
+    printf "${BLUE}                              TEST SUMMARY                               ${NC}\n"
+    # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
     printf "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}\n\n"
 
     # Count results
@@ -305,6 +311,7 @@ main() {
 
     if [ "$failed_tests" -gt 0 ]; then
         # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
+        # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
         printf "${RED}FAILED TESTS:${NC}\n"
         grep "FAIL" "$TEST_LOG" | while IFS= read -r line; do
             # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
@@ -315,6 +322,7 @@ main() {
 
     if [ "$warned_tests" -gt 0 ]; then
         # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
+        # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
         printf "${YELLOW}WARNINGS:${NC}\n"
         grep "WARN" "$TEST_LOG" | while IFS= read -r line; do
             # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility

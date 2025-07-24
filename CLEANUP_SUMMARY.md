@@ -1,6 +1,8 @@
 # Repository Cleanup Summary
 <!-- Version: 2.6.0 | Updated: 2025-07-24 -->
 
+Version: 2.6.0 | **Updated:** 2025-07-24
+
 ## Overview
 
 Successfully cleaned up the RUTOS Starlink Failover repository while preserving the successful autonomous compatibility
