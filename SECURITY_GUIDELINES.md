@@ -1,5 +1,7 @@
 # Security Guidelines
 
+**Version:** 2.6.0 | **Updated:** 2025-07-24
+
 ## Overview
 
 This document outlines security best practices for the Starlink monitoring system to protect your infrastructure and
