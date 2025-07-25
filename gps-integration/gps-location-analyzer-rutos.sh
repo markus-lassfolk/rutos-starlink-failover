@@ -16,7 +16,6 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
 # shellcheck disable=SC2034  # Used in some conditional contexts
-# shellcheck disable=SC2034  # Used in some conditional contexts
 PURPLE='\033[0;35m'
 # shellcheck disable=SC2034  # Used in debug logging functions
 CYAN='\033[0;36m'
@@ -28,6 +27,7 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # Used in some conditional contexts
     PURPLE=""
     CYAN=""
     NC=""
@@ -157,7 +157,7 @@ extract_gps_from_logs() {
 
     log_step "Extracting GPS coordinates from logs in: $log_dir"
 
-    >"$output_file" # Clear output file
+    true >"$output_file" # Clear output file
 
     # Process all log files
     find "$log_dir" -name "*.log" -type f | while read -r logfile; do
@@ -260,9 +260,9 @@ cluster_locations() {
         log_info "Clustering disabled (distance = 0m)"
         # Create individual clusters for each coordinate with time validation
         cluster_id=1
-        >"$clusters_file"
+        true >"$clusters_file"
         temp_location_file="/tmp/location_tracking_$$"
-        >"$temp_location_file"
+        true >"$temp_location_file"
 
         # Group by exact coordinates to calculate time duration
         while IFS=',' read -r timestamp lat lon speed; do
@@ -310,9 +310,9 @@ cluster_locations() {
     fi
 
     cluster_id=1
-    >"$clusters_file" # Clear clusters file
+    true >"$clusters_file" # Clear clusters file
     temp_clusters="/tmp/temp_clusters_$$"
-    >"$temp_clusters"
+    true >"$temp_clusters"
 
     # First pass: Group coordinates into potential clusters
     while IFS=',' read -r timestamp lat lon speed; do
@@ -324,6 +324,10 @@ cluster_locations() {
         # Check if this coordinate belongs to an existing cluster
         found_cluster=""
         if [ -f "$temp_clusters" ] && [ -s "$temp_clusters" ]; then
+            # Create a copy to avoid read/write issues
+            temp_clusters_read="/tmp/temp_clusters_read_$$"
+            cp "$temp_clusters" "$temp_clusters_read"
+            
             while IFS=',' read -r cluster_lat cluster_lon cluster_id_existing readings_data; do
                 distance=$(haversine_distance "$lat" "$lon" "$cluster_lat" "$cluster_lon")
                 distance_int=$(echo "$distance" | cut -d'.' -f1)
@@ -339,7 +343,8 @@ cluster_locations() {
                     mv "$temp_file" "$temp_clusters"
                     break
                 fi
-            done <"$temp_clusters"
+            done <"$temp_clusters_read"
+            rm -f "$temp_clusters_read"
         fi
 
         # If no cluster found, create new one
@@ -410,13 +415,15 @@ This analysis clusters GPS coordinates by geographical location to identify patt
 EOF
 
     # Add current configuration to report
-    echo "- **Clustering Distance**: ${GPS_CLUSTERING_DISTANCE}m radius" >>"$output_file"
-    echo "- **Speed Threshold**: ${GPS_SPEED_THRESHOLD}km/h (parked vs moving)" >>"$output_file"
-    echo "- **Minimum Location Duration**: ${MIN_TIME_AT_LOCATION}s ($(echo "$MIN_TIME_AT_LOCATION / 3600" | awk '{printf "%.1f", $1}')h)" >>"$output_file"
-    echo "- **Parked-Only Analysis**: $PARKED_ONLY_CLUSTERING" >>"$output_file"
-    echo "- **Minimum Events for Problematic Location**: $MIN_EVENTS_PER_LOCATION" >>"$output_file"
-    echo "- **No Data Handling**: $GPS_NO_DATA_VALUE" >>"$output_file"
-    echo "" >>"$output_file"
+    {
+        echo "- **Clustering Distance**: ${GPS_CLUSTERING_DISTANCE}m radius"
+        echo "- **Speed Threshold**: ${GPS_SPEED_THRESHOLD}km/h (parked vs moving)"
+        echo "- **Minimum Location Duration**: ${MIN_TIME_AT_LOCATION}s ($(echo "$MIN_TIME_AT_LOCATION / 3600" | awk '{printf "%.1f", $1}')h)"
+        echo "- **Parked-Only Analysis**: $PARKED_ONLY_CLUSTERING"
+        echo "- **Minimum Events for Problematic Location**: $MIN_EVENTS_PER_LOCATION"
+        echo "- **No Data Handling**: $GPS_NO_DATA_VALUE"
+        echo ""
+    } >>"$output_file"
 
     cat >>"$output_file" <<'EOF'
 ### GPS Source Selection
@@ -448,32 +455,38 @@ EOF
             duration_hours=$(echo "$duration_seconds / 3600" | awk '{printf "%.1f", $1}')
             duration_minutes=$(echo "$duration_seconds / 60" | awk '{printf "%.0f", $1}')
 
-            echo "### Location Cluster $cluster_num" >>"$output_file"
-            echo "" >>"$output_file"
-            echo "- **Coordinates**: $lat, $lon" >>"$output_file"
-            echo "- **Cluster ID**: $cluster_id" >>"$output_file"
-            echo "- **GPS Readings**: $count readings" >>"$output_file"
-            echo "- **Duration at Location**: ${duration_hours}h (${duration_minutes}m)" >>"$output_file"
-            echo "- **First Seen**: $first_seen" >>"$output_file"
-            echo "- **Last Seen**: $last_seen" >>"$output_file"
+            {
+                echo "### Location Cluster $cluster_num"
+                echo ""
+                echo "- **Coordinates**: $lat, $lon"
+                echo "- **Cluster ID**: $cluster_id"
+                echo "- **GPS Readings**: $count readings"
+                echo "- **Duration at Location**: ${duration_hours}h (${duration_minutes}m)"
+                echo "- **First Seen**: $first_seen"
+                echo "- **Last Seen**: $last_seen"
+            } >>"$output_file"
 
             # Determine if this is a problematic location
             if [ "$count" -ge "$MIN_EVENTS_PER_LOCATION" ]; then
                 problematic_locations=$((problematic_locations + 1))
-                echo "- **Status**: ⚠️ **PROBLEMATIC LOCATION** - Multiple connectivity issues" >>"$output_file"
-                echo "- **Risk Level**: HIGH - Requires investigation" >>"$output_file"
-                echo "- **Analysis**: Extended stay (${duration_hours}h) with connectivity problems" >>"$output_file"
-                echo "- **Recommendations**:" >>"$output_file"
-                echo "  - Survey local environment for permanent obstructions" >>"$output_file"
-                echo "  - Test different parking orientations for optimal Starlink view" >>"$output_file"
-                echo "  - Consider alternative parking areas within same location" >>"$output_file"
-                echo "  - Document interference sources (buildings, trees, terrain)" >>"$output_file"
-                echo "  - **Priority**: High - Avoid this specific location for extended stays" >>"$output_file"
+                {
+                    echo "- **Status**: ⚠️ **PROBLEMATIC LOCATION** - Multiple connectivity issues"
+                    echo "- **Risk Level**: HIGH - Requires investigation"
+                    echo "- **Analysis**: Extended stay (${duration_hours}h) with connectivity problems"
+                    echo "- **Recommendations**:"
+                    echo "  - Survey local environment for permanent obstructions"
+                    echo "  - Test different parking orientations for optimal Starlink view"
+                    echo "  - Consider alternative parking areas within same location"
+                    echo "  - Document interference sources (buildings, trees, terrain)"
+                    echo "  - **Priority**: High - Avoid this specific location for extended stays"
+                } >>"$output_file"
             else
-                echo "- **Status**: ✅ **NORMAL LOCATION** - Reliable connectivity" >>"$output_file"
-                echo "- **Risk Level**: LOW - Good camping location" >>"$output_file"
-                echo "- **Analysis**: Extended stay (${duration_hours}h) with stable connectivity" >>"$output_file"
-                echo "- **Assessment**: Suitable for future camping at this location" >>"$output_file"
+                {
+                    echo "- **Status**: ✅ **NORMAL LOCATION** - Reliable connectivity"
+                    echo "- **Risk Level**: LOW - Good camping location"
+                    echo "- **Analysis**: Extended stay (${duration_hours}h) with stable connectivity"
+                    echo "- **Assessment**: Suitable for future camping at this location"
+                } >>"$output_file"
             fi
 
             echo "" >>"$output_file"
