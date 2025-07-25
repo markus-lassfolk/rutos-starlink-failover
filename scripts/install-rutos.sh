@@ -1969,9 +1969,8 @@ install_cellular_integration() {
     cellular_components="
         cellular-data-collector-rutos.sh
         demo-cellular-integration-rutos.sh
-        multi-modem-analyzer-rutos.sh
+        optimize-logger-with-cellular-rutos.sh
         smart-failover-engine-rutos.sh
-        failover-timing-analyzer-rutos.sh
     "
 
     # Install each cellular component
