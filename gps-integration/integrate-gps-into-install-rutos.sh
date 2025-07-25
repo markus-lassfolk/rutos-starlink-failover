@@ -23,6 +23,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
 # shellcheck disable=SC2034  # Used in some conditional contexts
 # shellcheck disable=SC2034  # Used in some conditional contexts
+# shellcheck disable=SC2034  # Reserved for future use
 PURPLE='\033[0;35m'
 # shellcheck disable=SC2034  # Used in debug logging functions
 CYAN='\033[0;36m'
@@ -34,6 +35,7 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # Reserved for future use
     PURPLE=""
     CYAN=""
     NC=""
