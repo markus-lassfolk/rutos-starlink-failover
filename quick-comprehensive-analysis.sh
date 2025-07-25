@@ -18,17 +18,21 @@ echo "" >>"$REPORT_FILE"
 echo "## System State Analysis" >>"$REPORT_FILE"
 STATE_UP=$(grep -c "Current state: up" "$LOG_FILE")
 STATE_DOWN=$(grep -c "Current state: down" "$LOG_FILE")
-echo "- UP states: $STATE_UP" >>"$REPORT_FILE"
-echo "- DOWN states: $STATE_DOWN" >>"$REPORT_FILE"
-echo "" >>"$REPORT_FILE"
+{
+    echo "- UP states: $STATE_UP"
+    echo "- DOWN states: $STATE_DOWN"
+    echo ""
+} >>"$REPORT_FILE"
 
 # Routing Metrics
 echo "## Routing Analysis" >>"$REPORT_FILE"
 METRIC_1=$(grep -c "Metric: 1" "$LOG_FILE")
 METRIC_20=$(grep -c "Metric: 20" "$LOG_FILE")
-echo "- Good routing (Metric: 1): $METRIC_1" >>"$REPORT_FILE"
-echo "- Failover routing (Metric: 20): $METRIC_20" >>"$REPORT_FILE"
-echo "" >>"$REPORT_FILE"
+{
+    echo "- Good routing (Metric: 1): $METRIC_1"
+    echo "- Failover routing (Metric: 20): $METRIC_20"
+    echo ""
+} >>"$REPORT_FILE"
 
 # Stability Analysis
 echo "## Stability Counter Analysis" >>"$REPORT_FILE"
@@ -39,81 +43,93 @@ echo "" >>"$REPORT_FILE"
 
 # GPS Analysis
 echo "## Enhanced GPS Analysis" >>"$REPORT_FILE"
-GPS_VALID=$(grep "GPS: valid=true" "$LOG_FILE" | wc -l)
-GPS_INVALID=$(grep "GPS: valid=false" "$LOG_FILE" | wc -l)
+GPS_VALID=$(grep -c "GPS: valid=true" "$LOG_FILE")
+GPS_INVALID=$(grep -c "GPS: valid=false" "$LOG_FILE")
 echo "- Valid GPS: $GPS_VALID" >>"$REPORT_FILE"
 echo "- Invalid GPS: $GPS_INVALID" >>"$REPORT_FILE"
 
 GPS_MIN=$(grep -o 'sats=[0-9]*' "$LOG_FILE" | sed 's/sats=//' | sort -n | head -1)
 GPS_MAX=$(grep -o 'sats=[0-9]*' "$LOG_FILE" | sed 's/sats=//' | sort -n | tail -1)
 GPS_UNIQUE=$(grep -o 'sats=[0-9]*' "$LOG_FILE" | sed 's/sats=//' | sort -n | uniq | wc -l)
-echo "- GPS satellite range: $GPS_MIN to $GPS_MAX satellites" >>"$REPORT_FILE"
-echo "- GPS unique values: $GPS_UNIQUE" >>"$REPORT_FILE"
-echo "" >>"$REPORT_FILE"
+{
+    echo "- GPS satellite range: $GPS_MIN to $GPS_MAX satellites"
+    echo "- GPS unique values: $GPS_UNIQUE"
+    echo ""
+} >>"$REPORT_FILE"
 
 # SNR Quality Analysis
 echo "## Signal Quality (SNR) Analysis" >>"$REPORT_FILE"
-SNR_POOR=$(grep "SNR:.*poor: [1-9]" "$LOG_FILE" | wc -l)
-SNR_GOOD=$(grep "SNR:.*poor: 0" "$LOG_FILE" | wc -l)
-SNR_ABOVE_NOISE_TRUE=$(grep "above_noise: true" "$LOG_FILE" | wc -l)
-SNR_ABOVE_NOISE_FALSE=$(grep "above_noise: false" "$LOG_FILE" | wc -l)
-SNR_PERSISTENTLY_LOW_TRUE=$(grep "persistently_low: true" "$LOG_FILE" | wc -l)
-SNR_PERSISTENTLY_LOW_FALSE=$(grep "persistently_low: false" "$LOG_FILE" | wc -l)
+SNR_POOR=$(grep -c "SNR:.*poor: [1-9]" "$LOG_FILE")
+SNR_GOOD=$(grep -c "SNR:.*poor: 0" "$LOG_FILE")
+SNR_ABOVE_NOISE_TRUE=$(grep -c "above_noise: true" "$LOG_FILE")
+SNR_ABOVE_NOISE_FALSE=$(grep -c "above_noise: false" "$LOG_FILE")
+SNR_PERSISTENTLY_LOW_TRUE=$(grep -c "persistently_low: true" "$LOG_FILE")
+SNR_PERSISTENTLY_LOW_FALSE=$(grep -c "persistently_low: false" "$LOG_FILE")
 
-echo "- SNR Poor conditions: $SNR_POOR events" >>"$REPORT_FILE"
-echo "- SNR Good conditions: $SNR_GOOD events" >>"$REPORT_FILE"
-echo "- Above noise floor: $SNR_ABOVE_NOISE_TRUE times" >>"$REPORT_FILE"
-echo "- Below noise floor: $SNR_ABOVE_NOISE_FALSE times" >>"$REPORT_FILE"
-echo "- Persistently low SNR: $SNR_PERSISTENTLY_LOW_TRUE times" >>"$REPORT_FILE"
-echo "- SNR not persistently low: $SNR_PERSISTENTLY_LOW_FALSE times" >>"$REPORT_FILE"
-echo "" >>"$REPORT_FILE"
+{
+    echo "- SNR Poor conditions: $SNR_POOR events"
+    echo "- SNR Good conditions: $SNR_GOOD events"
+    echo "- Above noise floor: $SNR_ABOVE_NOISE_TRUE times"
+    echo "- Below noise floor: $SNR_ABOVE_NOISE_FALSE times"
+    echo "- Persistently low SNR: $SNR_PERSISTENTLY_LOW_TRUE times"
+    echo "- SNR not persistently low: $SNR_PERSISTENTLY_LOW_FALSE times"
+    echo ""
+} >>"$REPORT_FILE"
 
 # Threshold Breach Analysis
 echo "## Threshold Breach Analysis" >>"$REPORT_FILE"
-HIGH_LOSS=$(grep "Loss:.*high: [1-9]" "$LOG_FILE" | wc -l)
-HIGH_OBSTRUCTION=$(grep "Obstruction:.*high: [1-9]" "$LOG_FILE" | wc -l)
-HIGH_LATENCY=$(grep "Latency:.*high: [1-9]" "$LOG_FILE" | wc -l)
+HIGH_LOSS=$(grep -c "Loss:.*high: [1-9]" "$LOG_FILE")
+HIGH_OBSTRUCTION=$(grep -c "Obstruction:.*high: [1-9]" "$LOG_FILE")
+HIGH_LATENCY=$(grep -c "Latency:.*high: [1-9]" "$LOG_FILE")
 
-echo "- High packet loss flags: $HIGH_LOSS events" >>"$REPORT_FILE"
-echo "- High obstruction flags: $HIGH_OBSTRUCTION events" >>"$REPORT_FILE"
-echo "- High latency flags: $HIGH_LATENCY events" >>"$REPORT_FILE"
-echo "" >>"$REPORT_FILE"
+{
+    echo "- High packet loss flags: $HIGH_LOSS events"
+    echo "- High obstruction flags: $HIGH_OBSTRUCTION events"
+    echo "- High latency flags: $HIGH_LATENCY events"
+    echo ""
+} >>"$REPORT_FILE"
 
 # Monitoring Frequency
 echo "## Monitoring Frequency Analysis" >>"$REPORT_FILE"
-MONITOR_STARTS=$(grep "Starting Starlink monitor check" "$LOG_FILE" | wc -l)
-MONITOR_COMPLETED=$(grep "Monitor check completed" "$LOG_FILE" | wc -l)
-MONITOR_STOPPED=$(grep "Monitor stopped" "$LOG_FILE" | wc -l)
-API_ERRORS=$(grep -i "error\|failed\|timeout" "$LOG_FILE" | wc -l)
+MONITOR_STARTS=$(grep -c "Starting Starlink monitor check" "$LOG_FILE")
+MONITOR_COMPLETED=$(grep -c "Monitor check completed" "$LOG_FILE")
+MONITOR_STOPPED=$(grep -c "Monitor stopped" "$LOG_FILE")
+API_ERRORS=$(grep -ic "error\|failed\|timeout" "$LOG_FILE")
 
-echo "- Monitor starts: $MONITOR_STARTS" >>"$REPORT_FILE"
-echo "- Monitor completions: $MONITOR_COMPLETED" >>"$REPORT_FILE"
-echo "- Monitor stops: $MONITOR_STOPPED" >>"$REPORT_FILE"
-echo "- API errors/failures: $API_ERRORS" >>"$REPORT_FILE"
-echo "" >>"$REPORT_FILE"
+{
+    echo "- Monitor starts: $MONITOR_STARTS"
+    echo "- Monitor completions: $MONITOR_COMPLETED"
+    echo "- Monitor stops: $MONITOR_STOPPED"
+    echo "- API errors/failures: $API_ERRORS"
+    echo ""
+} >>"$REPORT_FILE"
 
 # Data Quality
 echo "## Data Quality Summary" >>"$REPORT_FILE"
 TOTAL_LINES=$(wc -l <"$LOG_FILE")
-BASIC_METRICS=$(grep "Basic Metrics" "$LOG_FILE" | wc -l)
-ENHANCED_METRICS=$(grep "Enhanced Metrics" "$LOG_FILE" | wc -l)
+BASIC_METRICS=$(grep -c "Basic Metrics" "$LOG_FILE")
+ENHANCED_METRICS=$(grep -c "Enhanced Metrics" "$LOG_FILE")
 
-echo "- Total log lines: $TOTAL_LINES" >>"$REPORT_FILE"
-echo "- Basic metrics entries: $BASIC_METRICS" >>"$REPORT_FILE"
-echo "- Enhanced metrics entries: $ENHANCED_METRICS" >>"$REPORT_FILE"
-echo "" >>"$REPORT_FILE"
+{
+    echo "- Total log lines: $TOTAL_LINES"
+    echo "- Basic metrics entries: $BASIC_METRICS"
+    echo "- Enhanced metrics entries: $ENHANCED_METRICS"
+    echo ""
+} >>"$REPORT_FILE"
 
 # Newly Discovered Metrics
-echo "## Additional Metrics Available" >>"$REPORT_FILE"
-echo "### New data points discovered:" >>"$REPORT_FILE"
-echo "1. **System state tracking** - Connection up/down status" >>"$REPORT_FILE"
-echo "2. **Routing metrics** - Priority values (1=good, 20=failover)" >>"$REPORT_FILE"
-echo "3. **Stability counters** - Progressive tracking for failback decisions" >>"$REPORT_FILE"
-echo "4. **GPS validity status** - Beyond just satellite counts" >>"$REPORT_FILE"
-echo "5. **SNR quality flags** - Multiple signal quality indicators" >>"$REPORT_FILE"
-echo "6. **Threshold breach flags** - Real-time high flags for each metric" >>"$REPORT_FILE"
-echo "7. **Monitoring health** - API success/failure tracking" >>"$REPORT_FILE"
-echo "" >>"$REPORT_FILE"
+{
+    echo "## Additional Metrics Available"
+    echo "### New data points discovered:"
+    echo "1. **System state tracking** - Connection up/down status"
+    echo "2. **Routing metrics** - Priority values (1=good, 20=failover)"
+    echo "3. **Stability counters** - Progressive tracking for failback decisions"
+    echo "4. **GPS validity status** - Beyond just satellite counts"
+    echo "5. **SNR quality flags** - Multiple signal quality indicators"
+    echo "6. **Threshold breach flags** - Real-time high flags for each metric"
+    echo "7. **Monitoring health** - API success/failure tracking"
+    echo ""
+} >>"$REPORT_FILE"
 
 echo "Report generated: $REPORT_FILE"
 echo "Analysis complete!"
