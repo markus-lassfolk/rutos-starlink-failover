@@ -6,7 +6,8 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-readonly SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 
 # Display version if requested
 if [ "${1:-}" = "--version" ]; then
@@ -28,8 +29,10 @@ NC='\033[0m'
 if [ ! -t 1 ]; then
     RED=""
     GREEN=""
+    # shellcheck disable=SC2034  # Used in conditional contexts
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # Used in conditional contexts
     CYAN=""
     NC=""
 fi
@@ -69,9 +72,11 @@ This report provides detailed statistical analysis of ALL available metrics from
 
 EOF
 
-printf "**Analysis Date**: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" >>"$REPORT_FILE"
-printf "**Log File**: %s\n" "$LOG_FILE" >>"$REPORT_FILE"
-printf "**Total Log Size**: %s\n\n" "$(wc -c <"$LOG_FILE" | tr -d ' \n\r') bytes" >>"$REPORT_FILE"
+{
+    printf "**Analysis Date**: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+    printf "**Log File**: %s\n" "$LOG_FILE"
+    printf "**Total Log Size**: %s\n\n" "$(wc -c <"$LOG_FILE" | tr -d ' \n\r') bytes"
+} >>"$REPORT_FILE"
 
 # 1. SYSTEM STATE ANALYSIS
 log_step "Analyzing system states and stability"
@@ -121,7 +126,7 @@ EOF
 # Extract unique stability values
 STABILITY_VALUES=$(grep "Stability:" "$LOG_FILE" | sed 's/.*Stability: \([0-9]*\).*/\1/' | sort -n | uniq)
 for stability in $STABILITY_VALUES; do
-    count=$(grep "Stability: $stability" "$LOG_FILE" | wc -l | tr -d ' \n\r')
+    count=$(grep -c "Stability: $stability" "$LOG_FILE" | tr -d ' \n\r')
     echo "- **Stability $stability**: $count occurrences" >>"$REPORT_FILE"
 done
 
@@ -183,12 +188,14 @@ SNR_ABOVE_NOISE_FALSE=$(grep -c "above_noise: false" "$LOG_FILE" | tr -d ' \n\r'
 SNR_PERSISTENTLY_LOW_TRUE=$(grep -c "persistently_low: true" "$LOG_FILE" | tr -d ' \n\r')
 SNR_PERSISTENTLY_LOW_FALSE=$(grep -c "persistently_low: false" "$LOG_FILE" | tr -d ' \n\r')
 
-printf "- **SNR Poor conditions**: %s events\n" "$SNR_POOR" >>"$REPORT_FILE"
-printf "- **SNR Good conditions**: %s events\n" "$SNR_GOOD" >>"$REPORT_FILE"
-printf "- **Above noise floor**: %s times\n" "$SNR_ABOVE_NOISE_TRUE" >>"$REPORT_FILE"
-printf "- **Below noise floor**: %s times\n" "$SNR_ABOVE_NOISE_FALSE" >>"$REPORT_FILE"
-printf "- **Persistently low SNR**: %s times\n" "$SNR_PERSISTENTLY_LOW_TRUE" >>"$REPORT_FILE"
-printf "- **SNR not persistently low**: %s times\n" "$SNR_PERSISTENTLY_LOW_FALSE" >>"$REPORT_FILE"
+{
+    printf "- **SNR Poor conditions**: %s events\n" "$SNR_POOR"
+    printf "- **SNR Good conditions**: %s events\n" "$SNR_GOOD"
+    printf "- **Above noise floor**: %s times\n" "$SNR_ABOVE_NOISE_TRUE"
+    printf "- **Below noise floor**: %s times\n" "$SNR_ABOVE_NOISE_FALSE"
+    printf "- **Persistently low SNR**: %s times\n" "$SNR_PERSISTENTLY_LOW_TRUE"
+    printf "- **SNR not persistently low**: %s times\n" "$SNR_PERSISTENTLY_LOW_FALSE"
+} >>"$REPORT_FILE"
 
 # 5. THRESHOLD BREACH ANALYSIS
 log_step "Analyzing threshold breach patterns"
@@ -205,9 +212,11 @@ HIGH_LOSS=$(grep -c "Loss:.*high: [1-9]" "$LOG_FILE" | tr -d ' \n\r')
 HIGH_OBSTRUCTION=$(grep -c "Obstruction:.*high: [1-9]" "$LOG_FILE" | tr -d ' \n\r')
 HIGH_LATENCY=$(grep -c "Latency:.*high: [1-9]" "$LOG_FILE" | tr -d ' \n\r')
 
-printf "- **High packet loss flags**: %s events\n" "$HIGH_LOSS" >>"$REPORT_FILE"
-printf "- **High obstruction flags**: %s events\n" "$HIGH_OBSTRUCTION" >>"$REPORT_FILE"
-printf "- **High latency flags**: %s events\n" "$HIGH_LATENCY" >>"$REPORT_FILE"
+{
+    printf "- **High packet loss flags**: %s events\n" "$HIGH_LOSS"
+    printf "- **High obstruction flags**: %s events\n" "$HIGH_OBSTRUCTION"
+    printf "- **High latency flags**: %s events\n" "$HIGH_LATENCY"
+} >>"$REPORT_FILE"
 
 # 6. MONITORING FREQUENCY ANALYSIS
 log_step "Analyzing monitoring frequency and gaps"
@@ -220,13 +229,15 @@ cat >>"$REPORT_FILE" <<'EOF'
 EOF
 
 # Monitoring frequency
-MONITOR_STARTS=$(grep "Starting Starlink monitor check" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-MONITOR_COMPLETED=$(grep "Monitor check completed" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-MONITOR_STOPPED=$(grep "Monitor stopped" "$LOG_FILE" | wc -l | tr -d ' \n\r')
+MONITOR_STARTS=$(grep -c "Starting Starlink monitor check" "$LOG_FILE" | tr -d ' \n\r')
+MONITOR_COMPLETED=$(grep -c "Monitor check completed" "$LOG_FILE" | tr -d ' \n\r')
+MONITOR_STOPPED=$(grep -c "Monitor stopped" "$LOG_FILE" | tr -d ' \n\r')
 
-printf "- **Monitor starts**: %s\n" "$MONITOR_STARTS" >>"$REPORT_FILE"
-printf "- **Monitor completions**: %s\n" "$MONITOR_COMPLETED" >>"$REPORT_FILE"
-printf "- **Monitor stops**: %s\n" "$MONITOR_STOPPED" >>"$REPORT_FILE"
+{
+    printf "- **Monitor starts**: %s\n" "$MONITOR_STARTS"
+    printf "- **Monitor completions**: %s\n" "$MONITOR_COMPLETED"
+    printf "- **Monitor stops**: %s\n" "$MONITOR_STOPPED"
+} >>"$REPORT_FILE"
 
 # Calculate average interval
 FIRST_TIME=$(head -1 "$LOG_FILE" | cut -d' ' -f1-2)
@@ -250,22 +261,26 @@ EOF
 
 # Calculate data quality metrics
 TOTAL_LINES=$(wc -l <"$LOG_FILE" | tr -d ' \n\r')
-BASIC_METRICS=$(grep "Basic Metrics" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-ENHANCED_METRICS=$(grep "Enhanced Metrics" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-API_ERRORS=$(grep -i "error\|failed\|timeout" "$LOG_FILE" | wc -l | tr -d ' \n\r')
+BASIC_METRICS=$(grep -c "Basic Metrics" "$LOG_FILE" | tr -d ' \n\r')
+ENHANCED_METRICS=$(grep -c "Enhanced Metrics" "$LOG_FILE" | tr -d ' \n\r')
+API_ERRORS=$(grep -ic "error\|failed\|timeout" "$LOG_FILE" | tr -d ' \n\r')
 
-printf "- **Total log lines**: %s\n" "$TOTAL_LINES" >>"$REPORT_FILE"
-printf "- **Basic metrics entries**: %s\n" "$BASIC_METRICS" >>"$REPORT_FILE"
-printf "- **Enhanced metrics entries**: %s\n" "$ENHANCED_METRICS" >>"$REPORT_FILE"
-printf "- **API errors/failures**: %s\n" "$API_ERRORS" >>"$REPORT_FILE"
+{
+    printf "- **Total log lines**: %s\n" "$TOTAL_LINES"
+    printf "- **Basic metrics entries**: %s\n" "$BASIC_METRICS"
+    printf "- **Enhanced metrics entries**: %s\n" "$ENHANCED_METRICS"
+    printf "- **API errors/failures**: %s\n" "$API_ERRORS"
+} >>"$REPORT_FILE"
 
 # Data coverage percentage
 if [ "$MONITOR_STARTS" -gt 0 ]; then
     BASIC_COVERAGE=$(((BASIC_METRICS * 100) / MONITOR_STARTS))
     ENHANCED_COVERAGE=$(((ENHANCED_METRICS * 100) / MONITOR_STARTS))
 
-    printf "- **Basic metrics coverage**: %s%%%%\n" "$BASIC_COVERAGE" >>"$REPORT_FILE"
-    printf "- **Enhanced metrics coverage**: %s%%%%\n" "$ENHANCED_COVERAGE" >>"$REPORT_FILE"
+    {
+        printf "- **Basic metrics coverage**: %s%%%%\n" "$BASIC_COVERAGE"
+        printf "- **Enhanced metrics coverage**: %s%%%%\n" "$ENHANCED_COVERAGE"
+    } >>"$REPORT_FILE"
 fi
 
 # 8. OPERATIONAL INSIGHTS
@@ -335,7 +350,7 @@ EOF
 log_success "Comprehensive analysis completed"
 log_info "Report saved to: $REPORT_FILE"
 
-printf "\n${GREEN}📊 ANALYSIS SUMMARY${NC}\n"
+printf "\n%s📊 ANALYSIS SUMMARY%s\n" "$GREEN" "$NC"
 printf "System States: %s up, %s down (%s%%%% uptime)\n" "$STATE_UP" "$STATE_DOWN" "$UPTIME_PERCENT"
 printf "GPS Status: %s valid, %s invalid readings\n" "$GPS_VALID" "$GPS_INVALID"
 printf "Monitoring: %s checks with %s API errors (%s%%%% failure rate)\n" "$MONITOR_STARTS" "$API_ERRORS" "$FAILURE_RATE"
