@@ -4,20 +4,19 @@
 
 set -e
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+
 # Colors for output (RUTOS compatible)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
     NC='\033[0m'
 else
-    RED=""
     GREEN=""
     YELLOW=""
     BLUE=""
-    CYAN=""
     NC=""
 fi
 
@@ -38,9 +37,9 @@ log_missing() {
     printf "${YELLOW}[MISSING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
-printf "${BLUE}================================================${NC}\n"
-printf "${BLUE}      RUTOS Starlink Installation Discovery${NC}\n"
-printf "${BLUE}================================================${NC}\n"
+printf "%s================================================%s\n" "$BLUE" "$NC"
+printf "%s      RUTOS Starlink Installation Discovery%s\n" "$BLUE" "$NC"
+printf "%s================================================%s\n" "$BLUE" "$NC"
 printf "\n"
 
 log_info "Scanning for Starlink monitoring installation..."
@@ -157,9 +156,9 @@ else
 fi
 
 printf "\n"
-printf "${BLUE}================================================${NC}\n"
-printf "${BLUE}              DISCOVERY COMPLETE${NC}\n"
-printf "${BLUE}================================================${NC}\n"
+printf "%s================================================%s\n" "$BLUE" "$NC"
+printf "%s              DISCOVERY COMPLETE%s\n" "$BLUE" "$NC"
+printf "%s================================================%s\n" "$BLUE" "$NC"
 printf "\n"
 
 log_info "Discovery completed!"

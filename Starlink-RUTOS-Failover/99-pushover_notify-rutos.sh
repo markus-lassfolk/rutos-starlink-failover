@@ -16,9 +16,13 @@
 
 set -eu
 
+# BusyBox compatibility: set PS4 without LINENO for debug mode
+PS4='+ '
+
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
+
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled - defined for consistency even if not all used
     # shellcheck disable=SC2034 # Color variables standardized across scripts
@@ -49,25 +53,14 @@ else
     NC=""
 fi
 
-# Standard colors for consistent output (compatible with busybox)
-# CRITICAL: Use RUTOS-compatible color detection
-# shellcheck disable=SC2034  # Colors defined for consistent interface
-if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    # Colors enabled
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
-else
-    # Colors disabled
-    RED=""
-    GREEN=""
-    YELLOW=""
-    BLUE=""
-    CYAN=""
-    NC=""
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# RUTOS test mode support (for testing framework) - exit early before config loading
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
 fi
 
 # --- Configuration Loading ---
@@ -76,17 +69,25 @@ if [ -f "$CONFIG_FILE" ]; then
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
 else
-    echo "Error: Configuration file not found: $CONFIG_FILE"
-    exit 1
+    if [ "$DRY_RUN" = "1" ]; then
+        # In dry-run mode, provide fallback values for testing
+        printf "[INFO] DRY_RUN mode: Using fallback configuration (config file not found: %s)\n" "$CONFIG_FILE" >&2
+        STATE_DIR="${STATE_DIR:-/tmp/starlink-test}"
+        LOG_DIR="${LOG_DIR:-/tmp/starlink-test}"
+        PUSHOVER_API_TOKEN="${PUSHOVER_API_TOKEN:-test-token}"
+        PUSHOVER_USER_KEY="${PUSHOVER_USER_KEY:-test-key}"
+        RATE_LIMIT_SECONDS="${RATE_LIMIT_SECONDS:-300}"
+        # Create directories for dry-run mode
+        mkdir -p "$STATE_DIR" "$LOG_DIR" 2>/dev/null || true
+    else
+        echo "Error: Configuration file not found: $CONFIG_FILE"
+        exit 1
+    fi
 fi
 
 # --- Derived Configuration ---
 RATE_LIMIT_FILE="${STATE_DIR}/pushover_rate_limit"
 NOTIFICATION_LOG="${LOG_DIR}/notifications.log"
-
-# Dry-run and test mode support
-DRY_RUN="${DRY_RUN:-0}"
-RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then

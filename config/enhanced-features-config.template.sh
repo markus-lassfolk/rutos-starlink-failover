@@ -3,8 +3,11 @@
 # DEPRECATED: ENHANCED FEATURES CONFIGURATION
 # =============================================================================
 
-# Script version for validation compliance
+# Version information (auto-updated by update-version.sh)
+# shellcheck disable=SC2034  # SCRIPT_VERSION used for validation compliance in template
 SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
+
 # ⚠️  THIS FILE IS DEPRECATED - DO NOT USE ⚠️
 #
 # Enhanced features have been integrated into the main config.template.sh

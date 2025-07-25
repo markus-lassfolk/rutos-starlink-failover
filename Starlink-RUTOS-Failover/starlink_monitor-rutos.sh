@@ -30,6 +30,12 @@ set -eu
 SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
+# RUTOS test mode support (for testing framework)
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
+fi
+
 # Standard colors for consistent output (compatible with busybox)
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then

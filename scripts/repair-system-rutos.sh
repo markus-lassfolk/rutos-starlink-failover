@@ -66,6 +66,13 @@ log_step() {
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
+log_debug() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
+
 # Dry-run and test mode support
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"

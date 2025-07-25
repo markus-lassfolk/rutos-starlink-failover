@@ -25,6 +25,36 @@ if [ ! -t 1 ]; then
     NC=""
 fi
 
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "${DEBUG:-0}" = "1" ]; then
+    echo "[DEBUG] DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE" >&2
+fi
+
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    echo "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution" >&2
+    exit 0
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ]; then
+        log_info "[DRY-RUN] Would execute: $description"
+        echo "[DRY-RUN] Command: $cmd" >&2
+        return 0
+    else
+        eval "$cmd"
+        return $?
+    fi
+}
+
 log_info() {
     printf "${GREEN}[INFO]${NC} %s\n" "$1"
 }

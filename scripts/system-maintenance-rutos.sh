@@ -31,11 +31,14 @@ if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
     NC=""
 fi
 
-# Standard logging functions with consistent colors
-# Version information for troubleshooting
-if [ "${DEBUG:-0}" = "1" ]; then
-    log_debug "Script: system-maintenance-rutos.sh v$SCRIPT_VERSION"
-fi
+# Standard logging functions with consistent colors (define all before use)
+log_debug() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        logger -t "SystemMaintenance" -p user.debug "$1"
+    fi
+}
+
 log_info() {
     printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     # Also log to syslog for system tracking
@@ -52,13 +55,6 @@ log_error() {
     logger -t "SystemMaintenance" -p user.error "$1"
 }
 
-log_debug() {
-    if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
-        logger -t "SystemMaintenance" -p user.debug "$1"
-    fi
-}
-
 log_success() {
     printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     logger -t "SystemMaintenance" -p user.notice "SUCCESS: $1"
@@ -68,6 +64,11 @@ log_step() {
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     logger -t "SystemMaintenance" -p user.info "STEP: $1"
 }
+
+# Version information for troubleshooting
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "Script: system-maintenance-rutos.sh v$SCRIPT_VERSION"
+fi
 
 # Debug mode support
 DEBUG="${DEBUG:-0}"
@@ -109,7 +110,12 @@ if [ "$RUTOS_TEST_MODE" = "1" ]; then
 fi
 
 # Maintenance configuration
-MAINTENANCE_LOG="/var/log/system-maintenance.log"
+if [ "$DRY_RUN" = "1" ]; then
+    MAINTENANCE_LOG="/tmp/system-maintenance-dryrun.log"
+    log_info "DRY_RUN mode: Using temporary log file: $MAINTENANCE_LOG"
+else
+    MAINTENANCE_LOG="/var/log/system-maintenance.log"
+fi
 ISSUES_FIXED_COUNT=0
 ISSUES_FOUND_COUNT=0
 CRITICAL_ISSUES_COUNT=0

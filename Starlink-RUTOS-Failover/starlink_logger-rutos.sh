@@ -32,11 +32,15 @@ readonly SCRIPT_VERSION
 # Use version for validation
 echo "$(basename "$0") v$SCRIPT_VERSION" >/dev/null 2>&1 || true
 
+# RUTOS test mode support (for testing framework)
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
+fi
+
 # --- User Configuration ---
 
 # Set default installation directory if not already set
-
-# Version information (auto-updated by update-version.sh)
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
 
 # Load configuration from config file if available

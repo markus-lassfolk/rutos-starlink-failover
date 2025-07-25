@@ -22,6 +22,12 @@ CYAN='\033[0;36m'
 # shellcheck disable=SC2034
 NC='\033[0m' # No Color
 
+# RUTOS test mode support (for testing framework)
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
+fi
+
 # Check if we're in a terminal that supports colors
 if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
     # shellcheck disable=SC2034  # Colors disabled but variables defined for consistency

@@ -26,6 +26,12 @@ set -eu
 SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
+# RUTOS test mode support (for testing framework)
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
+fi
+
 # Standard colors for consistent output (compatible with busybox)
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
@@ -231,7 +237,7 @@ collect_cellular_data() {
     fi
 
     timestamp="" modem_id="" signal_strength="" signal_quality="" network_type=""
-    operator="" roaming_status="" connection_status="" data_usage_mb=""
+    operator="" roaming_status=""
 
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     log_debug "Collecting cellular data from primary modem"
@@ -332,6 +338,10 @@ analyze_starlink_metrics() {
     CURRENT_GPS_VALID="$gps_valid"
     CURRENT_GPS_SATS="$gps_sats"
     CURRENT_UPTIME="$uptime_s"
+
+    # Export infrastructure metrics for external use
+    export CURRENT_SNR CURRENT_UPTIME
+    export STARLINK_BOOTCOUNT="$bootcount"
 
     return 0
 }

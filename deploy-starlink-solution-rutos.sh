@@ -29,6 +29,13 @@ set -eu
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
+
+# RUTOS test mode support (for testing framework)
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
+fi
+
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'

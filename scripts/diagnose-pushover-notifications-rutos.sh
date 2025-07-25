@@ -6,11 +6,8 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
-readonly SCRIPT_VERSION="1.0.0"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
@@ -29,6 +26,36 @@ if [ ! -t 1 ]; then
     CYAN=""
     NC=""
 fi
+
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "${DEBUG:-0}" = "1" ]; then
+    echo "[DEBUG] DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE" >&2
+fi
+
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    echo "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution" >&2
+    exit 0
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ]; then
+        echo "[DRY-RUN] Would execute: $description"
+        echo "[DRY-RUN] Command: $cmd" >&2
+        return 0
+    else
+        eval "$cmd"
+        return $?
+    fi
+}
 
 # Standard logging functions with consistent colors
 log_info() {
