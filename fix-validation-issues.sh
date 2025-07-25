@@ -5,11 +5,11 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-# shellcheck disable=SC2034  # SCRIPT_VERSION used for validation compliance
 SCRIPT_VERSION="1.0.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)
+# shellcheck disable=SC2034 # Colors defined per project convention, some may be unused
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -81,8 +81,11 @@ fix_printf_formats() {
 
     # Fix test-rutos-fixes.sh printf issues
     if [ -f "test-rutos-fixes.sh" ]; then
+        # shellcheck disable=SC2016 # These are literal sed patterns, not variable expansions
         sed -i 's/printf "${GREEN}/printf "%s" "${GREEN}/g' "test-rutos-fixes.sh"
+        # shellcheck disable=SC2016 # These are literal sed patterns, not variable expansions
         sed -i 's/printf "${YELLOW}/printf "%s" "${YELLOW}/g' "test-rutos-fixes.sh"
+        # shellcheck disable=SC2016 # These are literal sed patterns, not variable expansions
         sed -i 's/printf "${BLUE}/printf "%s" "${BLUE}/g' "test-rutos-fixes.sh"
         FIXES_APPLIED=$((FIXES_APPLIED + 1))
         log_success "Fixed printf formats in test-rutos-fixes.sh"
@@ -107,7 +110,9 @@ fix_sc2004_arithmetic() {
     # Fix the unified monitor script
     if [ -f "Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh" ]; then
         # Fix SC2004 issues (unnecessary ${} in arithmetic)
+        # shellcheck disable=SC2016 # These are literal sed patterns, not variable expansions
         sed -i 's/\${packet_loss}/packet_loss/g' "Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh"
+        # shellcheck disable=SC2016 # These are literal sed patterns, not variable expansions
         sed -i 's/\${obstruction}/obstruction/g' "Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh"
         FIXES_APPLIED=$((FIXES_APPLIED + 1))
         log_success "Fixed arithmetic variables in starlink_monitor_unified-rutos.sh"
@@ -115,7 +120,7 @@ fix_sc2004_arithmetic() {
 }
 
 # Main execution
-log_info "Starting validation fixes for critical issues..."
+log_info "Starting validation fixes for critical issues... (v$SCRIPT_VERSION)"
 
 fix_color_detection
 fix_unused_colors
