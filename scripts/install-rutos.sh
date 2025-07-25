@@ -1729,16 +1729,19 @@ configure_cron() {
         # Create temp file for clean crontab
         temp_cron="/tmp/crontab_clean.tmp"
 
-        # Remove lines that match our default install patterns, but preserve custom ones
-        # Look for the specific comment marker and the exact default entries
-        grep -v "# Starlink monitoring system - Added by install script" "$CRON_FILE" >"$temp_cron" || true
+        # Remove lines that match our install script patterns (both old and new)
+        # Look for the specific comment markers and the exact default entries
+        grep -v -E "# Starlink (monitoring system|monitor|logger|API check|System maintenance|Auto-update check) - Added by install script" "$CRON_FILE" >"$temp_cron" || true
 
         # Remove the exact default entries (in case comment is missing)
-        # But be very specific to avoid removing custom timing configurations
+        # Handle both old and new script names
         sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_monitor-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
         sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_logger-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
+        sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_monitor_unified-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
+        sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_logger_unified-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
         sed -i '/^0 6 \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/check_starlink_api.*\.sh$/d' "$temp_cron" 2>/dev/null || true
         sed -i '/^0 \*\/6 \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/system-maintenance-rutos\.sh auto$/d' "$temp_cron" 2>/dev/null || true
+        sed -i '/^0 3 \* \* 0 CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/self-update-rutos\.sh --auto-update$/d' "$temp_cron" 2>/dev/null || true
 
         # Also clean up any previously commented entries from old install script behavior
         sed -i '/^# COMMENTED BY INSTALL SCRIPT.*starlink/d' "$temp_cron" 2>/dev/null || true

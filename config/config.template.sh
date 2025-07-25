@@ -68,27 +68,67 @@ export NOTIFY_ON_SOFT_FAIL="0" # Degraded performance (0=disabled for basic setu
 export NOTIFY_ON_INFO="0"      # Status updates (0=disabled for basic setup)
 
 # --- Basic Failover Thresholds ---
+# These settings control when the system triggers failover to cellular backup
 
 # Packet loss threshold (percentage as decimal: 0.05 = 5%)
+# How it works: If packet loss exceeds this percentage, triggers failover
+# Lower values = more sensitive failover, Higher values = more tolerant of poor conditions
+# Recommended: 0.05 (5%) for balanced reliability vs stability
 export PACKET_LOSS_THRESHOLD="0.05"
 
 # Obstruction threshold (percentage as decimal: 0.001 = 0.1%)
+# How it works: Starlink reports obstructions (trees, buildings) blocking satellite view
+# Even small obstructions can cause intermittent connectivity issues
+# Recommended: 0.001 (0.1%) - very sensitive since obstructions indicate positioning issues
 export OBSTRUCTION_THRESHOLD="0.001"
 
-# Latency threshold in milliseconds
+# Latency threshold in milliseconds (ping response time)
+# How it works: High latency indicates poor satellite connection or network congestion
+# Affects: Real-time applications (VoIP, gaming, video calls)
+# Typical Starlink: 20-40ms good, 50-80ms acceptable, 100ms+ problematic
+# Recommended: 150ms for general use, 100ms for latency-sensitive applications
 export LATENCY_THRESHOLD_MS="150"
 
-# Stability checks required before failback (consecutive good checks)
-# Higher values = more stable failback, lower values = faster failback
+# Jitter threshold in milliseconds (variation in latency)
+# What is jitter: The variation in ping times - indicates network stability
+# Low jitter (0-10ms) = stable connection, High jitter (20ms+) = unstable connection
+# Affects: Video streaming, VoIP quality, real-time applications
+# Recommended: 20ms for general use, 10ms for real-time applications
+export JITTER_THRESHOLD="20"
+
+# Stability checks required before failback (consecutive good checks needed)
+# How it works: After Starlink recovers, wait for X consecutive good checks before switching back
+# Prevents: Rapid back-and-forth switching when connection is marginal
+# Higher values = more stable failback (but slower recovery)
+# Lower values = faster failback (but may cause oscillation)
+# Recommended: 5 checks (2.5 minutes with 30-second intervals)
 export STABILITY_CHECKS_REQUIRED="5"
 
 # --- System Settings ---
+# Core timing and operational parameters
 
-# Check interval in seconds (how often to test Starlink)
+# Check interval in seconds (how often to test Starlink connection)
+# How it works: Script wakes up every X seconds to test Starlink quality
+# Shorter intervals = faster detection of issues, more system load
+# Longer intervals = slower detection, less system load
+# Affects: Battery life (mobile), system resources, failover speed
+# Recommended: 30 seconds for balanced monitoring, 60 seconds for battery conservation
 export CHECK_INTERVAL="30"
 
-# API timeout in seconds
+# API timeout in seconds (maximum wait time for Starlink API responses)
+# What it does: How long to wait for Starlink gRPC API to respond before giving up
+# Includes: Starlink status queries, quality metrics, obstruction data
+# Note: Does NOT affect Pushover API timeout (that's separate)
+# Too low = false failures during temporary slowness
+# Too high = slow detection of real API failures
+# Recommended: 10 seconds (Starlink API is usually very fast <1s or fails completely)
 export API_TIMEOUT="10"
+
+# Pushover notification timeout in seconds (separate from Starlink API)
+# What it does: How long to wait for Pushover notification service to respond
+# Only affects: Push notification delivery, does not affect monitoring
+# Recommended: 30 seconds (internet connection may be poor during failures)
+export PUSHOVER_TIMEOUT="30"
 
 # Directory for log files (persistent across reboots)
 export LOG_DIR="/etc/starlink-logs"
