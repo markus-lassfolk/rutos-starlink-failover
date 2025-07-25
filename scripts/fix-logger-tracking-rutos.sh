@@ -2,14 +2,14 @@
 # ==============================================================================
 # Fix Starlink Logger Sample Tracking Issue
 #
-# Version: 1.0.0
+# Version: 2.7.0
 # Description: Fixes the sample tracking file when it has a stale high index
 # ==============================================================================
 
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for output

@@ -2,7 +2,7 @@
 # Test the extract_variable function directly
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 mkdir -p /tmp/debug-test
 

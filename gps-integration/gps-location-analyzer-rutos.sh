@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: gps-location-analyzer-rutos.sh
-# Version: 2.4.6
+# Version: 2.7.0
 # Description: Location clustering and analysis for GPS data with motorhome-specific features
 # Integrates with gps-collector-rutos.sh and existing configuration
 
@@ -8,6 +8,10 @@ set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="1.0.0"
 
 # Standard colors for consistent output (compatible with busybox)

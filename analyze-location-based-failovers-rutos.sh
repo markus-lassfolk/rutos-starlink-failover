@@ -1,13 +1,13 @@
 #!/bin/sh
 # Script: analyze-location-based-failovers-rutos.sh
-# Version: 2.4.6
+# Version: 2.7.0
 # Description: GPS-based location clustering analysis for Starlink failover patterns
 # Based on Victron GPS normalization approach
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="2.7.0"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'

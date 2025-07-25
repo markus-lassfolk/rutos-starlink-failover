@@ -1,11 +1,15 @@
 #!/bin/sh
 # Script: diagnose-pushover-notifications-rutos.sh
-# Version: 1.0.0
+# Version: 2.7.0
 # Description: Comprehensive diagnostic tool for Pushover notification issues
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="1.0.0"
 
 # Standard colors for consistent output (compatible with busybox)

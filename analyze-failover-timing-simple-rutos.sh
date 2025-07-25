@@ -1,11 +1,11 @@
 #!/bin/sh
 # Script: analyze-failover-timing-simple-rutos.sh
-# Version: 1.0.1
+# Version: 2.7.0
 # Description: Simplified failover timing analysis for RUTOS Starlink monitoring
 
 set -e
 
-SCRIPT_VERSION="1.0.1"
+SCRIPT_VERSION="2.7.0"
 
 # Standard colors for output
 RED='\033[0;31m'

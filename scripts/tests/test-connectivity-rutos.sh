@@ -1,14 +1,14 @@
 #!/bin/sh
 # shellcheck disable=SC2059  # RUTOS requires Method 5 printf format (embedded variables)
 # Script: test-connectivity-rutos.sh
-# Version: 2.5.0
+# Version: 2.7.0
 # Description: Test network connectivity for RUTOS Starlink failover system
 # Usage: ./scripts/tests/test-connectivity-rutos.sh [--debug] [--dry-run]
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

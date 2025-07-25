@@ -1,12 +1,12 @@
 #!/bin/sh
 # Script: comprehensive-stats-analysis.sh
 # Comprehensive statistical analysis of all available RUTOS monitoring data
-# Version: 1.0.0
+# Version: 2.7.0
 
 set -e
 
 # Version information (auto-updated by update-version.sh)
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="2.7.0"
 
 # Display version if requested
 if [ "${1:-}" = "--version" ]; then

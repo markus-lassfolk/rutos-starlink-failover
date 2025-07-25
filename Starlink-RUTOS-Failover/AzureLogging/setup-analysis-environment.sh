@@ -11,7 +11,7 @@ set -e
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # shellcheck disable=SC2034

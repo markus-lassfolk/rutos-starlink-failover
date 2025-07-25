@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: demo-statistical-aggregation-rutos.sh
-# Version: 2.4.6
+# Version: 2.7.0
 # Description: Demonstration of 60:1 statistical aggregation with GPS for logger optimization
 # Shows exactly how the data reduction works with real examples
 
@@ -8,6 +8,10 @@ set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="1.0.0"
 
 # Standard colors for consistent output (compatible with busybox)

@@ -13,7 +13,7 @@
 # Read configuration from UCI if available, otherwise use defaults
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
 # Dry-run and test mode support

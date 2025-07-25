@@ -21,12 +21,12 @@
 
 # Version information (auto-updated by update-version.sh)
 if [ -z "${SCRIPT_VERSION:-}" ]; then
-    SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
     readonly SCRIPT_VERSION
 fi
 
 # Configuration metadata for troubleshooting
-CONFIG_VERSION="2.6.0"
+CONFIG_VERSION="2.7.0"
 CONFIG_TYPE="unified"
 
 # Version logging for troubleshooting

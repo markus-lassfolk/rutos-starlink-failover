@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: view-logs-rutos.sh
-# Version: 2.4.12
+# Version: 2.7.0
 # Description: View and analyze system logs for troubleshooting
 # Compatible with: RUTOS (busybox sh)
 
@@ -9,7 +9,7 @@ set -e # Exit on error
 # Version information (used for version tracking and logging)
 # shellcheck disable=SC2034  # SCRIPT_VERSION used for version reporting
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

@@ -1,12 +1,12 @@
 #!/bin/sh
 # Script: system-maintenance-rutos.sh
-# Version: 2.4.12
+# Version: 2.7.0
 # Description: Generic RUTOS system maintenance script that checks for common issues and fixes them
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
 # Version information (auto-updated by update-version.sh)

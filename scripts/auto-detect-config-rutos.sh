@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: auto-detect-config-rutos.sh
-# Version: 2.5.0
+# Version: 2.7.0
 # Description: Autonomous system configuration detection for RUTOS Starlink failover
 # Purpose: "Just make it work" - detect optimal settings automatically
 
@@ -10,7 +10,7 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

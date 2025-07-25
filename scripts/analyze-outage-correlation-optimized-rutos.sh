@@ -1,11 +1,15 @@
 #!/bin/sh
 # Script: analyze-outage-correlation-optimized-rutos.sh
-# Version: 1.0.0
+# Version: 2.7.0
 # Description: Optimized outage correlation analysis for RUTOS monitoring logs
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="1.0.0"
 
 # Color definitions (busybox compatible)

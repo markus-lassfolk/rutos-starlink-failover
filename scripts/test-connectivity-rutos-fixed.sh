@@ -12,7 +12,7 @@ set -e # Exit on error
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="2.4.11"
 

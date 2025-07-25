@@ -1,6 +1,10 @@
 #!/bin/sh
 # Test to compare correlation logic between original and optimized versions
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="2.6.0"
 
 # Display version if requested

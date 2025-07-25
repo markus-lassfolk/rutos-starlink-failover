@@ -17,7 +17,7 @@ set -eu
 # shellcheck disable=SC2034  # SCRIPT_NAME may be used by external functions
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 SCRIPT_NAME="unified-azure-setup"
 

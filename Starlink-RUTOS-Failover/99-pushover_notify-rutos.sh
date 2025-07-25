@@ -5,7 +5,7 @@
 # ==============================================================================
 # Enhanced Pushover Notifier for Starlink Monitoring System
 #
-# Version: 2.4.12
+# Version: 2.7.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script serves as the central notification hub for the Starlink monitoring
@@ -17,7 +17,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled - defined for consistency even if not all used

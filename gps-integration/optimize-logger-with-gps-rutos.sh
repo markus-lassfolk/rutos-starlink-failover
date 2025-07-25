@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: optimize-logger-with-gps-rutos.sh
-# Version: 2.4.6
+# Version: 2.7.0
 # Description: Optimize Starlink logger with GPS integration and intelligent data aggregation
 # Reduces 60 samples/minute to 1 aggregated entry with statistical summaries + GPS data
 
@@ -8,6 +8,10 @@ set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="1.0.0"
 
 # Standard colors for consistent output (compatible with busybox)

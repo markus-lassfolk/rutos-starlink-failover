@@ -7,7 +7,7 @@
 # Source the main config if it exists
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.6.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 if [ -f "/etc/starlink-config/config.sh" ]; then
     # Load configuration from persistent location

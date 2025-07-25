@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: demo-cellular-integration-rutos.sh
-# Version: 2.4.6
+# Version: 2.7.0
 # Description: Comprehensive demonstration of cellular integration with Starlink failover
 # Shows multi-connectivity analysis, smart failover decisions, and location-based insights
 
@@ -8,6 +8,10 @@ set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="1.0.0"
 
 # Standard colors for consistent output (compatible with busybox)
