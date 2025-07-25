@@ -4,16 +4,16 @@ AI DEBUGGING REPORT FOR RUTOS STARLINK FAILOVER SCRIPTS
 COPY THIS ENTIRE SECTION TO AI FOR DEBUGGING ASSISTANCE:
 
 ## Test Summary
-- Date: Wed Jul 23 12:22:02 CEST 2025
-- Script Version: 2.5.0
-- Total Scripts Tested: 46
-- Passed: 37
-- Failed: 9
-- Missing Dry-Run Support: 11
-- Success Rate: 80%
+- Date: Fri Jul 25 15:21:00 CEST 2025
+- Script Version: 2.7.0
+- Total Scripts Tested: 69
+- Passed: 51
+- Failed: 18
+- Missing Dry-Run Support: 15
+- Success Rate: 73%
 
 ## Dry-Run Support Analysis
-⚠️  WARNING: 11 scripts lack dry-run support
+⚠️  WARNING: 15 scripts lack dry-run support
 These scripts cannot be safely tested without making real system changes.
 See detailed recommendations below for adding dry-run support.
 
@@ -23,118 +23,27 @@ See detailed recommendations below for adding dry-run support.
 - Test Mode: All scripts run with DRY_RUN=1 and RUTOS_TEST_MODE=1
 
 ## Detailed Errors Found
-DRY-RUN MISSING in complete-setup-rutos.sh:
-  Issue: Script lacks dry-run/test mode support
-  Impact: Cannot be safely tested without making real changes
+EXECUTION ERROR in 99-pushover_notify-rutos.sh:
+  File: ./Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -eu
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ [ -t 1 ]
++ RED=
   
-  Fix: Add this pattern after script setup (after colors/logging functions):
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
   
-  # Dry-run and test mode support
-  DRY_RUN="${DRY_RUN:-0}"
-  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
   
-  # Debug dry-run status
-  if [ "$DEBUG" = "1" ]; then
-      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-  fi
-  
-  # Function to safely execute commands
-  safe_execute() {
-      cmd="$1"
-      description="$2"
-      
-      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-          log_info "[DRY-RUN] Would execute: $description"
-          log_debug "[DRY-RUN] Command: $cmd"
-          return 0
-      else
-          log_debug "Executing: $cmd"
-          eval "$cmd"
-      fi
-  }
-  
-  Then replace dangerous commands like:
-  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
-  - rm -f file                  → safe_execute "rm -f file" "Remove file"
-  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
-  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
-  
-  Reason: Allows safe testing without making system changes
-  DRY-RUN MISSING in log-shipper-rutos.sh:
-  Issue: Script lacks dry-run/test mode support
-  Impact: Cannot be safely tested without making real changes
-  
-  Fix: Add this pattern after script setup (after colors/logging functions):
-  
-  # Dry-run and test mode support
-  DRY_RUN="${DRY_RUN:-0}"
-  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-  
-  # Debug dry-run status
-  if [ "$DEBUG" = "1" ]; then
-      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-  fi
-  
-  # Function to safely execute commands
-  safe_execute() {
-      cmd="$1"
-      description="$2"
-      
-      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-          log_info "[DRY-RUN] Would execute: $description"
-          log_debug "[DRY-RUN] Command: $cmd"
-          return 0
-      else
-          log_debug "Executing: $cmd"
-          eval "$cmd"
-      fi
-  }
-  
-  Then replace dangerous commands like:
-  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
-  - rm -f file                  → safe_execute "rm -f file" "Remove file"
-  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
-  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
-  
-  Reason: Allows safe testing without making system changes
-  DRY-RUN MISSING in setup-persistent-logging-rutos.sh:
-  Issue: Script lacks dry-run/test mode support
-  Impact: Cannot be safely tested without making real changes
-  
-  Fix: Add this pattern after script setup (after colors/logging functions):
-  
-  # Dry-run and test mode support
-  DRY_RUN="${DRY_RUN:-0}"
-  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-  
-  # Debug dry-run status
-  if [ "$DEBUG" = "1" ]; then
-      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-  fi
-  
-  # Function to safely execute commands
-  safe_execute() {
-      cmd="$1"
-      description="$2"
-      
-      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-          log_info "[DRY-RUN] Would execute: $description"
-          log_debug "[DRY-RUN] Command: $cmd"
-          return 0
-      else
-          log_debug "Executing: $cmd"
-          eval "$cmd"
-      fi
-  }
-  
-  Then replace dangerous commands like:
-  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
-  - rm -f file                  → safe_execute "rm -f file" "Remove file"
-  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
-  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
-  
-  Reason: Allows safe testing without making system changes
-  DRY-RUN MISSING in starlink-azure-monitor-rutos.sh:
+DRY-RUN MISSING in starlink-azure-monitor-rutos.sh:
   Issue: Script lacks dry-run/test mode support
   Impact: Cannot be safely tested without making real changes
   
@@ -245,54 +154,697 @@ DRY-RUN MISSING in complete-setup-rutos.sh:
   - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
   
   Reason: Allows safe testing without making system changes
-  EXECUTION ERROR in check_starlink_api-rutos.sh:
-  File: ./Starlink-RUTOS-Failover/check_starlink_api-rutos.sh  
-  Error: [DEBUG] [2025-07-23 12:21:38] TEST MODE: Running with enhanced debug logging
-[DEBUG] [2025-07-23 12:21:38] ==================== STARLINK API CHECK START ====================
-[DEBUG] [2025-07-23 12:21:38] Starting API version check script
-[DEBUG] [2025-07-23 12:21:38] Script version: 2.4.12
-[DEBUG] [2025-07-23 12:21:38] Current working directory: /mnt/c/GitHub/rutos-starlink-failover
+  EXECUTION ERROR in starlink_logger_enhanced-rutos.sh:
+  File: ./Starlink-RUTOS-Failover/starlink_logger_enhanced-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -eu
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ [ -t 1 ]
++ RED=
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './Starlink-RUTOS-Failover/starlink_logger_enhanced-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
   Fix: Check script logic, error handling, and dry-run implementation
   Note: Script has dry-run support but still failed - check dry-run logic
   
-EXECUTION ERROR in starlink_logger-rutos.sh:
-  File: ./Starlink-RUTOS-Failover/starlink_logger-rutos.sh  
-  Error: [DEBUG] [2025-07-23 12:21:38] TEST MODE: Running with enhanced debug logging
-[DEBUG] [2025-07-23 12:21:38] ==================== STARLINK LOGGER DEBUG MODE ENABLED ====================
-[DEBUG] [2025-07-23 12:21:38] Script version: 2.4.12
-[DEBUG] [2025-07-23 12:21:38] Current working directory: /mnt/c/GitHub/rutos-starlink-failover
-[DEBUG] [2025-07-23 12:21:38] Script path: ./Starlink-RUTOS-Failover/starlink_logger-rutos.sh
+EXECUTION ERROR in starlink_monitor-rutos.sh:
+  File: ./Starlink-RUTOS-Failover/starlink_monitor-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -eu
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ [ -t 1 ]
++ RED=
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './Starlink-RUTOS-Failover/starlink_monitor-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
   Fix: Check script logic, error handling, and dry-run implementation
   Note: Script has dry-run support but still failed - check dry-run logic
   
-EXECUTION ERROR in auto-detect-config-rutos.sh:
-  File: ./scripts/auto-detect-config-rutos.sh  
-  Error: [INFO] [2025-07-23 12:21:39] 🚀 Starting autonomous RUTOS configuration detection v2.4.12
-[ERROR] [2025-07-23 12:21:39] This script is designed for OpenWrt/RUTOS systems
+EXECUTION ERROR in starlink_monitor_enhanced-rutos.sh:
+  File: ./Starlink-RUTOS-Failover/starlink_monitor_enhanced-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -eu
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ [ -t 1 ]
++ RED=
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './Starlink-RUTOS-Failover/starlink_monitor_enhanced-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+DRY-RUN MISSING in analyze-failover-timing-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  DRY-RUN MISSING in analyze-failover-timing-simple-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  DRY-RUN MISSING in analyze-location-based-failovers-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  DRY-RUN MISSING in cellular-data-collector-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  DRY-RUN MISSING in demo-cellular-integration-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  DRY-RUN MISSING in optimize-logger-with-cellular-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  EXECUTION ERROR in smart-failover-engine-rutos.sh:
+  File: ./cellular-integration/smart-failover-engine-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ readonly SCRIPT_VERSION=1.0.0
+./cellular-integration/smart-failover-engine-rutos.sh: 15: readonly: SCRIPT_VERSION: is read only
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './cellular-integration/smart-failover-engine-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+EXECUTION ERROR in deploy-starlink-solution-rutos.sh:
+  File: ./deploy-starlink-solution-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -eu
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ [ -t 1 ]
++ RED=
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './deploy-starlink-solution-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+EXECUTION ERROR in demo-statistical-aggregation-rutos.sh:
+  File: ./gps-integration/demo-statistical-aggregation-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ readonly SCRIPT_VERSION=1.0.0
+./gps-integration/demo-statistical-aggregation-rutos.sh: 15: readonly: SCRIPT_VERSION: is read only
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './gps-integration/demo-statistical-aggregation-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+EXECUTION ERROR in gps-collector-rutos.sh:
+  File: ./gps-integration/gps-collector-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ readonly SCRIPT_VERSION=1.0.0
+./gps-integration/gps-collector-rutos.sh: 15: readonly: SCRIPT_VERSION: is read only
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './gps-integration/gps-collector-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+DRY-RUN MISSING in gps-location-analyzer-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  EXECUTION ERROR in integrate-gps-into-install-rutos.sh:
+  File: ./gps-integration/integrate-gps-into-install-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ readonly SCRIPT_VERSION=1.0.0
+./gps-integration/integrate-gps-into-install-rutos.sh: 15: readonly: SCRIPT_VERSION: is read only
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './gps-integration/integrate-gps-into-install-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+EXECUTION ERROR in integrate-gps-into-starlink-monitor-rutos.sh:
+  File: ./gps-integration/integrate-gps-into-starlink-monitor-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ readonly SCRIPT_VERSION=1.0.0
+./gps-integration/integrate-gps-into-starlink-monitor-rutos.sh: 15: readonly: SCRIPT_VERSION: is read only
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './gps-integration/integrate-gps-into-starlink-monitor-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+EXECUTION ERROR in optimize-logger-with-gps-rutos.sh:
+  File: ./gps-integration/optimize-logger-with-gps-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ readonly SCRIPT_VERSION=1.0.0
+./gps-integration/optimize-logger-with-gps-rutos.sh: 15: readonly: SCRIPT_VERSION: is read only
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './gps-integration/optimize-logger-with-gps-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+EXECUTION ERROR in analyze-outage-correlation-optimized-rutos.sh:
+  File: ./scripts/analyze-outage-correlation-optimized-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ readonly SCRIPT_VERSION=1.0.0
+./scripts/analyze-outage-correlation-optimized-rutos.sh: 13: readonly: SCRIPT_VERSION: is read only
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './scripts/analyze-outage-correlation-optimized-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+DRY-RUN MISSING in check-pushover-logs-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  DRY-RUN MISSING in debug-starlink-api-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  DRY-RUN MISSING in diagnose-pushover-notifications-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  EXECUTION ERROR in fix-logger-tracking-rutos.sh:
+  File: ./scripts/fix-logger-tracking-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ [ -t 1 ]
++ RED=
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './scripts/fix-logger-tracking-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
   Fix: Check script logic, error handling, and dry-run implementation
   Note: Script has dry-run support but still failed - check dry-run logic
   
 EXECUTION ERROR in health-check-rutos.sh:
   File: ./scripts/health-check-rutos.sh  
-  Error: [DEBUG] [2025-07-23 12:21:39] TEST MODE: Running with enhanced debug logging
-[DEBUG] [2025-07-23 12:21:39] ==================== HEALTH CHECK DEBUG MODE ENABLED ====================
-[DEBUG] [2025-07-23 12:21:39] Script version: 2.4.12
-[DEBUG] [2025-07-23 12:21:39] Working directory: /mnt/c/GitHub/rutos-starlink-failover
-[DEBUG] [2025-07-23 12:21:39] Script path: ./scripts/health-check-rutos.sh
+  Exit Code: 0
+  Duration: 0s (timeout: 60s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ [ -t 1 ]
++ RED=
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './scripts/health-check-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
   Fix: Check script logic, error handling, and dry-run implementation
   Note: Script has dry-run support but still failed - check dry-run logic
   
-EXECUTION ERROR in install-rutos.sh:
-  File: ./scripts/install-rutos.sh  
-  Error: ./scripts/install-rutos.sh: 59: cannot create /usr/local/starlink-monitor/installation.log: Directory nonexistent
-./scripts/install-rutos.sh: 59: cannot create /usr/local/starlink-monitor/installation.log: Directory nonexistent
-./scripts/install-rutos.sh: 59: cannot create /usr/local/starlink-monitor/installation.log: Directory nonexistent
-./scripts/install-rutos.sh: 59: cannot create /usr/local/starlink-monitor/installation.log: Directory nonexistent
-./scripts/install-rutos.sh: 59: cannot create /usr/local/starlink-monitor/installation.log: Directory nonexistent
+EXECUTION ERROR in repair-system-rutos.sh:
+  File: ./scripts/repair-system-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ RED=[0;31m
++ GREEN=[0;32m
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './scripts/repair-system-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
   Fix: Check script logic, error handling, and dry-run implementation
   Note: Script has dry-run support but still failed - check dry-run logic
   
-DRY-RUN MISSING in repair-system-rutos.sh:
+EXECUTION ERROR in self-update-rutos.sh:
+  File: ./scripts/self-update-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + GITHUB_REPO=markus-lassfolk/rutos-starlink-failover
++ GITHUB_BRANCH=main
++ RAW_URL=https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main
++ INSTALL_DIR=/usr/local/starlink-monitor
++ BACKUP_DIR=/usr/local/starlink-monitor-backup
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './scripts/self-update-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+EXECUTION ERROR in system-maintenance-rutos.sh:
+  File: ./scripts/system-maintenance-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 60s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ RED=[0;31m
++ GREEN=[0;32m
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './scripts/system-maintenance-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
+  Fix: Check script logic, error handling, and dry-run implementation
+  Note: Script has dry-run support but still failed - check dry-run logic
+  
+DRY-RUN MISSING in test-pushover-quick-rutos.sh:
   Issue: Script lacks dry-run/test mode support
   Impact: Cannot be safely tested without making real changes
   
@@ -329,148 +881,27 @@ DRY-RUN MISSING in repair-system-rutos.sh:
   - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
   
   Reason: Allows safe testing without making system changes
-  EXECUTION ERROR in system-status-rutos.sh:
-  File: ./scripts/system-status-rutos.sh  
-  Error: 
+  EXECUTION ERROR in test-pushover-rutos.sh:
+  File: ./scripts/test-pushover-rutos.sh  
+  Exit Code: 0
+  Duration: 0s (timeout: 20s)
+  Failure Type: UNKNOWN ERROR: Exit code 0
+  Error Output: + set -e
++ SCRIPT_VERSION=2.7.0
++ readonly SCRIPT_VERSION
++ [ -t 1 ]
++ RED=
+  
+  === DEBUGGING STEPS ===
+  1. Run manually: DRY_RUN=1 RUTOS_TEST_MODE=1 sh -x './scripts/test-pushover-rutos.sh'
+  2. Check for early exit pattern placement
+  3. Verify dry-run implementation
+  4. Review script logic and error handling
+  
   Fix: Check script logic, error handling, and dry-run implementation
   Note: Script has dry-run support but still failed - check dry-run logic
   
-EXECUTION ERROR in test-all-scripts-rutos.sh:
-  File: ./scripts/test-all-scripts-rutos.sh  
-  Error: ╔══════════════════════════════════════════════════════════════════════════╗
-║                    RUTOS SCRIPT COMPREHENSIVE TESTING                   ║
-║                         Version 2.4.12                                ║
-╚══════════════════════════════════════════════════════════════════════════╝
-  Fix: Check script logic, error handling, and dry-run implementation
-  Note: Script has dry-run support but still failed - check dry-run logic
-  
-EXECUTION ERROR in test-connectivity-rutos.sh:
-  File: ./scripts/test-connectivity-rutos.sh  
-  Error: 
-  Fix: Check script logic, error handling, and dry-run implementation
-  Note: Script has dry-run support but still failed - check dry-run logic
-  
-EXECUTION ERROR in upgrade-to-advanced-rutos.sh:
-  File: ./scripts/upgrade-to-advanced-rutos.sh  
-  Error: === Upgrade to Advanced Configuration ===
-Script: upgrade-to-advanced.sh
-Version: 2.4.12
-Compatible with install.sh: 1.0.0
-  Fix: Check script logic, error handling, and dry-run implementation
-  Note: Script has dry-run support but still failed - check dry-run logic
-  
-DRY-RUN MISSING in validate-persistent-config-rutos.sh:
-  Issue: Script lacks dry-run/test mode support
-  Impact: Cannot be safely tested without making real changes
-  
-  Fix: Add this pattern after script setup (after colors/logging functions):
-  
-  # Dry-run and test mode support
-  DRY_RUN="${DRY_RUN:-0}"
-  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-  
-  # Debug dry-run status
-  if [ "$DEBUG" = "1" ]; then
-      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-  fi
-  
-  # Function to safely execute commands
-  safe_execute() {
-      cmd="$1"
-      description="$2"
-      
-      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-          log_info "[DRY-RUN] Would execute: $description"
-          log_debug "[DRY-RUN] Command: $cmd"
-          return 0
-      else
-          log_debug "Executing: $cmd"
-          eval "$cmd"
-      fi
-  }
-  
-  Then replace dangerous commands like:
-  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
-  - rm -f file                  → safe_execute "rm -f file" "Remove file"
-  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
-  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
-  
-  Reason: Allows safe testing without making system changes
-  DRY-RUN MISSING in verify-cron-rutos.sh:
-  Issue: Script lacks dry-run/test mode support
-  Impact: Cannot be safely tested without making real changes
-  
-  Fix: Add this pattern after script setup (after colors/logging functions):
-  
-  # Dry-run and test mode support
-  DRY_RUN="${DRY_RUN:-0}"
-  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-  
-  # Debug dry-run status
-  if [ "$DEBUG" = "1" ]; then
-      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-  fi
-  
-  # Function to safely execute commands
-  safe_execute() {
-      cmd="$1"
-      description="$2"
-      
-      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-          log_info "[DRY-RUN] Would execute: $description"
-          log_debug "[DRY-RUN] Command: $cmd"
-          return 0
-      else
-          log_debug "Executing: $cmd"
-          eval "$cmd"
-      fi
-  }
-  
-  Then replace dangerous commands like:
-  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
-  - rm -f file                  → safe_execute "rm -f file" "Remove file"
-  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
-  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
-  
-  Reason: Allows safe testing without making system changes
-  DRY-RUN MISSING in test-intelligent-merge-rutos.sh:
-  Issue: Script lacks dry-run/test mode support
-  Impact: Cannot be safely tested without making real changes
-  
-  Fix: Add this pattern after script setup (after colors/logging functions):
-  
-  # Dry-run and test mode support
-  DRY_RUN="${DRY_RUN:-0}"
-  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-  
-  # Debug dry-run status
-  if [ "$DEBUG" = "1" ]; then
-      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-  fi
-  
-  # Function to safely execute commands
-  safe_execute() {
-      cmd="$1"
-      description="$2"
-      
-      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-          log_info "[DRY-RUN] Would execute: $description"
-          log_debug "[DRY-RUN] Command: $cmd"
-          return 0
-      else
-          log_debug "Executing: $cmd"
-          eval "$cmd"
-      fi
-  }
-  
-  Then replace dangerous commands like:
-  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
-  - rm -f file                  → safe_execute "rm -f file" "Remove file"
-  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
-  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
-  
-  Reason: Allows safe testing without making system changes
-  DRY-RUN MISSING in test-enhanced-restoration-rutos.sh:
+DRY-RUN MISSING in test-enhanced-restoration-rutos.sh:
   Issue: Script lacks dry-run/test mode support
   Impact: Cannot be safely tested without making real changes
   
@@ -511,8 +942,8 @@ DRY-RUN MISSING in validate-persistent-config-rutos.sh:
 
 ## Script Testing Environment
 - Working Directory: /mnt/c/GitHub/rutos-starlink-failover
-- Shell: /usr/bin/bash
-- Test Date: Wed Jul 23 12:22:02 CEST 2025
+- Shell: /usr/bin/dash
+- Test Date: Fri Jul 25 15:21:00 CEST 2025
 
 ## Instructions for AI
 1. Analyze each error listed above
@@ -521,7 +952,7 @@ DRY-RUN MISSING in validate-persistent-config-rutos.sh:
 4. Ensure all solutions are POSIX sh compatible
 5. For scripts missing dry-run support, implement the recommended pattern
 6. Check for common RUTOS pitfalls:
-   - bash-specific syntax ([[]], local, echo -e)
+   - bash-specific syntax ([[]], local, echo with -e flag)
    - Missing dependencies or commands
    - Incorrect file paths or permissions
    - Shell compatibility issues

@@ -98,7 +98,6 @@ $ghCommand = "gh issue comment $IssueNumber -F `"$tempFile`""
 ## Files Modified
 
 1. **`automation/create-copilot-issues.ps1`**
-
    - Updated `Set-CopilotAssignment` function
    - Enhanced error handling and logging
    - Added verification step

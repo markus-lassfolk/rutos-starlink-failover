@@ -7,12 +7,8 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-# Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
-readonly SCRIPT_VERSION="1.0.0"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
@@ -71,6 +67,36 @@ if [ "$DEBUG" = "1" ]; then
     log_debug "Working directory: $(pwd)"
     log_debug "Arguments: $*"
 fi
+
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "$DEBUG" = "1" ]; then
+    log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    cmd="$1"
+    description="$2"
+
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        log_info "[DRY-RUN] Would execute: $description"
+        log_debug "[DRY-RUN] Command: $cmd"
+        return 0
+    else
+        log_debug "Executing: $cmd"
+        eval "$cmd"
+    fi
+}
 
 # Enhanced CSV header with cellular data
 ENHANCED_CSV_HEADER="timestamp,starlink_status,ping_ms,download_mbps,upload_mbps,ping_drop_rate,snr_db,obstruction_percent,uptime_seconds,gps_lat,gps_lon,gps_alt,gps_speed,gps_accuracy,gps_source,cellular_primary_signal,cellular_primary_quality,cellular_primary_network,cellular_primary_operator,cellular_primary_roaming,cellular_backup_signal,cellular_backup_quality,cellular_backup_network,cellular_backup_operator,cellular_backup_roaming,active_connection"

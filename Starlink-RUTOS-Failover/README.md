@@ -32,7 +32,6 @@ This solution offers a suite of advanced features to create a truly resilient mo
 
 - **Proactive Quality Monitoring:** Instead of waiting for a total failure, the system actively queries Starlink's
   internal API for key performance indicators:
-
   - **Latency:** Detects when the connection becomes congested or unresponsive, which is a primary indicator of a poor
     user experience for real-time applications like video calls.
   - **Packet Loss:** Monitors the rate of data packets that fail to reach the Starlink ground station, providing a

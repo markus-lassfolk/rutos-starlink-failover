@@ -73,21 +73,17 @@ chmod +x deploy-starlink-solution.sh
 The script will prompt you for:
 
 1. **Azure Integration** (optional)
-
    - Enable Azure cloud logging: `true/false`
    - Azure Function endpoint URL (if enabled)
 
 2. **Starlink Monitoring**
-
    - Enable performance monitoring: `true/false` (recommended: true)
 
 3. **GPS Integration** (optional)
-
    - Enable GPS tracking: `true/false`
    - RUTOS device credentials (if enabled)
 
 4. **Pushover Notifications** (optional)
-
    - Enable notifications: `true/false`
    - Pushover application token and user key (if enabled)
 
