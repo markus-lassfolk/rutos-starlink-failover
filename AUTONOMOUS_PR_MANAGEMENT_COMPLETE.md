@@ -91,7 +91,7 @@ You had **16+ Copilot PRs** stuck in various states with:
 3. **Conflicted PRs** will be skipped and flagged for manual attention
 4. **Success/failure notifications** will be posted as PR comments
 
-### Manual Intervention Only Needed For:
+### Manual Intervention Only Needed For
 
 - PRs with merge conflicts
 - PRs missing required labels
@@ -194,4 +194,5 @@ The system is designed to be extensible. Potential future additions:
 | Debug single PR | `.\automation\Monitor-CopilotPRs-Complete.ps1 -PRNumber X -DebugMode` | Detailed analysis          |
 | View PR status  | `gh pr view X --json mergeable,labels`                                | Quick status check         |
 
-The autonomous system is now **fully operational** and will handle your Copilot PR management with minimal manual intervention required! 🤖✨
+The autonomous system is now **fully operational** and will handle your Copilot PR management
+with minimal manual intervention required! 🤖✨
