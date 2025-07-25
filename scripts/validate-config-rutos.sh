@@ -345,28 +345,21 @@ check_config_completeness() {
 
     template_file=""
     config_dir="$(dirname "$CONFIG_FILE")"
-    basic_template=""
-    advanced_template=""
 
-    # Find both template files
+    # Find the unified template file (replaces old basic/advanced separation)
+    unified_template=""
     if [ -f "$config_dir/config.template.sh" ]; then
-        basic_template="$config_dir/config.template.sh"
+        unified_template="$config_dir/config.template.sh"
     elif [ -f "$config_dir/../config/config.template.sh" ]; then
-        basic_template="$config_dir/../config/config.template.sh"
+        unified_template="$config_dir/../config/config.template.sh"
     elif [ -f "/root/starlink-monitor/config/config.template.sh" ]; then
-        basic_template="/root/starlink-monitor/config/config.template.sh"
+        unified_template="/root/starlink-monitor/config/config.template.sh"
+    elif [ -f "/usr/local/starlink-monitor/config/config.template.sh" ]; then
+        unified_template="/usr/local/starlink-monitor/config/config.template.sh"
     fi
 
-    if [ -f "$config_dir/config.advanced.template.sh" ]; then
-        advanced_template="$config_dir/config.advanced.template.sh"
-    elif [ -f "$config_dir/../config/config.advanced.template.sh" ]; then
-        advanced_template="$config_dir/../config/config.advanced.template.sh"
-    elif [ -f "/root/starlink-monitor/config/config.advanced.template.sh" ]; then
-        advanced_template="/root/starlink-monitor/config/config.advanced.template.sh"
-    fi
-
-    # Determine which template to use by checking the configuration
-    printf "%b\n" "${BLUE}Determining configuration template type...${NC}"
+    # Determine configuration characteristics
+    printf "%b\n" "${BLUE}Analyzing configuration...${NC}"
 
     # Count variables in config (handle both export and non-export formats)
     config_var_count=$(grep -c "^export [A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || printf "0")
@@ -380,33 +373,27 @@ check_config_completeness() {
         config_var_count="$config_var_count_alt"
     fi
 
-    # Check for advanced template indicators
-    has_advanced_vars=0
-    if grep -q "^export ENABLE_AZURE_LOGGING=" "$CONFIG_FILE" 2>/dev/null ||
-        grep -q "^export AZURE_WORKSPACE_ID=" "$CONFIG_FILE" 2>/dev/null ||
-        grep -q "^export GPS_DEVICE=" "$CONFIG_FILE" 2>/dev/null ||
-        grep -q "^export ADVANCED_MONITORING=" "$CONFIG_FILE" 2>/dev/null ||
-        grep -q "^ENABLE_AZURE_LOGGING=" "$CONFIG_FILE" 2>/dev/null ||
-        grep -q "^AZURE_WORKSPACE_ID=" "$CONFIG_FILE" 2>/dev/null ||
-        grep -q "^GPS_DEVICE=" "$CONFIG_FILE" 2>/dev/null ||
-        grep -q "^ADVANCED_MONITORING=" "$CONFIG_FILE" 2>/dev/null ||
-        [ "$config_var_count" -gt 25 ]; then
-        has_advanced_vars=1
+    # Check for enhanced features (unified scripts support)
+    has_enhanced_features=0
+    if grep -q "^export ENABLE_.*=" "$CONFIG_FILE" 2>/dev/null ||
+        grep -q "^ENABLE_.*=" "$CONFIG_FILE" 2>/dev/null ||
+        grep -q "GPS_ENABLED=" "$CONFIG_FILE" 2>/dev/null ||
+        grep -q "CELLULAR_ENABLED=" "$CONFIG_FILE" 2>/dev/null ||
+        [ "$config_var_count" -gt 50 ]; then
+        has_enhanced_features=1
     fi
 
-    # Select appropriate template
-    if [ "$has_advanced_vars" -eq 1 ] && [ -n "$advanced_template" ]; then
-        template_file="$advanced_template"
-        printf "%b\n" "${GREEN}Detected advanced configuration (${config_var_count} variables)${NC}"
-    elif [ -n "$basic_template" ]; then
-        template_file="$basic_template"
-        printf "%b\n" "${GREEN}Detected basic configuration (${config_var_count} variables)${NC}"
-    elif [ -n "$advanced_template" ]; then
-        template_file="$advanced_template"
-        printf "%b\n" "${YELLOW}Using advanced template as fallback${NC}"
+    # Use the unified template
+    if [ -n "$unified_template" ]; then
+        template_file="$unified_template"
+        if [ "$has_enhanced_features" -eq 1 ]; then
+            printf "%b\n" "${GREEN}Detected configuration with enhanced features (${config_var_count} variables)${NC}"
+        else
+            printf "%b\n" "${GREEN}Detected basic configuration (${config_var_count} variables)${NC}"
+        fi
     else
-        printf "%b\n" "${YELLOW}Warning: Could not find template file for comparison${NC}"
-        printf "%b\n" "${YELLOW}Searched in: $config_dir/, $config_dir/../config/, /root/starlink-monitor/config/${NC}"
+        printf "%b\n" "${YELLOW}Warning: Could not find config.template.sh for comparison${NC}"
+        printf "%b\n" "${YELLOW}Searched in: $config_dir/, $config_dir/../config/, /root/starlink-monitor/config/, /usr/local/starlink-monitor/config/${NC}"
         return 0
     fi
 
@@ -464,20 +451,9 @@ check_config_completeness() {
 
     while IFS= read -r var; do
         if ! grep -q "^$var$" "$temp_template"; then
-            # If we're using basic template but have both templates, check if variable exists in advanced template
-            if [ -n "$basic_template" ] && [ -n "$advanced_template" ] && [ "$template_file" = "$basic_template" ]; then
-                # Check if this variable exists in the advanced template
-                if [ -f "$advanced_template" ] && grep -q "^$var=" "$advanced_template"; then
-                    extra_vars_info="$extra_vars_info $var"
-                    total_extra_info=$((total_extra_info + 1))
-                else
-                    extra_vars_critical="$extra_vars_critical $var"
-                    total_extra_critical=$((total_extra_critical + 1))
-                fi
-            else
-                extra_vars_info="$extra_vars_info $var"
-                total_extra_info=$((total_extra_info + 1))
-            fi
+            # Variable not found in unified template - this could be a custom setting
+            extra_vars_info="$extra_vars_info $var"
+            total_extra_info=$((total_extra_info + 1))
         fi
     done <"$temp_config"
 
