@@ -281,5 +281,87 @@ ADAPTIVE_SAMPLING_INTERVAL=5 # Process every Nth sample when adaptive mode activ
 FALLBEHIND_THRESHOLD=100     # Sample queue size that triggers adaptive mode
 
 # ==============================================================================
+# GPS Integration Configuration
+# ==============================================================================
+
+# GPS data collection and source management (Enhanced)
+# Advanced GPS configuration with multiple source intelligence and analytics
+
+# Enable GPS data collection
+GPS_ENABLED=1
+
+# Advanced GPS source management
+GPS_PRIMARY_SOURCE="starlink"      # Primary GPS data source: starlink/rutos/external
+GPS_SECONDARY_SOURCE="rutos"       # Fallback source when primary unavailable
+GPS_TERTIARY_SOURCE="combined"     # Third fallback for maximum reliability
+GPS_SOURCE_MODE="auto"             # Selection mode: auto/primary/secondary/combined
+
+# GPS data collection intervals (enhanced timing)
+GPS_COLLECTION_INTERVAL=30         # Collect GPS data every N seconds (more frequent for analytics)
+GPS_STALENESS_THRESHOLD=180        # Consider GPS data stale after N seconds (shorter for accuracy)
+GPS_BACKUP_COLLECTION_INTERVAL=60  # Fallback collection when primary source fails
+
+# GPS data validation (enhanced criteria)
+GPS_REQUIRE_VALID_FIX=1           # Only use GPS data with valid fix
+GPS_MIN_SATELLITES=6               # Higher satellite requirement for better accuracy
+GPS_MAX_HDOP=5.0                   # Stricter HDOP requirement for precision
+GPS_MIN_SIGNAL_STRENGTH=-140       # Minimum GPS signal strength (dBm)
+
+# GPS location analytics (enhanced features)
+GPS_MOVEMENT_THRESHOLD=25          # Sensitive movement detection (meters)
+GPS_STATIONARY_TIME=900            # Reduced stationary time for faster detection (15 min)
+GPS_TRACK_SPEED_CHANGES=1          # Track speed variations for mobile analysis
+GPS_GEOFENCE_ENABLED=1             # Enable geofence-based analytics
+GPS_LOCATION_HISTORY_SIZE=1000     # Number of location points to retain
+
+# GPS analytics and reporting
+GPS_ANALYTICS_ENABLED=1            # Enable comprehensive GPS analytics
+GPS_LOG_DETAILED=1                 # Enable detailed GPS logging for analysis
+GPS_GENERATE_REPORTS=1             # Generate periodic GPS analytics reports
+GPS_REPORT_INTERVAL=3600           # Generate reports every N seconds (1 hour)
+
+# ==============================================================================
+# Cellular Integration Configuration  
+# ==============================================================================
+
+# Advanced cellular data monitoring and smart failover management
+# Comprehensive multi-modem support with intelligent decision making
+
+# Enable cellular data collection
+CELLULAR_ENABLED=1
+
+# Advanced multi-modem configuration
+CELLULAR_AUTO_DETECT=1                    # Automatically detect all available modems
+CELLULAR_INTERFACES="mob1s1a1 mob1s2a1 mob1s3a1 mob1s4a1"  # Support up to 4 modems
+CELLULAR_MONITOR_ALL_SIMS=1               # Monitor all SIM slots, not just active ones
+CELLULAR_DUAL_SIM_AWARE=1                 # Advanced dual-SIM management
+
+# Enhanced cellular data collection
+CELLULAR_COLLECTION_INTERVAL=30           # More frequent collection for better analytics
+CELLULAR_SIGNAL_THRESHOLD=-110            # Stricter signal requirements (dBm)
+CELLULAR_QUALITY_METRICS=1                # Collect advanced quality metrics (RSRQ, SINR)
+CELLULAR_NETWORK_SCAN_ENABLED=1           # Periodic network scanning for optimization
+
+# Smart failover configuration (enhanced)
+CELLULAR_SMART_FAILOVER=1                 # Enable intelligent failover decisions
+CELLULAR_ROAMING_AWARE=1                  # Consider roaming costs in decisions
+CELLULAR_COST_PRIORITY="high"             # High priority to avoid roaming costs
+CELLULAR_LOAD_BALANCING=1                 # Enable load balancing across modems
+CELLULAR_CARRIER_PREFERENCES="operator1 operator2"  # Preferred carriers in order
+
+# Advanced cellular analytics
+CELLULAR_ANALYTICS_ENABLED=1              # Enable comprehensive cellular analytics
+CELLULAR_LOG_SIGNAL_DETAILS=1             # Log detailed signal information
+CELLULAR_TRACK_HANDOFFS=1                 # Track cell tower handoffs for mobility analysis
+CELLULAR_PERFORMANCE_SCORING=1            # Score cellular performance for intelligent switching
+CELLULAR_GENERATE_REPORTS=1               # Generate periodic cellular analytics reports
+
+# Cellular failover decision engine
+CELLULAR_DECISION_ALGORITHM="multi_factor" # Algorithm: simple/weighted/multi_factor
+CELLULAR_SIGNAL_WEIGHT=40                  # Signal strength weight in decisions (%)
+CELLULAR_COST_WEIGHT=30                    # Cost consideration weight (%)
+CELLULAR_PERFORMANCE_WEIGHT=30             # Historical performance weight (%)
+
+# ==============================================================================
 # End of Configuration
 # ==============================================================================
