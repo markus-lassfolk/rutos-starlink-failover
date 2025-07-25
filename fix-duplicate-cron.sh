@@ -70,14 +70,14 @@ cleanup_duplicate_cron_entries() {
 
     # Remove all starlink entries added by install script (both active and commented)
     grep -v -E "# Starlink (monitor|logger|API check|System maintenance|Auto-update check) - Added by install script" "$CRON_FILE" >"$temp_cron"
-    
+
     # Also remove commented starlink script lines
     sed -i '/^#\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_monitor.*\.sh$/d' "$temp_cron" 2>/dev/null || true
     sed -i '/^#\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_logger.*\.sh$/d' "$temp_cron" 2>/dev/null || true
     sed -i '/^#0 6 \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/check_starlink_api.*\.sh$/d' "$temp_cron" 2>/dev/null || true
     sed -i '/^#0 \*\/6 \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/system-maintenance-rutos\.sh auto$/d' "$temp_cron" 2>/dev/null || true
     sed -i '/^#0 3 \* \* 0 CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/self-update-rutos\.sh --auto-update$/d' "$temp_cron" 2>/dev/null || true
-    
+
     # Also remove the actual cron lines (both old and new script names)
     sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_monitor-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
     sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_logger-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
@@ -85,7 +85,7 @@ cleanup_duplicate_cron_entries() {
     sed -i '/^\* \* \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/starlink_logger_unified-rutos\.sh$/d' "$temp_cron" 2>/dev/null || true
     sed -i '/^0 6 \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/check_starlink_api.*\.sh$/d' "$temp_cron" 2>/dev/null || true
     sed -i '/^0 \*\/6 \* \* \* CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/system-maintenance-rutos\.sh auto$/d' "$temp_cron" 2>/dev/null || true
-    sed -i '/^0 3 \* \* 0 CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/self-update-rutos\.sh --auto-update$/d' "$temp_cron" 2>/dev/null || true    # Add only the unified script entries
+    sed -i '/^0 3 \* \* 0 CONFIG_FILE=.*\/config\/config\.sh .*\/scripts\/self-update-rutos\.sh --auto-update$/d' "$temp_cron" 2>/dev/null || true # Add only the unified script entries
     log_step "Adding unified script entries"
     cat >>"$temp_cron" <<EOF
 # Starlink monitor - Added by install script $(date +%Y-%m-%d)
