@@ -300,7 +300,7 @@ validate_environment() {
 # Analyze monitoring logs for outage correlation
 analyze_log_correlation() {
     log_debug "=== ANALYZE_LOG_CORRELATION ENTRY ==="
-    
+
     log_file="$LOG_DIR/starlink_monitor_$ANALYSIS_DATE.log"
     temp_events="/tmp/monitor_events_$$.txt"
     temp_metrics="/tmp/monitor_metrics_$$.txt"
@@ -349,7 +349,7 @@ analyze_log_correlation() {
     if [ "$DEBUG" = "1" ]; then
         cat "$temp_outages" >&2
     fi
-    
+
     while read -r outage_line; do
         # Skip empty lines
         [ -z "$outage_line" ] && continue
@@ -440,7 +440,7 @@ analyze_log_correlation() {
     echo "$outage_count" >"/tmp/outage_count_$$"
     echo "$correlated_count" >"/tmp/correlated_count_$$"
     echo "$failover_count" >"/tmp/failover_count_$$"
-    
+
     log_debug "=== ANALYZE_LOG_CORRELATION EXIT ==="
     log_debug "Final counts: outages=$outage_count, correlated=$correlated_count, failovers=$failover_count"
 }
@@ -676,7 +676,7 @@ main() {
     log_debug "PID: $$"
     log_debug "Arguments: $*"
     log_debug "PWD: $(pwd)"
-    
+
     log_info "Starting Starlink Outage Correlation Analysis v$SCRIPT_VERSION"
 
     # Parse command line arguments
@@ -708,15 +708,15 @@ main() {
     log_debug "Starting analysis phase 1: analyze_log_correlation"
     analyze_log_correlation
     log_debug "Completed analysis phase 1"
-    
+
     log_debug "Starting analysis phase 2: analyze_failover_behavior"
     analyze_failover_behavior
     log_debug "Completed analysis phase 2"
-    
+
     log_debug "Starting analysis phase 3: analyze_threshold_effectiveness"
     analyze_threshold_effectiveness
     log_debug "Completed analysis phase 3"
-    
+
     log_debug "Starting final phase: generate_report_summary"
     generate_report_summary
     log_debug "Completed final phase"

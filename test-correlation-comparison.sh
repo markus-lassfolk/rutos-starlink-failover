@@ -26,7 +26,7 @@ echo "=== Testing with actual log samples ==="
 echo "Looking for events around 12:56-12:58..."
 
 # Sample log entries from the actual log
-cat > /tmp/test_events.txt << 'EOF'
+cat >/tmp/test_events.txt <<'EOF'
 2025-07-24 12:56:02 [info] Performing soft failover - setting metric to 20
 2025-07-24 12:56:02 [warn] Quality degraded below threshold: [Obstructed: 0.005540166%]
 2025-07-24 12:57:15 [debug] Some other event
@@ -43,15 +43,15 @@ while read -r event_line; do
     event_timestamp=$(echo "$event_line" | grep -o '2025-07-24 [0-9:]*' | awk '{print $2}')
     if [ -n "$event_timestamp" ]; then
         hour=$(echo "$event_timestamp" | cut -d: -f1)
-        minute=$(echo "$event_timestamp" | cut -d: -f2) 
+        minute=$(echo "$event_timestamp" | cut -d: -f2)
         second=$(echo "$event_timestamp" | cut -d: -f3)
-        
+
         hour=$(printf "%d" "$hour" 2>/dev/null || echo "0")
         minute=$(printf "%d" "$minute" 2>/dev/null || echo "0")
         second=$(printf "%d" "$second" 2>/dev/null || echo "0")
-        
+
         event_seconds=$((hour * 3600 + minute * 60 + second))
-        
+
         echo "Event at $event_timestamp = $event_seconds seconds"
         if [ "$event_seconds" -ge "$start_window" ] && [ "$event_seconds" -le "$end_window" ]; then
             echo "  ✓ CORRELATED: $event_line"
@@ -59,6 +59,6 @@ while read -r event_line; do
             echo "  ✗ Outside window: $event_line"
         fi
     fi
-done < /tmp/test_events.txt
+done </tmp/test_events.txt
 
 rm -f /tmp/test_events.txt

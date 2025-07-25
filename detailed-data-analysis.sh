@@ -27,7 +27,7 @@ grep "Basic Metrics" "$LOG_FILE" | grep -o "Loss: [0-9.]*" | sed 's/Loss: //' | 
     echo "Min/Max:"
     sort -n | {
         read min
-        tail -1 > /tmp/max_val.txt
+        tail -1 >/tmp/max_val.txt
         max=$(cat /tmp/max_val.txt)
         echo "  Minimum: $min"
         echo "  Maximum: $max"
@@ -48,7 +48,7 @@ grep "Basic Metrics" "$LOG_FILE" | grep -o "Obstruction: [0-9.]*" | sed 's/Obstr
     echo "Min/Max:"
     sort -n | {
         read min
-        tail -1 > /tmp/max_val.txt
+        tail -1 >/tmp/max_val.txt
         max=$(cat /tmp/max_val.txt)
         echo "  Minimum: $min"
         echo "  Maximum: $max"
@@ -69,7 +69,7 @@ grep "Basic Metrics" "$LOG_FILE" | grep -o "Latency: [0-9]*ms" | sed 's/Latency:
     echo "Min/Max:"
     sort -n | {
         read min
-        tail -1 > /tmp/max_val.txt
+        tail -1 >/tmp/max_val.txt
         max=$(cat /tmp/max_val.txt)
         echo "  Minimum: $min ms"
         echo "  Maximum: $max ms"
@@ -90,7 +90,7 @@ grep "Enhanced Metrics" "$LOG_FILE" | grep -o "SNR: [0-9]*dB" | sed 's/SNR: //; 
     echo "Min/Max:"
     sort -n | {
         read min
-        tail -1 > /tmp/max_val.txt
+        tail -1 >/tmp/max_val.txt
         max=$(cat /tmp/max_val.txt)
         echo "  Minimum: $min dB"
         echo "  Maximum: $max dB"
@@ -111,7 +111,7 @@ grep "Enhanced Metrics" "$LOG_FILE" | grep -o "sats=[0-9]*" | sed 's/sats=//' | 
     echo "Min/Max:"
     sort -n | {
         read min
-        tail -1 > /tmp/max_val.txt
+        tail -1 >/tmp/max_val.txt
         max=$(cat /tmp/max_val.txt)
         echo "  Minimum: $min satellites"
         echo "  Maximum: $max satellites"
@@ -134,7 +134,7 @@ echo "📈 CONCLUSION:"
 echo "============="
 echo "✅ Data that shows good variation (trustworthy):"
 echo "   - Obstruction values: 336 unique values"
-echo "   - Latency values: 56 unique values"  
+echo "   - Latency values: 56 unique values"
 echo "   - GPS satellites: 13 unique values"
 echo ""
 echo "⚠️  Data that may be questionable:"

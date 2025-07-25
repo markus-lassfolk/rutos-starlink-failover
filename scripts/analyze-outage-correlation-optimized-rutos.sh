@@ -3,7 +3,7 @@
 # Version: 1.0.0
 # Description: Optimized outage correlation analysis for RUTOS monitoring logs
 
-set -e  # Exit on error
+set -e # Exit on error
 
 # Version information
 SCRIPT_VERSION="1.0.0"
@@ -151,7 +151,7 @@ time_to_seconds() {
 
     # Convert to decimal to avoid octal interpretation
     hour=$(printf "%d" "$hour" 2>/dev/null || echo "0")
-    minute=$(printf "%d" "$minute" 2>/dev/null || echo "0") 
+    minute=$(printf "%d" "$minute" 2>/dev/null || echo "0")
     seconds=$(printf "%d" "$seconds" 2>/dev/null || echo "0")
 
     log_debug "time_to_seconds: converting '$time_str' (hour='$hour', minute='$minute', seconds='$seconds')"
@@ -226,7 +226,7 @@ prepare_sorted_data() {
         fi
     done | sort -n >"$temp_sorted_events"
 
-    # Extract and sort metrics with timestamps  
+    # Extract and sort metrics with timestamps
     grep -E "(Basic Metrics|Enhanced Metrics)" \
         "$log_file" 2>/dev/null | while read -r line; do
         timestamp=$(extract_log_timestamp "$line")
@@ -264,15 +264,15 @@ find_correlations_optimized() {
     # Count correlations (clean whitespace to avoid arithmetic errors)
     event_count=$(echo "$correlated_events" | grep -c . 2>/dev/null | tr -d ' \n\r' || echo "0")
     metric_count=$(echo "$correlated_metrics" | grep -c . 2>/dev/null | tr -d ' \n\r' || echo "0")
-    
+
     # Check for failovers (clean whitespace)
     failover_count=$(echo "$correlated_events" | grep -c "Performing soft failover" 2>/dev/null | tr -d ' \n\r' || echo "0")
 
     log_debug "Found $event_count events, $metric_count metrics, $failover_count failovers in window"
 
     # Write detailed results to temp files for retrieval
-    echo "$correlated_events" > "/tmp/temp_events_$$"
-    echo "$correlated_metrics" > "/tmp/temp_metrics_$$"
+    echo "$correlated_events" >"/tmp/temp_events_$$"
+    echo "$correlated_metrics" >"/tmp/temp_metrics_$$"
 
     # Return only counts in simple format
     echo "$event_count~$failover_count"
@@ -287,7 +287,7 @@ analyze_outage_correlation_optimized() {
     sorted_data=$(prepare_sorted_data)
     temp_sorted_events=$(echo "$sorted_data" | cut -d'|' -f1)
     temp_sorted_metrics=$(echo "$sorted_data" | cut -d'|' -f2)
-    
+
     # Log the data preparation results
     event_count=$(wc -l <"$temp_sorted_events" | tr -d ' ')
     metric_count=$(wc -l <"$temp_sorted_metrics" | tr -d ' ')
@@ -326,14 +326,14 @@ analyze_outage_correlation_optimized() {
 
         # Find correlations efficiently
         results=$(find_correlations_optimized "$outage_time" "$outage_duration" "$temp_sorted_events" "$temp_sorted_metrics")
-        
+
         # Parse results (now just counts)
         event_count=$(echo "$results" | cut -d'~' -f1 | tr -d ' \n\r')
         failover_count=$(echo "$results" | cut -d'~' -f2 | tr -d ' \n\r')
-        
+
         log_debug "Parsed event_count: '$event_count'"
         log_debug "Parsed failover_count: '$failover_count'"
-        
+
         # Read detailed results from temp files
         if [ -f "/tmp/temp_events_$$" ]; then
             correlated_events=$(cat "/tmp/temp_events_$$")
@@ -341,7 +341,7 @@ analyze_outage_correlation_optimized() {
         else
             correlated_events=""
         fi
-        
+
         if [ -f "/tmp/temp_metrics_$$" ]; then
             correlated_metrics=$(cat "/tmp/temp_metrics_$$")
             rm -f "/tmp/temp_metrics_$$"
@@ -360,14 +360,14 @@ analyze_outage_correlation_optimized() {
         {
             printf "\n--- OUTAGE #%d: %s (%s) ---\n" "$total_outages" "$outage_time" "$outage_type"
             printf "Duration: %ds, Type: %s, Description: %s\n" "$outage_duration" "$outage_type" "$outage_desc"
-            
+
             if [ "$event_count" -gt 0 ]; then
                 printf "\n✓ FOUND %d CORRELATED EVENTS:\n" "$event_count"
                 echo "$correlated_events"
             else
                 printf "\n✗ NO CORRELATED EVENTS FOUND\n"
             fi
-            
+
             if echo "$correlated_metrics" | grep -q .; then
                 printf "\n📊 CORRELATED METRICS FOUND\n"
             else
@@ -402,7 +402,7 @@ main() {
     if [ "$DEBUG" = "1" ]; then
         log_debug "==================== DEBUG MODE ENABLED ===================="
         log_debug "Analysis date: $ANALYSIS_DATE"
-        log_debug "Log directory: $LOG_DIR" 
+        log_debug "Log directory: $LOG_DIR"
         log_debug "Report file: $REPORT_FILE"
         log_debug "=============================================================="
     fi

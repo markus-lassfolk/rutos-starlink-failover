@@ -53,9 +53,9 @@ log_step() {
 
 # Configuration for testing
 ANALYSIS_DATE="2025-07-24"
-LOG_DIR="./temp"  # Use local temp directory for testing
+LOG_DIR="./temp" # Use local temp directory for testing
 REPORT_FILE="./temp/test_outage_analysis_$(date '+%Y%m%d_%H%M%S').txt"
-DEBUG="${DEBUG:-1}"  # Enable debug by default for testing
+DEBUG="${DEBUG:-1}" # Enable debug by default for testing
 
 # Known outages from Starlink app (July 24, 2025)
 # Format: "HH:MM TYPE DURATION_SECONDS DESCRIPTION"
@@ -81,7 +81,7 @@ KNOWN_OUTAGES="
 # Convert time to seconds since midnight (simplified version for testing)
 time_to_seconds() {
     time_str="$1"
-    
+
     if [ -z "$time_str" ]; then
         echo "0"
         return 1
@@ -89,7 +89,7 @@ time_to_seconds() {
 
     hour=$(echo "$time_str" | cut -d: -f1)
     minute=$(echo "$time_str" | cut -d: -f2)
-    
+
     # Basic validation
     if ! echo "$hour" | grep -q '^[0-9]\+$' || ! echo "$minute" | grep -q '^[0-9]\+$'; then
         echo "0"
@@ -106,13 +106,13 @@ time_to_seconds() {
 # Convert seconds since midnight to HH:MM format
 seconds_to_time() {
     seconds="$1"
-    
+
     # Validate input
     if [ -z "$seconds" ] || ! echo "$seconds" | grep -q '^[0-9]\+$'; then
         printf "00:00"
         return 1
     fi
-    
+
     hour=$((seconds / 3600))
     minute=$(((seconds % 3600) / 60))
     printf "%02d:%02d" "$hour" "$minute"
@@ -156,9 +156,9 @@ test_main_analysis() {
     log_file="$LOG_DIR/starlink_monitor_$ANALYSIS_DATE.log"
     temp_events="/tmp/monitor_events_test_$$.txt"
     temp_outages="/tmp/known_outages_test_$$.txt"
-    
+
     log_step "Starting test analysis to identify infinite loop"
-    
+
     # Extract relevant events
     log_debug "Extracting events from log file..."
     grep -E "(Quality degraded|Performing soft failover|Quality recovered|Soft failback|WARN|ERROR|state: down)" \
@@ -166,13 +166,13 @@ test_main_analysis() {
         log_warning "No monitoring events found in log file"
         touch "$temp_events"
     }
-    
+
     event_count=$(wc -l <"$temp_events" | tr -d ' ')
     log_debug "Found $event_count monitoring events"
-    
+
     # Write known outages to temp file
     echo "$KNOWN_OUTAGES" >"$temp_outages"
-    
+
     # Initialize report
     {
         printf "\n=== TEST OUTAGE CORRELATION ANALYSIS ===\n"
@@ -180,20 +180,20 @@ test_main_analysis() {
         printf "Log File: %s\n" "$log_file"
         printf "Generated: %s\n\n" "$(date)"
     } >"$REPORT_FILE"
-    
+
     outage_count=0
     process_count=0
-    
+
     log_debug "Starting outage processing loop..."
-    
+
     # Process each known outage with progress tracking
     while read -r outage_line; do
         # Skip empty lines
         [ -z "$outage_line" ] && continue
-        
+
         process_count=$((process_count + 1))
         log_debug "Processing line $process_count: '$outage_line'"
-        
+
         outage_time=$(echo "$outage_line" | awk '{print $1}')
         outage_type=$(echo "$outage_line" | awk '{print $2}')
         outage_duration=$(echo "$outage_line" | awk '{print $3}')
@@ -207,7 +207,7 @@ test_main_analysis() {
 
         outage_count=$((outage_count + 1))
         log_debug "Processing outage #$outage_count: $outage_time ($outage_type)"
-        
+
         outage_seconds=$(time_to_seconds "$outage_time")
         log_debug "Outage time in seconds: $outage_seconds"
 
@@ -224,14 +224,14 @@ test_main_analysis() {
         # Find correlated events (THIS MIGHT BE WHERE THE LOOP HAPPENS)
         correlated_events=""
         event_processing_count=0
-        
+
         log_debug "Searching for correlated events in window $start_window - $end_window"
-        
+
         while read -r event_line; do
             [ -z "$event_line" ] && continue
-            
+
             event_processing_count=$((event_processing_count + 1))
-            
+
             # Add safety counter to prevent infinite loop
             if [ "$event_processing_count" -gt 1000 ]; then
                 log_error "INFINITE LOOP DETECTED: Processed $event_processing_count events for outage #$outage_count"
@@ -239,7 +239,7 @@ test_main_analysis() {
                 echo "ERROR: Infinite loop detected in event processing" >>"$REPORT_FILE"
                 break
             fi
-            
+
             if [ $((event_processing_count % 100)) -eq 0 ]; then
                 log_debug "Processed $event_processing_count events for outage #$outage_count"
             fi
@@ -254,7 +254,7 @@ test_main_analysis() {
                 log_debug "Found correlated event at $event_timestamp"
             fi
         done <"$temp_events"
-        
+
         log_debug "Completed event correlation for outage #$outage_count (processed $event_processing_count events)"
 
         # Report findings
@@ -266,21 +266,21 @@ test_main_analysis() {
                 printf "\n✗ NO CORRELATED EVENTS FOUND\n"
             fi
         } >>"$REPORT_FILE"
-        
+
         # Safety check - if we've processed too many outages, something is wrong
         if [ "$outage_count" -gt 50 ]; then
             log_error "SAFETY BREAK: Processed $outage_count outages - possible infinite loop"
             break
         fi
-        
+
     done <"$temp_outages"
-    
+
     log_info "Test analysis completed"
     log_info "Processed $process_count lines, found $outage_count valid outages"
-    
+
     # Clean up
     rm -f "$temp_events" "$temp_outages"
-    
+
     # Generate summary
     {
         printf "\n=== TEST ANALYSIS SUMMARY ===\n"
@@ -288,14 +288,14 @@ test_main_analysis() {
         printf "Valid outages found: %d\n" "$outage_count"
         printf "Report location: %s\n" "$REPORT_FILE"
     } >>"$REPORT_FILE"
-    
+
     log_info "Test analysis report saved to: $REPORT_FILE"
 }
 
 # Main execution
 main() {
     log_info "Starting Test Outage Correlation Analysis v$SCRIPT_VERSION"
-    
+
     if [ "$DEBUG" = "1" ]; then
         log_debug "==================== DEBUG MODE ENABLED ===================="
         log_debug "Analysis date: $ANALYSIS_DATE"

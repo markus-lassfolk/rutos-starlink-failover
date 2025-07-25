@@ -1,6 +1,7 @@
 # Comprehensive RUTOS Monitoring Data Analysis
 
 ## Analysis Overview
+
 This report provides detailed statistical analysis of ALL available metrics from your RUTOS Starlink monitoring system.
 
 **Analysis Date**: 2025-07-25 01:52:35
@@ -10,10 +11,12 @@ This report provides detailed statistical analysis of ALL available metrics from
 ## 1. System State Analysis
 
 ### Connection States
+
 - **UP states**: 1166 (84%)
 - **DOWN states**: 221 (15%)
 
 ### Routing Metrics
+
 - **Good routing (Metric: 1)**: 1166 entries
 - **Failover routing (Metric: 20)**: 221 entries
 
