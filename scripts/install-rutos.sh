@@ -1092,8 +1092,7 @@ This document lists all scripts installed by the Starlink monitoring system.
 - `system-status-rutos.sh` - System status checker
 - `health-check-rutos.sh` - Health monitoring  
 - `update-config-rutos.sh` - Configuration updater
-- `upgrade-to-advanced-rutos.sh` - Config upgrade tool
-- `merge-config-rutos.sh` - Configuration merger
+- `merge-config-rutos.sh` - Configuration merger (unified template)
 - `restore-config-rutos.sh` - Configuration restore
 - `cleanup-rutos.sh` - System cleanup utility
 - `self-update-rutos.sh` - Self-update system
@@ -1280,7 +1279,6 @@ install_scripts() {
         system-status-rutos.sh \
         health-check-rutos.sh \
         update-config-rutos.sh \
-        upgrade-to-advanced-rutos.sh \
         merge-config-rutos.sh \
         restore-config-rutos.sh \
         cleanup-rutos.sh \
@@ -1392,36 +1390,21 @@ install_config() {
         exit 1
     }
 
-    # Download/copy templates to temporary location first
-    temp_basic_template="/tmp/config.template.sh.$$"
-    temp_advanced_template="/tmp/config.advanced.template.sh.$$"
+    # Download/copy unified template to temporary location
+    temp_unified_template="/tmp/config.unified.template.sh.$$"
 
     # Handle both local and remote installation
-    if [ -f "$config_dir/config.template.sh" ]; then
-        cp "$config_dir/config.template.sh" "$temp_basic_template"
-        cp "$config_dir/config.advanced.template.sh" "$temp_advanced_template" 2>/dev/null || {
-            print_status "$YELLOW" "⚠ Advanced template not found locally, downloading..."
-            download_file "$BASE_URL/config/config.advanced.template.sh" "$temp_advanced_template" || {
-                print_status "$YELLOW" "⚠ Could not download advanced template, using basic only"
-                cp "$temp_basic_template" "$temp_advanced_template"
-            }
-        }
-        print_status "$GREEN" "✓ Configuration templates loaded locally"
+    if [ -f "$config_dir/config.unified.template.sh" ]; then
+        cp "$config_dir/config.unified.template.sh" "$temp_unified_template"
+        print_status "$GREEN" "✓ Unified configuration template loaded locally"
     else
         # Download from repository
-        print_status "$BLUE" "Downloading configuration templates..."
-        if download_file "$BASE_URL/config/config.template.sh" "$temp_basic_template"; then
-            print_status "$GREEN" "✓ Basic configuration template downloaded"
+        print_status "$BLUE" "Downloading unified configuration template..."
+        if download_file "$BASE_URL/config/config.unified.template.sh" "$temp_unified_template"; then
+            print_status "$GREEN" "✓ Unified configuration template downloaded"
         else
-            print_status "$RED" "✗ Failed to download basic configuration template"
+            print_status "$RED" "✗ Unified configuration template could not be downloaded"
             exit 1
-        fi
-
-        if download_file "$BASE_URL/config/config.advanced.template.sh" "$temp_advanced_template"; then
-            print_status "$GREEN" "✓ Advanced configuration template downloaded"
-        else
-            print_status "$YELLOW" "⚠ Advanced template not available, using basic template"
-            cp "$temp_basic_template" "$temp_advanced_template"
         fi
     fi
 
@@ -1452,32 +1435,11 @@ install_config() {
             done || config_debug "  (Cannot read config file)"
         fi
 
-        # Detect configuration type (basic vs advanced)
-        config_type="basic"
-        config_debug "Starting config type detection..."
-        # Look for advanced-only variables to detect advanced config
-        if grep -qE "^(DEBUG_MODE|DRY_RUN|CELLULAR_.*_MEMBER|BACKUP_DIR|DATA_LIMIT_.*_THRESHOLD|ENABLE_PERFORMANCE_LOGGING|CELLULAR_BACKUP_IFACE)" "$primary_config" 2>/dev/null; then
-            config_type="advanced"
-            config_debug "Advanced markers found in config"
-            if [ "$DEBUG" = "1" ]; then
-                advanced_markers=$(grep -E "^(DEBUG_MODE|DRY_RUN|CELLULAR_.*_MEMBER|BACKUP_DIR|DATA_LIMIT_.*_THRESHOLD|ENABLE_PERFORMANCE_LOGGING|CELLULAR_BACKUP_IFACE)" "$primary_config" 2>/dev/null | head -3)
-                config_debug "Advanced markers detected: $advanced_markers"
-            fi
-        else
-            config_debug "No advanced markers found, assuming basic config"
-        fi
-
-        config_debug "Detected configuration type: $config_type"
-        print_status "$BLUE" "Detected $config_type configuration type"
-
-        # Select appropriate template
-        if [ "$config_type" = "advanced" ]; then
-            selected_template="$temp_advanced_template"
-            config_debug "Selected advanced template: $selected_template"
-        else
-            selected_template="$temp_basic_template"
-            config_debug "Selected basic template: $selected_template"
-        fi
+        # With unified template, we always use the same template file
+        # The template contains all features organized by sections
+        selected_template="$temp_unified_template"
+        config_debug "Using unified template: $selected_template"
+        print_status "$BLUE" "Using unified configuration template with all features available"
 
         config_debug "Template file exists: $([ -f "$selected_template" ] && echo 'yes' || echo 'no')"
         config_debug "Template file size: $(wc -c <"$selected_template" 2>/dev/null || echo 'unknown') bytes"
@@ -1546,10 +1508,14 @@ install_config() {
         # First time installation - no existing config
         print_status "$BLUE" "First time installation - creating new configuration"
 
-        # Use basic template by default
-        if cp "$temp_basic_template" "$primary_config"; then
-            print_status "$GREEN" "✓ Initial configuration created from template"
+        # Use unified template for new installations
+        if cp "$temp_unified_template" "$primary_config"; then
+            print_status "$GREEN" "✓ Initial configuration created from unified template"
+            print_status "$BLUE" "💡 Configuration includes all features organized by complexity"
             print_status "$YELLOW" "📋 Please edit $primary_config with your settings"
+            print_status "$BLUE" "    • MANDATORY BASIC section: Essential settings you must configure"
+            print_status "$BLUE" "    • OPTIONAL BASIC section: Common features (notifications, logging)"
+            print_status "$BLUE" "    • ADVANCED sections: GPS, Cellular, and System features"
 
             # Apply validation formatting to new configuration as well
             print_status "$BLUE" "Applying configuration formatting validation..."
@@ -1698,8 +1664,10 @@ install_config() {
     # Copy final config to install directory for backwards compatibility
     mkdir -p "$INSTALL_DIR/config" 2>/dev/null
     cp "$primary_config" "$INSTALL_DIR/config/config.sh" 2>/dev/null || true
-    cp "$temp_basic_template" "$INSTALL_DIR/config/config.template.sh" 2>/dev/null || true
-    cp "$temp_advanced_template" "$INSTALL_DIR/config/config.advanced.template.sh" 2>/dev/null || true
+    cp "$temp_unified_template" "$INSTALL_DIR/config/config.unified.template.sh" 2>/dev/null || true
+    # Keep legacy template names for backward compatibility
+    cp "$temp_unified_template" "$INSTALL_DIR/config/config.template.sh" 2>/dev/null || true
+    cp "$temp_unified_template" "$INSTALL_DIR/config/config.advanced.template.sh" 2>/dev/null || true
 
     # Install system configuration for dynamic testing and validation
     if [ -f "$config_dir/system-config.sh" ]; then
@@ -1721,7 +1689,7 @@ install_config() {
     print_status "$BLUE" "  Installation link: /root/starlink-monitor -> $INSTALL_DIR"
 
     # Cleanup temporary files
-    rm -f "$temp_basic_template" "$temp_advanced_template" "$temp_merged_config" 2>/dev/null || true
+    rm -f "$temp_unified_template" "$temp_merged_config" 2>/dev/null || true
 }
 
 # Configure cron jobs

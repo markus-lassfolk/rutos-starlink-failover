@@ -1,4 +1,5 @@
 # Configuration Management System Summary
+
 <!-- Version: 2.6.0 | Updated: 2025-07-24 -->
 
 **Version:** 2.6.0 | **Updated:** 2025-07-24
@@ -33,7 +34,7 @@ installations, updates, and validation.
 - ✅ **Template Comparison**: Compares current config against template to find missing/extra variables
 - ✅ **Placeholder Detection**: Finds unconfigured placeholder values (YOUR_TOKEN, CHANGE_ME, etc.)
 - ✅ **Value Validation**: Validates numeric thresholds, boolean values, IP addresses, and paths
-- ✅ **Intelligent Recommendations**: Suggests specific tools for fixes (update-config.sh, upgrade-to-advanced.sh)
+- ✅ **Intelligent Recommendations**: Suggests specific tools for fixes (update-config.sh, merge-config-rutos.sh)
 - ✅ **Configuration Completeness Score**: Reports total issues found and resolution steps
 
 **Usage**:
@@ -65,7 +66,7 @@ Suggestion: Run update-config.sh to add missing variables
 
 Available tools:
 • Update config: ../scripts/update-config.sh
-• Upgrade features: ../scripts/upgrade-to-advanced.sh
+• Configuration tools: ../scripts/merge-config-rutos.sh
 ````
 
 ### 2. **update-config.sh** - Configuration Update Tool
@@ -94,29 +95,7 @@ Available tools:
 ./scripts/update-config.sh --template /path/to/custom.template.sh
 ```
 
-### 3. **upgrade-to-advanced.sh** - Feature Upgrade Tool
-
-**Purpose**: Migrate from basic to advanced configuration while preserving settings
-
-**Features**:
-
-- ✅ **Intelligent Migration**: Preserves 25+ configuration parameters
-- ✅ **Feature Addition**: Adds Azure logging, GPS integration, advanced monitoring
-- ✅ **Automatic Backups**: Creates configuration backups
-- ✅ **Value Preservation**: Maintains all customizations
-- ✅ **Safe Rollback**: Backup allows easy restoration if needed
-
-**Usage**:
-
-```bash
-# Upgrade to advanced features
-./scripts/upgrade-to-advanced.sh
-
-# Check what will be migrated
-./scripts/upgrade-to-advanced.sh --dry-run
-```
-
-### 4. **install.sh** - Safe Installation Script
+### 3. **install-rutos.sh** - Unified Installation Script
 
 **Purpose**: Install system with configuration preservation
 
@@ -132,7 +111,7 @@ Available tools:
 ```bash
 # Only creates config if it doesn't exist
 if [ ! -f "$INSTALL_DIR/config/config.sh" ]; then
-    cp "$INSTALL_DIR/config/config.template.sh" "$INSTALL_DIR/config/config.sh"
+    cp "$INSTALL_DIR/config/config.unified.template.sh" "$INSTALL_DIR/config/config.sh"
 fi
 ```
 
@@ -153,7 +132,7 @@ fi
 **Question**: "How are new config options handled?"  
 **Answer**: ✅ **Intelligent Merging**
 
-1. **Template updates** - New options added to config.template.sh
+1. **Template updates** - New options added to config.unified.template.sh
 2. **update-config.sh** - Adds missing variables to your config
 3. **Dry-run preview** - See changes before applying
 4. **Backup protection** - Automatic backups before changes
@@ -170,7 +149,7 @@ fi
 ./scripts/update-config.sh
 
 # Upgrade to advanced features
-./scripts/upgrade-to-advanced.sh
+./scripts/merge-config-rutos.sh
 ```
 
 ### Installation/Re-installation
@@ -222,7 +201,7 @@ curl -fL https://raw.githubusercontent.com/.../install.sh | sh
 - **Missing Variables**: "Run update-config.sh to add missing variables"
 - **Placeholder Values**: "Update PUSHOVER_TOKEN with your API key"
 - **Invalid Values**: "Boolean values should be 0 or 1"
-- **Feature Upgrades**: "Use upgrade-to-advanced.sh for new features"
+- **Configuration Management**: "Use merge-config-rutos.sh for safe updates"
 
 ## 🚀 Benefits
 

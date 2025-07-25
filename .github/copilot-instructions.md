@@ -638,7 +638,7 @@ chmod +x .git/hooks/pre-commit
 ### Naming Conventions
 
 - Scripts: `kebab-case.sh` (e.g., `validate-config.sh`)
-- Configs: `config.template.sh`, `config.advanced.template.sh`
+- Configs: `config.unified.template.sh` (unified template with all features)
 - Documentation: `UPPERCASE.md` (e.g., `TESTING.md`)
 - Logs: `lowercase.log` (e.g., `installation.log`)
 
@@ -912,6 +912,7 @@ script_list=$(get_script_list)  # Clean script list only
 **Implementation**: Use temporary files to pass data between processing stages instead of pipes with variable updates
 **Impact**: Ensures reliable result tracking and prevents variables being reset to zero after subshell completion
 **Example**:
+
 ```bash
 # WRONG - variables lost in subshell
 find . -name "*.sh" | while read script; do
@@ -934,6 +935,7 @@ COUNTER=$(wc -l < "$temp_results")
 **Implementation**: Always strip whitespace with `tr -d ' \n\r'` when capturing numeric output from BusyBox commands
 **Impact**: Prevents "bad number" arithmetic errors and malformed display output in RUTOS environment
 **Example**:
+
 ```bash
 # WRONG - can include newlines/whitespace causing "0\n0" display
 COUNT=$(wc -l < file)
@@ -951,6 +953,7 @@ MATCHES=$(grep -c "pattern" file | tr -d ' \n\r')
 **Implementation**: Add early exit pattern immediately after dry-run variable setup to prevent any execution beyond syntax validation
 **Impact**: Eliminates execution timeout failures and dependency errors during testing, allowing pure syntax and compatibility validation
 **Example**:
+
 ```bash
 # Dry-run and test mode support
 DRY_RUN="${DRY_RUN:-0}"
@@ -975,10 +978,11 @@ fi
 **Implementation**: Fix execution errors first (timeouts, environment issues), then add missing dry-run support, then address compatibility issues
 **Impact**: Prevents masking of real issues and provides accurate progress tracking during systematic fixes
 **Example**:
+
 ```bash
 # Priority order for fixing script issues:
 # 1. Add early exit patterns for RUTOS_TEST_MODE (execution errors)
-# 2. Add missing dry-run support patterns (missing features)  
+# 2. Add missing dry-run support patterns (missing features)
 # 3. Fix syntax and compatibility issues (code quality)
 # 4. Validate with comprehensive testing system
 ```
@@ -990,6 +994,7 @@ fi
 **Implementation**: Always scan for duplicate function definitions and variable setups when debugging script issues
 **Impact**: Prevents unexpected behavior from conflicting duplicate code sections
 **Example**:
+
 ```bash
 # WRONG - duplicate sections cause issues
 DRY_RUN="${DRY_RUN:-0}"
@@ -1011,6 +1016,7 @@ safe_execute() { ... }
 **Implementation**: Cleanup scripts must handle ALL installed components: monitoring crons, system maintenance crons, auto-update crons, auto-recovery init.d services, and version-pinned recovery scripts
 **Impact**: Prevents incomplete cleanup that leaves systems in hybrid states with some automation still running after "cleanup"
 **Example**:
+
 ```bash
 # INCOMPLETE - misses system-maintenance and self-update crons
 sed 's|^\([^#].*starlink_monitor.*\)|# CLEANUP: \1|g'
@@ -1022,7 +1028,7 @@ sed 's|^\([^#].*\(starlink_monitor-rutos\.sh\|starlink_logger-rutos\.sh\|check_s
 /etc/init.d/starlink-restore disable
 rm -f /etc/init.d/starlink-restore
 
-# And version-pinned recovery scripts  
+# And version-pinned recovery scripts
 rm -f /etc/starlink-config/install-pinned-version.sh
 ```
 
@@ -1033,6 +1039,7 @@ rm -f /etc/starlink-config/install-pinned-version.sh
 **Implementation**: ALWAYS default to DRY_RUN=1 (safe mode), require explicit --execute or --force flags for real execution, include 5-second warning countdown
 **Impact**: Prevents accidental complete system cleanup and data loss during development and testing
 **Example**:
+
 ```bash
 # DANGEROUS - executes immediately by default
 DRY_RUN="${DRY_RUN:-0}"
@@ -1062,6 +1069,7 @@ fi
 **Implementation**: ALWAYS default to DRY_RUN=1 (safe mode), require explicit --execute or --force flags for real execution, include 5-second warning countdown
 **Impact**: Prevents accidental complete system cleanup and data loss during development and testing
 **Example**:
+
 ```bash
 # DANGEROUS - executes immediately by default
 DRY_RUN="${DRY_RUN:-0}"
@@ -1091,10 +1099,11 @@ fi
 **Implementation**: Use systematic approach: fix execution errors → add missing dry-run support → run comprehensive testing → track improvement metrics
 **Impact**: Achieved improvement from 57% to 80% script success rate through systematic fixes and proper testing validation
 **Example**:
+
 ```bash
 # Testing approach that provides clear progress tracking:
 # 1. Run comprehensive testing to establish baseline
-# 2. Fix execution errors (timeouts, environment issues) 
+# 2. Fix execution errors (timeouts, environment issues)
 # 3. Add missing dry-run support to remaining scripts
 # 4. Re-run comprehensive testing to measure improvement
 # 5. Focus on remaining compatibility and syntax issues
@@ -1125,7 +1134,7 @@ fi
 ### Current Focus Areas
 
 1. **Main Monitoring Script**: Final testing of `starlink_monitor.sh`
-2. **Advanced Configuration**: Complete `config.advanced.template.sh`
+2. **Unified Configuration**: Complete `config.unified.template.sh` with all features in organized sections
 3. **Azure Integration**: Logging and monitoring components
 4. **Documentation**: Keep all guides up-to-date
 

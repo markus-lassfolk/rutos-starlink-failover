@@ -112,7 +112,7 @@ analyze_config() {
 
     printf "\n"
     log_step "Checking template comparison"
-    template_file="/root/starlink-monitor/config/config.template.sh"
+    template_file="/root/starlink-monitor/config/config.unified.template.sh"
     if [ -f "$template_file" ]; then
         log_info "Template file exists: $template_file"
         template_vars=$(grep -E '^export [A-Z_]+=.*' "$template_file" | sed 's/^export //' | cut -d'=' -f1 | sort)

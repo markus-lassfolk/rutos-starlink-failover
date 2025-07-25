@@ -1,15 +1,14 @@
 #!/bin/sh
 # Configuration merging script for Starlink RUTOS Failover
 # Version: 2.6.0
-
-# Standard colors for consistent output
+# Description: Unified template configuration merging functions
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
 # Use version for logging
-echo "merge-config-rutos.sh v$SCRIPT_VERSION started" >/dev/null 2>&1 || true
+echo "merge-config-rutos.sh v$SCRIPT_VERSION (unified template support) started" >/dev/null 2>&1 || true
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'

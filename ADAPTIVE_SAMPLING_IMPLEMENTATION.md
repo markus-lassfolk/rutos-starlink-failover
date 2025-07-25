@@ -14,7 +14,7 @@ consistency and preventing performance degradation.
 Added performance monitoring configuration to both config templates:
 
 - `config/config.template.sh` (basic configuration)
-- `config/config.advanced.template.sh` (advanced configuration)
+- `config/config.unified.template.sh` (unified configuration with all features)
 
 **New Configuration Parameters:**
 

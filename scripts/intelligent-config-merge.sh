@@ -1,18 +1,18 @@
 #!/bin/sh
 # ==============================================================================
-# Improved Config Merge Logic for install-rutos.sh
-# This implements the user's suggested approach for config merging
+# Unified Template Config Merge Logic for install-rutos.sh
+# This implements intelligent merging for the unified configuration template
 # shellcheck disable=SC2001  # Complex sed patterns needed for config variable extraction
 # ==============================================================================
 
-# Function to perform intelligent config merge using the user's suggested approach
+# Function to perform intelligent config merge using unified template approach
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
 # Use version for logging
-echo "intelligent-config-merge.sh v$SCRIPT_VERSION started" >/dev/null 2>&1 || true
+echo "intelligent-config-merge.sh v$SCRIPT_VERSION (unified template support) started" >/dev/null 2>&1 || true
 intelligent_config_merge() {
     template_file="$1"
     current_config="$2"
