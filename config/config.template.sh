@@ -225,26 +225,26 @@ export GPS_ENABLED="1"
 # GPS source priority configuration
 # Sources: "starlink", "rutos", "combined"
 # Priority: "primary", "secondary", "auto", "combined"
-export GPS_PRIMARY_SOURCE="starlink"   # Primary GPS data source
-export GPS_SECONDARY_SOURCE="rutos"    # Fallback when primary unavailable
-export GPS_SOURCE_MODE="auto"          # How to select: auto/primary/secondary/combined
+export GPS_PRIMARY_SOURCE="starlink" # Primary GPS data source
+export GPS_SECONDARY_SOURCE="rutos"  # Fallback when primary unavailable
+export GPS_SOURCE_MODE="auto"        # How to select: auto/primary/secondary/combined
 
 # GPS data collection intervals
-export GPS_COLLECTION_INTERVAL="60"    # Collect GPS data every N seconds
-export GPS_STALENESS_THRESHOLD="300"   # Consider GPS data stale after N seconds
+export GPS_COLLECTION_INTERVAL="60"  # Collect GPS data every N seconds
+export GPS_STALENESS_THRESHOLD="300" # Consider GPS data stale after N seconds
 
 # GPS data validation settings
-export GPS_REQUIRE_VALID_FIX="true"    # Only use GPS data with valid fix
-export GPS_MIN_SATELLITES="4"          # Minimum satellites for valid position
-export GPS_MAX_HDOP="10.0"             # Maximum horizontal dilution of precision
+export GPS_REQUIRE_VALID_FIX="true" # Only use GPS data with valid fix
+export GPS_MIN_SATELLITES="4"       # Minimum satellites for valid position
+export GPS_MAX_HDOP="10.0"          # Maximum horizontal dilution of precision
 
 # GPS location change detection (for parking validation)
-export GPS_MOVEMENT_THRESHOLD="50"     # Minimum movement in meters to consider "moved"
-export GPS_STATIONARY_TIME="1800"      # Time in seconds to consider "parked" (30 minutes)
+export GPS_MOVEMENT_THRESHOLD="50" # Minimum movement in meters to consider "moved"
+export GPS_STATIONARY_TIME="1800"  # Time in seconds to consider "parked" (30 minutes)
 
 # Enhanced GPS logging for analytics
-export GPS_ANALYTICS_ENABLED="true"    # Enable GPS analytics and trend tracking
-export GPS_LOG_DETAILED="false"        # Log detailed GPS data (can be verbose)
+export GPS_ANALYTICS_ENABLED="true" # Enable GPS analytics and trend tracking
+export GPS_LOG_DETAILED="false"     # Log detailed GPS data (can be verbose)
 
 # --- Cellular Integration Configuration ---
 
@@ -255,20 +255,20 @@ export GPS_LOG_DETAILED="false"        # Log detailed GPS data (can be verbose)
 export CELLULAR_ENABLED="1"
 
 # Multi-modem configuration
-export CELLULAR_AUTO_DETECT="true"     # Automatically detect available modems
-export CELLULAR_INTERFACES="mob1s1a1 mob1s2a1"  # Manual list if auto-detect disabled
+export CELLULAR_AUTO_DETECT="true"             # Automatically detect available modems
+export CELLULAR_INTERFACES="mob1s1a1 mob1s2a1" # Manual list if auto-detect disabled
 
 # Cellular data collection
-export CELLULAR_COLLECTION_INTERVAL="60"  # Collect cellular data every N seconds
-export CELLULAR_SIGNAL_THRESHOLD="-100"   # Minimum signal strength (dBm)
+export CELLULAR_COLLECTION_INTERVAL="60" # Collect cellular data every N seconds
+export CELLULAR_SIGNAL_THRESHOLD="-100"  # Minimum signal strength (dBm)
 
 # Smart failover configuration
-export CELLULAR_SMART_FAILOVER="true"     # Enable intelligent failover decisions
-export CELLULAR_ROAMING_AWARE="true"      # Consider roaming costs in failover decisions
-export CELLULAR_COST_PRIORITY="medium"    # Priority: high/medium/low (high=avoid roaming)
+export CELLULAR_SMART_FAILOVER="true"  # Enable intelligent failover decisions
+export CELLULAR_ROAMING_AWARE="true"   # Consider roaming costs in failover decisions
+export CELLULAR_COST_PRIORITY="medium" # Priority: high/medium/low (high=avoid roaming)
 
 # Cellular analytics and logging
-export CELLULAR_ANALYTICS_ENABLED="true" # Enable cellular analytics
+export CELLULAR_ANALYTICS_ENABLED="true"  # Enable cellular analytics
 export CELLULAR_LOG_SIGNAL_DETAILS="true" # Log detailed signal information
 
 # --- Binary Paths (set by install script) ---
