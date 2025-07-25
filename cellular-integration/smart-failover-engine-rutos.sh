@@ -28,7 +28,7 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
-    PURPLE=""
+    # PURPLE unused in non-interactive mode
     CYAN=""
     NC=""
 fi

@@ -27,7 +27,7 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
-    PURPLE=""
+    # PURPLE unused in non-interactive mode
     CYAN=""
     NC=""
 fi
@@ -363,7 +363,7 @@ generate_enhanced_collection() {
         log_info "Processing existing log entries and enhancing with cellular data"
 
         # Skip header line and process data
-        tail -n +2 "$input_log" | while IFS=',' read -r timestamp starlink_status ping_ms download_mbps upload_mbps ping_drop_rate snr_db obstruction_percent uptime_seconds existing_gps_data; do
+        tail -n +2 "$input_log" | while IFS=',' read -r timestamp starlink_status ping_ms download_mbps upload_mbps ping_drop_rate snr_db obstruction_percent uptime_seconds _; do
 
             # Collect GPS data (efficient collection - only every 5th reading)
             gps_collection_counter=$((gps_collection_counter + 1))
