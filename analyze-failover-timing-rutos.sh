@@ -6,16 +6,15 @@
 
 set -e # Exit on error
 
-# Version information
+# Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
-# shellcheck disable=SC2034  # Used in some conditional contexts
-PURPLE='\033[0;35m'
 # shellcheck disable=SC2034  # Used in debug logging functions
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
@@ -26,7 +25,6 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
-    PURPLE=""
     CYAN=""
     NC=""
 fi
@@ -91,8 +89,10 @@ log_step() {
 # Configuration
 TEMP_DIR="temp"
 ANALYSIS_OUTPUT="failover_timing_analysis_$(date '+%Y%m%d_%H%M%S').md"
-PRE_FAILOVER_WINDOW=300  # 5 minutes before failover
-POST_FAILOVER_WINDOW=180 # 3 minutes after failover
+# Time windows for analysis (in seconds)
+# PRE_FAILOVER_WINDOW=300  # 5 minutes before failover  
+# POST_FAILOVER_WINDOW=180 # 3 minutes after failover
+# Note: These values are used in function comments and could be made configurable
 
 # Debug mode support
 DEBUG="${DEBUG:-0}"
@@ -127,8 +127,6 @@ identify_failover_events() {
 
     # Process transitions to find state changes
     previous_state=""
-    previous_time=""
-    previous_file=""
 
     while IFS=': ' read -r filename timestamp rest; do
         # Extract state and other info
@@ -146,8 +144,6 @@ identify_failover_events() {
             fi
 
             previous_state="$current_state"
-            previous_time="$timestamp"
-            previous_file="$filename"
         fi
     done <"$transitions_file"
 
@@ -240,11 +236,13 @@ analyze_pre_failover_metrics() {
     grep -B 20 "$failover_time" "$TEMP_DIR/$filename" | grep "Metrics -" | tail -5 >"$temp_metrics"
 
     if [ -s "$temp_metrics" ]; then
-        echo "**Recent metrics before failover:**" >>"$output_file"
-        echo '```' >>"$output_file"
-        cat "$temp_metrics" >>"$output_file"
-        echo '```' >>"$output_file"
-        echo "" >>"$output_file"
+        {
+            echo "**Recent metrics before failover:**"
+            echo '```'
+            cat "$temp_metrics"
+            echo '```'
+            echo ""
+        } >>"$output_file"
 
         # Analyze trends
         analyze_metric_trends "$temp_metrics" "$output_file" "pre-failover"
@@ -276,11 +274,13 @@ analyze_post_failover_metrics() {
     grep -A 15 "$failover_time" "$TEMP_DIR/$filename" | grep "Metrics -" | head -3 >"$temp_metrics"
 
     if [ -s "$temp_metrics" ]; then
-        echo "**Metrics after failover:**" >>"$output_file"
-        echo '```' >>"$output_file"
-        cat "$temp_metrics" >>"$output_file"
-        echo '```' >>"$output_file"
-        echo "" >>"$output_file"
+        {
+            echo "**Metrics after failover:**"
+            echo '```'
+            cat "$temp_metrics"
+            echo '```'
+            echo ""
+        } >>"$output_file"
 
         # Analyze recovery
         analyze_metric_trends "$temp_metrics" "$output_file" "post-failover"
@@ -415,7 +415,7 @@ assess_failback_to_starlink() {
     grep -B 5 "$failover_time" "$TEMP_DIR/$filename" | grep "Stability:" >"$temp_stability"
 
     if [ -s "$temp_stability" ]; then
-        max_stability=$(cat "$temp_stability" | sed 's/.*Stability: \([0-9]*\).*/\1/' | sort -n | tail -1)
+        max_stability=$(sed 's/.*Stability: \([0-9]*\).*/\1/' "$temp_stability" | sort -n | tail -1)
 
         {
             echo "**Stability progression before failback:**"
@@ -444,18 +444,19 @@ generate_failover_summary() {
 
     log_step "Generating failover summary and recommendations"
 
+    # Count different types of assessments
+    # shellcheck disable=SC2094  # Safe: file is fully written before reading for summary
+    justified_count=$(grep -c "JUSTIFIED FAILOVER" "$analysis_file" || echo "0")
+    questionable_count=$(grep -c "QUESTIONABLE FAILOVER" "$analysis_file" || echo "0")
+    appropriate_count=$(grep -c "APPROPRIATE FAILBACK" "$analysis_file" || echo "0")
+    premature_count=$(grep -c "PREMATURE FAILBACK" "$analysis_file" || echo "0")
+
     {
         echo ""
         echo "## Summary and Recommendations"
         echo ""
         echo "### Key Findings"
         echo ""
-
-        # Count different types of assessments
-        justified_count=$(grep -c "JUSTIFIED FAILOVER" "$analysis_file" || echo "0")
-        questionable_count=$(grep -c "QUESTIONABLE FAILOVER" "$analysis_file" || echo "0")
-        appropriate_count=$(grep -c "APPROPRIATE FAILBACK" "$analysis_file" || echo "0")
-        premature_count=$(grep -c "PREMATURE FAILBACK" "$analysis_file" || echo "0")
 
         echo "- **Justified failovers**: $justified_count"
         echo "- **Questionable failovers**: $questionable_count"
