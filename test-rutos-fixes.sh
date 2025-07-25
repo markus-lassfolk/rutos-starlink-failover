@@ -51,8 +51,15 @@ SCRIPT_DIR="/usr/local/starlink-monitor"
 # Scripts to test (the ones we fixed)
 TEST_SCRIPTS="
 check_starlink_api-rutos.sh
+<<<<<<< HEAD
 starlink_logger-rutos.sh
 starlink_logger_enhanced-rutos.sh
+=======
+starlink_logger_unified-rutos.sh
+starlink_logger-rutos.sh
+starlink_logger_enhanced-rutos.sh
+starlink_monitor_unified-rutos.sh
+>>>>>>> dd4d5a6 (Complete RUTOS testing framework compatibility fixes and verification)
 starlink_monitor_enhanced-rutos.sh
 starlink_monitor-rutos.sh
 "

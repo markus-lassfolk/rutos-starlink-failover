@@ -350,8 +350,8 @@ check_cron_configuration() {
     fi
 
     # Count our starlink monitoring entries
-    monitor_entries=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    monitor_entries=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    logger_entries=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
 
     total_entries=$((monitor_entries + logger_entries + api_check_entries))
@@ -370,7 +370,7 @@ check_cron_configuration() {
     if [ "$monitor_entries" -gt 0 ]; then
         if [ "$monitor_entries" -eq 1 ]; then
             # Extract the timing for the monitor entry
-            monitor_schedule=$(grep "starlink_monitor-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+            monitor_schedule=$(grep "starlink_monitor_unified-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
             show_health_status "healthy" "Monitor Schedule" "Monitor: $monitor_schedule ($monitor_entries entry)"
             increment_counter "healthy"
         else
@@ -378,7 +378,7 @@ check_cron_configuration() {
             increment_counter "warning"
             if [ "${DEBUG:-0}" = "1" ]; then
                 log_debug "Monitor entries found:"
-                grep "starlink_monitor-rutos.sh" "$CRON_FILE" | while IFS= read -r line; do
+                grep "starlink_monitor_unified-rutos.sh" "$CRON_FILE" | while IFS= read -r line; do
                     log_debug "  $line"
                 done
             fi
@@ -390,7 +390,7 @@ check_cron_configuration() {
 
     if [ "$logger_entries" -gt 0 ]; then
         if [ "$logger_entries" -eq 1 ]; then
-            logger_schedule=$(grep "starlink_logger-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
+            logger_schedule=$(grep "starlink_logger_unified-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1" "$2" "$3" "$4" "$5}')
             show_health_status "healthy" "Logger Schedule" "Logger: $logger_schedule ($logger_entries entry)"
             increment_counter "healthy"
         else
@@ -796,7 +796,7 @@ check_notification_system() {
     # Define expected paths for notification components
     HOTPLUG_NOTIFY="/etc/hotplug.d/iface/99-pushover_notify-rutos.sh"
     STARLINK_NOTIFY="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh"
-    MAIN_MONITOR="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor-rutos.sh"
+    MAIN_MONITOR="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh"
     UTILS_SCRIPT="/usr/local/starlink-monitor/scripts/placeholder-utils.sh"
 
     # Check hotplug notification script (critical for failover notifications)
@@ -1113,11 +1113,11 @@ check_monitoring_health() {
     log_step "Checking monitoring system health"
 
     # Check if monitoring script exists
-    if [ -f "$INSTALL_DIR/scripts/starlink_monitor-rutos.sh" ]; then
+    if [ -f "$INSTALL_DIR/scripts/starlink_monitor_unified-rutos.sh" ]; then
         show_health_status "healthy" "Monitor Script" "Script exists and is readable"
         increment_counter "healthy"
     else
-        show_health_status "critical" "Monitor Script" "starlink_monitor-rutos.sh not found"
+        show_health_status "critical" "Monitor Script" "starlink_monitor_unified-rutos.sh not found"
         increment_counter "critical"
     fi
 

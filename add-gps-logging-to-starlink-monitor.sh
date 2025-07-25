@@ -203,7 +203,7 @@ show_integration_instructions() {
 
 # GPS Integration Instructions for Starlink Monitor
 
-## 1. Add GPS Collection to starlink_monitor-rutos.sh
+## 1. Add GPS Collection to starlink_monitor_unified-rutos.sh
 
 Add this function after the existing API data collection:
 
@@ -308,7 +308,7 @@ main() {
     log_info "GPS integration setup completed"
     log_info "Next steps:"
     log_info "1. Review integration instructions above"
-    log_info "2. Add GPS collection to starlink_monitor-rutos.sh"
+    log_info "2. Add GPS collection to starlink_monitor_unified-rutos.sh"
     log_info "3. Test with real RUTOS and Starlink hardware"
     log_info "4. Enable location-based failover analysis"
 }

@@ -218,7 +218,7 @@ main() {
     # Check for key scripts
     check_file "/usr/local/starlink-monitor/scripts/placeholder-utils.sh" "Utility functions script"
     check_file "/usr/local/starlink-monitor/Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh" "Pushover notification script"
-    check_file "/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor-rutos.sh" "Main monitoring script"
+    check_file "/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh" "Main monitoring script"
     printf "\n"
 
     # Step 5: Check rate limiting files
@@ -287,7 +287,7 @@ main() {
         printf "\n"
 
         printf "To test the monitoring script in debug mode:\n"
-        printf "${CYAN}  DEBUG=1 /usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor-rutos.sh${NC}\n"
+        printf "${CYAN}  DEBUG=1 /usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh${NC}\n"
     else
         printf "${YELLOW}Configure Pushover credentials first, then run manual tests${NC}\n"
     fi

@@ -248,8 +248,8 @@ printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 # Check cron entries
 CRON_FILE="/etc/crontabs/root"
 if [ -f "$CRON_FILE" ]; then
-    monitor_entries=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    monitor_entries=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    logger_entries=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     api_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
     maintenance_entries=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
 

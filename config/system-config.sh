@@ -19,16 +19,16 @@ fi
 # Expected cron jobs and their patterns
 
 EXPECTED_CRON_JOBS="
-starlink_monitor-rutos.sh:every_minute:Monitor primary connectivity and failover
-starlink_logger-rutos.sh:every_minute:Log connection status and events  
+starlink_monitor_unified-rutos.sh:every_minute:Monitor primary connectivity and failover
+starlink_logger_unified-rutos.sh:every_minute:Log connection status and events  
 check_starlink_api-rutos.sh:daily_6am:Check Starlink API connectivity
 system-maintenance-rutos.sh:every_6_hours:Perform system maintenance and issue fixes
 "
 
 # Expected script locations
 SCRIPT_LOCATIONS="
-starlink_monitor-rutos.sh:/usr/local/starlink-monitor/scripts/
-starlink_logger-rutos.sh:/usr/local/starlink-monitor/scripts/
+starlink_monitor_unified-rutos.sh:/usr/local/starlink-monitor/scripts/
+starlink_logger_unified-rutos.sh:/usr/local/starlink-monitor/scripts/
 check_starlink_api-rutos.sh:/usr/local/starlink-monitor/scripts/
 system-maintenance-rutos.sh:/usr/local/starlink-monitor/scripts/
 99-pushover_notify-rutos.sh:/etc/hotplug.d/iface/
@@ -66,8 +66,8 @@ crond:cron_daemon:Cron daemon for scheduled tasks
 
 # Cron schedule patterns for validation
 CRON_PATTERNS="
-starlink_monitor-rutos.sh:^\* \* \* \* \*.*starlink_monitor-rutos\.sh
-starlink_logger-rutos.sh:^\* \* \* \* \*.*starlink_logger-rutos\.sh  
+starlink_monitor_unified-rutos.sh:^\* \* \* \* \*.*starlink_monitor_unified-rutos\.sh
+starlink_logger_unified-rutos.sh:^\* \* \* \* \*.*starlink_logger_unified-rutos\.sh  
 check_starlink_api-rutos.sh:^0 6 \* \* \*.*check_starlink_api.*\.sh
 system-maintenance-rutos.sh:^0 \*/6 \* \* \*.*system-maintenance-rutos\.sh
 "

@@ -85,7 +85,7 @@ if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
 fi
 
 # Configuration
-LOGGER_SCRIPT="${LOGGER_SCRIPT:-/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_logger-rutos.sh}"
+LOGGER_SCRIPT="${LOGGER_SCRIPT:-/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh}"
 GPS_COLLECTOR="${GPS_COLLECTOR:-/usr/local/starlink-monitor/gps-integration/gps-collector-rutos.sh}"
 BACKUP_SCRIPT=""
 

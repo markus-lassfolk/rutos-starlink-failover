@@ -83,8 +83,8 @@ if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
 fi
 
 # Configuration paths - Updated for Logger Script Integration
-MONITOR_SCRIPT="./Starlink-RUTOS-Failover/starlink_monitor-rutos.sh" # For reference only
-LOGGER_SCRIPT="./Starlink-RUTOS-Failover/starlink_logger-rutos.sh"   # Primary integration target
+MONITOR_SCRIPT="./Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh" # Unified script (recommended)
+LOGGER_SCRIPT="./Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh"   # Primary integration target
 CONFIG_FILE="./config/config.sh"
 GPS_COLLECTOR_SCRIPT="./gps-integration/gps-collector-rutos.sh"
 GPS_ANALYZER_SCRIPT="./gps-integration/gps-location-analyzer-rutos.sh"
@@ -217,9 +217,9 @@ GPS_DATA_DIR=\"\$LOG_DIR/gps\"                 # GPS data storage directory
     fi
 }
 
-# Add GPS integration to starlink_logger-rutos.sh (primary target)
+# Add GPS integration to starlink_logger_unified-rutos.sh (primary target)
 integrate_gps_logging() {
-    log_step "Integrating GPS collection into starlink_logger-rutos.sh"
+    log_step "Integrating GPS collection into starlink_logger_unified-rutos.sh"
 
     if [ ! -f "$LOGGER_SCRIPT" ]; then
         log_error "Starlink logger script not found: $LOGGER_SCRIPT"
@@ -281,7 +281,7 @@ collect_gps_coordinates() {
 }'
 
     if [ "$DRY_RUN" = "1" ]; then
-        log_info "DRY-RUN: Would integrate GPS functions into starlink_logger-rutos.sh"
+        log_info "DRY-RUN: Would integrate GPS functions into starlink_logger_unified-rutos.sh"
         printf "\n${CYAN}Logger Integration code to be added:${NC}\n"
         echo "$integration_code"
 
@@ -296,7 +296,7 @@ collect_gps_coordinates() {
     else
         # Check if GPS integration already exists
         if grep -q "collect_gps_coordinates" "$LOGGER_SCRIPT" 2>/dev/null; then
-            log_warning "GPS integration already exists in starlink_logger-rutos.sh"
+            log_warning "GPS integration already exists in starlink_logger_unified-rutos.sh"
             log_info "Skipping GPS integration"
         else
             # Add GPS functions after enhanced metrics extraction (around line 240)
@@ -317,7 +317,7 @@ collect_gps_coordinates() {
             # Replace original file
             mv "$temp_file" "$LOGGER_SCRIPT"
 
-            log_success "GPS integration functions added to starlink_logger-rutos.sh"
+            log_success "GPS integration functions added to starlink_logger_unified-rutos.sh"
             log_warning "Manual CSV header and data output modifications required"
         fi
     fi
@@ -707,7 +707,7 @@ main() {
     show_dry_run_warning
 
     log_info "Starting GPS Integration v$SCRIPT_VERSION"
-    log_info "Primary Target: $LOGGER_SCRIPT (starlink_logger-rutos.sh)"
+    log_info "Primary Target: $LOGGER_SCRIPT (starlink_logger_unified-rutos.sh)"
     log_info "Configuration: $CONFIG_FILE"
     log_info "Execution Mode: $([ "$DRY_RUN" = "1" ] && echo "DRY-RUN" || echo "LIVE")"
 

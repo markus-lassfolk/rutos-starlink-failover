@@ -139,20 +139,20 @@ repair_cron() {
     fi
 
     # Check for required cron entries
-    monitor_entries=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    monitor_entries=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    logger_entries=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
 
     repairs_made=0
 
     if [ "$monitor_entries" -eq 0 ]; then
         log_warning "Missing monitor cron job, adding it"
-        echo "* * * * * CONFIG_FILE=$CONFIG_FILE $INSTALL_DIR/scripts/starlink_monitor-rutos.sh" >>"$CRON_FILE"
+        echo "* * * * * CONFIG_FILE=$CONFIG_FILE $INSTALL_DIR/scripts/starlink_monitor_unified-rutos.sh" >>"$CRON_FILE"
         repairs_made=$((repairs_made + 1))
     fi
 
     if [ "$logger_entries" -eq 0 ]; then
         log_warning "Missing logger cron job, adding it"
-        echo "* * * * * CONFIG_FILE=$CONFIG_FILE $INSTALL_DIR/scripts/starlink_logger-rutos.sh" >>"$CRON_FILE"
+        echo "* * * * * CONFIG_FILE=$CONFIG_FILE $INSTALL_DIR/scripts/starlink_logger_unified-rutos.sh" >>"$CRON_FILE"
         repairs_made=$((repairs_made + 1))
     fi
 

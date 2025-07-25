@@ -179,8 +179,8 @@ check_cron_status() {
     fi
 
     # Count monitoring entries - check ALL expected scripts dynamically (cleaned for busybox)
-    monitor_entries=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
-    logger_entries=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
+    monitor_entries=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
+    logger_entries=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
     api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
     maintenance_entries=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
 
@@ -198,7 +198,7 @@ check_cron_status() {
 
     # Show detailed scheduling information
     if [ "$monitor_entries" -gt 0 ]; then
-        monitor_schedule=$(grep "starlink_monitor-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1 " " $2 " " $3 " " $4 " " $5}')
+        monitor_schedule=$(grep "starlink_monitor_unified-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1 " " $2 " " $3 " " $4 " " $5}')
         show_status "ok" "Monitor scheduled: $monitor_schedule ($monitor_entries entries)"
 
         if [ "$monitor_entries" -gt 1 ]; then
@@ -209,7 +209,7 @@ check_cron_status() {
     fi
 
     if [ "$logger_entries" -gt 0 ]; then
-        logger_schedule=$(grep "starlink_logger-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1 " " $2 " " $3 " " $4 " " $5}')
+        logger_schedule=$(grep "starlink_logger_unified-rutos.sh" "$CRON_FILE" | head -1 | awk '{print $1 " " $2 " " $3 " " $4 " " $5}')
         show_status "ok" "Logger scheduled: $logger_schedule ($logger_entries entries)"
 
         if [ "$logger_entries" -gt 1 ]; then

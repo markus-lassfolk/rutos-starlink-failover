@@ -1080,8 +1080,8 @@ This document lists all scripts installed by the Starlink monitoring system.
 ## Core Monitoring Scripts
 
 ### Main Scripts (in Starlink-RUTOS-Failover/)
-- `starlink_monitor-rutos.sh` - Main monitoring daemon
-- `starlink_logger-rutos.sh` - Logging system
+- `starlink_monitor_unified-rutos.sh` - Unified monitoring daemon with all features
+- `starlink_logger_unified-rutos.sh` - Unified logging system with all features
 - `check_starlink_api-rutos.sh` - API connectivity checker
 - `99-pushover_notify-rutos.sh` - Hotplug notification handler
 
@@ -1219,7 +1219,7 @@ install_scripts() {
     script_dir="$(dirname "$0")"
 
     # Main monitoring script (enhanced version is now default)
-    monitor_script="starlink_monitor-rutos.sh"
+    monitor_script="starlink_monitor_unified-rutos.sh"
     if [ -f "$script_dir/$monitor_script" ]; then
         cp "$script_dir/$monitor_script" "$INSTALL_DIR/scripts/$monitor_script"
         chmod +x "$INSTALL_DIR/scripts/$monitor_script"
@@ -1252,8 +1252,14 @@ install_scripts() {
         fi
     fi
 
-    # Other scripts - handle both local and remote installation
-    for script in starlink_logger-rutos.sh check_starlink_api-rutos.sh; do
+    # Other core monitoring scripts from Starlink-RUTOS-Failover directory
+    for script in \
+        starlink_logger-rutos.sh \
+        starlink_logger_enhanced-rutos.sh \
+        starlink_logger_unified-rutos.sh \
+        starlink_monitor_enhanced-rutos.sh \
+        starlink_monitor_unified-rutos.sh \
+        check_starlink_api-rutos.sh; do
         if [ -f "$script_dir/$script" ]; then
             cp "$script_dir/$script" "$INSTALL_DIR/scripts/"
             chmod +x "$INSTALL_DIR/scripts/$script"
@@ -1298,6 +1304,11 @@ install_scripts() {
         system-maintenance-rutos.sh \
         view-logs-rutos.sh \
         analyze-outage-correlation-rutos.sh \
+        analyze-outage-correlation-optimized-rutos.sh \
+        check-pushover-logs-rutos.sh \
+        diagnose-pushover-notifications-rutos.sh \
+        test-all-scripts-rutos.sh \
+        validate-persistent-config-rutos.sh \
         dev-testing-rutos.sh; do
         # Try local script first
         if [ -f "$script_dir/$script" ]; then
@@ -1323,8 +1334,10 @@ install_scripts() {
     print_status "$BLUE" "Installing test and debug scripts..."
     for script in \
         test-pushover-rutos.sh \
+        test-pushover-quick-rutos.sh \
         test-monitoring-rutos.sh \
         test-connectivity-rutos.sh \
+        test-connectivity-rutos-fixed.sh \
         test-colors-rutos.sh \
         test-method5-rutos.sh \
         test-cron-cleanup-rutos.sh \
@@ -1756,8 +1769,8 @@ configure_cron() {
     fi
 
     # Check if our scripts already have cron entries (check each script individually)
-    existing_monitor=$(grep -c "starlink_monitor-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    existing_logger=$(grep -c "starlink_logger-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    existing_monitor=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    existing_logger=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_api_check=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_maintenance=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
 
@@ -1774,8 +1787,8 @@ configure_cron() {
     existing_maintenance=${existing_maintenance:-0}
 
     print_status "$BLUE" "Checking existing cron entries:"
-    print_status "$BLUE" "  starlink_monitor-rutos.sh: $existing_monitor entries"
-    print_status "$BLUE" "  starlink_logger-rutos.sh: $existing_logger entries"
+    print_status "$BLUE" "  starlink_monitor_unified-rutos.sh: $existing_monitor entries"
+    print_status "$BLUE" "  starlink_logger_unified-rutos.sh: $existing_logger entries"
     print_status "$BLUE" "  check_starlink_api: $existing_api_check entries"
     print_status "$BLUE" "  system-maintenance-rutos.sh: $existing_maintenance entries"
 
@@ -1787,7 +1800,7 @@ configure_cron() {
         print_status "$BLUE" "Adding starlink_monitor cron entry..."
         cat >>"$CRON_FILE" <<EOF
 # Starlink monitor - Added by install script $(date +%Y-%m-%d)
-* * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_monitor-rutos.sh
+* * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_monitor_unified-rutos.sh
 EOF
         entries_added=$((entries_added + 1))
     else
@@ -1799,7 +1812,7 @@ EOF
         print_status "$BLUE" "Adding starlink_logger cron entry..."
         cat >>"$CRON_FILE" <<EOF
 # Starlink logger - Added by install script $(date +%Y-%m-%d)
-* * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_logger-rutos.sh
+* * * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/starlink_logger_unified-rutos.sh
 EOF
         entries_added=$((entries_added + 1))
     else
@@ -2008,6 +2021,8 @@ install_enhanced_monitoring() {
     enhanced_scripts="
         starlink_monitor_enhanced-rutos.sh
         starlink_logger_enhanced-rutos.sh
+        starlink_monitor_unified-rutos.sh
+        starlink_logger_unified-rutos.sh
     "
 
     # Install each enhanced script

@@ -275,7 +275,7 @@ main() {
         done
 
         # Also test main starlink monitor script
-        main_script="$script_dir/../Starlink-RUTOS-Failover/starlink_monitor-rutos.sh"
+        main_script="$script_dir/../Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh"
         if [ -f "$main_script" ]; then
             test_script "$main_script"
             scripts_found=$((scripts_found + 1))

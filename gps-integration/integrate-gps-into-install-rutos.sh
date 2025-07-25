@@ -179,7 +179,7 @@ apply_gps_optimization() {
     print_status "$BLUE" "Applying GPS optimization to Starlink logger..."
     
     GPS_OPTIMIZER="${INSTALL_DIR}/gps-integration/optimize-logger-with-gps-rutos.sh"
-    LOGGER_SCRIPT="${INSTALL_DIR}/Starlink-RUTOS-Failover/starlink_logger-rutos.sh"
+    LOGGER_SCRIPT="${INSTALL_DIR}/Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh"
     
     if [ ! -f "$GPS_OPTIMIZER" ]; then
         print_status "$YELLOW" "GPS optimizer not found - skipping optimization"
@@ -519,7 +519,7 @@ validate_monitoring_scripts() {
     echo "=== Monitoring Scripts Validation ==="
     
     # Check main monitoring script
-    MONITOR_SCRIPT="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor-rutos.sh"
+    MONITOR_SCRIPT="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh"
     if [ -f "$MONITOR_SCRIPT" ]; then
         echo "✅ Main monitoring script found"
         if [ -x "$MONITOR_SCRIPT" ]; then
@@ -533,7 +533,7 @@ validate_monitoring_scripts() {
     fi
     
     # Check logger script
-    LOGGER_SCRIPT="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_logger-rutos.sh"
+    LOGGER_SCRIPT="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh"
     if [ -f "$LOGGER_SCRIPT" ]; then
         echo "✅ Logger script found"
         if [ -x "$LOGGER_SCRIPT" ]; then
