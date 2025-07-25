@@ -74,8 +74,8 @@ DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Early exit in test mode to prevent execution errors
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution\n" >&2
     exit 0
 fi
 
