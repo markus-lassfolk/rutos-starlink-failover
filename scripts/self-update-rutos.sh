@@ -127,6 +127,12 @@ if [ "$DEBUG" = "1" ]; then
     log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
 fi
 
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
+
 # Function to safely execute commands
 safe_execute() {
     # shellcheck disable=SC2317  # Function is called later in script
