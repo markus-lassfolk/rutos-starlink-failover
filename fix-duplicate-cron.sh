@@ -5,14 +5,16 @@
 # Version: 2.7.0
 # This script removes duplicate cron entries created during unified script migration
 
-# Script version for validation compliance
+# Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
+# shellcheck disable=SC2034
 CYAN='\033[0;36m'
 NC='\033[0m'
 
@@ -22,6 +24,8 @@ if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034
+    CYAN=""
     NC=""
 fi
 
@@ -121,7 +125,7 @@ EOF
 
 # Main execution
 main() {
-    log_info "Starting cron cleanup for unified scripts migration"
+    log_info "Starting cron cleanup for unified scripts migration (v$SCRIPT_VERSION)"
 
     # Check if we're running as root
     if [ "$(id -u)" -ne 0 ]; then
