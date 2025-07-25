@@ -289,7 +289,7 @@ demo_location_patterns() {
 
     printf "${YELLOW}⚠️  CHALLENGING CONNECTIVITY LOCATIONS:${NC}\n"
     printf "  🌲 Småland Forest Campsite\n"
-    printf "     • Starlink: SNR 4.2dB, 8% obstruction (trees)\n"
+    printf "     • Starlink: SNR 4.2dB, 8%% obstruction (trees)\n"
     printf "     • Cellular: LTE -95dBm (Telia), 3G -105dBm (Three)\n"
     printf "     • Recommendation: Find clearing for Starlink\n"
     printf "     • Travel Notes: Consider alternative parking\n\n"
