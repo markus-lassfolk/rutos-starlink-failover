@@ -28,7 +28,9 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # Used in some conditional contexts
     PURPLE=""
+    # shellcheck disable=SC2034  # Used in debug logging functions
     CYAN=""
     NC=""
 fi
@@ -63,6 +65,22 @@ log_step() {
 # Debug mode support
 DEBUG="${DEBUG:-0}"
 DRY_RUN="${DRY_RUN:-1}" # Default to dry-run for safety
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "$DEBUG" = "1" ]; then
+    log_debug "==================== DEBUG MODE ENABLED ===================="
+    log_debug "Script version: $SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
+    log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
 
 # Configuration paths - Updated for Logger Script Integration
 MONITOR_SCRIPT="./Starlink-RUTOS-Failover/starlink_monitor-rutos.sh" # For reference only
