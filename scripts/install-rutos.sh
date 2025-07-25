@@ -1902,11 +1902,11 @@ EOF
 install_gps_integration() {
     debug_log "FUNCTION: install_gps_integration"
     print_status "$BLUE" "Installing GPS integration components..."
-    
+
     # Create GPS integration directory
     gps_dir="$INSTALL_DIR/gps-integration"
     mkdir -p "$gps_dir"
-    
+
     # GPS components to install
     gps_components="
         gps-collector-rutos.sh
@@ -1915,14 +1915,14 @@ install_gps_integration() {
         integrate-gps-into-starlink-monitor-rutos.sh
         optimize-logger-with-gps-rutos.sh
     "
-    
+
     # Install each GPS component
     for component in $gps_components; do
-        component=$(echo "$component" | tr -d ' \t\n\r')  # Clean whitespace
+        component=$(echo "$component" | tr -d ' \t\n\r') # Clean whitespace
         if [ -n "$component" ]; then
             debug_msg "Installing GPS component: $component"
             local_path="$(dirname "$0")/../gps-integration/$component"
-            
+
             if [ -f "$local_path" ]; then
                 cp "$local_path" "$gps_dir/$component"
                 chmod +x "$gps_dir/$component"
@@ -1938,7 +1938,7 @@ install_gps_integration() {
             fi
         fi
     done
-    
+
     # Install GPS documentation
     gps_docs="GPS_INTEGRATION_SYSTEM_SUMMARY.md"
     for doc in $gps_docs; do
@@ -1952,7 +1952,7 @@ install_gps_integration() {
             fi
         fi
     done
-    
+
     print_status "$GREEN" "✓ GPS integration components installed"
 }
 
@@ -1960,11 +1960,11 @@ install_gps_integration() {
 install_cellular_integration() {
     debug_log "FUNCTION: install_cellular_integration"
     print_status "$BLUE" "Installing cellular integration components..."
-    
+
     # Create cellular integration directory
     cellular_dir="$INSTALL_DIR/cellular-integration"
     mkdir -p "$cellular_dir"
-    
+
     # Cellular components to install
     cellular_components="
         cellular-data-collector-rutos.sh
@@ -1973,14 +1973,14 @@ install_cellular_integration() {
         smart-failover-engine-rutos.sh
         failover-timing-analyzer-rutos.sh
     "
-    
+
     # Install each cellular component
     for component in $cellular_components; do
-        component=$(echo "$component" | tr -d ' \t\n\r')  # Clean whitespace
+        component=$(echo "$component" | tr -d ' \t\n\r') # Clean whitespace
         if [ -n "$component" ]; then
             debug_msg "Installing cellular component: $component"
             local_path="$(dirname "$0")/../cellular-integration/$component"
-            
+
             if [ -f "$local_path" ]; then
                 cp "$local_path" "$cellular_dir/$component"
                 chmod +x "$cellular_dir/$component"
@@ -1996,7 +1996,7 @@ install_cellular_integration() {
             fi
         fi
     done
-    
+
     print_status "$GREEN" "✓ Cellular integration components installed"
 }
 
@@ -2004,20 +2004,20 @@ install_cellular_integration() {
 install_enhanced_monitoring() {
     debug_log "FUNCTION: install_enhanced_monitoring"
     print_status "$BLUE" "Installing enhanced monitoring scripts..."
-    
+
     # Enhanced scripts to install
     enhanced_scripts="
         starlink_monitor_enhanced-rutos.sh
         starlink_logger_enhanced-rutos.sh
     "
-    
+
     # Install each enhanced script
     for script in $enhanced_scripts; do
-        script=$(echo "$script" | tr -d ' \t\n\r')  # Clean whitespace
+        script=$(echo "$script" | tr -d ' \t\n\r') # Clean whitespace
         if [ -n "$script" ]; then
             debug_msg "Installing enhanced script: $script"
             local_path="$(dirname "$0")/../Starlink-RUTOS-Failover/$script"
-            
+
             if [ -f "$local_path" ]; then
                 cp "$local_path" "$INSTALL_DIR/scripts/$script"
                 chmod +x "$INSTALL_DIR/scripts/$script"
@@ -2033,7 +2033,7 @@ install_enhanced_monitoring() {
             fi
         fi
     done
-    
+
     print_status "$GREEN" "✓ Enhanced monitoring scripts installed"
 }
 
