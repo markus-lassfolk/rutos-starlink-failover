@@ -1,23 +1,31 @@
 #!/bin/sh
 # Quick debug script to check config.sh contents
 # Version: 2.7.0
-
+# Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 
-# Colors for output
+# Colors for output (compatible with busybox)
+# shellcheck disable=SC2034  # Color variables may not all be used in every script
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+# shellcheck disable=SC2034  # YELLOW not used in this debug script
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
+# shellcheck disable=SC2034  # CYAN not used in this debug script
 CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Check if we're in a terminal that supports colors
 if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
+    # Colors disabled
+    # shellcheck disable=SC2034  # Color variables may not all be used in every script
     RED=""
     GREEN=""
+    # shellcheck disable=SC2034  # YELLOW not used in this debug script
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # CYAN not used in this debug script
     CYAN=""
     NC=""
 fi
@@ -30,9 +38,9 @@ log_step() {
     printf "${BLUE}[STEP]${NC} %s\n" "$1"
 }
 
-CONFIG_FILE="/etc/starlink-config/config.sh"
+CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
 
-log_info "Debugging config.sh file contents"
+log_info "Debugging config.sh file contents (v$SCRIPT_VERSION)"
 log_step "File exists check:"
 if [ -f "$CONFIG_FILE" ]; then
     printf "  ✅ File exists: %s\n" "$CONFIG_FILE"
