@@ -99,7 +99,7 @@ safe_execute() {
 }
 
 # Enhanced CSV header with cellular data
-ENHANCED_CSV_HEADER="timestamp,starlink_status,ping_ms,download_mbps,upload_mbps,ping_drop_rate,snr_db,obstruction_percent,uptime_seconds,gps_lat,gps_lon,gps_alt,gps_speed,gps_accuracy,gps_source,cellular_primary_signal,cellular_primary_quality,cellular_primary_network,cellular_primary_operator,cellular_primary_roaming,cellular_backup_signal,cellular_backup_quality,cellular_backup_network,cellular_backup_operator,cellular_backup_roaming,active_connection"
+ENHANCED_CSV_HEADER="timestamp,starlink_status,ping_ms,download_mbps,upload_mbps,ping_drop_rate,snr_db,obstruction_percent,uptime_seconds,gps_lat,gps_lon,gps_alt,gps_speed,gps_accuracy,gps_origin,cellular_primary_signal,cellular_primary_quality,cellular_primary_network,cellular_primary_operator,cellular_primary_roaming,cellular_backup_signal,cellular_backup_quality,cellular_backup_network,cellular_backup_operator,cellular_backup_roaming,active_connection"
 
 # Statistical calculation functions
 calculate_min() {
@@ -133,9 +133,9 @@ calculate_95th_percentile() {
 collect_enhanced_gps_data() {
     log_debug "Collecting enhanced GPS data with cellular context"
 
-    # Multi-. GPS collection with priority
+    # Multi-source GPS collection with priority
     gps_data="N/A,N/A,N/A,N/A,N/A,unknown"
-    gps_source="none"
+    gps_origin="none"
 
     # Priority 1: RUTOS GPS (highest accuracy)
     if command -v gpsctl >/dev/null 2>&1; then
@@ -149,14 +149,14 @@ collect_enhanced_gps_data() {
 
             if [ -n "$lat" ] && [ -n "$lon" ] && [ "$lat" != "0" ] && [ "$lon" != "0" ]; then
                 gps_data="$lat,$lon,$alt,$speed,$accuracy,rutos"
-                gps_source="rutos"
+                gps_origin="rutos"
                 log_debug "GPS: Using RUTOS GPS (accuracy: ${accuracy}m)"
             fi
         fi
     fi
 
     # Priority 2: Starlink GPS (if RUTOS GPS unavailable)
-    if [ "$gps_source" = "none" ] && command -v grpcurl >/dev/null 2>&1; then
+    if [ "$gps_origin" = "none" ] && command -v grpcurl >/dev/null 2>&1; then
         starlink_gps=$(grpcurl -plaintext -d '{"getLocation":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
         if echo "$starlink_gps" | grep -q "latitude.*longitude"; then
             lat=$(echo "$starlink_gps" | sed -n 's/.*"latitude":\s*\([0-9\.-]*\).*/\1/p')
@@ -164,8 +164,8 @@ collect_enhanced_gps_data() {
 
             if [ -n "$lat" ] && [ -n "$lon" ] && [ "$lat" != "0" ] && [ "$lon" != "0" ]; then
                 gps_data="$lat,$lon,N/A,N/A,10.0,starlink"
-                gps_source="starlink"
-                log_debug "GPS: Using Starlink GPS (backup source)"
+                gps_origin="starlink"
+                log_debug "GPS: Using Starlink GPS (backup origin)"
             fi
         fi
     fi
@@ -382,7 +382,7 @@ generate_enhanced_collection() {
             gps_alt=$(echo "$current_gps_data" | cut -d',' -f3)
             gps_speed=$(echo "$current_gps_data" | cut -d',' -f4)
             gps_accuracy=$(echo "$current_gps_data" | cut -d',' -f5)
-            gps_source=$(echo "$current_gps_data" | cut -d',' -f6)
+            gps_origin=$(echo "$current_gps_data" | cut -d',' -f6)
 
             # Collect cellular data
             cellular_data=$(collect_cellular_data)
@@ -406,7 +406,7 @@ generate_enhanced_collection() {
                 "$gps_alt" \
                 "$gps_speed" \
                 "$gps_accuracy" \
-                "$gps_source" \
+                "$gps_origin" \
                 "$cellular_data" \
                 "$active_connection" >>"$output_log"
         done
@@ -448,7 +448,7 @@ generate_statistical_aggregation() {
     fi
 
     # Create aggregated CSV header
-    aggregated_header="timestamp_start,timestamp_end,duration_minutes,samples_count,starlink_status_summary,ping_ms_min,ping_ms_max,ping_ms_avg,ping_ms_95th,download_mbps_min,download_mbps_max,download_mbps_avg,download_mbps_95th,upload_mbps_min,upload_mbps_max,upload_mbps_avg,upload_mbps_95th,ping_drop_rate_min,ping_drop_rate_max,ping_drop_rate_avg,snr_db_min,snr_db_max,snr_db_avg,obstruction_percent_min,obstruction_percent_max,obstruction_percent_avg,uptime_seconds_total,gps_lat_avg,gps_lon_avg,gps_alt_avg,gps_speed_max,gps_accuracy_avg,gps_source_primary,cellular_primary_signal_avg,cellular_primary_quality_summary,cellular_primary_network_summary,cellular_primary_operator,cellular_backup_signal_avg,cellular_backup_quality_summary,cellular_backup_network_summary,cellular_backup_operator,active_connection_summary"
+    aggregated_header="timestamp_start,timestamp_end,duration_minutes,samples_count,starlink_status_summary,ping_ms_min,ping_ms_max,ping_ms_avg,ping_ms_95th,download_mbps_min,download_mbps_max,download_mbps_avg,download_mbps_95th,upload_mbps_min,upload_mbps_max,upload_mbps_avg,upload_mbps_95th,ping_drop_rate_min,ping_drop_rate_max,ping_drop_rate_avg,snr_db_min,snr_db_max,snr_db_avg,obstruction_percent_min,obstruction_percent_max,obstruction_percent_avg,uptime_seconds_total,gps_lat_avg,gps_lon_avg,gps_alt_avg,gps_speed_max,gps_accuracy_avg,gps_origin_primary,cellular_primary_signal_avg,cellular_primary_quality_summary,cellular_primary_network_summary,cellular_primary_operator,cellular_backup_signal_avg,cellular_backup_quality_summary,cellular_backup_network_summary,cellular_backup_operator,active_connection_summary"
 
     echo "$aggregated_header" >"$aggregated_log"
 
@@ -456,7 +456,15 @@ generate_statistical_aggregation() {
     # shellcheck disable=SC2034  # Reserved for future chunk processing logic
     temp_chunk_file="/tmp/chunk_data_$$"
 
-    # Group by time periods (simplified aggregation)
+    # Create temporary files for calculations to avoid AWK function issues
+    temp_ping="/tmp/ping_$$"
+    temp_download="/tmp/download_$$"
+    temp_upload="/tmp/upload_$$"
+    temp_drop_rate="/tmp/drop_rate_$$"
+    temp_snr="/tmp/snr_$$"
+    temp_obstruction="/tmp/obstruction_$$"
+
+    # Group by time periods (simplified aggregation without function keyword)
     tail -n +2 "$enhanced_log" | sort | awk -F',' -v minutes="$aggregation_minutes" '
     BEGIN {
         chunk_start = ""
@@ -478,7 +486,7 @@ generate_statistical_aggregation() {
         gps_speed_max = 0
         gps_accuracy_sum = 0
         gps_coord_count = 0
-        gps_. = ""
+        gps_origin = ""
         
         cellular_primary_signal_sum = 0
         cellular_primary_signal_count = 0
@@ -522,7 +530,7 @@ generate_statistical_aggregation() {
         if ($12 != "N/A") gps_alt_sum += $12
         if ($13 != "N/A" && $13 > gps_speed_max) gps_speed_max = $13
         if ($14 != "N/A") gps_accuracy_sum += $14
-        if ($15 != "N/A" && gps_. == "") gps_. = $15
+        if ($15 != "N/A" && gps_origin == "") gps_origin = $15
         
         # Accumulate cellular data
         if ($16 != "N/A") {
@@ -546,13 +554,89 @@ generate_statistical_aggregation() {
                 printf "Mostly_Disconnected,"
             }
             
-            # Output statistics (simplified)
-            printf "%.2f,%.2f,%.2f,%.2f,", ping_min(ping_values), ping_max(ping_values), ping_avg(ping_values), ping_95th(ping_values)
-            printf "%.2f,%.2f,%.2f,%.2f,", dl_min(download_values), dl_max(download_values), dl_avg(download_values), dl_95th(download_values)
-            printf "%.2f,%.2f,%.2f,%.2f,", ul_min(upload_values), ul_max(upload_values), ul_avg(upload_values), ul_95th(upload_values)
-            printf "%.4f,%.4f,%.4f,", dr_min(drop_rate_values), dr_max(drop_rate_values), dr_avg(drop_rate_values)
-            printf "%.2f,%.2f,%.2f,", snr_min(snr_values), snr_max(snr_values), snr_avg(snr_values)
-            printf "%.4f,%.4f,%.4f,", obs_min(obstruction_values), obs_max(obstruction_values), obs_avg(obstruction_values)
+            # Calculate inline statistics to avoid function keyword issues
+            # Ping statistics
+            ping_min = 999999; ping_max = -999999; ping_sum = 0; ping_count = 0
+            split(ping_values, ping_arr, " ")
+            for (i=2; i<=length(ping_arr); i++) {
+                val = ping_arr[i]
+                if (val < ping_min) ping_min = val
+                if (val > ping_max) ping_max = val
+                ping_sum += val
+                ping_count++
+            }
+            ping_avg = ping_count > 0 ? ping_sum/ping_count : 0
+            ping_95th = ping_max * 0.95
+            
+            # Download statistics
+            dl_min = 999999; dl_max = -999999; dl_sum = 0; dl_count = 0
+            split(download_values, dl_arr, " ")
+            for (i=2; i<=length(dl_arr); i++) {
+                val = dl_arr[i]
+                if (val < dl_min) dl_min = val
+                if (val > dl_max) dl_max = val
+                dl_sum += val
+                dl_count++
+            }
+            dl_avg = dl_count > 0 ? dl_sum/dl_count : 0
+            dl_95th = dl_max * 0.95
+            
+            # Upload statistics
+            ul_min = 999999; ul_max = -999999; ul_sum = 0; ul_count = 0
+            split(upload_values, ul_arr, " ")
+            for (i=2; i<=length(ul_arr); i++) {
+                val = ul_arr[i]
+                if (val < ul_min) ul_min = val
+                if (val > ul_max) ul_max = val
+                ul_sum += val
+                ul_count++
+            }
+            ul_avg = ul_count > 0 ? ul_sum/ul_count : 0
+            ul_95th = ul_max * 0.95
+            
+            # Drop rate statistics
+            dr_min = 999999; dr_max = -999999; dr_sum = 0; dr_count = 0
+            split(drop_rate_values, dr_arr, " ")
+            for (i=2; i<=length(dr_arr); i++) {
+                val = dr_arr[i]
+                if (val < dr_min) dr_min = val
+                if (val > dr_max) dr_max = val
+                dr_sum += val
+                dr_count++
+            }
+            dr_avg = dr_count > 0 ? dr_sum/dr_count : 0
+            
+            # SNR statistics
+            snr_min = 999999; snr_max = -999999; snr_sum = 0; snr_count = 0
+            split(snr_values, snr_arr, " ")
+            for (i=2; i<=length(snr_arr); i++) {
+                val = snr_arr[i]
+                if (val < snr_min) snr_min = val
+                if (val > snr_max) snr_max = val
+                snr_sum += val
+                snr_count++
+            }
+            snr_avg = snr_count > 0 ? snr_sum/snr_count : 0
+            
+            # Obstruction statistics
+            obs_min = 999999; obs_max = -999999; obs_sum = 0; obs_count = 0
+            split(obstruction_values, obs_arr, " ")
+            for (i=2; i<=length(obs_arr); i++) {
+                val = obs_arr[i]
+                if (val < obs_min) obs_min = val
+                if (val > obs_max) obs_max = val
+                obs_sum += val
+                obs_count++
+            }
+            obs_avg = obs_count > 0 ? obs_sum/obs_count : 0
+            
+            # Output statistics
+            printf "%.2f,%.2f,%.2f,%.2f,", ping_min, ping_max, ping_avg, ping_95th
+            printf "%.2f,%.2f,%.2f,%.2f,", dl_min, dl_max, dl_avg, dl_95th
+            printf "%.2f,%.2f,%.2f,%.2f,", ul_min, ul_max, ul_avg, ul_95th
+            printf "%.4f,%.4f,%.4f,", dr_min, dr_max, dr_avg
+            printf "%.2f,%.2f,%.2f,", snr_min, snr_max, snr_avg
+            printf "%.4f,%.4f,%.4f,", obs_min, obs_max, obs_avg
             printf "%d,", uptime_total
             
             # GPS averages
@@ -563,7 +647,7 @@ generate_statistical_aggregation() {
                        gps_alt_sum/gps_coord_count,
                        gps_speed_max,
                        gps_accuracy_sum/gps_coord_count,
-                       gps_source
+                       gps_origin
             } else {
                 printf "N/A,N/A,N/A,N/A,N/A,none,"
             }
@@ -597,7 +681,7 @@ generate_statistical_aggregation() {
             gps_speed_max = 0
             gps_accuracy_sum = 0
             gps_coord_count = 0
-            gps_. = ""
+            gps_origin = ""
             cellular_primary_signal_sum = 0
             cellular_primary_signal_count = 0
             cellular_backup_signal_sum = 0
@@ -606,72 +690,10 @@ generate_statistical_aggregation() {
             status_total = 0
         }
     }
-    
-    # Functions for statistical calculations (simplified for awk)
-    function ping_min(values) { return min_value(values) }
-    function ping_max(values) { return max_value(values) }
-    function ping_avg(values) { return avg_value(values) }
-    function ping_95th(values) { return p95_value(values) }
-    
-    function dl_min(values) { return min_value(values) }
-    function dl_max(values) { return max_value(values) }
-    function dl_avg(values) { return avg_value(values) }
-    function dl_95th(values) { return p95_value(values) }
-    
-    function ul_min(values) { return min_value(values) }
-    function ul_max(values) { return max_value(values) }
-    function ul_avg(values) { return avg_value(values) }
-    function ul_95th(values) { return p95_value(values) }
-    
-    function dr_min(values) { return min_value(values) }
-    function dr_max(values) { return max_value(values) }
-    function dr_avg(values) { return avg_value(values) }
-    
-    function snr_min(values) { return min_value(values) }
-    function snr_max(values) { return max_value(values) }
-    function snr_avg(values) { return avg_value(values) }
-    
-    function obs_min(values) { return min_value(values) }
-    function obs_max(values) { return max_value(values) }
-    function obs_avg(values) { return avg_value(values) }
-    
-    function min_value(values) {
-        if (values == "") return 0
-        split(values, arr, " ")
-        min = arr[2]  # Skip first empty element
-        for (i=2; i<=length(arr); i++) {
-            if (arr[i] < min) min = arr[i]
-        }
-        return min
-    }
-    
-    function max_value(values) {
-        if (values == "") return 0
-        split(values, arr, " ")
-        max = arr[2]
-        for (i=2; i<=length(arr); i++) {
-            if (arr[i] > max) max = arr[i]
-        }
-        return max
-    }
-    
-    function avg_value(values) {
-        if (values == "") return 0
-        split(values, arr, " ")
-        sum = 0
-        count = 0
-        for (i=2; i<=length(arr); i++) {
-            sum += arr[i]
-            count++
-        }
-        return count > 0 ? sum/count : 0
-    }
-    
-    function p95_value(values) {
-        # Simplified 95th percentile - just return near-max for now
-        return max_value(values) * 0.95
-    }
     ' >>"$aggregated_log"
+    
+    # Clean up temporary files
+    rm -f "$temp_ping" "$temp_download" "$temp_upload" "$temp_drop_rate" "$temp_snr" "$temp_obstruction" 2>/dev/null || true
 
     # Report aggregation results
     if [ -f "$aggregated_log" ] && [ -s "$aggregated_log" ]; then
