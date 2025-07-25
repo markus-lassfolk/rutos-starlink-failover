@@ -2,7 +2,10 @@
 
 ## Overview
 
-This solution extends our GPS-enhanced Starlink monitoring system with comprehensive cellular data integration, enabling intelligent multi-connectivity management for RUTX50 routers. The system supports both **dual-modem configurations** (no Starlink) and **triple-connectivity setups** (Starlink + 2 cellular modems) with smart failover decisions based on signal strength, network type, roaming status, and cost considerations.
+This solution extends our GPS-enhanced Starlink monitoring system with comprehensive cellular data integration,
+enabling intelligent multi-connectivity management for RUTX50 routers. The system supports both **dual-modem
+configurations** (no Starlink) and **triple-connectivity setups** (Starlink + 2 cellular modems) with smart
+failover decisions based on signal strength, network type, roaming status, and cost considerations.
 
 ## Key Features
 
@@ -34,7 +37,7 @@ This solution extends our GPS-enhanced Starlink monitoring system with comprehen
 
 ### System Components
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    RUTOS Cellular Integration                   │
 ├─────────────────────────────────────────────────────────────────┤
@@ -100,7 +103,7 @@ This solution extends our GPS-enhanced Starlink monitoring system with comprehen
 
 ## File Structure
 
-```
+```text
 cellular-integration/
 ├── cellular-data-collector-rutos.sh     # Core cellular data collection
 ├── optimize-logger-with-cellular-rutos.sh # Enhanced logger with aggregation
@@ -297,7 +300,7 @@ timestamp_start,timestamp_end,duration_minutes,samples_count,starlink_status_sum
 
 Each connection receives a score based on multiple factors:
 
-```
+```text
 Total Score = Base Priority + Signal Bonus + Network Bonus + Status Bonus - Penalties
 ```
 
@@ -342,7 +345,7 @@ Total Score = Base Priority + Signal Bonus + Network Bonus + Status Bonus - Pena
 
 Failover occurs when:
 
-```
+```text
 Best Available Score - Current Score ≥ FAILOVER_SCORE_THRESHOLD (default: 30)
 ```
 
@@ -472,7 +475,8 @@ Key log files:
 
 ## Conclusion
 
-This cellular integration transforms our GPS-enhanced Starlink monitoring into a comprehensive multi-connectivity intelligence system. It provides:
+This cellular integration transforms our GPS-enhanced Starlink monitoring into a comprehensive multi-connectivity
+intelligence system. It provides:
 
 - **Smart failover decisions** based on signal quality, cost, and performance
 - **Roaming cost awareness** to avoid expensive data charges
@@ -480,6 +484,9 @@ This cellular integration transforms our GPS-enhanced Starlink monitoring into a
 - **Efficient data collection** with 60:1 statistical aggregation
 - **Backward compatibility** with existing systems
 
-The solution is particularly valuable for motorhome travelers who need reliable, cost-effective connectivity across diverse geographic and network environments. It enables intelligent connection management that adapts to changing conditions while maintaining comprehensive logging for analysis and optimization.
+The solution is particularly valuable for motorhome travelers who need reliable, cost-effective connectivity
+across diverse geographic and network environments. It enables intelligent connection management that adapts to
+changing conditions while maintaining comprehensive logging for analysis and optimization.
 
-**Ready for deployment** on RUTX50 routers with RUTOS firmware, providing immediate benefits for both dual-modem and triple-connectivity configurations.
+**Ready for deployment** on RUTX50 routers with RUTOS firmware, providing immediate benefits for both dual-modem
+and triple-connectivity configurations.
