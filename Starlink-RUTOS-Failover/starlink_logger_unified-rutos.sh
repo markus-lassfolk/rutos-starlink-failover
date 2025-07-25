@@ -92,7 +92,7 @@ fi
 
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ]; then
-    printf "${GREEN}[INFO]${NC} RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution\n" >&2
+    printf "%s[INFO]%s RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution\n" "$GREEN" "$NC" >&2
     exit 0
 fi
 
@@ -224,7 +224,7 @@ perform_statistical_aggregation() {
             prev_operator = $14; prev_network = $15
         }
     }
-    function abs(x) { return x < 0 ? -x : x }
+    abs() { return $(($1 < 0 ? -$1 : $1)); }
     END {
         if (count == 0) exit 1
         
@@ -279,7 +279,7 @@ perform_statistical_aggregation() {
     # Remove processed lines from source file
     if [ "$line_count" -gt "$batch_size" ]; then
         tail -n +$((batch_size + 1)) "$source_file" >"${source_file}.tmp"
-        echo "$(head -1 "$source_file")" >"${source_file}.new"
+        head -1 "$source_file" >"${source_file}.new"
         cat "${source_file}.tmp" >>"${source_file}.new"
         mv "${source_file}.new" "$source_file"
         rm -f "${source_file}.tmp"
