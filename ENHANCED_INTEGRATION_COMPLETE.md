@@ -1,14 +1,18 @@
 # RUTOS Starlink Failover with GPS and Cellular Integration
 
+<!-- Version: 2.7.0 - Enhanced integration documentation -->
+<!-- Last Updated: 2025-07-25 -->
+
 ## Complete Integration Architecture
 
-This document describes the enhanced RUTOS-Starlink-Failover solution with integrated GPS location tracking and 4G/5G cellular data collection for comprehensive connectivity intelligence.
+This document describes the enhanced RUTOS-Starlink-Failover solution with integrated GPS location tracking and 4G/5G cellular
+data collection for comprehensive connectivity intelligence.
 
 ## Architecture Overview
 
 ### Core Components
 
-```
+````text
 RUTOS-Starlink-Failover/
 ├── Enhanced Main Scripts
 │   ├── starlink_monitor_enhanced-rutos.sh    # Integrated GPS+Cellular+Starlink monitoring
@@ -25,11 +29,9 @@ RUTOS-Starlink-Failover/
         ├── cellular-data-collector-rutos.sh
         ├── optimize-logger-with-cellular-rutos.sh
         └── smart-failover-engine-rutos.sh
-```
-
 ### Data Flow Architecture
 
-```
+```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   GPS Sources   │    │ Cellular Modems │    │   Starlink API  │
 │                 │    │                 │    │                 │
@@ -79,7 +81,7 @@ RUTOS-Starlink-Failover/
 │ • Location-based performance analysis                          │
 │ • Multi-connectivity intelligence reports                      │
 └─────────────────────────────────────────────────────────────────┘
-```
+````
 
 ## Enhanced Data Collection
 
@@ -112,14 +114,12 @@ RUTOS-Starlink-Failover/
 
 The enhanced system is installed automatically with the standard installation:
 
-```bash
+````bash
 # Standard installation now includes GPS and cellular integration
 curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install-rutos.sh | sh
-```
-
 ### Directory Structure After Installation
 
-```
+```text
 /usr/local/starlink-monitor/
 ├── scripts/
 │   ├── starlink_monitor_enhanced-rutos.sh    # Enhanced monitoring (recommended)
@@ -135,11 +135,11 @@ curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-fail
 │   ├── optimize-logger-with-cellular-rutos.sh # Cellular statistical processing
 │   └── smart-failover-engine-rutos.sh        # Intelligent failover decisions
 └── GPS_CELLULAR_INTEGRATION.md               # Integration documentation
-```
+````
 
 ### Log Files Structure
 
-```
+```text
 /etc/starlink-logs/
 ├── starlink_enhanced.csv          # Combined GPS+Cellular+Starlink data (raw)
 ├── starlink_aggregated.csv        # Statistical aggregation (60:1 reduction)
@@ -279,7 +279,8 @@ Both GPS and cellular integration components are designed as standalone, reusabl
 
 ### Future Repository Organization
 
-The GPS and cellular integration components are designed to potentially be moved to separate repositories while maintaining integration with the main RUTOS-Starlink-Failover solution.
+The GPS and cellular integration components are designed to potentially be moved to separate repositories while maintaining
+integration with the main RUTOS-Starlink-Failover solution.
 
 ## Support and Documentation
 
@@ -293,4 +294,4 @@ The GPS and cellular integration components are designed to potentially be moved
 
 **Generated**: $(date '+%Y-%m-%d %H:%M:%S')  
 **Version**: Enhanced RUTOS-Starlink-Failover with GPS and Cellular Integration  
-**Repository**: https://github.com/markus-lassfolk/rutos-starlink-failover
+**Repository**: [https://github.com/markus-lassfolk/rutos-starlink-failover](https://github.com/markus-lassfolk/rutos-starlink-failover)
