@@ -2,16 +2,18 @@
 # shellcheck disable=SC1091,SC2034,SC2154
 
 # ==============================================================================
-# STARLINK MONITOR BASIC CONFIGURATION
+# STARLINK MONITOR UNIFIED CONFIGURATION
 # ==============================================================================
-# This is the basic configuration for Starlink monitoring.
-# Only essential settings are included.
+# This configuration works with both basic and unified scripts:
+# - starlink_monitor_unified-rutos.sh (recommended)
+# - starlink_logger_unified-rutos.sh (recommended)
+# - Legacy basic scripts (backward compatibility)
 #
-# For advanced features (Azure logging, GPS tracking, etc.), run:
-#   /root/starlink-monitor/scripts/upgrade-to-advanced.sh
+# UNIFIED SCRIPTS: Enable enhanced features via ENABLE_* flags (see bottom)
+# BASIC SCRIPTS: Enhanced features are ignored - maintains original behavior
 #
-# Template version: 1.0.0
-# Compatible with install.sh: 1.0.0
+# Template version: 2.7.0
+# Compatible with install.sh: 2.7.0+
 # ==============================================================================
 
 # Version information (auto-updated by update-version.sh)
@@ -27,7 +29,7 @@ readonly SCRIPT_VERSION
 # Used for troubleshooting: echo "Config version: $SCRIPT_VERSION"
 
 # Configuration metadata (for troubleshooting and updates)
-CONFIG_VERSION="2.6.0"
+CONFIG_VERSION="2.7.0"
 
 # --- Network Configuration ---
 
@@ -270,6 +272,92 @@ export CELLULAR_COST_PRIORITY="medium" # Priority: high/medium/low (high=avoid r
 # Cellular analytics and logging
 export CELLULAR_ANALYTICS_ENABLED="true"  # Enable cellular analytics
 export CELLULAR_LOG_SIGNAL_DETAILS="true" # Log detailed signal information
+
+# =============================================================================
+# UNIFIED SCRIPTS ENHANCED FEATURES CONFIGURATION
+# =============================================================================
+# These settings control enhanced features in the unified monitor and logger scripts
+# All features default to 'false' to maintain backward compatibility with basic scripts
+
+# --- MONITORING ENHANCEMENTS ---
+# Enable GPS tracking for location-aware monitoring decisions
+export ENABLE_GPS_TRACKING="${ENABLE_GPS_TRACKING:-false}"
+
+# Enable cellular data collection for backup intelligence
+export ENABLE_CELLULAR_TRACKING="${ENABLE_CELLULAR_TRACKING:-false}"
+
+# Enable multi-source GPS (RUTOS + Starlink + cellular estimation)
+export ENABLE_MULTI_SOURCE_GPS="${ENABLE_MULTI_SOURCE_GPS:-false}"
+
+# Enable enhanced failover logic (considers GPS + cellular + multiple factors)
+export ENABLE_ENHANCED_FAILOVER="${ENABLE_ENHANCED_FAILOVER:-false}"
+
+# --- LOGGING ENHANCEMENTS ---
+# Enable GPS data logging in CSV files
+export ENABLE_GPS_LOGGING="${ENABLE_GPS_LOGGING:-false}"
+
+# Enable cellular data logging (signal strength, operator, network type)
+export ENABLE_CELLULAR_LOGGING="${ENABLE_CELLULAR_LOGGING:-false}"
+
+# Enable enhanced metrics (SNR, reboot detection, GPS stats)
+export ENABLE_ENHANCED_METRICS="${ENABLE_ENHANCED_METRICS:-false}"
+
+# Enable statistical data aggregation (60:1 data reduction for long-term analytics)
+export ENABLE_STATISTICAL_AGGREGATION="${ENABLE_STATISTICAL_AGGREGATION:-false}"
+
+# Aggregation batch size (number of raw samples to aggregate into one record)
+export AGGREGATION_BATCH_SIZE="${AGGREGATION_BATCH_SIZE:-60}"
+
+# =============================================================================
+# UNIFIED SCRIPTS CONFIGURATION EXAMPLES
+# =============================================================================
+# Uncomment and modify one of these example configurations to enable features:
+
+# Example 1: Basic Installation (DEFAULT - all enhanced features disabled)
+# Uses original script behavior - no changes needed
+# ENABLE_GPS_TRACKING="false"
+# ENABLE_CELLULAR_TRACKING="false"
+# ENABLE_MULTI_SOURCE_GPS="false"
+# ENABLE_ENHANCED_FAILOVER="false"
+# ENABLE_GPS_LOGGING="false"
+# ENABLE_CELLULAR_LOGGING="false"
+# ENABLE_ENHANCED_METRICS="false"
+# ENABLE_STATISTICAL_AGGREGATION="false"
+
+# Example 2: Enhanced Stationary Installation
+# Better metrics and GPS tracking without cellular complexity
+# ENABLE_GPS_TRACKING="true"
+# ENABLE_CELLULAR_TRACKING="false"
+# ENABLE_MULTI_SOURCE_GPS="false"
+# ENABLE_ENHANCED_FAILOVER="false"
+# ENABLE_GPS_LOGGING="true"
+# ENABLE_CELLULAR_LOGGING="false"
+# ENABLE_ENHANCED_METRICS="true"
+# ENABLE_STATISTICAL_AGGREGATION="true"
+
+# Example 3: Mobile/RV Installation (full features)
+# All enhanced features for mobile use cases
+# ENABLE_GPS_TRACKING="true"
+# ENABLE_CELLULAR_TRACKING="true"
+# ENABLE_MULTI_SOURCE_GPS="true"
+# ENABLE_ENHANCED_FAILOVER="true"
+# ENABLE_GPS_LOGGING="true"
+# ENABLE_CELLULAR_LOGGING="true"
+# ENABLE_ENHANCED_METRICS="true"
+# ENABLE_STATISTICAL_AGGREGATION="true"
+# AGGREGATION_BATCH_SIZE="60"
+
+# Example 4: Analytics Focus Installation
+# Emphasis on data collection and aggregation
+# ENABLE_GPS_TRACKING="true"
+# ENABLE_CELLULAR_TRACKING="true"
+# ENABLE_MULTI_SOURCE_GPS="true"
+# ENABLE_ENHANCED_FAILOVER="false"
+# ENABLE_GPS_LOGGING="true"
+# ENABLE_CELLULAR_LOGGING="true"
+# ENABLE_ENHANCED_METRICS="true"
+# ENABLE_STATISTICAL_AGGREGATION="true"
+# AGGREGATION_BATCH_SIZE="30"  # More frequent aggregation
 
 # --- Binary Paths (set by install script) ---
 

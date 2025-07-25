@@ -2,7 +2,8 @@
 
 ## Overview
 
-The RUTOS Starlink Failover system now includes unified scripts that combine all functionality from the previous basic and enhanced versions into single, configuration-driven scripts.
+The RUTOS Starlink Failover system now includes unified scripts that combine all functionality from the
+previous basic and enhanced versions into single, configuration-driven scripts.
 
 ## New Unified Scripts
 
@@ -20,14 +21,13 @@ The RUTOS Starlink Failover system now includes unified scripts that combine all
 
 ## Migration Steps
 
-### 1. Add Enhanced Features Configuration
+### 1. Update Configuration
 
-Add the enhanced features configuration section to your `/etc/starlink-config/config.sh`:
+Enhanced features are now integrated into the main `config.sh` file. No separate configuration file needed!
+
+Edit `/etc/starlink-config/config.sh` and find the "UNIFIED SCRIPTS ENHANCED FEATURES" section:
 
 ```bash
-# Copy content from config/enhanced-features-config.template.sh
-# Or add individual feature flags as needed
-
 # Basic installation (default - no changes needed)
 ENABLE_GPS_TRACKING="false"
 ENABLE_CELLULAR_TRACKING="false"
@@ -75,6 +75,7 @@ Replace existing cron entries with unified scripts:
    ```
 
 3. **Monitor logs**:
+
    ```bash
    # Check for any errors
    tail -f /var/log/syslog | grep -E "(StarlinkMonitor|StarlinkLogger)"
@@ -175,4 +176,5 @@ For issues with unified scripts:
 3. Test with minimal feature set first
 4. Review logs in `/var/log/syslog`
 
-The unified approach provides maximum flexibility while maintaining the simplicity and reliability of the original RUTOS Starlink Failover system.
+The unified approach provides maximum flexibility while maintaining the simplicity and reliability of the
+original RUTOS Starlink Failover system.

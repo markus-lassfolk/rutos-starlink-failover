@@ -1,8 +1,24 @@
+#!/bin/sh
 # =============================================================================
-# ENHANCED FEATURES CONFIGURATION SECTION
-# Configuration flags for unified monitor and logger scripts
-# Add this section to your config.sh file to control enhanced features
+# DEPRECATED: ENHANCED FEATURES CONFIGURATION
 # =============================================================================
+
+# Script version for validation compliance
+SCRIPT_VERSION="2.7.0"
+# ⚠️  THIS FILE IS DEPRECATED - DO NOT USE ⚠️
+#
+# Enhanced features have been integrated into the main config.template.sh
+#
+# TO ENABLE ENHANCED FEATURES:
+# 1. Edit your config.sh file (or config.template.sh)
+# 2. Find the "UNIFIED SCRIPTS ENHANCED FEATURES" section
+# 3. Set ENABLE_* flags to "true" for desired features
+# 4. Choose from provided configuration examples
+#
+# MIGRATION: Copy your ENABLE_* settings from this file to config.sh
+# =============================================================================
+
+# This file is kept for reference only and will be removed in future versions
 
 # --- MONITORING ENHANCEMENTS ---
 # Enable GPS tracking for location-aware monitoring
