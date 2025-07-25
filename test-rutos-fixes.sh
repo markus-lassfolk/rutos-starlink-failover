@@ -1,7 +1,7 @@
 #!/bin/sh
 # RUTOS Fix Verification Script
 # Version: 1.0.0
-# 
+#
 # This script tests the early exit pattern fixes on actual RUTOS hardware
 # Run this script on your RUTX50 router to verify the fixes work correctly
 
@@ -77,15 +77,15 @@ printf "\n"
 test_script_early_exit() {
     script_name="$1"
     script_path="$SCRIPT_DIR/$script_name"
-    
+
     log_step "Testing $script_name"
-    
+
     # Check if script exists
     if [ ! -f "$script_path" ]; then
         log_error "Script not found: $script_path"
         return 1
     fi
-    
+
     # Check if script is executable
     if [ ! -x "$script_path" ]; then
         log_warning "Script not executable: $script_path"
@@ -94,12 +94,12 @@ test_script_early_exit() {
             return 1
         }
     fi
-    
+
     # Test 1: RUTOS_TEST_MODE=1
     log_info "  Test 1: RUTOS_TEST_MODE=1"
     export RUTOS_TEST_MODE=1
     export DRY_RUN=0
-    
+
     if timeout 10 "$script_path" >/dev/null 2>&1; then
         log_success "  ✓ RUTOS_TEST_MODE=1 - Script exited cleanly"
         test1_result=1
@@ -113,12 +113,12 @@ test_script_early_exit() {
             test1_result=0
         fi
     fi
-    
+
     # Test 2: DRY_RUN=1
     log_info "  Test 2: DRY_RUN=1"
     export RUTOS_TEST_MODE=0
     export DRY_RUN=1
-    
+
     if timeout 10 "$script_path" >/dev/null 2>&1; then
         log_success "  ✓ DRY_RUN=1 - Script exited cleanly"
         test2_result=1
@@ -132,12 +132,12 @@ test_script_early_exit() {
             test2_result=0
         fi
     fi
-    
+
     # Test 3: Both enabled
     log_info "  Test 3: Both RUTOS_TEST_MODE=1 and DRY_RUN=1"
     export RUTOS_TEST_MODE=1
     export DRY_RUN=1
-    
+
     if timeout 10 "$script_path" >/dev/null 2>&1; then
         log_success "  ✓ Both enabled - Script exited cleanly"
         test3_result=1
@@ -151,17 +151,17 @@ test_script_early_exit() {
             test3_result=0
         fi
     fi
-    
+
     # Test 4: Normal execution (should run longer, we'll interrupt)
     log_info "  Test 4: Normal execution (both disabled)"
     export RUTOS_TEST_MODE=0
     export DRY_RUN=0
-    
+
     # Start script in background and kill after 2 seconds
     "$script_path" >/dev/null 2>&1 &
     script_pid=$!
     sleep 2
-    
+
     if kill "$script_pid" 2>/dev/null; then
         log_success "  ✓ Normal execution - Script was running (early exit disabled correctly)"
         test4_result=1
@@ -175,15 +175,15 @@ test_script_early_exit() {
             test4_result=0
         fi
     fi
-    
+
     # Clean up environment
     unset RUTOS_TEST_MODE
     unset DRY_RUN
-    
+
     # Calculate result
     total_subtests=4
     passed_subtests=$((test1_result + test2_result + test3_result + test4_result))
-    
+
     if [ $passed_subtests -eq $total_subtests ]; then
         log_success "✓ $script_name - All tests passed ($passed_subtests/$total_subtests)"
         return 0
@@ -200,15 +200,15 @@ printf "\n"
 for script in $TEST_SCRIPTS; do
     # Skip empty lines
     [ -n "$script" ] || continue
-    
+
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    
+
     if test_script_early_exit "$script"; then
         PASSED_TESTS=$((PASSED_TESTS + 1))
     else
         FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
-    
+
     printf "\n"
 done
 
