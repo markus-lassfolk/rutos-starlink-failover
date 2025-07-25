@@ -54,29 +54,29 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "Script: pre-commit-validation.sh v$SCRIPT_VERSION"
 fi
 log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    [ "$AUTONOMOUS_MODE" = "0" ] && printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    [ "$AUTONOMOUS_MODE" = "0" ] && printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    [ "$AUTONOMOUS_MODE" = "0" ] && printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
-    if [ "$DEBUG" = "1" ]; then
+    if [ "$DEBUG" = "1" ] && [ "$AUTONOMOUS_MODE" = "0" ]; then
         printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_success() {
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    [ "$AUTONOMOUS_MODE" = "0" ] && printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    [ "$AUTONOMOUS_MODE" = "0" ] && printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Debug mode support
@@ -96,6 +96,17 @@ TOTAL_ISSUES=0
 CRITICAL_ISSUES=0
 MAJOR_ISSUES=0
 MINOR_ISSUES=0
+
+# Autonomous mode variables
+AUTONOMOUS_MODE=0
+# shellcheck disable=SC2034  # Reserved for future output file functionality
+AUTONOMOUS_OUTPUT_FILE=""
+AUTONOMOUS_ISSUES=()
+
+# Output filtering variables
+SHOW_FIRST=""
+SHOW_LAST=""
+FILTER_PATTERN=""
 
 # Issue tracking for summary (format: "issue_type|file_path")
 ISSUE_LIST=""
@@ -151,15 +162,15 @@ check_dev_tools() {
     if [ ${#missing_tools[@]} -gt 0 ]; then
         log_info "Some development tools are missing:"
         for tool in "${missing_tools[@]}"; do
-            printf "  %s✗ %s%s not available\n" "$YELLOW" "$tool" "$NC"
+            [ "$AUTONOMOUS_MODE" = "0" ] && printf "  %s✗ %s%s not available\n" "$YELLOW" "$tool" "$NC"
         done
 
-        echo ""
+        [ "$AUTONOMOUS_MODE" = "0" ] && echo ""
         log_info "💡 Quick setup options:"
         log_info "  • Run setup script: ./scripts/setup-dev-tools.sh"
         log_info "  • Manual Node.js tools: npm install -g markdownlint-cli prettier"
         log_info "  • Manual shell tools: sudo apt install shellcheck && go install mvdan.cc/sh/v3/cmd/shfmt@latest"
-        echo ""
+        [ "$AUTONOMOUS_MODE" = "0" ] && echo ""
         log_info "🚀 Full setup with configurations:"
         if [ -f "./scripts/setup-dev-tools.sh" ]; then
             log_info "  bash ./scripts/setup-dev-tools.sh"
@@ -167,7 +178,7 @@ check_dev_tools() {
         if [ -f "./scripts/setup-dev-tools.ps1" ]; then
             log_info "  .\\scripts\\setup-dev-tools.ps1    # Windows PowerShell"
         fi
-        echo ""
+        [ "$AUTONOMOUS_MODE" = "0" ] && echo ""
     else
         log_debug "All development tools are available"
     fi
@@ -188,22 +199,91 @@ ${message}|${file}"
         ISSUE_LIST="${message}|${file}"
     fi
 
+    # For autonomous mode, collect structured data
+    if [ "$AUTONOMOUS_MODE" = "1" ]; then
+        # Escape JSON characters in message and file path
+        escaped_message=$(printf '%s' "$message" | sed 's/"/\\"/g' | sed 's/\\/\\\\/g')
+        escaped_file=$(printf '%s' "$file" | sed 's/"/\\"/g' | sed 's/\\/\\\\/g')
+
+        # Add to autonomous issues array (using newline-separated format for bash compatibility)
+        issue_json=$(printf '{"severity":"%s","file":"%s","line":%s,"message":"%s","category":"%s","fix_priority":%d}' \
+            "$severity" "$escaped_file" "$line" "$escaped_message" \
+            "$(categorize_issue "$message")" "$(get_fix_priority "$severity" "$message")")
+
+        if [ -z "$AUTONOMOUS_ISSUES" ]; then
+            AUTONOMOUS_ISSUES="$issue_json"
+        else
+            AUTONOMOUS_ISSUES="$AUTONOMOUS_ISSUES
+$issue_json"
+        fi
+    else
+        # Normal human-readable output - only show if not autonomous mode
+        if [ "$AUTONOMOUS_MODE" = "0" ]; then
+            case "$severity" in
+                "CRITICAL")
+                    printf "${RED}[CRITICAL]${NC} %s:%s %s\n" "$file" "$line" "$message"
+                    ;;
+                "MAJOR")
+                    printf "${YELLOW}[MAJOR]${NC} %s:%s %s\n" "$file" "$line" "$message"
+                    ;;
+                "MINOR")
+                    printf "${BLUE}[MINOR]${NC} %s:%s %s\n" "$file" "$line" "$message"
+                    ;;
+            esac
+        fi
+    fi
+
     case "$severity" in
-        "CRITICAL")
-            printf "${RED}[CRITICAL]${NC} %s:%s %s\n" "$file" "$line" "$message"
-            CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1))
-            ;;
-        "MAJOR")
-            printf "${YELLOW}[MAJOR]${NC} %s:%s %s\n" "$file" "$line" "$message"
-            MAJOR_ISSUES=$((MAJOR_ISSUES + 1))
-            ;;
-        "MINOR")
-            printf "${BLUE}[MINOR]${NC} %s:%s %s\n" "$file" "$line" "$message"
-            MINOR_ISSUES=$((MINOR_ISSUES + 1))
-            ;;
+        "CRITICAL") CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1)) ;;
+        "MAJOR") MAJOR_ISSUES=$((MAJOR_ISSUES + 1)) ;;
+        "MINOR") MINOR_ISSUES=$((MINOR_ISSUES + 1)) ;;
     esac
 
     TOTAL_ISSUES=$((TOTAL_ISSUES + 1))
+}
+
+# Function to categorize issues for autonomous fixing
+categorize_issue() {
+    message="$1"
+    case "$message" in
+        *"SCRIPT_VERSION"*) echo "version" ;;
+        *"appears unused"*) echo "unused_var" ;;
+        *"function() syntax"*) echo "function_syntax" ;;
+        *"SC2181"* | *"exit code"*) echo "exit_code" ;;
+        *"SC2126"* | *"grep -c"*) echo "grep_optimization" ;;
+        *"SC2034"*) echo "unused_variable" ;;
+        *"SC2162"* | *"read without -r"*) echo "read_safety" ;;
+        *"SC2059"* | *"printf format"*) echo "printf_format" ;;
+        *"color definitions"* | *"missing"*) echo "missing_colors" ;;
+        *"MD013"* | *"line length"*) echo "line_length" ;;
+        *"MD040"* | *"fenced code"*) echo "code_blocks" ;;
+        *"readonly"*) echo "immutable_version" ;;
+        *"automation comment"*) echo "automation_comment" ;;
+        *) echo "other" ;;
+    esac
+}
+
+# Function to determine fix priority (1=highest, 5=lowest)
+get_fix_priority() {
+    severity="$1"
+    message="$2"
+
+    case "$severity" in
+        "CRITICAL") echo 1 ;;
+        "MAJOR")
+            case "$message" in
+                *"SCRIPT_VERSION"*) echo 1 ;;
+                *"function() syntax"*) echo 2 ;;
+                *"SC2181"* | *"exit code"*) echo 2 ;;
+                *"appears unused"* | *"SC2034"*) echo 3 ;;
+                *"SC2126"* | *"grep -c"*) echo 3 ;;
+                *"SC2162"* | *"read without -r"*) echo 3 ;;
+                *) echo 4 ;;
+            esac
+            ;;
+        "MINOR") echo 5 ;;
+        *) echo 5 ;;
+    esac
 }
 
 # Function to check shebang compatibility (only for RUTOS scripts)
@@ -541,7 +621,12 @@ run_shellcheck() {
     fi
 
     # Run shellcheck with appropriate shell mode and capture output
-    shellcheck_output=$(shellcheck -s "$shell_type" "$file" 2>&1)
+    # For RUTOS scripts, exclude SC2059 as Method 5 printf format is required for RUTOS compatibility
+    if echo "$file" | grep -q -- '-rutos\.sh$'; then
+        shellcheck_output=$(shellcheck -s "$shell_type" -e SC2059 "$file" 2>&1)
+    else
+        shellcheck_output=$(shellcheck -s "$shell_type" "$file" 2>&1)
+    fi
     shellcheck_exit_code=$?
 
     if [ $shellcheck_exit_code -eq 0 ]; then
@@ -549,7 +634,7 @@ run_shellcheck() {
         return 0
     else
         log_warning "$file: ShellCheck found issues"
-        echo "$shellcheck_output" | head -10
+        [ "$AUTONOMOUS_MODE" = "0" ] && echo "$shellcheck_output" | head -10
 
         # Parse ShellCheck output to extract error codes - avoid subshell
         # Save output to temp file to avoid subshell issues
@@ -679,7 +764,7 @@ check_undefined_variables() {
 validate_file() {
     file="$1"
 
-    log_step "Validating: $file"
+    [ "$AUTONOMOUS_MODE" = "0" ] && log_step "Validating: $file"
 
     initial_issues=$TOTAL_ISSUES
 
@@ -687,7 +772,7 @@ validate_file() {
     auto_fix_formatting "$file"
     fix_result=$?
     if [ $fix_result -eq 1 ]; then
-        log_info "Applied auto-fixes to $file"
+        [ "$AUTONOMOUS_MODE" = "0" ] && log_info "Applied auto-fixes to $file"
     fi
 
     # Check shebang
@@ -718,10 +803,10 @@ validate_file() {
     file_issues=$((TOTAL_ISSUES - initial_issues))
 
     if [ $file_issues -eq 0 ]; then
-        log_success "✓ $file: All checks passed"
+        [ "$AUTONOMOUS_MODE" = "0" ] && log_success "✓ $file: All checks passed"
         PASSED_FILES=$((PASSED_FILES + 1))
     else
-        log_error "✗ $file: $file_issues issues found"
+        [ "$AUTONOMOUS_MODE" = "0" ] && log_error "✗ $file: $file_issues issues found"
         FAILED_FILES=$((FAILED_FILES + 1))
     fi
 
@@ -747,7 +832,7 @@ auto_fix_formatting() {
 
                 # shellcheck disable=SC2086 # We want word splitting for shfmt options
                 if ! shfmt $shfmt_options -d "$file" >/dev/null 2>&1; then
-                    log_info "Auto-fixing shell script formatting: $file (options: $shfmt_options)"
+                    [ "$AUTONOMOUS_MODE" = "0" ] && log_info "Auto-fixing shell script formatting: $file (options: $shfmt_options)"
                     # shellcheck disable=SC2086 # We want word splitting for shfmt options
                     shfmt $shfmt_options -w "$file"
                     fixes_applied=1
@@ -759,7 +844,7 @@ auto_fix_formatting() {
             if command_exists prettier; then
                 # Check if prettier would make changes
                 if ! prettier --check "$file" >/dev/null 2>&1; then
-                    log_info "Auto-fixing markdown formatting: $file"
+                    [ "$AUTONOMOUS_MODE" = "0" ] && log_info "Auto-fixing markdown formatting: $file"
                     prettier --write "$file" >/dev/null 2>&1
                     fixes_applied=1
                 fi
@@ -836,13 +921,13 @@ run_prettier_markdown() {
 validate_markdown_file() {
     local file="$1"
 
-    log_step "Validating: $file"
+    [ "$AUTONOMOUS_MODE" = "0" ] && log_step "Validating: $file"
 
     local initial_issues=$TOTAL_ISSUES
 
     # Try to auto-fix formatting issues first
     if auto_fix_formatting "$file"; then
-        log_info "Applied auto-fixes to $file"
+        [ "$AUTONOMOUS_MODE" = "0" ] && log_info "Applied auto-fixes to $file"
     fi
 
     # Run markdownlint validation
@@ -858,10 +943,10 @@ validate_markdown_file() {
     local file_issues=$((TOTAL_ISSUES - initial_issues))
 
     if [ $file_issues -eq 0 ]; then
-        log_success "✓ $file: All checks passed"
+        [ "$AUTONOMOUS_MODE" = "0" ] && log_success "✓ $file: All checks passed"
         PASSED_FILES=$((PASSED_FILES + 1))
     else
-        log_error "✗ $file: $file_issues issues found"
+        [ "$AUTONOMOUS_MODE" = "0" ] && log_error "✗ $file: $file_issues issues found"
         FAILED_FILES=$((FAILED_FILES + 1))
     fi
 
@@ -1094,6 +1179,11 @@ display_issue_summary() {
 
 # Function to display summary
 display_summary() {
+    if [ "$AUTONOMOUS_MODE" = "1" ]; then
+        display_autonomous_output
+        return $?
+    fi
+
     log_step "Generating validation summary"
 
     printf "\n"
@@ -1122,6 +1212,71 @@ display_summary() {
     fi
 }
 
+# Function to display autonomous output
+display_autonomous_output() {
+    # Generate JSON output
+    local json_output
+    json_output=$(
+        cat <<EOF
+{
+  "validation_summary": {
+    "script_version": "$SCRIPT_VERSION",
+    "timestamp": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
+    "total_files": $TOTAL_FILES,
+    "passed_files": $PASSED_FILES,
+    "failed_files": $FAILED_FILES,
+    "total_issues": $TOTAL_ISSUES,
+    "critical_issues": $CRITICAL_ISSUES,
+    "major_issues": $MAJOR_ISSUES,
+    "minor_issues": $MINOR_ISSUES
+  },
+  "issues": [
+EOF
+
+        # Output each issue as JSON
+        if [ -n "$AUTONOMOUS_ISSUES" ]; then
+            first_issue=1
+            printf '%s\n' "$AUTONOMOUS_ISSUES" | while IFS= read -r issue; do
+                if [ -n "$issue" ]; then
+                    if [ "$first_issue" = "1" ]; then
+                        printf "    %s" "$issue"
+                        first_issue=0
+                    else
+                        printf ",\n    %s" "$issue"
+                    fi
+                fi
+            done
+            printf "\n"
+        fi
+
+        cat <<EOF
+  ],
+  "fix_recommendations": {
+    "priority_1_critical": $CRITICAL_ISSUES,
+    "priority_2_major_syntax": $(echo "$AUTONOMOUS_ISSUES" | grep -c '"category":"function_syntax"\\|"category":"exit_code"' || echo 0),
+    "priority_3_unused_vars": $(echo "$AUTONOMOUS_ISSUES" | grep -c '"category":"unused_' || echo 0),
+    "priority_4_optimizations": $(echo "$AUTONOMOUS_ISSUES" | grep -c '"category":"grep_optimization"\\|"category":"read_safety"' || echo 0),
+    "priority_5_minor": $MINOR_ISSUES
+  }
+}
+EOF
+    )
+
+    # Apply filtering if specified
+    if [ -n "$SHOW_FIRST" ] || [ -n "$SHOW_LAST" ] || [ -n "$FILTER_PATTERN" ]; then
+        json_output=$(apply_output_filters "$json_output")
+    fi
+
+    printf "%s\n" "$json_output"
+
+    # Return appropriate exit code
+    if [ $TOTAL_ISSUES -eq 0 ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Function to display help
 show_help() {
     cat <<EOF
@@ -1134,6 +1289,10 @@ OPTIONS:
     --all           Validate all shell and markdown files in the repository
     --shell-only    Validate only shell script files
     --md-only       Validate only markdown files
+    --autonomous    Output structured JSON for autonomous fixing (no colors, machine-readable)
+    --first N       Show only first N lines of output (like head -N)
+    --last N        Show only last N lines of output (like tail -N)
+    --filter REGEX  Filter output lines matching regex pattern (like grep)
     --help, -h      Show this help message
 
 EXAMPLES:
@@ -1142,6 +1301,7 @@ EXAMPLES:
     $0 --staged                     # Validate only staged files (git hook mode)
     $0 --shell-only                 # Validate only shell scripts
     $0 --md-only                    # Validate only markdown files
+    $0 --autonomous                 # Output structured JSON for autonomous fixing
     $0 file1.sh file2.md            # Validate specific files
     $0 scripts/*.sh                 # Validate all files in scripts directory
 
@@ -1229,8 +1389,86 @@ parse_gitignore_exclusions() {
     echo "$all_exclusions"
 }
 
+# Built-in output filtering functions to avoid external command dependencies
+apply_output_filters() {
+    local input="$1"
+    local output="$input"
+
+    # Apply first N lines filter (like head -N)
+    if [ -n "$SHOW_FIRST" ]; then
+        output=$(printf "%s" "$output" | {
+            line_count=0
+            while IFS= read -r line && [ $line_count -lt "$SHOW_FIRST" ]; do
+                printf "%s\n" "$line"
+                line_count=$((line_count + 1))
+            done
+        })
+    fi
+
+    # Apply last N lines filter (like tail -N)
+    if [ -n "$SHOW_LAST" ]; then
+        # For tail functionality, we need to buffer all lines and show the last N
+        temp_file="/tmp/filter_output_$$"
+        printf "%s" "$output" >"$temp_file"
+        total_lines=$(wc -l <"$temp_file" | tr -d ' \n\r')
+        if [ "$total_lines" -gt "$SHOW_LAST" ]; then
+            skip_lines=$((total_lines - SHOW_LAST))
+            output=$(awk "NR > $skip_lines" "$temp_file")
+        else
+            output=$(cat "$temp_file")
+        fi
+        rm -f "$temp_file"
+    fi
+
+    # Apply regex filter (like grep)
+    if [ -n "$FILTER_PATTERN" ]; then
+        output=$(printf "%s" "$output" | while IFS= read -r line; do
+            if printf "%s" "$line" | grep -q "$FILTER_PATTERN"; then
+                printf "%s\n" "$line"
+            fi
+        done)
+    fi
+
+    printf "%s" "$output"
+}
+
+# Parse command line arguments for filtering options
+parse_filtering_args() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --first)
+                shift
+                SHOW_FIRST="$1"
+                if ! printf "%s" "$SHOW_FIRST" | grep -q '^[0-9][0-9]*$'; then
+                    printf "Error: --first requires a positive integer\n" >&2
+                    exit 1
+                fi
+                ;;
+            --last)
+                shift
+                SHOW_LAST="$1"
+                if ! printf "%s" "$SHOW_LAST" | grep -q '^[0-9][0-9]*$'; then
+                    printf "Error: --last requires a positive integer\n" >&2
+                    exit 1
+                fi
+                ;;
+            --filter)
+                shift
+                FILTER_PATTERN="$1"
+                ;;
+            --autonomous)
+                AUTONOMOUS_MODE=1
+                ;;
+        esac
+        shift
+    done
+}
+
 # Main function
 main() {
+    # Parse filtering arguments first (before any output)
+    parse_filtering_args "$@"
+
     log_info "Starting RUTOS busybox compatibility and markdown validation v$SCRIPT_VERSION"
 
     # Skip self-validation
@@ -1248,6 +1486,29 @@ main() {
     if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
         show_help
         exit 0
+    elif [ "$1" = "--autonomous" ]; then
+        AUTONOMOUS_MODE=1
+        # Disable colors for autonomous mode
+        RED=""
+        GREEN=""
+        YELLOW=""
+        BLUE=""
+        PURPLE=""
+        CYAN=""
+        NC=""
+        log_info "Running in autonomous mode (structured JSON output)"
+        # Get all shell and markdown files for autonomous analysis
+        exclusions=$(parse_gitignore_exclusions)
+        shell_files=$(eval "find . -name \"*.sh\" -type f $exclusions" | while read -r file; do
+            if ! is_excluded "$file"; then
+                echo "$file"
+            fi
+        done | LC_ALL=C sort)
+        markdown_files=$(eval "find . -name \"*.md\" -type f $exclusions" | while read -r file; do
+            if ! is_excluded "$file"; then
+                echo "$file"
+            fi
+        done | LC_ALL=C sort)
     elif [ "$1" = "--staged" ]; then
         log_info "Running in pre-commit mode (staged files only)"
         # Get staged shell and markdown files, excluding specified files
@@ -1373,8 +1634,22 @@ main() {
     fi
 
     # Display summary
-    if ! display_summary; then
-        return 1
+    if [ -n "$SHOW_FIRST" ] || [ -n "$SHOW_LAST" ] || [ -n "$FILTER_PATTERN" ]; then
+        # Capture output and apply filtering
+        summary_output=$(display_summary 2>&1)
+        filtered_output=$(apply_output_filters "$summary_output")
+        printf "%s\n" "$filtered_output"
+        # Return the actual validation status
+        if [ $TOTAL_ISSUES -eq 0 ]; then
+            return 0
+        else
+            return 1
+        fi
+    else
+        # Normal display without filtering
+        if ! display_summary; then
+            return 1
+        fi
     fi
 
     return 0

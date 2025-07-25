@@ -1,7 +1,11 @@
 #!/bin/sh
 # Analyze data variations in RUTOS monitoring logs
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.6.0"
+readonly SCRIPT_VERSION
 
 echo "=== STARLINK MONITORING DATA ANALYSIS ==="
+echo "Version: $SCRIPT_VERSION"
 echo "Analyzing data variations to validate monitoring accuracy"
 echo ""
 

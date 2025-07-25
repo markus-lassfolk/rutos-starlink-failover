@@ -1,7 +1,7 @@
 # Starlink API Documentation
 
 **Version:** 2.6.0 | **Updated:** 2025-07-24  
-*API Documentation v2.6.0*
+_API Documentation v2.6.0_
 
 ## Overview
 

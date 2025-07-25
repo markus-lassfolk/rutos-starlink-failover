@@ -66,12 +66,14 @@ You had **16+ Copilot PRs** stuck in various states with:
 ### 🔧 Key Improvements Made
 
 1. **Fixed PowerShell Script Issues**:
+
    - Removed syntax errors and truncated functions
    - Improved error handling and reporting
    - Added comprehensive safety checks
    - Better rate limit management
 
 2. **Enhanced Workflow Detection**:
+
    - Proper Copilot author detection (`app/copilot-swe-agent`)
    - Fixed label-based filtering
    - Improved mergeable state handling

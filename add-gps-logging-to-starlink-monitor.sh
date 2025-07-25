@@ -6,14 +6,17 @@
 
 set -e # Exit on error
 
-# Version information
-SCRIPT_VERSION="1.0.0"
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.6.0"
+readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
+# shellcheck disable=SC2034  # Color variables may not all be used
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Check if we're in a terminal that supports colors
@@ -22,6 +25,8 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # Color variables may not all be used
+    CYAN=""
     NC=""
 fi
 
@@ -55,10 +60,8 @@ get_rutos_gps() {
     fi
 
     # Make authenticated request to RUTOS GPS API
-    gps_data=$(curl -s -k -H "Authorization: Bearer $auth_token" \
-        "https://$rutos_ip/api/gps/position/status" 2>/dev/null)
-
-    if [ $? -eq 0 ] && [ -n "$gps_data" ]; then
+    if gps_data=$(curl -s -k -H "Authorization: Bearer $auth_token" \
+        "https://$rutos_ip/api/gps/position/status" 2>/dev/null) && [ -n "$gps_data" ]; then
         # Parse GPS data similar to Victron Node-RED flow
         lat=$(echo "$gps_data" | grep -o '"latitude":[^,]*' | cut -d':' -f2 | tr -d '"')
         lon=$(echo "$gps_data" | grep -o '"longitude":[^,]*' | cut -d':' -f2 | tr -d '"')
@@ -83,10 +86,8 @@ get_starlink_gps() {
 
     # Use grpcurl like in Victron flow
     if command -v grpcurl >/dev/null 2>&1; then
-        diag_data=$(grpcurl -plaintext -emit-defaults -d '{"get_diagnostics":{}}' \
-            "$starlink_ip:9200" SpaceX.API.Device.Device/Handle 2>/dev/null)
-
-        if [ $? -eq 0 ] && [ -n "$diag_data" ]; then
+        if diag_data=$(grpcurl -plaintext -emit-defaults -d '{"get_diagnostics":{}}' \
+            "$starlink_ip:9200" SpaceX.API.Device.Device/Handle 2>/dev/null) && [ -n "$diag_data" ]; then
             # Extract location data from diagnostics
             lat=$(echo "$diag_data" | grep -o '"latitude":[^,]*' | head -1 | cut -d':' -f2)
             lon=$(echo "$diag_data" | grep -o '"longitude":[^,]*' | head -1 | cut -d':' -f2)
@@ -292,9 +293,7 @@ main() {
 
         # Demo GPS collection
         log_info "Collecting GPS from RUTOS and Starlink sources..."
-        gps_result=$(collect_gps_data)
-
-        if [ $? -eq 0 ]; then
+        if gps_result=$(collect_gps_data); then
             log_info "GPS Result: $gps_result"
         else
             log_warning "No valid GPS sources available in demo mode"

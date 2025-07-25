@@ -1,5 +1,12 @@
 #!/bin/sh
-# Quick comprehensive data analysis
+# Quick comprehensive analysis for RUTOS monitoring logs
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.6.0"
+readonly SCRIPT_VERSION
+
+echo "Quick Comprehensive Analysis v$SCRIPT_VERSION"
+echo "============================================="
+echo ""
 
 LOG_FILE="./temp/starlink_monitor_2025-07-24.log"
 REPORT_FILE="quick_comprehensive_analysis.md"
@@ -9,23 +16,23 @@ echo "" >>"$REPORT_FILE"
 
 # System States
 echo "## System State Analysis" >>"$REPORT_FILE"
-STATE_UP=$(grep "Current state: up" "$LOG_FILE" | wc -l)
-STATE_DOWN=$(grep "Current state: down" "$LOG_FILE" | wc -l)
+STATE_UP=$(grep -c "Current state: up" "$LOG_FILE")
+STATE_DOWN=$(grep -c "Current state: down" "$LOG_FILE")
 echo "- UP states: $STATE_UP" >>"$REPORT_FILE"
 echo "- DOWN states: $STATE_DOWN" >>"$REPORT_FILE"
 echo "" >>"$REPORT_FILE"
 
 # Routing Metrics
 echo "## Routing Analysis" >>"$REPORT_FILE"
-METRIC_1=$(grep "Metric: 1" "$LOG_FILE" | wc -l)
-METRIC_20=$(grep "Metric: 20" "$LOG_FILE" | wc -l)
+METRIC_1=$(grep -c "Metric: 1" "$LOG_FILE")
+METRIC_20=$(grep -c "Metric: 20" "$LOG_FILE")
 echo "- Good routing (Metric: 1): $METRIC_1" >>"$REPORT_FILE"
 echo "- Failover routing (Metric: 20): $METRIC_20" >>"$REPORT_FILE"
 echo "" >>"$REPORT_FILE"
 
 # Stability Analysis
 echo "## Stability Counter Analysis" >>"$REPORT_FILE"
-grep "Stability:" "$LOG_FILE" | sed 's/.*Stability: \([0-9]*\).*/\1/' | sort -n | uniq -c | while read count stability; do
+grep "Stability:" "$LOG_FILE" | sed 's/.*Stability: \([0-9]*\).*/\1/' | sort -n | uniq -c | while read -r count stability; do
     echo "- Stability $stability: $count occurrences" >>"$REPORT_FILE"
 done
 echo "" >>"$REPORT_FILE"

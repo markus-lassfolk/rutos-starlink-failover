@@ -3,9 +3,18 @@
 
 # Create test files
 
+# Test script for config merging function
+# Tests basic config merging functionality
+
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
+
+# Display version if requested
+if [ "${1:-}" = "--version" ]; then
+    echo "test-config-merge.sh v$SCRIPT_VERSION"
+    exit 0
+fi
 # Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 mkdir -p /tmp/config-test
 

@@ -10,6 +10,12 @@ set -e
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
+
+# Display version if requested
+if [ "${1:-}" = "--version" ]; then
+    echo "restore-config-rutos.sh v$SCRIPT_VERSION"
+    exit 0
+fi
 # Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'

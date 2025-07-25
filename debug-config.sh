@@ -11,14 +11,15 @@ set -e # Exit on error
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
-readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
+# shellcheck disable=SC2034  # Used in some conditional contexts
 PURPLE='\033[0;35m'
+# shellcheck disable=SC2034  # Used in debug logging functions
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 

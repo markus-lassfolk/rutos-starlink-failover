@@ -20,7 +20,6 @@ set -e
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
-readonly SCRIPT_VERSION="2.4.11"
 
 # Standard colors for consistent output
 RED='\033[0;31m'

@@ -18,6 +18,7 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     YELLOW='\033[1;33m'
     BLUE='\033[0;34m'
     CYAN='\033[0;36m'
+    # shellcheck disable=SC2034  # Used in some conditional contexts
     PURPLE='\033[0;35m'
     NC='\033[0m'
 else

@@ -5,8 +5,8 @@
 
 set -e # Exit on error
 
-# Version information
-SCRIPT_VERSION="1.0.0"
+# Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="1.0.0"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'

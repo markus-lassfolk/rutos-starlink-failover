@@ -21,6 +21,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
+# shellcheck disable=SC2034  # Used in some conditional contexts
 PURPLE='\033[0;35m'
 # shellcheck disable=SC2034  # CYAN may be used in future enhancements
 # shellcheck disable=SC2034  # CYAN is available for future use if needed

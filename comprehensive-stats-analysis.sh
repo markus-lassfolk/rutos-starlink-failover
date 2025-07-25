@@ -5,14 +5,22 @@
 
 set -e
 
-# Version information
-SCRIPT_VERSION="1.0.0"
+# Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="1.0.0"
+
+# Display version if requested
+if [ "${1:-}" = "--version" ]; then
+    echo "comprehensive-stats-analysis.sh v$SCRIPT_VERSION"
+    exit 0
+fi
 
 # Standard colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+# shellcheck disable=SC2034  # Used in some conditional contexts
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
+# shellcheck disable=SC2034  # Used in some conditional contexts
 CYAN='\033[0;36m'
 NC='\033[0m'
 
@@ -75,8 +83,8 @@ cat >>"$REPORT_FILE" <<'EOF'
 EOF
 
 # State distribution
-STATE_UP=$(grep "Current state: up" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-STATE_DOWN=$(grep "Current state: down" "$LOG_FILE" | wc -l | tr -d ' \n\r')
+STATE_UP=$(grep -c "Current state: up" "$LOG_FILE")
+STATE_DOWN=$(grep -c "Current state: down" "$LOG_FILE")
 TOTAL_STATES=$((STATE_UP + STATE_DOWN))
 
 if [ "$TOTAL_STATES" -gt 0 ]; then
@@ -90,8 +98,8 @@ else
 fi
 
 # Metric values (routing priorities)
-METRIC_1=$(grep "Metric: 1" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-METRIC_20=$(grep "Metric: 20" "$LOG_FILE" | wc -l | tr -d ' \n\r')
+METRIC_1=$(grep -c "Metric: 1" "$LOG_FILE")
+METRIC_20=$(grep -c "Metric: 20" "$LOG_FILE")
 
 cat >>"$REPORT_FILE" <<EOF
 
@@ -128,8 +136,14 @@ cat >>"$REPORT_FILE" <<'EOF'
 EOF
 
 # GPS validity analysis
-GPS_VALID=$(grep "GPS: valid=true" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-GPS_INVALID=$(grep "GPS: valid=false" "$LOG_FILE" | wc -l | tr -d ' \n\r')
+# GPS analysis
+log_step "Analyzing GPS data"
+GPS_VALID=$(grep -c "GPS: valid=true" "$LOG_FILE" | tr -d ' 
+
+')
+GPS_INVALID=$(grep -c "GPS: valid=false" "$LOG_FILE" | tr -d ' 
+
+')
 GPS_TOTAL=$((GPS_VALID + GPS_INVALID))
 
 if [ "$GPS_TOTAL" -gt 0 ]; then
@@ -162,12 +176,12 @@ cat >>"$REPORT_FILE" <<'EOF'
 EOF
 
 # SNR analysis with quality indicators
-SNR_POOR=$(grep "SNR:.*poor: [1-9]" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-SNR_GOOD=$(grep "SNR:.*poor: 0" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-SNR_ABOVE_NOISE_TRUE=$(grep "above_noise: true" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-SNR_ABOVE_NOISE_FALSE=$(grep "above_noise: false" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-SNR_PERSISTENTLY_LOW_TRUE=$(grep "persistently_low: true" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-SNR_PERSISTENTLY_LOW_FALSE=$(grep "persistently_low: false" "$LOG_FILE" | wc -l | tr -d ' \n\r')
+SNR_POOR=$(grep -c "SNR:.*poor: [1-9]" "$LOG_FILE" | tr -d ' \n\r')
+SNR_GOOD=$(grep -c "SNR:.*poor: 0" "$LOG_FILE" | tr -d ' \n\r')
+SNR_ABOVE_NOISE_TRUE=$(grep -c "above_noise: true" "$LOG_FILE" | tr -d ' \n\r')
+SNR_ABOVE_NOISE_FALSE=$(grep -c "above_noise: false" "$LOG_FILE" | tr -d ' \n\r')
+SNR_PERSISTENTLY_LOW_TRUE=$(grep -c "persistently_low: true" "$LOG_FILE" | tr -d ' \n\r')
+SNR_PERSISTENTLY_LOW_FALSE=$(grep -c "persistently_low: false" "$LOG_FILE" | tr -d ' \n\r')
 
 printf "- **SNR Poor conditions**: %s events\n" "$SNR_POOR" >>"$REPORT_FILE"
 printf "- **SNR Good conditions**: %s events\n" "$SNR_GOOD" >>"$REPORT_FILE"
@@ -187,9 +201,9 @@ cat >>"$REPORT_FILE" <<'EOF'
 EOF
 
 # Count threshold breaches
-HIGH_LOSS=$(grep "Loss:.*high: [1-9]" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-HIGH_OBSTRUCTION=$(grep "Obstruction:.*high: [1-9]" "$LOG_FILE" | wc -l | tr -d ' \n\r')
-HIGH_LATENCY=$(grep "Latency:.*high: [1-9]" "$LOG_FILE" | wc -l | tr -d ' \n\r')
+HIGH_LOSS=$(grep -c "Loss:.*high: [1-9]" "$LOG_FILE" | tr -d ' \n\r')
+HIGH_OBSTRUCTION=$(grep -c "Obstruction:.*high: [1-9]" "$LOG_FILE" | tr -d ' \n\r')
+HIGH_LATENCY=$(grep -c "Latency:.*high: [1-9]" "$LOG_FILE" | tr -d ' \n\r')
 
 printf "- **High packet loss flags**: %s events\n" "$HIGH_LOSS" >>"$REPORT_FILE"
 printf "- **High obstruction flags**: %s events\n" "$HIGH_OBSTRUCTION" >>"$REPORT_FILE"

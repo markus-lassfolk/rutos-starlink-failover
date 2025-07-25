@@ -1,5 +1,14 @@
 #!/bin/sh
-# Detailed data analysis with better parsing
+# Detailed data analysis for Starlink monitoring
+# Version information (auto-updated by update-version.sh)
+# Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="2.6.0"
+
+# Display version if requested
+if [ "${1:-}" = "--version" ]; then
+    echo "detailed-data-analysis.sh v$SCRIPT_VERSION"
+    exit 0
+fi
 
 echo "=== DETAILED STARLINK DATA VALIDATION ==="
 echo ""
@@ -26,7 +35,7 @@ grep "Basic Metrics" "$LOG_FILE" | grep -o "Loss: [0-9.]*" | sed 's/Loss: //' | 
     echo ""
     echo "Min/Max:"
     sort -n | {
-        read min
+        read -r min
         tail -1 >/tmp/max_val.txt
         max=$(cat /tmp/max_val.txt)
         echo "  Minimum: $min"
@@ -47,7 +56,7 @@ grep "Basic Metrics" "$LOG_FILE" | grep -o "Obstruction: [0-9.]*" | sed 's/Obstr
     echo ""
     echo "Min/Max:"
     sort -n | {
-        read min
+        read -r min
         tail -1 >/tmp/max_val.txt
         max=$(cat /tmp/max_val.txt)
         echo "  Minimum: $min"
@@ -68,7 +77,7 @@ grep "Basic Metrics" "$LOG_FILE" | grep -o "Latency: [0-9]*ms" | sed 's/Latency:
     echo ""
     echo "Min/Max:"
     sort -n | {
-        read min
+        read -r min
         tail -1 >/tmp/max_val.txt
         max=$(cat /tmp/max_val.txt)
         echo "  Minimum: $min ms"
@@ -89,7 +98,7 @@ grep "Enhanced Metrics" "$LOG_FILE" | grep -o "SNR: [0-9]*dB" | sed 's/SNR: //; 
     echo ""
     echo "Min/Max:"
     sort -n | {
-        read min
+        read -r min
         tail -1 >/tmp/max_val.txt
         max=$(cat /tmp/max_val.txt)
         echo "  Minimum: $min dB"
@@ -110,7 +119,7 @@ grep "Enhanced Metrics" "$LOG_FILE" | grep -o "sats=[0-9]*" | sed 's/sats=//' | 
     echo ""
     echo "Min/Max:"
     sort -n | {
-        read min
+        read -r min
         tail -1 >/tmp/max_val.txt
         max=$(cat /tmp/max_val.txt)
         echo "  Minimum: $min satellites"

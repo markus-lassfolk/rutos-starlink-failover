@@ -20,14 +20,14 @@ set -eu
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
-# Standard colors for consistent output (compatible with busybox)
+# Standard colors for consistent output (busybox compatible) - Only used colors defined
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED='\033[0;31m'    # Errors, critical issues
+    GREEN='\033[0;32m'  # Success, info, completed actions
+    YELLOW='\033[1;33m' # Warnings, important notices
+    BLUE='\033[1;35m'   # Steps, progress indicators
+    CYAN='\033[0;36m'   # Debug messages, technical info
+    NC='\033[0m'        # No Color (reset)
 else
     RED=""
     GREEN=""
@@ -43,7 +43,7 @@ if [ -f "$CONFIG_FILE" ]; then
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
 else
-    echo "Error: Configuration file not found: $CONFIG_FILE"
+    printf "${RED}[ERROR]${NC} Configuration file not found: %s\n" "$CONFIG_FILE" >&2
     exit 1
 fi
 
@@ -54,8 +54,6 @@ STATE_DIR="${STATE_DIR:-/tmp/run}"
 # Enhanced logging files
 ENHANCED_LOG_FILE="${LOG_DIR}/starlink_enhanced.csv"
 AGGREGATED_LOG_FILE="${LOG_DIR}/starlink_aggregated.csv"
-GPS_ANALYTICS_FILE="${LOG_DIR}/gps_analytics.csv"
-CELLULAR_ANALYTICS_FILE="${LOG_DIR}/cellular_analytics.csv"
 
 # Test mode support
 DRY_RUN="${DRY_RUN:-0}"
@@ -312,6 +310,11 @@ calculate_batch_statistics() {
         printf ",%.3f,%.1f,%.1f,%.1f,%.1f,%.3f", avg_ping_drop, avg_latency, avg_download, avg_upload, avg_uptime_pct, avg_obstruction
     }
     ' "$batch_file" >>"$temp_stats"
+
+    # Extract calculated values for the quality score calculation
+    location_changes=$(awk -F',' 'BEGIN{changes=0;prev_lat="";prev_lon=""}{if($3!="0.0"&&$3!=""&&$3!="0"){if(prev_lat!=""&&prev_lon!=""){lat_diff=$3-prev_lat;lon_diff=$4-prev_lon;if(lat_diff<0)lat_diff=-lat_diff;if(lon_diff<0)lon_diff=-lon_diff;if(lat_diff>0.001||lon_diff>0.001)changes++}prev_lat=$3;prev_lon=$4}}END{print changes}' "$batch_file")
+    handoff_count=$(awk -F',' 'BEGIN{handoffs=0;prev_op=""}{if($13!="Unknown"&&$13!=""){if(prev_op!=""&&prev_op!=$13)handoffs++;prev_op=$13}}END{print handoffs}' "$batch_file")
+    state_changes=$(awk -F',' 'BEGIN{changes=0;prev_state=""}{if($25!=""&&prev_state!=""&&prev_state!=$25){changes++}prev_state=$25}END{print changes}' "$batch_file")
 
     # Calculate quality scores and metadata
     awk -F',' -v location_changes="$location_changes" -v handoffs="$handoff_count" -v state_changes="$state_changes" '

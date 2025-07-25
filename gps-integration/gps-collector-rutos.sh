@@ -7,14 +7,18 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.0"
+# Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="1.0.0"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
+# shellcheck disable=SC2034  # Used in some conditional contexts
+# shellcheck disable=SC2034  # Used in some conditional contexts
 PURPLE='\033[0;35m'
+# shellcheck disable=SC2034  # Used in debug logging functions
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
@@ -123,7 +127,7 @@ get_rutos_auth_token() {
         -d "$login_data" \
         "https://$rutos_ip/api/login" 2>/dev/null)
 
-    if [ $? -eq 0 ] && [ -n "$auth_response" ]; then
+    if curl -s -k -X POST -H "Content-Type: application/json" -d "$login_data" "https://$rutos_ip/api/login" >/dev/null 2>&1 && [ -n "$auth_response" ]; then
         # Extract token using basic string manipulation (busybox compatible)
         token=$(echo "$auth_response" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
         if [ -n "$token" ]; then
@@ -153,7 +157,7 @@ get_rutos_gps() {
     gps_data=$(curl -s -k -H "Authorization: Bearer $auth_token" \
         "https://$rutos_ip/api/gps/position/status" 2>/dev/null)
 
-    if [ $? -eq 0 ] && [ -n "$gps_data" ]; then
+    if [ -n "$gps_data" ] && echo "$gps_data" | grep -q '"latitude"'; then
         # Parse GPS data (busybox-compatible parsing)
         lat=$(echo "$gps_data" | grep -o '"latitude":[^,}]*' | cut -d':' -f2 | tr -d '"' | tr -d ' ')
         lon=$(echo "$gps_data" | grep -o '"longitude":[^,}]*' | cut -d':' -f2 | tr -d '"' | tr -d ' ')
@@ -208,7 +212,7 @@ get_starlink_gps() {
     diag_data=$(grpcurl -plaintext -emit-defaults -d '{"get_diagnostics":{}}' \
         "$starlink_ip:9200" SpaceX.API.Device.Device/Handle 2>/dev/null)
 
-    if [ $? -eq 0 ] && [ -n "$diag_data" ]; then
+    if [ -n "$diag_data" ] && echo "$diag_data" | grep -q '"latitude"'; then
         # Extract location data from diagnostics (busybox-compatible)
         lat=$(echo "$diag_data" | grep -o '"latitude":[^,}]*' | head -1 | cut -d':' -f2 | tr -d ' ')
         lon=$(echo "$diag_data" | grep -o '"longitude":[^,}]*' | head -1 | cut -d':' -f2 | tr -d ' ')

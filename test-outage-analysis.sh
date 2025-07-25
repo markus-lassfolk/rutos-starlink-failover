@@ -7,8 +7,8 @@
 
 set -eu
 
-# Version information
-SCRIPT_VERSION="1.0.0-test"
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="1.0.0"
 readonly SCRIPT_VERSION
 
 # Check if terminal supports colors (RUTOS busybox compatible)

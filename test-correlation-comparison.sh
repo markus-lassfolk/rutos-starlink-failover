@@ -1,15 +1,24 @@
 #!/bin/sh
 # Test to compare correlation logic between original and optimized versions
+# Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="2.6.0"
+
+# Display version if requested
+if [ "${1:-}" = "--version" ]; then
+    echo "test-correlation-comparison.sh v$SCRIPT_VERSION"
+    exit 0
+fi
 
 echo "=== CORRELATION COMPARISON TEST ==="
 
 # Extract just the 12:57 outage logic (the one that should have 2 correlations)
 OUTAGE_TIME="12:57"
+# shellcheck disable=SC2034  # Used later in the script
 OUTAGE_DURATION="10"
 
 # Original logic
 echo "Original time_to_seconds calculation:"
-outage_seconds=$(echo "$OUTAGE_TIME" | sed 's/:/ /' | while read hour minute; do
+outage_seconds=$(echo "$OUTAGE_TIME" | sed 's/:/ /' | while read -r hour minute; do
     hour=$(printf "%d" "$hour" 2>/dev/null || echo "0")
     minute=$(printf "%d" "$minute" 2>/dev/null || echo "0")
     echo $((hour * 3600 + minute * 60))
@@ -17,7 +26,7 @@ done)
 echo "Outage seconds: $outage_seconds"
 
 start_window=$((outage_seconds - 60))
-end_window=$((outage_seconds + outage_duration + 60))
+end_window=$((outage_seconds + OUTAGE_DURATION + 60))
 echo "Original window: $start_window - $end_window"
 
 # Test with actual log data

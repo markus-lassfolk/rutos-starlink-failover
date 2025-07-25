@@ -1,6 +1,6 @@
 #!/bin/sh
 # shellcheck disable=SC2059
-# Script: test-all-scripts-rutos.sh  
+# Script: test-all-scripts-rutos.sh
 # Version: 2.6.0
 # Description: Comprehensive testing of all RUTOS scripts with different verbosity levels
 # Usage: ./test-all-scripts-rutos.sh [--detailed] [--specific-script script_name]
@@ -8,7 +8,7 @@
 
 set -e
 
-# Version information
+# Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
 
@@ -19,6 +19,7 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     YELLOW='\033[1;33m'
     BLUE='\033[1;35m'
     CYAN='\033[0;36m'
+    # shellcheck disable=SC2034  # Used in some conditional contexts
     PURPLE='\033[0;35m'
     NC='\033[0m'
 else
@@ -240,7 +241,7 @@ test_script() {
 
 # Main execution
 main() {
-    # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility  
+    # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
     printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
     printf "${PURPLE}║                    RUTOS SCRIPT COMPREHENSIVE TESTING                   ║${NC}\n"

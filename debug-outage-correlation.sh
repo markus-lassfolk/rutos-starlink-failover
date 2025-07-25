@@ -1,5 +1,13 @@
 #!/bin/sh
 # Debug specific outage correlation
+# Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="2.6.0"
+
+# Display version if requested
+if [ "${1:-}" = "--version" ]; then
+    echo "debug-outage-correlation.sh v$SCRIPT_VERSION"
+    exit 0
+fi
 
 echo "=== DEBUGGING 12:57 OUTAGE CORRELATION ==="
 
