@@ -68,7 +68,7 @@ if [ -f "$script_dir/placeholder-utils.sh" ]; then
     # shellcheck source=/dev/null
     . "$script_dir/placeholder-utils.sh"
 else
-    printf "${YELLOW}[WARNING]${NC} placeholder-utils.sh not found. Pushover notifications may not work gracefully.\n" >&2
+    printf "%s[WARNING]%s placeholder-utils.sh not found. Pushover notifications may not work gracefully.\n" "$YELLOW" "$NC" >&2
 fi
 
 # Set default values for variables that may not be in config
@@ -102,7 +102,7 @@ fi
 
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ]; then
-    printf "${GREEN}[INFO]${NC} RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution\n" >&2
+    printf "%s[INFO]%s RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution\n" "$GREEN" "$NC" >&2
     exit 0
 fi
 
@@ -410,7 +410,7 @@ analyze_connection_quality() {
         fi
 
         # Enhanced failover decision logic
-        quality_factors=$(($is_latency_poor + $is_packet_loss_poor + $is_obstruction_poor + $is_snr_poor + $is_gps_poor))
+        quality_factors=$((is_latency_poor + is_packet_loss_poor + is_obstruction_poor + is_snr_poor + is_gps_poor))
 
         if [ "$quality_factors" -ge 2 ]; then
             log_warning "Multiple quality issues detected ($quality_factors factors), initiating enhanced failover analysis"
