@@ -7,6 +7,7 @@ set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 
 # Color definitions (busybox compatible)
 RED='\033[0;31m'
