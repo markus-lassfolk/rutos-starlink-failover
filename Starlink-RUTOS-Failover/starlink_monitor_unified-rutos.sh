@@ -59,7 +59,7 @@ else
     # Standard colors for consistent output (compatible with busybox)
     if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
         RED='\033[0;31m'
-        GREEN='\033[0;32m' 
+        GREEN='\033[0;32m'
         YELLOW='\033[1;33m'
         BLUE='\033[1;35m'
         CYAN='\033[0;36m'
@@ -67,7 +67,7 @@ else
     else
         RED="" GREEN="" YELLOW="" BLUE="" CYAN="" NC=""
     fi
-    
+
     # Built-in logging functions
     log_info() {
         timestamp=$(date '+%Y-%m-%d %H:%M:%S')
@@ -98,13 +98,13 @@ else
         timestamp=$(date '+%Y-%m-%d %H:%M:%S')
         printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$timestamp" "$1"
     }
-    
+
     # Initialize logging variables
     DRY_RUN="${DRY_RUN:-0}"
     RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
     DEBUG="${DEBUG:-0}"
     export DRY_RUN RUTOS_TEST_MODE DEBUG
-    
+
     # Built-in safe_execute function
     safe_execute() {
         cmd="$1"
@@ -186,39 +186,39 @@ log_debug "ENHANCED_FAILOVER=$ENABLE_ENHANCED_FAILOVER, MULTI_SOURCE_GPS=$ENABLE
 # Enhanced troubleshooting mode - demonstrate full execution flow
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ] || [ "${DEBUG:-0}" = "1" ]; then
     log_step "=== TROUBLESHOOTING MODE: Demonstrating Starlink Monitor Execution ==="
-    
+
     # Show configuration validation
     log_trace "Configuration validation demonstration"
     safe_execute "echo 'Validating Starlink IP: $STARLINK_IP'" "Check Starlink IP configuration"
     safe_execute "echo 'Validating Starlink Port: $STARLINK_PORT'" "Check Starlink Port configuration"
-    
+
     # Show command execution examples
     log_trace "Command execution demonstration"
     safe_execute "echo 'GRPC Command: $GRPCURL_CMD'" "Show GRPC command configuration"
     safe_execute "date" "Get current timestamp for monitoring cycle"
-    
+
     # Show GPS tracking logic (if enabled)
     if [ "${ENABLE_GPS_TRACKING:-false}" = "true" ]; then
         log_trace "GPS tracking demonstration"
         safe_execute "echo 'GPS tracking enabled - would collect location data'" "GPS tracking status"
     fi
-    
+
     # Show cellular tracking logic (if enabled)
     if [ "${ENABLE_CELLULAR_TRACKING:-false}" = "true" ]; then
         log_trace "Cellular tracking demonstration"
         safe_execute "echo 'Cellular tracking enabled - would collect signal data'" "Cellular tracking status"
     fi
-    
+
     # Show failover logic demonstration
     log_trace "Failover logic demonstration"
     safe_execute "echo 'Failover threshold: ${FAILOVER_THRESHOLD:-5}'" "Show failover configuration"
     safe_execute "echo 'Recovery threshold: ${RECOVERY_THRESHOLD:-3}'" "Show recovery configuration"
-    
+
     # Show file operations (safely)
     log_trace "File operations demonstration"
     safe_execute "echo 'Log directory: $LOG_DIR'" "Show log directory configuration"
     safe_execute "echo 'State directory: $STATE_DIR'" "Show state directory configuration"
-    
+
     log_success "=== TROUBLESHOOTING COMPLETE: All major execution paths demonstrated ==="
     log_info "Script syntax and configuration validated - exiting safely in test mode"
     exit 0

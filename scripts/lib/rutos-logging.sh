@@ -1,7 +1,7 @@
 #!/bin/sh
 # ==============================================================================
 # RUTOS Logging Framework
-# 
+#
 # Version: 2.7.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
@@ -28,8 +28,12 @@ if [ "${_RUTOS_COLORS_LOADED:-}" != "1" ]; then
         . "$(dirname "$0")/../scripts/lib/rutos-colors.sh"
     else
         # Fallback: define basic colors inline
-        RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-        BLUE='\033[1;35m'; CYAN='\033[0;36m'; NC='\033[0m'
+        RED='\033[0;31m'
+        GREEN='\033[0;32m'
+        YELLOW='\033[1;33m'
+        BLUE='\033[1;35m'
+        CYAN='\033[0;36m'
+        NC='\033[0m'
     fi
 fi
 
@@ -44,29 +48,29 @@ setup_logging_levels() {
     ORIGINAL_DEBUG="${DEBUG:-0}"
     ORIGINAL_RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
     ORIGINAL_TEST_MODE="${TEST_MODE:-0}"
-    
+
     # Set defaults for all logging variables
     DRY_RUN="${DRY_RUN:-0}"
     DEBUG="${DEBUG:-0}"
     RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
     TEST_MODE="${TEST_MODE:-0}"
-    
+
     # Backward compatibility: TEST_MODE -> RUTOS_TEST_MODE
     if [ "$TEST_MODE" = "1" ] && [ "$RUTOS_TEST_MODE" = "0" ]; then
         RUTOS_TEST_MODE=1
     fi
-    
+
     # Set global logging level based on active modes
     if [ "$RUTOS_TEST_MODE" = "1" ]; then
         LOG_LEVEL="TRACE"
     elif [ "$DEBUG" = "1" ]; then
         LOG_LEVEL="DEBUG"
     elif [ "$DRY_RUN" = "1" ]; then
-        LOG_LEVEL="TRACE"  # DRY_RUN should show TRACE for troubleshooting
+        LOG_LEVEL="TRACE" # DRY_RUN should show TRACE for troubleshooting
     else
         LOG_LEVEL="NORMAL"
     fi
-    
+
     # Export for child processes
     export DRY_RUN DEBUG RUTOS_TEST_MODE LOG_LEVEL
 }
@@ -86,9 +90,9 @@ _log_message() {
     color="$2"
     message="$3"
     destination="${4:-stdout}"
-    
+
     timestamp=$(get_timestamp)
-    
+
     if [ "$destination" = "stderr" ]; then
         printf "${color}[%s]${NC} [%s] %s\n" "$level" "$timestamp" "$message" >&2
     else
@@ -140,7 +144,7 @@ log_variable_change() {
     var_name="$1"
     old_value="$2"
     new_value="$3"
-    
+
     if [ "$RUTOS_TEST_MODE" = "1" ]; then
         log_trace "VARIABLE: $var_name changed from '$old_value' to '$new_value'"
     fi
@@ -150,7 +154,7 @@ log_variable_change() {
 log_function_entry() {
     func_name="$1"
     func_args="$2"
-    
+
     if [ "$DEBUG" = "1" ]; then
         log_debug "FUNCTION: Entering $func_name($func_args)"
     fi
@@ -160,7 +164,7 @@ log_function_entry() {
 log_function_exit() {
     func_name="$1"
     exit_code="$2"
-    
+
     if [ "$DEBUG" = "1" ]; then
         log_debug "FUNCTION: Exiting $func_name with code $exit_code"
     fi
@@ -169,7 +173,7 @@ log_function_exit() {
 # Log command execution (for TRACE mode)
 log_command_execution() {
     command="$1"
-    
+
     if [ "$RUTOS_TEST_MODE" = "1" ]; then
         log_trace "EXECUTING: $command"
     fi
@@ -185,9 +189,9 @@ log_error_with_context() {
     script_name="${2:-$(basename "$0")}"
     line_number="${3:-unknown}"
     function_name="${4:-main}"
-    
+
     log_error "$error_message"
-    
+
     if [ "$DEBUG" = "1" ]; then
         log_debug "ERROR CONTEXT:"
         log_debug "  Script: $script_name"
@@ -202,9 +206,9 @@ log_error_with_context() {
 log_script_init() {
     script_name="$1"
     script_version="$2"
-    
+
     log_info "Starting $script_name v$script_version"
-    
+
     if [ "$DEBUG" = "1" ]; then
         log_debug "ENVIRONMENT:"
         log_debug "  Working Directory: $(pwd)"
@@ -225,7 +229,7 @@ log_script_init() {
 safe_execute() {
     command="$1"
     description="$2"
-    
+
     # Enhanced tracing for RUTOS_TEST_MODE
     if [ "$RUTOS_TEST_MODE" = "1" ]; then
         log_trace "=== COMMAND EXECUTION START ==="
@@ -235,10 +239,10 @@ safe_execute() {
         log_trace "Environment: DRY_RUN=$DRY_RUN DEBUG=$DEBUG"
         log_trace "Timestamp: $(date '+%Y-%m-%d %H:%M:%S.%3N' 2>/dev/null || date)"
     fi
-    
+
     # Log the command in trace mode
     log_command_execution "$command"
-    
+
     if [ "$DRY_RUN" = "1" ]; then
         log_info "[DRY-RUN] Would execute: $description"
         if [ "$DEBUG" = "1" ]; then
@@ -255,11 +259,11 @@ safe_execute() {
         if [ "$DEBUG" = "1" ]; then
             log_debug "Command: $command"
         fi
-        
+
         if [ "$RUTOS_TEST_MODE" = "1" ]; then
             log_trace "REAL EXECUTION: About to run actual command"
         fi
-        
+
         # Execute the actual command
         if eval "$command"; then
             exit_code=0

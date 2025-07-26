@@ -1,7 +1,7 @@
 #!/bin/sh
 # ==============================================================================
 # RUTOS Common Utilities Library
-# 
+#
 # Version: 2.7.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
@@ -42,7 +42,7 @@ is_rutos_system() {
 # Validate RUTOS environment
 validate_rutos_environment() {
     log_function_entry "validate_rutos_environment" ""
-    
+
     if ! is_rutos_system; then
         log_warning "Not running on RUTOS/OpenWrt system"
         if [ "$RUTOS_TEST_MODE" != "1" ] && [ "$DRY_RUN" != "1" ]; then
@@ -50,7 +50,7 @@ validate_rutos_environment() {
             return 1
         fi
     fi
-    
+
     log_debug "RUTOS environment validated"
     log_function_exit "validate_rutos_environment" "0"
     return 0
@@ -64,7 +64,7 @@ validate_rutos_environment() {
 command_exists() {
     command="$1"
     log_trace "Checking if command exists: $command"
-    
+
     if command -v "$command" >/dev/null 2>&1; then
         log_trace "Command available: $command"
         return 0
@@ -78,16 +78,16 @@ command_exists() {
 require_command() {
     command="$1"
     package="${2:-$command}"
-    
+
     log_function_entry "require_command" "$command"
-    
+
     if ! command_exists "$command"; then
         log_error "Required command not found: $command"
         log_error "Please install package: $package"
         log_function_exit "require_command" "1"
         return 1
     fi
-    
+
     log_debug "Required command available: $command"
     log_function_exit "require_command" "0"
     return 0
@@ -101,18 +101,18 @@ require_command() {
 safe_mkdir() {
     dir_path="$1"
     permissions="${2:-755}"
-    
+
     log_function_entry "safe_mkdir" "$dir_path"
-    
+
     if [ -d "$dir_path" ]; then
         log_debug "Directory already exists: $dir_path"
         log_function_exit "safe_mkdir" "0"
         return 0
     fi
-    
+
     safe_execute "mkdir -p '$dir_path' && chmod $permissions '$dir_path'" \
-                 "Create directory: $dir_path"
-    
+        "Create directory: $dir_path"
+
     exit_code=$?
     log_function_exit "safe_mkdir" "$exit_code"
     return $exit_code
@@ -122,19 +122,19 @@ safe_mkdir() {
 safe_backup() {
     source_file="$1"
     backup_suffix="${2:-.backup.$(date +%Y%m%d_%H%M%S)}"
-    
+
     log_function_entry "safe_backup" "$source_file"
-    
+
     if [ ! -f "$source_file" ]; then
         log_debug "Source file does not exist, no backup needed: $source_file"
         log_function_exit "safe_backup" "0"
         return 0
     fi
-    
+
     backup_file="${source_file}${backup_suffix}"
     safe_execute "cp '$source_file' '$backup_file'" \
-                 "Backup file: $source_file -> $backup_file"
-    
+        "Backup file: $source_file -> $backup_file"
+
     exit_code=$?
     log_function_exit "safe_backup" "$exit_code"
     return $exit_code
@@ -143,9 +143,9 @@ safe_backup() {
 # Check if file is writable
 is_file_writable() {
     file_path="$1"
-    
+
     log_trace "Checking if file is writable: $file_path"
-    
+
     if [ -w "$file_path" ]; then
         log_trace "File is writable: $file_path"
         return 0
@@ -164,9 +164,9 @@ test_connectivity() {
     host="$1"
     port="${2:-80}"
     timeout="${3:-5}"
-    
+
     log_function_entry "test_connectivity" "$host:$port"
-    
+
     # Use netcat if available, otherwise try ping
     if command_exists nc; then
         log_trace "Testing connectivity with netcat: $host:$port"
@@ -187,7 +187,7 @@ test_connectivity() {
         log_function_exit "test_connectivity" "1"
         return 1
     fi
-    
+
     log_trace "Connectivity failed: $host:$port"
     log_function_exit "test_connectivity" "1"
     return 1
@@ -200,9 +200,9 @@ test_connectivity() {
 # Check if process is running
 is_process_running() {
     process_name="$1"
-    
+
     log_trace "Checking if process is running: $process_name"
-    
+
     if pgrep "$process_name" >/dev/null 2>&1; then
         log_trace "Process is running: $process_name"
         return 0
@@ -215,12 +215,12 @@ is_process_running() {
 # Safely restart service
 safe_service_restart() {
     service_name="$1"
-    
+
     log_function_entry "safe_service_restart" "$service_name"
-    
+
     safe_execute "/etc/init.d/$service_name restart" \
-                 "Restart service: $service_name"
-    
+        "Restart service: $service_name"
+
     exit_code=$?
     log_function_exit "safe_service_restart" "$exit_code"
     return $exit_code
@@ -233,23 +233,23 @@ safe_service_restart() {
 # Load configuration file safely
 load_config() {
     config_file="$1"
-    
+
     log_function_entry "load_config" "$config_file"
-    
+
     if [ ! -f "$config_file" ]; then
         log_error "Configuration file not found: $config_file"
         log_function_exit "load_config" "1"
         return 1
     fi
-    
+
     if [ ! -r "$config_file" ]; then
         log_error "Configuration file not readable: $config_file"
         log_function_exit "load_config" "1"
         return 1
     fi
-    
+
     log_debug "Loading configuration: $config_file"
-    
+
     # Source the configuration file
     if . "$config_file"; then
         log_debug "Configuration loaded successfully: $config_file"
@@ -284,7 +284,7 @@ is_empty() {
 string_contains() {
     string="$1"
     substring="$2"
-    
+
     case "$string" in
         *"$substring"*) return 0 ;;
         *) return 1 ;;
@@ -316,7 +316,7 @@ setup_cleanup_handlers() {
 # Extract version from script
 get_script_version() {
     script_file="$1"
-    
+
     if [ -f "$script_file" ]; then
         grep '^SCRIPT_VERSION=' "$script_file" 2>/dev/null | head -1 | sed 's/.*="\(.*\)"/\1/'
     else
@@ -328,16 +328,16 @@ get_script_version() {
 version_compare() {
     version1="$1"
     version2="$2"
-    
+
     # Convert versions to comparable format
     v1=$(echo "$version1" | sed 's/[^0-9.]//g')
     v2=$(echo "$version2" | sed 's/[^0-9.]//g')
-    
+
     if [ "$v1" = "$v2" ]; then
-        return 0  # Equal
+        return 0 # Equal
     elif [ "$(printf '%s\n%s' "$v1" "$v2" | sort -V | head -n1)" = "$v1" ]; then
-        return 1  # v1 < v2
+        return 1 # v1 < v2
     else
-        return 2  # v1 > v2
+        return 2 # v1 > v2
     fi
 }

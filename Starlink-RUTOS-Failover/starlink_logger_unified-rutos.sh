@@ -56,7 +56,7 @@ else
     # Standard colors for consistent output (compatible with busybox)
     if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
         RED='\033[0;31m'
-        GREEN='\033[0;32m' 
+        GREEN='\033[0;32m'
         YELLOW='\033[1;33m'
         BLUE='\033[1;35m'
         CYAN='\033[0;36m'
@@ -64,7 +64,7 @@ else
     else
         RED="" GREEN="" YELLOW="" BLUE="" CYAN="" NC=""
     fi
-    
+
     # Built-in logging functions
     log_info() {
         timestamp=$(date '+%Y-%m-%d %H:%M:%S')
@@ -95,13 +95,13 @@ else
         timestamp=$(date '+%Y-%m-%d %H:%M:%S')
         printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$timestamp" "$1"
     }
-    
+
     # Initialize logging variables
     DRY_RUN="${DRY_RUN:-0}"
     RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
     DEBUG="${DEBUG:-0}"
     export DRY_RUN RUTOS_TEST_MODE DEBUG
-    
+
     # Built-in safe_execute function
     safe_execute() {
         cmd="$1"
@@ -169,43 +169,43 @@ fi
 # Enhanced troubleshooting and dry-run mode with demonstration
 if [ "${DRY_RUN:-0}" = "1" ] || [ "${DEBUG:-0}" = "1" ]; then
     log_step "=== TROUBLESHOOTING MODE: Demonstrating Starlink Logger Execution ==="
-    
+
     # Show configuration validation
     log_trace "Configuration validation demonstration"
     safe_execute "echo 'Validating CSV log file: $CSV_LOG'" "Check CSV log configuration"
     safe_execute "echo 'Validating JSON log file: $JSON_LOG'" "Check JSON log configuration"
-    
+
     # Show API communication
     log_trace "API communication demonstration"
     safe_execute "echo 'GRPC Command: $GRPCURL_CMD'" "Show GRPC command configuration"
     safe_execute "echo 'API endpoint: $STARLINK_IP:$STARLINK_PORT'" "Show API endpoint"
-    
+
     # Show GPS logging logic (if enabled)
     if [ "${ENABLE_GPS_LOGGING:-false}" = "true" ]; then
         log_trace "GPS logging demonstration"
         safe_execute "echo 'GPS logging enabled - would collect location data'" "GPS logging status"
         safe_execute "echo 'GPS log file: ${GPS_LOG:-not_set}'" "Show GPS log configuration"
     fi
-    
+
     # Show cellular logging logic (if enabled)
     if [ "${ENABLE_CELLULAR_LOGGING:-false}" = "true" ]; then
         log_trace "Cellular logging demonstration"
         safe_execute "echo 'Cellular logging enabled - would collect signal data'" "Cellular logging status"
         safe_execute "echo 'Cellular log file: ${CELLULAR_LOG:-not_set}'" "Show cellular log configuration"
     fi
-    
+
     # Show statistical aggregation logic (if enabled)
     if [ "${ENABLE_STATISTICAL_AGGREGATION:-false}" = "true" ]; then
         log_trace "Statistical aggregation demonstration"
         safe_execute "echo 'Statistical aggregation enabled - 60:1 data reduction'" "Aggregation status"
         safe_execute "echo 'Aggregated log file: ${AGGREGATED_LOG:-not_set}'" "Show aggregation log"
     fi
-    
+
     # Show data collection demonstration
     log_trace "Data collection demonstration"
     safe_execute "date" "Get current timestamp for logging cycle"
     safe_execute "echo 'Sample data collection cycle complete'" "Data collection status"
-    
+
     log_success "=== TROUBLESHOOTING COMPLETE: All major logging operations demonstrated ==="
     log_info "Script syntax and configuration validated - exiting safely in test mode"
     exit 0

@@ -79,7 +79,7 @@ if [ "${LIBRARY_LOADED:-0}" = "0" ]; then
     log_step() {
         printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
-    
+
     # Add missing TRACE function for fallback mode
     log_trace() {
         if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DEBUG:-0}" = "1" ]; then
@@ -561,9 +561,9 @@ test_script_debug_integration() {
         SCRIPTS_MISSING_DRYRUN=$((SCRIPTS_MISSING_DRYRUN + 1))
         dry_run_recommendation=$(generate_dry_run_recommendation "$script_name")
         ERROR_DETAILS="${ERROR_DETAILS}${dry_run_recommendation}"
-        
+
         # Create JSON result for missing dry-run support
-        cat > "/tmp/debug_integration_${script_name}_$$.json" <<EOF
+        cat >"/tmp/debug_integration_${script_name}_$$.json" <<EOF
 {
   "script_name": "$script_name",
   "script_path": "$script_path",
@@ -607,9 +607,9 @@ EOF
     # Initialize JSON result structure
     json_output_file="/tmp/debug_integration_${script_name}_$$.json"
     test_results_file="/tmp/test_results_${script_name}_$$.json"
-    
+
     # Start JSON structure
-    cat > "$json_output_file" <<EOF
+    cat >"$json_output_file" <<EOF
 {
   "script_name": "$script_name",
   "script_path": "$script_path",
@@ -628,9 +628,9 @@ EOF
     # Process each test configuration
     echo "$test_configs" | while IFS=: read -r test_num test_name env_vars test_description; do
         [ -z "$test_num" ] && continue
-        
+
         total_tests=$((total_tests + 1))
-        
+
         printf "\n${CYAN}── Test %s: %s ──${NC}\n" "$test_num" "$test_name"
         printf "${YELLOW}Environment: %s${NC}\n" "$env_vars"
         printf "${YELLOW}Description: %s${NC}\n" "$test_description"
@@ -638,7 +638,7 @@ EOF
         # Prepare output capture
         output_file="/tmp/debug_test_${script_name}_${test_num}_$$"
         error_file="/tmp/debug_error_${script_name}_${test_num}_$$"
-        
+
         # Determine timeout based on script type
         timeout_seconds=30
         if echo "$script_name" | grep -qE "(health-check|post-install-check|system-maintenance|comprehensive)" 2>/dev/null; then
@@ -648,59 +648,59 @@ EOF
         # Execute test with environment variables
         test_start_time=$(date '+%s')
         test_exit_code=0
-        
+
         printf "${BLUE}Running test...${NC}\n"
-        
+
         # Create test execution command with absolute paths
         script_abs_path="$(cd "$(dirname "$script_path")" && pwd)/$(basename "$script_path")"
         test_cmd="$env_vars timeout $timeout_seconds sh -x \"$script_abs_path\""
-        
+
         # Execute and capture output
         if ! eval "$test_cmd" >"$output_file" 2>"$error_file"; then
             test_exit_code=$?
         fi
-        
+
         test_end_time=$(date '+%s')
         test_duration=$((test_end_time - test_start_time))
-        
+
         # Analyze output
-        output_lines=$(wc -l < "$output_file" 2>/dev/null || echo 0)
-        error_lines=$(wc -l < "$error_file" 2>/dev/null || echo 0)
-        output_size=$(wc -c < "$output_file" 2>/dev/null || echo 0)
-        
+        output_lines=$(wc -l <"$output_file" 2>/dev/null || echo 0)
+        error_lines=$(wc -l <"$error_file" 2>/dev/null || echo 0)
+        output_size=$(wc -c <"$output_file" 2>/dev/null || echo 0)
+
         # Strip whitespace from metrics
         output_lines=$(echo "$output_lines" | tr -d ' \n\r')
         error_lines=$(echo "$error_lines" | tr -d ' \n\r')
         output_size=$(echo "$output_size" | tr -d ' \n\r')
-        
+
         # Analyze debug patterns in output
         debug_messages=$(grep -c "\[DEBUG\]" "$output_file" 2>/dev/null || echo 0)
         info_messages=$(grep -c "\[INFO\]" "$output_file" 2>/dev/null || echo 0)
         warning_messages=$(grep -c "\[WARNING\]" "$output_file" 2>/dev/null || echo 0)
         error_messages=$(grep -c "\[ERROR\]" "$output_file" 2>/dev/null || echo 0)
         step_messages=$(grep -c "\[STEP\]" "$output_file" 2>/dev/null || echo 0)
-        
+
         # Strip whitespace from message counts
         debug_messages=$(echo "$debug_messages" | tr -d ' \n\r')
         info_messages=$(echo "$info_messages" | tr -d ' \n\r')
         warning_messages=$(echo "$warning_messages" | tr -d ' \n\r')
         error_messages=$(echo "$error_messages" | tr -d ' \n\r')
         step_messages=$(echo "$step_messages" | tr -d ' \n\r')
-        
+
         # Extract exceptions and errors with line numbers
         exceptions_found=""
         if [ -s "$error_file" ]; then
             exceptions_found=$(grep -n -E "(error|Error|ERROR|exception|Exception|EXCEPTION|fail|Fail|FAIL)" "$error_file" 2>/dev/null | head -10 || echo "")
         fi
-        
+
         # Analyze shell trace for execution flow
         shell_trace_lines=$(grep -c "^+ " "$error_file" 2>/dev/null || echo 0)
         shell_trace_lines=$(echo "$shell_trace_lines" | tr -d ' \n\r')
-        
+
         # Determine test status
         test_status="passed"
         status_reasons=""
-        
+
         if [ "$test_exit_code" -ne 0 ]; then
             if [ "$test_exit_code" -eq 124 ]; then
                 test_status="timeout"
@@ -747,14 +747,14 @@ EOF
             esac
             passed_tests=$((passed_tests + 1))
         fi
-        
+
         # Count actual errors (not warnings)
         if [ "$error_messages" -gt 0 ] || [ -n "$exceptions_found" ]; then
             total_errors=$((total_errors + error_messages))
         fi
-        
+
         # Create JSON entry for this test
-        cat >> "$json_output_file" <<EOF
+        cat >>"$json_output_file" <<EOF
     {
       "test_number": $test_num,
       "test_name": "$test_name",
@@ -794,21 +794,21 @@ EOF
         printf "  Debug messages: %d\n" "$debug_messages"
         printf "  Shell trace lines: %d\n" "$shell_trace_lines"
         printf "  Duration: %ds\n" "$test_duration"
-        
+
         if [ -n "$status_reasons" ]; then
             printf "${YELLOW}  Issues:${NC}\n"
             printf "    - %s\n" "$status_reasons"
         fi
-        
+
         # Clean up temporary files
         rm -f "$output_file" "$error_file"
-        
+
         # Update counters in temp files for cross-subshell access
-        echo "$total_tests" > "/tmp/total_tests_$$"
-        echo "$passed_tests" > "/tmp/passed_tests_$$"
-        echo "$failed_tests" > "/tmp/failed_tests_$$"
-        echo "$total_errors" > "/tmp/total_errors_$$"
-        echo "$total_warnings" > "/tmp/total_warnings_$$"
+        echo "$total_tests" >"/tmp/total_tests_$$"
+        echo "$passed_tests" >"/tmp/passed_tests_$$"
+        echo "$failed_tests" >"/tmp/failed_tests_$$"
+        echo "$total_errors" >"/tmp/total_errors_$$"
+        echo "$total_warnings" >"/tmp/total_warnings_$$"
     done
 
     # Read final counters from temp files
@@ -817,9 +817,9 @@ EOF
     failed_tests=$(cat "/tmp/failed_tests_$$" 2>/dev/null || echo 0)
     total_errors=$(cat "/tmp/total_errors_$$" 2>/dev/null || echo 0)
     total_warnings=$(cat "/tmp/total_warnings_$$" 2>/dev/null || echo 0)
-    
+
     # Complete JSON structure
-    cat >> "$json_output_file" <<EOF
+    cat >>"$json_output_file" <<EOF
   ],
   "summary": {
     "total_tests": $total_tests,
@@ -845,10 +845,10 @@ EOF
     printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
     printf "Tests: %d/%d passed (%d%% success rate)\n" "$passed_tests" "$total_tests" "$((passed_tests * 100 / total_tests))"
     printf "Errors: %d, Warnings: %d\n" "$total_errors" "$total_warnings"
-    
+
     # Clean up temp files
     rm -f "/tmp/total_tests_$$" "/tmp/passed_tests_$$" "/tmp/failed_tests_$$" "/tmp/total_errors_$$" "/tmp/total_warnings_$$"
-    
+
     # Return status based on results
     if [ "$failed_tests" -eq 0 ]; then
         log_success "Debug integration tests passed for $script_name"
@@ -1248,11 +1248,11 @@ EOF
 # Generate comprehensive JSON report from individual test results
 generate_json_report() {
     JSON_REPORT_FILE="./rutos-debug-integration-results.json"
-    
+
     log_step "Generating comprehensive JSON report"
-    
+
     # Start main JSON structure
-    cat > "$JSON_REPORT_FILE" <<EOF
+    cat >"$JSON_REPORT_FILE" <<EOF
 {
   "debug_integration_test_report": {
     "meta": {
@@ -1275,28 +1275,28 @@ EOF
     # Collect individual JSON files
     json_files_found=0
     first_file=true
-    
+
     # Find all debug integration JSON files
     for json_file in /tmp/debug_integration_*_$$.json; do
         if [ -f "$json_file" ]; then
             json_files_found=$((json_files_found + 1))
-            
+
             # Add comma separator for all but first file
             if [ "$first_file" = "false" ]; then
-                echo "," >> "$JSON_REPORT_FILE"
+                echo "," >>"$JSON_REPORT_FILE"
             fi
             first_file=false
-            
+
             # Add the individual test result
-            cat "$json_file" >> "$JSON_REPORT_FILE"
-            
+            cat "$json_file" >>"$JSON_REPORT_FILE"
+
             # Clean up individual file
             rm -f "$json_file"
         fi
     done
-    
+
     # Close individual results array and add analysis
-    cat >> "$JSON_REPORT_FILE" <<EOF
+    cat >>"$JSON_REPORT_FILE" <<EOF
     ],
     "global_analysis": {
       "scripts_with_full_debug_support": $(find . -name "*-rutos.sh" -exec grep -l "DEBUG.*:-.*0\|if.*DEBUG.*=" {} \; 2>/dev/null | wc -l),
@@ -1310,12 +1310,12 @@ EOF
 
     # Generate recommendations based on findings
     recommendations_added=false
-    
+
     if [ "$SCRIPTS_MISSING_DRYRUN" -gt 0 ]; then
         if [ "$recommendations_added" = "true" ]; then
-            echo "," >> "$JSON_REPORT_FILE"
+            echo "," >>"$JSON_REPORT_FILE"
         fi
-        cat >> "$JSON_REPORT_FILE" <<EOF
+        cat >>"$JSON_REPORT_FILE" <<EOF
       {
         "priority": "high",
         "category": "missing_dry_run_support",
@@ -1326,12 +1326,12 @@ EOF
 EOF
         recommendations_added=true
     fi
-    
+
     if [ "$FAILED_SCRIPTS" -gt 0 ]; then
         if [ "$recommendations_added" = "true" ]; then
-            echo "," >> "$JSON_REPORT_FILE"
+            echo "," >>"$JSON_REPORT_FILE"
         fi
-        cat >> "$JSON_REPORT_FILE" <<EOF
+        cat >>"$JSON_REPORT_FILE" <<EOF
       {
         "priority": "medium",
         "category": "execution_failures",
@@ -1342,12 +1342,12 @@ EOF
 EOF
         recommendations_added=true
     fi
-    
+
     # Always add debug improvement recommendation
     if [ "$recommendations_added" = "true" ]; then
-        echo "," >> "$JSON_REPORT_FILE"
+        echo "," >>"$JSON_REPORT_FILE"
     fi
-    cat >> "$JSON_REPORT_FILE" <<EOF
+    cat >>"$JSON_REPORT_FILE" <<EOF
       {
         "priority": "low",
         "category": "debug_enhancement",
@@ -1358,7 +1358,7 @@ EOF
 EOF
 
     # Close JSON structure
-    cat >> "$JSON_REPORT_FILE" <<EOF
+    cat >>"$JSON_REPORT_FILE" <<EOF
     ]
   }
 }
@@ -1366,13 +1366,13 @@ EOF
 
     log_info "Comprehensive JSON report generated: $JSON_REPORT_FILE"
     log_info "Found and processed $json_files_found individual test results"
-    
+
     # Display key metrics
     printf "\n${BLUE}=== JSON REPORT SUMMARY ===${NC}\n"
     printf "Report file: %s\n" "$JSON_REPORT_FILE"
     printf "Individual tests processed: %d\n" "$json_files_found"
     printf "Overall success rate: %d%%\n" "$((PASSED_SCRIPTS * 100 / TOTAL_SCRIPTS))"
-    
+
     if [ "$COMPREHENSIVE_TEST" = "1" ]; then
         log_info "Use this JSON file for automated analysis of debug integration patterns"
         log_info "Each script contains detailed output metrics and error analysis"
@@ -1483,12 +1483,12 @@ main() {
             printf "${CYAN}[TRACE]${NC} [%s] Entering RUTOS Library Testing Mode\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
             printf "${CYAN}[TRACE]${NC} [%s] Library test parameters: RUTOS_LIBRARY_TEST=1, RUTOS_TEST_MODE=1, DEBUG=%s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "${DEBUG:-0}" >&2
         fi
-        
+
         log_info "🔬 RUTOS Library Implementation Testing Mode"
         printf "\n${CYAN}========================================${NC}\n"
         printf "${CYAN}Testing RUTOS Library Implementation${NC}\n"
         printf "${CYAN}========================================${NC}\n\n"
-        
+
         # Run the dedicated library testing script
         if [ -f "./scripts/test-rutos-library-implementation.sh" ]; then
             log_step "Running dedicated library implementation test"
@@ -1501,7 +1501,7 @@ main() {
             log_warning "Dedicated library test script not found, running basic validation"
             # Basic library testing for key scripts (POSIX sh compatible)
             test_scripts="./scripts/install-rutos.sh ./Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh ./Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh"
-            
+
             all_passed=0
             for script in $test_scripts; do
                 if [ -f "$script" ]; then
@@ -1511,23 +1511,23 @@ main() {
                     fi
                     if DRY_RUN=1 RUTOS_TEST_MODE=1 bash "$script" 2>&1 | grep -q "TRACE\|DEBUG"; then
                         log_success "✅ $(basename "$script") - Library logging detected"
-                        ((LIBRARY_LOADED_SCRIPTS++))
+                        ( (LIBRARY_LOADED_SCRIPTS++))
                     else
                         log_warning "⚠️  $(basename "$script") - Library implementation needs verification"
-                        ((FALLBACK_MODE_SCRIPTS++))
+                        ( (FALLBACK_MODE_SCRIPTS++))
                         all_passed=1
                     fi
                 else
                     log_warning "⚠️  Script not found: $script"
                 fi
             done
-            
+
             printf "\n${BLUE}========================================${NC}\n"
             printf "${BLUE}Library Testing Summary${NC}\n"
             printf "${BLUE}========================================${NC}\n"
             printf "📊 Library-enabled scripts: %d\n" "$LIBRARY_LOADED_SCRIPTS"
             printf "📊 Fallback mode scripts: %d\n" "$FALLBACK_MODE_SCRIPTS"
-            
+
             if [ $all_passed -eq 0 ]; then
                 log_success "🎉 All tested scripts show library implementation!"
                 printf "\n${GREEN}✅ Library implementation validation PASSED${NC}\n"
@@ -1535,7 +1535,7 @@ main() {
                 log_warning "⚠️  Some scripts may need library implementation review"
                 printf "\n${YELLOW}⚠️  Library implementation validation completed with warnings${NC}\n"
             fi
-            
+
             exit $all_passed
         fi
     fi
@@ -1594,7 +1594,7 @@ main() {
 
         # Generate reports for single script
         generate_error_report
-        
+
         # Generate JSON report if comprehensive testing was used
         if [ "$COMPREHENSIVE_TEST" = "1" ]; then
             generate_json_report
@@ -1682,7 +1682,7 @@ main() {
 
         # Step 4: Generate reports
         generate_error_report
-        
+
         # Generate JSON report if comprehensive testing was used
         if [ "$COMPREHENSIVE_TEST" = "1" ]; then
             generate_json_report

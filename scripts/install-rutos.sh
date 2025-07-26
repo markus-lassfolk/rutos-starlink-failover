@@ -45,15 +45,15 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
     # Create temporary directory for library
     TEMP_LIB_DIR="/tmp/rutos-install-lib-$$"
     mkdir -p "$TEMP_LIB_DIR" 2>/dev/null || true
-    
+
     # Try to download library components
     library_downloaded=0
     if command -v curl >/dev/null 2>&1; then
         printf "[INFO] Downloading RUTOS library system...\n"
-        if curl -fsSL "${BASE_URL}/scripts/lib/rutos-lib.sh" -o "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null && \
-           curl -fsSL "${BASE_URL}/scripts/lib/rutos-colors.sh" -o "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null && \
-           curl -fsSL "${BASE_URL}/scripts/lib/rutos-logging.sh" -o "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null && \
-           curl -fsSL "${BASE_URL}/scripts/lib/rutos-common.sh" -o "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
+        if curl -fsSL "${BASE_URL}/scripts/lib/rutos-lib.sh" -o "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
+            curl -fsSL "${BASE_URL}/scripts/lib/rutos-colors.sh" -o "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
+            curl -fsSL "${BASE_URL}/scripts/lib/rutos-logging.sh" -o "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
+            curl -fsSL "${BASE_URL}/scripts/lib/rutos-common.sh" -o "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
             # Set library path and load it
             RUTOS_LIB_PATH="$TEMP_LIB_DIR"
             if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
@@ -64,10 +64,10 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
         fi
     elif command -v wget >/dev/null 2>&1; then
         printf "[INFO] Downloading RUTOS library system...\n"
-        if wget -q "${BASE_URL}/scripts/lib/rutos-lib.sh" -O "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null && \
-           wget -q "${BASE_URL}/scripts/lib/rutos-colors.sh" -O "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null && \
-           wget -q "${BASE_URL}/scripts/lib/rutos-logging.sh" -O "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null && \
-           wget -q "${BASE_URL}/scripts/lib/rutos-common.sh" -O "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
+        if wget -q "${BASE_URL}/scripts/lib/rutos-lib.sh" -O "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
+            wget -q "${BASE_URL}/scripts/lib/rutos-colors.sh" -O "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
+            wget -q "${BASE_URL}/scripts/lib/rutos-logging.sh" -O "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
+            wget -q "${BASE_URL}/scripts/lib/rutos-common.sh" -O "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
             # Set library path and load it
             RUTOS_LIB_PATH="$TEMP_LIB_DIR"
             if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
@@ -77,17 +77,17 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
             fi
         fi
     fi
-    
+
     # Cleanup function for temporary library
     cleanup_temp_library() {
         if [ "$library_downloaded" = "1" ] && [ -d "$TEMP_LIB_DIR" ]; then
             rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true
         fi
     }
-    
+
     # Set cleanup trap
     trap cleanup_temp_library EXIT INT TERM
-    
+
     if [ "$LIBRARY_LOADED" = "0" ]; then
         printf "[WARNING] Could not download RUTOS library system, using fallback logging\n"
     fi
@@ -109,11 +109,11 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
 else
     # Fallback to legacy logging system for remote installations when library unavailable
     printf "[INFO] Using built-in fallback logging system\n"
-    
+
     # Built-in color detection (simplified for remote execution)
     if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
         RED='\033[0;31m'
-        GREEN='\033[0;32m' 
+        GREEN='\033[0;32m'
         YELLOW='\033[1;33m'
         BLUE='\033[1;35m'
         CYAN='\033[0;36m'
@@ -121,7 +121,7 @@ else
     else
         RED="" GREEN="" YELLOW="" BLUE="" CYAN="" NC=""
     fi
-    
+
     # Built-in logging functions
     log_info() {
         printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
@@ -143,13 +143,13 @@ else
             printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
         fi
     }
-    
+
     # Initialize logging variables
     DRY_RUN="${DRY_RUN:-0}"
-    RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"  
+    RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
     DEBUG="${DEBUG:-0}"
     export DRY_RUN RUTOS_TEST_MODE DEBUG
-    
+
     # Built-in safe_execute function
     safe_execute() {
         command="$1"
@@ -222,7 +222,7 @@ debug_exec() {
 safe_exec() {
     cmd="$1"
     description="$2"
-    
+
     # Use library function if available, otherwise use legacy implementation
     if command -v safe_execute >/dev/null 2>&1; then
         safe_execute "$cmd" "$description"

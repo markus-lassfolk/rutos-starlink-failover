@@ -25,7 +25,7 @@ rutos_init "check-variable-consistency-rutos.sh" "$SCRIPT_VERSION"
 check_variable_usage() {
     var_name="$1"
     description="$2"
-    
+
     log_function_entry "check_variable_usage" "$var_name, $description"
 
     log_step "Checking $description usage..."
@@ -41,7 +41,7 @@ check_variable_usage() {
             total_count=$((total_count + count))
         fi
         # Write to temp file to preserve count across subshell
-        echo "$total_count" > "/tmp/var_count_temp_$$"
+        echo "$total_count" >"/tmp/var_count_temp_$$"
     done
     # Read final count from temp file
     if [ -f "/tmp/var_count_temp_$$" ]; then
@@ -52,7 +52,7 @@ check_variable_usage() {
     log_success "Total $description occurrences: $total_count"
     # Return value by writing to temp file instead of echo to avoid output contamination
     echo "$total_count" >"/tmp/var_count_$$"
-    
+
     log_function_exit "check_variable_usage" "0"
 }
 
@@ -121,10 +121,10 @@ check_dry_run_consistency() {
             fi
         fi
         # Write counts to temp files to preserve across subshell
-        echo "$scripts_with_dry_run" > "/tmp/dry_run_count_$$"
-        echo "$scripts_with_capture" > "/tmp/capture_count_$$"
+        echo "$scripts_with_dry_run" >"/tmp/dry_run_count_$$"
+        echo "$scripts_with_capture" >"/tmp/capture_count_$$"
     done
-    
+
     # Read final counts from temp files
     if [ -f "/tmp/dry_run_count_$$" ]; then
         scripts_with_dry_run=$(cat "/tmp/dry_run_count_$$")
@@ -145,7 +145,7 @@ check_dry_run_consistency() {
     else
         log_info "No unified scripts with DRY_RUN found"
     fi
-    
+
     log_function_exit "check_dry_run_consistency" "0"
 }
 
@@ -159,7 +159,7 @@ check_common_mismatches() {
 
     for var in $common_vars; do
         count=$(find . -name "*.sh" -type f -exec grep -l "$var" {} \; 2>/dev/null | wc -l)
-        count=$(echo "$count" | tr -d ' \n\r')  # Strip whitespace
+        count=$(echo "$count" | tr -d ' \n\r') # Strip whitespace
         if [ "$count" -gt 0 ]; then
             log_debug "  $var: used in $count scripts"
         fi
@@ -173,17 +173,17 @@ check_common_mismatches() {
 demonstrate_command_tracing() {
     log_function_entry "demonstrate_command_tracing" ""
     log_step "Command Tracing Demonstration"
-    
+
     # Example 1: Regular command (no tracing)
     log_info "Example 1: Regular command execution (no tracing)"
     log_trace "About to execute regular command without safe_execute"
     ls -la /tmp >/dev/null 2>&1
     log_info "Command executed silently"
-    
+
     # Example 2: Using safe_execute with tracing
     log_info "Example 2: Using safe_execute() with full tracing"
     safe_execute "ls -la /tmp | head -5" "List temporary directory contents"
-    
+
     # Example 3: Variable change tracking
     log_info "Example 3: Variable change tracking"
     OLD_VALUE="initial"
@@ -191,13 +191,13 @@ demonstrate_command_tracing() {
     NEW_VALUE="updated"
     log_variable_change "DEMO_VAR" "$OLD_VALUE" "$NEW_VALUE"
     log_trace "Variable DEMO_VAR changed successfully to: $NEW_VALUE"
-    
+
     # Example 4: Command that would be dangerous in non-dry-run
     log_info "Example 4: Potentially dangerous command (safe in dry-run)"
     log_trace "Preparing to execute potentially dangerous file creation command"
     safe_execute "echo 'This would modify system files' > /tmp/demo_trace_$$" "Create demonstration file"
     log_trace "Dangerous command handling completed"
-    
+
     # Example 5: Multiple commands with different logging levels
     log_info "Example 5: Multiple commands with different verbosity"
     log_trace "Starting sequence of system information commands"
@@ -207,16 +207,16 @@ demonstrate_command_tracing() {
     log_trace "User check command completed"
     safe_execute "pwd" "Show current directory"
     log_trace "Directory check command completed"
-    
+
     # Example 6: Demonstrate function call tracing
     log_info "Example 6: Function call with traced execution"
     demo_traced_function "test parameter"
-    
+
     # Cleanup demonstration files
     log_trace "Beginning cleanup of demonstration files"
     safe_execute "rm -f /tmp/demo_trace_$$" "Clean up demonstration files"
     log_trace "Cleanup completed successfully"
-    
+
     log_function_exit "demonstrate_command_tracing" "0"
 }
 
@@ -224,10 +224,10 @@ demonstrate_command_tracing() {
 demo_traced_function() {
     param="$1"
     log_function_entry "demo_traced_function" "$param"
-    
+
     log_trace "Processing parameter: $param"
     log_trace "Simulating complex processing steps..."
-    
+
     # Simulate some processing
     if [ "$param" = "test parameter" ]; then
         log_trace "Parameter validation successful"
@@ -238,7 +238,7 @@ demo_traced_function() {
         log_trace "Parameter validation failed"
         result="error"
     fi
-    
+
     log_trace "Function processing complete, returning result: $result"
     log_function_exit "demo_traced_function" "0"
     return 0
@@ -252,7 +252,7 @@ main() {
     # Change to script directory for relative path searches
     cd "$(dirname "$0")/.." || exit 1
     log_debug "Working directory: $(pwd)"
-    
+
     # Demonstrate command tracing if requested
     if [ "${DEMO_TRACING:-0}" = "1" ]; then
         demonstrate_command_tracing
