@@ -47,51 +47,57 @@ check_variable_usage() {
     var_name="$1"
     description="$2"
 
-    printf "%b\n" "${BLUE}Checking %s usage...${NC}" "$description"
+    printf "${BLUE}Checking %s usage...${NC}\n" "$description"
 
     total_count=0
     # Use command substitution instead of pipe to avoid subshell
     for script in $(find . -name "*.sh" -type f 2>/dev/null); do
         count=$(grep -c "$var_name" "$script" 2>/dev/null || echo 0)
+        # Strip whitespace from count to prevent arithmetic errors
+        count=$(echo "$count" | tr -d ' \n\r')
         if [ "$count" -gt 0 ]; then
             printf "  %s: %d occurrences\n" "$script" "$count"
             total_count=$((total_count + count))
         fi
     done
 
-    printf "%b\n" "${GREEN}Total %s occurrences: %d${NC}\n" "$description" "$total_count"
+    printf "${GREEN}Total %s occurrences: %d${NC}\n" "$description" "$total_count"
     echo "$total_count"
 }
 
 # Check for specific inconsistencies
 check_grpcurl_consistency() {
-    printf "%b\n" "${YELLOW}=== GRPCURL Variable Consistency Check ===${NC}\n"
+    printf "${YELLOW}=== GRPCURL Variable Consistency Check ===${NC}\n"
 
     # Count usage of each variant
     grpcurl_cmd_count=$(check_variable_usage "GRPCURL_CMD" "GRPCURL_CMD")
     grpcurl_path_count=$(check_variable_usage "GRPCURL_PATH" "GRPCURL_PATH")
+    
+    # Strip whitespace from counts to prevent arithmetic errors
+    grpcurl_cmd_count=$(echo "$grpcurl_cmd_count" | tr -d ' \n\r')
+    grpcurl_path_count=$(echo "$grpcurl_path_count" | tr -d ' \n\r')
 
     # Analyze results
     if [ "$grpcurl_path_count" -gt 0 ] && [ "$grpcurl_cmd_count" -gt 0 ]; then
-        printf "%b\n" "${RED}CRITICAL: Mixed usage of GRPCURL_CMD and GRPCURL_PATH detected!${NC}"
-        printf "%b\n" "${YELLOW}Configuration files should export one consistent variable.${NC}"
-        printf "%b\n" "${YELLOW}Recommendation: Use GRPCURL_CMD (used %d times vs GRPCURL_PATH %d times)${NC}\n" "$grpcurl_cmd_count" "$grpcurl_path_count"
+        printf "${RED}CRITICAL: Mixed usage of GRPCURL_CMD and GRPCURL_PATH detected!${NC}\n"
+        printf "${YELLOW}Configuration files should export one consistent variable.${NC}\n"
+        printf "${YELLOW}Recommendation: Use GRPCURL_CMD (used %d times vs GRPCURL_PATH %d times)${NC}\n" "$grpcurl_cmd_count" "$grpcurl_path_count"
         return 1
     elif [ "$grpcurl_cmd_count" -gt 0 ]; then
-        printf "%b\n" "${GREEN}✓ Consistent usage of GRPCURL_CMD found${NC}\n"
+        printf "${GREEN}✓ Consistent usage of GRPCURL_CMD found${NC}\n"
         return 0
     elif [ "$grpcurl_path_count" -gt 0 ]; then
-        printf "%b\n" "${YELLOW}Found only GRPCURL_PATH usage - ensure config exports this variable${NC}\n"
+        printf "${YELLOW}Found only GRPCURL_PATH usage - ensure config exports this variable${NC}\n"
         return 0
     else
-        printf "%b\n" "${YELLOW}No GRPCURL variables found${NC}\n"
+        printf "${YELLOW}No GRPCURL variables found${NC}\n"
         return 0
     fi
 }
 
 # Check for DRY_RUN variable handling
 check_dry_run_consistency() {
-    printf "%b\n" "${YELLOW}=== DRY_RUN Variable Handling Check ===${NC}\n"
+    printf "${YELLOW}=== DRY_RUN Variable Handling Check ===${NC}\n"
 
     # Look for scripts that capture DRY_RUN before assignment
     scripts_with_capture=0
@@ -113,11 +119,11 @@ check_dry_run_consistency() {
     done
 
     if [ "$scripts_with_dry_run" -gt 0 ]; then
-        printf "\n%b\n" "${GREEN}Found %d scripts with DRY_RUN support${NC}" "$scripts_with_dry_run"
+        printf "\n${GREEN}Found %d scripts with DRY_RUN support${NC}\n" "$scripts_with_dry_run"
         if [ "$scripts_with_capture" -lt "$scripts_with_dry_run" ]; then
-            printf "%b\n" "${YELLOW}%d scripts may have DRY_RUN debug display issues${NC}\n" "$((scripts_with_dry_run - scripts_with_capture))"
+            printf "${YELLOW}%d scripts may have DRY_RUN debug display issues${NC}\n" "$((scripts_with_dry_run - scripts_with_capture))"
         else
-            printf "%b\n" "${GREEN}All scripts properly handle DRY_RUN debug output${NC}\n"
+            printf "${GREEN}All scripts properly handle DRY_RUN debug output${NC}\n"
         fi
     else
         printf "%b\n" "${BLUE}No unified scripts with DRY_RUN found${NC}\n"

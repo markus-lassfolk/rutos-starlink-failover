@@ -355,6 +355,11 @@ check_cron_configuration() {
     monitor_entries=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     logger_entries=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
+    
+    # Strip whitespace from counts to prevent arithmetic errors
+    monitor_entries=$(echo "$monitor_entries" | tr -d ' \n\r')
+    logger_entries=$(echo "$logger_entries" | tr -d ' \n\r')
+    api_check_entries=$(echo "$api_check_entries" | tr -d ' \n\r')
 
     total_entries=$((monitor_entries + logger_entries + api_check_entries))
 
@@ -430,6 +435,8 @@ check_cron_configuration() {
 
     # Check for commented out entries (from old install scripts)
     commented_entries=$(grep -c "# COMMENTED BY.*starlink" "$CRON_FILE" 2>/dev/null || echo "0")
+    # Strip whitespace from count to prevent arithmetic errors
+    commented_entries=$(echo "$commented_entries" | tr -d ' \n\r')
     if [ "$commented_entries" -gt 0 ]; then
         show_health_status "warning" "Commented Entries" "Found $commented_entries commented entries (cleanup recommended)"
         increment_counter "warning"
@@ -1368,14 +1375,15 @@ test_script_execution() {
 check_system_log_errors() {
     debug_func "check_system_log_errors"
     check_name="$1"
-    pattern="${2:-starlink.*error|parameter.*not set|failed.*load|command.*not found}"
+    # Updated pattern to match our actual error formats
+    pattern="${2:-\[ERROR\].*starlink|\[ERROR\].*Failed to fetch|\[ERROR\].*Failed to get|starlink.*error|parameter.*not set|failed.*load|command.*not found}"
     max_age_hours="${3:-2}" # Default 2 hours
 
     log_debug "Checking system logs for errors: $pattern"
 
     # Use logread if available (RUTOS), otherwise check syslog files
     if command -v logread >/dev/null 2>&1; then
-        # Use logread to check system logs
+        # Use logread to check system logs (look for [ERROR] messages)
         recent_errors=$(logread 2>/dev/null | grep -iE "$pattern" | tail -20 2>/dev/null || echo "")
     elif [ -f "/var/log/messages" ]; then
         # Check /var/log/messages for recent errors
@@ -1384,9 +1392,16 @@ check_system_log_errors() {
         # Check /var/log/syslog for recent errors
         recent_errors=$(find /var/log/syslog -mmin -$((max_age_hours * 60)) -exec grep -iE "$pattern" {} \; 2>/dev/null | tail -20 || echo "")
     else
-        show_health_status "warning" "$check_name" "No system logs available for error checking"
-        increment_counter "warning"
-        return 1
+        # Also check for any recent starlink log files
+        if [ -d "/var/log/starlink" ]; then
+            recent_errors=$(find /var/log/starlink -name "*.log" -mmin -$((max_age_hours * 60)) -exec grep -iE "$pattern" {} \; 2>/dev/null | tail -20 || echo "")
+        fi
+        
+        if [ -z "$recent_errors" ]; then
+            show_health_status "warning" "$check_name" "No system logs available for error checking"
+            increment_counter "warning"
+            return 1
+        fi
     fi
 
     if [ -n "$recent_errors" ]; then
@@ -1403,6 +1418,54 @@ check_system_log_errors() {
     show_health_status "healthy" "$check_name" "No recent errors found in system logs"
     increment_counter "healthy"
     return 0
+}
+
+# Function to test actual runtime functionality
+check_runtime_functionality() {
+    debug_func "check_runtime_functionality"
+    
+    log_debug "Testing actual runtime functionality"
+
+    # Test if grpcurl can actually connect to Starlink
+    if [ -n "${GRPCURL_CMD:-}" ] && [ -n "${STARLINK_IP:-}" ] && [ -n "${STARLINK_PORT:-}" ]; then
+        log_debug "Testing actual grpcurl connection to $STARLINK_IP:$STARLINK_PORT"
+        
+        # Try to get device info with a short timeout
+        if timeout 5 "$GRPCURL_CMD" -plaintext -d '{}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
+            show_health_status "healthy" "Starlink Runtime API" "grpcurl successfully connected to Starlink device"
+            increment_counter "healthy"
+        else
+            # This is the actual error that's happening!
+            show_health_status "critical" "Starlink Runtime API" "grpcurl cannot connect to Starlink device (this explains script failures)"
+            increment_counter "critical"
+            log_debug "grpcurl connection test: FAILED - this is why monitor/logger scripts are failing"
+        fi
+    else
+        show_health_status "warning" "Starlink Runtime API" "Missing GRPCURL_CMD or Starlink connection variables"
+        increment_counter "warning"
+    fi
+
+    # Test if we can execute the monitor script with real connection
+    if [ -x "${MAIN_MONITOR:-/usr/local/starlink-monitor/scripts/starlink_monitor_unified-rutos.sh}" ]; then
+        log_debug "Testing monitor script with actual runtime execution"
+        
+        # Run the monitor in test mode but with real connection
+        monitor_output=$(timeout 10 "$MAIN_MONITOR" 2>&1 || echo "timeout_or_error")
+        
+        if echo "$monitor_output" | grep -q "\[ERROR\].*Failed to fetch"; then
+            show_health_status "critical" "Monitor Runtime Status" "Monitor script failing with connection errors"
+            increment_counter "critical"
+            log_debug "Monitor runtime test: FAILED - connection errors detected"
+        elif echo "$monitor_output" | grep -q "timeout_or_error"; then
+            show_health_status "warning" "Monitor Runtime Status" "Monitor script timeout or execution error"
+            increment_counter "warning"
+            log_debug "Monitor runtime test: TIMEOUT"
+        else
+            show_health_status "healthy" "Monitor Runtime Status" "Monitor script executing successfully"
+            increment_counter "healthy"
+            log_debug "Monitor runtime test: PASSED"
+        fi
+    fi
 }
 
 # Function to show final health summary
@@ -1593,6 +1656,7 @@ main() {
             log_debug "MONITORING MODE: Running monitoring system checks only"
             check_monitoring_health
             test_script_execution
+            check_runtime_functionality
             check_system_log_errors "System Log Errors"
             ;;
         "--config")
@@ -1674,6 +1738,7 @@ main() {
             check_configuration_health
             check_monitoring_health
             test_script_execution
+            check_runtime_functionality
             check_system_log_errors "System Log Errors"
             check_logger_sample_tracking
             check_firmware_persistence
