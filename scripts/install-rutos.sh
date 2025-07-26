@@ -43,19 +43,58 @@ fi
 
 # Remote installation mode: download library to temp location and use it
 if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
-    # Create temporary directory for library
+    # Create temporary directory for library with fallback options
     TEMP_LIB_DIR="/tmp/rutos-install-lib-$$"
-    mkdir -p "$TEMP_LIB_DIR" 2>/dev/null || true
+
+    # Try different temp directories if /tmp is not available
+    if ! mkdir -p "$TEMP_LIB_DIR" 2>/dev/null; then
+        TEMP_LIB_DIR="/var/tmp/rutos-install-lib-$$"
+        if ! mkdir -p "$TEMP_LIB_DIR" 2>/dev/null; then
+            TEMP_LIB_DIR="./rutos-install-lib-$$"
+            if ! mkdir -p "$TEMP_LIB_DIR" 2>/dev/null; then
+                printf "[ERROR] Cannot create temporary directory for library download\n" >&2
+                TEMP_LIB_DIR=""
+            fi
+        fi
+    fi
+
+    # Only proceed if we have a temp directory
+    if [ -n "$TEMP_LIB_DIR" ] && [ -d "$TEMP_LIB_DIR" ]; then
+        # Check if temp directory is writable
+        if ! touch "$TEMP_LIB_DIR/test_write" 2>/dev/null; then
+            printf "[ERROR] Temporary directory $TEMP_LIB_DIR is not writable\n" >&2
+            # Bootstrap cleanup before DRY_RUN variable available
+            rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true  # VALIDATION_SKIP_DRY_RUN
+            TEMP_LIB_DIR=""
+        else
+            # Bootstrap cleanup before DRY_RUN variable available
+            rm -f "$TEMP_LIB_DIR/test_write" 2>/dev/null || true  # VALIDATION_SKIP_DRY_RUN
+        fi
+    fi
 
     # Try to download library components
     library_downloaded=0
-    if command -v curl >/dev/null 2>&1; then
-        printf "[INFO] Downloading RUTOS library system...\n"
-        # VALIDATION_SKIP_SAFE_EXECUTE: Bootstrap commands before safe_execute is available
-        if curl -fsSL "${BASE_URL}/scripts/lib/rutos-lib.sh" -o "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
-            curl -fsSL "${BASE_URL}/scripts/lib/rutos-colors.sh" -o "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
-            curl -fsSL "${BASE_URL}/scripts/lib/rutos-logging.sh" -o "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
-            curl -fsSL "${BASE_URL}/scripts/lib/rutos-common.sh" -o "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
+    if [ -n "$TEMP_LIB_DIR" ] && command -v curl >/dev/null 2>&1; then
+        printf "[INFO] Downloading RUTOS library system to %s...\n" "$TEMP_LIB_DIR"
+        printf "[DEBUG] Base URL: %s\n" "$BASE_URL" >&2
+
+        # Download with better error handling
+        download_success=1
+        for lib_file in "rutos-lib.sh" "rutos-colors.sh" "rutos-logging.sh" "rutos-common.sh"; do
+            download_url="${BASE_URL}/scripts/lib/${lib_file}"
+            printf "[DEBUG] Downloading: %s\n" "$download_url" >&2
+
+            # Bootstrap curl command before safe_execute is available
+            if ! curl -fsSL "$download_url" -o "$TEMP_LIB_DIR/$lib_file"; then  # VALIDATION_SKIP_SAFE_EXECUTE
+                printf "[ERROR] Failed to download %s from %s\n" "$lib_file" "$download_url" >&2
+                download_success=0
+                break
+            else
+                printf "[DEBUG] Successfully downloaded %s (%s bytes)\n" "$lib_file" "$(wc -c <"$TEMP_LIB_DIR/$lib_file" 2>/dev/null || echo 'unknown')" >&2
+            fi
+        done
+
+        if [ "$download_success" = "1" ]; then
             # Set library path and load it
             # shellcheck disable=SC2034  # Variable used by library loading system
             RUTOS_LIB_PATH="$TEMP_LIB_DIR"
@@ -64,15 +103,31 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
                 LIBRARY_LOADED=1
                 library_downloaded=1
                 printf "[INFO] RUTOS library system downloaded and loaded successfully\n"
+            else
+                printf "[ERROR] Failed to load downloaded RUTOS library\n" >&2
             fi
         fi
-    elif command -v wget >/dev/null 2>&1; then
-        printf "[INFO] Downloading RUTOS library system...\n"
-        # VALIDATION_SKIP_SAFE_EXECUTE: Bootstrap commands before safe_execute is available
-        if wget -q "${BASE_URL}/scripts/lib/rutos-lib.sh" -O "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
-            wget -q "${BASE_URL}/scripts/lib/rutos-colors.sh" -O "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
-            wget -q "${BASE_URL}/scripts/lib/rutos-logging.sh" -O "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
-            wget -q "${BASE_URL}/scripts/lib/rutos-common.sh" -O "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
+    elif [ -n "$TEMP_LIB_DIR" ] && command -v wget >/dev/null 2>&1; then
+        printf "[INFO] Downloading RUTOS library system to %s...\n" "$TEMP_LIB_DIR"
+        printf "[DEBUG] Base URL: %s\n" "$BASE_URL" >&2
+
+        # Download with better error handling
+        download_success=1
+        for lib_file in "rutos-lib.sh" "rutos-colors.sh" "rutos-logging.sh" "rutos-common.sh"; do
+            download_url="${BASE_URL}/scripts/lib/${lib_file}"
+            printf "[DEBUG] Downloading: %s\n" "$download_url" >&2
+
+            # Bootstrap wget command before safe_execute is available
+            if ! wget -q "$download_url" -O "$TEMP_LIB_DIR/$lib_file"; then  # VALIDATION_SKIP_SAFE_EXECUTE
+                printf "[ERROR] Failed to download %s from %s\n" "$lib_file" "$download_url" >&2
+                download_success=0
+                break
+            else
+                printf "[DEBUG] Successfully downloaded %s (%s bytes)\n" "$lib_file" "$(wc -c <"$TEMP_LIB_DIR/$lib_file" 2>/dev/null || echo 'unknown')" >&2
+            fi
+        done
+
+        if [ "$download_success" = "1" ]; then
             # Set library path and load it
             # shellcheck disable=SC2034  # Variable used by library loading system
             RUTOS_LIB_PATH="$TEMP_LIB_DIR"
@@ -81,7 +136,15 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
                 LIBRARY_LOADED=1
                 library_downloaded=1
                 printf "[INFO] RUTOS library system downloaded and loaded successfully\n"
+            else
+                printf "[ERROR] Failed to load downloaded RUTOS library\n" >&2
             fi
+        fi
+    else
+        if [ -z "$TEMP_LIB_DIR" ]; then
+            printf "[ERROR] No writable temporary directory available for library download\n" >&2
+        else
+            printf "[ERROR] No download tool available (curl or wget required)\n" >&2
         fi
     fi
 
