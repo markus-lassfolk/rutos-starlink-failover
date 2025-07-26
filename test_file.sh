@@ -19,11 +19,11 @@ fi
 main() {
     # Simple function entry/exit for debugging (minimal pattern)
     [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] ENTER: main()\n" >&2
-    
+
     # Simple test script
     printf "Test file v%s\n" "$SCRIPT_VERSION"
     printf "Test completed successfully\n"
-    
+
     [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] EXIT: main() -> 0\n" >&2
     return 0
 }
