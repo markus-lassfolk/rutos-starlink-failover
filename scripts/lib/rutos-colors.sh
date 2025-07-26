@@ -26,8 +26,17 @@ NC='\033[0m'        # No Color (reset)
 
 # Initialize colors based on terminal capabilities
 init_colors() {
-    # RUTOS-compatible color detection
-    if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    # Auto-set TERM if not defined (helps with WSL and minimal environments)
+    if [ -z "${TERM:-}" ] && [ -t 1 ]; then
+        export TERM=xterm
+    fi
+
+    # Enhanced RUTOS-compatible color detection
+    # Enable colors if:
+    # 1. We have a terminal AND proper TERM, OR
+    # 2. We have a good TERM setting (even if tty test fails in some environments)
+    if { [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; } || \
+       { [ "${TERM:-}" = "xterm" ] || [ "${TERM:-}" = "xterm-256color" ] || [ "${TERM:-}" = "screen" ]; } && [ "${NO_COLOR:-}" != "1" ]; then
         # Colors enabled - keep the definitions above
         return 0
     else

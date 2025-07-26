@@ -270,6 +270,7 @@ load_config() {
 trim_whitespace() {
     string="$1"
     # Remove leading and trailing whitespace
+    # shellcheck disable=SC2001 # sed is more reliable than parameter expansion for complex whitespace
     echo "$string" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
@@ -330,7 +331,9 @@ version_compare() {
     version2="$2"
 
     # Convert versions to comparable format
+    # shellcheck disable=SC2001 # sed is more reliable for complex character removal in busybox
     v1=$(echo "$version1" | sed 's/[^0-9.]//g')
+    # shellcheck disable=SC2001 # sed is more reliable for complex character removal in busybox
     v2=$(echo "$version2" | sed 's/[^0-9.]//g')
 
     if [ "$v1" = "$v2" ]; then

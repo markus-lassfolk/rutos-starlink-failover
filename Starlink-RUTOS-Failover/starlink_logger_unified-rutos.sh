@@ -25,101 +25,22 @@ set -eu
 SCRIPT_VERSION="2.7.0"
 # Note: Not using readonly to allow library initialization
 
-# Try to load RUTOS library system for enhanced logging and utilities
-# Check multiple possible locations (development vs deployment)
-LIBRARY_LOADED=0
-for lib_path in \
-    "$(dirname "$0")/../scripts/lib/rutos-lib.sh" \
-    "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh" \
-    "$(dirname "$0")/lib/rutos-lib.sh"; do
-    if [ -f "$lib_path" ]; then
-        if . "$lib_path" 2>/dev/null; then
-            LIBRARY_LOADED=1
-            break
-        fi
-    fi
-done
-
-# Initialize logging system
-if [ "$LIBRARY_LOADED" = "1" ]; then
-    # Use RUTOS library system for enhanced logging
-    # Enable demo execution in test mode if debugging is requested
-    if [ "${DEBUG:-0}" = "1" ]; then
-        export ALLOW_TEST_EXECUTION=1
-        export DEMO_TRACING=1
-    fi
-    rutos_init_portable "starlink_logger_unified-rutos.sh" "$SCRIPT_VERSION"
-    log_debug "RUTOS library system loaded for enhanced data logging"
-    # Colors are already initialized by the library
-else
-    # Fallback to built-in logging system - only define colors if library not loaded
-    # Standard colors for consistent output (compatible with busybox)
-    if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-        RED='\033[0;31m'
-        GREEN='\033[0;32m'
-        YELLOW='\033[1;33m'
-        BLUE='\033[1;35m'
-        CYAN='\033[0;36m'
-        NC='\033[0m'
-    else
-        RED="" GREEN="" YELLOW="" BLUE="" CYAN="" NC=""
-    fi
-
-    # Built-in logging functions
-    log_info() {
-        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        printf "${GREEN}[INFO]${NC} [%s] %s\n" "$timestamp" "$1"
-        logger -t "${LOG_TAG:-StarlinkLogger}" -p user.info "$1" 2>/dev/null || true
-    }
-    log_warning() {
-        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$timestamp" "$1" >&2
-        logger -t "${LOG_TAG:-StarlinkLogger}" -p user.warning "$1" 2>/dev/null || true
-    }
-    log_error() {
-        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        printf "${RED}[ERROR]${NC} [%s] %s\n" "$timestamp" "$1" >&2
-        logger -t "${LOG_TAG:-StarlinkLogger}" -p user.err "$1" 2>/dev/null || true
-    }
-    log_debug() {
-        if [ "${DEBUG:-0}" = "1" ]; then
-            timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-            printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$timestamp" "$1" >&2
-        fi
-    }
-    log_step() {
-        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        printf "${BLUE}[STEP]${NC} [%s] %s\n" "$timestamp" "$1"
-    }
-    log_success() {
-        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$timestamp" "$1"
-    }
-
-    # Initialize logging variables
-    DRY_RUN="${DRY_RUN:-0}"
-    RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-    DEBUG="${DEBUG:-0}"
-    export DRY_RUN RUTOS_TEST_MODE DEBUG
-
-    # Built-in safe_execute function
-    safe_execute() {
-        cmd="$1"
-        description="$2"
-        log_debug "Executing: $cmd"
-        if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-            log_warning "[DRY-RUN] Would execute: $description"
-            return 0
-        fi
-        if eval "$cmd" >/dev/null 2>&1; then
-            log_debug "Success: $description"
-            return 0
-        else
-            log_error "Failed: $description"
-            return 1
-        fi
-    }
+# CRITICAL: Load RUTOS library system (REQUIRED)
+if ! . "$(dirname "$0")/../scripts/lib/rutos-lib.sh" 2>/dev/null && \
+   ! . "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh" 2>/dev/null && \
+   ! . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
+    # CRITICAL ERROR: RUTOS library not found - this script requires the library system
+    printf "CRITICAL ERROR: RUTOS library system not found!\n" >&2
+    printf "Expected locations:\n" >&2
+    printf "  - $(dirname "$0")/../scripts/lib/rutos-lib.sh\n" >&2
+    printf "  - /usr/local/starlink-monitor/scripts/lib/rutos-lib.sh\n" >&2
+    printf "  - $(dirname "$0")/lib/rutos-lib.sh\n" >&2
+    printf "\nThis script requires the RUTOS library for proper operation.\n" >&2
+    exit 1
 fi
+
+# CRITICAL: Initialize script with RUTOS library features (REQUIRED)
+rutos_init "starlink_logger_unified-rutos.sh" "$SCRIPT_VERSION"
 
 log_info "Starting Starlink Logger v$SCRIPT_VERSION"
 
