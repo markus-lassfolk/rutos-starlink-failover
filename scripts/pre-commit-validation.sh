@@ -101,7 +101,7 @@ MINOR_ISSUES=0
 AUTONOMOUS_MODE=0
 # shellcheck disable=SC2034  # Reserved for future output file functionality
 AUTONOMOUS_OUTPUT_FILE=""
-AUTONOMOUS_ISSUES=()
+AUTONOMOUS_ISSUES=""
 
 # Output filtering variables
 SHOW_FIRST=""
