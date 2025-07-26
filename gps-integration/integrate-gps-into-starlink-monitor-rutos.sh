@@ -92,13 +92,13 @@ GPS_ANALYZER_SCRIPT="./gps-integration/gps-location-analyzer-rutos.sh"
 # Show dry-run warning
 show_dry_run_warning() {
     if [ "$DRY_RUN" = "1" ]; then
-        printf "\n${YELLOW}========================================${NC}\n"
-        printf "${YELLOW}           DRY-RUN MODE ENABLED         ${NC}\n"
-        printf "${YELLOW}========================================${NC}\n"
-        printf "${YELLOW}This script will show what changes would be made${NC}\n"
-        printf "${YELLOW}without actually modifying any files.${NC}\n"
-        printf "${YELLOW}To execute real changes, run with: DRY_RUN=0${NC}\n"
-        printf "${YELLOW}========================================${NC}\n\n"
+        printf "\n%s========================================%s\n" "$YELLOW" "$NC"
+        printf "%s           DRY-RUN MODE ENABLED         %s\n" "$YELLOW" "$NC"
+        printf "%s========================================%s\n" "$YELLOW" "$NC"
+        printf "%sThis script will show what changes would be made%s\n" "$YELLOW" "$NC"
+        printf "%swithout actually modifying any files.%s\n" "$YELLOW" "$NC"
+        printf "%sTo execute real changes, run with: DRY_RUN=0%s\n" "$YELLOW" "$NC"
+        printf "%s========================================%s\n\n" "$YELLOW" "$NC"
     fi
 }
 
@@ -203,7 +203,7 @@ GPS_DATA_DIR=\"\$LOG_DIR/gps\"                 # GPS data storage directory
 
     if [ "$DRY_RUN" = "1" ]; then
         log_info "DRY-RUN: Would add GPS configuration to $CONFIG_FILE"
-        printf "\n${CYAN}Configuration to be added:${NC}\n"
+        printf "\n%sConfiguration to be added:%s\n" "$CYAN" "$NC"
         echo "$gps_config"
     else
         # Check if GPS configuration already exists
@@ -227,65 +227,65 @@ integrate_gps_logging() {
     fi
 
     # Integration strategy for logger script
-    integration_code='
+    integration_code="
 # GPS data collection for logging
 collect_gps_coordinates() {
-    if [ "$GPS_ENABLED" = "true" ]; then
-        debug_log "Collecting GPS coordinates for logging"
+    if [ \"\$GPS_ENABLED\" = \"true\" ]; then
+        debug_log \"Collecting GPS coordinates for logging\"
         
         # Get current GPS coordinates using our collector
-        if [ -x "$GPS_COLLECTOR_SCRIPT" ]; then
-            gps_output=$("$GPS_COLLECTOR_SCRIPT" --single-reading --format=compact --config="$CONFIG_FILE" 2>/dev/null || echo "")
+        if [ -x \"\$GPS_COLLECTOR_SCRIPT\" ]; then
+            gps_output=\$(\"\$GPS_COLLECTOR_SCRIPT\" --single-reading --format=compact --config=\"\$CONFIG_FILE\" 2>/dev/null || echo \"\")
             
-            if [ -n "$gps_output" ]; then
+            if [ -n \"\$gps_output\" ]; then
                 # Extract coordinates from GPS output
                 # Expected format: GPS: source=rutos, lat=59.8586, lon=17.6389, alt=45m, fix=1, acc=1.2m, sats=12, speed=0km/h
-                gps_lat=$(echo "$gps_output" | sed -n '\''s/.*lat=\([0-9\.-]*\).*/\1/p'\'')
-                gps_lon=$(echo "$gps_output" | sed -n '\''s/.*lon=\([0-9\.-]*\).*/\1/p'\'')
-                gps_speed=$(echo "$gps_output" | sed -n '\''s/.*speed=\([0-9\.-]*\)km\/h.*/\1/p'\'')
-                gps_accuracy=$(echo "$gps_output" | sed -n '\''s/.*acc=\([0-9\.-]*\)m.*/\1/p'\'')
-                gps_source=$(echo "$gps_output" | sed -n '\''s/.*source=\([a-z]*\).*/\1/p'\'')
+                gps_lat=\$(echo \"\$gps_output\" | sed -n \"s/.*lat=\\([0-9\\.-]*\\).*/\\1/p\")
+                gps_lon=\$(echo \"\$gps_output\" | sed -n \"s/.*lon=\\([0-9\\.-]*\\).*/\\1/p\")
+                gps_speed=\$(echo \"\$gps_output\" | sed -n \"s/.*speed=\\([0-9\\.-]*\\)km\\/h.*/\\1/p\")
+                gps_accuracy=\$(echo \"\$gps_output\" | sed -n \"s/.*acc=\\([0-9\\.-]*\\)m.*/\\1/p\")
+                gps_source=\$(echo \"\$gps_output\" | sed -n \"s/.*source=\\([a-z]*\\).*/\\1/p\")
                 
-                debug_log "GPS COORDINATES: lat=$gps_lat, lon=$gps_lon, speed=$gps_speed, accuracy=$gps_accuracy, source=$gps_source"
+                debug_log \"GPS COORDINATES: lat=\$gps_lat, lon=\$gps_lon, speed=\$gps_speed, accuracy=\$gps_accuracy, source=\$gps_source\"
                 
                 # Set GPS coordinates for CSV logging (fallback to N/A if missing)
-                GPS_LATITUDE="${gps_lat:-N/A}"
-                GPS_LONGITUDE="${gps_lon:-N/A}" 
-                GPS_SPEED="${gps_speed:-N/A}"
-                GPS_ACCURACY="${gps_accuracy:-N/A}"
-                GPS_SOURCE="${gps_source:-N/A}"
+                GPS_LATITUDE=\"\${gps_lat:-N/A}\"
+                GPS_LONGITUDE=\"\${gps_lon:-N/A}\" 
+                GPS_SPEED=\"\${gps_speed:-N/A}\"
+                GPS_ACCURACY=\"\${gps_accuracy:-N/A}\"
+                GPS_SOURCE=\"\${gps_source:-N/A}\"
             else
-                debug_log "GPS COORDINATES: No GPS data available"
-                GPS_LATITUDE="N/A"
-                GPS_LONGITUDE="N/A"
-                GPS_SPEED="N/A" 
-                GPS_ACCURACY="N/A"
-                GPS_SOURCE="N/A"
+                debug_log \"GPS COORDINATES: No GPS data available\"
+                GPS_LATITUDE=\"N/A\"
+                GPS_LONGITUDE=\"N/A\"
+                GPS_SPEED=\"N/A\" 
+                GPS_ACCURACY=\"N/A\"
+                GPS_SOURCE=\"N/A\"
             fi
         else
-            debug_log "GPS COORDINATES: GPS collector not available: $GPS_COLLECTOR_SCRIPT"
-            GPS_LATITUDE="N/A"
-            GPS_LONGITUDE="N/A"
-            GPS_SPEED="N/A"
-            GPS_ACCURACY="N/A" 
-            GPS_SOURCE="N/A"
+            debug_log \"GPS COORDINATES: GPS collector not available: \$GPS_COLLECTOR_SCRIPT\"
+            GPS_LATITUDE=\"N/A\"
+            GPS_LONGITUDE=\"N/A\"
+            GPS_SPEED=\"N/A\"
+            GPS_ACCURACY=\"N/A\" 
+            GPS_SOURCE=\"N/A\"
         fi
     else
-        debug_log "GPS COORDINATES: GPS collection disabled"
-        GPS_LATITUDE="N/A"
-        GPS_LONGITUDE="N/A"
-        GPS_SPEED="N/A"
-        GPS_ACCURACY="N/A"
-        GPS_SOURCE="N/A"
+        debug_log \"GPS COORDINATES: GPS collection disabled\"
+        GPS_LATITUDE=\"N/A\"
+        GPS_LONGITUDE=\"N/A\"
+        GPS_SPEED=\"N/A\"
+        GPS_ACCURACY=\"N/A\"
+        GPS_SOURCE=\"N/A\"
     fi
-}'
+}"
 
     if [ "$DRY_RUN" = "1" ]; then
         log_info "DRY-RUN: Would integrate GPS functions into starlink_logger_unified-rutos.sh"
-        printf "\n${CYAN}Logger Integration code to be added:${NC}\n"
+        printf "\n%sLogger Integration code to be added:%s\n" "$CYAN" "$NC"
         echo "$integration_code"
 
-        printf "\n${CYAN}Integration points for Logger Script:${NC}\n"
+        printf "\n%sIntegration points for Logger Script:%s\n" "$CYAN" "$NC"
         echo "1. Add GPS collection function after enhanced metrics extraction"
         echo "2. Modify CSV header to include GPS coordinates"
         echo "3. Modify CSV data output to include GPS coordinates"
@@ -642,9 +642,9 @@ EOF
     log_info "Manual integration instructions: $instructions_file"
 
     if [ "$DRY_RUN" = "1" ]; then
-        printf "\n${CYAN}Manual integration instructions preview:${NC}\n"
+        printf "\n%sManual integration instructions preview:%s\n" "$CYAN" "$NC"
         head -30 "$instructions_file"
-        printf "\n${CYAN}... (full instructions in file) ...${NC}\n"
+        printf "\n%s... (full instructions in file) ...%s\n" "$CYAN" "$NC"
     else
         # Copy to permanent location
         cp "$instructions_file" "/etc/starlink-monitor/GPS_INTEGRATION_INSTRUCTIONS.md"
@@ -744,11 +744,11 @@ main() {
     log_success "GPS integration completed successfully"
 
     if [ "$DRY_RUN" = "1" ]; then
-        printf "\n${YELLOW}This was a DRY-RUN. No files were modified.${NC}\n"
-        printf "${YELLOW}To execute real changes, run: $0 --execute${NC}\n\n"
+        printf "\n%sThis was a DRY-RUN. No files were modified.%s\n" "$YELLOW" "$NC"
+        printf "%sTo execute real changes, run: $0 --execute%s\n\n" "$YELLOW" "$NC"
     else
-        printf "\n${GREEN}GPS integration installed successfully!${NC}\n\n"
-        printf "${BLUE}Next Steps:${NC}\n"
+        printf "\n%sGPS integration installed successfully!%s\n\n" "$GREEN" "$NC"
+        printf "%sNext Steps:%s\n" "$BLUE" "$NC"
         printf "1. Run verification: %s\n" "/etc/starlink-monitor/verify-gps-integration.sh"
         printf "2. Review instructions: %s\n" "/etc/starlink-monitor/GPS_INTEGRATION_INSTRUCTIONS.md"
         printf "3. Complete manual integration in starlink_monitor.sh\n"
