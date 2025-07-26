@@ -40,9 +40,9 @@ echo "Starlink Monitor Unified Configuration v$SCRIPT_VERSION loaded" >/dev/null
 # You MUST configure these values for your specific setup.
 
 # --- Starlink Connection Settings ---
-# Starlink gRPC endpoint IP and port
-# Default: 192.168.100.1:9200 (standard Starlink configuration)
-# Change only if your Starlink uses a different IP
+# Starlink gRPC endpoint IP and port (separate variables for flexibility)
+# Default: IP=192.168.100.1, PORT=9200 (standard Starlink configuration)
+# Change only if your Starlink uses a different IP or port
 export STARLINK_IP="192.168.100.1"
 export STARLINK_PORT="9200"
 

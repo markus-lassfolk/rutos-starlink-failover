@@ -237,7 +237,8 @@ configure_gps_settings() {
 # Auto-generated during installation
 
 # Basic monitoring configuration
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 LOG_TAG="${LOG_TAG:-StarlinkMonitor}"
 
 GPS_BASIC_CONFIG

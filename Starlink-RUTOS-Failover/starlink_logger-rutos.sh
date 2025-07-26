@@ -68,7 +68,8 @@ else
 fi
 
 # Set defaults for variables that may not be in config
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 LOG_TAG="${LOG_TAG:-StarlinkLogger}"
 OUTPUT_CSV="${OUTPUT_CSV:-/root/starlink_performance_log.csv}"
 STATE_DIR="${STATE_DIR:-/tmp/run}"

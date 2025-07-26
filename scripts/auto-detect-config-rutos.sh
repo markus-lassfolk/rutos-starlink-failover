@@ -472,11 +472,16 @@ detect_starlink_endpoint() {
     done
 
     if [ -n "$detected_endpoint" ]; then
-        printf "DETECTED_STARLINK_IP=\"%s\"\n" "$detected_endpoint"
+        # Split endpoint into IP and port
+        ip=$(echo "$detected_endpoint" | cut -d':' -f1)
+        port=$(echo "$detected_endpoint" | cut -d':' -f2)
+        printf "DETECTED_STARLINK_IP=\"%s\"\n" "$ip"
+        printf "DETECTED_STARLINK_PORT=\"%s\"\n" "$port"
         return 0
     else
         log_warning "⚠ Could not detect Starlink gRPC endpoint, using default: 192.168.100.1:9200"
-        printf "DETECTED_STARLINK_IP=\"192.168.100.1:9200\"\n"
+        printf "DETECTED_STARLINK_IP=\"192.168.100.1\"\n"
+        printf "DETECTED_STARLINK_PORT=\"9200\"\n"
         return 1
     fi
 }

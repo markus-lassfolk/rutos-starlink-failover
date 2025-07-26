@@ -94,7 +94,8 @@ LOG_TAG="StarlinkApiCheck"
 
 # The IP address and port for the Starlink gRPC API.
 # This will be loaded from config file, fallback to standard
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 
 # The file used to store the last known API version.
 # /root/ is a persistent location on RUTOS/OpenWrt.

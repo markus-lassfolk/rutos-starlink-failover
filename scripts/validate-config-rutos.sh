@@ -219,23 +219,29 @@ check_binaries() {
 check_config_variable_consistency() {
     printf "%b\n" "${GREEN}Checking configuration variable consistency...${NC}"
 
-    # Check for GRPCURL variable consistency
-    unified_scripts_with_grpcurl_path=0
-    # Check if any unified scripts are still using GRPCURL_PATH instead of GRPCURL_CMD
+    # Check for GRPCURL variable consistency - all scripts should use GRPCURL_CMD
+    unified_scripts_with_old_grpcurl=0
+    # Check if any unified scripts are still using deprecated patterns
     if [ -f "Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh" ]; then
-        if grep -q "GRPCURL_PATH" "Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh" 2>/dev/null; then
-            unified_scripts_with_grpcurl_path=$((unified_scripts_with_grpcurl_path + 1))
+        if grep -q "grpcurl.*\$GRPCURL.*[^D]" "Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh" 2>/dev/null; then
+            # Check if it's using GRPCURL_CMD consistently
+            if ! grep -q "\$GRPCURL_CMD" "Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh" 2>/dev/null; then
+                unified_scripts_with_old_grpcurl=$((unified_scripts_with_old_grpcurl + 1))
+            fi
         fi
     fi
     if [ -f "Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh" ]; then
-        if grep -q "GRPCURL_PATH" "Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh" 2>/dev/null; then
-            unified_scripts_with_grpcurl_path=$((unified_scripts_with_grpcurl_path + 1))
+        if grep -q "grpcurl.*\$GRPCURL.*[^D]" "Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh" 2>/dev/null; then
+            # Check if it's using GRPCURL_CMD consistently
+            if ! grep -q "\$GRPCURL_CMD" "Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh" 2>/dev/null; then
+                unified_scripts_with_old_grpcurl=$((unified_scripts_with_old_grpcurl + 1))
+            fi
         fi
     fi
 
-    if [ "$unified_scripts_with_grpcurl_path" -gt 0 ]; then
-        printf "%b\n" "${RED}Error: Found unified scripts using GRPCURL_PATH instead of GRPCURL_CMD${NC}"
-        printf "%b\n" "${YELLOW}Configuration exports GRPCURL_CMD but some scripts expect GRPCURL_PATH${NC}"
+    if [ "$unified_scripts_with_old_grpcurl" -gt 0 ]; then
+        printf "%b\n" "${RED}Error: Found unified scripts not using GRPCURL_CMD consistently${NC}"
+        printf "%b\n" "${YELLOW}Configuration exports GRPCURL_CMD but some scripts use different patterns${NC}"
         printf "%b\n" "${YELLOW}This will cause 'parameter not set' errors during execution${NC}"
         exit 1
     fi
@@ -697,7 +703,8 @@ validate_config_format() {
     # invalid_syntax="" - REMOVED: unused variable
 
     # TODO: Reimplement with patterns that don't flag valid exports like:
-    # export STARLINK_IP="192.168.100.1:9200" (this is VALID, not malformed)
+    # export STARLINK_IP="192.168.100.1" (this is VALID, not malformed)
+    # export STARLINK_PORT="9200" (this is VALID, not malformed)
     if [ -n "$malformed_exports" ]; then
         printf "%b\n" "${RED}❌ Found malformed export statements:${NC}"
         echo "$malformed_exports" | while IFS= read -r line; do

@@ -530,7 +530,8 @@ setup_uci_configuration() {
             uci set azure.starlink.enabled='1'
             uci set azure.starlink.csv_file='/overlay/starlink_performance.csv'
             uci set azure.starlink.max_size='1048576'
-            uci set azure.starlink.starlink_ip="$STARLINK_IP:9200"
+            uci set azure.starlink.starlink_ip="$STARLINK_IP"
+            uci set azure.starlink.starlink_port="$STARLINK_PORT"
         fi
 
         # GPS configuration
@@ -671,7 +672,8 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 # Default configuration
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 MWAN_IFACE="${MWAN_IFACE:-wan}"
 MWAN_MEMBER="${MWAN_MEMBER:-member1}"
 METRIC_GOOD="${METRIC_GOOD:-1}"
@@ -815,7 +817,8 @@ create_starlink_logger_script() {
 set -eu
 
 # Configuration
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 OUTPUT_CSV="/root/starlink_performance_log.csv"
 LAST_SAMPLE_FILE="/tmp/run/starlink_last_sample.ts"
 LOG_TAG="StarlinkLogger"
@@ -919,7 +922,8 @@ create_api_checker_script() {
 set -eu
 
 # Configuration
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 API_VERSION_FILE="/tmp/starlink_api_version"
 LOG_TAG="StarlinkAPIChecker"
 
@@ -1091,7 +1095,8 @@ set -eu
 AZURE_ENDPOINT="$(uci get azure.starlink.endpoint 2>/dev/null || echo "")"
 CSV_FILE="$(uci get azure.starlink.csv_file 2>/dev/null || echo "/overlay/starlink_performance.csv")"
 MAX_SIZE="$(uci get azure.starlink.max_size 2>/dev/null || echo "1048576")"
-STARLINK_IP="$(uci get azure.starlink.starlink_ip 2>/dev/null || echo "192.168.100.1:9200")"
+STARLINK_IP="$(uci get azure.starlink.starlink_ip 2>/dev/null || echo "192.168.100.1")"
+STARLINK_PORT="$(uci get azure.starlink.starlink_port 2>/dev/null || echo "9200")"
 
 # Exit if Azure not configured
 if [ -z "$AZURE_ENDPOINT" ]; then
@@ -1379,9 +1384,9 @@ test_connectivity() {
     
     # Test Starlink API
     if [ -x "/root/grpcurl" ]; then
-    api_response
+        api_response=""
         api_response=$(timeout 10 /root/grpcurl -plaintext --max-time 5 \
-            -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
+            -d '{"get_status":{}}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
         
         if [ -n "$api_response" ]; then
             log_pass "Starlink API responding"

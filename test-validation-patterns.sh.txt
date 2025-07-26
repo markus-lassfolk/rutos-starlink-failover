@@ -9,7 +9,8 @@
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.6.0"
 readonly SCRIPT_VERSION
-export STARLINK_IP="192.168.100.1:9200"
+export STARLINK_IP="192.168.100.1"
+export STARLINK_PORT="9200"
 export MWAN_IFACE="wan"
 export NOTIFY_ON_CRITICAL="1"              # Critical errors (recommended: 1)
 export MAINTENANCE_PUSHOVER_ENABLED="true" # Uses PUSHOVER_TOKEN/PUSHOVER_USER if not overridden

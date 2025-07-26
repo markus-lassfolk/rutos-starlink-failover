@@ -378,9 +378,9 @@ test_starlink_api() {
 
     if [ -f "/root/grpcurl" ] && [ -x "/root/grpcurl" ]; then
         # Test get_status call
-        status_response
+        status_response=""
         status_response=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
-            -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
+            -d '{"get_status":{}}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
 
         if [ -n "$status_response" ]; then
             log_pass "Starlink get_status API call successful"
@@ -398,9 +398,9 @@ test_starlink_api() {
         fi
 
         # Test get_diagnostics for GPS
-        diag_response
+        diag_response=""
         diag_response=$(timeout 10 /root/grpcurl -plaintext -max-time 5 \
-            -d '{"get_diagnostics":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
+            -d '{"get_diagnostics":{}}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
 
         if [ -n "$diag_response" ]; then
             log_pass "Starlink get_diagnostics API call successful"

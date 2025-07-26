@@ -20,11 +20,15 @@ readonly SCRIPT_VERSION
 
 # --- Network Configuration ---
 
-# Starlink gRPC endpoint IP and port
-# Default: 192.168.100.1:9200 (standard Starlink configuration)
-# shellcheck disable=SC2034  # Template version variables used by scripts that source this
-# Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
-export STARLINK_IP="192.168.100.1:9200"
+# Starlink gRPC endpoint IP (without port)
+# Default: 192.168.100.1 (standard Starlink configuration)
+# Used by scripts to construct grpcurl commands with separate port
+export STARLINK_IP="192.168.100.1"
+
+# Starlink gRPC endpoint port
+# Default: 9200 (standard Starlink gRPC port)
+# Used by scripts to construct grpcurl commands with separate IP
+export STARLINK_PORT="9200"
 
 # MWAN3 interface name for Starlink connection
 # Check your MWAN3 config: uci show mwan3 | grep interface

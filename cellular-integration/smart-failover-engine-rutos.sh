@@ -155,7 +155,7 @@ get_starlink_status() {
 
     # Try to get Starlink status via grpcurl
     if command -v grpcurl >/dev/null 2>&1; then
-        starlink_data=$(timeout 10 grpcurl -plaintext -d '{"getStatus":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
+        starlink_data=$(timeout 10 grpcurl -plaintext -d '{"getStatus":{}}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
 
         if [ -n "$starlink_data" ]; then
             # Parse Starlink data

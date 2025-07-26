@@ -41,7 +41,8 @@ mkdir -p "$LOG_DIR"
 # --- User Configuration ---
 
 # The IP address and port for the Starlink gRPC API. This is standard.
-STARLINK_IP="192.168.100.1:9200"
+STARLINK_IP="192.168.100.1"
+STARLINK_PORT="9200"
 
 # The logical interface name for Starlink in OpenWrt/RUTOS (e.g., 'wan').
 MWAN_IFACE="wan"

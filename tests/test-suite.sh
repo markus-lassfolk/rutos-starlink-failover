@@ -132,7 +132,8 @@ setup_test_env() {
 #!/bin/sh
 # Mock configuration for testing
 
-STARLINK_IP="192.168.100.1:9200"
+STARLINK_IP="192.168.100.1"
+STARLINK_PORT="9200"
 MWAN_IFACE="wan"
 MWAN_MEMBER="member1"
 PUSHOVER_TOKEN="test_token"

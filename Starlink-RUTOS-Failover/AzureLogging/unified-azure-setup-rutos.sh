@@ -30,7 +30,8 @@ BACKUP_DIR="/root/azure-setup-backup-$(date +%Y%m%d-%H%M%S)"
 # --- DEFAULT CONFIGURATION ---
 DEFAULT_AZURE_ENDPOINT=""
 DEFAULT_RUTOS_IP="192.168.80.1"
-DEFAULT_STARLINK_IP="192.168.100.1:9200"
+DEFAULT_STARLINK_IP="192.168.100.1"
+DEFAULT_STARLINK_PORT="9200"
 DEFAULT_ENABLE_GPS="true"
 DEFAULT_ENABLE_STARLINK_MONITORING="true"
 
@@ -60,13 +61,15 @@ else
     NC=""
 fi
 
-# Dry-run and test mode support
+# Dry-run and test mode support - capture originals for debug display
+ORIGINAL_DRY_RUN="${DRY_RUN:-0}"
+ORIGINAL_RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    echo "[DEBUG] DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE" >&2
+    printf "${CYAN}[DEBUG]${NC} DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$ORIGINAL_DRY_RUN" "$ORIGINAL_RUTOS_TEST_MODE" >&2
 fi
 
 # Early exit in test mode to prevent execution errors

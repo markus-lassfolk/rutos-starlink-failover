@@ -16,7 +16,8 @@
 SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 echo "Loading test configuration version: $SCRIPT_VERSION"
-export STARLINK_IP="192.168.100.1:9200"
+export STARLINK_IP="192.168.100.1"
+export STARLINK_PORT="9200"
 
 # MWAN3 interface name for Starlink connection
 export MWAN_IFACE="wan"

@@ -25,7 +25,8 @@ CSV_LOG_FILE=$(uci get azure.starlink.csv_file 2>/dev/null || echo "/overlay/sta
 CSV_MAX_SIZE=$(uci get azure.starlink.max_size 2>/dev/null || echo "1048576") # 1MB default
 
 # --- STARLINK API CONFIGURATION ---
-STARLINK_IP=$(uci get azure.starlink.starlink_ip 2>/dev/null || echo "192.168.100.1:9200")
+STARLINK_IP=$(uci get azure.starlink.starlink_ip 2>/dev/null || echo "192.168.100.1")
+STARLINK_PORT=$(uci get azure.starlink.starlink_port 2>/dev/null || echo "9200")
 GRPCURL_CMD="${GRPCURL_CMD:-/root/grpcurl}"
 JQ_PATH="${JQ_PATH:-/root/jq}"
 

@@ -60,7 +60,8 @@ uci set azure.system.log_shipper_path='/root/log-shipper.sh'
 uci set azure.starlink=section
 uci set azure.starlink.enabled='true'
 uci set azure.starlink.endpoint='https://your-app.azurewebsites.net/api/HttpLogIngestor'
-uci set azure.starlink.starlink_ip='192.168.100.1:9200'
+uci set azure.starlink.starlink_ip='192.168.100.1'
+uci set azure.starlink.starlink_port='9200'
 uci set azure.starlink.csv_file='/overlay/starlink_performance.csv'
 uci set azure.starlink.max_size='1048576'
 

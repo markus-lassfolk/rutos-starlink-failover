@@ -157,7 +157,7 @@ collect_enhanced_gps_data() {
 
     # Priority 2: Starlink GPS (if RUTOS GPS unavailable)
     if [ "$gps_origin" = "none" ] && command -v grpcurl >/dev/null 2>&1; then
-        starlink_gps=$(grpcurl -plaintext -d '{"getLocation":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
+        starlink_gps=$(grpcurl -plaintext -d '{"getLocation":{}}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device/Handle 2>/dev/null || echo "")
         if echo "$starlink_gps" | grep -q "latitude.*longitude"; then
             lat=$(echo "$starlink_gps" | sed -n 's/.*"latitude":\s*\([0-9\.-]*\).*/\1/p')
             lon=$(echo "$starlink_gps" | sed -n 's/.*"longitude":\s*\([0-9\.-]*\).*/\1/p')

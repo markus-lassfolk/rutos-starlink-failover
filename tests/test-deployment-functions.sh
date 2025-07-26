@@ -109,7 +109,8 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 # Default configuration
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 MWAN_IFACE="${MWAN_IFACE:-wan}"
 MWAN_MEMBER="${MWAN_MEMBER:-member1}"
 METRIC_GOOD="${METRIC_GOOD:-1}"
@@ -162,7 +163,8 @@ EOF
 set -eu
 
 # Configuration
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 OUTPUT_CSV="/tmp/starlink_performance_log.csv"
 LAST_SAMPLE_FILE="/tmp/run/starlink_last_sample.ts"
 LOG_TAG="StarlinkLogger"

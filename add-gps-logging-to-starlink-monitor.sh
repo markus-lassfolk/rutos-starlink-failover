@@ -83,11 +83,12 @@ get_rutos_gps() {
 # Collect GPS from Starlink diagnostics (backup . - 10m accuracy)
 get_starlink_gps() {
     starlink_ip="${1:-192.168.100.1}"
+    starlink_port="${2:-9200}"
 
     # Use grpcurl like in Victron flow
     if command -v grpcurl >/dev/null 2>&1; then
         if diag_data=$(grpcurl -plaintext -emit-defaults -d '{"get_diagnostics":{}}' \
-            "$starlink_ip:9200" SpaceX.API.Device.Device/Handle 2>/dev/null) && [ -n "$diag_data" ]; then
+            "$starlink_ip:$starlink_port" SpaceX.API.Device.Device/Handle 2>/dev/null) && [ -n "$diag_data" ]; then
             # Extract location data from diagnostics
             lat=$(echo "$diag_data" | grep -o '"latitude":[^,]*' | head -1 | cut -d':' -f2)
             lon=$(echo "$diag_data" | grep -o '"longitude":[^,]*' | head -1 | cut -d':' -f2)

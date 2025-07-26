@@ -10,7 +10,7 @@ The validation script was reporting **false positives** - flagging perfectly val
 
 **Multiple valid configuration lines were incorrectly reported as:**
 
-1. **"Missing closing quotes"** - Lines like `export STARLINK_IP="192.168.100.1:9200"`
+1. **"Missing closing quotes"** - Lines like `export STARLINK_IP="192.168.100.1"` and `export STARLINK_PORT="9200"`
 2. **"Malformed export statements"** - Same valid lines flagged again under different category
 
 ### Root Cause Analysis
@@ -33,7 +33,7 @@ unmatched_quotes=$(grep -n '^[[:space:]]*export.*=[^=]*"[^"]*$' "$CONFIG_FILE")
 
 **Why it's broken:**
 
-- A valid line like `export STARLINK_IP="192.168.100.1:9200"` **DOES NOT** match this pattern because it doesn't end with
+- A valid line like `export STARLINK_IP="192.168.100.1"` **DOES NOT** match this pattern because it doesn't end with
   non-quote characters - it ends with a quote!
 - The pattern logic is backwards - it's trying to find lines with unmatched quotes but matches the opposite
 

@@ -116,8 +116,8 @@ test_starlink_connectivity() {
 
     # Test gRPC API if grpcurl is available
     if command -v grpcurl >/dev/null 2>&1; then
-        if ! grpcurl -plaintext -d '{}' "$STARLINK_IP:9200" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
-            log_error "Starlink gRPC API not responding at $STARLINK_IP:9200"
+        if ! grpcurl -plaintext -d '{}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
+            log_error "Starlink gRPC API not responding at ${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}"
             return 1
         fi
     fi

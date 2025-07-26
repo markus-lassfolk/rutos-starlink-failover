@@ -68,7 +68,7 @@ After upgrading, you'll have access to:
 ℹ Creating backup of current configuration...
 ✅ Backup created: /root/starlink-monitor/config/config.sh.backup.20250714_220130
 ℹ Migrating configuration from basic to advanced...
-✅ Migrated STARLINK_IP: 192.168.100.1:9200
+✅ Migrated STARLINK_IP: 192.168.100.1 + STARLINK_PORT: 9200
 ✅ Migrated PUSHOVER_TOKEN: your_token_here
 ✅ Migrated NOTIFY_ON_CRITICAL: 1
 ✅ Migrated PACKET_LOSS_THRESHOLD: 0.05

@@ -27,7 +27,8 @@
 # --- User Configuration ---
 
 # The IP address and port for the Starlink gRPC API. This is standard.
-$starlinkIp = "192.168.100.1:9200"
+$starlinkIp = "192.168.100.1"
+$starlinkPort = "9200"
 
 # The output directory for the documentation file.
 # $PSScriptRoot is a special variable that means "the same directory as this script".

@@ -127,8 +127,8 @@ collect_gps_data() {
 
     # Try Starlink GPS as backup
     if [ -z "$lat" ] || [ "$lat" = "0.000000" ]; then
-        if command -v grpcurl >/dev/null 2>&1; then
-            starlink_gps=$(grpcurl -plaintext -d '{"get_location":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device.Handle 2>/dev/null || echo "")
+        if [ -n "${GRPCURL_CMD:-}" ] && [ -x "${GRPCURL_CMD:-}" ]; then
+            starlink_gps=$("$GRPCURL_CMD" -plaintext -d '{"get_location":{}}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device.Handle 2>/dev/null || echo "")
             if [ -n "$starlink_gps" ]; then
                 lat=$(echo "$starlink_gps" | grep -o '"latitude":[^,]*' | cut -d':' -f2 | tr -d ' "')
                 lon=$(echo "$starlink_gps" | grep -o '"longitude":[^,]*' | cut -d':' -f2 | tr -d ' "')
@@ -267,9 +267,9 @@ get_starlink_data() {
     status_response=""
 
     # Get status data
-    if command -v grpcurl >/dev/null 2>&1; then
-        status_response=$(grpcurl -plaintext -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device.Handle 2>/dev/null || echo "")
-        grpc_response=$(grpcurl -plaintext -d '{"get_stats":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device.Handle 2>/dev/null || echo "")
+    if [ -n "${GRPCURL_CMD:-}" ] && [ -x "${GRPCURL_CMD:-}" ]; then
+        status_response=$("$GRPCURL_CMD" -plaintext -d '{"get_status":{}}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device.Handle 2>/dev/null || echo "")
+        grpc_response=$("$GRPCURL_CMD" -plaintext -d '{"get_stats":{}}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device.Handle 2>/dev/null || echo "")
     fi
 
     if [ -z "$grpc_response" ] || [ -z "$status_response" ]; then

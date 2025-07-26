@@ -355,7 +355,7 @@ check_cron_configuration() {
     monitor_entries=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     logger_entries=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
-    
+
     # Strip whitespace from counts to prevent arithmetic errors
     monitor_entries=$(echo "$monitor_entries" | tr -d ' \n\r')
     logger_entries=$(echo "$logger_entries" | tr -d ' \n\r')
@@ -1396,7 +1396,7 @@ check_system_log_errors() {
         if [ -d "/var/log/starlink" ]; then
             recent_errors=$(find /var/log/starlink -name "*.log" -mmin -$((max_age_hours * 60)) -exec grep -iE "$pattern" {} \; 2>/dev/null | tail -20 || echo "")
         fi
-        
+
         if [ -z "$recent_errors" ]; then
             show_health_status "warning" "$check_name" "No system logs available for error checking"
             increment_counter "warning"
@@ -1423,35 +1423,53 @@ check_system_log_errors() {
 # Function to test actual runtime functionality
 check_runtime_functionality() {
     debug_func "check_runtime_functionality"
-    
+
     log_debug "Testing actual runtime functionality"
+
+    # Check for configuration issues first
+    log_debug "Checking STARLINK variable configuration"
+    if echo "${STARLINK_IP:-}" | grep -q ":"; then
+        show_health_status "critical" "Starlink Config Format" "STARLINK_IP contains port (${STARLINK_IP:-}) - should be IP only"
+        increment_counter "critical"
+        log_debug "CRITICAL: STARLINK_IP contains port - this causes connection failures"
+        return 1
+    fi
 
     # Test if grpcurl can actually connect to Starlink
     if [ -n "${GRPCURL_CMD:-}" ] && [ -n "${STARLINK_IP:-}" ] && [ -n "${STARLINK_PORT:-}" ]; then
         log_debug "Testing actual grpcurl connection to $STARLINK_IP:$STARLINK_PORT"
-        
+
+        # Check if grpcurl command exists and is executable
+        if [ ! -x "${GRPCURL_CMD:-}" ]; then
+            show_health_status "critical" "GRPCURL Command" "grpcurl not found or not executable: ${GRPCURL_CMD:-}"
+            increment_counter "critical"
+            return 1
+        fi
+
         # Try to get device info with a short timeout
+        log_debug "Attempting grpcurl connection test..."
         if timeout 5 "$GRPCURL_CMD" -plaintext -d '{}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
             show_health_status "healthy" "Starlink Runtime API" "grpcurl successfully connected to Starlink device"
             increment_counter "healthy"
         else
             # This is the actual error that's happening!
-            show_health_status "critical" "Starlink Runtime API" "grpcurl cannot connect to Starlink device (this explains script failures)"
+            show_health_status "critical" "Starlink Runtime API" "grpcurl cannot connect to $STARLINK_IP:$STARLINK_PORT (check network/Starlink status)"
             increment_counter "critical"
-            log_debug "grpcurl connection test: FAILED - this is why monitor/logger scripts are failing"
+            log_debug "grpcurl connection test: FAILED - this explains why monitor/logger scripts are failing"
         fi
     else
-        show_health_status "warning" "Starlink Runtime API" "Missing GRPCURL_CMD or Starlink connection variables"
+        show_health_status "warning" "Starlink Runtime API" "Missing GRPCURL_CMD ($GRPCURL_CMD), STARLINK_IP ($STARLINK_IP), or STARLINK_PORT ($STARLINK_PORT)"
         increment_counter "warning"
     fi
 
     # Test if we can execute the monitor script with real connection
     if [ -x "${MAIN_MONITOR:-/usr/local/starlink-monitor/scripts/starlink_monitor_unified-rutos.sh}" ]; then
         log_debug "Testing monitor script with actual runtime execution"
-        
-        # Run the monitor in test mode but with real connection
+
+        # Run the monitor in test mode but with real connection (short timeout)
+        log_debug "Running monitor script test with 10 second timeout..."
         monitor_output=$(timeout 10 "$MAIN_MONITOR" 2>&1 || echo "timeout_or_error")
-        
+
         if echo "$monitor_output" | grep -q "\[ERROR\].*Failed to fetch"; then
             show_health_status "critical" "Monitor Runtime Status" "Monitor script failing with connection errors"
             increment_counter "critical"

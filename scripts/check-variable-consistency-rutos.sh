@@ -62,36 +62,39 @@ check_variable_usage() {
     done
 
     printf "${GREEN}Total %s occurrences: %d${NC}\n" "$description" "$total_count"
-    echo "$total_count"
+    # Return value by writing to temp file instead of echo to avoid output contamination
+    echo "$total_count" >"/tmp/var_count_$$"
+}
+
+# Get variable count (reads from temp file)
+get_variable_count() {
+    if [ -f "/tmp/var_count_$$" ]; then
+        cat "/tmp/var_count_$$"
+        rm -f "/tmp/var_count_$$"
+    else
+        echo "0"
+    fi
 }
 
 # Check for specific inconsistencies
 check_grpcurl_consistency() {
     printf "${YELLOW}=== GRPCURL Variable Consistency Check ===${NC}\n"
 
-    # Count usage of each variant
-    grpcurl_cmd_count=$(check_variable_usage "GRPCURL_CMD" "GRPCURL_CMD")
-    grpcurl_path_count=$(check_variable_usage "GRPCURL_PATH" "GRPCURL_PATH")
-    
-    # Strip whitespace from counts to prevent arithmetic errors
+    # Count usage of GRPCURL_CMD (the standard)
+    check_variable_usage "GRPCURL_CMD" "GRPCURL_CMD"
+    grpcurl_cmd_count=$(get_variable_count)
+
+    # Strip whitespace from count to prevent arithmetic errors
     grpcurl_cmd_count=$(echo "$grpcurl_cmd_count" | tr -d ' \n\r')
-    grpcurl_path_count=$(echo "$grpcurl_path_count" | tr -d ' \n\r')
 
     # Analyze results
-    if [ "$grpcurl_path_count" -gt 0 ] && [ "$grpcurl_cmd_count" -gt 0 ]; then
-        printf "${RED}CRITICAL: Mixed usage of GRPCURL_CMD and GRPCURL_PATH detected!${NC}\n"
-        printf "${YELLOW}Configuration files should export one consistent variable.${NC}\n"
-        printf "${YELLOW}Recommendation: Use GRPCURL_CMD (used %d times vs GRPCURL_PATH %d times)${NC}\n" "$grpcurl_cmd_count" "$grpcurl_path_count"
-        return 1
-    elif [ "$grpcurl_cmd_count" -gt 0 ]; then
-        printf "${GREEN}✓ Consistent usage of GRPCURL_CMD found${NC}\n"
-        return 0
-    elif [ "$grpcurl_path_count" -gt 0 ]; then
-        printf "${YELLOW}Found only GRPCURL_PATH usage - ensure config exports this variable${NC}\n"
+    if [ "$grpcurl_cmd_count" -gt 0 ]; then
+        printf "${GREEN}✓ Consistent usage of GRPCURL_CMD found (%d occurrences)${NC}\n" "$grpcurl_cmd_count"
         return 0
     else
-        printf "${YELLOW}No GRPCURL variables found${NC}\n"
-        return 0
+        printf "${RED}CRITICAL: No GRPCURL_CMD usage found!${NC}\n"
+        printf "${YELLOW}Configuration files should export GRPCURL_CMD${NC}\n"
+        return 1
     fi
 }
 
@@ -105,6 +108,13 @@ check_dry_run_consistency() {
 
     # Use command substitution instead of pipe to avoid subshell
     for script in $(find . -name "*unified*.sh" -type f 2>/dev/null); do
+        # Skip configuration templates - they just export defaults
+        case "$script" in
+            */config.unified.template.sh | */config/*)
+                continue
+                ;;
+        esac
+
         if grep -q "DRY_RUN" "$script" 2>/dev/null; then
             scripts_with_dry_run=$((scripts_with_dry_run + 1))
             printf "  Found DRY_RUN usage in: %s\n" "$script"

@@ -241,7 +241,8 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 # Default configuration
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 MWAN_IFACE="${MWAN_IFACE:-wan}"
 MWAN_MEMBER="${MWAN_MEMBER:-member1}"
 METRIC_GOOD="${METRIC_GOOD:-1}"
@@ -371,7 +372,8 @@ cat > /root/starlink_logger.sh << 'EOF'
 set -euo pipefail
 
 # Configuration
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 OUTPUT_CSV="/root/starlink_performance_log.csv"
 LAST_SAMPLE_FILE="/tmp/run/starlink_last_sample.ts"
 LOG_TAG="StarlinkLogger"
@@ -467,7 +469,8 @@ cat > /root/check_starlink_api.sh << 'EOF'
 set -euo pipefail
 
 # Configuration
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 API_VERSION_FILE="/tmp/starlink_api_version"
 LOG_TAG="StarlinkAPIChecker"
 
@@ -616,7 +619,8 @@ uci set azure.starlink.endpoint="https://your-function-app.azurewebsites.net/api
 uci set azure.starlink.enabled='1'
 uci set azure.starlink.csv_file='/root/starlink_performance_log.csv'
 uci set azure.starlink.max_size='1048576'
-uci set azure.starlink.starlink_ip="192.168.100.1:9200"
+uci set azure.starlink.starlink_ip="192.168.100.1"
+uci set azure.starlink.starlink_port="9200"
 
 uci commit azure
 

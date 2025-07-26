@@ -18,7 +18,8 @@ echo "=== Testing Starlink Monitor Logic ==="
 # Create a mock configuration
 cat >config.sh <<'EOF'
 #!/bin/sh
-STARLINK_IP="192.168.100.1:9200"
+STARLINK_IP="192.168.100.1"
+STARLINK_PORT="9200"
 MWAN_IFACE="wan"
 MWAN_MEMBER="member1"
 METRIC_GOOD="1"

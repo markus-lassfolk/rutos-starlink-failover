@@ -188,7 +188,8 @@ load_config() {
             JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
 
             # Set default values for all variables that might be referenced
-            STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+            STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+            STARLINK_PORT="${STARLINK_PORT:-9200}"
             RUTOS_USERNAME="${RUTOS_USERNAME:-}"
             RUTOS_PASSWORD="${RUTOS_PASSWORD:-}"
             RUTOS_IP="${RUTOS_IP:-}"

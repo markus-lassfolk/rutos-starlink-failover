@@ -242,7 +242,7 @@ get_starlink_gps() {
 
     # Use grpcurl like in Victron flow
     diag_data=$(grpcurl -plaintext -emit-defaults -d '{"get_diagnostics":{}}' \
-        "$starlink_ip:9200" SpaceX.API.Device.Device/Handle 2>/dev/null)
+        "$starlink_ip:${starlink_port:-9200}" SpaceX.API.Device.Device/Handle 2>/dev/null)
 
     if [ -n "$diag_data" ] && echo "$diag_data" | grep -q '"latitude"'; then
         # Extract location data from diagnostics (busybox-compatible)

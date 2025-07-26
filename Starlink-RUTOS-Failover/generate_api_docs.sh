@@ -55,7 +55,8 @@ fi
 # --- User Configuration ---
 
 # The IP address and port for the Starlink gRPC API. This is standard.
-STARLINK_IP="192.168.100.1:9200"
+STARLINK_IP="192.168.100.1"
+STARLINK_PORT="9200"
 
 # The directory where the final documentation file will be saved.
 OUTPUT_DIR="/root"

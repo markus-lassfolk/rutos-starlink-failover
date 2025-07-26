@@ -9,7 +9,8 @@ echo "=== Testing Configuration Validation Fix ==="
 
 # Create a test config with valid lines that were being incorrectly flagged
 cat >test-config-valid.sh <<'EOF'
-export STARLINK_IP="192.168.100.1:9200"
+export STARLINK_IP="192.168.100.1"
+export STARLINK_PORT="9200"
 export MWAN_IFACE="wan"  
 export PUSHOVER_TOKEN="aczm9pre8oowwpxmte92utk5gbyub7"
 export NOTIFY_ON_CRITICAL="1" # Critical errors (recommended: 1)
