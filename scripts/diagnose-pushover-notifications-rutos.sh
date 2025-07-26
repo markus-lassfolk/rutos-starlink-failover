@@ -198,7 +198,7 @@ main() {
     if check_file "$CONFIG_FILE" "Main configuration file"; then
         # shellcheck source=/dev/null
         . "$CONFIG_FILE" 2>/dev/null || {
-            log_error "Failed to source configuration file"
+            log_error "Failed to load configuration file"
             errors=$((errors + 1))
         }
     else
