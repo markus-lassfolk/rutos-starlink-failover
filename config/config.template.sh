@@ -35,7 +35,8 @@ CONFIG_VERSION="2.7.0"
 
 # Starlink gRPC endpoint IP and port
 # Default: 192.168.100.1:9200 (standard Starlink configuration)
-export STARLINK_IP="192.168.100.1:9200"
+export STARLINK_IP="192.168.100.1"
+export STARLINK_PORT="9200"
 
 # MWAN3 interface name for Starlink connection
 # Check your MWAN3 config: uci show mwan3 | grep interface

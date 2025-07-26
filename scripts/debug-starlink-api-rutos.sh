@@ -88,7 +88,8 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 # Set defaults
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
 STATE_DIR="${STATE_DIR:-/tmp/run}"
 LAST_SAMPLE_FILE="${LAST_SAMPLE_FILE:-${STATE_DIR}/starlink_last_sample.ts}"
@@ -127,10 +128,10 @@ main() {
 
     # Step 2: Test API connectivity
     log_step "Testing Starlink API connectivity"
-    log_debug "Endpoint: $STARLINK_IP"
+    log_debug "Endpoint: $STARLINK_IP:$STARLINK_PORT"
 
     log_debug "Making get_status API call..."
-    status_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetStatus' 2>/dev/null)
+    status_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetStatus' 2>/dev/null)
     status_exit=$?
 
     if [ $status_exit -eq 0 ] && [ -n "$status_data" ]; then
@@ -144,7 +145,7 @@ main() {
     fi
 
     log_debug "Making get_history API call..."
-    history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory' 2>/dev/null)
+    history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory' 2>/dev/null)
     history_exit=$?
 
     if [ $history_exit -eq 0 ] && [ -n "$history_data" ]; then
@@ -199,7 +200,7 @@ main() {
     log_debug "Waiting 30 seconds to check for new samples..."
     sleep 30
 
-    new_history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory' 2>/dev/null)
+    new_history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory' 2>/dev/null)
     new_sample_index=$(echo "$new_history_data" | $JQ_CMD -r '.current' 2>/dev/null)
 
     if [ "$new_sample_index" -gt "$current_sample_index" ]; then

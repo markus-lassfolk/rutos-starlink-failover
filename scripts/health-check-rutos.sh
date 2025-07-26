@@ -224,7 +224,8 @@ LOG_DIR="${LOG_DIR:-$INSTALL_DIR/logs}"
 STATE_DIR="${STATE_DIR:-$INSTALL_DIR/state}"
 
 # Configuration variables with fallback defaults
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 PUSHOVER_TOKEN="${PUSHOVER_TOKEN:-YOUR_PUSHOVER_API_TOKEN}"
 PUSHOVER_USER="${PUSHOVER_USER:-YOUR_PUSHOVER_USER_KEY}"
 GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
@@ -418,7 +419,7 @@ check_cron_configuration() {
     fi
 
     # Check for duplicate/conflicting entries
-    duplicate_lines=$(grep -E "(starlink_monitor-rutos\.sh|starlink_logger-rutos\.sh|check_starlink_api)" "$CRON_FILE" | sort | uniq -d | wc -l)
+    duplicate_lines=$(grep -E "(starlink_monitor-rutos\.sh|starlink_logger-rutos\.sh|check_starlink_api)" "$CRON_FILE" | sort | uniq -d | wc -l | tr -d ' \n\r')
     if [ "$duplicate_lines" -gt 0 ]; then
         show_health_status "warning" "Duplicate Entries" "Found $duplicate_lines duplicate cron lines"
         increment_counter "warning"
@@ -714,11 +715,12 @@ check_starlink_connectivity() {
         . "$SCRIPT_DIR/placeholder-utils.sh" 2>/dev/null || log_debug "placeholder-utils.sh not found"
 
         log_debug "POST-CONFIG STARLINK_IP: $STARLINK_IP"
+        log_debug "POST-CONFIG STARLINK_PORT: $STARLINK_PORT"
 
         if [ -n "${STARLINK_IP:-}" ] && [ "$STARLINK_IP" != "YOUR_STARLINK_IP" ]; then
-            # Extract IP without port for ping test
-            STARLINK_HOST=$(echo "$STARLINK_IP" | cut -d: -f1)
-            log_debug "STARLINK HOST: Extracted $STARLINK_HOST from $STARLINK_IP"
+            # Use STARLINK_IP directly (no port extraction needed)
+            STARLINK_HOST="$STARLINK_IP"
+            log_debug "STARLINK HOST: Using $STARLINK_HOST for connectivity test"
 
             log_debug "PING TEST: Testing connectivity to Starlink device at $STARLINK_HOST"
             if ping -c 1 -W 5 "$STARLINK_HOST" >/dev/null 2>&1; then
@@ -741,12 +743,12 @@ check_starlink_connectivity() {
             log_debug "GRPC TEST: Checking if grpcurl is available"
             if validate_binary "$GRPCURL_CMD" "grpcurl"; then
                 log_debug "GRPC TEST: grpcurl validated, testing API connection"
-                log_debug "GRPC COMMAND: $GRPCURL_CMD -plaintext -max-time 10 -d '{\"get_device_info\":{}}' $STARLINK_IP SpaceX.API.Device.Device/Handle"
+                log_debug "GRPC COMMAND: $GRPCURL_CMD -plaintext -max-time 10 -d '{\"get_device_info\":{}}' $STARLINK_IP:$STARLINK_PORT SpaceX.API.Device.Device/Handle"
 
                 # Use the same endpoint as the API check script for consistency
                 if [ "${DEBUG:-0}" = "1" ]; then
                     # In debug mode, capture and log the response
-                    grpc_output=$("$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>&1)
+                    grpc_output=$("$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>&1)
                     grpc_exit=$?
                     log_debug "GRPC EXIT CODE: $grpc_exit"
                     log_debug "GRPC OUTPUT (first 200 chars): $(echo "$grpc_output" | cut -c1-200)$([ ${#grpc_output} -gt 200 ] && echo '...')"
@@ -762,8 +764,8 @@ check_starlink_connectivity() {
                     fi
                 else
                     # Normal mode (less verbose)
-                    if "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
-                        show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP"
+                    if "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_device_info":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
+                        show_health_status "healthy" "Starlink gRPC API" "API responding on $STARLINK_IP:$STARLINK_PORT"
                         increment_counter "healthy"
                     else
                         show_health_status "warning" "Starlink gRPC API" "API not responding on $STARLINK_IP"
@@ -796,8 +798,8 @@ check_notification_system() {
 
     # Define expected paths for notification components
     HOTPLUG_NOTIFY="/etc/hotplug.d/iface/99-pushover_notify-rutos.sh"
-    STARLINK_NOTIFY="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh"
-    MAIN_MONITOR="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh"
+    STARLINK_NOTIFY="/usr/local/starlink-monitor/scripts/99-pushover_notify-rutos.sh"
+    MAIN_MONITOR="/usr/local/starlink-monitor/scripts/starlink_monitor_unified-rutos.sh"
     UTILS_SCRIPT="/usr/local/starlink-monitor/scripts/placeholder-utils.sh"
 
     # Check hotplug notification script (critical for failover notifications)
@@ -1061,7 +1063,7 @@ check_firmware_persistence() {
         fi
 
         # Check for backup history
-        backup_count=$(find "/etc/starlink-config" -name "config.sh.backup.*" -type f 2>/dev/null | wc -l)
+        backup_count=$(find "/etc/starlink-config" -name "config.sh.backup.*" -type f 2>/dev/null | wc -l | tr -d ' \n\r')
         if [ "$backup_count" -gt 0 ]; then
             show_health_status "healthy" "Backup History" "Found $backup_count timestamped configuration backups"
             increment_counter "healthy"
@@ -1075,7 +1077,7 @@ check_firmware_persistence() {
     if [ -f "/var/log/starlink-restore.log" ]; then
         # Check if log is recent (within last 30 days, indicating recent restoration activity)
         if [ -n "$(find "/var/log/starlink-restore.log" -mtime -30 2>/dev/null)" ]; then
-            log_lines=$(wc -l <"/var/log/starlink-restore.log" 2>/dev/null || echo "0")
+            log_lines=$(wc -l <"/var/log/starlink-restore.log" 2>/dev/null | tr -d ' \n\r' || echo "0")
             show_health_status "healthy" "Restore Activity" "Recent activity logged ($log_lines lines)"
             increment_counter "healthy"
 
@@ -1161,7 +1163,8 @@ check_logger_sample_tracking() {
     log_step "Checking logger sample tracking health"
 
     # Set defaults
-    STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+    STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+    STARLINK_PORT="${STARLINK_PORT:-9200}"
     STATE_DIR="${STATE_DIR:-/tmp/run}"
     LAST_SAMPLE_FILE="${LAST_SAMPLE_FILE:-${STATE_DIR}/starlink_last_sample.ts}"
     GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
@@ -1184,7 +1187,7 @@ check_logger_sample_tracking() {
     # Get current API sample index (with timeout and error handling)
     log_debug "Checking Starlink API for current sample index..."
     current_sample_index=""
-    if history_data=$(timeout 10 "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null); then
+    if history_data=$(timeout 10 "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null); then
         if [ -n "$history_data" ]; then
             current_sample_index=$(echo "$history_data" | "$JQ_CMD" -r '.dishGetHistory.current' 2>/dev/null)
         fi
@@ -1305,8 +1308,8 @@ test_script_execution() {
     log_step "Testing script execution in dry-run mode"
 
     # Critical scripts that should be tested
-    MAIN_MONITOR="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh"
-    MAIN_LOGGER="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh"
+    MAIN_MONITOR="/usr/local/starlink-monitor/scripts/starlink_monitor_unified-rutos.sh"
+    MAIN_LOGGER="/usr/local/starlink-monitor/scripts/starlink_logger_unified-rutos.sh"
 
     # Test main monitoring script
     if [ -x "$MAIN_MONITOR" ]; then

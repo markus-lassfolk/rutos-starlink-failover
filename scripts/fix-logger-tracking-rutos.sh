@@ -104,7 +104,8 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 # Set defaults
-STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
 STATE_DIR="${STATE_DIR:-/tmp/run}"
 LAST_SAMPLE_FILE="${LAST_SAMPLE_FILE:-${STATE_DIR}/starlink_last_sample.ts}"
@@ -136,7 +137,7 @@ main() {
 
     # Get current API sample index
     log_step "Getting current API sample index"
-    history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory' 2>/dev/null)
+    history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory' 2>/dev/null)
 
     if [ -z "$history_data" ]; then
         log_error "Failed to get data from Starlink API"

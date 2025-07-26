@@ -1452,7 +1452,8 @@ check_logger_sample_tracking() {
     log_debug "Checking Starlink logger sample tracking health"
 
     # Set defaults
-    STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+    STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+    STARLINK_PORT="${STARLINK_PORT:-9200}"
     STATE_DIR="${STATE_DIR:-/tmp/run}"
     LAST_SAMPLE_FILE="${LAST_SAMPLE_FILE:-${STATE_DIR}/starlink_last_sample.ts}"
     GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
@@ -1473,7 +1474,7 @@ check_logger_sample_tracking() {
     # Get current API sample index (with timeout and error handling)
     log_debug "Checking Starlink API for current sample index..."
     current_sample_index=""
-    if history_data=$(timeout 10 "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null); then
+    if history_data=$(timeout 10 "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null); then
         if [ -n "$history_data" ]; then
             current_sample_index=$(echo "$history_data" | "$JQ_CMD" -r '.dishGetHistory.current' 2>/dev/null)
         fi
@@ -1515,7 +1516,8 @@ check_enhanced_starlink_metrics() {
     log_debug "Checking enhanced Starlink metrics for quality assessment"
 
     # Set defaults
-    STARLINK_IP="${STARLINK_IP:-192.168.100.1:9200}"
+    STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+    STARLINK_PORT="${STARLINK_PORT:-9200}"
     GRPCURL_CMD="${GRPCURL_CMD:-$INSTALL_DIR/grpcurl}"
     JQ_CMD="${JQ_CMD:-$INSTALL_DIR/jq}"
 
@@ -1527,7 +1529,7 @@ check_enhanced_starlink_metrics() {
 
     # Get status data with enhanced metrics
     status_data=""
-    if status_data=$(timeout 10 "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null); then
+    if status_data=$(timeout 10 "$GRPCURL_CMD" -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null); then
         if [ -n "$status_data" ]; then
             status_data=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus' 2>/dev/null)
         fi

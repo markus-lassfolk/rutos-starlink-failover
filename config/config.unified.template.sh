@@ -43,7 +43,8 @@ echo "Starlink Monitor Unified Configuration v$SCRIPT_VERSION loaded" >/dev/null
 # Starlink gRPC endpoint IP and port
 # Default: 192.168.100.1:9200 (standard Starlink configuration)
 # Change only if your Starlink uses a different IP
-export STARLINK_IP="192.168.100.1:9200"
+export STARLINK_IP="192.168.100.1"
+export STARLINK_PORT="9200"
 
 # --- MWAN3 Failover Configuration ---
 # Check your MWAN3 config: uci show mwan3 | grep interface

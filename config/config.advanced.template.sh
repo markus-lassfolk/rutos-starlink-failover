@@ -28,7 +28,8 @@ readonly TEMPLATE_VERSION
 # Configuration version for troubleshooting
 CONFIG_VERSION="2.4.12"
 # Used for troubleshooting: echo "Configuration version: $CONFIG_VERSION"
-STARLINK_IP="192.168.100.1:9200"       # Standard Starlink gRPC endpoint
+STARLINK_IP="192.168.100.1"        # Standard Starlink gRPC endpoint IP
+STARLINK_PORT="9200"              # Standard Starlink gRPC endpoint port
 STARLINK_MANAGEMENT_IP="192.168.100.1" # Starlink management interface
 
 # MWAN3 interface mapping (based on your config)

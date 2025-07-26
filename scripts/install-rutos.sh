@@ -1284,6 +1284,7 @@ install_scripts() {
         post-install-check-rutos.sh \
         system-status-rutos.sh \
         health-check-rutos.sh \
+        check-variable-consistency-rutos.sh \
         update-config-rutos.sh \
         merge-config-rutos.sh \
         restore-config-rutos.sh \
