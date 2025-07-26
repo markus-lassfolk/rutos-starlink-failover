@@ -9,6 +9,7 @@ set -e
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION
 
 # Colors for output (RUTOS compatible)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
@@ -16,14 +17,20 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[1;35m'
-
+    # shellcheck disable=SC2034  # Standard project colors, may be used in future
+    PURPLE='\033[0;35m'
+    # shellcheck disable=SC2034  # Standard project colors, may be used in future  
+    CYAN='\033[0;36m'
     NC='\033[0m'
 else
     RED=""
     GREEN=""
     YELLOW=""
     BLUE=""
-
+    # shellcheck disable=SC2034  # Standard project colors, may be used in future
+    PURPLE=""
+    # shellcheck disable=SC2034  # Standard project colors, may be used in future
+    CYAN=""
     NC=""
 fi
 
@@ -54,15 +61,10 @@ SCRIPT_DIR="/usr/local/starlink-monitor"
 # Scripts to test (the ones we fixed)
 TEST_SCRIPTS="
 check_starlink_api-rutos.sh
-<<<<<<< HEAD
-starlink_logger-rutos.sh
-starlink_logger_enhanced-rutos.sh
-=======
 starlink_logger_unified-rutos.sh
 starlink_logger-rutos.sh
 starlink_logger_enhanced-rutos.sh
 starlink_monitor_unified-rutos.sh
->>>>>>> dd4d5a6 (Complete RUTOS testing framework compatibility fixes and verification)
 starlink_monitor_enhanced-rutos.sh
 starlink_monitor-rutos.sh
 "
@@ -72,12 +74,13 @@ TOTAL_TESTS=0
 PASSED_TESTS=0
 FAILED_TESTS=0
 
-printf "${BLUE}================================================${NC}\n"
-printf "${BLUE}    RUTOS Early Exit Pattern Verification${NC}\n"
-printf "${BLUE}================================================${NC}\n"
+printf "%s================================================%s\n" "$BLUE" "$NC"
+printf "%s    RUTOS Early Exit Pattern Verification%s\n" "$BLUE" "$NC"
+printf "%s================================================%s\n" "$BLUE" "$NC"
 printf "\n"
 
 log_info "Testing early exit patterns on RUTOS hardware"
+log_info "Script version: $SCRIPT_VERSION"
 log_info "Router: $(uname -a 2>/dev/null || echo 'Unknown')"
 log_info "Shell: $0"
 log_info "Current user: $(whoami 2>/dev/null || echo 'Unknown')"
@@ -223,9 +226,9 @@ for script in $TEST_SCRIPTS; do
 done
 
 # Final results
-printf "${BLUE}================================================${NC}\n"
-printf "${BLUE}              TEST RESULTS SUMMARY${NC}\n"
-printf "${BLUE}================================================${NC}\n"
+printf "%s================================================%s\n" "$BLUE" "$NC"
+printf "%s              TEST RESULTS SUMMARY%s\n" "$BLUE" "$NC"
+printf "%s================================================%s\n" "$BLUE" "$NC"
 printf "\n"
 
 if [ $FAILED_TESTS -eq 0 ]; then
