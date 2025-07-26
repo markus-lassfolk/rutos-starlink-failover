@@ -2,13 +2,17 @@
 # Quick debug script to check config.sh contents
 # Version: 2.7.0
 
+# shellcheck disable=SC2034  # Version info for potential future use
 SCRIPT_VERSION="2.7.0"
 
 # Colors for output
+# shellcheck disable=SC2034  # Used in some conditional contexts
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+# shellcheck disable=SC2034  # Used in some conditional contexts
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
+# shellcheck disable=SC2034  # Used in some conditional contexts
 CYAN='\033[0;36m'
 NC='\033[0m'
 

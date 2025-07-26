@@ -26,6 +26,7 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # PURPLE used in future enhancements
     PURPLE=""
     CYAN=""
     NC=""
@@ -100,7 +101,8 @@ fi
 # Configuration based on Victron GPS normalization approach
 CLUSTER_DISTANCE_METERS=50 # 50m clustering tolerance (motorhome-sized parking areas)
 MIN_EVENTS_PER_LOCATION=2  # Minimum events to consider a problematic location
-GPS_ACCURACY_THRESHOLD=10  # Accept GPS with <10m accuracy (same as Starlink threshold)
+# shellcheck disable=SC2034  # GPS_ACCURACY_THRESHOLD reserved for future GPS filtering features
+GPS_ACCURACY_THRESHOLD=10 # Accept GPS with <10m accuracy (same as Starlink threshold)
 
 # Haversine distance calculation (from Victron flow)
 haversine_distance() {
@@ -168,7 +170,7 @@ cluster_locations() {
     log_step "Clustering locations within ${CLUSTER_DISTANCE_METERS}m radius"
 
     cluster_id=1
-    >"$clusters_file" # Clear file
+    true >"$clusters_file" # Clear file
 
     while IFS=',' read -r lat lon; do
         # Skip invalid coordinates

@@ -433,11 +433,9 @@ main() {
     log_debug "Working directory: $(pwd)"
     log_debug "Arguments: $*"
     log_debug "======================================================"
-    printf "%s" "${BLUE}"
-    echo "========================================"
-    echo "  Unified Azure Logging Setup Script"
-    echo "========================================"
-    printf "%s" "${NC}"
+    printf "${BLUE}========================================\n"
+    printf "${BLUE}  Unified Azure Logging Setup Script\n"
+    printf "${BLUE}========================================${NC}\n"
 
     # Check if running as root
     if [ "$(id -u)" -ne 0 ]; then

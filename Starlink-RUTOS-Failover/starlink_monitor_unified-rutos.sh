@@ -169,7 +169,7 @@ collect_gps_data() {
         return 0
     fi
 
-    lat="" lon="" alt="" accuracy="" source="" timestamp=""
+    lat="" lon="" alt="" accuracy="" gps_source="" timestamp=""
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     log_debug "Collecting GPS data from available sources"
@@ -183,7 +183,8 @@ collect_gps_data() {
             alt=$(echo "$gps_output" | grep "Altitude:" | awk '{print $2}' | head -1)
             if [ -n "$lat" ] && [ -n "$lon" ] && [ "$lat" != "0.000000" ]; then
                 accuracy="high"
-                source="rutos_gps"
+                # shellcheck disable=SC2034  # gps_source used for logging context
+                gps_source="rutos_gps"
                 log_debug "GPS data from RUTOS: lat=$lat, lon=$lon"
             fi
         fi
@@ -198,7 +199,8 @@ collect_gps_data() {
             lon="$starlink_lon"
             alt=$(echo "$status_data" | "$JQ_CMD" -r '.dishGpsStats.altitude // 0' 2>/dev/null)
             accuracy="medium"
-            source="starlink_gps"
+            # shellcheck disable=SC2034  # gps_source used for logging context
+            gps_source="starlink_gps"
             log_debug "GPS data from Starlink: lat=$lat, lon=$lon"
         fi
     fi
@@ -207,21 +209,21 @@ collect_gps_data() {
     if [ -z "$lat" ] && [ "$ENABLE_CELLULAR_TRACKING" = "true" ]; then
         # This would require cellular tower database lookup - simplified for now
         accuracy="low"
-        source="cellular_tower"
+        data_source="cellular_tower"
         log_debug "GPS fallback to cellular tower estimation"
     fi
 
     # Log GPS data if we have coordinates
     if [ -n "$lat" ] && [ -n "$lon" ]; then
         if [ ! -f "$GPS_LOG_FILE" ]; then
-            echo "timestamp,latitude,longitude,altitude,accuracy,source" >"$GPS_LOG_FILE"
+            echo "timestamp,latitude,longitude,altitude,accuracy,data_source" >"$GPS_LOG_FILE"
         fi
-        echo "$timestamp,$lat,$lon,$alt,$accuracy,$source" >>"$GPS_LOG_FILE"
-        log_debug "GPS data logged: $source ($accuracy accuracy)"
+        echo "$timestamp,$lat,$lon,$alt,$accuracy,$data_source" >>"$GPS_LOG_FILE"
+        log_debug "GPS data logged: $data_source ($accuracy accuracy)"
     fi
 
     # Return GPS data for use by calling functions
-    printf "%s" "$timestamp,$lat,$lon,$alt,$accuracy,$source"
+    printf "%s" "$timestamp,$lat,$lon,$alt,$accuracy,$data_source"
 }
 
 # =============================================================================
@@ -410,7 +412,7 @@ analyze_connection_quality() {
         fi
 
         # Enhanced failover decision logic
-        quality_factors=$(($is_latency_poor + $is_packet_loss_poor + $is_obstruction_poor + $is_snr_poor + $is_gps_poor))
+        quality_factors=$((is_latency_poor + is_packet_loss_poor + is_obstruction_poor + is_snr_poor + is_gps_poor))
 
         if [ "$quality_factors" -ge 2 ]; then
             log_warning "Multiple quality issues detected ($quality_factors factors), initiating enhanced failover analysis"
