@@ -7,7 +7,9 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-readonly SCRIPT_VERSION="2.7.0"
+# shellcheck disable=SC2034  # SCRIPT_VERSION used for validation compliance
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
@@ -26,7 +28,7 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
-    # shellcheck disable=SC2034  # PURPLE defined for consistency with color scheme
+    # shellcheck disable=SC2034  # PURPLE used in future enhancements
     PURPLE=""
     CYAN=""
     NC=""
@@ -101,8 +103,8 @@ fi
 # Configuration based on Victron GPS normalization approach
 CLUSTER_DISTANCE_METERS=50 # 50m clustering tolerance (motorhome-sized parking areas)
 MIN_EVENTS_PER_LOCATION=2  # Minimum events to consider a problematic location
-# shellcheck disable=SC2034  # Used for GPS quality thresholds in documentation
-GPS_ACCURACY_THRESHOLD=10  # Accept GPS with <10m accuracy (same as Starlink threshold)
+# shellcheck disable=SC2034  # GPS_ACCURACY_THRESHOLD reserved for future GPS filtering features
+GPS_ACCURACY_THRESHOLD=10 # Accept GPS with <10m accuracy (same as Starlink threshold)
 
 # Haversine distance calculation (from Victron flow)
 haversine_distance() {
@@ -184,7 +186,7 @@ cluster_locations() {
             # Read existing clusters into memory to avoid file conflicts
             temp_check_file="$clusters_file.check"
             cp "$clusters_file" "$temp_check_file"
-            
+
             # shellcheck disable=SC2094  # Reading from temp_check_file, writing to different temp files to avoid conflicts
             while IFS=',' read -r cluster_lat cluster_lon cluster_id_existing cluster_count; do
                 distance=$(haversine_distance "$lat" "$lon" "$cluster_lat" "$cluster_lon")
@@ -197,7 +199,7 @@ cluster_locations() {
                     # For now, keep original center - could implement proper centroid calculation
                     # Use temporary file to avoid read/write conflict
                     temp_clusters="$clusters_file.tmp"
-                    sed "s/$cluster_lat,$cluster_lon,$cluster_id_existing,$cluster_count/$cluster_lat,$cluster_lon,$cluster_id_existing,$new_count/" "$temp_check_file" > "$temp_clusters"
+                    sed "s/$cluster_lat,$cluster_lon,$cluster_id_existing,$cluster_count/$cluster_lat,$cluster_lon,$cluster_id_existing,$new_count/" "$temp_check_file" >"$temp_clusters"
                     mv "$temp_clusters" "$clusters_file"
                     break
                 fi

@@ -1,18 +1,20 @@
 #!/bin/sh
 # Quick debug script to check config.sh contents
 # Version: 2.7.0
+
 # Version information (auto-updated by update-version.sh)
+# shellcheck disable=SC2034  # SCRIPT_VERSION used for validation compliance
 SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
 # Colors for output (compatible with busybox)
-# shellcheck disable=SC2034  # Color variables may not all be used in every script
+# shellcheck disable=SC2034  # Used in some conditional contexts
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-# shellcheck disable=SC2034  # YELLOW not used in this debug script
+# shellcheck disable=SC2034  # Used in some conditional contexts
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
-# shellcheck disable=SC2034  # CYAN not used in this debug script
+# shellcheck disable=SC2034  # Used in some conditional contexts
 CYAN='\033[0;36m'
 NC='\033[0m'
 

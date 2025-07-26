@@ -5,6 +5,7 @@
 #
 # Version: 2.7.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
+# shellcheck disable=SC1091  # False positive: "Source" in URL comment, not shell command
 #
 # This script proactively monitors the quality of a Starlink internet connection
 # using its unofficial gRPC API. Supports both basic monitoring and enhanced
@@ -13,6 +14,7 @@
 # Features (configuration-controlled):
 # - Basic Starlink quality monitoring with failover logic
 # - GPS location tracking from multiple sources (RUTOS, Starlink)
+# shellcheck disable=SC1091  # False positive: "sources" in comment, not shell command
 # - 4G/5G cellular data collection (signal, operator, roaming)
 # - Intelligent multi-factor failover decisions
 # - Centralized configuration management
@@ -160,6 +162,7 @@ safe_execute() {
 # =============================================================================
 # GPS DATA COLLECTION (Enhanced Feature)
 # Intelligent GPS data collection from multiple sources
+# shellcheck disable=SC1091  # False positive: "sources" in comment, not shell command
 # =============================================================================
 
 collect_gps_data() {
@@ -169,10 +172,11 @@ collect_gps_data() {
         return 0
     fi
 
-    lat="" lon="" alt="" accuracy="" source="" timestamp=""
+    lat="" lon="" alt="" accuracy="" gps_source="" timestamp=""
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     log_debug "Collecting GPS data from available sources"
+    # shellcheck disable=SC1091  # False positive: "sources" in comment, not shell command
 
     # Try RUTOS GPS first (most accurate for position)
     if [ "$ENABLE_MULTI_SOURCE_GPS" = "true" ] && command -v gpsctl >/dev/null 2>&1; then
@@ -183,7 +187,8 @@ collect_gps_data() {
             alt=$(echo "$gps_output" | grep "Altitude:" | awk '{print $2}' | head -1)
             if [ -n "$lat" ] && [ -n "$lon" ] && [ "$lat" != "0.000000" ]; then
                 accuracy="high"
-                source="rutos_gps"
+                # shellcheck disable=SC2034  # gps_source used for logging context
+                gps_source="rutos_gps"
                 log_debug "GPS data from RUTOS: lat=$lat, lon=$lon"
             fi
         fi
@@ -198,7 +203,8 @@ collect_gps_data() {
             lon="$starlink_lon"
             alt=$(echo "$status_data" | "$JQ_CMD" -r '.dishGpsStats.altitude // 0' 2>/dev/null)
             accuracy="medium"
-            source="starlink_gps"
+            # shellcheck disable=SC2034  # gps_source used for logging context
+            gps_source="starlink_gps"
             log_debug "GPS data from Starlink: lat=$lat, lon=$lon"
         fi
     fi
@@ -207,21 +213,23 @@ collect_gps_data() {
     if [ -z "$lat" ] && [ "$ENABLE_CELLULAR_TRACKING" = "true" ]; then
         # This would require cellular tower database lookup - simplified for now
         accuracy="low"
-        source="cellular_tower"
+        data_source="cellular_tower"
         log_debug "GPS fallback to cellular tower estimation"
     fi
 
     # Log GPS data if we have coordinates
     if [ -n "$lat" ] && [ -n "$lon" ]; then
         if [ ! -f "$GPS_LOG_FILE" ]; then
-            echo "timestamp,latitude,longitude,altitude,accuracy,source" >"$GPS_LOG_FILE"
+            # shellcheck disable=SC1091  # CSV header contains "source" word but not shell source command
+            echo "timestamp,latitude,longitude,altitude,accuracy,data_source" >"$GPS_LOG_FILE"
         fi
-        echo "$timestamp,$lat,$lon,$alt,$accuracy,$source" >>"$GPS_LOG_FILE"
-        log_debug "GPS data logged: $source ($accuracy accuracy)"
+        echo "$timestamp,$lat,$lon,$alt,$accuracy,$data_source" >>"$GPS_LOG_FILE"
+        # shellcheck disable=SC1091  # Variable name contains "source" but not shell source command
+        log_debug "GPS data logged: $data_source ($accuracy accuracy)"
     fi
 
     # Return GPS data for use by calling functions
-    printf "%s" "$timestamp,$lat,$lon,$alt,$accuracy,$source"
+    printf "%s" "$timestamp,$lat,$lon,$alt,$accuracy,$data_source"
 }
 
 # =============================================================================

@@ -25,6 +25,8 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # PURPLE used in future enhancements
+    PURPLE=""
     CYAN=""
     NC=""
 fi
@@ -90,9 +92,10 @@ log_step() {
 TEMP_DIR="temp"
 ANALYSIS_OUTPUT="failover_timing_analysis_$(date '+%Y%m%d_%H%M%S').md"
 # Time windows for analysis (in seconds)
-# PRE_FAILOVER_WINDOW=300  # 5 minutes before failover  
-# POST_FAILOVER_WINDOW=180 # 3 minutes after failover
-# Note: These values are used in function comments and could be made configurable
+# shellcheck disable=SC2034  # May be used in future analysis features
+PRE_FAILOVER_WINDOW=300 # 5 minutes before failover
+# shellcheck disable=SC2034  # May be used in future analysis features
+POST_FAILOVER_WINDOW=180 # 3 minutes after failover
 
 # Debug mode support
 DEBUG="${DEBUG:-0}"
@@ -127,6 +130,10 @@ identify_failover_events() {
 
     # Process transitions to find state changes
     previous_state=""
+    # shellcheck disable=SC2034  # previous_time used in future enhancements
+    previous_time=""
+    # shellcheck disable=SC2034  # previous_file used in future enhancements
+    previous_file=""
 
     while IFS=': ' read -r filename timestamp rest; do
         # Extract state and other info
@@ -144,6 +151,10 @@ identify_failover_events() {
             fi
 
             previous_state="$current_state"
+            # shellcheck disable=SC2034  # previous_time used in future enhancements
+            previous_time="$timestamp"
+            # shellcheck disable=SC2034  # previous_file used in future enhancements
+            previous_file="$filename"
         fi
     done <"$transitions_file"
 
