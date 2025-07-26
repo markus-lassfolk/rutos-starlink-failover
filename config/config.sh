@@ -11,8 +11,8 @@ CONFIG_TYPE="test"
 # Basic required variables
 export STARLINK_IP="192.168.100.1"
 export STARLINK_PORT="9200"
-export CHECK_INTERVAL="30"           # How often to test Starlink (seconds)
-export API_TIMEOUT="10"              # API call timeout (seconds)
+export CHECK_INTERVAL="30" # How often to test Starlink (seconds)
+export API_TIMEOUT="10"    # API call timeout (seconds)
 export PUSHOVER_TOKEN="test_token"
 export PUSHOVER_USER="test_user"
 
