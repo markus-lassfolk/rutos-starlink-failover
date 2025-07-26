@@ -1,8 +1,12 @@
 # Autonomous System Integration Summary
 
+<!-- Version: 2.7.0 - Auto-updated documentation -->
+
 ## Overview
 
-Successfully integrated all autonomous functionality directly into the main monitoring script `Monitor-CopilotPRs-Complete.ps1`, following your preference for GitHub workflow approach and consolidated administration.
+Successfully integrated all autonomous functionality directly into the main monitoring script
+`Monitor-CopilotPRs-Complete.ps1`, following your preference for GitHub workflow approach and
+consolidated administration.
 
 ## ✅ Completed Integration
 

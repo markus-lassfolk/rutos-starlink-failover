@@ -1,6 +1,8 @@
-# RUTOS Starlink Monitoring Data Validation Report
+# RUTOS Data Validation Report
 
-## Executive Summary
+<!-- Version: 2.7.0 - Auto-updated documentation -->
+
+## Analysis Summary
 
 Analysis of your RUTOS Starlink monitoring logs reveals **mixed data quality** with some metrics showing excellent
 variation and others indicating potential API limitations or sensor issues.

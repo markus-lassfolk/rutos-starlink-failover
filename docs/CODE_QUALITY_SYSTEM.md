@@ -333,7 +333,7 @@ The validation script automatically checks which tools are available:
 2. **Formatting**: Use `prettier` for consistent style
 3. **Readability**: Keep lines under 120 characters
 
-### Configuration Files
+### Configuration File Standards
 
 1. **Syntax**: Validate with `jq` (JSON) and `yamllint` (YAML)
 2. **Formatting**: Use `prettier` for consistency

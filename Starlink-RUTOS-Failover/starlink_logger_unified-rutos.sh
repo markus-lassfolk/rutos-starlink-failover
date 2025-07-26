@@ -80,13 +80,15 @@ AGGREGATION_BATCH_SIZE="${AGGREGATION_BATCH_SIZE:-60}"
 # Create necessary directories
 mkdir -p "$LOG_DIR" "$(dirname "$STATE_FILE")" 2>/dev/null || true
 
-# Dry-run and test mode support
+# Dry-run and test mode support (capture original values for debug output)
+ORIGINAL_DRY_RUN="${DRY_RUN:-0}"
+ORIGINAL_RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
-# Debug dry-run status
+# Debug dry-run status (show original environment values)
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "${CYAN}[DEBUG]${NC} DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
+    printf "${CYAN}[DEBUG]${NC} DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$ORIGINAL_DRY_RUN" "$ORIGINAL_RUTOS_TEST_MODE" >&2
     printf "${CYAN}[DEBUG]${NC} GPS_LOGGING=%s, CELLULAR_LOGGING=%s, AGGREGATION=%s\n" "$ENABLE_GPS_LOGGING" "$ENABLE_CELLULAR_LOGGING" "$ENABLE_STATISTICAL_AGGREGATION" >&2
 fi
 
@@ -569,8 +571,8 @@ main() {
     fi
 
     # Validate required tools
-    if [ ! -f "$GRPCURL_PATH" ]; then
-        log_error "grpcurl not found at $GRPCURL_PATH"
+    if [ ! -f "$GRPCURL_CMD" ]; then
+        log_error "grpcurl not found at $GRPCURL_CMD"
         exit 1
     fi
 
@@ -582,7 +584,7 @@ main() {
     log_debug "Fetching Starlink status data"
 
     # Get Starlink status
-    if ! status_data=$("$GRPCURL_PATH" -plaintext -d '{"getStatus":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null); then
+    if ! status_data=$("$GRPCURL_CMD" -plaintext -d '{"getStatus":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null); then
         log_error "Failed to fetch Starlink status data"
         exit 1
     fi

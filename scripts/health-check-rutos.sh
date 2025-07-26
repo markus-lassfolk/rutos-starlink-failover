@@ -1299,6 +1299,109 @@ run_integrated_tests() {
     fi
 }
 
+# Test script execution in dry-run mode
+test_script_execution() {
+    debug_func "test_script_execution"
+    log_step "Testing script execution in dry-run mode"
+
+    # Critical scripts that should be tested
+    MAIN_MONITOR="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh"
+    MAIN_LOGGER="/usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh"
+
+    # Test main monitoring script
+    if [ -x "$MAIN_MONITOR" ]; then
+        log_debug "Testing main monitor script execution"
+        if error_output=$(DRY_RUN=1 RUTOS_TEST_MODE=1 "$MAIN_MONITOR" 2>&1); then
+            show_health_status "healthy" "Monitor Execution" "Script executes successfully in dry-run mode"
+            increment_counter "healthy"
+            log_debug "Monitor script dry-run test: PASSED"
+        else
+            show_health_status "critical" "Monitor Execution" "Script execution failed: $error_output"
+            increment_counter "critical"
+            log_debug "Monitor script dry-run test: FAILED - $error_output"
+        fi
+    else
+        show_health_status "unknown" "Monitor Execution" "Monitor script not found or not executable"
+        increment_counter "unknown"
+    fi
+
+    # Test main logger script
+    if [ -x "$MAIN_LOGGER" ]; then
+        log_debug "Testing main logger script execution"
+        if error_output=$(DRY_RUN=1 RUTOS_TEST_MODE=1 "$MAIN_LOGGER" 2>&1); then
+            show_health_status "healthy" "Logger Execution" "Script executes successfully in dry-run mode"
+            increment_counter "healthy"
+            log_debug "Logger script dry-run test: PASSED"
+        else
+            show_health_status "critical" "Logger Execution" "Script execution failed: $error_output"
+            increment_counter "critical"
+            log_debug "Logger script dry-run test: FAILED - $error_output"
+        fi
+    else
+        show_health_status "unknown" "Logger Execution" "Logger script not found or not executable"
+        increment_counter "unknown"
+    fi
+
+    # Test configuration validation script
+    VALIDATE_CONFIG="$SCRIPT_DIR/validate-config-rutos.sh"
+    if [ -x "$VALIDATE_CONFIG" ]; then
+        log_debug "Testing config validation script execution"
+        if error_output=$(DRY_RUN=1 "$VALIDATE_CONFIG" 2>&1); then
+            show_health_status "healthy" "Config Validation" "Script executes successfully"
+            increment_counter "healthy"
+            log_debug "Config validation test: PASSED"
+        else
+            show_health_status "warning" "Config Validation" "Config validation issues detected"
+            increment_counter "warning"
+            log_debug "Config validation test: WARNING - $error_output"
+        fi
+    else
+        show_health_status "unknown" "Config Validation" "validate-config-rutos.sh not found"
+        increment_counter "unknown"
+    fi
+}
+
+# Function to check system logs for script errors
+check_system_log_errors() {
+    debug_func "check_system_log_errors"
+    check_name="$1"
+    pattern="${2:-starlink.*error|parameter.*not set|failed.*load|command.*not found}"
+    max_age_hours="${3:-2}" # Default 2 hours
+
+    log_debug "Checking system logs for errors: $pattern"
+
+    # Use logread if available (RUTOS), otherwise check syslog files
+    if command -v logread >/dev/null 2>&1; then
+        # Use logread to check system logs
+        recent_errors=$(logread 2>/dev/null | grep -iE "$pattern" | tail -20 2>/dev/null || echo "")
+    elif [ -f "/var/log/messages" ]; then
+        # Check /var/log/messages for recent errors
+        recent_errors=$(find /var/log/messages -mmin -$((max_age_hours * 60)) -exec grep -iE "$pattern" {} \; 2>/dev/null | tail -20 || echo "")
+    elif [ -f "/var/log/syslog" ]; then
+        # Check /var/log/syslog for recent errors
+        recent_errors=$(find /var/log/syslog -mmin -$((max_age_hours * 60)) -exec grep -iE "$pattern" {} \; 2>/dev/null | tail -20 || echo "")
+    else
+        show_health_status "warning" "$check_name" "No system logs available for error checking"
+        increment_counter "warning"
+        return 1
+    fi
+
+    if [ -n "$recent_errors" ]; then
+        error_count=$(echo "$recent_errors" | wc -l | tr -d ' \n\r')
+        if [ "$error_count" -gt 0 ]; then
+            # Show first few lines of recent errors for context
+            sample_errors=$(echo "$recent_errors" | head -3 | tr '\n' '; ')
+            show_health_status "warning" "$check_name" "Found $error_count recent errors: $sample_errors"
+            increment_counter "warning"
+            return 1
+        fi
+    fi
+
+    show_health_status "healthy" "$check_name" "No recent errors found in system logs"
+    increment_counter "healthy"
+    return 0
+}
+
 # Function to show final health summary
 show_health_summary() {
     echo ""
@@ -1486,6 +1589,8 @@ main() {
         "--monitoring")
             log_debug "MONITORING MODE: Running monitoring system checks only"
             check_monitoring_health
+            test_script_execution
+            check_system_log_errors "System Log Errors"
             ;;
         "--config")
             log_debug "CONFIG MODE: Running configuration checks only"
@@ -1565,6 +1670,8 @@ main() {
             check_starlink_connectivity
             check_configuration_health
             check_monitoring_health
+            test_script_execution
+            check_system_log_errors "System Log Errors"
             check_logger_sample_tracking
             check_firmware_persistence
             run_integrated_tests

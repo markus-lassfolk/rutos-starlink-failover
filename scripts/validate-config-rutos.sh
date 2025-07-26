@@ -215,6 +215,40 @@ check_binaries() {
     printf "%b\n" "${GREEN}✓ All required binaries found${NC}"
 }
 
+# Check configuration variable consistency across scripts
+check_config_variable_consistency() {
+    printf "%b\n" "${GREEN}Checking configuration variable consistency...${NC}"
+
+    # Check for GRPCURL variable consistency
+    unified_scripts_with_grpcurl_path=0
+    # Check if any unified scripts are still using GRPCURL_PATH instead of GRPCURL_CMD
+    if [ -f "Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh" ]; then
+        if grep -q "GRPCURL_PATH" "Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh" 2>/dev/null; then
+            unified_scripts_with_grpcurl_path=$((unified_scripts_with_grpcurl_path + 1))
+        fi
+    fi
+    if [ -f "Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh" ]; then
+        if grep -q "GRPCURL_PATH" "Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh" 2>/dev/null; then
+            unified_scripts_with_grpcurl_path=$((unified_scripts_with_grpcurl_path + 1))
+        fi
+    fi
+
+    if [ "$unified_scripts_with_grpcurl_path" -gt 0 ]; then
+        printf "%b\n" "${RED}Error: Found unified scripts using GRPCURL_PATH instead of GRPCURL_CMD${NC}"
+        printf "%b\n" "${YELLOW}Configuration exports GRPCURL_CMD but some scripts expect GRPCURL_PATH${NC}"
+        printf "%b\n" "${YELLOW}This will cause 'parameter not set' errors during execution${NC}"
+        exit 1
+    fi
+
+    # Check if GRPCURL_CMD is properly defined in config
+    if [ -z "${GRPCURL_CMD:-}" ]; then
+        printf "%b\n" "${RED}Error: GRPCURL_CMD is not defined in configuration${NC}"
+        exit 1
+    fi
+
+    printf "%b\n" "${GREEN}✓ Configuration variable consistency verified${NC}"
+}
+
 # Check network connectivity - basic system connectivity only
 check_network() {
     printf "%b\n" "${GREEN}Checking basic network connectivity...${NC}"
@@ -1177,6 +1211,7 @@ main() {
 
     # Original validation checks
     check_binaries
+    check_config_variable_consistency
     check_network
     check_uci
     check_directories

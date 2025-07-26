@@ -1,5 +1,7 @@
 # Unified Scripts Migration Guide
 
+<!-- Version: 2.7.0 - Auto-updated documentation -->
+
 ## Overview
 
 The RUTOS Starlink Failover system now includes unified scripts that combine all functionality from the

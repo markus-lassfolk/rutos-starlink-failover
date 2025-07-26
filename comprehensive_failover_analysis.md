@@ -1,5 +1,7 @@
 # Comprehensive Failover Timing Analysis Report
 
+<!-- Version: 2.7.0 - Auto-updated documentation -->
+
 **Document Version**: 1.0.0  
 **Generated**: 2025-07-25 02:15:00
 

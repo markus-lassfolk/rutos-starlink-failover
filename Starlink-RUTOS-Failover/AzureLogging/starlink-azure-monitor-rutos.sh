@@ -26,7 +26,7 @@ CSV_MAX_SIZE=$(uci get azure.starlink.max_size 2>/dev/null || echo "1048576") # 
 
 # --- STARLINK API CONFIGURATION ---
 STARLINK_IP=$(uci get azure.starlink.starlink_ip 2>/dev/null || echo "192.168.100.1:9200")
-GRPCURL_PATH="${GRPCURL_PATH:-/root/grpcurl}"
+GRPCURL_CMD="${GRPCURL_CMD:-/root/grpcurl}"
 JQ_PATH="${JQ_PATH:-/root/jq}"
 
 # --- RUTOS GPS CONFIGURATION ---
@@ -276,7 +276,7 @@ collect_starlink_gps() {
 
     # Use get_diagnostics to get location data (consistent with VenusOS GPS flow)
     diagnostics_data
-    diagnostics_data=$(timeout 10 "$GRPCURL_PATH" -plaintext -max-time 10 \
+    diagnostics_data=$(timeout 10 "$GRPCURL_CMD" -plaintext -max-time 10 \
         -d '{"get_diagnostics":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null |
         "$JQ_PATH" -r '.dishGetDiagnostics // ""' 2>/dev/null)
 
@@ -305,7 +305,7 @@ collect_starlink_gps() {
 
                 # Try to get GPS stats for satellite count from status
                 status_data gps_stats
-                status_data=$(timeout 5 "$GRPCURL_PATH" -plaintext -max-time 5 \
+                status_data=$(timeout 5 "$GRPCURL_CMD" -plaintext -max-time 5 \
                     -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null |
                     "$JQ_PATH" -r '.dishGetStatus // ""' 2>/dev/null)
 
@@ -359,8 +359,8 @@ collect_starlink_data() {
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     # Query Starlink API for status data
-    if ! command -v "$GRPCURL_PATH" >/dev/null 2>&1; then
-        log_error "grpcurl not found at $GRPCURL_PATH"
+    if ! command -v "$GRPCURL_CMD" >/dev/null 2>&1; then
+        log_error "grpcurl not found at $GRPCURL_CMD"
         return 1
     fi
 
@@ -371,9 +371,9 @@ collect_starlink_data() {
 
     # Get status data from Starlink
     status_json
-    status_json=$("$GRPCURL_PATH" -plaintext -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null)
+    status_json=$("$GRPCURL_CMD" -plaintext -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null)
 
-    if ! "$GRPCURL_PATH" -plaintext -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle >/dev/null 2>&1 || [ -z "$status_json" ]; then
+    if ! "$GRPCURL_CMD" -plaintext -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle >/dev/null 2>&1 || [ -z "$status_json" ]; then
         log_error "Failed to get Starlink status data"
         return 1
     fi

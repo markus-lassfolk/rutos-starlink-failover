@@ -1,6 +1,8 @@
-# Comprehensive Copilot Role Assignment Guide
+# Copilot Role Assignment Guide
 
-## Overview
+<!-- Version: 2.7.0 - Auto-updated documentation -->
+
+## Background
 
 Our enhanced Copilot assignment system provides comprehensive GitHub role management for both Issues and Pull Requests,
 maximizing Copilot integration and project management capabilities.

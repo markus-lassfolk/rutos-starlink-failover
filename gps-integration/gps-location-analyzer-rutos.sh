@@ -327,7 +327,7 @@ cluster_locations() {
             # Create a copy to avoid read/write issues
             temp_clusters_read="/tmp/temp_clusters_read_$$"
             cp "$temp_clusters" "$temp_clusters_read"
-            
+
             while IFS=',' read -r cluster_lat cluster_lon cluster_id_existing readings_data; do
                 distance=$(haversine_distance "$lat" "$lon" "$cluster_lat" "$cluster_lon")
                 distance_int=$(echo "$distance" | cut -d'.' -f1)

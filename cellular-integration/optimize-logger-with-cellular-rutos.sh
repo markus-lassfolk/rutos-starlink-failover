@@ -691,7 +691,7 @@ generate_statistical_aggregation() {
         }
     }
     ' >>"$aggregated_log"
-    
+
     # Clean up temporary files
     rm -f "$temp_ping" "$temp_download" "$temp_upload" "$temp_drop_rate" "$temp_snr" "$temp_obstruction" 2>/dev/null || true
 

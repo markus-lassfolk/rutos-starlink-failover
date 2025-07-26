@@ -1,5 +1,7 @@
 # Enhanced Copilot Assignment Implementation Summary
 
+<!-- Version: 2.7.0 - Auto-updated documentation -->
+
 ## What We've Implemented
 
 ### 1. Two-Step Copilot Assignment Workflow

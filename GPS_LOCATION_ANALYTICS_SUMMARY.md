@@ -1,14 +1,19 @@
 # GPS-Based Location Analytics Implementation Summary
 
+<!-- Version: 2.7.0 - Auto-updated documentation -->
+
 ## 🎯 **Overview**
 
-Based on your **Victron GPS repository** (rutos-victron-gps), we've designed a comprehensive **location-based failover analysis system** for your motorhome Starlink monitoring. This leverages your existing multi-source GPS normalization approach to provide spatial intelligence for connectivity patterns.
+Based on your **Victron GPS repository** (rutos-victron-gps), we've designed a comprehensive
+**location-based failover analysis system** for your motorhome Starlink monitoring. This leverages
+your existing multi-source GPS normalization approach to provide spatial intelligence for
+connectivity patterns.
 
 ## 📍 **GPS Data Sources & Normalization**
 
 ### **Multi-Source GPS Integration** (from your Victron Node-RED flow)
 
-**🥇 Primary Source: RUTOS GPS API**
+#### Primary Source: RUTOS GPS API
 
 ```bash
 GET https://192.168.80.1/api/gps/position/status
@@ -16,7 +21,7 @@ GET https://192.168.80.1/api/gps/position/status
 # Data: latitude, longitude, altitude, fix_status, satellites, accuracy
 ```
 
-**🥈 Backup Source: Starlink Diagnostics GPS**
+#### Backup Source: Starlink Diagnostics GPS
 
 ```bash
 grpcurl -plaintext -d '{"get_diagnostics":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle
@@ -101,7 +106,7 @@ if (goodRut && goodStar) {
 
 ### **Demo Location Clustering**
 
-```
+```text
 📍 Total location clusters: 2
 ⚠️  Problematic locations: 1 (≥2 events)
 ✅ Normal locations: 1
@@ -184,4 +189,6 @@ adjust_thresholds_for_location() {
 
 **Status**: ✅ **READY FOR IMPLEMENTATION**
 
-This GPS-based location analytics system transforms your monitoring from **temporal analysis** to **spatial intelligence**, providing motorhome-specific insights for optimal connectivity management across your travel routes using proven GPS normalization techniques from your Victron integration.
+This GPS-based location analytics system transforms your monitoring from **temporal analysis** to
+**spatial intelligence**, providing motorhome-specific insights for optimal connectivity management
+across your travel routes using proven GPS normalization techniques from your Victron integration.

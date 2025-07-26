@@ -1,5 +1,7 @@
 # Cellular Integration Complete Solution
 
+<!-- Version: 2.7.0 - Auto-updated documentation -->
+
 ## Overview
 
 This solution extends our GPS-enhanced Starlink monitoring system with comprehensive cellular data integration,
