@@ -14,15 +14,18 @@
 ### MAJOR Issues Fixed (Priority 2-3)
 
 1. **Unused variables removed**:
+
    - starlink_monitor_unified-rutos.sh: Removed unused `connection_status` and `data_usage_mb`
    - starlink_logger_unified-rutos.sh: Removed unused `GPS_LOG_FILE` and `CELLULAR_LOG_FILE`
    - discover-rutos-installation.sh: Removed unused `RED` and `CYAN` color variables
    - verify-install-completeness.sh: Removed unused `RED` and `CYAN` color variables
 
 2. **Infrastructure variables exported**:
+
    - starlink_monitor_unified-rutos.sh: Exported `CURRENT_SNR`, `CURRENT_UPTIME`, and `STARLINK_BOOTCOUNT` for external use
 
 3. **Printf format issues fixed**:
+
    - discover-rutos-installation.sh: Fixed printf format strings to use %s placeholders
 
 4. **Color detection logic added**:

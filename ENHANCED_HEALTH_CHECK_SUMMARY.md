@@ -119,6 +119,7 @@ test_script_execution() detects:
 ### Supporting Validation Tools
 
 2. **`scripts/validate-config-rutos.sh`** (Previously Enhanced)
+
    - Added `check_config_variable_consistency()` function
 
 3. **`scripts/check-variable-consistency-rutos.sh`** (Created)

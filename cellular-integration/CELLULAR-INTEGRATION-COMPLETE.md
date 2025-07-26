@@ -81,17 +81,20 @@ failover decisions based on signal strength, network type, roaming status, and c
 ### Data Flow
 
 1. **Collection Phase**:
+
    - Starlink metrics via grpcurl (SNR, obstruction, speed)
    - Cellular data via gsmctl/mmcli (signal, network, roaming)
    - GPS coordinates via RUTOS GPS (primary) or Starlink GPS (backup)
 
 2. **Analysis Phase**:
+
    - Connection scoring based on multiple factors
    - Roaming cost assessment
    - Signal quality evaluation
    - Network type preferences
 
 3. **Decision Phase**:
+
    - Compare all available connections
    - Apply hysteresis rules
    - Generate failover recommendations
@@ -315,6 +318,7 @@ Total Score = Base Priority + Signal Bonus + Network Bonus + Status Bonus - Pena
 #### Signal Quality Bonuses
 
 - **Starlink SNR**:
+
   - ≥8.0 dB: +30 points
   - ≥3.0 dB: +10 points
   - <3.0 dB: -20 points

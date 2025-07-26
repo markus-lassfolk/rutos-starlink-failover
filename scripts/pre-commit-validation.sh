@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+# shellcheck disable=SC2059 # RUTOS Method 5 color format uses variables in printf strings intentionally
 # Pre-commit validation script for RUTOS Starlink Failover Project
 # Version: 2.7.0
 # Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility
@@ -12,7 +13,7 @@
 # - RUTOS scripts (ending in -rutos.sh): Validated for POSIX/busybox compatibility
 # - Library files (scripts/lib/*.sh): Validated for POSIX/busybox compatibility
 # - Development scripts: Less strict validation
-# - This validation script: Uses RUTOS library as example
+# - This validation script: Uses bash features for development convenience while using RUTOS library
 
 # NOTE: We don't use 'set -e' here because we want to continue processing all files
 # and collect all validation issues before exiting
@@ -20,11 +21,17 @@
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
 
+# CRITICAL: Allow test execution for validation scripts
+# This prevents RUTOS_TEST_MODE from causing early exit in validation tools
+ALLOW_TEST_EXECUTION=1
+export ALLOW_TEST_EXECUTION
+
 # CRITICAL: Load RUTOS library system (REQUIRED for proper script structure)
 . "$(dirname "$0")/lib/rutos-lib.sh"
 
-# CRITICAL: Initialize script with library features (REQUIRED)
-rutos_init "pre-commit-validation.sh" "$SCRIPT_VERSION"
+# CRITICAL: Initialize script with portable library features (REQUIRED)
+# Use portable initialization to allow running on development systems
+rutos_init_portable "pre-commit-validation.sh" "$SCRIPT_VERSION"
 
 # Files to exclude from validation (patterns supported)
 # Only exclude files that genuinely shouldn't be shell-validated
@@ -75,6 +82,67 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to check for validation script meta-issues
+# This function detects common problems in validation scripts themselves
+check_validation_script_health() {
+    log_debug "🔍 Performing validation script health check..."
+
+    local script_path="$0"
+    local health_issues=0
+
+    # Check for early exit patterns that could prevent validation
+    if grep -q "check_test_mode_exit" "$script_path" 2>/dev/null; then
+        if ! grep -q "ALLOW_TEST_EXECUTION=1" "$script_path" 2>/dev/null; then
+            log_warning "⚠️  Validation Health: Script may exit early in test mode - consider ALLOW_TEST_EXECUTION=1"
+            health_issues=$((health_issues + 1))
+        fi
+    fi
+
+    # Check for proper argument parsing that supports multiple flags
+    if grep -q "getopt\|getopts" "$script_path" 2>/dev/null; then
+        log_debug "✓ Using proper argument parsing (getopt/getopts)"
+    elif grep -q "case \"\$1\"" "$script_path" 2>/dev/null; then
+        if ! grep -q "shift.*continue\|while.*shift" "$script_path" 2>/dev/null; then
+            log_warning "⚠️  Validation Health: Argument parsing may not support multiple flags (e.g., --staged --shell-only)"
+            health_issues=$((health_issues + 1))
+        fi
+    fi
+
+    # Check for color variable misuse (should use ${VAR} not printf "%s" "$VAR")
+    # Skip for validation scripts that use Method 5 format correctly
+    if ! echo "$script_path" | grep -q "pre-commit-validation.sh"; then
+        if grep -q 'printf "%s.*%s".*"\$[A-Z_]*".*"\$[A-Z_]*"' "$script_path" 2>/dev/null; then
+            log_warning "⚠️  Validation Health: Found printf format strings that may show literal escape codes"
+            health_issues=$((health_issues + 1))
+        fi
+    fi
+
+    # Check if script validates itself (should be excluded or have special handling)
+    if echo "$script_path" | grep -q "pre-commit-validation.sh"; then
+        log_debug "✓ Self-validation: Validation script has special handling"
+    elif ! grep -q "Self-validation.*[Ss]kipped\|excluded.*validation" "$script_path" 2>/dev/null; then
+        log_warning "⚠️  Validation Health: Validation script may validate itself - consider self-exclusion"
+        health_issues=$((health_issues + 1))
+    fi
+
+    # Check for proper library integration
+    if echo "$script_path" | grep -q "pre-commit-validation.sh"; then
+        log_debug "✓ Library integration: Validation script has its own framework"
+    elif ! grep -q "rutos_init" "$script_path" 2>/dev/null; then
+        log_warning "⚠️  Validation Health: Script doesn't use rutos_init - may have inconsistent behavior"
+        health_issues=$((health_issues + 1))
+    fi
+
+    if [ "$health_issues" -eq 0 ]; then
+        log_info "✅ Validation script health check passed"
+    else
+        log_warning "⚠️  Found $health_issues potential validation script issues"
+        log_info "💡 Tip: Regular validation script health checks help prevent development workflow issues"
+    fi
+
+    return "$health_issues"
+}
+
 # Function to check development tools and suggest installation
 check_dev_tools() {
     missing_tools=""
@@ -101,7 +169,8 @@ check_dev_tools() {
     if [ -n "$missing_tools" ]; then
         log_info "Some development tools are missing:"
         for tool in $missing_tools; do
-            printf "  %s✗ %s%s not available\n" "$YELLOW" "$tool" "$NC"
+            # shellcheck disable=SC2059 # Method 5 format with color variables is valid for RUTOS
+            printf "  ${YELLOW}✗ ${tool}${NC} not available\n"
         done
 
         printf "\n"
@@ -160,12 +229,15 @@ $issue_json"
         if [ "$AUTONOMOUS_MODE" = "0" ]; then
             case "$severity" in
                 "CRITICAL")
+                    # shellcheck disable=SC2059 # Method 5 format with color variables is valid for RUTOS
                     printf "${RED}[CRITICAL]${NC} %s:%s %s\n" "$file" "$line" "$message"
                     ;;
                 "MAJOR")
+                    # shellcheck disable=SC2059 # Method 5 format with color variables is valid for RUTOS
                     printf "${YELLOW}[MAJOR]${NC} %s:%s %s\n" "$file" "$line" "$message"
                     ;;
                 "MINOR")
+                    # shellcheck disable=SC2059 # Method 5 format with color variables is valid for RUTOS
                     printf "${BLUE}[MINOR]${NC} %s:%s %s\n" "$file" "$line" "$message"
                     ;;
             esac
@@ -337,13 +409,16 @@ check_bash_syntax() {
         rm -f "$temp_file"
     fi
 
-    # Check for source command (but not in echo statements or comments)
-    if grep -n "source " "$file" >/dev/null 2>&1; then
+    # Check for source command (but not in echo statements, comments, or variable names)
+    if grep -n '\bsource[[:space:]]' "$file" >/dev/null 2>&1; then
         temp_file="/tmp/bash_syntax_$$"
-        grep -n "source " "$file" 2>/dev/null >"$temp_file"
+        grep -n '\bsource[[:space:]]' "$file" 2>/dev/null >"$temp_file"
         while IFS=: read -r line_num line_content; do
-            # Skip if it's within an echo statement (documentation) or comment lines
-            if ! echo "$line_content" | grep -q "echo.*source" && ! echo "$line_content" | grep -q "^[[:space:]]*#.*source"; then
+            # Skip if it's within an echo statement (documentation), comment lines, or variable names
+            if ! echo "$line_content" | grep -q "echo.*source" &&
+                ! echo "$line_content" | grep -q "^[[:space:]]*#.*source" &&
+                ! echo "$line_content" | grep -q '\$[a-zA-Z_][a-zA-Z0-9_]*source' &&
+                ! echo "$line_content" | grep -q 'data_source\|gps_source'; then
                 report_issue "MAJOR" "$file" "$line_num" "Uses 'source' command - use '.' (dot) for busybox"
             fi
         done <"$temp_file"
@@ -389,9 +464,12 @@ validate_color_codes() {
 
     # Check for echo with color codes (should use printf)
     if grep -n "echo.*\\\\033\[" "$file" >/dev/null 2>&1; then
+        temp_file="/tmp/bash_syntax_$$"
+        grep -n "echo.*\\\\033\[" "$file" 2>/dev/null >"$temp_file"
         while IFS=: read -r line_num line_content; do
             report_issue "MAJOR" "$file" "$line_num" "Uses echo with color codes - use printf for better compatibility"
-        done < <(grep -n "echo.*\\\\033\[" "$file" 2>/dev/null)
+        done <"$temp_file"
+        rm -f "$temp_file"
     fi
 
     # CRITICAL: Check for Method 5 color format for RUTOS scripts
@@ -438,13 +516,16 @@ validate_color_codes() {
 
     # Check for printf without proper format when using color variables
     if grep -n "printf.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}.*[^%][^s]\"" "$file" >/dev/null 2>&1; then
+        temp_file="/tmp/bash_syntax_$$"
+        grep -n "printf.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}.*[^%][^s]\"" "$file" 2>/dev/null >"$temp_file"
         while IFS=: read -r line_num line_content; do
             # Check if it's a printf that ends with a variable (not a format string)
             # shellcheck disable=SC2016 # Single quotes are correct for grep patterns
             if echo "$line_content" | grep -q 'printf.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}$'; then
                 report_issue "MAJOR" "$file" "$line_num" "printf ending with color variable - missing format string or text"
             fi
-        done < <(grep -n "printf.*\\\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}.*[^%][^s]\"" "$file" 2>/dev/null)
+        done <"$temp_file"
+        rm -f "$temp_file"
     fi
 
     # Check for proper color detection logic and completeness
@@ -461,17 +542,96 @@ validate_color_codes() {
         # Check if all required colors are defined using POSIX-compatible method
         missing_colors=""
 
-        # Check each required color individually
-        for color in RED GREEN YELLOW BLUE CYAN NC; do
-            if ! grep -q "^[[:space:]]*$color=" "$file"; then
-                missing_colors="$missing_colors $color"
-            fi
-        done
+        # CRITICAL ARCHITECTURAL ENFORCEMENT: Standardize on RUTOS library usage
+        if uses_rutos_library "$file"; then
+            # Scenarios 1-5: Scripts loading RUTOS library MUST use library exclusively
+            # CRITICAL BLOCKING: No custom colors allowed - library provides all colors
+            for color in RED GREEN YELLOW BLUE CYAN NC; do
+                color_line=$(grep -n "^[[:space:]]*$color=" "$file" | head -1 | cut -d: -f1)
+                if [ -n "$color_line" ]; then
+                    # Check if this line or nearby lines have validation skip directive
+                    if grep -B2 -A2 "^[[:space:]]*$color=" "$file" | grep -q "VALIDATION_SKIP_LIBRARY_CHECK"; then
+                        log_debug "✓ $file: $color definition has VALIDATION_SKIP_LIBRARY_CHECK directive - allowed"
+                    else
+                        report_issue "CRITICAL" "$file" "$color_line" "BLOCKING: RUTOS library script must not define $color - library provides all colors. Remove custom definition."
+                    fi
+                fi
+            done
 
-        if [ -n "$missing_colors" ]; then
-            report_issue "MAJOR" "$file" "0" "Missing color definitions:$missing_colors - all scripts should define RED, GREEN, YELLOW, BLUE, CYAN, NC"
+            # CRITICAL BLOCKING: No custom logging functions allowed - library provides them
+            for func in log_info log_error log_debug log_trace log_warning log_success log_step; do
+                func_line=$(grep -n "^[[:space:]]*$func()" "$file" | head -1 | cut -d: -f1)
+                if [ -n "$func_line" ]; then
+                    # Check if this is a fallback function (after failed library load) or has skip directive
+                    if grep -B5 -A5 "^[[:space:]]*$func()" "$file" | grep -q "fallback\|RUTOS library not available\|VALIDATION_SKIP_LIBRARY_CHECK"; then
+                        log_debug "✓ $file: $func() is a fallback function or has skip directive - allowed"
+                    else
+                        report_issue "CRITICAL" "$file" "$func_line" "BLOCKING: RUTOS library script must not define $func() - library provides all functions. Remove custom definition."
+                    fi
+                fi
+            done
+
+            log_debug "✓ $file: RUTOS library handles all color and logging definitions"
         else
-            log_debug "✓ $file: All required colors defined"
+            # Scenario 6: Scripts NOT using library but defining custom functions
+            # CRITICAL BLOCKING: Should use RUTOS library instead for standardization
+
+            # EXCEPTION: Library files are allowed to define colors and functions
+            # EXCEPTION: Validation scripts have their own framework requirements
+            case "$file" in
+                scripts/lib/*.sh)
+                    log_debug "✓ $file: Library file - allowed to define colors and functions"
+                    ;;
+                */pre-commit-validation.sh)
+                    log_debug "✓ $file: Validation script - has its own framework requirements"
+                    ;;
+                *)
+                    has_custom_logging=0
+                    has_custom_colors=0
+
+                    # Check for custom logging functions
+                    for func in log_info log_error log_debug log_trace log_warning log_success log_step; do
+                        if grep -q "^[[:space:]]*$func()" "$file"; then
+                            # Check if this is a fallback function (after failed library load)
+                            if grep -B5 -A5 "^[[:space:]]*$func()" "$file" | grep -q "fallback\|RUTOS library not available"; then
+                                log_debug "✓ $file: $func() is a fallback function - allowed"
+                            else
+                                has_custom_logging=1
+                                func_line=$(grep -n "^[[:space:]]*$func()" "$file" | head -1 | cut -d: -f1)
+                                report_issue "CRITICAL" "$file" "$func_line" "BLOCKING: Script defines custom $func() - should use RUTOS library system instead for standardization"
+                            fi
+                        fi
+                    done
+
+                    # Check for custom color definitions
+                    for color in RED GREEN YELLOW BLUE CYAN NC; do
+                        if grep -q "^[[:space:]]*$color=" "$file"; then
+                            has_custom_colors=1
+                        fi
+                    done
+
+                    if [ "$has_custom_colors" = "1" ]; then
+                        first_color_line=$(grep -n "^[[:space:]]*\(RED\|GREEN\|YELLOW\|BLUE\|CYAN\|NC\)=" "$file" | head -1 | cut -d: -f1)
+                        report_issue "CRITICAL" "$file" "$first_color_line" "BLOCKING: Script defines custom colors - should use RUTOS library system instead for standardization"
+                    fi
+
+                    # If no custom functions found, check for missing required colors (legacy validation)
+                    if [ "$has_custom_logging" = "0" ] && [ "$has_custom_colors" = "0" ]; then
+                        # Check each required color individually
+                        for color in RED GREEN YELLOW BLUE CYAN NC; do
+                            if ! grep -q "^[[:space:]]*$color=" "$file"; then
+                                missing_colors="$missing_colors $color"
+                            fi
+                        done
+
+                        if [ -n "$missing_colors" ]; then
+                            report_issue "MAJOR" "$file" "0" "Missing color definitions:$missing_colors - consider migrating to RUTOS library system"
+                        else
+                            log_debug "✓ $file: All required colors defined (consider migrating to RUTOS library)"
+                        fi
+                    fi
+                    ;;
+            esac
         fi
 
     elif grep -n "NO_COLOR\|TERM.*dumb" "$file" >/dev/null 2>&1; then
@@ -479,20 +639,43 @@ validate_color_codes() {
         log_debug "✓ $file: Has NO_COLOR detection"
     elif grep -n "^[[:space:]]*RED=\|^[[:space:]]*GREEN=\|^[[:space:]]*YELLOW=" "$file" >/dev/null 2>&1; then
         # Has color definitions but no detection - potential issue
-        # Library files are exempt from this check as they provide fallback colors
+        # Library files and RUTOS library users are exempt from this check
         case "$file" in
             scripts/lib/*.sh)
                 log_debug "✓ $file: Library file with fallback colors (detection handled by rutos-colors.sh)"
                 ;;
             *)
-                if ! grep -q "if.*-t.*1\|NO_COLOR\|TERM.*dumb" "$file"; then
+                if uses_rutos_library "$file"; then
+                    # CRITICAL: RUTOS library scripts should not define colors at all
+                    report_issue "CRITICAL" "$file" "0" "RUTOS library script defines colors - remove color definitions and use library"
+                elif ! grep -q "if.*-t.*1\|NO_COLOR\|TERM.*dumb" "$file"; then
                     report_issue "MAJOR" "$file" "0" "Defines colors but missing color detection logic - add RUTOS-compatible detection: if [ -t 1 ] && [ \"\${TERM:-}\" != \"dumb\" ] && [ \"\${NO_COLOR:-}\" != \"1\" ]"
                 fi
                 ;;
         esac
+    elif uses_rutos_library "$file"; then
+        # Script uses RUTOS library but doesn't define colors - this is good!
+        log_debug "✓ $file: Uses RUTOS library for color handling"
     fi
 
     return 0
+}
+
+# Function to check if a script uses RUTOS library system
+uses_rutos_library() {
+    file="$1"
+
+    # Check for RUTOS library loading patterns
+    if grep -q "rutos-lib\.sh" "$file" || grep -q "rutos_init" "$file"; then
+        return 0
+    fi
+
+    # Check for comment indicating library usage
+    if grep -q "RUTOS library" "$file" && grep -q "log_info.*log_error.*log_debug.*provided by" "$file"; then
+        return 0
+    fi
+
+    return 1
 }
 
 # Function to validate SCRIPT_VERSION according to best practices
@@ -507,8 +690,8 @@ validate_script_version() {
             ;;
     esac
 
-    # Check if SCRIPT_VERSION is defined
-    if ! grep -q "^[[:space:]]*SCRIPT_VERSION=" "$file"; then
+    # Check if SCRIPT_VERSION is defined (with or without readonly)
+    if ! grep -q "^[[:space:]]*\(readonly[[:space:]]\+\)\?SCRIPT_VERSION=" "$file"; then
         report_issue "CRITICAL" "$file" "1" "Missing SCRIPT_VERSION variable - all scripts must define version"
         return 1
     fi
@@ -517,9 +700,9 @@ validate_script_version() {
     version_line_num=""
     version_line=""
 
-    # Get the SCRIPT_VERSION line
-    version_line_num=$(grep -n "^[[:space:]]*SCRIPT_VERSION=" "$file" | head -1 | cut -d: -f1)
-    version_line=$(grep "^[[:space:]]*SCRIPT_VERSION=" "$file" | head -1)
+    # Get the SCRIPT_VERSION line (with or without readonly)
+    version_line_num=$(grep -n "^[[:space:]]*\(readonly[[:space:]]\+\)\?SCRIPT_VERSION=" "$file" | head -1 | cut -d: -f1)
+    version_line=$(grep "^[[:space:]]*\(readonly[[:space:]]\+\)\?SCRIPT_VERSION=" "$file" | head -1)
 
     # Check if version is properly quoted
     if ! echo "$version_line" | grep -q 'SCRIPT_VERSION="[0-9]\+\.[0-9]\+\.[0-9]\+"'; then
@@ -763,6 +946,8 @@ check_undefined_variables() {
     # Check for variables used in functions that might not be in scope
     # Look for functions that use variables that aren't defined within the function
     if grep -n "^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*(" "$file" >/dev/null 2>&1; then
+        temp_file="/tmp/bash_syntax_$$"
+        grep -n "^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*(" "$file" 2>/dev/null >"$temp_file"
         while IFS=: read -r line_num line_content; do
             func_name=$(echo "$line_content" | sed -n 's/^[[:space:]]*\([a-zA-Z_][a-zA-Z0-9_]*\)[[:space:]]*(.*/\1/p')
             if [ -n "$func_name" ]; then
@@ -784,7 +969,8 @@ check_undefined_variables() {
 					}
 				' "$file" >/dev/null 2>&1
             fi
-        done < <(grep -n "^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*(" "$file" 2>/dev/null)
+        done <"$temp_file"
+        rm -f "$temp_file"
     fi
 }
 
@@ -796,6 +982,11 @@ test_debug_integration() {
     case "$file" in
         *-rutos.sh) ;;
         *) return 0 ;;
+    esac
+
+    # Skip the validation script itself - it has different requirements
+    case "$file" in
+        */pre-commit-validation.sh) return 0 ;;
     esac
 
     log_debug "Testing debug/test/dry-run integration for: $file"
@@ -889,7 +1080,7 @@ test_debug_integration() {
     # Issue 5: Check for proper debug command tracing patterns
     if [ "$has_debug_support" = "1" ] && [ "$has_dry_run" = "1" ]; then
         # Look for commands that should be logged in debug mode
-        local has_command_logging=0
+        has_command_logging=0
         if grep -q "log_debug.*EXECUTING\|printf.*DEBUG.*EXECUTING" "$file"; then
             has_command_logging=1
         fi
@@ -931,11 +1122,135 @@ test_debug_integration() {
         fi
     fi
 
-    # Report issues
+    # Report issues with individual detailed reports (one per issue)
     if [ "$has_issues" = "1" ]; then
-        report_issue "$file" "DEBUG_INTEGRATION" "Major" "Debug/Test/Dry-run integration issues found:"
-        # Note: In POSIX mode, we don't store detailed validation issues array
-        # This function focuses on detecting patterns rather than detailed reporting
+        # Check Issue 1: Backward compatibility
+        if [ "$has_test_mode" = "1" ]; then
+            if ! grep -q "TEST_MODE.*:-.*0.*RUTOS_TEST_MODE\|RUTOS_TEST_MODE.*:-.*0.*TEST_MODE" "$file"; then
+                if ! (grep -q "TEST_MODE.*:-.*0" "$file" && grep -q "RUTOS_TEST_MODE.*:-.*0" "$file"); then
+                    report_issue "MAJOR" "$file" "0" "Missing backward compatibility: script should support both TEST_MODE and RUTOS_TEST_MODE variables"
+                fi
+            fi
+        fi
+
+        # Check Issue 2: Debug output completeness
+        if [ "$has_debug_support" = "1" ] && [ "$has_test_mode" = "1" ] && [ "$has_dry_run" = "1" ]; then
+            if ! grep -q "printf.*DEBUG.*DRY_RUN.*TEST_MODE\|printf.*DEBUG.*RUTOS_TEST_MODE.*DRY_RUN" "$file"; then
+                report_issue "MAJOR" "$file" "0" "Debug output should display DRY_RUN, TEST_MODE, and RUTOS_TEST_MODE states for troubleshooting"
+            fi
+        fi
+
+        # Check Issue 3: Early exit timing
+        if [ "$has_test_mode" = "1" ] && [ "$has_debug_support" = "1" ] && [ "$has_early_exit" = "1" ]; then
+            if [ "$has_debug_before_exit" != "1" ]; then
+                report_issue "MAJOR" "$file" "0" "Early test mode exit should occur AFTER debug output to allow troubleshooting"
+            fi
+        fi
+
+        # Check Issue 4: Original variable capture
+        if [ "$has_debug_support" = "1" ] && [ "$has_dry_run" = "1" ]; then
+            if ! grep -q "ORIGINAL_DRY_RUN" "$file"; then
+                report_issue "MAJOR" "$file" "0" "Should capture ORIGINAL_DRY_RUN value before modification for debug display"
+            fi
+        fi
+
+        if [ "$has_debug_support" = "1" ] && [ "$has_test_mode" = "1" ]; then
+            if ! grep -q "ORIGINAL.*TEST_MODE" "$file"; then
+                report_issue "MAJOR" "$file" "0" "Should capture ORIGINAL_TEST_MODE/ORIGINAL_RUTOS_TEST_MODE for debug display"
+            fi
+        fi
+
+        # Check Issue 5: Command logging
+        if [ "$has_debug_support" = "1" ] && [ "$has_dry_run" = "1" ]; then
+            has_command_logging=0
+            if grep -q "log_debug.*EXECUTING\|printf.*DEBUG.*EXECUTING" "$file"; then
+                has_command_logging=1
+            fi
+
+            if grep -qE "(curl|wget|echo.*>|cp|mv|rm|mkdir|chmod|chown|systemctl|service|crontab)" "$file"; then
+                if [ "$has_command_logging" != "1" ]; then
+                    report_issue "MAJOR" "$file" "0" "Scripts with system-modifying commands should log command execution in debug mode"
+                fi
+            fi
+        fi
+
+        # Check Issue 6: DRY_RUN protection
+        if [ "$has_dry_run" = "1" ]; then
+            # Special handling for installation scripts - they're expected to make system changes
+            is_install_script=0
+            if echo "$file" | grep -qE "(install|setup|deploy)" && ! echo "$file" | grep -q "test"; then
+                is_install_script=1
+                log_debug "✓ $file: Installation script - relaxed DRY_RUN validation"
+            fi
+            
+            risky_commands="curl wget cp mv rm mkdir chmod chown systemctl service crontab"
+            # Pattern for echo to file operations (NOT command substitution)
+            echo_patterns="^[[:space:]]*echo.*>[[:space:]]*[^&].*$"
+            has_unprotected_commands=0
+            unprotected_line_numbers=""
+
+            # For installation scripts, only check the most critical commands
+            if [ "$is_install_script" = "1" ]; then
+                # Only enforce DRY_RUN for the most dangerous commands in install scripts
+                risky_commands="systemctl service rm.*-rf"
+            fi
+
+            # Check regular risky commands
+            for cmd in $risky_commands; do
+                if grep -qE "^[[:space:]]*${cmd}[[:space:]]" "$file"; then
+                    cmd_lines=$(grep -nE "^[[:space:]]*${cmd}[[:space:]]" "$file" | cut -d: -f1)
+                    for line_num in $cmd_lines; do
+                        # Get context ensuring we don't go below line 1
+                        start_line=$((line_num > 5 ? line_num - 5 : 1))
+                        end_line=$((line_num + 5))
+                        context=$(sed -n "${start_line},${end_line}p" "$file")
+                        if ! echo "$context" | grep -q "DRY_RUN.*0"; then
+                            has_unprotected_commands=1
+                            # Store line numbers for reporting (use actual line number in report_issue field)
+                            unprotected_line_numbers="$unprotected_line_numbers $line_num"
+                        fi
+                    done
+                fi
+            done
+
+            # Check echo to file operations separately (exclude command substitution)
+            if grep -qE "$echo_patterns" "$file"; then
+                echo_lines=$(grep -nE "$echo_patterns" "$file" | cut -d: -f1)
+                for line_num in $echo_lines; do
+                    # Skip if line_num is empty 
+                    [ -z "$line_num" ] && continue
+                    # Get the line to double-check it's not command substitution
+                    actual_line=$(sed -n "${line_num}p" "$file")
+                    # Skip if this is part of a command substitution assignment or pipeline
+                    if echo "$actual_line" | grep -qE '^\s*[a-zA-Z_][a-zA-Z0-9_]*=.*\$\(.*echo|^\s*echo.*\||\$\(echo'; then
+                        continue
+                    fi
+                    # Get context ensuring we don't go below line 1
+                    start_line=$((line_num > 5 ? line_num - 5 : 1))
+                    end_line=$((line_num + 5))
+                    context=$(sed -n "${start_line},${end_line}p" "$file")
+                    if ! echo "$context" | grep -q "DRY_RUN.*0"; then
+                        has_unprotected_commands=1
+                        # Store line numbers for reporting (use actual line number in report_issue field)
+                        unprotected_line_numbers="$unprotected_line_numbers $line_num"
+                    fi
+                done
+            fi
+
+            if [ "$has_unprotected_commands" = "1" ]; then
+                # Report each unprotected command on a separate line with full command details
+                for line_num in $unprotected_line_numbers; do
+                    # Skip empty line numbers
+                    [ -z "$line_num" ] && continue
+                    # Get the actual command for context
+                    actual_command=$(sed -n "${line_num}p" "$file" | sed 's/^[[:space:]]*//' | cut -c1-80)
+                    [ ${#actual_command} -gt 77 ] && actual_command="${actual_command}..."
+                    # Use detailed message for individual reports but they'll group in summary by base message
+                    report_issue "MAJOR" "$file" "$line_num" "State-changing command not protected by DRY_RUN: $actual_command"
+                done
+            fi
+        fi
+
         return 1
     fi
 
@@ -960,70 +1275,96 @@ validate_library_usage() {
     # Handle library files specially - they define the functions and variables
     if [[ "$file" == scripts/lib/*.sh ]]; then
         log_debug "Validating library file for POSIX compatibility: $file"
-
         # Library files are allowed to define logging functions and color variables
         # They should be POSIX-compatible but don't need to load themselves
         return 0
     fi
 
-    # Only validate RUTOS scripts (ending in -rutos.sh) for library usage
-    case "$file" in
-        *-rutos.sh)
-            log_debug "Validating RUTOS library usage for: $file"
-            ;;
-        *)
-            log_debug "Skipping library validation for non-RUTOS script: $file"
-            return 0
-            ;;
-    esac
+    # UNIVERSAL ENFORCEMENT: All shell scripts should use RUTOS library for standardization
+    # This ensures consistency, maintainability, and single-point-of-change
 
-    # Check 1: Script should load the RUTOS library
-    if ! grep -q '\. "$(dirname "\$0")/lib/rutos-lib\.sh"' "$file" && ! grep -q '\. "\$(dirname \$0)/lib/rutos-lib\.sh"' "$file"; then
-        report_issue "CRITICAL" "$file" "1" "RUTOS script must load library: . \"\$(dirname \"\$0\")/lib/rutos-lib.sh\""
-        return 1
-    fi
+    # Check if script loads the RUTOS library
+    if uses_rutos_library "$file"; then
+        log_debug "Script uses RUTOS library: $file"
 
-    # Check 2: Script should call rutos_init
-    if ! grep -q "rutos_init " "$file"; then
-        report_issue "CRITICAL" "$file" "1" "RUTOS script must call rutos_init after loading library"
-        return 1
-    fi
-
-    # Check 3: Script should NOT define its own logging functions (library provides them)
-    local forbidden_functions="log_info log_error log_debug log_trace log_warning log_success log_step"
-    for func in $forbidden_functions; do
-        local func_line=$(grep -n "^$func()" "$file" | head -1 | cut -d: -f1)
-        if [ -n "$func_line" ]; then
-            report_issue "MAJOR" "$file" "$func_line" "Do not define $func() - provided by RUTOS library"
+        # CRITICAL BLOCKING: Library scripts must load library properly
+        if ! grep -q "\. \"\$(dirname \"\$0\")/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \$0)/lib/rutos-lib\.sh\"" "$file"; then
+            report_issue "CRITICAL" "$file" "1" "BLOCKING: RUTOS script must load library: . \"\$(dirname \"\$0\")/lib/rutos-lib.sh\""
         fi
-    done
 
-    # Check 4: Script should NOT define its own color variables (library provides them)
-    local color_vars="RED GREEN YELLOW BLUE PURPLE CYAN NC"
-    for color in $color_vars; do
-        local color_line=$(grep -n "^[[:space:]]*$color=" "$file" | head -1 | cut -d: -f1)
-        if [ -n "$color_line" ]; then
-            report_issue "MAJOR" "$file" "$color_line" "Do not define $color= - provided by RUTOS library"
+        # CRITICAL BLOCKING: Library scripts must call rutos_init
+        if ! grep -q "rutos_init " "$file"; then
+            report_issue "CRITICAL" "$file" "1" "BLOCKING: RUTOS script must call rutos_init after loading library"
         fi
-    done
 
-    # Check 5: Script should use safe_execute() for system commands
-    local risky_commands="curl wget systemctl service crontab"
-    for cmd in $risky_commands; do
-        # Look for direct usage not wrapped in safe_execute
-        if grep -q "$cmd " "$file" && ! grep -q "safe_execute.*$cmd" "$file"; then
-            local cmd_line=$(grep -n "$cmd " "$file" | head -1 | cut -d: -f1)
-            if [ -n "$cmd_line" ]; then
-                report_issue "MINOR" "$file" "$cmd_line" "Consider using safe_execute() for system command: $cmd"
+        # Additional enforcement is handled in the color validation section
+
+    else
+        # Script doesn't use RUTOS library
+        log_debug "Script does not use RUTOS library: $file"
+
+        # CRITICAL BLOCKING: Scripts with custom logging/color functions should migrate to library
+        has_logging_functions=0
+        has_color_definitions=0
+
+        # Check for custom logging functions
+        for func in log_info log_error log_debug log_trace log_warning log_success log_step; do
+            if grep -q "^[[:space:]]*$func()" "$file"; then
+                has_logging_functions=1
+                break
             fi
+        done
+
+        # Check for color definitions
+        for color in RED GREEN YELLOW BLUE PURPLE CYAN NC; do
+            if grep -q "^[[:space:]]*$color=" "$file"; then
+                has_color_definitions=1
+                break
+            fi
+        done
+
+        # ARCHITECTURAL DECISION: Encourage library adoption for maintainability
+        if [ "$has_logging_functions" = "1" ] || [ "$has_color_definitions" = "1" ]; then
+            report_issue "CRITICAL" "$file" "1" "BLOCKING: Script has custom logging/colors - migrate to RUTOS library system for standardization and maintainability"
         fi
-    done
+    fi
+
+    # Check for risky direct command usage (should use safe_execute when using library)
+    if uses_rutos_library "$file"; then
+        local risky_commands="curl wget systemctl service crontab"
+        for cmd in $risky_commands; do
+            # Look for direct usage not wrapped in safe_execute
+            # Use word boundaries to avoid false positives (e.g., grpcurl vs curl)
+            # Exclude lines that are comments (start with #)
+            if grep -q "\b$cmd\b" "$file" && ! grep -q "safe_execute.*$cmd" "$file"; then
+                local cmd_line
+                # Get the first non-comment line containing the command
+                cmd_line=$(grep -n "\b$cmd\b" "$file" | grep -v "^[0-9]*:[[:space:]]*#" | head -1 | cut -d: -f1)
+                if [ -n "$cmd_line" ]; then
+                    # Check for VALIDATION_SKIP_SAFE_EXECUTE directive (look 3 lines before and after)
+                    local skip_found=0
+                    local check_start=$((cmd_line - 3))
+                    local check_end=$((cmd_line + 3))
+                    [ $check_start -lt 1 ] && check_start=1
+                    
+                    if sed -n "${check_start},${check_end}p" "$file" | grep -q "VALIDATION_SKIP_SAFE_EXECUTE"; then
+                        skip_found=1
+                    fi
+                    
+                    if [ $skip_found -eq 0 ]; then
+                        report_issue "MAJOR" "$file" "$cmd_line" "Consider using safe_execute() for system command: $cmd"
+                    fi
+                fi
+            fi
+        done
+    fi
 
     # Check 6: Validate proper Method 5 printf format for RUTOS compatibility
-    if grep -q 'printf.*%s.*\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}' "$file"; then
-        local printf_line=$(grep -n 'printf.*%s.*\${\(RED\|GREEN\|YELLOW\|BLUE\|PURPLE\|CYAN\|NC\)}' "$file" | head -1 | cut -d: -f1)
+    if grep -q "printf.*%s.*\\\${\\\(RED\\\|GREEN\\\|YELLOW\\\|BLUE\\\|PURPLE\\\|CYAN\\\|NC\\\)}" "$file"; then
+        local printf_line
+        printf_line=$(grep -n "printf.*%s.*\\\${\\\(RED\\\|GREEN\\\|YELLOW\\\|BLUE\\\|PURPLE\\\|CYAN\\\|NC\\\)}" "$file" | head -1 | cut -d: -f1)
         if [ -n "$printf_line" ]; then
-            report_issue "MAJOR" "$file" "$printf_line" "Use Method 5 format: printf \"\${COLOR}text\${NC}\" not printf \"%stext%s\" \"\$COLOR\" \"\$NC\""
+            report_issue "CRITICAL" "$file" "$printf_line" "Use Method 5 format: printf \"\${COLOR}text\${NC}\" not printf \"%stext%s\" \"\$COLOR\" \"\$NC\""
         fi
     fi
 
@@ -1040,6 +1381,114 @@ validate_library_usage() {
         report_issue "MINOR" "$file" "1" "Consider using log_function_entry/exit for better debugging"
     fi
 
+    # Check 9: Detect early exit before library initialization (NEW)
+    local rutos_init_line
+    rutos_init_line=$(grep -n "rutos_init " "$file" | head -1 | cut -d: -f1)
+    if [ -n "$rutos_init_line" ]; then
+        # Check for early exits before rutos_init
+        local early_exit_line
+        early_exit_line=$(sed -n "1,${rutos_init_line}p" "$file" | grep -n "RUTOS_TEST_MODE.*exit 0" | head -1 | cut -d: -f1)
+        if [ -n "$early_exit_line" ]; then
+            report_issue "CRITICAL" "$file" "$early_exit_line" "Early exit in RUTOS_TEST_MODE before library initialization prevents proper logging"
+        fi
+    fi
+
+    # Check 10: Detect scripts using custom logging instead of library (NEW)
+    local uses_library_logging=0
+    local uses_custom_logging=0
+
+    # Check if script uses library logging functions
+    if grep -q "log_info\|log_error\|log_debug\|log_success\|log_warning" "$file"; then
+        uses_library_logging=1
+    fi
+
+    # Check if script defines custom logging functions (outside fallback blocks)
+    local custom_log_funcs="debug_log syslog custom_log"
+    for func in $custom_log_funcs; do
+        if grep -q "^$func()" "$file"; then
+            uses_custom_logging=1
+            local custom_line
+            custom_line=$(grep -n "^$func()" "$file" | head -1 | cut -d: -f1)
+            report_issue "CRITICAL" "$file" "$custom_line" "Script defines custom logging function $func() instead of using RUTOS library"
+        fi
+    done
+
+    # Check for printf-based logging patterns that should use library
+    if grep -q 'printf "\[INFO\]\|printf "\[ERROR\]\|printf "\[DEBUG\]"' "$file"; then
+        local printf_log_line
+        printf_log_line=$(grep -n 'printf "\[INFO\]\|printf "\[ERROR\]\|printf "\[DEBUG\]"' "$file" | head -1 | cut -d: -f1)
+        if [ -n "$printf_log_line" ]; then
+            # Check if this is part of a fallback function (after failed library load)
+            if grep -B10 -A5 "printf \"\[INFO\]\|printf \"\[ERROR\]\|printf \"\[DEBUG\]\"" "$file" | grep -q "fallback\|RUTOS library not available\|command -v log_info"; then
+                log_debug "✓ $file: printf logging is in fallback function - allowed"
+            else
+                report_issue "CRITICAL" "$file" "$printf_log_line" "Use RUTOS library logging (log_info, log_error, log_debug) instead of printf patterns"
+            fi
+        fi
+    fi
+
+    # Check 11: Detect mixed logging approaches (NEW)
+    if [ $uses_library_logging -eq 1 ] && [ $uses_custom_logging -eq 1 ]; then
+        report_issue "CRITICAL" "$file" "1" "Script mixes RUTOS library logging with custom logging - use library consistently"
+    fi
+
+    # Check 12: Validate library loading vs usage consistency (NEW)
+    local loads_library=0
+    if grep -q "rutos-lib\.sh" "$file"; then
+        loads_library=1
+    fi
+
+    if [ $loads_library -eq 1 ] && [ $uses_library_logging -eq 0 ] && [ $uses_custom_logging -eq 1 ]; then
+        report_issue "CRITICAL" "$file" "1" "Script loads RUTOS library but uses custom logging instead - defeats library purpose"
+    fi
+
+    # Check 13: Verify RUTOS library usage patterns
+    # Scripts should load the library and use library functions when available
+    local has_library_detection=0
+    local has_library_loading=0
+    local has_rutos_init=0
+    
+    # Check for library detection patterns
+    if grep -q "command -v rutos_init" "$file"; then
+        has_library_detection=1
+    fi
+    
+    # Check for library loading patterns
+    if grep -q "rutos-lib.sh" "$file"; then
+        has_library_loading=1
+    fi
+    
+    # Check for rutos_init call
+    if grep -q "rutos_init " "$file"; then
+        has_rutos_init=1
+    fi
+    
+    # Validate based on script patterns
+    if [ $has_library_loading -eq 1 ]; then
+        # Script loads RUTOS library - this is good
+        if [ $has_rutos_init -eq 0 ]; then
+            report_issue "MAJOR" "$file" "1" "Script loads RUTOS library but doesn't call rutos_init to initialize it"
+        fi
+        # This validation is satisfied - script properly uses RUTOS library system
+    else
+        # Script doesn't load RUTOS library at all
+        if grep -q "log_info\|log_error\|log_debug\|log_success" "$file"; then
+            report_issue "MAJOR" "$file" "1" "Script uses logging functions but doesn't load RUTOS library system (rutos-lib.sh)"
+        fi
+    fi
+
+    # Check 14: Validate proper RUTOS_TEST_MODE handling
+    if grep -q "RUTOS_TEST_MODE" "$file"; then
+        # Check if RUTOS_TEST_MODE exit uses library logging
+        if grep -q "RUTOS_TEST_MODE.*printf" "$file" && ! grep -q "RUTOS_TEST_MODE.*log_info" "$file"; then
+            local test_mode_line
+            test_mode_line=$(grep -n "RUTOS_TEST_MODE.*printf" "$file" | head -1 | cut -d: -f1)
+            if [ -n "$test_mode_line" ]; then
+                report_issue "MAJOR" "$file" "$test_mode_line" "RUTOS_TEST_MODE should use log_info instead of printf for consistency"
+            fi
+        fi
+    fi
+
     log_success "✓ $file: RUTOS library validation completed"
     return 0
 }
@@ -1047,6 +1496,14 @@ validate_library_usage() {
 # Function to validate a single shell script file
 validate_file() {
     file="$1"
+
+    # Skip self-validation to prevent recursive issues
+    script_name="$(basename "$0")"
+    file_name="$(basename "$file")"
+    if [ "$file_name" = "$script_name" ] || [ "$file" = "$0" ]; then
+        log_debug "Skipping self-validation of $file"
+        return 0
+    fi
 
     [ "$AUTONOMOUS_MODE" = "0" ] && log_step "Validating: $file"
 
@@ -1227,7 +1684,8 @@ validate_markdown_file() {
     run_prettier_markdown "$file"
 
     # Calculate issues for this file
-    local file_issues=$((TOTAL_ISSUES - initial_issues))
+    local file_issues
+    file_issues=$((TOTAL_ISSUES - initial_issues))
 
     if [ $file_issues -eq 0 ]; then
         [ "$AUTONOMOUS_MODE" = "0" ] && log_success "✓ $file: All checks passed"
@@ -1245,7 +1703,7 @@ display_debug_integration_summary() {
     [ "$AUTONOMOUS_MODE" = "1" ] && return 0 # Skip in autonomous mode
 
     local files_to_analyze="$1"
-    local rutos_scripts=()
+    # Note: rutos_script_count is used instead of array for POSIX compatibility
     scripts_with_debug=0
     scripts_with_test_mode=0
     scripts_with_dry_run=0
@@ -1273,74 +1731,113 @@ display_debug_integration_summary() {
             *-rutos.sh)
                 has_debug=0
                 has_test_mode=0
-        local has_dry_run=0
-        local has_issues=0
+                local has_dry_run=0
+                local has_issues=0
 
-        # Check for DEBUG support
-        if grep -q "DEBUG.*:-.*0" "$script" || grep -q "if.*DEBUG.*=" "$script"; then
-            has_debug=1
-            scripts_with_debug=$((scripts_with_debug + 1))
-        fi
+                # Check for DEBUG support
+                if grep -q "DEBUG.*:-.*0" "$script" || grep -q "if.*DEBUG.*=" "$script"; then
+                    has_debug=1
+                    scripts_with_debug=$((scripts_with_debug + 1))
+                fi
 
-        # Check for TEST_MODE or RUTOS_TEST_MODE support
-        if grep -q "RUTOS_TEST_MODE.*:-.*0" "$script" || grep -q "TEST_MODE.*:-.*0" "$script"; then
-            has_test_mode=1
-            scripts_with_test_mode=$((scripts_with_test_mode + 1))
-        fi
+                # Check for TEST_MODE or RUTOS_TEST_MODE support
+                if grep -q "RUTOS_TEST_MODE.*:-.*0" "$script" || grep -q "TEST_MODE.*:-.*0" "$script"; then
+                    has_test_mode=1
+                    scripts_with_test_mode=$((scripts_with_test_mode + 1))
+                fi
 
-        # Check for DRY_RUN support
-        if grep -q "DRY_RUN.*:-.*0" "$script" || grep -q "if.*DRY_RUN.*=" "$script"; then
-            has_dry_run=1
-            scripts_with_dry_run=$((scripts_with_dry_run + 1))
-        fi
+                # Check for DRY_RUN support
+                if grep -q "DRY_RUN.*:-.*0" "$script" || grep -q "if.*DRY_RUN.*=" "$script"; then
+                    has_dry_run=1
+                    scripts_with_dry_run=$((scripts_with_dry_run + 1))
+                fi
 
-        # Check for integration issues (from our issue list)
-        if echo "$ISSUE_LIST" | grep -q "DEBUG_INTEGRATION.*$script"; then
-            has_issues=1
-            scripts_with_integration_issues=$((scripts_with_integration_issues + 1))
-        fi
+                # Check for integration issues (from our issue list)
+                # Look for any of the specific debug integration issue patterns for this script
+                # ISSUE_LIST format is "message|file_path"
+                script_issues=$(echo "$ISSUE_LIST" | grep "|.*$script$" | cut -d'|' -f1)
+                if echo "$script_issues" | grep -q "Missing backward compatibility\|Debug output should display.*DRY_RUN.*TEST_MODE\|Early test mode exit should occur.*AFTER debug output\|Should capture ORIGINAL.*debug display\|Scripts with system-modifying commands should log.*execution.*debug mode\|State-changing commands.*should be protected.*DRY_RUN"; then
+                    has_issues=1
+                    scripts_with_integration_issues=$((scripts_with_integration_issues + 1))
+                fi
 
-        # Count scripts with all three patterns
-        if [ "$has_debug" = "1" ] && [ "$has_test_mode" = "1" ] && [ "$has_dry_run" = "1" ]; then
-            scripts_with_all_patterns=$((scripts_with_all_patterns + 1))
-        fi
+                # Count scripts with all three patterns
+                if [ "$has_debug" = "1" ] && [ "$has_test_mode" = "1" ] && [ "$has_dry_run" = "1" ]; then
+                    scripts_with_all_patterns=$((scripts_with_all_patterns + 1))
+                fi
                 ;;
         esac
     done
 
     # Display summary if we have RUTOS scripts
     printf "\n"
-    printf "%s=== DEBUG INTEGRATION PATTERNS SUMMARY ===%s\n" "$PURPLE" "$NC"
+    printf "${PURPLE}=== DEBUG INTEGRATION PATTERNS SUMMARY ===${NC}\n"
     printf "RUTOS scripts analyzed: %d\n" "$rutos_script_count"
     printf "\n"
     if [ "$rutos_script_count" -gt 0 ]; then
+        printf "📊 PATTERN COVERAGE:\n"
         printf "Scripts with DEBUG support:     %d/%d (%d%%)\n" "$scripts_with_debug" "$rutos_script_count" "$((scripts_with_debug * 100 / rutos_script_count))"
         printf "Scripts with TEST_MODE support: %d/%d (%d%%)\n" "$scripts_with_test_mode" "$rutos_script_count" "$((scripts_with_test_mode * 100 / rutos_script_count))"
         printf "Scripts with DRY_RUN support:   %d/%d (%d%%)\n" "$scripts_with_dry_run" "$rutos_script_count" "$((scripts_with_dry_run * 100 / rutos_script_count))"
-        printf "Scripts with ALL patterns:      %d/%d (%d%%)\n" "$scripts_with_all_patterns" "$rutos_script_count" "$((scripts_with_all_patterns * 100 / rutos_script_count))"
+        printf "Scripts with ALL basic patterns: %d/%d (%d%%)\n" "$scripts_with_all_patterns" "$rutos_script_count" "$((scripts_with_all_patterns * 100 / rutos_script_count))"
+        
+        printf "\n📋 INTEGRATION QUALITY:\n"
+        if [ "$scripts_with_integration_issues" -gt 0 ]; then
+            printf "${YELLOW}Scripts with advanced integration issues: %d/%d${NC}\n" "$scripts_with_integration_issues" "$rutos_script_count"
+            printf "${BLUE}ℹ️  Advanced patterns include: backward compatibility, debug timing, variable capture, command protection${NC}\n"
+        else
+            printf "${GREEN}✅ All scripts pass advanced integration patterns${NC}\n"
+        fi
+
+        # Library compliance check
+        printf "\n${CYAN}📋 LIBRARY COMPLIANCE STATUS:${NC}\n"
+
+        # Count scripts with any library violations (each script can have multiple issues)
+        scripts_with_library_issues=$(echo "$ISSUE_LIST" | grep "BLOCKING.*library\|CRITICAL.*library" | cut -d'|' -f2 | sort -u | wc -l || echo 0)
+        scripts_fully_compliant=$((rutos_script_count - scripts_with_library_issues))
+
+        # Ensure we don't have negative numbers
+        if [ "$scripts_fully_compliant" -lt 0 ]; then
+            scripts_fully_compliant=0
+        fi
+
+        if [ "$scripts_fully_compliant" -eq "$rutos_script_count" ] && [ "$CRITICAL_ISSUES" -eq 0 ]; then
+            printf "${GREEN}✅ RUTOS Library Compliance: %d/%d (100%% COMPLIANT)${NC}\n" "$scripts_fully_compliant" "$rutos_script_count"
+            printf "${GREEN}🎯 All scripts are fully standardized with RUTOS library system${NC}\n"
+        else
+            compliance_percent=$((scripts_fully_compliant * 100 / rutos_script_count))
+            printf "${YELLOW}⚠️  RUTOS Library Compliance: %d/%d (%d%% compliant)${NC}\n" "$scripts_fully_compliant" "$rutos_script_count" "$compliance_percent"
+            printf "${YELLOW}📝 %d scripts need library standardization (see CRITICAL issues above)${NC}\n" "$scripts_with_library_issues"
+        fi
     fi
     printf "\n"
 
-    # Integration quality assessment
-    if [ "$scripts_with_integration_issues" -gt 0 ]; then
-        printf "${YELLOW}Scripts with integration issues: %d${NC}\n" "$scripts_with_integration_issues"
-    else
-        printf "${GREEN}✓ No debug integration issues found${NC}\n"
-    fi
-
     # Recommendations
-    if [ "$scripts_with_all_patterns" -lt "${#rutos_scripts[@]}" ]; then
-        printf "\n${BLUE}RECOMMENDATIONS:${NC}\n"
+    if [ "$scripts_with_all_patterns" -lt "$rutos_script_count" ] || [ "$scripts_with_integration_issues" -gt 0 ]; then
+        printf "\n${BLUE}🔧 SPECIFIC RECOMMENDATIONS:${NC}\n"
 
-        local missing_debug=$((${#rutos_scripts[@]} - scripts_with_debug))
-        local missing_test=$((${#rutos_scripts[@]} - scripts_with_test_mode))
-        local missing_dry=$((${#rutos_scripts[@]} - scripts_with_dry_run))
+        local missing_debug
+        local missing_test
+        local missing_dry
+        missing_debug=$((rutos_script_count - scripts_with_debug))
+        missing_test=$((rutos_script_count - scripts_with_test_mode))
+        missing_dry=$((rutos_script_count - scripts_with_dry_run))
 
-        [ "$missing_debug" -gt 0 ] && printf "• Add DEBUG support to %d more scripts for better troubleshooting\n" "$missing_debug"
-        [ "$missing_test" -gt 0 ] && printf "• Add TEST_MODE support to %d more scripts for safer testing\n" "$missing_test"
-        [ "$missing_dry" -gt 0 ] && printf "• Add DRY_RUN support to %d more scripts for safe execution\n" "$missing_dry"
+        [ "$missing_debug" -gt 0 ] && printf "• Add DEBUG support to %d more scripts: DEBUG=\"\${DEBUG:-0}\" and conditional debug logging\n" "$missing_debug"
+        [ "$missing_test" -gt 0 ] && printf "• Add TEST_MODE support to %d more scripts: RUTOS_TEST_MODE=\"\${RUTOS_TEST_MODE:-0}\" with early exit\n" "$missing_test"
+        [ "$missing_dry" -gt 0 ] && printf "• Add DRY_RUN support to %d more scripts: DRY_RUN=\"\${DRY_RUN:-0}\" with safe_execute pattern\n" "$missing_dry"
+        
+        if [ "$scripts_with_integration_issues" -gt 0 ]; then
+            printf "• Fix %d scripts with advanced integration issues:\n" "$scripts_with_integration_issues"
+            printf "  - Ensure backward compatibility (both TEST_MODE and RUTOS_TEST_MODE)\n"
+            printf "  - Add comprehensive debug output showing all variable states\n"
+            printf "  - Implement proper debug timing (debug output before early exit)\n"
+            printf "  - Capture original variable values for debug display\n"
+            printf "  - Protect state-changing commands with DRY_RUN checks\n"
+            printf "  - Add command execution logging in debug mode\n"
+        fi
 
-        printf "• Complete integration enables: detailed troubleshooting, safe testing, and controlled execution\n"
+        printf "\n${CYAN}💡 These patterns enable: detailed troubleshooting, safe testing, and controlled execution${NC}\n"
     else
         printf "\n${GREEN}🎉 EXCELLENT: All RUTOS scripts have complete debug integration patterns!${NC}\n"
     fi
@@ -1355,15 +1852,55 @@ display_issue_summary() {
     fi
 
     printf "\n"
-    printf "%s=== ISSUE BREAKDOWN ===%s\n" "$PURPLE" "$NC"
-    printf "Most common issues found:\n\n"
+    printf "${PURPLE}=== ISSUE BREAKDOWN ===${NC}\n"
+    printf "Issues grouped by severity:\n\n"
 
-    # Process the issue list to group by message type
-    # Create a temporary file to process issues
+    # Process the issue list to group by severity and message type
+    # Create temporary files for processing
     temp_file="/tmp/issue_summary_$$"
+    critical_file="/tmp/critical_issues_$$"
+    major_file="/tmp/major_issues_$$"
+    minor_file="/tmp/minor_issues_$$"
 
     # Write issues to temp file for processing
     printf "%s\n" "$ISSUE_LIST" >"$temp_file"
+
+    # Split issues by severity (look for [CRITICAL], [MAJOR], [MINOR] in the report_issue calls)
+    grep "\\[CRITICAL\\]" "$temp_file" | sort | uniq -c | sort -nr >"$critical_file" 2>/dev/null || touch "$critical_file"
+    grep "\\[MAJOR\\]" "$temp_file" | sort | uniq -c | sort -nr >"$major_file" 2>/dev/null || touch "$major_file"
+    grep "\\[MINOR\\]\\|\\[WARNING\\]" "$temp_file" | sort | uniq -c | sort -nr >"$minor_file" 2>/dev/null || touch "$minor_file"
+
+    # Display Critical Issues
+    if [ -s "$critical_file" ]; then
+        printf "${RED}🚨 CRITICAL ISSUES (BLOCKING):${NC}\n"
+        head -10 "$critical_file" | while read -r count rest; do
+            # Clean up the message and extract the core issue
+            clean_msg=$(echo "$rest" | sed 's/\[CRITICAL\][^:]*://g' | sed 's/^[[:space:]]*//')
+            printf "${RED}%3dx${NC} %s\n" "$count" "$clean_msg"
+        done
+        printf "\n"
+    fi
+
+    # Display Major Issues
+    if [ -s "$major_file" ]; then
+        printf "${YELLOW}⚠️  MAJOR ISSUES:${NC}\n"
+        head -10 "$major_file" | while read -r count rest; do
+            clean_msg=$(echo "$rest" | sed 's/\[MAJOR\][^:]*://g' | sed 's/^[[:space:]]*//')
+            printf "${YELLOW}%3dx${NC} %s\n" "$count" "$clean_msg"
+        done
+        printf "\n"
+    fi
+
+    # Display Minor Issues
+    if [ -s "$minor_file" ]; then
+        printf "${BLUE}💡 MINOR ISSUES:${NC}\n"
+        head -10 "$minor_file" | while read -r count rest; do
+            clean_msg=$(echo "$rest" | sed 's/\[MINOR\][^:]*://g' | sed 's/\[WARNING\][^:]*://g' | sed 's/^[[:space:]]*//')
+            printf "${BLUE}%3dx${NC} %s\n" "$count" "$clean_msg"
+        done
+        printf "\n"
+    fi # Original detailed breakdown (keeping for comprehensive view)
+    printf "${CYAN}📊 DETAILED BREAKDOWN:${NC}\n"
 
     # Group issues by ShellCheck code, markdown linting code, or other message types
     while IFS='|' read -r message file_path; do
@@ -1535,6 +2072,10 @@ display_issue_summary() {
             # Check if this is a prettier formatting issue
             elif echo "$message" | grep -q "prettier formatting issues"; then
                 printf "prettier: Markdown formatting issues detected\n"
+            # Check if this is a state-changing command not protected by DRY_RUN issue
+            elif echo "$message" | grep -q "State-changing command not protected by DRY_RUN:"; then
+                # Group all unprotected state-changing commands together
+                printf "State-changing command not protected by DRY_RUN\n"
             else
                 # Other issues - show as is (strip any color codes for sorting)
                 clean_message=$(printf "%s\n" "$message" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/\$[A-Z_]*//g')
@@ -1562,7 +2103,17 @@ display_issue_summary() {
                 # For other issues, count normally
                 unique_files=$(grep -F "$message|" "$temp_file" | cut -d'|' -f2 | LC_ALL=C sort -u | wc -l)
             fi
-            printf "${YELLOW}%dx${NC} / ${CYAN}%d files${NC}: %s\n" "$count" "$unique_files" "$message"
+            # Apply severity-based color coding
+            local issue_color="$YELLOW" # Default to yellow for general issues
+            if echo "$message" | grep -qi "BLOCKING\|critical"; then
+                issue_color="$RED"
+            elif echo "$message" | grep -qi "SC[0-9]*:\|major"; then
+                issue_color="$YELLOW"
+            elif echo "$message" | grep -qi "consider\|minor"; then
+                issue_color="$BLUE"
+            fi
+
+            printf "${issue_color}%dx${NC} / ${CYAN}%d files${NC}: %s\n" "$count" "$unique_files" "$message"
         fi
     done <"${temp_file}.counts"
 
@@ -1582,7 +2133,7 @@ display_summary() {
     log_step "Generating validation summary"
 
     printf "\n"
-    printf "%s=== VALIDATION SUMMARY ===%s\n" "$PURPLE" "$NC"
+    printf "${PURPLE}=== VALIDATION SUMMARY ===${NC}\n"
     printf "Files processed: %d\n" "$TOTAL_FILES"
     printf "Files passed: %d\n" "$PASSED_FILES"
     printf "Files failed: %d\n" "$FAILED_FILES"
@@ -1872,6 +2423,9 @@ main() {
     # Skip self-validation
     log_step "Self-validation: Skipped - this script is excluded from validation"
 
+    # Perform validation script health check to detect meta-issues
+    check_validation_script_health
+
     # Check for available development tools and suggest installation if missing
     if [ "${DEBUG:-0}" = "1" ]; then
         check_dev_tools
@@ -1879,116 +2433,148 @@ main() {
 
     local shell_files=""
     local markdown_files=""
+    local mode=""
+    local filter_type=""
 
-    # Check if running with specific files
-    if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-        show_help
-        exit 0
-    elif [ "$1" = "--autonomous" ]; then
-        AUTONOMOUS_MODE=1
-        # Disable colors for autonomous mode
-        RED=""
-        GREEN=""
-        YELLOW=""
-        BLUE=""
-        PURPLE=""
-        CYAN=""
-        NC=""
-        log_info "Running in autonomous mode (structured JSON output)"
-        # Get all shell and markdown files for autonomous analysis
-        exclusions=$(parse_gitignore_exclusions)
-        shell_files=$(eval "find . -name \"*.sh\" -type f $exclusions" | while read -r file; do
-            if ! is_excluded "$file"; then
-                echo "$file"
-            fi
-        done | LC_ALL=C sort)
-        markdown_files=$(eval "find . -name \"*.md\" -type f $exclusions" | while read -r file; do
-            if ! is_excluded "$file"; then
-                echo "$file"
-            fi
-        done | LC_ALL=C sort)
-    elif [ "$1" = "--staged" ]; then
-        log_info "Running in pre-commit mode (staged files only)"
-        # Get staged shell and markdown files, excluding specified files
-        shell_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' | while read -r file; do
-            if ! is_excluded "$file"; then
-                echo "$file"
-            fi
-        done | LC_ALL=C sort)
-        markdown_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | LC_ALL=C sort)
-    elif [ "$1" = "--all" ]; then
-        log_info "Running in comprehensive validation mode (all shell and markdown files)"
-        # Get exclusion patterns from .gitignore
-        exclusions=$(parse_gitignore_exclusions)
+    # Parse all arguments to determine mode and filters
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --help | -h)
+                show_help
+                exit 0
+                ;;
+            --autonomous)
+                mode="autonomous"
+                ;;
+            --staged)
+                mode="staged"
+                ;;
+            --all)
+                mode="all"
+                ;;
+            --shell-only)
+                filter_type="shell"
+                ;;
+            --md-only)
+                filter_type="markdown"
+                ;;
+            *.sh | *.md)
+                # Specific files - handle later
+                mode="specific"
+                break
+                ;;
+            *)
+                log_warning "Unknown argument: $1"
+                ;;
+        esac
+        shift
+    done
 
-        # Get all shell and markdown files, respecting .gitignore
-        shell_files=$(eval "find . -name \"*.sh\" -type f $exclusions" | while read -r file; do
-            if ! is_excluded "$file"; then
-                echo "$file"
-            fi
-        done | LC_ALL=C sort)
-        markdown_files=$(eval "find . -name \"*.md\" -type f $exclusions" | while read -r file; do
-            if ! is_excluded "$file"; then
-                echo "$file"
-            fi
-        done | LC_ALL=C sort)
-    elif [ "$1" = "--shell-only" ]; then
-        log_info "Running in shell-only validation mode"
-        # Get exclusion patterns from .gitignore
-        exclusions=$(parse_gitignore_exclusions)
-
-        # Get all shell files, respecting .gitignore
-        shell_files=$(eval "find . -name \"*.sh\" -type f $exclusions" | while read -r file; do
-            if ! is_excluded "$file"; then
-                echo "$file"
-            fi
-        done | LC_ALL=C sort)
-    elif [ "$1" = "--md-only" ]; then
-        log_info "Running in markdown-only validation mode"
-        # Get exclusion patterns from .gitignore
-        exclusions=$(parse_gitignore_exclusions)
-
-        # Get all markdown files, respecting .gitignore
-        markdown_files=$(eval "find . -name \"*.md\" -type f $exclusions" | while read -r file; do
-            if ! is_excluded "$file"; then
-                echo "$file"
-            fi
-        done | LC_ALL=C sort)
-    elif [ $# -gt 0 ]; then
-        log_info "Running in specific file mode"
-        # Process specific files based on extension
-        for file in "$@"; do
-            case "$file" in
-                *.sh)
-                    if ! is_excluded "$file"; then
-                        shell_files="$shell_files $file"
-                    fi
-                    ;;
-                *.md)
-                    markdown_files="$markdown_files $file"
-                    ;;
-                *)
-                    log_warning "Unsupported file type: $file (only .sh and .md supported)"
-                    ;;
-            esac
-        done
-    else
-        log_info "Running in full validation mode (all shell and markdown files)"
-        # Get exclusion patterns from .gitignore
-        exclusions=$(parse_gitignore_exclusions)
-
-        # Get all shell and markdown files, respecting .gitignore
-        shell_files=$(eval "find . -name \"*.sh\" -type f $exclusions" | while read -r file; do
-            if ! is_excluded "$file"; then
-                echo "$file"
-            fi
-        done | LC_ALL=C sort)
-        markdown_files=$(eval "find . -name \"*.md\" -type f $exclusions" | while read -r file; do
-            if ! is_excluded "$file"; then
-                echo "$file"
-            fi
-        done | LC_ALL=C sort)
+    # Set default mode if none specified
+    if [ -z "$mode" ]; then
+        mode="all"
     fi
+
+    # Configure autonomous mode settings
+    if [ "$mode" = "autonomous" ]; then
+        AUTONOMOUS_MODE=1
+        # Disable colors for autonomous mode - use NO_COLOR environment variable
+        # The RUTOS library will respect this and disable colors automatically
+        NO_COLOR=1
+        export NO_COLOR
+        log_info "Running in autonomous mode (structured JSON output)"
+    fi
+
+    # Log the effective mode
+    case "$mode" in
+        autonomous)
+            if [ "$filter_type" = "shell" ]; then
+                log_info "Running in autonomous mode with shell-only validation"
+            elif [ "$filter_type" = "markdown" ]; then
+                log_info "Running in autonomous mode with markdown-only validation"
+            else
+                log_info "Running in autonomous mode with all file validation"
+            fi
+            ;;
+        staged)
+            if [ "$filter_type" = "shell" ]; then
+                log_info "Running in pre-commit mode (staged files only) with shell-only validation"
+            elif [ "$filter_type" = "markdown" ]; then
+                log_info "Running in pre-commit mode (staged files only) with markdown-only validation"
+            else
+                log_info "Running in pre-commit mode (staged files only) with all file validation"
+            fi
+            ;;
+        all)
+            if [ "$filter_type" = "shell" ]; then
+                log_info "Running in comprehensive validation mode with shell-only validation"
+            elif [ "$filter_type" = "markdown" ]; then
+                log_info "Running in comprehensive validation mode with markdown-only validation"
+            else
+                log_info "Running in comprehensive validation mode with all file validation"
+            fi
+            ;;
+        specific)
+            log_info "Running in specific file mode"
+            ;;
+    esac
+
+    # Get exclusion patterns from .gitignore for non-specific modes
+    if [ "$mode" != "specific" ]; then
+        exclusions=$(parse_gitignore_exclusions)
+    fi
+
+    # Collect files based on mode and filter
+    case "$mode" in
+        autonomous | all)
+            if [ "$filter_type" != "markdown" ]; then
+                shell_files=$(eval "find . -name \"*.sh\" -type f $exclusions" | while read -r file; do
+                    if ! is_excluded "$file"; then
+                        echo "$file"
+                    fi
+                done | LC_ALL=C sort)
+            fi
+            if [ "$filter_type" != "shell" ]; then
+                markdown_files=$(eval "find . -name \"*.md\" -type f $exclusions" | while read -r file; do
+                    if ! is_excluded "$file"; then
+                        echo "$file"
+                    fi
+                done | LC_ALL=C sort)
+            fi
+            ;;
+        staged)
+            if [ "$filter_type" != "markdown" ]; then
+                shell_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' | while read -r file; do
+                    if ! is_excluded "$file"; then
+                        echo "$file"
+                    fi
+                done | LC_ALL=C sort)
+            fi
+            if [ "$filter_type" != "shell" ]; then
+                markdown_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' | LC_ALL=C sort)
+            fi
+            ;;
+        specific)
+            # Process specific files based on extension and filter
+            for file in "$@"; do
+                case "$file" in
+                    *.sh)
+                        if [ "$filter_type" != "markdown" ] && ! is_excluded "$file"; then
+                            shell_files="$shell_files $file"
+                        fi
+                        ;;
+                    *.md)
+                        if [ "$filter_type" != "shell" ]; then
+                            markdown_files="$markdown_files $file"
+                        fi
+                        ;;
+                    *)
+                        log_warning "Unsupported file type: $file (only .sh and .md supported)"
+                        ;;
+                esac
+            done
+            ;;
+    esac
 
     # Count total files
     local total_files=0

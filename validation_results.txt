@@ -1,41 +1,41 @@
-[0;32m[INFO][0m [2025-07-26 20:43:50] Starting pre-commit-validation.sh v2.7.0
-[0;32m[INFO][0m [2025-07-26 20:43:50] Starting RUTOS busybox compatibility and markdown validation v2.7.0
-[1;35m[STEP][0m [2025-07-26 20:43:50] Self-validation: Skipped - this script is excluded from validation
-[INFO] [2025-07-26 20:43:50] Running in autonomous mode (structured JSON output)
-[STEP] [2025-07-26 20:43:54] Processing 231 files
-[INFO] [2025-07-26 20:43:54] Validating shell script files
-[WARNING] [2025-07-26 20:43:58] ./Starlink-RUTOS-Failover/AzureLogging/starlink-azure-monitor-rutos.sh: ShellCheck found issues
-[WARNING] [2025-07-26 20:43:59] ./Starlink-RUTOS-Failover/AzureLogging/unified-azure-setup-rutos.sh: ShellCheck found issues
-[WARNING] [2025-07-26 20:44:02] ./Starlink-RUTOS-Failover/generate_api_docs.sh: ShellCheck found issues
-[SUCCESS] [2025-07-26 20:44:04] Γ£ô ./Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh: RUTOS library validation completed
-[WARNING] [2025-07-26 20:44:04] ./Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh: ShellCheck found issues
-[WARNING] [2025-07-26 20:44:06] ./Starlink-RUTOS-Failover/starlink_monitor_old.sh: ShellCheck found issues
-[SUCCESS] [2025-07-26 20:44:07] Γ£ô ./Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh: RUTOS library validation completed
-[WARNING] [2025-07-26 20:44:15] ./config/config.sh: ShellCheck found issues
-[SUCCESS] [2025-07-26 20:44:30] Γ£ô ./scripts/check-variable-consistency-rutos.sh: RUTOS library validation completed
-[WARNING] [2025-07-26 20:44:31] ./scripts/check-variable-consistency-rutos.sh: ShellCheck found issues
-[WARNING] [2025-07-26 20:44:33] ./scripts/debug-config-rutos.sh: ShellCheck found issues
-[SUCCESS] [2025-07-26 20:44:35] Γ£ô ./scripts/dev-testing-rutos.sh: RUTOS library validation completed
-[WARNING] [2025-07-26 20:44:36] ./scripts/dev-testing-rutos.sh: ShellCheck found issues
-[WARNING] [2025-07-26 20:44:45] ./scripts/install-rutos.sh: ShellCheck found issues
-[WARNING] [2025-07-26 20:44:46] ./scripts/lib/rutos-colors.sh: ShellCheck found issues
-[WARNING] [2025-07-26 20:44:46] ./scripts/lib/rutos-common.sh: ShellCheck found issues
-[WARNING] [2025-07-26 20:44:47] ./scripts/lib/rutos-lib.sh: ShellCheck found issues
-[WARNING] [2025-07-26 20:44:47] ./scripts/lib/rutos-logging.sh: ShellCheck found issues
-[WARNING] [2025-07-26 20:44:51] ./scripts/pre-commit-validation.sh: ShellCheck found issues
+[0;32m[INFO][0m [2025-07-26 20:51:42] Starting pre-commit-validation.sh v2.7.0
+[0;32m[INFO][0m [2025-07-26 20:51:42] Starting RUTOS busybox compatibility and markdown validation v2.7.0
+[1;35m[STEP][0m [2025-07-26 20:51:42] Self-validation: Skipped - this script is excluded from validation
+[INFO] [2025-07-26 20:51:42] Running in autonomous mode (structured JSON output)
+[STEP] [2025-07-26 20:51:47] Processing 231 files
+[INFO] [2025-07-26 20:51:47] Validating shell script files
+[WARNING] [2025-07-26 20:51:51] ./Starlink-RUTOS-Failover/AzureLogging/starlink-azure-monitor-rutos.sh: ShellCheck found issues
+[WARNING] [2025-07-26 20:51:53] ./Starlink-RUTOS-Failover/AzureLogging/unified-azure-setup-rutos.sh: ShellCheck found issues
+[WARNING] [2025-07-26 20:51:55] ./Starlink-RUTOS-Failover/generate_api_docs.sh: ShellCheck found issues
+[SUCCESS] [2025-07-26 20:51:57] Γ£ô ./Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh: RUTOS library validation completed
+[WARNING] [2025-07-26 20:51:58] ./Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh: ShellCheck found issues
+[WARNING] [2025-07-26 20:52:00] ./Starlink-RUTOS-Failover/starlink_monitor_old.sh: ShellCheck found issues
+[SUCCESS] [2025-07-26 20:52:00] Γ£ô ./Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh: RUTOS library validation completed
+[WARNING] [2025-07-26 20:52:08] ./config/config.sh: ShellCheck found issues
+[SUCCESS] [2025-07-26 20:52:23] Γ£ô ./scripts/check-variable-consistency-rutos.sh: RUTOS library validation completed
+[WARNING] [2025-07-26 20:52:24] ./scripts/check-variable-consistency-rutos.sh: ShellCheck found issues
+[WARNING] [2025-07-26 20:52:25] ./scripts/debug-config-rutos.sh: ShellCheck found issues
+[SUCCESS] [2025-07-26 20:52:28] Γ£ô ./scripts/dev-testing-rutos.sh: RUTOS library validation completed
+[WARNING] [2025-07-26 20:52:29] ./scripts/dev-testing-rutos.sh: ShellCheck found issues
+[WARNING] [2025-07-26 20:52:37] ./scripts/install-rutos.sh: ShellCheck found issues
+[WARNING] [2025-07-26 20:52:38] ./scripts/lib/rutos-colors.sh: ShellCheck found issues
+[WARNING] [2025-07-26 20:52:39] ./scripts/lib/rutos-common.sh: ShellCheck found issues
+[WARNING] [2025-07-26 20:52:39] ./scripts/lib/rutos-lib.sh: ShellCheck found issues
+[WARNING] [2025-07-26 20:52:40] ./scripts/lib/rutos-logging.sh: ShellCheck found issues
+[WARNING] [2025-07-26 20:52:43] ./scripts/pre-commit-validation.sh: ShellCheck found issues
 sed: -e expression #1, char 4: invalid usage of line address 0
-[WARNING] [2025-07-26 20:45:04] ./scripts/test-rutos-library-implementation.sh: ShellCheck found issues
-[INFO] [2025-07-26 20:45:19] Validating markdown files
-[WARNING] [2025-07-26 20:45:22] ./AUTONOMOUS_INTEGRATION_SUMMARY.md: markdownlint found issues
-[WARNING] [2025-07-26 20:45:33] ./ENHANCED_HEALTH_CHECK_SUMMARY.md: markdownlint found issues
-[WARNING] [2025-07-26 20:45:56] ./STARLINK_IP_STANDARDIZATION_COMPLETE.md: markdownlint found issues
-[WARNING] [2025-07-26 20:45:57] ./STATUS.md: markdownlint found issues
-[WARNING] [2025-07-26 20:46:12] ./TRANSFER_SUMMARY.md: markdownlint found issues
-[WARNING] [2025-07-26 20:46:55] ./scripts/lib/README.md: markdownlint found issues
+[WARNING] [2025-07-26 20:52:56] ./scripts/test-rutos-library-implementation.sh: ShellCheck found issues
+[INFO] [2025-07-26 20:53:11] Validating markdown files
+[WARNING] [2025-07-26 20:53:13] ./AUTONOMOUS_INTEGRATION_SUMMARY.md: markdownlint found issues
+[WARNING] [2025-07-26 20:53:23] ./ENHANCED_HEALTH_CHECK_SUMMARY.md: markdownlint found issues
+[WARNING] [2025-07-26 20:53:46] ./STARLINK_IP_STANDARDIZATION_COMPLETE.md: markdownlint found issues
+[WARNING] [2025-07-26 20:53:47] ./STATUS.md: markdownlint found issues
+[WARNING] [2025-07-26 20:54:00] ./TRANSFER_SUMMARY.md: markdownlint found issues
+[WARNING] [2025-07-26 20:54:37] ./scripts/lib/README.md: markdownlint found issues
 {
   "validation_summary": {
     "script_version": "2.7.0",
-    "timestamp": "2025-07-26T18:46:56Z",
+    "timestamp": "2025-07-26T18:54:38Z",
     "total_files": 231,
     "passed_files": 139,
     "failed_files": 92,

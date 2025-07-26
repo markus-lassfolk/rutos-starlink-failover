@@ -242,10 +242,12 @@ trap 'echo "Script interrupted"' INT TERM
 ### Common Issues
 
 1. **"Syntax error: redirection unexpected"**
+
    - Usually process substitution `< <(...)`
    - Solution: Use pipes instead
 
 2. **"local: not found"**
+
    - Using `local` keyword in functions
    - Solution: Remove `local` keyword
 

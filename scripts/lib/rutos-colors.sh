@@ -35,8 +35,8 @@ init_colors() {
     # Enable colors if:
     # 1. We have a terminal AND proper TERM, OR
     # 2. We have a good TERM setting (even if tty test fails in some environments)
-    if { [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; } || \
-       { [ "${TERM:-}" = "xterm" ] || [ "${TERM:-}" = "xterm-256color" ] || [ "${TERM:-}" = "screen" ]; } && [ "${NO_COLOR:-}" != "1" ]; then
+    if { [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; } ||
+        { [ "${TERM:-}" = "xterm" ] || [ "${TERM:-}" = "xterm-256color" ] || [ "${TERM:-}" = "screen" ]; } && [ "${NO_COLOR:-}" != "1" ]; then
         # Colors enabled - keep the definitions above
         return 0
     else

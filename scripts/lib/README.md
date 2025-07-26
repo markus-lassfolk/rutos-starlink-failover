@@ -25,6 +25,7 @@ The RUTOS Library System provides standardized, reusable components for all RUTO
 
 - **Purpose**: Comprehensive logging system with multiple verbosity levels
 - **Logging Levels**:
+
   - **NORMAL**: Standard operation info
   - **DRY_RUN**: Shows what would be done without executing
   - **DEBUG**: Detailed debugging with context and stack traces
