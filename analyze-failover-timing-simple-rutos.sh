@@ -5,7 +5,9 @@
 
 set -e
 
+# Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 
 # Standard colors for output
 RED='\033[0;31m'
@@ -25,13 +27,40 @@ if [ ! -t 1 ]; then
     NC=""
 fi
 
+# Logging functions
+log_info() {
+    printf "${GREEN}[INFO]${NC} %s\n" "$1"
+}
+
+log_step() {
+    printf "${BLUE}[STEP]${NC} %s\n" "$1"
+}
+
+log_warning() {
+    printf "${YELLOW}[WARNING]${NC} %s\n" "$1"
+}
+
+log_error() {
+    printf "${RED}[ERROR]${NC} %s\n" "$1" >&2
+}
+
+log_success() {
+    printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"
+}
+
+log_debug() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "${CYAN}[DEBUG]${NC} %s\n" "$1" >&2
+    fi
+}
+
 # Dry-run and test mode support
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    echo "[DEBUG] DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE" >&2
+    log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
 fi
 
 # Early exit in test mode to prevent execution errors
@@ -53,26 +82,6 @@ safe_execute() {
         eval "$cmd"
         return $?
     fi
-}
-
-log_info() {
-    printf "${GREEN}[INFO]${NC} %s\n" "$1"
-}
-
-log_step() {
-    printf "${BLUE}[STEP]${NC} %s\n" "$1"
-}
-
-log_warning() {
-    printf "${YELLOW}[WARNING]${NC} %s\n" "$1"
-}
-
-log_error() {
-    printf "${RED}[ERROR]${NC} %s\n" "$1" >&2
-}
-
-log_success() {
-    printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"
 }
 
 # Configuration
