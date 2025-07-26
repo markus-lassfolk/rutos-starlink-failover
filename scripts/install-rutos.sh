@@ -51,8 +51,8 @@ if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
 
     # Check available tools
     printf "[DEBUG] Available download tools:\n" >&2
-    printf "[DEBUG]   curl: %s\n" "$(command -v curl >/dev/null 2>&1 && echo "$(which curl)" || echo 'not available')" >&2
-    printf "[DEBUG]   wget: %s\n" "$(command -v wget >/dev/null 2>&1 && echo "$(which wget)" || echo 'not available')" >&2
+    printf "[DEBUG]   curl: %s\n" "$(command -v curl >/dev/null 2>&1 && which curl || echo 'not available')" >&2
+    printf "[DEBUG]   wget: %s\n" "$(command -v wget >/dev/null 2>&1 && which wget || echo 'not available')" >&2
 
     # Check filesystem info
     printf "[DEBUG] Filesystem information:\n" >&2

@@ -181,7 +181,7 @@ _push_function_stack() {
         # Create indentation based on function depth
         indent=""
         i=1
-        while [ $i -lt $_FUNCTION_DEPTH ]; do
+        while [ "$i" -lt "$_FUNCTION_DEPTH" ]; do
             indent="  $indent"
             i=$((i + 1))
         done
@@ -200,7 +200,7 @@ _pop_function_stack() {
         # Create indentation based on function depth
         indent=""
         i=1
-        while [ $i -lt $_FUNCTION_DEPTH ]; do
+        while [ "$i" -lt "$_FUNCTION_DEPTH" ]; do
             indent="  $indent"
             i=$((i + 1))
         done
@@ -212,7 +212,7 @@ _pop_function_stack() {
     # Remove function from stack
     _FUNCTION_STACK="${_FUNCTION_STACK#*|}"
     _FUNCTION_DEPTH=$((_FUNCTION_DEPTH - 1))
-    if [ $_FUNCTION_DEPTH -lt 0 ]; then
+    if [ "$_FUNCTION_DEPTH" -lt 0 ]; then
         _FUNCTION_DEPTH=0
     fi
 }
