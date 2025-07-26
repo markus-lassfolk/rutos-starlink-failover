@@ -6,17 +6,23 @@ set -e
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 
 # Colors for output (RUTOS compatible)
+# shellcheck disable=SC2034  # Colors are defined as a standard set for project consistency
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+    RED='\033[0;31m'
     GREEN='\033[0;32m'
     YELLOW='\033[1;33m'
     BLUE='\033[1;35m'
+    CYAN='\033[0;36m'
     NC='\033[0m'
 else
+    RED=""
     GREEN=""
     YELLOW=""
     BLUE=""
+    CYAN=""
     NC=""
 fi
 
@@ -39,6 +45,7 @@ log_missing() {
 
 printf "%s================================================%s\n" "$BLUE" "$NC"
 printf "%s      RUTOS Starlink Installation Discovery%s\n" "$BLUE" "$NC"
+printf "%s                   v%s%s\n" "$BLUE" "$SCRIPT_VERSION" "$NC"
 printf "%s================================================%s\n" "$BLUE" "$NC"
 printf "\n"
 
@@ -56,8 +63,13 @@ for dir in $INSTALL_DIRS; do
     if [ -d "$dir" ]; then
         log_found "Directory exists: $dir"
         if [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
-            log_info "  Contents: $(ls -la "$dir" 2>/dev/null | wc -l) items"
-            ls -la "$dir" 2>/dev/null | head -10
+            # Count items in directory using find instead of ls | wc -l
+            item_count=$(find "$dir" -maxdepth 1 -type f -o -type d | grep -vc "^$dir$")
+            log_info "  Contents: $item_count items"
+            # Use find to list directory contents instead of ls
+            find "$dir" -maxdepth 1 -type f -o -type d | grep -v "^$dir$" | head -10 | while read -r item; do
+                log_info "    $(basename "$item")"
+            done
         else
             log_missing "  Directory is empty"
         fi
@@ -108,7 +120,17 @@ for script_name in $SCRIPT_NAMES; do
             else
                 log_missing "  Executable: NO"
             fi
-            log_info "  Size: $(ls -lh "$file" 2>/dev/null | awk '{print $5}' || echo 'Unknown')"
+            # Use stat instead of ls to get file size
+            file_size=$(stat -c%s "$file" 2>/dev/null || echo "0")
+            # Convert to human readable format
+            if [ "$file_size" -ge 1048576 ]; then
+                size_display="$((file_size / 1048576))M"
+            elif [ "$file_size" -ge 1024 ]; then
+                size_display="$((file_size / 1024))K"
+            else
+                size_display="${file_size}B"
+            fi
+            log_info "  Size: $size_display"
         done
     else
         log_missing "No files found for: $script_name"
@@ -133,11 +155,14 @@ fi
 
 printf "\n"
 log_step "Checking for running Starlink processes"
-starlink_processes=$(ps aux 2>/dev/null | grep -i starlink | grep -v grep || true)
-if [ -n "$starlink_processes" ]; then
+# Use pgrep instead of ps aux | grep for better process detection
+if starlink_pids=$(pgrep -f "starlink" 2>/dev/null); then
     log_found "Starlink processes running:"
-    echo "$starlink_processes" | while read -r line; do
-        log_info "  $line"
+    for pid in $starlink_pids; do
+        # Get process details for each PID
+        if ps_line=$(ps -p "$pid" -o pid,user,command 2>/dev/null | tail -n +2); then
+            log_info "  $ps_line"
+        fi
     done
 else
     log_missing "No Starlink processes currently running"
