@@ -1653,16 +1653,19 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
     # Script runs but skips actual file operations
 fi
 ```
+
         debug_msg "ANALYSIS: Insufficient disk space or permission issues"
         debug_msg "LIKELY CAUSE: Disk space (${available_space_kb}KB) or write permissions"
     fi
+
 }
 
 # Example integration in download function
+
 download_with_error_analysis() {
-    url="$1"
-    output_file="$2"
-    description="$3"
+url="$1"
+output_file="$2"
+description="$3"
 
     if ! curl -fsSL "$url" -o "$output_file"; then
         curl_exit_code=$?
@@ -1672,8 +1675,10 @@ download_with_error_analysis() {
         fi
         return $curl_exit_code
     fi
+
 }
-```
+
+````
 
 #### System Administration - Disk Space Management for RUTOS (Date: 2025-07-27)
 
@@ -1719,7 +1724,7 @@ cleanup_temp_library() {
         fi
     done
 }
-```
+````
 
 ## Current Project Status (As of July 2025)
 

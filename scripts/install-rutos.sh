@@ -529,10 +529,14 @@ else
     safe_execute() {
         command="$1"
         description="$2"
-        if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        # Only DRY_RUN should prevent execution, RUTOS_TEST_MODE should still execute with enhanced logging
+        if [ "$DRY_RUN" = "1" ]; then
             log_warning "[DRY-RUN] Would execute: $description"
             return 0
         else
+            if [ "$RUTOS_TEST_MODE" = "1" ]; then
+                log_trace "[RUTOS_TEST_MODE] Executing: $description"
+            fi
             log_step "Executing: $description"
             if eval "$command"; then
                 return 0
@@ -599,11 +603,17 @@ safe_exec() {
         log_debug "EXECUTING: $cmd"
         log_debug "DESCRIPTION: $description"
 
-        # Check for dry-run mode
-        if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        # Check for dry-run mode (only DRY_RUN should prevent execution)
+        if [ "$DRY_RUN" = "1" ]; then
             log_warning "[DRY-RUN] Would execute: $description"
             log_debug "[DRY-RUN] Command: $cmd"
             return 0
+        fi
+
+        # RUTOS_TEST_MODE should still execute commands (just with enhanced logging)
+        if [ "$RUTOS_TEST_MODE" = "1" ]; then
+            log_trace "[RUTOS_TEST_MODE] Executing: $description"
+            log_trace "[RUTOS_TEST_MODE] Command: $cmd"
         fi
 
         # Execute command and capture both stdout and stderr

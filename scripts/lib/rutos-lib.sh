@@ -61,6 +61,7 @@ fi
 rutos_init() {
     script_name="${1:-$(basename "$0")}"
     script_version="${2:-unknown}"
+    tracing_mode="${3:-selective}" # "automatic", "selective", or "off"
 
     # Set up logging levels
     setup_logging_levels
@@ -68,8 +69,8 @@ rutos_init() {
     # Set up cleanup handlers
     setup_cleanup_handlers
 
-    # Log script initialization
-    log_script_init "$script_name" "$script_version"
+    # Log script initialization with tracing mode
+    log_script_init "$script_name" "$script_version" "$tracing_mode"
 
     # Validate RUTOS environment (unless in test mode)
     if [ "${SKIP_RUTOS_VALIDATION:-0}" != "1" ]; then
