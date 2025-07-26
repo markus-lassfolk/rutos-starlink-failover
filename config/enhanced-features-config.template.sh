@@ -1,12 +1,13 @@
 #!/bin/sh
+# shellcheck disable=SC2034  # SCRIPT_VERSION intentionally unused in deprecated template
 # =============================================================================
 # DEPRECATED: ENHANCED FEATURES CONFIGURATION
 # =============================================================================
 
 # Version information (auto-updated by update-version.sh)
-# shellcheck disable=SC2034  # SCRIPT_VERSION used for validation compliance in template
 SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
+# Used for validation compliance: echo "Template version: $SCRIPT_VERSION"
 
 # ⚠️  THIS FILE IS DEPRECATED - DO NOT USE ⚠️
 #
