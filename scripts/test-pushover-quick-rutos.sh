@@ -29,6 +29,7 @@ else
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # Used in some conditional contexts
     CYAN=""
     NC=""
 fi
@@ -155,8 +156,8 @@ quick_test() {
 
             if echo "$response" | grep -q "invalid"; then
                 printf "\n${YELLOW}Possible issues:${NC}\n"
-                printf "- Invalid token or user key\n"
-                printf "- Check your Pushover credentials\n"
+                printf "%s\n" "- Invalid token or user key"
+                printf "%s\n" "- Check your Pushover credentials"
             fi
             exit 1
         fi
