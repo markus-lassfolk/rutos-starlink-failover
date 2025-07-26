@@ -1182,7 +1182,7 @@ test_debug_integration() {
                 is_install_script=1
                 log_debug "✓ $file: Installation script - relaxed DRY_RUN validation"
             fi
-            
+
             risky_commands="curl wget cp mv rm mkdir chmod chown systemctl service crontab"
             # Pattern for echo to file operations (NOT command substitution)
             echo_patterns="^[[:space:]]*echo.*>[[:space:]]*[^&].*$"
@@ -1217,7 +1217,7 @@ test_debug_integration() {
             if grep -qE "$echo_patterns" "$file"; then
                 echo_lines=$(grep -nE "$echo_patterns" "$file" | cut -d: -f1)
                 for line_num in $echo_lines; do
-                    # Skip if line_num is empty 
+                    # Skip if line_num is empty
                     [ -z "$line_num" ] && continue
                     # Get the line to double-check it's not command substitution
                     actual_line=$(sed -n "${line_num}p" "$file")
@@ -1346,11 +1346,11 @@ validate_library_usage() {
                     local check_start=$((cmd_line - 3))
                     local check_end=$((cmd_line + 3))
                     [ $check_start -lt 1 ] && check_start=1
-                    
+
                     if sed -n "${check_start},${check_end}p" "$file" | grep -q "VALIDATION_SKIP_SAFE_EXECUTE"; then
                         skip_found=1
                     fi
-                    
+
                     if [ $skip_found -eq 0 ]; then
                         report_issue "MAJOR" "$file" "$cmd_line" "Consider using safe_execute() for system command: $cmd"
                     fi
@@ -1447,22 +1447,22 @@ validate_library_usage() {
     local has_library_detection=0
     local has_library_loading=0
     local has_rutos_init=0
-    
+
     # Check for library detection patterns
     if grep -q "command -v rutos_init" "$file"; then
         has_library_detection=1
     fi
-    
+
     # Check for library loading patterns
     if grep -q "rutos-lib.sh" "$file"; then
         has_library_loading=1
     fi
-    
+
     # Check for rutos_init call
     if grep -q "rutos_init " "$file"; then
         has_rutos_init=1
     fi
-    
+
     # Validate based on script patterns
     if [ $has_library_loading -eq 1 ]; then
         # Script loads RUTOS library - this is good
@@ -1780,7 +1780,7 @@ display_debug_integration_summary() {
         printf "Scripts with TEST_MODE support: %d/%d (%d%%)\n" "$scripts_with_test_mode" "$rutos_script_count" "$((scripts_with_test_mode * 100 / rutos_script_count))"
         printf "Scripts with DRY_RUN support:   %d/%d (%d%%)\n" "$scripts_with_dry_run" "$rutos_script_count" "$((scripts_with_dry_run * 100 / rutos_script_count))"
         printf "Scripts with ALL basic patterns: %d/%d (%d%%)\n" "$scripts_with_all_patterns" "$rutos_script_count" "$((scripts_with_all_patterns * 100 / rutos_script_count))"
-        
+
         printf "\n📋 INTEGRATION QUALITY:\n"
         if [ "$scripts_with_integration_issues" -gt 0 ]; then
             printf "${YELLOW}Scripts with advanced integration issues: %d/%d${NC}\n" "$scripts_with_integration_issues" "$rutos_script_count"
@@ -1826,7 +1826,7 @@ display_debug_integration_summary() {
         [ "$missing_debug" -gt 0 ] && printf "• Add DEBUG support to %d more scripts: DEBUG=\"\${DEBUG:-0}\" and conditional debug logging\n" "$missing_debug"
         [ "$missing_test" -gt 0 ] && printf "• Add TEST_MODE support to %d more scripts: RUTOS_TEST_MODE=\"\${RUTOS_TEST_MODE:-0}\" with early exit\n" "$missing_test"
         [ "$missing_dry" -gt 0 ] && printf "• Add DRY_RUN support to %d more scripts: DRY_RUN=\"\${DRY_RUN:-0}\" with safe_execute pattern\n" "$missing_dry"
-        
+
         if [ "$scripts_with_integration_issues" -gt 0 ]; then
             printf "• Fix %d scripts with advanced integration issues:\n" "$scripts_with_integration_issues"
             printf "  - Ensure backward compatibility (both TEST_MODE and RUTOS_TEST_MODE)\n"
