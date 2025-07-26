@@ -39,7 +39,7 @@ if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
     printf "[DEBUG] User: %s (UID: %s)\n" "$(id -un 2>/dev/null || echo 'unknown')" "$(id -u 2>/dev/null || echo 'unknown')" >&2
     printf "[DEBUG] Working directory: %s\n" "$(pwd)" >&2
     printf "[DEBUG] System: %s\n" "$(uname -a 2>/dev/null || echo 'unknown')" >&2
-    
+
     # Show environment variables
     printf "[DEBUG] Environment variables:\n" >&2
     printf "[DEBUG]   DEBUG=%s\n" "${DEBUG:-0}" >&2
@@ -48,12 +48,12 @@ if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
     printf "[DEBUG]   GITHUB_BRANCH=%s\n" "$GITHUB_BRANCH" >&2
     printf "[DEBUG]   GITHUB_REPO=%s\n" "$GITHUB_REPO" >&2
     printf "[DEBUG]   BASE_URL=%s\n" "$BASE_URL" >&2
-    
+
     # Check available tools
     printf "[DEBUG] Available download tools:\n" >&2
     printf "[DEBUG]   curl: %s\n" "$(command -v curl >/dev/null 2>&1 && echo "$(which curl)" || echo 'not available')" >&2
     printf "[DEBUG]   wget: %s\n" "$(command -v wget >/dev/null 2>&1 && echo "$(which wget)" || echo 'not available')" >&2
-    
+
     # Check filesystem info
     printf "[DEBUG] Filesystem information:\n" >&2
     printf "[DEBUG]   /tmp permissions: %s\n" "$(ls -ld /tmp 2>/dev/null || echo 'unavailable')" >&2
@@ -82,10 +82,10 @@ fi
 if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
     # Create temporary directory for library with fallback options
     printf "[DEBUG] ===== TEMPORARY DIRECTORY SETUP =====\n" >&2
-    
+
     # Function to check available disk space in KB
     check_disk_space() {
-        local dir="$1"
+        dir="$1"
         if [ -d "$dir" ]; then
             # Get available space in KB (POSIX df output)
             df "$dir" 2>/dev/null | awk 'NR==2 {print $4}' 2>/dev/null || echo "0"
@@ -93,48 +93,48 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
             echo "0"
         fi
     }
-    
+
     # Function to check if directory has enough space for library (need ~30KB minimum)
     has_enough_space() {
-        local dir="$1"
-        local min_space_kb=50  # Require 50KB minimum for safety
-        local available_kb
-        
+        dir="$1"
+        min_space_kb=50 # Require 50KB minimum for safety
+        available_kb=""
+
         available_kb=$(check_disk_space "$dir")
         printf "[DEBUG] Directory %s has %s KB available (need %s KB)\n" "$dir" "$available_kb" "$min_space_kb" >&2
-        
+
         if [ "$available_kb" -ge "$min_space_kb" ]; then
             return 0
         else
             return 1
         fi
     }
-    
+
     # List of temporary directory candidates in order of preference
     temp_candidates="/tmp /var/tmp /root/tmp ."
     TEMP_LIB_DIR=""
-    
+
     for base_dir in $temp_candidates; do
         candidate_dir="$base_dir/rutos-install-lib-$$"
         printf "[DEBUG] Evaluating candidate: %s\n" "$candidate_dir" >&2
-        
+
         # Check if base directory exists and is writable
         if [ ! -d "$base_dir" ]; then
             printf "[DEBUG]   Base directory does not exist: %s\n" "$base_dir" >&2
             continue
         fi
-        
+
         if [ ! -w "$base_dir" ]; then
             printf "[DEBUG]   Base directory not writable: %s\n" "$base_dir" >&2
             continue
         fi
-        
+
         # Check available disk space
         if ! has_enough_space "$base_dir"; then
             printf "[DEBUG]   Insufficient disk space in: %s\n" "$base_dir" >&2
             continue
         fi
-        
+
         # Try to create the directory
         if mkdir -p "$candidate_dir" 2>/dev/null; then
             printf "[DEBUG]   Successfully created: %s\n" "$candidate_dir" >&2
@@ -144,7 +144,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
             printf "[DEBUG]   Failed to create directory: %s\n" "$candidate_dir" >&2
         fi
     done
-    
+
     if [ -z "$TEMP_LIB_DIR" ]; then
         printf "[ERROR] Cannot create temporary directory for library download\n" >&2
         printf "[DEBUG] All temp directory attempts failed:\n" >&2
@@ -182,7 +182,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
     else
         printf "[ERROR] No temp directory available (TEMP_LIB_DIR='%s', exists=%s)\n" "$TEMP_LIB_DIR" "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
     fi
-    
+
     printf "[DEBUG] ===== TEMP DIRECTORY SETUP COMPLETE =====\n" >&2
 
     # Try to download library components
@@ -194,7 +194,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
         printf "[DEBUG] Target directory: %s (exists: %s, writable: %s)\n" "$TEMP_LIB_DIR" \
             "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" \
             "$([ -w "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
-        
+
         # Show directory contents before download
         if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
             printf "[TRACE] Directory contents before download:\n" >&2
@@ -208,12 +208,12 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
         for lib_file in "rutos-lib.sh" "rutos-colors.sh" "rutos-logging.sh" "rutos-common.sh"; do
             download_url="${BASE_URL}/scripts/lib/${lib_file}"
             target_file="$TEMP_LIB_DIR/$lib_file"
-            
+
             printf "[DEBUG] ===== DOWNLOADING FILE %s =====\n" "$lib_file" >&2
             printf "[DEBUG] Source URL: %s\n" "$download_url" >&2
             printf "[DEBUG] Target file: %s\n" "$target_file" >&2
             printf "[DEBUG] Target directory permissions: %s\n" "$(ls -ld "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
-            
+
             # Check available disk space before download
             available_space=$(check_disk_space "$TEMP_LIB_DIR")
             printf "[DEBUG] Available disk space: %s KB\n" "$available_space" >&2
@@ -223,7 +223,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
                 download_success=0
                 break
             fi
-            
+
             # Test target file writability
             if ! touch "$target_file.test" 2>/dev/null; then
                 printf "[ERROR] Cannot create test file in target directory: %s\n" "$target_file.test" >&2
@@ -237,7 +237,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
 
             # Show exact curl command being executed
             printf "[TRACE] Executing: curl -fsSL '%s' -o '%s'\n" "$download_url" "$target_file" >&2
-            
+
             # Execute curl with detailed error capture
             curl_exit_code=0
             # Bootstrap curl command before safe_execute is available
@@ -264,7 +264,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
                 printf "[DEBUG] ===== DOWNLOAD SUCCESSFUL =====\n" >&2
                 printf "[DEBUG] Downloaded: %s (%s bytes)\n" "$lib_file" "$file_size" >&2
                 printf "[DEBUG] File permissions: %s\n" "$(ls -l "$target_file" 2>/dev/null || echo 'unavailable')" >&2
-                
+
                 # Verify file content is not empty and seems valid
                 if [ -f "$target_file" ] && [ -s "$target_file" ]; then
                     printf "[DEBUG] File validation: non-empty ✓\n" >&2
@@ -281,7 +281,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
                     break
                 fi
             fi
-            
+
             printf "[DEBUG] ===== FILE %s COMPLETE =====\n" "$lib_file" >&2
         done
 
@@ -305,7 +305,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
         printf "[DEBUG] Target directory: %s (exists: %s, writable: %s)\n" "$TEMP_LIB_DIR" \
             "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" \
             "$([ -w "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
-        
+
         # Show directory contents before download
         if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
             printf "[TRACE] Directory contents before download:\n" >&2
@@ -319,12 +319,12 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
         for lib_file in "rutos-lib.sh" "rutos-colors.sh" "rutos-logging.sh" "rutos-common.sh"; do
             download_url="${BASE_URL}/scripts/lib/${lib_file}"
             target_file="$TEMP_LIB_DIR/$lib_file"
-            
+
             printf "[DEBUG] ===== DOWNLOADING FILE %s =====\n" "$lib_file" >&2
             printf "[DEBUG] Source URL: %s\n" "$download_url" >&2
             printf "[DEBUG] Target file: %s\n" "$target_file" >&2
             printf "[DEBUG] Target directory permissions: %s\n" "$(ls -ld "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
-            
+
             # Check available disk space before download
             available_space=$(check_disk_space "$TEMP_LIB_DIR")
             printf "[DEBUG] Available disk space: %s KB\n" "$available_space" >&2
@@ -334,7 +334,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
                 download_success=0
                 break
             fi
-            
+
             # Test target file writability
             if ! touch "$target_file.test" 2>/dev/null; then
                 printf "[ERROR] Cannot create test file in target directory: %s\n" "$target_file.test" >&2
@@ -348,7 +348,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
 
             # Show exact wget command being executed
             printf "[TRACE] Executing: wget -q '%s' -O '%s'\n" "$download_url" "$target_file" >&2
-            
+
             # Execute wget with detailed error capture
             wget_exit_code=0
             # Bootstrap wget command before safe_execute is available
@@ -375,7 +375,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
                 printf "[DEBUG] ===== DOWNLOAD SUCCESSFUL =====\n" >&2
                 printf "[DEBUG] Downloaded: %s (%s bytes)\n" "$lib_file" "$file_size" >&2
                 printf "[DEBUG] File permissions: %s\n" "$(ls -l "$target_file" 2>/dev/null || echo 'unavailable')" >&2
-                
+
                 # Verify file content is not empty and seems valid
                 if [ -f "$target_file" ] && [ -s "$target_file" ]; then
                     printf "[DEBUG] File validation: non-empty ✓\n" >&2
@@ -392,7 +392,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
                     break
                 fi
             fi
-            
+
             printf "[DEBUG] ===== FILE %s COMPLETE =====\n" "$lib_file" >&2
         done
 
@@ -421,7 +421,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
     cleanup_temp_library() {
         if [ "$library_downloaded" = "1" ] && [ -d "$TEMP_LIB_DIR" ]; then
             printf "[DEBUG] Cleaning up temporary library directory: %s\n" "$TEMP_LIB_DIR" >&2
-            
+
             # Show what we're cleaning up
             if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
                 printf "[TRACE] Directory contents before cleanup:\n" >&2
@@ -429,7 +429,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
                     printf "[TRACE]   %s\n" "$line" >&2
                 done
             fi
-            
+
             # Protect state-changing command with DRY_RUN check
             if [ "${DRY_RUN:-0}" = "1" ]; then
                 printf "[DRY_RUN] Would remove temporary library directory: %s\n" "$TEMP_LIB_DIR" >&2
@@ -437,7 +437,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
                 rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true
                 printf "[DEBUG] Temporary library directory removed: %s\n" "$TEMP_LIB_DIR" >&2
             fi
-            
+
             # Special handling for /root/tmp - clean up the parent directory if we created it
             case "$TEMP_LIB_DIR" in
                 /root/tmp/*)
@@ -574,10 +574,10 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "==================================================================="
 fi
 
-# Early exit in test mode to prevent execution errors
+# RUTOS_TEST_MODE enables trace logging - does NOT exit early
+# Only DRY_RUN=1 should prevent actual changes
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
-    exit 0
+    log_trace "RUTOS_TEST_MODE enabled - trace logging active"
 fi
 
 # Log script initialization

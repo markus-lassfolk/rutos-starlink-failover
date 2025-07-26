@@ -883,10 +883,15 @@ Test the enhanced installation script with comprehensive debug output:
 curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install-rutos.sh | DEBUG=1 sh
 
 # Test with both debug and test mode (maximum verbosity)
+# NOTE: RUTOS_TEST_MODE=1 enables trace logging - script should run normally
 curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install-rutos.sh | DEBUG=1 RUTOS_TEST_MODE=1 sh
 
-# Test disk space management with dry run
+# Test disk space management with dry run (prevents actual changes)
 curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install-rutos.sh | DEBUG=1 DRY_RUN=1 sh
+
+# Alternative test method for local testing:
+curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install-rutos.sh > install-test.sh
+DEBUG=1 RUTOS_TEST_MODE=1 sh install-test.sh
 ```
 
 The enhanced debug output includes:
@@ -906,15 +911,17 @@ When analyzing debug output from failed installations:
 2. **Temporary Directory Setup**: Verify `===== TEMPORARY DIRECTORY SETUP =====` shows adequate space and successful creation
 3. **Download Progress**: Check `===== DOWNLOADING FILE =====` sections for successful downloads vs. failures
 4. **Error Context**: For curl error 23, check if previous downloads succeeded - this indicates network/availability issues rather than disk/permission problems
+5. **RUTOS_TEST_MODE Expected Behavior**: When using `RUTOS_TEST_MODE=1`, the script should run normally with enhanced trace logging - it should NOT exit early
 
 **Example Analysis**:
 
 ```text
 ✅ System Info: armv7l, 121MB available in /tmp, proper permissions
 ✅ Library Downloads: 4 files successfully downloaded (26KB total)
-❌ Main Script Download: curl error 23 after successful library downloads
-→ DIAGNOSIS: Network connectivity issue, not disk space - adequate space available
-→ ACTION: Check network stability and target file availability
+✅ Script Execution: RUTOS_TEST_MODE enabled - enhanced trace logging active
+✅ Installation Process: Continues normally with trace logging enabled
+→ DIAGNOSIS: Script should complete normally with enhanced debugging output
+→ RESULT: RUTOS_TEST_MODE working correctly for enhanced debugging
 ```
 
 #### ShellCheck Integration
@@ -1598,6 +1605,54 @@ handle_curl_error_23() {
             debug_msg "LIKELY CAUSE: Network connectivity issue"
         fi
     else
+        debug_msg "ANALYSIS: Insufficient disk space or permission issues"
+        debug_msg "LIKELY CAUSE: Disk space (${available_space_kb}KB) or write permissions"
+    fi
+}
+
+# Example integration in download function
+download_with_error_analysis() {
+    url="$1"
+    output_file="$2"
+    description="$3"
+
+    if ! curl -fsSL "$url" -o "$output_file"; then
+        curl_exit_code=$?
+        if [ "$curl_exit_code" = "23" ]; then
+            available_kb=$(df "$(dirname "$output_file")" | awk 'NR==2 {print $4}' 2>/dev/null || echo "0")
+            handle_curl_error_23 "$url" "$output_file" "$available_kb"
+        fi
+        return $curl_exit_code
+    fi
+}
+```
+
+#### System Administration - Corrected RUTOS_TEST_MODE Behavior (Date: 2025-07-27)
+
+**Discovery**: Previous documentation incorrectly stated that RUTOS_TEST_MODE=1 causes early exit - this was wrong. According to our RUTOS Library System design, RUTOS_TEST_MODE enables trace logging only
+**Context**: When testing remote installation scripts with RUTOS_TEST_MODE=1, the script should run normally with enhanced trace logging, not exit early
+**Implementation**: RUTOS_TEST_MODE=1 enables trace logging, DRY_RUN=1 prevents actual changes - these are separate functions
+**Impact**: Ensures RUTOS_TEST_MODE works as designed for enhanced debugging without preventing script execution
+**Example**:
+
+```bash
+# CORRECT behavior according to RUTOS Library System:
+# RUTOS_TEST_MODE=1 - Enables trace logging (log_trace messages)
+# DRY_RUN=1 - Prevents actual changes (safe mode)
+# DEBUG=1 - Enables debug logging (log_debug messages)
+
+# RUTOS_TEST_MODE should NOT cause early exit
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    log_trace "RUTOS_TEST_MODE enabled - trace logging active"
+    # Script continues normal execution with enhanced logging
+fi
+
+# Only DRY_RUN should prevent actual changes
+if [ "${DRY_RUN:-0}" = "1" ]; then
+    log_info "DRY_RUN mode - no actual changes will be made"
+    # Script runs but skips actual file operations
+fi
+```
         debug_msg "ANALYSIS: Insufficient disk space or permission issues"
         debug_msg "LIKELY CAUSE: Disk space (${available_space_kb}KB) or write permissions"
     fi
