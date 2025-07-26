@@ -29,6 +29,43 @@ GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
 BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
+# Enhanced debug output for troubleshooting
+if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[DEBUG] ===== SYSTEM INFORMATION =====\n" >&2
+    printf "[DEBUG] Script: %s v%s\n" "$SCRIPT_NAME" "$SCRIPT_VERSION" >&2
+    printf "[DEBUG] Build: %s\n" "$BUILD_INFO" >&2
+    printf "[DEBUG] Execution mode: %s\n" "$([ "$0" = "sh" ] && echo 'remote (curl | sh)' || echo 'local')" >&2
+    printf "[DEBUG] Shell: %s\n" "$(readlink /proc/$$/exe 2>/dev/null || echo 'unknown')" >&2
+    printf "[DEBUG] User: %s (UID: %s)\n" "$(id -un 2>/dev/null || echo 'unknown')" "$(id -u 2>/dev/null || echo 'unknown')" >&2
+    printf "[DEBUG] Working directory: %s\n" "$(pwd)" >&2
+    printf "[DEBUG] System: %s\n" "$(uname -a 2>/dev/null || echo 'unknown')" >&2
+    
+    # Show environment variables
+    printf "[DEBUG] Environment variables:\n" >&2
+    printf "[DEBUG]   DEBUG=%s\n" "${DEBUG:-0}" >&2
+    printf "[DEBUG]   RUTOS_TEST_MODE=%s\n" "${RUTOS_TEST_MODE:-0}" >&2
+    printf "[DEBUG]   USE_LIBRARY=%s\n" "${USE_LIBRARY:-1}" >&2
+    printf "[DEBUG]   GITHUB_BRANCH=%s\n" "$GITHUB_BRANCH" >&2
+    printf "[DEBUG]   GITHUB_REPO=%s\n" "$GITHUB_REPO" >&2
+    printf "[DEBUG]   BASE_URL=%s\n" "$BASE_URL" >&2
+    
+    # Check available tools
+    printf "[DEBUG] Available download tools:\n" >&2
+    printf "[DEBUG]   curl: %s\n" "$(command -v curl >/dev/null 2>&1 && echo "$(which curl)" || echo 'not available')" >&2
+    printf "[DEBUG]   wget: %s\n" "$(command -v wget >/dev/null 2>&1 && echo "$(which wget)" || echo 'not available')" >&2
+    
+    # Check filesystem info
+    printf "[DEBUG] Filesystem information:\n" >&2
+    printf "[DEBUG]   /tmp permissions: %s\n" "$(ls -ld /tmp 2>/dev/null || echo 'unavailable')" >&2
+    printf "[DEBUG]   /var/tmp permissions: %s\n" "$(ls -ld /var/tmp 2>/dev/null || echo 'unavailable')" >&2
+    printf "[DEBUG]   Current dir permissions: %s\n" "$(ls -ld . 2>/dev/null || echo 'unavailable')" >&2
+    printf "[DEBUG]   Disk space:\n" >&2
+    df -h 2>/dev/null | while read -r line; do
+        printf "[DEBUG]     %s\n" "$line" >&2
+    done
+    printf "[DEBUG] ===== END SYSTEM INFORMATION =====\n" >&2
+fi
+
 # Try to load RUTOS library system if available locally (development mode)
 # For remote installation via curl, we'll use built-in fallback functions
 LIBRARY_LOADED=0
@@ -44,54 +81,208 @@ fi
 # Remote installation mode: download library to temp location and use it
 if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
     # Create temporary directory for library with fallback options
-    TEMP_LIB_DIR="/tmp/rutos-install-lib-$$"
-
-    # Try different temp directories if /tmp is not available
-    if ! mkdir -p "$TEMP_LIB_DIR" 2>/dev/null; then
-        TEMP_LIB_DIR="/var/tmp/rutos-install-lib-$$"
-        if ! mkdir -p "$TEMP_LIB_DIR" 2>/dev/null; then
-            TEMP_LIB_DIR="./rutos-install-lib-$$"
-            if ! mkdir -p "$TEMP_LIB_DIR" 2>/dev/null; then
-                printf "[ERROR] Cannot create temporary directory for library download\n" >&2
-                TEMP_LIB_DIR=""
-            fi
+    printf "[DEBUG] ===== TEMPORARY DIRECTORY SETUP =====\n" >&2
+    
+    # Function to check available disk space in KB
+    check_disk_space() {
+        local dir="$1"
+        if [ -d "$dir" ]; then
+            # Get available space in KB (POSIX df output)
+            df "$dir" 2>/dev/null | awk 'NR==2 {print $4}' 2>/dev/null || echo "0"
+        else
+            echo "0"
         fi
+    }
+    
+    # Function to check if directory has enough space for library (need ~30KB minimum)
+    has_enough_space() {
+        local dir="$1"
+        local min_space_kb=50  # Require 50KB minimum for safety
+        local available_kb
+        
+        available_kb=$(check_disk_space "$dir")
+        printf "[DEBUG] Directory %s has %s KB available (need %s KB)\n" "$dir" "$available_kb" "$min_space_kb" >&2
+        
+        if [ "$available_kb" -ge "$min_space_kb" ]; then
+            return 0
+        else
+            return 1
+        fi
+    }
+    
+    # List of temporary directory candidates in order of preference
+    temp_candidates="/tmp /var/tmp /root/tmp ."
+    TEMP_LIB_DIR=""
+    
+    for base_dir in $temp_candidates; do
+        candidate_dir="$base_dir/rutos-install-lib-$$"
+        printf "[DEBUG] Evaluating candidate: %s\n" "$candidate_dir" >&2
+        
+        # Check if base directory exists and is writable
+        if [ ! -d "$base_dir" ]; then
+            printf "[DEBUG]   Base directory does not exist: %s\n" "$base_dir" >&2
+            continue
+        fi
+        
+        if [ ! -w "$base_dir" ]; then
+            printf "[DEBUG]   Base directory not writable: %s\n" "$base_dir" >&2
+            continue
+        fi
+        
+        # Check available disk space
+        if ! has_enough_space "$base_dir"; then
+            printf "[DEBUG]   Insufficient disk space in: %s\n" "$base_dir" >&2
+            continue
+        fi
+        
+        # Try to create the directory
+        if mkdir -p "$candidate_dir" 2>/dev/null; then
+            printf "[DEBUG]   Successfully created: %s\n" "$candidate_dir" >&2
+            TEMP_LIB_DIR="$candidate_dir"
+            break
+        else
+            printf "[DEBUG]   Failed to create directory: %s\n" "$candidate_dir" >&2
+        fi
+    done
+    
+    if [ -z "$TEMP_LIB_DIR" ]; then
+        printf "[ERROR] Cannot create temporary directory for library download\n" >&2
+        printf "[DEBUG] All temp directory attempts failed:\n" >&2
+        for base_dir in $temp_candidates; do
+            space_kb=$(check_disk_space "$base_dir")
+            printf "[DEBUG]   %s: %s KB available, writable: %s\n" \
+                "$base_dir" "$space_kb" \
+                "$([ -w "$base_dir" ] && echo 'yes' || echo 'no')" >&2
+        done
+        TEMP_LIB_DIR=""
+    else
+        printf "[DEBUG] Selected temp directory: %s\n" "$TEMP_LIB_DIR" >&2
+        space_kb=$(check_disk_space "$TEMP_LIB_DIR")
+        printf "[DEBUG] Available space: %s KB\n" "$space_kb" >&2
     fi
 
     # Only proceed if we have a temp directory
     if [ -n "$TEMP_LIB_DIR" ] && [ -d "$TEMP_LIB_DIR" ]; then
+        printf "[DEBUG] Testing temp directory writability: %s\n" "$TEMP_LIB_DIR" >&2
         # Check if temp directory is writable
         if ! touch "$TEMP_LIB_DIR/test_write" 2>/dev/null; then
             printf "[ERROR] Temporary directory $TEMP_LIB_DIR is not writable\n" >&2
+            printf "[DEBUG] Write test failed - checking directory status:\n" >&2
+            printf "[DEBUG]   Directory exists: %s\n" "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
+            printf "[DEBUG]   Directory permissions: %s\n" "$(ls -ld "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
+            printf "[DEBUG]   Filesystem info: %s\n" "$(df -h "$TEMP_LIB_DIR" 2>/dev/null | tail -1 || echo 'unavailable')" >&2
             # Bootstrap cleanup before DRY_RUN variable available
-            rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true  # VALIDATION_SKIP_DRY_RUN
+            rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true # VALIDATION_SKIP_DRY_RUN
             TEMP_LIB_DIR=""
         else
+            printf "[DEBUG] Write test successful - temp directory is writable\n" >&2
             # Bootstrap cleanup before DRY_RUN variable available
-            rm -f "$TEMP_LIB_DIR/test_write" 2>/dev/null || true  # VALIDATION_SKIP_DRY_RUN
+            rm -f "$TEMP_LIB_DIR/test_write" 2>/dev/null || true # VALIDATION_SKIP_DRY_RUN
         fi
+    else
+        printf "[ERROR] No temp directory available (TEMP_LIB_DIR='%s', exists=%s)\n" "$TEMP_LIB_DIR" "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
     fi
+    
+    printf "[DEBUG] ===== TEMP DIRECTORY SETUP COMPLETE =====\n" >&2
 
     # Try to download library components
     library_downloaded=0
     if [ -n "$TEMP_LIB_DIR" ] && command -v curl >/dev/null 2>&1; then
         printf "[INFO] Downloading RUTOS library system to %s...\n" "$TEMP_LIB_DIR"
         printf "[DEBUG] Base URL: %s\n" "$BASE_URL" >&2
+        printf "[DEBUG] Using curl for downloads: $(which curl)\n" >&2
+        printf "[DEBUG] Target directory: %s (exists: %s, writable: %s)\n" "$TEMP_LIB_DIR" \
+            "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" \
+            "$([ -w "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
+        
+        # Show directory contents before download
+        if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+            printf "[TRACE] Directory contents before download:\n" >&2
+            ls -la "$TEMP_LIB_DIR" 2>&1 | while read -r line; do
+                printf "[TRACE]   %s\n" "$line" >&2
+            done
+        fi
 
-        # Download with better error handling
+        # Download with comprehensive error handling and tracing
         download_success=1
         for lib_file in "rutos-lib.sh" "rutos-colors.sh" "rutos-logging.sh" "rutos-common.sh"; do
             download_url="${BASE_URL}/scripts/lib/${lib_file}"
-            printf "[DEBUG] Downloading: %s\n" "$download_url" >&2
-
-            # Bootstrap curl command before safe_execute is available
-            if ! curl -fsSL "$download_url" -o "$TEMP_LIB_DIR/$lib_file"; then  # VALIDATION_SKIP_SAFE_EXECUTE
-                printf "[ERROR] Failed to download %s from %s\n" "$lib_file" "$download_url" >&2
+            target_file="$TEMP_LIB_DIR/$lib_file"
+            
+            printf "[DEBUG] ===== DOWNLOADING FILE %s =====\n" "$lib_file" >&2
+            printf "[DEBUG] Source URL: %s\n" "$download_url" >&2
+            printf "[DEBUG] Target file: %s\n" "$target_file" >&2
+            printf "[DEBUG] Target directory permissions: %s\n" "$(ls -ld "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
+            
+            # Check available disk space before download
+            available_space=$(check_disk_space "$TEMP_LIB_DIR")
+            printf "[DEBUG] Available disk space: %s KB\n" "$available_space" >&2
+            if [ "$available_space" -lt 20 ]; then
+                printf "[ERROR] Insufficient disk space: %s KB available (need at least 20 KB)\n" "$available_space" >&2
+                printf "[ERROR] Consider freeing up disk space or using a different location\n" >&2
+                download_success=0
+                break
+            fi
+            
+            # Test target file writability
+            if ! touch "$target_file.test" 2>/dev/null; then
+                printf "[ERROR] Cannot create test file in target directory: %s\n" "$target_file.test" >&2
+                printf "[DEBUG] Directory space: %s\n" "$(df -h "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
                 download_success=0
                 break
             else
-                printf "[DEBUG] Successfully downloaded %s (%s bytes)\n" "$lib_file" "$(wc -c <"$TEMP_LIB_DIR/$lib_file" 2>/dev/null || echo 'unknown')" >&2
+                rm -f "$target_file.test" 2>/dev/null || true
+                printf "[DEBUG] Target directory write test: PASSED\n" >&2
             fi
+
+            # Show exact curl command being executed
+            printf "[TRACE] Executing: curl -fsSL '%s' -o '%s'\n" "$download_url" "$target_file" >&2
+            
+            # Execute curl with detailed error capture
+            curl_exit_code=0
+            # Bootstrap curl command before safe_execute is available
+            if ! curl -fsSL "$download_url" -o "$target_file"; then # VALIDATION_SKIP_SAFE_EXECUTE
+                curl_exit_code=$?
+                printf "[ERROR] ===== CURL DOWNLOAD FAILED =====\n" >&2
+                printf "[ERROR] File: %s\n" "$lib_file" >&2
+                printf "[ERROR] URL: %s\n" "$download_url" >&2
+                printf "[ERROR] Target: %s\n" "$target_file" >&2
+                printf "[ERROR] Curl exit code: %s\n" "$curl_exit_code" >&2
+                printf "[ERROR] Target file exists: %s\n" "$([ -f "$target_file" ] && echo 'yes' || echo 'no')" >&2
+                if [ -f "$target_file" ]; then
+                    printf "[ERROR] Partial file size: %s bytes\n" "$(wc -c <"$target_file" 2>/dev/null || echo 'unknown')" >&2
+                    printf "[ERROR] Partial file permissions: %s\n" "$(ls -l "$target_file" 2>/dev/null || echo 'unavailable')" >&2
+                fi
+                printf "[ERROR] Directory after failed download:\n" >&2
+                ls -la "$TEMP_LIB_DIR" 2>&1 | while read -r line; do
+                    printf "[ERROR]   %s\n" "$line" >&2
+                done
+                download_success=0
+                break
+            else
+                file_size=$(wc -c <"$target_file" 2>/dev/null || echo 'unknown')
+                printf "[DEBUG] ===== DOWNLOAD SUCCESSFUL =====\n" >&2
+                printf "[DEBUG] Downloaded: %s (%s bytes)\n" "$lib_file" "$file_size" >&2
+                printf "[DEBUG] File permissions: %s\n" "$(ls -l "$target_file" 2>/dev/null || echo 'unavailable')" >&2
+                
+                # Verify file content is not empty and seems valid
+                if [ -f "$target_file" ] && [ -s "$target_file" ]; then
+                    printf "[DEBUG] File validation: non-empty ✓\n" >&2
+                    # Show first few lines to verify it's a shell script
+                    if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+                        printf "[TRACE] First 3 lines of downloaded file:\n" >&2
+                        head -3 "$target_file" 2>/dev/null | while read -r line; do
+                            printf "[TRACE]   %s\n" "$line" >&2
+                        done
+                    fi
+                else
+                    printf "[ERROR] Downloaded file is empty or missing: %s\n" "$target_file" >&2
+                    download_success=0
+                    break
+                fi
+            fi
+            
+            printf "[DEBUG] ===== FILE %s COMPLETE =====\n" "$lib_file" >&2
         done
 
         if [ "$download_success" = "1" ]; then
@@ -110,21 +301,99 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
     elif [ -n "$TEMP_LIB_DIR" ] && command -v wget >/dev/null 2>&1; then
         printf "[INFO] Downloading RUTOS library system to %s...\n" "$TEMP_LIB_DIR"
         printf "[DEBUG] Base URL: %s\n" "$BASE_URL" >&2
+        printf "[DEBUG] Using wget for downloads: $(which wget)\n" >&2
+        printf "[DEBUG] Target directory: %s (exists: %s, writable: %s)\n" "$TEMP_LIB_DIR" \
+            "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" \
+            "$([ -w "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
+        
+        # Show directory contents before download
+        if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+            printf "[TRACE] Directory contents before download:\n" >&2
+            ls -la "$TEMP_LIB_DIR" 2>&1 | while read -r line; do
+                printf "[TRACE]   %s\n" "$line" >&2
+            done
+        fi
 
-        # Download with better error handling
+        # Download with comprehensive error handling and tracing
         download_success=1
         for lib_file in "rutos-lib.sh" "rutos-colors.sh" "rutos-logging.sh" "rutos-common.sh"; do
             download_url="${BASE_URL}/scripts/lib/${lib_file}"
-            printf "[DEBUG] Downloading: %s\n" "$download_url" >&2
-
-            # Bootstrap wget command before safe_execute is available
-            if ! wget -q "$download_url" -O "$TEMP_LIB_DIR/$lib_file"; then  # VALIDATION_SKIP_SAFE_EXECUTE
-                printf "[ERROR] Failed to download %s from %s\n" "$lib_file" "$download_url" >&2
+            target_file="$TEMP_LIB_DIR/$lib_file"
+            
+            printf "[DEBUG] ===== DOWNLOADING FILE %s =====\n" "$lib_file" >&2
+            printf "[DEBUG] Source URL: %s\n" "$download_url" >&2
+            printf "[DEBUG] Target file: %s\n" "$target_file" >&2
+            printf "[DEBUG] Target directory permissions: %s\n" "$(ls -ld "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
+            
+            # Check available disk space before download
+            available_space=$(check_disk_space "$TEMP_LIB_DIR")
+            printf "[DEBUG] Available disk space: %s KB\n" "$available_space" >&2
+            if [ "$available_space" -lt 20 ]; then
+                printf "[ERROR] Insufficient disk space: %s KB available (need at least 20 KB)\n" "$available_space" >&2
+                printf "[ERROR] Consider freeing up disk space or using a different location\n" >&2
+                download_success=0
+                break
+            fi
+            
+            # Test target file writability
+            if ! touch "$target_file.test" 2>/dev/null; then
+                printf "[ERROR] Cannot create test file in target directory: %s\n" "$target_file.test" >&2
+                printf "[DEBUG] Directory space: %s\n" "$(df -h "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
                 download_success=0
                 break
             else
-                printf "[DEBUG] Successfully downloaded %s (%s bytes)\n" "$lib_file" "$(wc -c <"$TEMP_LIB_DIR/$lib_file" 2>/dev/null || echo 'unknown')" >&2
+                rm -f "$target_file.test" 2>/dev/null || true
+                printf "[DEBUG] Target directory write test: PASSED\n" >&2
             fi
+
+            # Show exact wget command being executed
+            printf "[TRACE] Executing: wget -q '%s' -O '%s'\n" "$download_url" "$target_file" >&2
+            
+            # Execute wget with detailed error capture
+            wget_exit_code=0
+            # Bootstrap wget command before safe_execute is available
+            if ! wget -q "$download_url" -O "$target_file"; then # VALIDATION_SKIP_SAFE_EXECUTE
+                wget_exit_code=$?
+                printf "[ERROR] ===== WGET DOWNLOAD FAILED =====\n" >&2
+                printf "[ERROR] File: %s\n" "$lib_file" >&2
+                printf "[ERROR] URL: %s\n" "$download_url" >&2
+                printf "[ERROR] Target: %s\n" "$target_file" >&2
+                printf "[ERROR] Wget exit code: %s\n" "$wget_exit_code" >&2
+                printf "[ERROR] Target file exists: %s\n" "$([ -f "$target_file" ] && echo 'yes' || echo 'no')" >&2
+                if [ -f "$target_file" ]; then
+                    printf "[ERROR] Partial file size: %s bytes\n" "$(wc -c <"$target_file" 2>/dev/null || echo 'unknown')" >&2
+                    printf "[ERROR] Partial file permissions: %s\n" "$(ls -l "$target_file" 2>/dev/null || echo 'unavailable')" >&2
+                fi
+                printf "[ERROR] Directory after failed download:\n" >&2
+                ls -la "$TEMP_LIB_DIR" 2>&1 | while read -r line; do
+                    printf "[ERROR]   %s\n" "$line" >&2
+                done
+                download_success=0
+                break
+            else
+                file_size=$(wc -c <"$target_file" 2>/dev/null || echo 'unknown')
+                printf "[DEBUG] ===== DOWNLOAD SUCCESSFUL =====\n" >&2
+                printf "[DEBUG] Downloaded: %s (%s bytes)\n" "$lib_file" "$file_size" >&2
+                printf "[DEBUG] File permissions: %s\n" "$(ls -l "$target_file" 2>/dev/null || echo 'unavailable')" >&2
+                
+                # Verify file content is not empty and seems valid
+                if [ -f "$target_file" ] && [ -s "$target_file" ]; then
+                    printf "[DEBUG] File validation: non-empty ✓\n" >&2
+                    # Show first few lines to verify it's a shell script
+                    if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+                        printf "[TRACE] First 3 lines of downloaded file:\n" >&2
+                        head -3 "$target_file" 2>/dev/null | while read -r line; do
+                            printf "[TRACE]   %s\n" "$line" >&2
+                        done
+                    fi
+                else
+                    printf "[ERROR] Downloaded file is empty or missing: %s\n" "$target_file" >&2
+                    download_success=0
+                    break
+                fi
+            fi
+            
+            printf "[DEBUG] ===== FILE %s COMPLETE =====\n" "$lib_file" >&2
         done
 
         if [ "$download_success" = "1" ]; then
@@ -151,9 +420,45 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
     # Cleanup function for temporary library
     cleanup_temp_library() {
         if [ "$library_downloaded" = "1" ] && [ -d "$TEMP_LIB_DIR" ]; then
+            printf "[DEBUG] Cleaning up temporary library directory: %s\n" "$TEMP_LIB_DIR" >&2
+            
+            # Show what we're cleaning up
+            if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+                printf "[TRACE] Directory contents before cleanup:\n" >&2
+                ls -la "$TEMP_LIB_DIR" 2>&1 | while read -r line; do
+                    printf "[TRACE]   %s\n" "$line" >&2
+                done
+            fi
+            
             # Protect state-changing command with DRY_RUN check
             if [ "${DRY_RUN:-0}" = "1" ]; then
-                log_debug "DRY-RUN: Would remove temporary library directory: $TEMP_LIB_DIR"
+                printf "[DRY_RUN] Would remove temporary library directory: %s\n" "$TEMP_LIB_DIR" >&2
+            else
+                rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true
+                printf "[DEBUG] Temporary library directory removed: %s\n" "$TEMP_LIB_DIR" >&2
+            fi
+            
+            # Special handling for /root/tmp - clean up the parent directory if we created it
+            case "$TEMP_LIB_DIR" in
+                /root/tmp/*)
+                    # Check if /root/tmp is empty after our cleanup and remove it if we created it
+                    if [ -d "/root/tmp" ] && [ "$(ls -A /root/tmp 2>/dev/null | wc -l)" -eq 0 ]; then
+                        if [ "${DRY_RUN:-0}" = "1" ]; then
+                            printf "[DRY_RUN] Would remove empty /root/tmp directory\n" >&2
+                        else
+                            rmdir /root/tmp 2>/dev/null || true
+                            printf "[DEBUG] Removed empty /root/tmp directory\n" >&2
+                        fi
+                    else
+                        printf "[DEBUG] Keeping /root/tmp (not empty or removal failed)\n" >&2
+                    fi
+                    ;;
+            esac
+        elif [ -n "$TEMP_LIB_DIR" ] && [ -d "$TEMP_LIB_DIR" ]; then
+            # Directory exists but library wasn't downloaded - still clean it up
+            printf "[DEBUG] Cleaning up unused temporary directory: %s\n" "$TEMP_LIB_DIR" >&2
+            if [ "${DRY_RUN:-0}" = "1" ]; then
+                printf "[DRY_RUN] Would remove unused temporary directory: %s\n" "$TEMP_LIB_DIR" >&2
             else
                 rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true
             fi
