@@ -100,7 +100,7 @@ The RUTOS Library System consists of 4 core modules in `scripts/lib/`:
 
 1. **`rutos-lib.sh`** - Main entry point, loads all modules
 2. **`rutos-colors.sh`** - Standardized color definitions (Method 5 printf support)
-3. **`rutos-logging.sh`** - 4-level logging framework 
+3. **`rutos-logging.sh`** - 4-level logging framework
 4. **`rutos-common.sh`** - Common utilities and helper functions
 
 ### Mandatory Library Usage Pattern
@@ -227,7 +227,7 @@ safe_execute "curl -s http://example.com" "Fetch data from API"
 ### Library Benefits
 
 1. **Consistency** - All scripts use identical logging format
-2. **Maintainability** - Update behavior once, affects all scripts  
+2. **Maintainability** - Update behavior once, affects all scripts
 3. **RUTOS Compatibility** - Tested with busybox sh and Method 5 printf
 4. **Enhanced Debugging** - 4-level logging with command tracing
 5. **Safety** - DRY_RUN mode prevents accidental changes
@@ -260,6 +260,7 @@ The library system works in both local development and remote installation:
 7. **Debug Support**: Automatic DEBUG=1 and RUTOS_TEST_MODE=1 support
 
 **DO NOT manually define these (provided by library):**
+
 - ❌ Color variables (RED, GREEN, BLUE, etc.)
 - ❌ Logging functions (log_info, log_error, etc.)
 - ❌ Timestamp functions
@@ -410,7 +411,7 @@ main() {
     log_step "Main script logic"
     # Use safe_execute for all system commands
     safe_execute "echo 'Hello World'" "Print greeting"
-    
+
     # Example of enhanced error handling
     if ! safe_execute "curl -s http://example.com" "Test network connectivity"; then
         log_error_with_context "Network test failed" "$0" "$LINENO" "main"
@@ -510,6 +511,92 @@ download_with_retry() {
 }
 ```
 
+### Enhanced Remote Installation Debugging
+
+For remote installation scripts, implement comprehensive debugging that shows system context, exact commands, and file operations:
+
+```bash
+# Enhanced debug output for remote installation troubleshooting
+enhanced_debug_info() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "=== ENHANCED SYSTEM INFORMATION ==="
+        debug_msg "Architecture: $(uname -m)"
+        debug_msg "Kernel: $(uname -r)"
+        debug_msg "Available memory: $(free -h | awk '/^Mem:/ {print $7}' 2>/dev/null || echo 'unknown')"
+        debug_msg "Current user: $(id)"
+        debug_msg "Working directory: $(pwd)"
+        debug_msg "PATH: $PATH"
+
+        debug_msg "=== DISK SPACE ANALYSIS ==="
+        debug_msg "Root filesystem:"
+        df -h / 2>/dev/null || debug_msg "  Cannot read root filesystem info"
+        debug_msg "Temporary directories:"
+        for dir in /tmp /var/tmp /root/tmp; do
+            if [ -d "$dir" ]; then
+                available=$(df -h "$dir" | awk 'NR==2 {print $4}' 2>/dev/null || echo 'unknown')
+                debug_msg "  $dir: ${available} available"
+            else
+                debug_msg "  $dir: directory does not exist"
+            fi
+        done
+    fi
+}
+
+# Disk space validation before downloads
+validate_disk_space() {
+    target_dir="$1"
+    min_kb="${2:-50}"
+
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "=== DISK SPACE VALIDATION ==="
+        debug_msg "Target directory: $target_dir"
+        debug_msg "Minimum required: ${min_kb}KB"
+    fi
+
+    if [ ! -d "$target_dir" ]; then
+        debug_msg "✗ Directory does not exist: $target_dir"
+        return 1
+    fi
+
+    available_kb=$(df "$target_dir" | awk 'NR==2 {print $4}' 2>/dev/null || echo "0")
+    available_kb=${available_kb:-0}
+
+    debug_msg "Available space: ${available_kb}KB"
+
+    if [ "$available_kb" -ge "$min_kb" ]; then
+        debug_msg "✓ Sufficient disk space available"
+        return 0
+    else
+        debug_msg "✗ Insufficient disk space (need ${min_kb}KB, have ${available_kb}KB)"
+        return 1
+    fi
+}
+
+# Enhanced command execution with detailed logging
+debug_execute() {
+    command="$1"
+    description="$2"
+
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "=== COMMAND EXECUTION ==="
+        debug_msg "Description: $description"
+        debug_msg "Command: $command"
+        debug_msg "Working directory: $(pwd)"
+        debug_msg "User: $(id -un 2>/dev/null || echo 'unknown')"
+    fi
+
+    if eval "$command"; then
+        debug_msg "✓ Command succeeded: $description"
+        return 0
+    else
+        exit_code=$?
+        debug_msg "✗ Command failed with exit code $exit_code: $description"
+        debug_msg "Failed command: $command"
+        return $exit_code
+    fi
+}
+```
+
 ### Debug Mode Implementation
 
 ```bash
@@ -534,6 +621,177 @@ if [ "$DEBUG" = "1" ]; then
 fi
 ```
 
+## Remote Installation Best Practices
+
+### Comprehensive Debug Output for Installation Scripts
+
+When creating installation scripts that will be run remotely via curl, implement comprehensive debugging that provides sufficient information to troubleshoot issues like "curl error 23" or disk space problems:
+
+```bash
+# System information display for troubleshooting
+show_system_info() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "=== SYSTEM INFORMATION ==="
+        debug_msg "Architecture: $(uname -m)"
+        debug_msg "Kernel: $(uname -r)"
+        debug_msg "Free memory: $(free -h | awk '/^Mem:/ {print $7}' 2>/dev/null || echo 'unknown')"
+        debug_msg "User: $(id -un 2>/dev/null || echo 'unknown')"
+        debug_msg "Working directory: $(pwd)"
+        debug_msg "Available disk space:"
+        for dir in /tmp /var/tmp /root/tmp .; do
+            if [ -d "$dir" ]; then
+                available=$(df -h "$dir" | awk 'NR==2 {print $4}' 2>/dev/null || echo 'unknown')
+                debug_msg "  $dir: ${available} available"
+            fi
+        done
+    fi
+}
+
+# Smart temporary directory selection with space checking
+select_temp_directory() {
+    min_kb="${1:-50}"
+    temp_candidates="/tmp /var/tmp /root/tmp ."
+
+    for candidate in $temp_candidates; do
+        if [ -d "$candidate" ]; then
+            available_kb=$(df "$candidate" | awk 'NR==2 {print $4}' 2>/dev/null || echo "0")
+            available_kb=${available_kb:-0}
+
+            if [ "$available_kb" -ge "$min_kb" ]; then
+                debug_msg "Selected temporary directory: $candidate (${available_kb}KB available)"
+                echo "$candidate"
+                return 0
+            else
+                debug_msg "Skipping $candidate: only ${available_kb}KB available (need ${min_kb}KB)"
+            fi
+        else
+            debug_msg "Skipping $candidate: directory does not exist"
+        fi
+    done
+
+    debug_msg "✗ No suitable temporary directory found with ${min_kb}KB free space"
+    return 1
+}
+
+# Enhanced download function with detailed error reporting
+enhanced_download() {
+    url="$1"
+    output_file="$2"
+    description="${3:-file}"
+
+    if [ "${DEBUG:-0}" = "1" ]; then
+        debug_msg "=== DOWNLOAD OPERATION ==="
+        debug_msg "URL: $url"
+        debug_msg "Output: $output_file"
+        debug_msg "Description: $description"
+        debug_msg "Output directory: $(dirname "$output_file")"
+        debug_msg "Directory exists: $([ -d "$(dirname "$output_file")" ] && echo 'yes' || echo 'no')"
+        debug_msg "Directory permissions: $(ls -ld "$(dirname "$output_file")" 2>/dev/null || echo 'unknown')"
+    fi
+
+    # Try curl first
+    if command -v curl >/dev/null 2>&1; then
+        debug_msg "Using curl for download"
+        if curl -fsSL --connect-timeout 10 --max-time 60 "$url" -o "$output_file"; then
+            file_size=$(wc -c <"$output_file" 2>/dev/null || echo "unknown")
+            debug_msg "✓ Download completed: $description (${file_size} bytes)"
+            return 0
+        else
+            curl_exit_code=$?
+            debug_msg "✗ curl failed with exit code $curl_exit_code"
+            debug_msg "  Common curl error codes:"
+            debug_msg "    23: Write error (disk full, permissions, etc.)"
+            debug_msg "    28: Timeout reached"
+            debug_msg "    6: Couldn't resolve host"
+        fi
+    fi
+
+    # Fallback to wget
+    if command -v wget >/dev/null 2>&1; then
+        debug_msg "Fallback: Using wget for download"
+        if wget -q -O "$output_file" "$url"; then
+            file_size=$(wc -c <"$output_file" 2>/dev/null || echo "unknown")
+            debug_msg "✓ Download completed with wget: $description (${file_size} bytes)"
+            return 0
+        else
+            wget_exit_code=$?
+            debug_msg "✗ wget failed with exit code $wget_exit_code"
+        fi
+    fi
+
+    debug_msg "✗ All download methods failed for: $description"
+    return 1
+}
+
+# Comprehensive cleanup with multiple directory support
+enhanced_cleanup() {
+    session_id="$1"
+    cleanup_pattern="${2:-*${session_id}*}"
+
+    debug_msg "=== CLEANUP OPERATION ==="
+    debug_msg "Session ID: $session_id"
+    debug_msg "Cleanup pattern: $cleanup_pattern"
+
+    for location in /tmp /var/tmp /root/tmp .; do
+        if [ -d "$location" ]; then
+            find "$location" -name "$cleanup_pattern" -type f 2>/dev/null | while IFS= read -r file; do
+                if [ -f "$file" ]; then
+                    debug_msg "Cleaning up: $file"
+                    rm -f "$file" 2>/dev/null || debug_msg "Warning: Could not remove $file"
+                fi
+            done
+        fi
+    done
+}
+```
+
+### Installation Script Error Handling
+
+Always implement robust error handling for remote installation scenarios:
+
+```bash
+# Pre-installation validation
+pre_installation_checks() {
+    # Check available space
+    if ! temp_dir=$(select_temp_directory 100); then
+        print_status "$RED" "✗ Insufficient disk space for installation"
+        print_status "$YELLOW" "  Please free up space in /tmp, /var/tmp, or /root/tmp"
+        exit 1
+    fi
+
+    # Check network connectivity
+    if ! curl -s --connect-timeout 5 --max-time 10 -o /dev/null "https://github.com" 2>/dev/null; then
+        if ! wget -q --timeout=10 -O /dev/null "https://github.com" 2>/dev/null; then
+            print_status "$RED" "✗ Network connectivity test failed"
+            print_status "$YELLOW" "  Please check internet connection and DNS"
+            exit 1
+        fi
+    fi
+
+    # Show system information if debug enabled
+    show_system_info
+}
+
+# Post-installation verification
+post_installation_verification() {
+    installation_dir="$1"
+
+    if [ ! -d "$installation_dir" ]; then
+        print_status "$RED" "✗ Installation directory not created: $installation_dir"
+        return 1
+    fi
+
+    script_count=$(find "$installation_dir" -name "*-rutos.sh" -type f | wc -l)
+    debug_msg "Installed scripts: $script_count"
+
+    if [ "$script_count" -lt 5 ]; then
+        print_status "$YELLOW" "⚠ Warning: Only $script_count scripts installed (expected more)"
+    else
+        print_status "$GREEN" "✓ Installation verification passed: $script_count scripts installed"
+    fi
+}
+```
+
 ## Testing and Validation
 
 ### Testing Environment Context
@@ -551,6 +809,9 @@ fi
 3. **Debug Mode**: Troubleshooting with DEBUG=1
 4. **Version Updates**: Using update-version.sh
 5. **Remote Downloads**: GitHub raw content access
+6. **Installation Troubleshooting**: Diagnosing curl errors and disk space issues
+7. **Fallback Directory Testing**: Verifying /root/tmp and alternative temporary locations
+8. **Resource-Constrained Installation**: Testing on systems with limited disk space
 
 ## VS Code Development Environment
 
@@ -611,6 +872,49 @@ DEBUG=1 ./scripts/pre-commit-validation.sh
 # - Code formatting with shfmt
 # - Critical whitespace issues
 # - Template cleanliness
+```
+
+#### Remote Installation Debugging
+
+Test the enhanced installation script with comprehensive debug output:
+
+```bash
+# Test with debug mode (shows system info, disk space, command details)
+curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install-rutos.sh | DEBUG=1 sh
+
+# Test with both debug and test mode (maximum verbosity)
+curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install-rutos.sh | DEBUG=1 RUTOS_TEST_MODE=1 sh
+
+# Test disk space management with dry run
+curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install-rutos.sh | DEBUG=1 DRY_RUN=1 sh
+```
+
+The enhanced debug output includes:
+
+- **System Information**: Architecture, kernel, memory, disk space analysis for all temp directories
+- **Command Execution**: Exact commands with working directory and user context
+- **File Operations**: Download URLs, output paths, file sizes, permissions, directory validation
+- **Disk Space Management**: Pre-download space checking with fallback directory selection (/tmp → /var/tmp → /root/tmp → current dir)
+- **Error Context**: Detailed curl/wget error codes with troubleshooting suggestions (e.g., error 23 = disk space/permissions)
+- **Cleanup Tracing**: Comprehensive temporary file cleanup across all potential locations
+
+#### Interpreting Debug Output for Troubleshooting
+
+When analyzing debug output from failed installations:
+
+1. **Successful System Detection**: Look for `===== SYSTEM INFORMATION =====` section showing proper architecture, disk space, and permissions
+2. **Temporary Directory Setup**: Verify `===== TEMPORARY DIRECTORY SETUP =====` shows adequate space and successful creation
+3. **Download Progress**: Check `===== DOWNLOADING FILE =====` sections for successful downloads vs. failures
+4. **Error Context**: For curl error 23, check if previous downloads succeeded - this indicates network/availability issues rather than disk/permission problems
+
+**Example Analysis**:
+
+```text
+✅ System Info: armv7l, 121MB available in /tmp, proper permissions
+✅ Library Downloads: 4 files successfully downloaded (26KB total)
+❌ Main Script Download: curl error 23 after successful library downloads
+→ DIAGNOSIS: Network connectivity issue, not disk space - adequate space available
+→ ACTION: Check network stability and target file availability
 ```
 
 #### ShellCheck Integration
@@ -1181,36 +1485,6 @@ if [ "$DRY_RUN" = "0" ]; then
 fi
 ```
 
-#### System Administration - Cleanup Script Safety (Date: 2025-07-23)
-
-**Discovery**: Cleanup scripts are extremely dangerous when they default to immediate execution instead of dry-run mode, causing accidental data loss
-**Context**: When creating scripts that remove files, modify configurations, or clean up installations
-**Implementation**: ALWAYS default to DRY_RUN=1 (safe mode), require explicit --execute or --force flags for real execution, include 5-second warning countdown
-**Impact**: Prevents accidental complete system cleanup and data loss during development and testing
-**Example**:
-
-```bash
-# DANGEROUS - executes immediately by default
-DRY_RUN="${DRY_RUN:-0}"
-
-# SAFE - defaults to dry-run, requires explicit execution
-DRY_RUN="${DRY_RUN:-1}"
-FORCE_CLEANUP="${FORCE_CLEANUP:-0}"
-
-# Require explicit flag parsing
-case "$1" in
-    --execute|--force) DRY_RUN=0; FORCE_CLEANUP=1 ;;
-    --dry-run) DRY_RUN=1 ;;
-esac
-
-# Safety warning for real execution
-if [ "$DRY_RUN" = "0" ]; then
-    print_status "$RED" "⚠️  WARNING: REAL CLEANUP MODE!"
-    print_status "$YELLOW" "Press Ctrl+C within 5 seconds to cancel..."
-    sleep 5
-fi
-```
-
 #### Development Experience - Comprehensive Testing Integration Success (Date: 2025-07-23)
 
 **Discovery**: Systematic error fixing combined with comprehensive testing significantly improves codebase quality metrics and provides clear progress tracking
@@ -1230,6 +1504,168 @@ fi
 # Result: Clear progress metrics and systematic quality improvement
 ```
 
+#### System Administration - Remote Installation Debug Enhancement (Date: 2025-07-27)
+
+**Discovery**: Remote installation debugging requires comprehensive tracing showing system info, exact commands, file operations, and disk space management to effectively troubleshoot curl errors and installation failures
+**Context**: When users report installation failures like "curl error 23" without sufficient information to diagnose the root cause
+**Implementation**: Implement multi-level debug output with system information display, exact command
+logging, file operation tracing, disk space validation, and fallback directory management
+**Impact**: Enables precise troubleshooting of installation issues with detailed context including system
+specs, disk space, file permissions, and command execution details
+**Example**:
+
+```bash
+# Enhanced debug output pattern for installation scripts
+if [ "${DEBUG:-0}" = "1" ]; then
+    debug_msg "=== SYSTEM INFORMATION ==="
+    debug_msg "Architecture: $(uname -m)"
+    debug_msg "Kernel: $(uname -r)"
+    debug_msg "Free memory: $(free -h | awk '/^Mem:/ {print $7}' 2>/dev/null || echo 'unknown')"
+    debug_msg "Available disk space in $temp_dir: $(df -h "$temp_dir" | awk 'NR==2 {print $4}' 2>/dev/null || echo 'unknown')"
+fi
+
+# Disk space checking with fallback directories
+check_disk_space() {
+    dir="$1"
+    min_kb="${2:-50}"  # Default 50KB minimum
+
+    if [ ! -d "$dir" ]; then
+        return 1
+    fi
+
+    available_kb=$(df "$dir" | awk 'NR==2 {print $4}' 2>/dev/null || echo "0")
+    available_kb=${available_kb:-0}
+
+    debug_msg "Disk space check: $dir has ${available_kb}KB available (need ${min_kb}KB)"
+
+    if [ "$available_kb" -ge "$min_kb" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Smart temporary directory selection with fallback
+temp_candidates="/tmp /var/tmp /root/tmp ."
+for candidate in $temp_candidates; do
+    if has_enough_space "$candidate" "50"; then
+        temp_dir="$candidate"
+        debug_msg "Selected temporary directory: $temp_dir (${available_kb}KB available)"
+        break
+    fi
+done
+```
+
+#### System Administration - Curl Error 23 Troubleshooting (Date: 2025-07-27)
+
+**Discovery**: Curl error 23 "Failure writing output to destination" can occur even when disk space and
+permissions are adequate, often indicating network issues, missing target files, or interrupted connections
+during multi-file downloads
+**Context**: When remote installation scripts work perfectly for initial downloads but fail on subsequent
+files with curl error 23
+**Implementation**: Enhanced error handling that distinguishes between disk/permission issues vs.
+network/availability issues, with specific retry logic and fallback mechanisms
+**Impact**: Provides clear guidance for troubleshooting curl error 23 based on the context - if disk space
+is adequate and previous downloads succeeded, focus on network connectivity and target file availability
+**Example**:
+
+```bash
+# Enhanced curl error 23 analysis and handling
+handle_curl_error_23() {
+    failed_url="$1"
+    target_file="$2"
+    available_space_kb="$3"
+
+    debug_msg "=== CURL ERROR 23 ANALYSIS ==="
+    debug_msg "Failed URL: $failed_url"
+    debug_msg "Target file: $target_file"
+    debug_msg "Available disk space: ${available_space_kb}KB"
+    debug_msg "Target directory: $(dirname "$target_file")"
+    debug_msg "Directory writable: $([ -w "$(dirname "$target_file")" ] && echo 'yes' || echo 'no')"
+
+    # If we have adequate space and permissions, this is likely a network/availability issue
+    if [ "$available_space_kb" -gt 100 ] && [ -w "$(dirname "$target_file")" ]; then
+        debug_msg "ANALYSIS: Adequate disk space and write permissions available"
+        debug_msg "LIKELY CAUSE: Network connectivity issue or target file unavailable"
+        debug_msg "RECOMMENDED ACTION: Check network connectivity and verify target URL exists"
+
+        # Test basic connectivity
+        if curl -s --connect-timeout 5 --max-time 10 -o /dev/null "https://github.com" 2>/dev/null; then
+            debug_msg "Network connectivity: WORKING (GitHub reachable)"
+            debug_msg "LIKELY CAUSE: Specific target file unavailable or URL incorrect"
+        else
+            debug_msg "Network connectivity: FAILED (Cannot reach GitHub)"
+            debug_msg "LIKELY CAUSE: Network connectivity issue"
+        fi
+    else
+        debug_msg "ANALYSIS: Insufficient disk space or permission issues"
+        debug_msg "LIKELY CAUSE: Disk space (${available_space_kb}KB) or write permissions"
+    fi
+}
+
+# Example integration in download function
+download_with_error_analysis() {
+    url="$1"
+    output_file="$2"
+    description="$3"
+
+    if ! curl -fsSL "$url" -o "$output_file"; then
+        curl_exit_code=$?
+        if [ "$curl_exit_code" = "23" ]; then
+            available_kb=$(df "$(dirname "$output_file")" | awk 'NR==2 {print $4}' 2>/dev/null || echo "0")
+            handle_curl_error_23 "$url" "$output_file" "$available_kb"
+        fi
+        return $curl_exit_code
+    fi
+}
+```
+
+#### System Administration - Disk Space Management for RUTOS (Date: 2025-07-27)
+
+**Discovery**: RUTOS systems often have limited disk space, requiring intelligent temporary directory selection with multiple fallbacks and proper cleanup including /root/tmp as a viable option
+**Context**: When remote installation fails due to insufficient disk space in default /tmp directory, particularly on resource-constrained router systems
+**Implementation**: Implement disk space checking before downloads, provide multiple fallback directories (/tmp → /var/tmp → /root/tmp → current dir), ensure cleanup of all temporary locations
+**Impact**: Prevents installation failures due to disk space issues and provides reliable cleanup even when using non-standard temporary locations
+**Example**:
+
+```bash
+# Intelligent temporary directory selection
+has_enough_space() {
+    target_dir="$1"
+    min_kb="${2:-50}"
+
+    if [ ! -d "$target_dir" ]; then
+        return 1
+    fi
+
+    available_kb=$(df "$target_dir" | awk 'NR==2 {print $4}' 2>/dev/null || echo "0")
+    available_kb=${available_kb:-0}
+
+    if [ "$available_kb" -ge "$min_kb" ]; then
+        debug_msg "✓ $target_dir has sufficient space: ${available_kb}KB (need ${min_kb}KB)"
+        return 0
+    else
+        debug_msg "✗ $target_dir insufficient space: ${available_kb}KB (need ${min_kb}KB)"
+        return 1
+    fi
+}
+
+# Enhanced cleanup with multiple directory support
+cleanup_temp_library() {
+    for location in /tmp /var/tmp /root/tmp .; do
+        if [ -d "$location" ]; then
+            # Clean files with our session ID
+            find "$location" -name "*rutos_lib_$$*" -type f 2>/dev/null | while IFS= read -r file; do
+                if [ -f "$file" ]; then
+                    debug_msg "Cleaning up: $file"
+                    rm -f "$file" 2>/dev/null || true
+                fi
+            done
+        fi
+    done
+}
+```
+
 ## Current Project Status (As of July 2025)
 
 ### Development Milestones Achieved
@@ -1247,6 +1683,8 @@ fi
 - ✅ **RUTOS Library System**: Complete 4-module framework with auto-loading
 - ✅ **4-Level Logging**: NORMAL, DRY_RUN, DEBUG, RUTOS_TEST_MODE
 - ✅ **Remote Installation**: Works via curl on RUTX50 with library download
+- ✅ **Enhanced Installation Debugging**: Comprehensive system info, disk space management, and error reporting
+- ✅ **Smart Disk Space Management**: Automatic fallback directories (/tmp → /var/tmp → /root/tmp → current dir)
 - ✅ **Configuration Management**: Template migration and validation
 - ✅ **Enhanced Debugging**: Command tracing with safe_execute()
 - ✅ **Version Management**: Automatic semantic versioning
@@ -1270,3 +1708,7 @@ fi
 - **Round 23**: Debug output improvements with clean, structured logging
 - **Modern Tooling**: Integration of shfmt and enhanced validation
 - **Development Experience**: Better debugging and quality assurance
+- **Enhanced Installation Debugging**: Comprehensive system info, disk space checking, and multi-level tracing for remote installations
+- **Smart Disk Space Management**: Automatic fallback directory selection (/tmp → /var/tmp → /root/tmp → current dir) with proper cleanup
+- **Installation Reliability**: Pre-download space validation and enhanced error reporting for curl/wget operations
+- **Troubleshooting Support**: Detailed debugging output showing exact commands, file locations, permissions, and system context
