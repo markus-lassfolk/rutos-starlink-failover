@@ -7,7 +7,7 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION="2.7.0"
 
 # Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
@@ -26,6 +26,7 @@ if [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     BLUE=""
+    # shellcheck disable=SC2034  # PURPLE defined for consistency with color scheme
     PURPLE=""
     CYAN=""
     NC=""
@@ -100,6 +101,7 @@ fi
 # Configuration based on Victron GPS normalization approach
 CLUSTER_DISTANCE_METERS=50 # 50m clustering tolerance (motorhome-sized parking areas)
 MIN_EVENTS_PER_LOCATION=2  # Minimum events to consider a problematic location
+# shellcheck disable=SC2034  # Used for GPS quality thresholds in documentation
 GPS_ACCURACY_THRESHOLD=10  # Accept GPS with <10m accuracy (same as Starlink threshold)
 
 # Haversine distance calculation (from Victron flow)
@@ -168,7 +170,7 @@ cluster_locations() {
     log_step "Clustering locations within ${CLUSTER_DISTANCE_METERS}m radius"
 
     cluster_id=1
-    >"$clusters_file" # Clear file
+    true >"$clusters_file" # Clear file
 
     while IFS=',' read -r lat lon; do
         # Skip invalid coordinates
@@ -178,7 +180,12 @@ cluster_locations() {
 
         # Check if this coordinate belongs to an existing cluster
         found_cluster=""
-        if [ -f "$clusters_file" ]; then
+        if [ -f "$clusters_file" ] && [ -s "$clusters_file" ]; then
+            # Read existing clusters into memory to avoid file conflicts
+            temp_check_file="$clusters_file.check"
+            cp "$clusters_file" "$temp_check_file"
+            
+            # shellcheck disable=SC2094  # Reading from temp_check_file, writing to different temp files to avoid conflicts
             while IFS=',' read -r cluster_lat cluster_lon cluster_id_existing cluster_count; do
                 distance=$(haversine_distance "$lat" "$lon" "$cluster_lat" "$cluster_lon")
                 distance_int=$(echo "$distance" | cut -d'.' -f1)
@@ -188,10 +195,14 @@ cluster_locations() {
                     # Update cluster center (weighted average would be better, but keeping simple)
                     new_count=$((cluster_count + 1))
                     # For now, keep original center - could implement proper centroid calculation
-                    sed -i "s/$cluster_lat,$cluster_lon,$cluster_id_existing,$cluster_count/$cluster_lat,$cluster_lon,$cluster_id_existing,$new_count/" "$clusters_file"
+                    # Use temporary file to avoid read/write conflict
+                    temp_clusters="$clusters_file.tmp"
+                    sed "s/$cluster_lat,$cluster_lon,$cluster_id_existing,$cluster_count/$cluster_lat,$cluster_lon,$cluster_id_existing,$new_count/" "$temp_check_file" > "$temp_clusters"
+                    mv "$temp_clusters" "$clusters_file"
                     break
                 fi
-            done <"$clusters_file"
+            done <"$temp_check_file"
+            rm -f "$temp_check_file"
         fi
 
         # If no cluster found, create new one
@@ -239,20 +250,26 @@ EOF
     while IFS=',' read -r lat lon cluster_id count; do
         total_locations=$((total_locations + 1))
 
-        echo "### Location Cluster $cluster_num" >>"$output_file"
-        echo "" >>"$output_file"
-        echo "- **Coordinates**: $lat, $lon" >>"$output_file"
-        echo "- **Cluster ID**: $cluster_id" >>"$output_file"
-        echo "- **Event Count**: $count" >>"$output_file"
+        {
+            echo "### Location Cluster $cluster_num"
+            echo ""
+            echo "- **Coordinates**: $lat, $lon"
+            echo "- **Cluster ID**: $cluster_id"
+            echo "- **Event Count**: $count"
+        } >>"$output_file"
 
         # Determine if this is a problematic location
         if [ "$count" -ge "$MIN_EVENTS_PER_LOCATION" ]; then
             problematic_locations=$((problematic_locations + 1))
-            echo "- **Status**: ⚠️ **PROBLEMATIC LOCATION** - Multiple failover events" >>"$output_file"
-            echo "- **Recommendation**: Investigate local obstruction patterns, terrain, or interference" >>"$output_file"
+            {
+                echo "- **Status**: ⚠️ **PROBLEMATIC LOCATION** - Multiple failover events"
+                echo "- **Recommendation**: Investigate local obstruction patterns, terrain, or interference"
+            } >>"$output_file"
         else
-            echo "- **Status**: ✅ **NORMAL** - Isolated failover event" >>"$output_file"
-            echo "- **Assessment**: Likely temporary condition or equipment issue" >>"$output_file"
+            {
+                echo "- **Status**: ✅ **NORMAL** - Isolated failover event"
+                echo "- **Assessment**: Likely temporary condition or equipment issue"
+            } >>"$output_file"
         fi
 
         echo "" >>"$output_file"
