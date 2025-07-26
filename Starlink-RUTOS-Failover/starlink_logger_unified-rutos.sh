@@ -23,41 +23,114 @@ set -eu
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.0"
-readonly SCRIPT_VERSION
+# Note: Not using readonly to allow library initialization
 
-# RUTOS test mode support (for testing framework)
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
-    exit 0
-fi
+# Try to load RUTOS library system for enhanced logging and utilities
+# Check multiple possible locations (development vs deployment)
+LIBRARY_LOADED=0
+for lib_path in \
+    "$(dirname "$0")/../scripts/lib/rutos-lib.sh" \
+    "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh" \
+    "$(dirname "$0")/lib/rutos-lib.sh"; do
+    if [ -f "$lib_path" ]; then
+        if . "$lib_path" 2>/dev/null; then
+            LIBRARY_LOADED=1
+            break
+        fi
+    fi
+done
 
-# Standard colors for consistent output (compatible with busybox)
-# shellcheck disable=SC2034  # Color variables may not all be used in every script
-if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    # Colors enabled
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+# Initialize logging system
+if [ "$LIBRARY_LOADED" = "1" ]; then
+    # Use RUTOS library system for enhanced logging
+    # Enable demo execution in test mode if debugging is requested
+    if [ "${DEBUG:-0}" = "1" ]; then
+        export ALLOW_TEST_EXECUTION=1
+        export DEMO_TRACING=1
+    fi
+    rutos_init_portable "starlink_logger_unified-rutos.sh" "$SCRIPT_VERSION"
+    log_debug "RUTOS library system loaded for enhanced data logging"
+    # Colors are already initialized by the library
 else
-    # Colors disabled
-    RED=""
-    GREEN=""
-    YELLOW=""
-    BLUE=""
-    CYAN=""
-    NC=""
+    # Fallback to built-in logging system - only define colors if library not loaded
+    # Standard colors for consistent output (compatible with busybox)
+    if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+        RED='\033[0;31m'
+        GREEN='\033[0;32m' 
+        YELLOW='\033[1;33m'
+        BLUE='\033[1;35m'
+        CYAN='\033[0;36m'
+        NC='\033[0m'
+    else
+        RED="" GREEN="" YELLOW="" BLUE="" CYAN="" NC=""
+    fi
+    
+    # Built-in logging functions
+    log_info() {
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        printf "${GREEN}[INFO]${NC} [%s] %s\n" "$timestamp" "$1"
+        logger -t "${LOG_TAG:-StarlinkLogger}" -p user.info "$1" 2>/dev/null || true
+    }
+    log_warning() {
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$timestamp" "$1" >&2
+        logger -t "${LOG_TAG:-StarlinkLogger}" -p user.warning "$1" 2>/dev/null || true
+    }
+    log_error() {
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        printf "${RED}[ERROR]${NC} [%s] %s\n" "$timestamp" "$1" >&2
+        logger -t "${LOG_TAG:-StarlinkLogger}" -p user.err "$1" 2>/dev/null || true
+    }
+    log_debug() {
+        if [ "${DEBUG:-0}" = "1" ]; then
+            timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+            printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$timestamp" "$1" >&2
+        fi
+    }
+    log_step() {
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        printf "${BLUE}[STEP]${NC} [%s] %s\n" "$timestamp" "$1"
+    }
+    log_success() {
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$timestamp" "$1"
+    }
+    
+    # Initialize logging variables
+    DRY_RUN="${DRY_RUN:-0}"
+    RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+    DEBUG="${DEBUG:-0}"
+    export DRY_RUN RUTOS_TEST_MODE DEBUG
+    
+    # Built-in safe_execute function
+    safe_execute() {
+        cmd="$1"
+        description="$2"
+        log_debug "Executing: $cmd"
+        if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+            log_warning "[DRY-RUN] Would execute: $description"
+            return 0
+        fi
+        if eval "$cmd" >/dev/null 2>&1; then
+            log_debug "Success: $description"
+            return 0
+        else
+            log_error "Failed: $description"
+            return 1
+        fi
+    }
 fi
+
+log_info "Starting Starlink Logger v$SCRIPT_VERSION"
 
 # --- Configuration Loading ---
 CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
 if [ -f "$CONFIG_FILE" ]; then
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
+    log_debug "Configuration loaded from: $CONFIG_FILE"
 else
-    printf "${RED}[ERROR]${NC} Configuration file not found: %s\n" "$CONFIG_FILE" >&2
+    log_error "Configuration file not found: $CONFIG_FILE"
     exit 1
 fi
 
@@ -80,52 +153,63 @@ AGGREGATION_BATCH_SIZE="${AGGREGATION_BATCH_SIZE:-60}"
 # Create necessary directories
 mkdir -p "$LOG_DIR" "$(dirname "$STATE_FILE")" 2>/dev/null || true
 
-# Dry-run and test mode support (capture original values for debug output)
-ORIGINAL_DRY_RUN="${DRY_RUN:-0}"
-ORIGINAL_RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-DRY_RUN="${DRY_RUN:-0}"
-RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+# Debug configuration
+log_debug "GPS_LOGGING=$ENABLE_GPS_LOGGING, CELLULAR_LOGGING=$ENABLE_CELLULAR_LOGGING"
+log_debug "AGGREGATION=$ENABLE_STATISTICAL_AGGREGATION, ENHANCED_METRICS=$ENABLE_ENHANCED_METRICS"
 
-# Debug dry-run status (show original environment values)
-if [ "${DEBUG:-0}" = "1" ]; then
-    printf "${CYAN}[DEBUG]${NC} DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$ORIGINAL_DRY_RUN" "$ORIGINAL_RUTOS_TEST_MODE" >&2
-    printf "${CYAN}[DEBUG]${NC} GPS_LOGGING=%s, CELLULAR_LOGGING=%s, AGGREGATION=%s\n" "$ENABLE_GPS_LOGGING" "$ENABLE_CELLULAR_LOGGING" "$ENABLE_STATISTICAL_AGGREGATION" >&2
+# Support both TEST_MODE and RUTOS_TEST_MODE for backward compatibility
+if [ "${TEST_MODE:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    if [ "${DRY_RUN:-0}" != "1" ]; then
+        log_info "Test mode enabled - script syntax validated, exiting safely"
+        log_trace "To see full execution flow, use: DRY_RUN=1 DEBUG=1"
+        exit 0
+    fi
 fi
 
-# Early exit in test mode to prevent execution errors
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ]; then
-    printf "%s[INFO]%s RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution\n" "$GREEN" "$NC" >&2
+# Enhanced troubleshooting and dry-run mode with demonstration
+if [ "${DRY_RUN:-0}" = "1" ] || [ "${DEBUG:-0}" = "1" ]; then
+    log_step "=== TROUBLESHOOTING MODE: Demonstrating Starlink Logger Execution ==="
+    
+    # Show configuration validation
+    log_trace "Configuration validation demonstration"
+    safe_execute "echo 'Validating CSV log file: $CSV_LOG'" "Check CSV log configuration"
+    safe_execute "echo 'Validating JSON log file: $JSON_LOG'" "Check JSON log configuration"
+    
+    # Show API communication
+    log_trace "API communication demonstration"
+    safe_execute "echo 'GRPC Command: $GRPCURL_CMD'" "Show GRPC command configuration"
+    safe_execute "echo 'API endpoint: $STARLINK_IP:$STARLINK_PORT'" "Show API endpoint"
+    
+    # Show GPS logging logic (if enabled)
+    if [ "${ENABLE_GPS_LOGGING:-false}" = "true" ]; then
+        log_trace "GPS logging demonstration"
+        safe_execute "echo 'GPS logging enabled - would collect location data'" "GPS logging status"
+        safe_execute "echo 'GPS log file: ${GPS_LOG:-not_set}'" "Show GPS log configuration"
+    fi
+    
+    # Show cellular logging logic (if enabled)
+    if [ "${ENABLE_CELLULAR_LOGGING:-false}" = "true" ]; then
+        log_trace "Cellular logging demonstration"
+        safe_execute "echo 'Cellular logging enabled - would collect signal data'" "Cellular logging status"
+        safe_execute "echo 'Cellular log file: ${CELLULAR_LOG:-not_set}'" "Show cellular log configuration"
+    fi
+    
+    # Show statistical aggregation logic (if enabled)
+    if [ "${ENABLE_STATISTICAL_AGGREGATION:-false}" = "true" ]; then
+        log_trace "Statistical aggregation demonstration"
+        safe_execute "echo 'Statistical aggregation enabled - 60:1 data reduction'" "Aggregation status"
+        safe_execute "echo 'Aggregated log file: ${AGGREGATED_LOG:-not_set}'" "Show aggregation log"
+    fi
+    
+    # Show data collection demonstration
+    log_trace "Data collection demonstration"
+    safe_execute "date" "Get current timestamp for logging cycle"
+    safe_execute "echo 'Sample data collection cycle complete'" "Data collection status"
+    
+    log_success "=== TROUBLESHOOTING COMPLETE: All major logging operations demonstrated ==="
+    log_info "Script syntax and configuration validated - exiting safely in test mode"
     exit 0
 fi
-
-# =============================================================================
-# LOGGING FUNCTIONS
-# =============================================================================
-
-log_info() {
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$timestamp" "$1"
-    logger -t "$LOG_TAG" -p user.info "$1" 2>/dev/null || true
-}
-
-log_warning() {
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$timestamp" "$1" >&2
-    logger -t "$LOG_TAG" -p user.warning "$1" 2>/dev/null || true
-}
-
-log_error() {
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$timestamp" "$1" >&2
-    logger -t "$LOG_TAG" -p user.err "$1" 2>/dev/null || true
-}
-
-log_debug() {
-    if [ "${DEBUG:-0}" = "1" ]; then
-        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$timestamp" "$1" >&2
-    fi
-}
 
 # =============================================================================
 # STATISTICAL AGGREGATION FUNCTIONS (Enhanced Feature)

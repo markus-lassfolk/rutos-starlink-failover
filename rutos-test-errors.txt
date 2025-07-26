@@ -4,16 +4,18 @@ AI DEBUGGING REPORT FOR RUTOS STARLINK FAILOVER SCRIPTS
 COPY THIS ENTIRE SECTION TO AI FOR DEBUGGING ASSISTANCE:
 
 ## Test Summary
-- Date: Fri Jul 25 22:18:38 CEST 2025
+- Date: Sat Jul 26 15:56:49 CEST 2025
 - Script Version: 2.7.0
-- Total Scripts Tested: 71
-- Passed: 71
+- Total Scripts Tested: 73
+- Passed: 73
 - Failed: 00
-- Missing Dry-Run Support: 0
+- Missing Dry-Run Support: 1
 - Success Rate: 100%
 
 ## Dry-Run Support Analysis
-✅ All scripts have proper dry-run support
+⚠️  WARNING: 1 scripts lack dry-run support
+These scripts cannot be safely tested without making real system changes.
+See detailed recommendations below for adding dry-run support.
 
 ## Project Context
 - Environment: RUTX50 router with busybox shell (POSIX sh only)
@@ -21,12 +23,49 @@ COPY THIS ENTIRE SECTION TO AI FOR DEBUGGING ASSISTANCE:
 - Test Mode: All scripts run with DRY_RUN=1 and RUTOS_TEST_MODE=1
 
 ## Detailed Errors Found
-No errors found - all scripts passed testing!
+DRY-RUN MISSING in debug-config-rutos.sh:
+  Issue: Script lacks dry-run/test mode support
+  Impact: Cannot be safely tested without making real changes
+  
+  Fix: Add this pattern after script setup (after colors/logging functions):
+  
+  # Dry-run and test mode support
+  DRY_RUN="${DRY_RUN:-0}"
+  RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+  
+  # Debug dry-run status
+  if [ "$DEBUG" = "1" ]; then
+      log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+  fi
+  
+  # Function to safely execute commands
+  safe_execute() {
+      cmd="$1"
+      description="$2"
+      
+      if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+          log_info "[DRY-RUN] Would execute: $description"
+          log_debug "[DRY-RUN] Command: $cmd"
+          return 0
+      else
+          log_debug "Executing: $cmd"
+          eval "$cmd"
+      fi
+  }
+  
+  Then replace dangerous commands like:
+  - cp file1 file2              → safe_execute "cp file1 file2" "Copy file1 to file2"
+  - rm -f file                  → safe_execute "rm -f file" "Remove file"
+  - /etc/init.d/service restart → safe_execute "/etc/init.d/service restart" "Restart service"
+  - crontab -l | ...            → safe_execute "crontab commands" "Update crontab"
+  
+  Reason: Allows safe testing without making system changes
+  
 
 ## Script Testing Environment
 - Working Directory: /mnt/c/GitHub/rutos-starlink-failover
 - Shell: /usr/bin/dash
-- Test Date: Fri Jul 25 22:18:38 CEST 2025
+- Test Date: Sat Jul 26 15:56:49 CEST 2025
 
 ## Instructions for AI
 1. Analyze each error listed above

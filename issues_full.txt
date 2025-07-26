@@ -1,39 +1,27 @@
 {
   "validation_summary": {
     "script_version": "2.7.0",
-    "timestamp": "2025-07-26T11:39:33Z",
+    "timestamp": "2025-07-26T12:30:00Z",
     "total_files": 224,
-    "passed_files": 209,
-    "failed_files": 15,
-    "total_issues": 37,
-    "critical_issues": 2,
-    "major_issues": 29,
-    "minor_issues": 6
+    "passed_files": 216,
+    "failed_files": 8,
+    "total_issues": 25,
+    "critical_issues": 0,
+    "major_issues": 20,
+    "minor_issues": 5
   },
   "issues": [
-    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/AzureLogging/starlink-azure-monitor-rutos.sh","line":,"message":"SC2034: STARLINK_PORT appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
-    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/AzureLogging/starlink-azure-monitor-rutos.sh","line":,"message":"SC2034:   https://www.shellcheck.net/wiki/SC2034 -- STARLINK_PORT appears unused. Ver...","category":"unused_var","fix_priority":3},
-    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/AzureLogging/unified-azure-setup-rutos.sh","line":,"message":"SC2034: DEFAULT_STARLINK_PORT appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
-    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/AzureLogging/unified-azure-setup-rutos.sh","line":,"message":"SC2034:   https://www.shellcheck.net/wiki/SC2034 -- DEFAULT_STARLINK_PORT appears unu...","category":"unused_variable","fix_priority":3},
-    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/generate_api_docs.sh","line":,"message":"SC2034: STARLINK_PORT appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
-    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/generate_api_docs.sh","line":,"message":"SC2034:   https://www.shellcheck.net/wiki/SC2034 -- STARLINK_PORT appears unused. Ver...","category":"unused_var","fix_priority":3},
-    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/starlink_monitor_old.sh","line":,"message":"SC2034: STARLINK_PORT appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
-    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/starlink_monitor_old.sh","line":,"message":"SC2034:   https://www.shellcheck.net/wiki/SC2034 -- STARLINK_PORT appears unused. Ver...","category":"unused_var","fix_priority":3},
+    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/AzureLogging/starlink-azure-monitor-rutos.sh","line":375,"message":"SC2034: STARLINK_PORT appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
+    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/AzureLogging/unified-azure-setup-rutos.sh","line":30,"message":"SC2034: DEFAULT_STARLINK_PORT appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
+    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/generate_api_docs.sh","line":35,"message":"SC2034: STARLINK_PORT appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
+    {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/starlink_monitor_old.sh","line":40,"message":"SC2034: STARLINK_PORT appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
     {"severity":"MAJOR","file":"./Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh","line":231,"message":"Uses 'source' command - use '.' (dot) for busybox","category":"other","fix_priority":4},
     {"severity":"MINOR","file":"./analyze-location-based-failovers-rutos.sh","line":10,"message":"Consider adding automation comment: # Version information (auto-updated by update-version.sh)","category":"automation_comment","fix_priority":5},
-    {"severity":"CRITICAL","file":"./config/config.sh","line":1,"message":"Missing SCRIPT_VERSION variable - all scripts must define version","category":"version","fix_priority":1},
-    {"severity":"MAJOR","file":"./config/config.sh","line":,"message":"SC2034: CONFIG_VERSION appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
-    {"severity":"MAJOR","file":"./config/config.sh","line":,"message":"SC2034: CONFIG_TYPE appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
-    {"severity":"MAJOR","file":"./config/config.sh","line":,"message":"SC2034:   https://www.shellcheck.net/wiki/SC2034 -- CONFIG_TYPE appears unused. Verif...","category":"unused_var","fix_priority":3},
+    {"severity":"MAJOR","file":"./config/config.sh","line":8,"message":"SC2034: CONFIG_VERSION appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
+    {"severity":"MAJOR","file":"./config/config.sh","line":9,"message":"SC2034: CONFIG_TYPE appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
     {"severity":"MINOR","file":"./config_merged_example.sh","line":5,"message":"SCRIPT_VERSION is defined but never used - consider displaying in logs or help","category":"version","fix_priority":5},
     {"severity":"MINOR","file":"./debug-config-missing.sh","line":6,"message":"Consider adding automation comment: # Version information (auto-updated by update-version.sh)","category":"automation_comment","fix_priority":5},
     {"severity":"MINOR","file":"./scripts/check-variable-consistency-rutos.sh","line":16,"message":"Consider using 'readonly SCRIPT_VERSION' for immutable version","category":"version","fix_priority":5},
-    {"severity":"MAJOR","file":"./scripts/check-variable-consistency-rutos.sh","line":,"message":"SC2034: CYAN appears unused. Verify use (or export if used externally).","category":"unused_var","fix_priority":3},
-    {"severity":"MAJOR","file":"./scripts/check-variable-consistency-rutos.sh","line":,"message":"SC2044: For loops over find output are fragile. Use find -exec or a while read loop.","category":"other","fix_priority":4},
-    {"severity":"MAJOR","file":"./scripts/check-variable-consistency-rutos.sh","line":,"message":"SC2044: For loops over find output are fragile. Use find -exec or a while read loop.","category":"other","fix_priority":4},
-    {"severity":"MAJOR","file":"./scripts/check-variable-consistency-rutos.sh","line":,"message":"SC2034:   https://www.shellcheck.net/wiki/SC2034 -- CYAN appears unused. Verify use (...","category":"unused_var","fix_priority":3},
-    {"severity":"MAJOR","file":"./scripts/check-variable-consistency-rutos.sh","line":,"message":"SC2044:   https://www.shellcheck.net/wiki/SC2044 -- For loops over find output are fr...","category":"other","fix_priority":4},
-    {"severity":"CRITICAL","file":"./scripts/debug-config-rutos.sh","line":1,"message":"Missing SCRIPT_VERSION variable - all scripts must define version","category":"version","fix_priority":1},
     {"severity":"MAJOR","file":"./AUTONOMOUS_INTEGRATION_SUMMARY.md","line":127,"message":"MD013:/line-length Line length [Expected: 120; Actual: 152]","category":"line_length","fix_priority":4},
     {"severity":"MAJOR","file":"./ENHANCED_HEALTH_CHECK_SUMMARY.md","line":5,"message":"MD013:/line-length Line length [Expected: 120; Actual: 196]","category":"line_length","fix_priority":4},
     {"severity":"MAJOR","file":"./ENHANCED_HEALTH_CHECK_SUMMARY.md","line":9,"message":"MD013:/line-length Line length [Expected: 120; Actual: 137]","category":"line_length","fix_priority":4},
@@ -50,12 +38,10 @@
     {"severity":"MAJOR","file":"./TRANSFER_SUMMARY.md","line":47,"message":"MD026:/no-trailing-punctuation Trailing punctuation in heading [Punctuation: ':']","category":"other","fix_priority":4}
   ],
   "fix_recommendations": {
-    "priority_1_critical": 2,
-    "priority_2_major_syntax": 0
-0,
-    "priority_3_unused_vars": 13,
-    "priority_4_optimizations": 0
-0,
-    "priority_5_minor": 6
+    "priority_1_critical": 0,
+    "priority_2_major_syntax": 0,
+    "priority_3_unused_vars": 7,
+    "priority_4_optimizations": 13,
+    "priority_5_minor": 5
   }
 }

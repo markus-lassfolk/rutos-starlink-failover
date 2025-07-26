@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+
 # Debug configuration checker
 echo "=== CONFIG FILE DEBUG ==="
 echo "CONFIG_FILE: ${CONFIG_FILE:-/etc/starlink-config/config.sh}"

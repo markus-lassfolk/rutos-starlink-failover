@@ -1,6 +1,9 @@
 #!/bin/sh
 # Test config for health check testing
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+
 # Configuration metadata for troubleshooting
 CONFIG_VERSION="2.7.0"
 CONFIG_TYPE="test"

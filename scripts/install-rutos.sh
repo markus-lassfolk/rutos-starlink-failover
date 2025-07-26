@@ -29,56 +29,152 @@ GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
 BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
-# Debug mode can be enabled by:
-# 1. Setting DEBUG=1 environment variable
-# 2. Uncommenting the line below
-# DEBUG=1
+# Try to load RUTOS library system if available locally (development mode)
+# For remote installation via curl, we'll use built-in fallback functions
+LIBRARY_LOADED=0
+if [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; then
+    # Development mode: scripts directory available locally
+    if . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
+        LIBRARY_LOADED=1
+        log_debug "RUTOS library system loaded from local development environment"
+    fi
+fi
 
-# Logging configuration
+# Remote installation mode: download library to temp location and use it
+if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
+    # Create temporary directory for library
+    TEMP_LIB_DIR="/tmp/rutos-install-lib-$$"
+    mkdir -p "$TEMP_LIB_DIR" 2>/dev/null || true
+    
+    # Try to download library components
+    library_downloaded=0
+    if command -v curl >/dev/null 2>&1; then
+        printf "[INFO] Downloading RUTOS library system...\n"
+        if curl -fsSL "${BASE_URL}/scripts/lib/rutos-lib.sh" -o "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null && \
+           curl -fsSL "${BASE_URL}/scripts/lib/rutos-colors.sh" -o "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null && \
+           curl -fsSL "${BASE_URL}/scripts/lib/rutos-logging.sh" -o "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null && \
+           curl -fsSL "${BASE_URL}/scripts/lib/rutos-common.sh" -o "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
+            # Set library path and load it
+            RUTOS_LIB_PATH="$TEMP_LIB_DIR"
+            if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
+                LIBRARY_LOADED=1
+                library_downloaded=1
+                printf "[INFO] RUTOS library system downloaded and loaded successfully\n"
+            fi
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        printf "[INFO] Downloading RUTOS library system...\n"
+        if wget -q "${BASE_URL}/scripts/lib/rutos-lib.sh" -O "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null && \
+           wget -q "${BASE_URL}/scripts/lib/rutos-colors.sh" -O "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null && \
+           wget -q "${BASE_URL}/scripts/lib/rutos-logging.sh" -O "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null && \
+           wget -q "${BASE_URL}/scripts/lib/rutos-common.sh" -O "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
+            # Set library path and load it
+            RUTOS_LIB_PATH="$TEMP_LIB_DIR"
+            if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
+                LIBRARY_LOADED=1
+                library_downloaded=1
+                printf "[INFO] RUTOS library system downloaded and loaded successfully\n"
+            fi
+        fi
+    fi
+    
+    # Cleanup function for temporary library
+    cleanup_temp_library() {
+        if [ "$library_downloaded" = "1" ] && [ -d "$TEMP_LIB_DIR" ]; then
+            rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true
+        fi
+    }
+    
+    # Set cleanup trap
+    trap cleanup_temp_library EXIT INT TERM
+    
+    if [ "$LIBRARY_LOADED" = "0" ]; then
+        printf "[WARNING] Could not download RUTOS library system, using fallback logging\n"
+    fi
+fi
+
+# Legacy logging configuration (will be replaced by library if loaded)
 LOG_FILE="${INSTALL_DIR:-/usr/local/starlink-monitor}/installation.log"
 LOG_DIR="$(dirname "$LOG_FILE")"
 
 # Create log directory if it doesn't exist
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 
-# Function to get timestamp
-get_timestamp() {
-    date '+%Y-%m-%d %H:%M:%S'
-}
-
-# Function to log messages to file
-log_message() {
-    level="$1"
-    message="$2"
-    timestamp=$(get_timestamp)
-
-    # Ensure log directory exists
-    mkdir -p "$LOG_DIR" 2>/dev/null || true
-
-    # Log to file with timestamp
-    echo "[$timestamp] [$level] $message" >>"$LOG_FILE" 2>/dev/null || true
-}
-
-# Function to print colored output with logging
-print_status() {
-    color="$1"
-    message="$2"
-
-    # Print to console using Method 5 format (the one that works!)
-    printf "${color}[%s] %s${NC}\n" "$(get_timestamp)" "$message"
-
-    # Log to file (without color codes)
-    log_message "INFO" "$message"
-}
-
-# Function to print debug messages with logging
-debug_msg() {
-    if [ "${DEBUG:-0}" = "1" ]; then
-        timestamp=$(get_timestamp)
-        printf "${BLUE}[%s] DEBUG: %s${NC}\n" "$timestamp" "$1" >&2
-        log_message "DEBUG" "$1"
+# Initialize logging system
+if [ "$LIBRARY_LOADED" = "1" ]; then
+    # Use new RUTOS library system (either local development or downloaded)
+    rutos_init_portable "$SCRIPT_NAME" "$SCRIPT_VERSION"
+    log_info "Using RUTOS library system for standardized logging"
+    log_debug "Library mode: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo "local development" || echo "downloaded remote")"
+else
+    # Fallback to legacy logging system for remote installations when library unavailable
+    printf "[INFO] Using built-in fallback logging system\n"
+    
+    # Built-in color detection (simplified for remote execution)
+    if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
+        RED='\033[0;31m'
+        GREEN='\033[0;32m' 
+        YELLOW='\033[1;33m'
+        BLUE='\033[1;35m'
+        CYAN='\033[0;36m'
+        NC='\033[0m'
+    else
+        RED="" GREEN="" YELLOW="" BLUE="" CYAN="" NC=""
     fi
-}
+    
+    # Built-in logging functions
+    log_info() {
+        printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    }
+    log_success() {
+        printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    }
+    log_warning() {
+        printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    }
+    log_error() {
+        printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    }
+    log_step() {
+        printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    }
+    log_debug() {
+        if [ "${DEBUG:-0}" = "1" ]; then
+            printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        fi
+    }
+    
+    # Initialize logging variables
+    DRY_RUN="${DRY_RUN:-0}"
+    RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"  
+    DEBUG="${DEBUG:-0}"
+    export DRY_RUN RUTOS_TEST_MODE DEBUG
+    
+    # Built-in safe_execute function
+    safe_execute() {
+        command="$1"
+        description="$2"
+        if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+            log_warning "[DRY-RUN] Would execute: $description"
+            return 0
+        else
+            log_step "Executing: $description"
+            if eval "$command"; then
+                return 0
+            else
+                exit_code=$?
+                log_error "Command failed: $description (exit code: $exit_code)"
+                return $exit_code
+            fi
+        fi
+    }
+fi
+
+# Log script initialization
+log_info "Starting Starlink Monitoring System Installation v$SCRIPT_VERSION"
+log_info "Build: $BUILD_INFO"
+log_debug "GitHub Repository: $GITHUB_REPO"
+log_debug "GitHub Branch: $GITHUB_BRANCH"
 
 # Function to print config-specific debug messages
 config_debug() {
@@ -122,37 +218,43 @@ debug_exec() {
     "$@"
 }
 
-# Enhanced error handling with detailed logging and dry-run support
+# Legacy safe_exec function - now uses library safe_execute if available
 safe_exec() {
     cmd="$1"
     description="$2"
-
-    debug_log "EXECUTING: $cmd"
-    debug_log "DESCRIPTION: $description"
-
-    # Check for dry-run mode
-    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-        print_status "$YELLOW" "[DRY-RUN] Would execute: $description"
-        debug_log "[DRY-RUN] Command: $cmd"
-        return 0
-    fi
-
-    # Execute command and capture both stdout and stderr
-    if [ "${DEBUG:-0}" = "1" ]; then
-        # In debug mode, show all output
-        eval "$cmd"
-        exit_code=$?
-        debug_log "COMMAND EXIT CODE: $exit_code"
-        return $exit_code
+    
+    # Use library function if available, otherwise use legacy implementation
+    if command -v safe_execute >/dev/null 2>&1; then
+        safe_execute "$cmd" "$description"
     else
-        # In normal mode, suppress output but capture errors
-        eval "$cmd" 2>/tmp/install_error.log
-        exit_code=$?
-        if [ $exit_code -ne 0 ] && [ -f /tmp/install_error.log ]; then
-            print_status "$RED" "ERROR in $description: $(cat /tmp/install_error.log)"
-            rm -f /tmp/install_error.log
+        # Legacy implementation for remote installations
+        log_debug "EXECUTING: $cmd"
+        log_debug "DESCRIPTION: $description"
+
+        # Check for dry-run mode
+        if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+            log_warning "[DRY-RUN] Would execute: $description"
+            log_debug "[DRY-RUN] Command: $cmd"
+            return 0
         fi
-        return $exit_code
+
+        # Execute command and capture both stdout and stderr
+        if [ "${DEBUG:-0}" = "1" ]; then
+            # In debug mode, show all output
+            eval "$cmd"
+            exit_code=$?
+            log_debug "COMMAND EXIT CODE: $exit_code"
+            return $exit_code
+        else
+            # In normal mode, suppress output but capture errors
+            eval "$cmd" 2>/tmp/install_error.log
+            exit_code=$?
+            if [ $exit_code -ne 0 ] && [ -f /tmp/install_error.log ]; then
+                log_error "ERROR in $description: $(cat /tmp/install_error.log)"
+                rm -f /tmp/install_error.log
+            fi
+            return $exit_code
+        fi
     fi
 }
 
@@ -221,14 +323,14 @@ JQ_FALLBACK_URL="https://github.com/jqlang/jq/releases/download/jq-1.6/jq-linux3
 # Early debug detection - show immediately if DEBUG is set
 if [ "${DEBUG:-0}" = "1" ]; then
     printf "\n"
-    print_status "$BLUE" "==================== DEBUG MODE ENABLED ===================="
-    print_status "$BLUE" "DEBUG: Script starting with DEBUG=1"
-    print_status "$BLUE" "DEBUG: Environment variables:"
-    print_status "$BLUE" "DEBUG:   DEBUG=${DEBUG:-0}"
-    print_status "$BLUE" "DEBUG:   GITHUB_BRANCH=${GITHUB_BRANCH:-main}"
-    print_status "$BLUE" "DEBUG:   GITHUB_REPO=${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
-    print_status "$BLUE" "DEBUG:   LOG_FILE=$LOG_FILE"
-    print_status "$BLUE" "==========================================================="
+    log_debug "==================== DEBUG MODE ENABLED ===================="
+    log_debug "Script starting with DEBUG=1"
+    log_debug "Environment variables:"
+    log_debug "  DEBUG=${DEBUG:-0}"
+    log_debug "  GITHUB_BRANCH=${GITHUB_BRANCH:-main}"
+    log_debug "  GITHUB_REPO=${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
+    log_debug "  LOG_FILE=$LOG_FILE"
+    log_debug "==========================================================="
     echo ""
 fi
 
@@ -244,33 +346,33 @@ log_message "INFO" "============================================="
 
 # Function to show version information
 show_version() {
-    print_status "$GREEN" "==========================================="
-    print_status "$GREEN" "Starlink Monitor Installation Script"
-    print_status "$GREEN" "Script: $SCRIPT_NAME"
-    print_status "$GREEN" "Version: $SCRIPT_VERSION"
-    print_status "$GREEN" "Build: $BUILD_INFO"
-    print_status "$GREEN" "Branch: $GITHUB_BRANCH"
-    print_status "$GREEN" "Repository: $GITHUB_REPO"
-    print_status "$GREEN" "==========================================="
+    log_info "==========================================="
+    log_info "Starlink Monitor Installation Script"
+    log_info "Script: $SCRIPT_NAME"
+    log_info "Version: $SCRIPT_VERSION"
+    log_info "Build: $BUILD_INFO"
+    log_info "Branch: $GITHUB_BRANCH"
+    log_info "Repository: $GITHUB_REPO"
+    log_info "==========================================="
 }
 
 # Function to detect remote version
 detect_remote_version() {
     remote_version=""
-    debug_msg "Fetching remote version from $VERSION_URL"
+    log_debug "Fetching remote version from $VERSION_URL"
     if command -v wget >/dev/null 2>&1; then
         remote_version=$(wget -q -O - "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
     elif command -v curl >/dev/null 2>&1; then
         remote_version=$(curl -fsSL "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
     else
-        debug_msg "Cannot detect remote version - no wget or curl available"
+        log_debug "Cannot detect remote version - no wget or curl available"
         return 1
     fi
     if [ -n "$remote_version" ]; then
-        debug_msg "Remote version detected: $remote_version"
+        log_debug "Remote version detected: $remote_version"
         printf "%s\n" "$remote_version"
     else
-        debug_msg "Failed to detect remote version"
+        log_debug "Failed to detect remote version"
         return 1
     fi
 }
@@ -404,7 +506,7 @@ download_file() {
         fi
     else
         log_message "ERROR" "Neither wget nor curl available for downloads"
-        print_status "$RED" "Error: Neither wget nor curl available for downloads"
+        log_error "Error: Neither wget nor curl available for downloads"
         return 1
     fi
 }
@@ -773,16 +875,16 @@ EOF
 # Check if running as root
 check_root() {
     if [ "$(id -u)" -ne 0 ]; then
-        print_status "$RED" "Error: This script must be run as root"
+        log_error "Error: This script must be run as root"
         exit 1
     fi
 }
 
 # Check system compatibility
 check_system() {
-    debug_log "FUNCTION: check_system"
-    debug_log "SYSTEM CHECK: Starting system compatibility validation"
-    print_status "$BLUE" "Checking system compatibility..."
+    log_debug "FUNCTION: check_system"
+    log_debug "SYSTEM CHECK: Starting system compatibility validation"
+    log_step "Checking system compatibility..."
 
     arch=""
     debug_log "ARCH CHECK: Getting system architecture"

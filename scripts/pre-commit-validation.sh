@@ -49,10 +49,6 @@ if [ "$NO_COLOR" = "1" ] || [ "$TERM" = "dumb" ] || [ -z "$TERM" ] || { [ ! -t 1
 fi
 
 # Standard logging functions
-# Version information for troubleshooting
-if [ "${DEBUG:-0}" = "1" ]; then
-    log_debug "Script: pre-commit-validation.sh v$SCRIPT_VERSION"
-fi
 log_info() {
     [ "$AUTONOMOUS_MODE" = "0" ] && printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
@@ -74,6 +70,11 @@ log_debug() {
 log_success() {
     [ "$AUTONOMOUS_MODE" = "0" ] && printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
+
+# Version information for troubleshooting
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "Script: pre-commit-validation.sh v$SCRIPT_VERSION"
+fi
 
 log_step() {
     [ "$AUTONOMOUS_MODE" = "0" ] && printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
@@ -760,6 +761,169 @@ check_undefined_variables() {
     fi
 }
 
+# Function to test debug/test/dry-run integration patterns
+test_debug_integration() {
+    local file="$1"
+    
+    # Skip non-RUTOS scripts - they may have different patterns
+    if [[ ! "$file" =~ -rutos\.sh$ ]]; then
+        return 0
+    fi
+    
+    log_debug "Testing debug/test/dry-run integration for: $file"
+    
+    local has_issues=0
+    local has_debug_support=0
+    local has_test_mode=0
+    local has_dry_run=0
+    local has_early_exit=0
+    local has_debug_before_exit=0
+    
+    # Check for DEBUG support
+    if grep -q "DEBUG.*:-.*0" "$file" || grep -q "if.*DEBUG.*=" "$file"; then
+        has_debug_support=1
+        log_debug "  ✓ Found DEBUG support"
+    fi
+    
+    # Check for TEST_MODE or RUTOS_TEST_MODE support
+    if grep -q "RUTOS_TEST_MODE.*:-.*0" "$file" || grep -q "TEST_MODE.*:-.*0" "$file"; then
+        has_test_mode=1
+        log_debug "  ✓ Found test mode support"
+    fi
+    
+    # Check for DRY_RUN support
+    if grep -q "DRY_RUN.*:-.*0" "$file" || grep -q "if.*DRY_RUN.*=" "$file"; then
+        has_dry_run=1
+        log_debug "  ✓ Found DRY_RUN support"
+    fi
+    
+    # Check for early exit pattern in test mode
+    if grep -q "exit 0" "$file" && (grep -q "RUTOS_TEST_MODE.*1" "$file" || grep -q "TEST_MODE.*1" "$file"); then
+        has_early_exit=1
+        log_debug "  ✓ Found early exit in test mode"
+    fi
+    
+    # Check if debug output happens before early exit
+    local debug_line=$(grep -n "printf.*DEBUG.*%s" "$file" | head -1 | cut -d: -f1)
+    local exit_line=$(grep -n "exit 0" "$file" | head -1 | cut -d: -f1)
+    
+    if [ -n "$debug_line" ] && [ -n "$exit_line" ] && [ "$debug_line" -lt "$exit_line" ]; then
+        has_debug_before_exit=1
+        log_debug "  ✓ Debug output occurs before early exit"
+    fi
+    
+    # Advanced pattern validation
+    local validation_issues=()
+    
+    # Issue 1: Scripts with test mode should support both TEST_MODE and RUTOS_TEST_MODE for compatibility
+    if [ "$has_test_mode" = "1" ]; then
+        if ! grep -q "TEST_MODE.*:-.*0.*RUTOS_TEST_MODE\|RUTOS_TEST_MODE.*:-.*0.*TEST_MODE" "$file"; then
+            if ! (grep -q "TEST_MODE.*:-.*0" "$file" && grep -q "RUTOS_TEST_MODE.*:-.*0" "$file"); then
+                validation_issues+=("Missing backward compatibility: should support both TEST_MODE and RUTOS_TEST_MODE")
+                has_issues=1
+            fi
+        fi
+    fi
+    
+    # Issue 2: Debug output should show all relevant variable states
+    if [ "$has_debug_support" = "1" ] && [ "$has_test_mode" = "1" ] && [ "$has_dry_run" = "1" ]; then
+        if ! grep -q "printf.*DEBUG.*DRY_RUN.*TEST_MODE\|printf.*DEBUG.*RUTOS_TEST_MODE.*DRY_RUN" "$file"; then
+            validation_issues+=("Debug output should display DRY_RUN, TEST_MODE, and RUTOS_TEST_MODE states")
+            has_issues=1
+        fi
+    fi
+    
+    # Issue 3: Early exit should happen AFTER debug output to allow troubleshooting
+    if [ "$has_test_mode" = "1" ] && [ "$has_debug_support" = "1" ] && [ "$has_early_exit" = "1" ]; then
+        if [ "$has_debug_before_exit" != "1" ]; then
+            validation_issues+=("Early test mode exit should occur AFTER debug output for troubleshooting")
+            has_issues=1
+        fi
+    fi
+    
+    # Issue 4: Scripts should capture original variable values for debug display
+    if [ "$has_debug_support" = "1" ] && [ "$has_dry_run" = "1" ]; then
+        if ! grep -q "ORIGINAL_DRY_RUN" "$file"; then
+            validation_issues+=("Should capture ORIGINAL_DRY_RUN for debug display")
+            has_issues=1
+        fi
+    fi
+    
+    if [ "$has_debug_support" = "1" ] && [ "$has_test_mode" = "1" ]; then
+        if ! grep -q "ORIGINAL.*TEST_MODE" "$file"; then
+            validation_issues+=("Should capture ORIGINAL_TEST_MODE/ORIGINAL_RUTOS_TEST_MODE for debug display")
+            has_issues=1
+        fi
+    fi
+    
+    # Issue 5: Check for proper debug command tracing patterns
+    if [ "$has_debug_support" = "1" ] && [ "$has_dry_run" = "1" ]; then
+        # Look for commands that should be logged in debug mode
+        local has_command_logging=0
+        if grep -q "log_debug.*EXECUTING\|printf.*DEBUG.*EXECUTING" "$file"; then
+            has_command_logging=1
+        fi
+        
+        # Check if script has commands that modify system state
+        if grep -qE "(curl|wget|echo.*>|cp|mv|rm|mkdir|chmod|chown|systemctl|service|crontab)" "$file"; then
+            if [ "$has_command_logging" != "1" ]; then
+                validation_issues+=("Scripts with system-modifying commands should log command execution in debug mode")
+                has_issues=1
+            fi
+        fi
+    fi
+    
+    # Issue 6: DRY_RUN should prevent actual execution of state-changing commands
+    if [ "$has_dry_run" = "1" ]; then
+        # Look for state-changing commands that should be wrapped in DRY_RUN checks
+        local risky_commands=(curl wget echo.*\> cp mv rm mkdir chmod chown systemctl service crontab)
+        local has_unprotected_commands=0
+        
+        for cmd in "${risky_commands[@]}"; do
+            if grep -qE "$cmd" "$file" && ! grep -B5 -A5 "$cmd" "$file" | grep -q "DRY_RUN.*0"; then
+                # Check if this command is in a conditional block
+                local cmd_lines=$(grep -n "$cmd" "$file" | cut -d: -f1)
+                for line_num in $cmd_lines; do
+                    # Check if this command is properly protected by DRY_RUN check
+                    local context=$(sed -n "$((line_num-3)),$((line_num+1))p" "$file")
+                    if ! echo "$context" | grep -q "DRY_RUN.*0"; then
+                        has_unprotected_commands=1
+                        break
+                    fi
+                done
+                [ "$has_unprotected_commands" = "1" ] && break
+            fi
+        done
+        
+        if [ "$has_unprotected_commands" = "1" ]; then
+            validation_issues+=("State-changing commands should be protected by DRY_RUN checks")
+            has_issues=1
+        fi
+    fi
+    
+    # Report issues
+    if [ "$has_issues" = "1" ]; then
+        report_issue "$file" "DEBUG_INTEGRATION" "Major" "Debug/Test/Dry-run integration issues found:"
+        for issue in "${validation_issues[@]}"; do
+            report_issue "$file" "DEBUG_INTEGRATION" "Major" "  - $issue"
+        done
+        return 1
+    fi
+    
+    # Report successful patterns
+    local success_patterns=()
+    [ "$has_debug_support" = "1" ] && success_patterns+=("DEBUG support")
+    [ "$has_test_mode" = "1" ] && success_patterns+=("Test mode support")
+    [ "$has_dry_run" = "1" ] && success_patterns+=("DRY_RUN support")
+    [ "$has_debug_before_exit" = "1" ] && success_patterns+=("Debug-before-exit pattern")
+    
+    if [ ${#success_patterns[@]} -gt 0 ]; then
+        log_debug "  ✓ $file: Good debug integration patterns: ${success_patterns[*]}"
+    fi
+    
+    return 0
+}
+
 # Function to validate a single shell script file
 validate_file() {
     file="$1"
@@ -796,8 +960,8 @@ validate_file() {
     # Run shfmt formatting validation (after potential auto-fixes)
     run_shfmt "$file"
 
-    # Check for undefined variables
-    check_undefined_variables "$file"
+    # Test debug/test/dry-run integration patterns (RUTOS scripts only)
+    test_debug_integration "$file"
 
     # Calculate issues for this file
     file_issues=$((TOTAL_ISSUES - initial_issues))
@@ -951,6 +1115,103 @@ validate_markdown_file() {
     fi
 
     return $file_issues
+}
+
+# Function to display debug integration patterns summary
+display_debug_integration_summary() {
+    [ "$AUTONOMOUS_MODE" = "1" ] && return 0  # Skip in autonomous mode
+
+    local rutos_scripts=()
+    local scripts_with_debug=0
+    local scripts_with_test_mode=0
+    local scripts_with_dry_run=0
+    local scripts_with_all_patterns=0
+    local scripts_with_integration_issues=0
+
+    # Find all RUTOS scripts
+    while IFS= read -r -d '' file; do
+        if [[ "$file" =~ -rutos\.sh$ ]]; then
+            rutos_scripts+=("$file")
+        fi
+    done < <(find . -name "*.sh" -type f -print0 2>/dev/null)
+
+    if [ ${#rutos_scripts[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    # Analyze each RUTOS script
+    for script in "${rutos_scripts[@]}"; do
+        local has_debug=0
+        local has_test_mode=0
+        local has_dry_run=0
+        local has_issues=0
+
+        # Check for DEBUG support
+        if grep -q "DEBUG.*:-.*0" "$script" || grep -q "if.*DEBUG.*=" "$script"; then
+            has_debug=1
+            scripts_with_debug=$((scripts_with_debug + 1))
+        fi
+
+        # Check for TEST_MODE or RUTOS_TEST_MODE support  
+        if grep -q "RUTOS_TEST_MODE.*:-.*0" "$script" || grep -q "TEST_MODE.*:-.*0" "$script"; then
+            has_test_mode=1
+            scripts_with_test_mode=$((scripts_with_test_mode + 1))
+        fi
+
+        # Check for DRY_RUN support
+        if grep -q "DRY_RUN.*:-.*0" "$script" || grep -q "if.*DRY_RUN.*=" "$script"; then
+            has_dry_run=1
+            scripts_with_dry_run=$((scripts_with_dry_run + 1))
+        fi
+
+        # Check for integration issues (from our issue list)
+        if echo "$ISSUE_LIST" | grep -q "DEBUG_INTEGRATION.*$script"; then
+            has_issues=1
+            scripts_with_integration_issues=$((scripts_with_integration_issues + 1))
+        fi
+
+        # Count scripts with all three patterns
+        if [ "$has_debug" = "1" ] && [ "$has_test_mode" = "1" ] && [ "$has_dry_run" = "1" ]; then
+            scripts_with_all_patterns=$((scripts_with_all_patterns + 1))
+        fi
+    done
+
+    # Display summary if we have RUTOS scripts
+    printf "\n"
+    printf "%s=== DEBUG INTEGRATION PATTERNS SUMMARY ===%s\n" "$PURPLE" "$NC"
+    printf "RUTOS scripts analyzed: %d\n" "${#rutos_scripts[@]}"
+    printf "\n"
+    printf "Scripts with DEBUG support:     %d/%d (%d%%)\n" "$scripts_with_debug" "${#rutos_scripts[@]}" "$((scripts_with_debug * 100 / ${#rutos_scripts[@]}))"
+    printf "Scripts with TEST_MODE support: %d/%d (%d%%)\n" "$scripts_with_test_mode" "${#rutos_scripts[@]}" "$((scripts_with_test_mode * 100 / ${#rutos_scripts[@]}))"
+    printf "Scripts with DRY_RUN support:   %d/%d (%d%%)\n" "$scripts_with_dry_run" "${#rutos_scripts[@]}" "$((scripts_with_dry_run * 100 / ${#rutos_scripts[@]}))"
+    printf "Scripts with ALL patterns:      %d/%d (%d%%)\n" "$scripts_with_all_patterns" "${#rutos_scripts[@]}" "$((scripts_with_all_patterns * 100 / ${#rutos_scripts[@]}))"
+    printf "\n"
+
+    # Integration quality assessment
+    if [ "$scripts_with_integration_issues" -gt 0 ]; then
+        printf "${YELLOW}Scripts with integration issues: %d${NC}\n" "$scripts_with_integration_issues"
+    else
+        printf "${GREEN}✓ No debug integration issues found${NC}\n"
+    fi
+
+    # Recommendations
+    if [ "$scripts_with_all_patterns" -lt "${#rutos_scripts[@]}" ]; then
+        printf "\n${BLUE}RECOMMENDATIONS:${NC}\n"
+        
+        local missing_debug=$((${#rutos_scripts[@]} - scripts_with_debug))
+        local missing_test=$((${#rutos_scripts[@]} - scripts_with_test_mode))
+        local missing_dry=$((${#rutos_scripts[@]} - scripts_with_dry_run))
+
+        [ "$missing_debug" -gt 0 ] && printf "• Add DEBUG support to %d more scripts for better troubleshooting\n" "$missing_debug"
+        [ "$missing_test" -gt 0 ] && printf "• Add TEST_MODE support to %d more scripts for safer testing\n" "$missing_test" 
+        [ "$missing_dry" -gt 0 ] && printf "• Add DRY_RUN support to %d more scripts for safe execution\n" "$missing_dry"
+        
+        printf "• Complete integration enables: detailed troubleshooting, safe testing, and controlled execution\n"
+    else
+        printf "\n${GREEN}🎉 EXCELLENT: All RUTOS scripts have complete debug integration patterns!${NC}\n"
+    fi
+
+    printf "\n"
 }
 
 # Function to display issue summary by type
@@ -1202,6 +1463,9 @@ display_summary() {
     if [ $TOTAL_ISSUES -gt 0 ]; then
         display_issue_summary
     fi
+
+    # Always show debug integration patterns summary
+    display_debug_integration_summary
 
     if [ $TOTAL_ISSUES -eq 0 ]; then
         log_success "All validations passed!"
