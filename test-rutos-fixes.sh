@@ -19,7 +19,7 @@ if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     BLUE='\033[1;35m'
     # shellcheck disable=SC2034  # Standard project colors, may be used in future
     PURPLE='\033[0;35m'
-    # shellcheck disable=SC2034  # Standard project colors, may be used in future  
+    # shellcheck disable=SC2034  # Standard project colors, may be used in future
     CYAN='\033[0;36m'
     NC='\033[0m'
 else
