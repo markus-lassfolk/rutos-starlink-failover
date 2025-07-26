@@ -158,7 +158,6 @@ select_best_gps() {
 # Format GPS data for logging
 format_gps_log() {
     gps_data="$1"
-    timestamp="$2"
 
     if [ -n "$gps_data" ]; then
         source=$(echo "$gps_data" | cut -d'|' -f1)
@@ -189,7 +188,7 @@ collect_gps_data() {
     best_gps=$(select_best_gps "$rutos_gps" "$starlink_gps")
 
     if [ -n "$best_gps" ]; then
-        format_gps_log "$best_gps" "$(date '+%Y-%m-%d %H:%M:%S')"
+        format_gps_log "$best_gps"
         return 0
     else
         echo "GPS: no_valid_sources"
@@ -293,7 +292,7 @@ main() {
 
         # Demo GPS collection
         log_info "Collecting GPS from RUTOS and Starlink sources..."
-        if gps_result=$(collect_gps_data); then
+        if gps_result=$(collect_gps_data "192.168.80.1" "192.168.100.1" ""); then
             log_info "GPS Result: $gps_result"
         else
             log_warning "No valid GPS sources available in demo mode"
