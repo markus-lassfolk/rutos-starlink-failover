@@ -2,9 +2,6 @@
 # ==============================================================================
 # RUTOS Library Loader
 #
-# Version: 2.7.0
-# Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
-#
 # Main entry point for loading all RUTOS library modules.
 # Include this one file in scripts to get all standardized functionality.
 #
@@ -14,13 +11,6 @@
 # ==============================================================================
 
 # Prevent multiple sourcing
-
-# Version information (auto-updated by update-version.sh)
-# Only set if not already defined as readonly
-if ! readonly SCRIPT_VERSION 2>/dev/null; then
-    SCRIPT_VERSION="2.7.1"
-    readonly SCRIPT_VERSION
-fi
 if [ "${_RUTOS_LIB_LOADED:-}" = "1" ]; then
     return 0
 fi
@@ -60,11 +50,6 @@ fi
 . "$_rutos_lib_dir/rutos-logging.sh"
 . "$_rutos_lib_dir/rutos-common.sh"
 
-# Load compatibility layer for legacy function support
-if [ -f "$_rutos_lib_dir/rutos-compatibility.sh" ]; then
-    . "$_rutos_lib_dir/rutos-compatibility.sh"
-fi
-
 # ============================================================================
 # RUTOS INITIALIZATION FUNCTION
 # ============================================================================
@@ -73,7 +58,6 @@ fi
 rutos_init() {
     script_name="${1:-$(basename "$0")}"
     script_version="${2:-unknown}"
-    tracing_mode="${3:-selective}" # "automatic", "selective", or "off"
 
     # Set up logging levels
     setup_logging_levels
@@ -81,8 +65,8 @@ rutos_init() {
     # Set up cleanup handlers
     setup_cleanup_handlers
 
-    # Log script initialization with tracing mode
-    log_script_init "$script_name" "$script_version" "$tracing_mode"
+    # Log script initialization
+    log_script_init "$script_name" "$script_version"
 
     # Validate RUTOS environment (unless in test mode)
     if [ "${SKIP_RUTOS_VALIDATION:-0}" != "1" ]; then
@@ -94,10 +78,6 @@ rutos_init() {
 
     # Export common variables for child processes
     export SCRIPT_NAME="$script_name"
-    # Only export SCRIPT_VERSION if not already set (respect existing script versions)
-    if [ -z "${SCRIPT_VERSION:-}" ]; then
-        export SCRIPT_VERSION="$script_version"
-    fi
     export _RUTOS_LIB_DIR="$_rutos_lib_dir"
 }
 
@@ -111,10 +91,6 @@ rutos_init_simple() {
 
     # Load minimal components
     setup_logging_levels
-    # Version information for troubleshooting
-    if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Script: rutos-lib.sh v$SCRIPT_VERSION"
-    fi
     log_info "Starting $script_name"
     check_test_mode_exit
 }

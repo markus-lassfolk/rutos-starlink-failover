@@ -174,14 +174,15 @@ safe_execute() {
         print_status "$CYAN" "[DEBUG] Description: $description"
     fi
 
-    if [ "$DRY_RUN" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    if [ "$DRY_RUN" = "1" ]; then
         print_status "$YELLOW" "[DRY-RUN] Would execute: $description"
         if [ "${DEBUG:-0}" = "1" ]; then
             print_status "$CYAN" "[DRY-RUN] Command: $cmd"
         fi
         return 0
     else
-        if [ "${DEBUG:-0}" = "1" ]; then
+        # RUTOS_TEST_MODE enables trace logging but does NOT prevent execution
+        if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
             print_status "$CYAN" "Executing: $cmd"
         fi
         eval "$cmd"
@@ -350,7 +351,7 @@ print_status "$BLUE" "• ✅ Convenience symlinks and shortcuts"
 print_status "$BLUE" "• ✅ Temporary bootstrap and installation files"
 print_status "$BLUE" "• ✅ Version-pinned recovery scripts"
 
-if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+if [ "$DRY_RUN" = "1" ]; then
     print_status "$YELLOW" "🔍 DRY-RUN MODE: No actual changes were made"
     print_status "$YELLOW" "Use --execute, --force, or --auto for real cleanup"
 else

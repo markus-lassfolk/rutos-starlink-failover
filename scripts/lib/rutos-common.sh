@@ -2,21 +2,11 @@
 # ==============================================================================
 # RUTOS Common Utilities Library
 #
-# Version: 2.7.0
-# Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
-#
 # Common utility functions used across RUTOS scripts.
 # POSIX sh compatible for busybox environments.
 # ==============================================================================
 
 # Prevent multiple sourcing
-
-# Version information (auto-updated by update-version.sh)
-# Only set if not already defined as readonly
-if ! readonly SCRIPT_VERSION 2>/dev/null; then
-    SCRIPT_VERSION="2.7.1"
-    readonly SCRIPT_VERSION
-fi
 if [ "${_RUTOS_COMMON_LOADED:-}" = "1" ]; then
     return 0
 fi
@@ -60,7 +50,7 @@ validate_rutos_environment() {
 
     # Version information for troubleshooting
     if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Script: rutos-common.sh v$SCRIPT_VERSION"
+        log_debug "Script: rutos-common.sh"
     fi
     log_debug "RUTOS environment validated"
     log_function_exit "validate_rutos_environment" "0"

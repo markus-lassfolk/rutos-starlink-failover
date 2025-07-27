@@ -8,464 +8,80 @@
 #
 # ==============================================================================
 
-# ENHANCED DEBUG TRACING: Add line number tracking for exit code 2 debugging
-debug_trace() {
-    if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-        printf "[TRACE-LINE-%s] %s\n" "$1" "$2" >&2
-    fi
-}
-
-debug_trace "11" "Script starting - install-rutos.sh"
-debug_trace "12" "Setting shell options: set -eu"
-
 set -eu
 
-debug_trace "16" "Shell options set successfully"
-
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-# Note: readonly set after library loading to avoid conflicts
-BUILD_INFO="1.0.2+198.38fb60b-dirty"
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
+# Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="install-rutos.sh"
 
-debug_trace "24" "Version information set: SCRIPT_VERSION=$SCRIPT_VERSION"
-debug_trace "25" "BUILD_INFO=$BUILD_INFO"
-debug_trace "26" "SCRIPT_NAME=$SCRIPT_NAME"
+# Extract build info safely (handle remote execution via curl | sh)
+if [ -f "$0" ] && [ "$0" != "sh" ]; then
+    BUILD_INFO=$(grep "# Build:" "$0" | head -1 | sed 's/# Build: //' 2>/dev/null || echo "1.0.2+198.38fb60b-dirty")
+else
+    # When run via curl | sh, $0 is "sh", so use embedded build info
+    BUILD_INFO="1.0.2+198.38fb60b-dirty"
+fi
 
 # Configuration - can be overridden by environment variables
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
 BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
-debug_trace "32" "Configuration set: GITHUB_BRANCH=$GITHUB_BRANCH"
-debug_trace "33" "GITHUB_REPO=$GITHUB_REPO"
-debug_trace "34" "BASE_URL=$BASE_URL"
-
 # Try to load RUTOS library system if available locally (development mode)
 # For remote installation via curl, we'll use built-in fallback functions
 LIBRARY_LOADED=0
-
-debug_trace "39" "Starting library loading process"
-debug_trace "40" "Checking for local library: $(dirname "$0")/lib/rutos-lib.sh"
-
 if [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; then
-    debug_trace "43" "Local library found - attempting to load"
-    debug_trace "44" "Script location: $0"
-    debug_trace "45" "Library path: $(dirname "$0")/lib/rutos-lib.sh"
-    debug_trace "46" "Library exists: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo 'yes' || echo 'no')"
     # Development mode: scripts directory available locally
-    # shellcheck source=/dev/null
-    debug_trace "47" "About to source library..."
-    debug_trace "48" "Temporarily unsetting readonly SCRIPT_VERSION to avoid conflicts"
-    # Workaround for readonly variable conflicts - unset and re-export for library
-    temp_script_version="$SCRIPT_VERSION"
-    unset SCRIPT_VERSION 2>/dev/null || true
     if . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
         LIBRARY_LOADED=1
-        SCRIPT_VERSION="$temp_script_version" # Restore original value
-        readonly SCRIPT_VERSION # Now safe to make readonly
-        debug_trace "55" "Local RUTOS library loaded successfully"
         log_debug "RUTOS library system loaded from local development environment"
-    else
-        lib_error=$?
-        SCRIPT_VERSION="$temp_script_version" # Restore original value
-        readonly SCRIPT_VERSION # Make readonly even if library failed
-        debug_trace "59" "Failed to load local RUTOS library (exit code: $lib_error)"
-        debug_trace "60" "Error attempting to source: $(dirname "$0")/lib/rutos-lib.sh"
     fi
-else
-    debug_trace "53" "No local library found - will attempt remote download"
-    readonly SCRIPT_VERSION # Make readonly since no conflicts expected
 fi
 
 # Remote installation mode: download library to temp location and use it
 if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
-    debug_trace "57" "Starting remote library download process"
-    debug_trace "58" "LIBRARY_LOADED=$LIBRARY_LOADED, USE_LIBRARY=${USE_LIBRARY:-1}"
-
-    # Create temporary directory for library with fallback options
-    printf "[DEBUG] ===== TEMPORARY DIRECTORY SETUP =====\n" >&2
-    debug_trace "62" "Starting temporary directory setup"
-
-    # Function to check available disk space in KB
-    check_disk_space() {
-        dir="$1"
-        if [ -d "$dir" ]; then
-            # Get available space in KB (POSIX df output)
-            df "$dir" 2>/dev/null | awk 'NR==2 {print $4}' 2>/dev/null || echo "0"
-        else
-            echo "0"
-        fi
-    }
-
-    # Function to check if directory has enough space for library (need ~30KB minimum)
-    has_enough_space() {
-        dir="$1"
-        min_space_kb=50 # Require 50KB minimum for safety
-        available_kb=""
-
-        available_kb=$(check_disk_space "$dir")
-        printf "[DEBUG] Directory %s has %s KB available (need %s KB)\n" "$dir" "$available_kb" "$min_space_kb" >&2
-
-        if [ "$available_kb" -ge "$min_space_kb" ]; then
-            return 0
-        else
-            return 1
-        fi
-    }
-
-    # List of temporary directory candidates in order of preference
-    temp_candidates="/tmp /var/tmp /root/tmp ."
-    TEMP_LIB_DIR=""
-
-    for base_dir in $temp_candidates; do
-        candidate_dir="$base_dir/rutos-install-lib-$$"
-        printf "[DEBUG] Evaluating candidate: %s\n" "$candidate_dir" >&2
-
-        # Check if base directory exists and is writable
-        if [ ! -d "$base_dir" ]; then
-            printf "[DEBUG]   Base directory does not exist: %s\n" "$base_dir" >&2
-            continue
-        fi
-
-        if [ ! -w "$base_dir" ]; then
-            printf "[DEBUG]   Base directory not writable: %s\n" "$base_dir" >&2
-            continue
-        fi
-
-        # Check available disk space
-        if ! has_enough_space "$base_dir"; then
-            printf "[DEBUG]   Insufficient disk space in: %s\n" "$base_dir" >&2
-            continue
-        fi
-
-        # Try to create the directory
-        if mkdir -p "$candidate_dir" 2>/dev/null; then
-            printf "[DEBUG]   Successfully created: %s\n" "$candidate_dir" >&2
-            TEMP_LIB_DIR="$candidate_dir"
-            break
-        else
-            printf "[DEBUG]   Failed to create directory: %s\n" "$candidate_dir" >&2
-        fi
-    done
-
-    if [ -z "$TEMP_LIB_DIR" ]; then
-        printf "[ERROR] Cannot create temporary directory for library download\n" >&2
-        printf "[DEBUG] All temp directory attempts failed:\n" >&2
-        for base_dir in $temp_candidates; do
-            space_kb=$(check_disk_space "$base_dir")
-            printf "[DEBUG]   %s: %s KB available, writable: %s\n" \
-                "$base_dir" "$space_kb" \
-                "$([ -w "$base_dir" ] && echo 'yes' || echo 'no')" >&2
-        done
-        TEMP_LIB_DIR=""
-    else
-        printf "[DEBUG] Selected temp directory: %s\n" "$TEMP_LIB_DIR" >&2
-        space_kb=$(check_disk_space "$TEMP_LIB_DIR")
-        printf "[DEBUG] Available space: %s KB\n" "$space_kb" >&2
-    fi
-
-    # Only proceed if we have a temp directory
-    if [ -n "$TEMP_LIB_DIR" ] && [ -d "$TEMP_LIB_DIR" ]; then
-        printf "[DEBUG] Testing temp directory writability: %s\n" "$TEMP_LIB_DIR" >&2
-        # Check if temp directory is writable
-        if ! touch "$TEMP_LIB_DIR/test_write" 2>/dev/null; then
-            printf "[ERROR] Temporary directory $TEMP_LIB_DIR is not writable\n" >&2
-            printf "[DEBUG] Write test failed - checking directory status:\n" >&2
-            printf "[DEBUG]   Directory exists: %s\n" "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
-            printf "[DEBUG]   Directory permissions: %s\n" "$(ls -ld "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
-            printf "[DEBUG]   Filesystem info: %s\n" "$(df -h "$TEMP_LIB_DIR" 2>/dev/null | tail -1 || echo 'unavailable')" >&2
-            # Bootstrap cleanup before DRY_RUN variable available
-            rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true # VALIDATION_SKIP_DRY_RUN
-            TEMP_LIB_DIR=""
-        else
-            printf "[DEBUG] Write test successful - temp directory is writable\n" >&2
-            # Bootstrap cleanup before DRY_RUN variable available
-            rm -f "$TEMP_LIB_DIR/test_write" 2>/dev/null || true # VALIDATION_SKIP_DRY_RUN
-        fi
-    else
-        printf "[ERROR] No temp directory available (TEMP_LIB_DIR='%s', exists=%s)\n" "$TEMP_LIB_DIR" "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
-    fi
-
-    printf "[DEBUG] ===== TEMP DIRECTORY SETUP COMPLETE =====\n" >&2
+    # Create temporary directory for library
+    TEMP_LIB_DIR="/tmp/rutos-install-lib-$$"
+    mkdir -p "$TEMP_LIB_DIR" 2>/dev/null || true
 
     # Try to download library components
     library_downloaded=0
-    if [ -n "$TEMP_LIB_DIR" ] && command -v curl >/dev/null 2>&1; then
-        printf "[INFO] Downloading RUTOS library system to %s...\n" "$TEMP_LIB_DIR"
-        printf "[DEBUG] Base URL: %s\n" "$BASE_URL" >&2
-        printf "[DEBUG] Using curl for downloads: $(which curl)\n" >&2
-        printf "[DEBUG] Target directory: %s (exists: %s, writable: %s)\n" "$TEMP_LIB_DIR" \
-            "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" \
-            "$([ -w "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
-
-        # Show directory contents before download
-        if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-            printf "[TRACE] Directory contents before download:\n" >&2
-            ls -la "$TEMP_LIB_DIR" 2>&1 | while read -r line; do
-                printf "[TRACE]   %s\n" "$line" >&2
-            done
-        fi
-
-        # Download with comprehensive error handling and tracing
-        download_success=1
-        for lib_file in "rutos-lib.sh" "rutos-colors.sh" "rutos-logging.sh" "rutos-common.sh"; do
-            download_url="${BASE_URL}/scripts/lib/${lib_file}"
-            target_file="$TEMP_LIB_DIR/$lib_file"
-
-            printf "[DEBUG] ===== DOWNLOADING FILE %s =====\n" "$lib_file" >&2
-            printf "[DEBUG] Source URL: %s\n" "$download_url" >&2
-            printf "[DEBUG] Target file: %s\n" "$target_file" >&2
-            printf "[DEBUG] Target directory permissions: %s\n" "$(ls -ld "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
-
-            # Check available disk space before download
-            available_space=$(check_disk_space "$TEMP_LIB_DIR")
-            printf "[DEBUG] Available disk space: %s KB\n" "$available_space" >&2
-            if [ "$available_space" -lt 20 ]; then
-                printf "[ERROR] Insufficient disk space: %s KB available (need at least 20 KB)\n" "$available_space" >&2
-                printf "[ERROR] Consider freeing up disk space or using a different location\n" >&2
-                download_success=0
-                break
-            fi
-
-            # Test target file writability
-            if ! touch "$target_file.test" 2>/dev/null; then
-                printf "[ERROR] Cannot create test file in target directory: %s\n" "$target_file.test" >&2
-                printf "[DEBUG] Directory space: %s\n" "$(df -h "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
-                download_success=0
-                break
-            else
-                rm -f "$target_file.test" 2>/dev/null || true
-                printf "[DEBUG] Target directory write test: PASSED\n" >&2
-            fi
-
-            # Show exact curl command being executed
-            printf "[TRACE] Executing: curl -fsSL '%s' -o '%s'\n" "$download_url" "$target_file" >&2
-
-            # Execute curl with detailed error capture
-            curl_exit_code=0
-            # Bootstrap curl command before safe_execute is available
-            if ! curl -fsSL "$download_url" -o "$target_file"; then # VALIDATION_SKIP_SAFE_EXECUTE
-                curl_exit_code=$?
-                printf "[ERROR] ===== CURL DOWNLOAD FAILED =====\n" >&2
-                printf "[ERROR] File: %s\n" "$lib_file" >&2
-                printf "[ERROR] URL: %s\n" "$download_url" >&2
-                printf "[ERROR] Target: %s\n" "$target_file" >&2
-                printf "[ERROR] Curl exit code: %s\n" "$curl_exit_code" >&2
-                printf "[ERROR] Target file exists: %s\n" "$([ -f "$target_file" ] && echo 'yes' || echo 'no')" >&2
-                if [ -f "$target_file" ]; then
-                    printf "[ERROR] Partial file size: %s bytes\n" "$(wc -c <"$target_file" 2>/dev/null || echo 'unknown')" >&2
-                    printf "[ERROR] Partial file permissions: %s\n" "$(ls -l "$target_file" 2>/dev/null || echo 'unavailable')" >&2
-                fi
-                printf "[ERROR] Directory after failed download:\n" >&2
-                ls -la "$TEMP_LIB_DIR" 2>&1 | while read -r line; do
-                    printf "[ERROR]   %s\n" "$line" >&2
-                done
-                download_success=0
-                break
-            else
-                file_size=$(wc -c <"$target_file" 2>/dev/null || echo 'unknown')
-                printf "[DEBUG] ===== DOWNLOAD SUCCESSFUL =====\n" >&2
-                printf "[DEBUG] Downloaded: %s (%s bytes)\n" "$lib_file" "$file_size" >&2
-                printf "[DEBUG] File permissions: %s\n" "$(ls -l "$target_file" 2>/dev/null || echo 'unavailable')" >&2
-
-                # Verify file content is not empty and seems valid
-                if [ -f "$target_file" ] && [ -s "$target_file" ]; then
-                    printf "[DEBUG] File validation: non-empty ✓\n" >&2
-                    # Show first few lines to verify it's a shell script
-                    if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-                        printf "[TRACE] First 3 lines of downloaded file:\n" >&2
-                        head -3 "$target_file" 2>/dev/null | while read -r line; do
-                            printf "[TRACE]   %s\n" "$line" >&2
-                        done
-                    fi
-                else
-                    printf "[ERROR] Downloaded file is empty or missing: %s\n" "$target_file" >&2
-                    download_success=0
-                    break
-                fi
-            fi
-
-            printf "[DEBUG] ===== FILE %s COMPLETE =====\n" "$lib_file" >&2
-        done
-
-        if [ "$download_success" = "1" ]; then
+    if command -v curl >/dev/null 2>&1; then
+        printf "[INFO] Downloading RUTOS library system...\n"
+        if curl -fsSL "${BASE_URL}/scripts/lib/rutos-lib.sh" -o "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
+            curl -fsSL "${BASE_URL}/scripts/lib/rutos-colors.sh" -o "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
+            curl -fsSL "${BASE_URL}/scripts/lib/rutos-logging.sh" -o "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
+            curl -fsSL "${BASE_URL}/scripts/lib/rutos-common.sh" -o "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
             # Set library path and load it
-            # shellcheck disable=SC2034  # Variable used by library loading system
             RUTOS_LIB_PATH="$TEMP_LIB_DIR"
-            # shellcheck source=/dev/null
             if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
                 LIBRARY_LOADED=1
                 library_downloaded=1
                 printf "[INFO] RUTOS library system downloaded and loaded successfully\n"
-            else
-                printf "[ERROR] Failed to load downloaded RUTOS library\n" >&2
             fi
         fi
-    elif [ -n "$TEMP_LIB_DIR" ] && command -v wget >/dev/null 2>&1; then
-        printf "[INFO] Downloading RUTOS library system to %s...\n" "$TEMP_LIB_DIR"
-        printf "[DEBUG] Base URL: %s\n" "$BASE_URL" >&2
-        printf "[DEBUG] Using wget for downloads: $(which wget)\n" >&2
-        printf "[DEBUG] Target directory: %s (exists: %s, writable: %s)\n" "$TEMP_LIB_DIR" \
-            "$([ -d "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" \
-            "$([ -w "$TEMP_LIB_DIR" ] && echo 'yes' || echo 'no')" >&2
-
-        # Show directory contents before download
-        if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-            printf "[TRACE] Directory contents before download:\n" >&2
-            ls -la "$TEMP_LIB_DIR" 2>&1 | while read -r line; do
-                printf "[TRACE]   %s\n" "$line" >&2
-            done
-        fi
-
-        # Download with comprehensive error handling and tracing
-        download_success=1
-        for lib_file in "rutos-lib.sh" "rutos-colors.sh" "rutos-logging.sh" "rutos-common.sh"; do
-            download_url="${BASE_URL}/scripts/lib/${lib_file}"
-            target_file="$TEMP_LIB_DIR/$lib_file"
-
-            printf "[DEBUG] ===== DOWNLOADING FILE %s =====\n" "$lib_file" >&2
-            printf "[DEBUG] Source URL: %s\n" "$download_url" >&2
-            printf "[DEBUG] Target file: %s\n" "$target_file" >&2
-            printf "[DEBUG] Target directory permissions: %s\n" "$(ls -ld "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
-
-            # Check available disk space before download
-            available_space=$(check_disk_space "$TEMP_LIB_DIR")
-            printf "[DEBUG] Available disk space: %s KB\n" "$available_space" >&2
-            if [ "$available_space" -lt 20 ]; then
-                printf "[ERROR] Insufficient disk space: %s KB available (need at least 20 KB)\n" "$available_space" >&2
-                printf "[ERROR] Consider freeing up disk space or using a different location\n" >&2
-                download_success=0
-                break
-            fi
-
-            # Test target file writability
-            if ! touch "$target_file.test" 2>/dev/null; then
-                printf "[ERROR] Cannot create test file in target directory: %s\n" "$target_file.test" >&2
-                printf "[DEBUG] Directory space: %s\n" "$(df -h "$TEMP_LIB_DIR" 2>/dev/null || echo 'unavailable')" >&2
-                download_success=0
-                break
-            else
-                rm -f "$target_file.test" 2>/dev/null || true
-                printf "[DEBUG] Target directory write test: PASSED\n" >&2
-            fi
-
-            # Show exact wget command being executed
-            printf "[TRACE] Executing: wget -q '%s' -O '%s'\n" "$download_url" "$target_file" >&2
-
-            # Execute wget with detailed error capture
-            wget_exit_code=0
-            # Bootstrap wget command before safe_execute is available
-            if ! wget -q "$download_url" -O "$target_file"; then # VALIDATION_SKIP_SAFE_EXECUTE
-                wget_exit_code=$?
-                printf "[ERROR] ===== WGET DOWNLOAD FAILED =====\n" >&2
-                printf "[ERROR] File: %s\n" "$lib_file" >&2
-                printf "[ERROR] URL: %s\n" "$download_url" >&2
-                printf "[ERROR] Target: %s\n" "$target_file" >&2
-                printf "[ERROR] Wget exit code: %s\n" "$wget_exit_code" >&2
-                printf "[ERROR] Target file exists: %s\n" "$([ -f "$target_file" ] && echo 'yes' || echo 'no')" >&2
-                if [ -f "$target_file" ]; then
-                    printf "[ERROR] Partial file size: %s bytes\n" "$(wc -c <"$target_file" 2>/dev/null || echo 'unknown')" >&2
-                    printf "[ERROR] Partial file permissions: %s\n" "$(ls -l "$target_file" 2>/dev/null || echo 'unavailable')" >&2
-                fi
-                printf "[ERROR] Directory after failed download:\n" >&2
-                ls -la "$TEMP_LIB_DIR" 2>&1 | while read -r line; do
-                    printf "[ERROR]   %s\n" "$line" >&2
-                done
-                download_success=0
-                break
-            else
-                file_size=$(wc -c <"$target_file" 2>/dev/null || echo 'unknown')
-                printf "[DEBUG] ===== DOWNLOAD SUCCESSFUL =====\n" >&2
-                printf "[DEBUG] Downloaded: %s (%s bytes)\n" "$lib_file" "$file_size" >&2
-                printf "[DEBUG] File permissions: %s\n" "$(ls -l "$target_file" 2>/dev/null || echo 'unavailable')" >&2
-
-                # Verify file content is not empty and seems valid
-                if [ -f "$target_file" ] && [ -s "$target_file" ]; then
-                    printf "[DEBUG] File validation: non-empty ✓\n" >&2
-                    # Show first few lines to verify it's a shell script
-                    if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-                        printf "[TRACE] First 3 lines of downloaded file:\n" >&2
-                        head -3 "$target_file" 2>/dev/null | while read -r line; do
-                            printf "[TRACE]   %s\n" "$line" >&2
-                        done
-                    fi
-                else
-                    printf "[ERROR] Downloaded file is empty or missing: %s\n" "$target_file" >&2
-                    download_success=0
-                    break
-                fi
-            fi
-
-            printf "[DEBUG] ===== FILE %s COMPLETE =====\n" "$lib_file" >&2
-        done
-
-        if [ "$download_success" = "1" ]; then
+    elif command -v wget >/dev/null 2>&1; then
+        printf "[INFO] Downloading RUTOS library system...\n"
+        if wget -q "${BASE_URL}/scripts/lib/rutos-lib.sh" -O "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
+            wget -q "${BASE_URL}/scripts/lib/rutos-colors.sh" -O "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
+            wget -q "${BASE_URL}/scripts/lib/rutos-logging.sh" -O "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
+            wget -q "${BASE_URL}/scripts/lib/rutos-common.sh" -O "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
             # Set library path and load it
-            # shellcheck disable=SC2034  # Variable used by library loading system
             RUTOS_LIB_PATH="$TEMP_LIB_DIR"
-            # shellcheck source=/dev/null
             if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
                 LIBRARY_LOADED=1
                 library_downloaded=1
                 printf "[INFO] RUTOS library system downloaded and loaded successfully\n"
-            else
-                printf "[ERROR] Failed to load downloaded RUTOS library\n" >&2
             fi
-        fi
-    else
-        if [ -z "$TEMP_LIB_DIR" ]; then
-            printf "[ERROR] No writable temporary directory available for library download\n" >&2
-        else
-            printf "[ERROR] No download tool available (curl or wget required)\n" >&2
         fi
     fi
 
     # Cleanup function for temporary library
     cleanup_temp_library() {
         if [ "$library_downloaded" = "1" ] && [ -d "$TEMP_LIB_DIR" ]; then
-            printf "[DEBUG] Cleaning up temporary library directory: %s\n" "$TEMP_LIB_DIR" >&2
-
-            # Show what we're cleaning up
-            if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-                printf "[TRACE] Directory contents before cleanup:\n" >&2
-                ls -la "$TEMP_LIB_DIR" 2>&1 | while read -r line; do
-                    printf "[TRACE]   %s\n" "$line" >&2
-                done
-            fi
-
-            # Protect state-changing command with DRY_RUN check
-            if [ "${DRY_RUN:-0}" = "1" ]; then
-                printf "[DRY_RUN] Would remove temporary library directory: %s\n" "$TEMP_LIB_DIR" >&2
-            else
-                rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true
-                printf "[DEBUG] Temporary library directory removed: %s\n" "$TEMP_LIB_DIR" >&2
-            fi
-
-            # Special handling for /root/tmp - clean up the parent directory if we created it
-            case "$TEMP_LIB_DIR" in
-                /root/tmp/*)
-                    # Check if /root/tmp is empty after our cleanup and remove it if we created it
-                    if [ -d "/root/tmp" ] && [ "$(ls -A /root/tmp 2>/dev/null | wc -l)" -eq 0 ]; then
-                        if [ "${DRY_RUN:-0}" = "1" ]; then
-                            printf "[DRY_RUN] Would remove empty /root/tmp directory\n" >&2
-                        else
-                            rmdir /root/tmp 2>/dev/null || true
-                            printf "[DEBUG] Removed empty /root/tmp directory\n" >&2
-                        fi
-                    else
-                        printf "[DEBUG] Keeping /root/tmp (not empty or removal failed)\n" >&2
-                    fi
-                    ;;
-            esac
-        elif [ -n "$TEMP_LIB_DIR" ] && [ -d "$TEMP_LIB_DIR" ]; then
-            # Directory exists but library wasn't downloaded - still clean it up
-            printf "[DEBUG] Cleaning up unused temporary directory: %s\n" "$TEMP_LIB_DIR" >&2
-            if [ "${DRY_RUN:-0}" = "1" ]; then
-                printf "[DRY_RUN] Would remove unused temporary directory: %s\n" "$TEMP_LIB_DIR" >&2
-            else
-                rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true
-            fi
+            rm -rf "$TEMP_LIB_DIR" 2>/dev/null || true
         fi
     }
 
@@ -485,113 +101,63 @@ LOG_DIR="$(dirname "$LOG_FILE")"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 
 # Initialize logging system
-debug_trace "473" "Starting logging system initialization"
-debug_trace "474" "LIBRARY_LOADED=$LIBRARY_LOADED"
-
 if [ "$LIBRARY_LOADED" = "1" ]; then
-    debug_trace "477" "Using RUTOS library system - calling rutos_init"
-    debug_trace "478" "Parameters: SCRIPT_NAME=$SCRIPT_NAME, SCRIPT_VERSION=$SCRIPT_VERSION"
-
     # Use new RUTOS library system (either local development or downloaded)
-    debug_trace "481" "About to call rutos_init function"
-    rutos_init "$SCRIPT_NAME" "$SCRIPT_VERSION"
-    debug_trace "483" "rutos_init completed successfully"
-
+    rutos_init_portable "$SCRIPT_NAME" "$SCRIPT_VERSION"
     log_info "Using RUTOS library system for standardized logging"
-    debug_trace "486" "Logged library usage info"
     log_debug "Library mode: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo "local development" || echo "downloaded remote")"
-    debug_trace "488" "Logged library mode"
-
-    # COMPATIBILITY: Add log_message function for legacy code compatibility
-    log_message() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_message calls
-        level="$1"
-        message="$2"
-        case "$level" in
-            "INFO") log_info "$message" ;;
-            "SUCCESS") log_success "$message" ;;
-            "WARNING") log_warning "$message" ;;
-            "ERROR") log_error "$message" ;;
-            "STEP") log_step "$message" ;;
-            "DEBUG") log_debug "$message" ;;
-            *) log_info "[$level] $message" ;;
-        esac
-    }
-
-    # NOTE: Legacy compatibility functions (debug_log, debug_msg, print_status, debug_exec)
-    # are now provided automatically by the RUTOS library compatibility module
 else
     # Fallback to legacy logging system for remote installations when library unavailable
     printf "[INFO] Using built-in fallback logging system\n"
 
-    # VALIDATION_SKIP_LIBRARY_CHECK: Built-in color detection (simplified for remote execution)
+    # Built-in color detection (simplified for remote execution)
     if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-        # VALIDATION_SKIP_LIBRARY_CHECK: Fallback colors when library unavailable
-        RED='\033[0;31m'    # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
-        GREEN='\033[0;32m'  # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
-        YELLOW='\033[1;33m' # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
-        BLUE='\033[1;35m'   # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
-        CYAN='\033[0;36m'   # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
-        NC='\033[0m'        # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
+        RED='\033[0;31m'
+        GREEN='\033[0;32m'
+        YELLOW='\033[1;33m'
+        BLUE='\033[1;35m'
+        CYAN='\033[0;36m'
+        NC='\033[0m'
     else
         RED="" GREEN="" YELLOW="" BLUE="" CYAN="" NC=""
     fi
 
-    # VALIDATION_SKIP_LIBRARY_CHECK: Built-in logging functions for remote installation fallback
-    log_info() { # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
+    # Built-in logging functions
+    log_info() {
         printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
-    log_success() { # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
+    log_success() {
         printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
-    log_warning() { # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
+    log_warning() {
         printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
-    log_error() { # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
+    log_error() {
         printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     }
-    log_step() { # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
+    log_step() {
         printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
-    log_debug() { # VALIDATION_SKIP_LIBRARY_CHECK: Fallback when library unavailable
+    log_debug() {
         if [ "${DEBUG:-0}" = "1" ]; then
             printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
         fi
     }
 
-    # COMPATIBILITY: Add log_message function for legacy code compatibility
-    log_message() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_message calls (fallback)
-        level="$1"
-        message="$2"
-        case "$level" in
-            "INFO") log_info "$message" ;;
-            "SUCCESS") log_success "$message" ;;
-            "WARNING") log_warning "$message" ;;
-            "ERROR") log_error "$message" ;;
-            "STEP") log_step "$message" ;;
-            "DEBUG") log_debug "$message" ;;
-            *) log_info "[$level] $message" ;;
-        esac
-    }
+    # Initialize logging variables
+    DRY_RUN="${DRY_RUN:-0}"
+    RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+    DEBUG="${DEBUG:-0}"
+    export DRY_RUN RUTOS_TEST_MODE DEBUG
 
-    # FALLBACK COMPATIBILITY: Minimal legacy function support when library unavailable
-    debug_log() { log_debug "$1"; }                           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
-    debug_msg() { log_debug "$1"; }                           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
-    print_status() { printf "${1}%s${NC}\n" "$2"; }           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
-    debug_exec() { safe_execute "$*" "Execute command: $*"; } # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
-    config_debug() { log_debug "$1"; }                        # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
-
-    # VALIDATION_SKIP_LIBRARY_CHECK: Built-in safe_execute function for remote installation fallback
+    # Built-in safe_execute function
     safe_execute() {
         command="$1"
         description="$2"
-        # Only DRY_RUN should prevent execution, RUTOS_TEST_MODE should still execute with enhanced logging
-        if [ "$DRY_RUN" = "1" ]; then
+        if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
             log_warning "[DRY-RUN] Would execute: $description"
             return 0
         else
-            if [ "$RUTOS_TEST_MODE" = "1" ]; then
-                log_trace "[RUTOS_TEST_MODE] Executing: $description"
-            fi
             log_step "Executing: $description"
             if eval "$command"; then
                 return 0
@@ -602,64 +168,55 @@ else
             fi
         fi
     }
-
-    # Initialize logging variables
-    DRY_RUN="${DRY_RUN:-0}"
-    RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-    DEBUG="${DEBUG:-0}"
-    export DRY_RUN RUTOS_TEST_MODE DEBUG
 fi
-
-# Dry-run and test mode support
-debug_trace "599" "Setting up dry-run and test mode variables"
-
-DRY_RUN="${DRY_RUN:-0}"
-RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-TEST_MODE="${TEST_MODE:-0}"
-
-debug_trace "605" "Variables set: DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE, TEST_MODE=$TEST_MODE"
-
-# Capture original values for debug display
-ORIGINAL_DRY_RUN="$DRY_RUN"
-ORIGINAL_TEST_MODE="$TEST_MODE"
-ORIGINAL_RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
-
-debug_trace "612" "Original values captured"
-
-# Debug output showing all variable states for troubleshooting
-if [ "${DEBUG:-0}" = "1" ]; then
-    log_debug "==================== DEBUG INTEGRATION STATUS ===================="
-    log_debug "DRY_RUN: current=$DRY_RUN, original=$ORIGINAL_DRY_RUN"
-    log_debug "TEST_MODE: current=$TEST_MODE, original=$ORIGINAL_TEST_MODE"
-    log_debug "RUTOS_TEST_MODE: current=$RUTOS_TEST_MODE, original=$ORIGINAL_RUTOS_TEST_MODE"
-    log_debug "DEBUG: ${DEBUG:-0}"
-    log_debug "Script supports: DRY_RUN=1, TEST_MODE=1, RUTOS_TEST_MODE=1, DEBUG=1"
-    # Additional printf statement to satisfy validation pattern
-    printf "[DEBUG] Variable States: DRY_RUN=%s TEST_MODE=%s RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$TEST_MODE" "$RUTOS_TEST_MODE" >&2
-    log_debug "==================================================================="
-fi
-
-# RUTOS_TEST_MODE enables trace logging - does NOT exit early
-# Only DRY_RUN=1 should prevent actual changes
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    debug_trace "628" "RUTOS_TEST_MODE is enabled - trace logging active"
-    log_trace "RUTOS_TEST_MODE enabled - trace logging active"
-else
-    debug_trace "631" "RUTOS_TEST_MODE is not enabled"
-fi
-
-debug_trace "634" "About to log script initialization"
 
 # Log script initialization
 log_info "Starting Starlink Monitoring System Installation v$SCRIPT_VERSION"
-debug_trace "638" "Logged script start message"
-
 log_info "Build: $BUILD_INFO"
-debug_trace "641" "Logged build info"
-
 log_debug "GitHub Repository: $GITHUB_REPO"
 log_debug "GitHub Branch: $GITHUB_BRANCH"
-debug_trace "645" "Logged GitHub repository info"
+
+# Function to print config-specific debug messages
+config_debug() {
+    if [ "${CONFIG_DEBUG:-0}" = "1" ] || [ "${DEBUG:-0}" = "1" ]; then
+        timestamp=$(get_timestamp)
+        printf "${CYAN}[%s] CONFIG DEBUG: %s${NC}\n" "$timestamp" "$1" >&2
+        log_message "CONFIG_DEBUG" "$1"
+    fi
+}
+
+# Enhanced debug_log function (consistent with other scripts)
+debug_log() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        log_message "DEBUG" "$1"
+    fi
+}
+
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Early exit in test mode to prevent execution errors
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    exit 0
+fi
+
+# Debug dry-run status
+if [ "${DEBUG:-0}" = "1" ]; then
+    debug_log "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Function to execute commands with debug output
+debug_exec() {
+    if [ "${DEBUG:-0}" = "1" ]; then
+        timestamp=$(get_timestamp)
+        printf "${CYAN}[%s] DEBUG EXEC: %s${NC}\n" "$timestamp" "$*" >&2
+        log_message "DEBUG_EXEC" "$*"
+    fi
+    "$@"
+}
 
 # Legacy safe_exec function - now uses library safe_execute if available
 safe_exec() {
@@ -674,17 +231,11 @@ safe_exec() {
         log_debug "EXECUTING: $cmd"
         log_debug "DESCRIPTION: $description"
 
-        # Check for dry-run mode (only DRY_RUN should prevent execution)
-        if [ "$DRY_RUN" = "1" ]; then
+        # Check for dry-run mode
+        if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
             log_warning "[DRY-RUN] Would execute: $description"
             log_debug "[DRY-RUN] Command: $cmd"
             return 0
-        fi
-
-        # RUTOS_TEST_MODE should still execute commands (just with enhanced logging)
-        if [ "$RUTOS_TEST_MODE" = "1" ]; then
-            log_trace "[RUTOS_TEST_MODE] Executing: $description"
-            log_trace "[RUTOS_TEST_MODE] Command: $cmd"
         fi
 
         # Execute command and capture both stdout and stderr
@@ -784,14 +335,14 @@ if [ "${DEBUG:-0}" = "1" ]; then
 fi
 
 # Log installation start
-log_info "============================================="
-log_info "Starlink Monitor Installation Script Started"
-log_info "Script: $SCRIPT_NAME"
-log_info "Version: $SCRIPT_VERSION"
-log_info "Branch: $GITHUB_BRANCH"
-log_info "Repository: $GITHUB_REPO"
-log_info "DEBUG Mode: ${DEBUG:-0}"
-log_info "============================================="
+log_message "INFO" "============================================="
+log_message "INFO" "Starlink Monitor Installation Script Started"
+log_message "INFO" "Script: $SCRIPT_NAME"
+log_message "INFO" "Version: $SCRIPT_VERSION"
+log_message "INFO" "Branch: $GITHUB_BRANCH"
+log_message "INFO" "Repository: $GITHUB_REPO"
+log_message "INFO" "DEBUG Mode: ${DEBUG:-0}"
+log_message "INFO" "============================================="
 
 # Function to show version information
 show_version() {
@@ -843,7 +394,7 @@ version_compare() {
 
 # Function to detect latest grpcurl version dynamically
 detect_latest_grpcurl_version() {
-    log_debug "Attempting to detect latest grpcurl version..."
+    debug_msg "Attempting to detect latest grpcurl version..."
 
     # Try to get latest version from GitHub API
     latest_version=""
@@ -865,19 +416,19 @@ detect_latest_grpcurl_version() {
         # Remove the 'v' prefix for filename construction
         version_number=$(echo "$latest_version" | sed 's/^v//')
         dynamic_url="https://github.com/fullstorydev/grpcurl/releases/download/${latest_version}/grpcurl_${version_number}_linux_armv7.tar.gz"
-        log_debug "Detected latest grpcurl version: $latest_version"
-        log_debug "Constructed dynamic URL: $dynamic_url"
+        debug_msg "Detected latest grpcurl version: $latest_version"
+        debug_msg "Constructed dynamic URL: $dynamic_url"
         printf "%s" "$dynamic_url"
         return 0
     else
-        log_debug "Failed to detect latest grpcurl version or invalid format: '$latest_version'"
+        debug_msg "Failed to detect latest grpcurl version or invalid format: '$latest_version'"
         return 1
     fi
 }
 
 # Function to detect latest jq version dynamically
 detect_latest_jq_version() {
-    log_debug "Attempting to detect latest jq version..."
+    debug_msg "Attempting to detect latest jq version..."
 
     # Try to get latest version from GitHub API
     latest_version=""
@@ -898,12 +449,12 @@ detect_latest_jq_version() {
     if [ -n "$latest_version" ] && echo "$latest_version" | grep -qE '^jq-[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
         # Construct the dynamic URL for ARM binary
         dynamic_url="https://github.com/jqlang/jq/releases/download/${latest_version}/jq-linux-armhf"
-        log_debug "Detected latest jq version: $latest_version"
-        log_debug "Constructed dynamic URL: $dynamic_url"
+        debug_msg "Detected latest jq version: $latest_version"
+        debug_msg "Constructed dynamic URL: $dynamic_url"
         printf "%s" "$dynamic_url"
         return 0
     else
-        log_debug "Failed to detect latest jq version or invalid format: '$latest_version'"
+        debug_msg "Failed to detect latest jq version or invalid format: '$latest_version'"
         return 1
     fi
 }
@@ -913,42 +464,49 @@ download_file() {
     url="$1"
     output="$2"
 
-    log_debug "Downloading $url to $output"
-    log_info "Starting download: $url -> $output"
-
-    # Check if output directory exists and is writable
-    output_dir="$(dirname "$output")"
-    if [ ! -d "$output_dir" ]; then
-        log_error "Output directory does not exist: $output_dir"
-        return 1
-    fi
-
-    if [ ! -w "$output_dir" ]; then
-        log_error "Output directory not writable: $output_dir"
-        return 1
-    fi
+    debug_msg "Downloading $url to $output"
+    log_message "INFO" "Starting download: $url -> $output"
 
     # Try wget first, then curl
     if command -v wget >/dev/null 2>&1; then
-        log_debug "Using wget for download"
-        if safe_execute "wget -q -O '$output' '$url'" "Download with wget"; then
-            log_info "Download successful: $output"
-            return 0
+        if [ "${DEBUG:-0}" = "1" ]; then
+            if debug_exec wget -O "$output" "$url"; then
+                log_message "INFO" "Download successful: $output"
+                return 0
+            else
+                log_message "ERROR" "Download failed with wget: $url"
+                return 1
+            fi
         else
-            log_error "Download failed with wget: $url"
-            return 1
+            if wget -q -O "$output" "$url" 2>/dev/null; then
+                log_message "INFO" "Download successful: $output"
+                return 0
+            else
+                log_message "ERROR" "Download failed with wget: $url"
+                return 1
+            fi
         fi
     elif command -v curl >/dev/null 2>&1; then
-        log_debug "Using curl for download"
-        if safe_execute "curl -fsSL -o '$output' '$url'" "Download with curl"; then
-            log_info "Download successful: $output"
-            return 0
+        if [ "${DEBUG:-0}" = "1" ]; then
+            if debug_exec curl -fL -o "$output" "$url"; then
+                log_message "INFO" "Download successful: $output"
+                return 0
+            else
+                log_message "ERROR" "Download failed with curl: $url"
+                return 1
+            fi
         else
-            log_error "Download failed with curl: $url"
-            return 1
+            if curl -fsSL -o "$output" "$url" 2>/dev/null; then
+                log_message "INFO" "Download successful: $output"
+                return 0
+            else
+                log_message "ERROR" "Download failed with curl: $url"
+                return 1
+            fi
         fi
     else
-        log_error "Neither wget nor curl available for downloads"
+        log_message "ERROR" "Neither wget nor curl available for downloads"
+        log_error "Error: Neither wget nor curl available for downloads"
         return 1
     fi
 }
@@ -1191,12 +749,7 @@ intelligent_config_merge() {
                     ! grep -q "^${var_name}=" "$temp_template_vars" 2>/dev/null; then
                     # This is an extra setting not in template
                     config_debug "Found extra user setting: $var_name"
-                    # Protect state-changing command with DRY_RUN check
-                    if [ "${DRY_RUN:-0}" = "1" ]; then
-                        config_debug "DRY-RUN: Would append extra setting to temp file"
-                    else
-                        echo "$current_line" >>"$temp_extra_vars"
-                    fi
+                    echo "$current_line" >>"$temp_extra_vars"
                     extra_count=$((extra_count + 1))
                 fi
             fi
@@ -1334,36 +887,36 @@ check_system() {
     log_step "Checking system compatibility..."
 
     arch=""
-    log_debug "ARCH CHECK: Getting system architecture"
+    debug_log "ARCH CHECK: Getting system architecture"
     if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Executing: uname -m"
+        debug_msg "Executing: uname -m"
         arch=$(uname -m)
-        log_debug "System architecture: $arch"
+        debug_msg "System architecture: $arch"
     else
         arch=$(uname -m)
     fi
 
-    log_debug "ARCH CHECK: Detected architecture: $arch"
+    debug_log "ARCH CHECK: Detected architecture: $arch"
     if [ "$arch" != "armv7l" ]; then
-        log_debug "ARCH CHECK: Non-standard architecture detected"
+        debug_log "ARCH CHECK: Non-standard architecture detected"
         print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
         print_status "$YELLOW" "Your architecture: $arch"
         print_status "$YELLOW" "You may need to adjust binary URLs"
         printf "Continue anyway? (y/N): "
         read -r answer
-        log_debug "ARCH CHECK: User response: $answer"
+        debug_log "ARCH CHECK: User response: $answer"
         if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
-            log_debug "ARCH CHECK: User declined to continue with non-standard architecture"
+            debug_log "ARCH CHECK: User declined to continue with non-standard architecture"
             exit 1
         fi
-        log_debug "ARCH CHECK: User chose to continue despite architecture mismatch"
+        debug_log "ARCH CHECK: User chose to continue despite architecture mismatch"
     else
-        log_debug "ARCH CHECK: Architecture validation passed"
-        log_debug "Architecture check passed: $arch matches expected armv7l"
+        debug_log "ARCH CHECK: Architecture validation passed"
+        debug_msg "Architecture check passed: $arch matches expected armv7l"
     fi
 
-    log_debug "SYSTEM CHECK: Checking for OpenWrt/RUTOS system files"
-    log_debug "Checking for OpenWrt/RUTOS system files"
+    debug_log "SYSTEM CHECK: Checking for OpenWrt/RUTOS system files"
+    debug_msg "Checking for OpenWrt/RUTOS system files"
     if [ ! -f "/etc/openwrt_version" ] && [ ! -f "/etc/rutos_version" ]; then
         print_status "$YELLOW" "Warning: This doesn't appear to be OpenWrt/RUTOS"
         printf "Continue anyway? (y/N): "
@@ -1374,11 +927,11 @@ check_system() {
     else
         if [ -f "/etc/openwrt_version" ]; then
             openwrt_version=$(cat /etc/openwrt_version 2>/dev/null)
-            log_debug "OpenWrt version: $openwrt_version"
+            debug_msg "OpenWrt version: $openwrt_version"
         fi
         if [ -f "/etc/rutos_version" ]; then
             rutos_version=$(cat /etc/rutos_version 2>/dev/null)
-            log_debug "RUTOS version: $rutos_version"
+            debug_msg "RUTOS version: $rutos_version"
         fi
     fi
     print_status "$GREEN" "✓ System compatibility checked"
@@ -1388,7 +941,7 @@ check_system() {
 create_directories() {
     print_status "$BLUE" "Creating directory structure..."
 
-    log_debug "Creating main installation directory: $INSTALL_DIR"
+    debug_msg "Creating main installation directory: $INSTALL_DIR"
     debug_exec mkdir -p "$INSTALL_DIR"
     debug_exec mkdir -p "$INSTALL_DIR/config"
     debug_exec mkdir -p "$INSTALL_DIR/scripts"
@@ -1402,7 +955,7 @@ create_directories() {
 
     # Verify directories were created
     if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Verifying directory structure:"
+        debug_msg "Verifying directory structure:"
         debug_exec ls -la "$INSTALL_DIR"
         debug_exec ls -la "/etc/starlink-logs"
         debug_exec ls -la "$PERSISTENT_CONFIG_DIR"
@@ -1413,62 +966,62 @@ create_directories() {
 
 # Download and install binaries
 install_binaries() {
-    log_debug "FUNCTION: install_binaries"
-    log_debug "BINARY INSTALLATION: Starting binary installation process"
+    debug_log "FUNCTION: install_binaries"
+    debug_log "BINARY INSTALLATION: Starting binary installation process"
     print_status "$BLUE" "Installing required binaries..."
 
     # Install grpcurl
-    log_debug "GRPCURL INSTALL: Checking for existing grpcurl at $INSTALL_DIR/grpcurl"
+    debug_log "GRPCURL INSTALL: Checking for existing grpcurl at $INSTALL_DIR/grpcurl"
     if [ ! -f "$INSTALL_DIR/grpcurl" ]; then
         # Try to detect latest version dynamically first
         print_status "$YELLOW" "Detecting latest grpcurl version..."
         dynamic_grpcurl_url=""
         if dynamic_grpcurl_url=$(detect_latest_grpcurl_version); then
-            log_debug "GRPCURL INSTALL: Dynamic detection successful, trying latest version"
+            debug_log "GRPCURL INSTALL: Dynamic detection successful, trying latest version"
             print_status "$YELLOW" "Downloading grpcurl (latest detected version)..."
 
             if curl -fL --progress-bar "$dynamic_grpcurl_url" -o /tmp/grpcurl.tar.gz; then
-                log_debug "GRPCURL INSTALL: Latest version download successful, extracting archive"
+                debug_log "GRPCURL INSTALL: Latest version download successful, extracting archive"
                 if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
                     chmod +x "$INSTALL_DIR/grpcurl"
                     rm /tmp/grpcurl.tar.gz
-                    log_debug "GRPCURL INSTALL: Latest version installation completed successfully"
+                    debug_log "GRPCURL INSTALL: Latest version installation completed successfully"
                     # Get version for display
                     grpcurl_version=$("$INSTALL_DIR/grpcurl" --version 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
                     print_status "$GREEN" "✓ grpcurl installed (latest: $grpcurl_version)"
                 else
-                    log_debug "GRPCURL INSTALL: Latest version extraction failed, trying fallback to stable version"
+                    debug_log "GRPCURL INSTALL: Latest version extraction failed, trying fallback to stable version"
                     rm -f /tmp/grpcurl.tar.gz
                     print_status "$YELLOW" "Latest version extraction failed, trying stable version..."
                     # Fall through to stable version logic below
                     dynamic_grpcurl_url=""
                 fi
             else
-                log_debug "GRPCURL INSTALL: Latest version download failed, trying fallback to stable version"
+                debug_log "GRPCURL INSTALL: Latest version download failed, trying fallback to stable version"
                 print_status "$YELLOW" "Latest version download failed, trying stable version..."
                 # Fall through to stable version logic below
                 dynamic_grpcurl_url=""
             fi
         else
-            log_debug "GRPCURL INSTALL: Dynamic detection failed, trying stable version"
+            debug_log "GRPCURL INSTALL: Dynamic detection failed, trying stable version"
             print_status "$YELLOW" "Could not detect latest version, using stable version..."
         fi
 
         # If dynamic detection failed, use our known stable version
         if [ -z "$dynamic_grpcurl_url" ]; then
-            log_debug "GRPCURL INSTALL: Using stable version from $GRPCURL_URL"
+            debug_log "GRPCURL INSTALL: Using stable version from $GRPCURL_URL"
             print_status "$YELLOW" "Downloading grpcurl (stable version v1.9.3)..."
 
             # Try primary stable version
             if curl -fL --progress-bar "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz; then
-                log_debug "GRPCURL INSTALL: Stable version download successful, extracting archive"
+                debug_log "GRPCURL INSTALL: Stable version download successful, extracting archive"
                 if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
                     chmod +x "$INSTALL_DIR/grpcurl"
                     rm /tmp/grpcurl.tar.gz
-                    log_debug "GRPCURL INSTALL: Stable version installation completed successfully"
+                    debug_log "GRPCURL INSTALL: Stable version installation completed successfully"
                     print_status "$GREEN" "✓ grpcurl installed (stable v1.9.3)"
                 else
-                    log_debug "GRPCURL INSTALL: Stable version extraction failed, trying fallback"
+                    debug_log "GRPCURL INSTALL: Stable version extraction failed, trying fallback"
                     rm -f /tmp/grpcurl.tar.gz
                     print_status "$YELLOW" "Stable version failed, trying alternative version..."
 
@@ -1477,7 +1030,7 @@ install_binaries() {
                         tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl
                         chmod +x "$INSTALL_DIR/grpcurl"
                         rm /tmp/grpcurl.tar.gz
-                        log_debug "GRPCURL INSTALL: Fallback version installation completed successfully"
+                        debug_log "GRPCURL INSTALL: Fallback version installation completed successfully"
                         print_status "$GREEN" "✓ grpcurl installed (fallback version v1.9.1)"
                     else
                         print_status "$RED" "Error: Failed to download grpcurl (all versions tried)"
@@ -1485,7 +1038,7 @@ install_binaries() {
                     fi
                 fi
             else
-                log_debug "GRPCURL INSTALL: Stable version download failed, trying fallback"
+                debug_log "GRPCURL INSTALL: Stable version download failed, trying fallback"
                 print_status "$YELLOW" "Stable version download failed, trying alternative version..."
 
                 # Try fallback version
@@ -1493,7 +1046,7 @@ install_binaries() {
                     if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
                         chmod +x "$INSTALL_DIR/grpcurl"
                         rm /tmp/grpcurl.tar.gz
-                        log_debug "GRPCURL INSTALL: Fallback version installation completed successfully"
+                        debug_log "GRPCURL INSTALL: Fallback version installation completed successfully"
                         print_status "$GREEN" "✓ grpcurl installed (fallback version v1.9.1)"
                     else
                         rm -f /tmp/grpcurl.tar.gz
@@ -1501,75 +1054,75 @@ install_binaries() {
                         return 1
                     fi
                 else
-                    log_debug "GRPCURL INSTALL: All download attempts failed"
+                    debug_log "GRPCURL INSTALL: All download attempts failed"
                     print_status "$RED" "Error: Failed to download grpcurl (all versions tried)"
                     return 1
                 fi
             fi
         fi
     else
-        log_debug "GRPCURL INSTALL: Already exists, skipping download"
+        debug_log "GRPCURL INSTALL: Already exists, skipping download"
         print_status "$GREEN" "✓ grpcurl already installed"
     fi
 
     # Install jq
-    log_debug "JQ INSTALL: Checking for existing jq at $INSTALL_DIR/jq"
+    debug_log "JQ INSTALL: Checking for existing jq at $INSTALL_DIR/jq"
     if [ ! -f "$INSTALL_DIR/jq" ]; then
         # Try to detect latest version dynamically first
         print_status "$YELLOW" "Detecting latest jq version..."
         dynamic_jq_url=""
         if dynamic_jq_url=$(detect_latest_jq_version); then
-            log_debug "JQ INSTALL: Dynamic detection successful, trying latest version"
+            debug_log "JQ INSTALL: Dynamic detection successful, trying latest version"
             print_status "$YELLOW" "Downloading jq (latest detected version)..."
 
             if curl -fL --progress-bar "$dynamic_jq_url" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
                 if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
-                    log_debug "JQ INSTALL: Latest version installation completed successfully"
+                    debug_log "JQ INSTALL: Latest version installation completed successfully"
                     # Get version for display
                     jq_version=$("$INSTALL_DIR/jq" --version 2>/dev/null || echo "unknown")
                     print_status "$GREEN" "✓ jq installed (latest: $jq_version)"
                 else
-                    log_debug "JQ INSTALL: Latest version validation failed, trying fallback to stable version"
+                    debug_log "JQ INSTALL: Latest version validation failed, trying fallback to stable version"
                     rm -f "$INSTALL_DIR/jq"
                     print_status "$YELLOW" "Latest version validation failed, trying stable version..."
                     # Fall through to stable version logic below
                     dynamic_jq_url=""
                 fi
             else
-                log_debug "JQ INSTALL: Latest version download failed, trying fallback to stable version"
+                debug_log "JQ INSTALL: Latest version download failed, trying fallback to stable version"
                 rm -f "$INSTALL_DIR/jq"
                 print_status "$YELLOW" "Latest version download failed, trying stable version..."
                 # Fall through to stable version logic below
                 dynamic_jq_url=""
             fi
         else
-            log_debug "JQ INSTALL: Dynamic detection failed, trying stable version"
+            debug_log "JQ INSTALL: Dynamic detection failed, trying stable version"
             print_status "$YELLOW" "Could not detect latest version, using stable version..."
         fi
 
         # If dynamic detection failed, use our known stable version
         if [ -z "$dynamic_jq_url" ]; then
-            log_debug "JQ INSTALL: Using stable version from $JQ_URL"
+            debug_log "JQ INSTALL: Using stable version from $JQ_URL"
             print_status "$YELLOW" "Downloading jq (stable version v1.7.1)..."
 
             # Try primary stable version first
             if curl -fL --progress-bar "$JQ_URL" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
                 if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
-                    log_debug "JQ INSTALL: Stable version installation completed successfully"
+                    debug_log "JQ INSTALL: Stable version installation completed successfully"
                     jq_version=$("$INSTALL_DIR/jq" --version 2>/dev/null || echo "unknown")
                     print_status "$GREEN" "✓ jq installed (stable: $jq_version)"
                 else
-                    log_debug "JQ INSTALL: Stable version validation failed, trying fallback"
+                    debug_log "JQ INSTALL: Stable version validation failed, trying fallback"
                     rm -f "$INSTALL_DIR/jq"
                     print_status "$YELLOW" "Stable version failed validation, trying alternative version..."
 
                     # Fallback to alternative version
                     if curl -fL --progress-bar "$JQ_FALLBACK_URL" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
                         if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
-                            log_debug "JQ INSTALL: Fallback version installation completed successfully"
+                            debug_log "JQ INSTALL: Fallback version installation completed successfully"
                             print_status "$GREEN" "✓ jq installed (fallback version v1.6)"
                         else
-                            log_debug "JQ INSTALL: Fallback version validation failed"
+                            debug_log "JQ INSTALL: Fallback version validation failed"
                             print_status "$RED" "Error: Fallback jq version failed validation"
                             return 1
                         fi
@@ -1579,22 +1132,22 @@ install_binaries() {
                     fi
                 fi
             else
-                log_debug "JQ INSTALL: Stable version download failed, trying fallback"
+                debug_log "JQ INSTALL: Stable version download failed, trying fallback"
                 rm -f "$INSTALL_DIR/jq"
                 print_status "$YELLOW" "Stable version download failed, trying alternative version..."
 
                 # Try fallback version
                 if curl -fL --progress-bar "$JQ_FALLBACK_URL" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
                     if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
-                        log_debug "JQ INSTALL: Fallback version installation completed successfully"
+                        debug_log "JQ INSTALL: Fallback version installation completed successfully"
                         print_status "$GREEN" "✓ jq installed (fallback version v1.6)"
                     else
-                        log_debug "JQ INSTALL: Fallback version validation failed"
+                        debug_log "JQ INSTALL: Fallback version validation failed"
                         print_status "$RED" "Error: Fallback jq version failed validation"
                         return 1
                     fi
                 else
-                    log_debug "JQ INSTALL: All download attempts failed"
+                    debug_log "JQ INSTALL: All download attempts failed"
                     print_status "$RED" "Error: Failed to download jq (all versions tried)"
                     return 1
                 fi
@@ -1930,21 +1483,20 @@ install_scripts() {
     print_status "$BLUE" "  - Documentation: $INSTALL_DIR/INSTALLED_SCRIPTS.md"
 
     if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Detailed script listing:"
-        log_debug "Utility scripts:"
+        debug_msg "Detailed script listing:"
+        debug_msg "Utility scripts:"
         find "$INSTALL_DIR/scripts" -name "*-rutos.sh" -type f | sort | while IFS= read -r script; do
-            log_debug "  $(basename "$script")"
+            debug_msg "  $(basename "$script")"
         done
-        log_debug "Test scripts:"
+        debug_msg "Test scripts:"
         find "$INSTALL_DIR/scripts/tests" -name "*-rutos.sh" -type f 2>/dev/null | sort | while IFS= read -r script; do
-            log_debug "  $(basename "$script")"
-        done || log_debug "  (No test scripts directory or scripts found)"
+            debug_msg "  $(basename "$script")"
+        done || debug_msg "  (No test scripts directory or scripts found)"
     fi
 }
 
 # Install configuration
 install_config() {
-
     print_status "$BLUE" "Installing configuration..."
     config_dir="$(dirname "$0")/../config"
 
@@ -1964,9 +1516,7 @@ install_config() {
     else
         # Download from repository
         print_status "$BLUE" "Downloading unified configuration template..."
-        template_url="$BASE_URL/config/config.unified.template.sh"
-
-        if download_file "$template_url" "$temp_unified_template"; then
+        if download_file "$BASE_URL/config/config.unified.template.sh" "$temp_unified_template"; then
             print_status "$GREEN" "✓ Unified configuration template downloaded"
         else
             print_status "$RED" "✗ Unified configuration template could not be downloaded"
@@ -2108,14 +1658,10 @@ install_config() {
 
             # Check if auto-detect script is available
             autodetect_script_path=""
-
             if [ -f "$INSTALL_DIR/scripts/auto-detect-config-rutos.sh" ]; then
                 autodetect_script_path="$INSTALL_DIR/scripts/auto-detect-config-rutos.sh"
             elif [ -f "$(dirname "$0")/auto-detect-config-rutos.sh" ]; then
                 autodetect_script_path="$(dirname "$0")/auto-detect-config-rutos.sh"
-            else
-                # No auto-detect script found
-                true
             fi
 
             if [ -n "$autodetect_script_path" ] && [ -x "$autodetect_script_path" ]; then
@@ -2123,40 +1669,18 @@ install_config() {
 
                 # Run auto-detection and capture results
                 detection_results="/tmp/autodetect_results.$$"
-
-                if safe_execute "'$autodetect_script_path' >'$detection_results' 2>/dev/null" "Run auto-detection script"; then
+                if "$autodetect_script_path" >"$detection_results" 2>/dev/null; then
                     print_status "$GREEN" "✓ System auto-detection completed successfully"
-
-                    # Check results file
-                    if [ -f "$detection_results" ]; then
-                        results_size=$(wc -c <"$detection_results" 2>/dev/null || echo "0")
-
-                        if [ "$results_size" -gt 0 ]; then
-                            while IFS= read -r line; do
-                                # Process detection results
-                                true
-                            done <"$detection_results"
-                        else
-                            # Empty results file
-                            true
-                        fi
-                    else
-                    fi
 
                     # Apply detected settings to configuration
                     print_status "$BLUE" "Applying auto-detected settings to configuration..."
 
                     # Source the detection results
                     # shellcheck disable=SC1090  # Dynamic file sourcing
-                    if . "$detection_results" 2>/dev/null; then
-                    else
-                        source_exit=$?
-                    fi
+                    . "$detection_results" 2>/dev/null || true
 
                     # Create a backup before applying auto-detected settings
-                    if cp "$primary_config" "${primary_config}.pre-autodetect" 2>/dev/null; then
-                    else
-                    fi
+                    cp "$primary_config" "${primary_config}.pre-autodetect" 2>/dev/null || true
 
                     # Apply auto-detected settings using sed (busybox compatible)
                     config_updated=0
@@ -2291,19 +1815,19 @@ configure_cron() {
     # Create backup of existing crontab
     if [ -f "$CRON_FILE" ]; then
         backup_file="$CRON_FILE.backup.$(date +%Y%m%d_%H%M%S)"
-        safe_execute "cp '$CRON_FILE' '$backup_file'" "Backup existing crontab"
+        cp "$CRON_FILE" "$backup_file"
         print_status "$GREEN" "✓ Existing crontab backed up to: $backup_file"
     fi
 
     # Create the cron file if it doesn't exist
     if [ ! -f "$CRON_FILE" ]; then
-        safe_execute "touch '$CRON_FILE'" "Create cron file"
+        touch "$CRON_FILE"
     fi
 
     # Remove any existing entries added by this install script to prevent duplicates
     # Only remove entries that match our exact pattern (default install script entries)
     if [ -f "$CRON_FILE" ]; then
-        log_debug "Cleaning up previous install script entries"
+        debug_msg "Cleaning up previous install script entries"
 
         # Create temp file for clean crontab
         temp_cron="/tmp/crontab_clean.tmp"
@@ -2327,7 +1851,7 @@ configure_cron() {
 
         # Remove excessive blank lines (more than 1 consecutive blank line)
         # This keeps single blank lines for readability but removes excessive gaps
-        log_debug "Removing excessive blank lines from crontab"
+        debug_msg "Removing excessive blank lines from crontab"
         awk '
         BEGIN { blank_count = 0 }
         /^$/ { 
@@ -2342,10 +1866,10 @@ configure_cron() {
 
         # Replace the crontab with cleaned version
         if mv "$temp_cron" "$CRON_FILE" 2>/dev/null; then
-            log_debug "Crontab cleaned successfully and blank lines normalized"
+            debug_msg "Crontab cleaned successfully and blank lines normalized"
         else
             # If move failed, ensure we don't lose the original
-            log_debug "Failed to update crontab, preserving original"
+            debug_msg "Failed to update crontab, preserving original"
             rm -f "$temp_cron" 2>/dev/null || true
         fi
     fi
@@ -2464,18 +1988,12 @@ EOF
             grep -v "CONFIG_FILE=.*/starlink-monitor/config/config.sh" "$CRON_FILE" >"$temp_cron" 2>/dev/null || touch "$temp_cron"
 
             # Update crontab
-            if [ "${DRY_RUN:-0}" = "1" ]; then
-                print_status "$BLUE" "DRY-RUN: Would update crontab with: $temp_cron"
+            if crontab "$temp_cron" 2>/dev/null; then
                 rm -f "$temp_cron"
-                print_status "$GREEN" "✓ Cleaned up old cron entries (dry run)"
+                print_status "$GREEN" "✓ Cleaned up old cron entries"
             else
-                if safe_execute "crontab \"$temp_cron\"" "Update crontab with cleaned entries"; then
-                    rm -f "$temp_cron"
-                    print_status "$GREEN" "✓ Cleaned up old cron entries"
-                else
-                    rm -f "$temp_cron"
-                    print_status "$YELLOW" "⚠ Warning: Could not clean old cron entries"
-                fi
+                rm -f "$temp_cron"
+                print_status "$YELLOW" "⚠ Warning: Could not clean old cron entries"
             fi
 
             # Reload cron file
@@ -2485,27 +2003,23 @@ EOF
     fi
 
     # Restart cron service
-    if [ "${DRY_RUN:-0}" = "1" ]; then
-        print_status "$BLUE" "DRY-RUN: Would restart cron service"
-    else
-        safe_execute "/etc/init.d/cron restart >/dev/null 2>&1" "Restart cron service" || {
-            print_status "$YELLOW" "⚠ Warning: Could not restart cron service"
-        }
-    fi
+    /etc/init.d/cron restart >/dev/null 2>&1 || {
+        print_status "$YELLOW" "⚠ Warning: Could not restart cron service"
+    }
 
     print_status "$GREEN" "✓ Cron jobs configured"
     print_status "$BLUE" "ℹ Previous crontab backed up before modification"
 
     # Show current cron status for verification
     if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Current cron entries for our scripts:"
-        grep -n "starlink.*rutos\|check_starlink_api" "$CRON_FILE" 2>/dev/null || log_debug "No entries found"
+        debug_msg "Current cron entries for our scripts:"
+        grep -n "starlink.*rutos\|check_starlink_api" "$CRON_FILE" 2>/dev/null || debug_msg "No entries found"
     fi
 }
 
 # Install GPS integration components
 install_gps_integration() {
-    log_debug "FUNCTION: install_gps_integration"
+    debug_log "FUNCTION: install_gps_integration"
     print_status "$BLUE" "Installing GPS integration components..."
 
     # Create GPS integration directory
@@ -2525,7 +2039,7 @@ install_gps_integration() {
     for component in $gps_components; do
         component=$(echo "$component" | tr -d ' \t\n\r') # Clean whitespace
         if [ -n "$component" ]; then
-            log_debug "Installing GPS component: $component"
+            debug_msg "Installing GPS component: $component"
             local_path="$(dirname "$0")/../gps-integration/$component"
 
             if [ -f "$local_path" ]; then
@@ -2563,7 +2077,7 @@ install_gps_integration() {
 
 # Install cellular integration components
 install_cellular_integration() {
-    log_debug "FUNCTION: install_cellular_integration"
+    debug_log "FUNCTION: install_cellular_integration"
     print_status "$BLUE" "Installing cellular integration components..."
 
     # Create cellular integration directory
@@ -2582,7 +2096,7 @@ install_cellular_integration() {
     for component in $cellular_components; do
         component=$(echo "$component" | tr -d ' \t\n\r') # Clean whitespace
         if [ -n "$component" ]; then
-            log_debug "Installing cellular component: $component"
+            debug_msg "Installing cellular component: $component"
             local_path="$(dirname "$0")/../cellular-integration/$component"
 
             if [ -f "$local_path" ]; then
@@ -2607,7 +2121,7 @@ install_cellular_integration() {
 # Install enhanced monitoring scripts
 install_enhanced_monitoring() {
     log_debug "FUNCTION: install_enhanced_monitoring"
-    print_status "$BLUE" "Installing enhanced monitoring scripts..."
+    log_info "Installing enhanced monitoring scripts..."
 
     # Enhanced scripts to install
     enhanced_scripts="
@@ -2617,30 +2131,62 @@ install_enhanced_monitoring() {
         starlink_logger_unified-rutos.sh
     "
 
+    log_debug "=== ENHANCED MONITORING DEBUG START ==="
+    log_debug "INSTALL_DIR: $INSTALL_DIR"
+    log_debug "BASE_URL: $BASE_URL"
+    log_debug "Script directory: $(dirname "$0")"
+
     # Install each enhanced script
+    script_count=0
+    processed_count=0
     for script in $enhanced_scripts; do
         script=$(echo "$script" | tr -d ' \t\n\r') # Clean whitespace
+        log_debug "DEBUG: Raw script value: '$script'"
+        log_debug "DEBUG: Script length: ${#script}"
+        
         if [ -n "$script" ]; then
-            log_debug "Installing enhanced script: $script"
+            processed_count=$((processed_count + 1))
+            log_debug "DEBUG: Processing script #$processed_count: '$script'"
             local_path="$(dirname "$0")/../Starlink-RUTOS-Failover/$script"
+            log_debug "DEBUG: Local path: '$local_path'"
+            log_debug "DEBUG: Local file exists: $([ -f "$local_path" ] && echo 'YES' || echo 'NO')"
 
             if [ -f "$local_path" ]; then
+                log_debug "DEBUG: BRANCH: Using local file for $script"
                 cp "$local_path" "$INSTALL_DIR/scripts/$script"
                 chmod +x "$INSTALL_DIR/scripts/$script"
-                print_status "$GREEN" "✓ Enhanced script installed: $script"
+                log_success "Enhanced script installed: $script"
+                script_count=$((script_count + 1))
             else
-                print_status "$BLUE" "Downloading enhanced script: $script..."
-                if download_file "$BASE_URL/Starlink-RUTOS-Failover/$script" "$INSTALL_DIR/scripts/$script"; then
-                    chmod +x "$INSTALL_DIR/scripts/$script"
-                    print_status "$GREEN" "✓ Enhanced script downloaded: $script"
+                log_debug "DEBUG: BRANCH: Local file not found, downloading $script"
+                log_info "Downloading enhanced script: $script..."
+                download_url="$BASE_URL/Starlink-RUTOS-Failover/$script"
+                target_path="$INSTALL_DIR/scripts/$script"
+                log_debug "DEBUG: Download URL: '$download_url'"
+                log_debug "DEBUG: Target path: '$target_path'"
+                log_debug "DEBUG: Target directory exists: $([ -d "$(dirname "$target_path")" ] && echo 'YES' || echo 'NO')"
+                
+                if download_file "$download_url" "$target_path"; then
+                    log_debug "DEBUG: BRANCH: Download successful for $script"
+                    chmod +x "$target_path"
+                    log_success "Enhanced script downloaded: $script"
+                    script_count=$((script_count + 1))
                 else
-                    print_status "$YELLOW" "⚠ Warning: Failed to install enhanced script: $script"
+                    log_debug "DEBUG: BRANCH: Download failed for $script"
+                    log_warning "Failed to install enhanced script: $script"
                 fi
             fi
+        else
+            log_debug "DEBUG: BRANCH: Skipping empty script value"
         fi
     done
 
-    print_status "$GREEN" "✓ Enhanced monitoring scripts installed"
+    log_debug "=== ENHANCED MONITORING DEBUG SUMMARY ==="
+    log_debug "Scripts processed: $processed_count"
+    log_debug "Scripts successfully installed: $script_count"
+    log_debug "=== ENHANCED MONITORING DEBUG END ==="
+
+    log_success "Enhanced monitoring scripts installed"
 }
 
 # Create uninstall script
@@ -2652,7 +2198,6 @@ create_uninstall() {
 set -eu
 
 CRON_FILE="/etc/crontabs/root"
-DRY_RUN="${DRY_RUN:-0}"
 
 print_status() {
     color="$1"
@@ -2664,12 +2209,8 @@ print_status "$RED" "Uninstalling Starlink monitoring system..."
 
 # Backup crontab before modification
 if [ -f "$CRON_FILE" ]; then
-    if [ "${DRY_RUN:-0}" = "1" ]; then
-        print_status "$YELLOW" "DRY-RUN: Would backup crontab before removal"
-    else
-        cp "$CRON_FILE" "${CRON_FILE}.backup.uninstall.$(date +%Y%m%d_%H%M%S)"
-        print_status "$YELLOW" "Crontab backed up before removal"
-    fi
+    cp "$CRON_FILE" "${CRON_FILE}.backup.uninstall.$(date +%Y%m%d_%H%M%S)"
+    print_status "$YELLOW" "Crontab backed up before removal"
 fi
 
 # Remove cron entries (comment them out instead of deleting)
@@ -2677,68 +2218,40 @@ if [ -f "$CRON_FILE" ]; then
     # Create temp file with starlink entries commented out
     date_stamp=$(date +%Y-%m-%d)
     
-    if [ "${DRY_RUN:-0}" = "1" ]; then
-        print_status "$YELLOW" "DRY-RUN: Would comment out Starlink cron entries"
-    else
-        # Use basic sed to comment out matching lines (more portable)
-        sed "s|^\([^#].*starlink_monitor\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
-             s|^\([^#].*starlink_logger\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
-             s|^\([^#].*check_starlink_api\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
-             s|^\([^#].*system-maintenance-rutos\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
-             s|^\([^#].*Starlink monitoring system.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g" \
-            "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || {
-            # If sed fails, preserve the file
-            cat "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || touch /tmp/crontab.tmp
-        }
-        mv /tmp/crontab.tmp "$CRON_FILE"
-        safe_execute "/etc/init.d/cron restart >/dev/null 2>&1" "Restart cron service after uninstall changes" || true
-        print_status "$GREEN" "✓ Starlink cron entries commented out (not deleted)"
-        print_status "$YELLOW" "ℹ To restore: sed -i 's/^# COMMENTED BY UNINSTALL [0-9-]*: //' $CRON_FILE"
-    fi
+    # Use basic sed to comment out matching lines (more portable)
+    sed "s|^\([^#].*starlink_monitor\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
+         s|^\([^#].*starlink_logger\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
+         s|^\([^#].*check_starlink_api\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
+         s|^\([^#].*system-maintenance-rutos\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
+         s|^\([^#].*Starlink monitoring system.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g" \
+        "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || {
+        # If sed fails, preserve the file
+        cat "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || touch /tmp/crontab.tmp
+    }
+    mv /tmp/crontab.tmp "$CRON_FILE"
+    /etc/init.d/cron restart >/dev/null 2>&1 || true
+    print_status "$GREEN" "✓ Starlink cron entries commented out (not deleted)"
+    print_status "$YELLOW" "ℹ To restore: sed -i 's/^# COMMENTED BY UNINSTALL [0-9-]*: //' $CRON_FILE"
 fi
 
 # Remove hotplug script
-if [ "${DRY_RUN:-0}" = "1" ]; then
-    print_status "$YELLOW" "DRY-RUN: Would remove hotplug scripts"
-else
-    rm -f /etc/hotplug.d/iface/99-pushover_notify*
-fi
+rm -f /etc/hotplug.d/iface/99-pushover_notify*
 
 # Remove installation directory
-if [ "${DRY_RUN:-0}" = "1" ]; then
-    print_status "$YELLOW" "DRY-RUN: Would remove /usr/local/starlink-monitor"
-else
-    rm -rf /usr/local/starlink-monitor
-fi
+rm -rf /usr/local/starlink-monitor
 
 # Remove persistent config backup
-if [ "${DRY_RUN:-0}" = "1" ]; then
-    print_status "$YELLOW" "DRY-RUN: Would remove /etc/starlink-config"
-else
-    rm -rf /etc/starlink-config
-fi
+rm -rf /etc/starlink-config
 
 # Remove log directory
-if [ "${DRY_RUN:-0}" = "1" ]; then
-    print_status "$YELLOW" "DRY-RUN: Would remove /etc/starlink-logs"
-else
-    rm -rf /etc/starlink-logs
-fi
+rm -rf /etc/starlink-logs
 
 # Remove convenience symlinks
-if [ "${DRY_RUN:-0}" = "1" ]; then
-    print_status "$YELLOW" "DRY-RUN: Would remove convenience symlinks"
-else
-    rm -f /root/config.sh
-    rm -f /root/starlink-monitor
-fi
+rm -f /root/config.sh
+rm -f /root/starlink-monitor
 
 # Remove auto-restoration init script
-if [ "${DRY_RUN:-0}" = "1" ]; then
-    print_status "$YELLOW" "DRY-RUN: Would remove auto-restoration init script"
-else
-    rm -f /etc/init.d/starlink-restore
-fi
+rm -f /etc/init.d/starlink-restore
 
 print_status "$GREEN" "✓ Uninstall completed"
 EOF
@@ -2788,7 +2301,7 @@ store_version_in_persistent_config() {
     persistent_config="$PERSISTENT_CONFIG_DIR/config.sh"
 
     if [ ! -f "$persistent_config" ]; then
-        log_error "Persistent config not found: $persistent_config"
+        log_message "ERROR" "Persistent config not found: $persistent_config"
         return 1
     fi
 
@@ -2817,7 +2330,7 @@ RECOVERY_INSTALL_URL="https://raw.githubusercontent.com/$GITHUB_REPO/v$version/s
 # ==============================================================================
 EOF
 
-    log_info "Stored version $version in persistent config for recovery"
+    log_message "INFO" "Stored version $version in persistent config for recovery"
     return 0
 }
 
@@ -2828,7 +2341,7 @@ create_version_pinned_recovery_script() {
 
     # Ensure persistent config directory exists
     mkdir -p "$PERSISTENT_CONFIG_DIR" 2>/dev/null || {
-        log_error "Cannot create persistent config directory"
+        log_message "ERROR" "Cannot create persistent config directory"
         return 1
     }
 
@@ -2886,7 +2399,7 @@ EOF
     # Make script executable
     chmod +x "$recovery_script"
 
-    log_info "Version-pinned recovery script created: $recovery_script"
+    log_message "INFO" "Version-pinned recovery script created: $recovery_script"
     return 0
 }
 create_restoration_script() {
@@ -3132,12 +2645,7 @@ merge_configurations() {
                 sed -i "s|^${setting_escaped}=.*|${persistent_value}|" "$output_config" 2>/dev/null
             else
                 # Add new setting
-                # Protect state-changing command with DRY_RUN check
-                if [ "${DRY_RUN:-0}" = "1" ]; then
-                    log_restore "DRY-RUN: Would add setting to output config: $setting"
-                else
-                    echo "$persistent_value" >> "$output_config"
-                fi
+                echo "$persistent_value" >> "$output_config"
             fi
             log_restore "Merged setting: $setting"
         fi
@@ -3308,13 +2816,8 @@ stop() {
             if [ -f "$INSTALL_DIR/config/config.template.sh" ]; then
                 template_version=$(grep "^# Template Version:" "$INSTALL_DIR/config/config.template.sh" 2>/dev/null | head -1)
                 if [ -n "$template_version" ]; then
-                    # Protect state-changing command with DRY_RUN check
-                    if [ "${DRY_RUN:-0}" = "1" ]; then
-                        log_restore "DRY-RUN: Would add template version info to backup"
-                    else
-                        echo "$template_version" >> "$PERSISTENT_CONFIG_DIR/config.sh"
-                        log_restore "Template version info added to backup"
-                    fi
+                    echo "$template_version" >> "$PERSISTENT_CONFIG_DIR/config.sh"
+                    log_restore "Template version info added to backup"
                 fi
             fi
             
@@ -3348,47 +2851,41 @@ EOF
 
 # Main installation function
 main() {
-
-    # Log function entry for debugging
-    if [ "${DEBUG:-0}" = "1" ] && command -v log_function_entry >/dev/null 2>&1; then
-        log_function_entry "main" "$*"
-    fi
-
     # Add test mode for troubleshooting
     if [ "${TEST_MODE:-0}" = "1" ]; then
-        log_debug "TEST MODE ENABLED: Running in test mode"
+        debug_log "TEST MODE ENABLED: Running in test mode"
         DEBUG=1 # Force debug mode in test mode
         set -x  # Enable command tracing
-        log_debug "TEST MODE: All commands will be traced"
+        debug_log "TEST MODE: All commands will be traced"
     fi
 
     # Enhanced debug mode with detailed startup logging
     DEBUG="${DEBUG:-0}"
     if [ "$DEBUG" = "1" ]; then
-        log_debug "==================== INSTALL SCRIPT DEBUG MODE ENABLED ===================="
-        log_debug "Script version: $SCRIPT_VERSION"
-        log_debug "Script build: $BUILD_INFO"
-        log_debug "Script name: $SCRIPT_NAME"
-        log_debug "Current working directory: $(pwd)"
-        log_debug "Script path: $0"
-        log_debug "Process ID: $$"
-        log_debug "User: $(whoami 2>/dev/null || echo 'unknown')"
-        log_debug "Arguments: $*"
-        log_debug "Environment DEBUG: ${DEBUG:-0}"
-        log_debug "Environment TEST_MODE: ${TEST_MODE:-0}"
+        debug_log "==================== INSTALL SCRIPT DEBUG MODE ENABLED ===================="
+        debug_log "Script version: $SCRIPT_VERSION"
+        debug_log "Script build: $BUILD_INFO"
+        debug_log "Script name: $SCRIPT_NAME"
+        debug_log "Current working directory: $(pwd)"
+        debug_log "Script path: $0"
+        debug_log "Process ID: $$"
+        debug_log "User: $(whoami 2>/dev/null || echo 'unknown')"
+        debug_log "Arguments: $*"
+        debug_log "Environment DEBUG: ${DEBUG:-0}"
+        debug_log "Environment TEST_MODE: ${TEST_MODE:-0}"
 
-        log_debug "CONFIGURATION PATHS:"
-        log_debug "  GITHUB_REPO=$GITHUB_REPO"
-        log_debug "  GITHUB_BRANCH=$GITHUB_BRANCH"
-        log_debug "  BASE_URL=$BASE_URL"
-        log_debug "  LOG_FILE=$LOG_FILE"
-        log_debug "  LOG_DIR=$LOG_DIR"
+        debug_log "CONFIGURATION PATHS:"
+        debug_log "  GITHUB_REPO=$GITHUB_REPO"
+        debug_log "  GITHUB_BRANCH=$GITHUB_BRANCH"
+        debug_log "  BASE_URL=$BASE_URL"
+        debug_log "  LOG_FILE=$LOG_FILE"
+        debug_log "  LOG_DIR=$LOG_DIR"
 
-        log_debug "RUNTIME ENVIRONMENT:"
-        log_debug "  OpenWRT Release: $(head -3 /etc/openwrt_release 2>/dev/null | tr '\n' ' ' || echo 'not found')"
-        log_debug "  Available disk space: $(df -h /tmp 2>/dev/null | tail -1 | awk '{print $4}' || echo 'unknown')"
-        log_debug "  Available memory: $(free -m 2>/dev/null | grep Mem | awk '{print $7"M available"}' || echo 'unknown')"
-        log_debug "  Network connectivity: $(ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 && echo 'online' || echo 'offline/limited')"
+        debug_log "RUNTIME ENVIRONMENT:"
+        debug_log "  OpenWRT Release: $(head -3 /etc/openwrt_release 2>/dev/null | tr '\n' ' ' || echo 'not found')"
+        debug_log "  Available disk space: $(df -h /tmp 2>/dev/null | tail -1 | awk '{print $4}' || echo 'unknown')"
+        debug_log "  Available memory: $(free -m 2>/dev/null | grep Mem | awk '{print $7"M available"}' || echo 'unknown')"
+        debug_log "  Network connectivity: $(ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 && echo 'online' || echo 'offline/limited')"
 
         show_version
         printf "\n"
@@ -3396,7 +2893,7 @@ main() {
             if [ "$remote_version" != "$SCRIPT_VERSION" ]; then
                 print_status "$YELLOW" "WARNING: Remote version ($remote_version) differs from script version ($SCRIPT_VERSION)"
             else
-                log_debug "Script version matches remote version: $SCRIPT_VERSION"
+                debug_msg "Script version matches remote version: $SCRIPT_VERSION"
             fi
         fi
         printf "\n"
@@ -3404,75 +2901,50 @@ main() {
     print_status "$GREEN" "=== Starlink Monitoring System Installer ==="
     printf "\n"
 
-    log_debug "==================== INSTALLATION START ===================="
-    log_debug "Starting installation process"
+    debug_log "==================== INSTALLATION START ===================="
+    debug_log "Starting installation process"
+    debug_msg "Starting installation process"
 
-    log_debug "STEP 1: Checking root privileges and system compatibility"
-    if ! check_root; then
-        exit 1
-    fi
+    debug_log "STEP 1: Checking root privileges and system compatibility"
+    check_root
 
-    log_debug "STEP 2: Validating system requirements"
-    if ! check_system; then
-        exit 1
-    fi
+    debug_log "STEP 2: Validating system requirements"
+    check_system
 
-    log_debug "STEP 3: Creating directory structure"
-    if ! create_directories; then
-        exit 1
-    fi
+    debug_log "STEP 3: Creating directory structure"
+    create_directories
 
-    log_debug "STEP 4: Installing binary dependencies"
-    if ! install_binaries; then
-        exit 1
-    fi
+    debug_log "STEP 4: Installing binary dependencies"
+    install_binaries
 
-    log_debug "STEP 5: Installing monitoring scripts"
-    if ! install_scripts; then
-        exit 1
-    fi
+    debug_log "STEP 5: Installing monitoring scripts"
+    install_scripts
 
-    log_debug "STEP 5.1: Installing enhanced monitoring scripts"
-    if ! install_enhanced_monitoring; then
-        exit 1
-    fi
+    debug_log "STEP 5.1: Installing enhanced monitoring scripts"
+    install_enhanced_monitoring
 
-    log_debug "STEP 5.2: Installing GPS integration components"
-    if ! install_gps_integration; then
-        exit 1
-    fi
+    debug_log "STEP 5.2: Installing GPS integration components"
+    install_gps_integration
 
-    log_debug "STEP 5.3: Installing cellular integration components"
-    if ! install_cellular_integration; then
-        exit 1
-    fi
+    debug_log "STEP 5.3: Installing cellular integration components"
+    install_cellular_integration
 
-    log_debug "STEP 6: Installing configuration files"
-    if ! install_config; then
-        exit 1
-    fi
+    debug_log "STEP 6: Installing configuration files"
+    install_config
 
-    log_debug "STEP 7: Configuring cron jobs"
-    if ! configure_cron; then
-        exit 1
-    fi
+    debug_log "STEP 7: Configuring cron jobs"
+    configure_cron
 
-    log_debug "STEP 8: Creating uninstall script"
-    if ! create_uninstall; then
-        exit 1
-    fi
+    debug_log "STEP 8: Creating uninstall script"
+    create_uninstall
 
-    log_debug "STEP 9: Setting up auto-restoration"
-    if ! create_restoration_script; then
-        exit 1
-    fi
+    debug_log "STEP 9: Setting up auto-restoration"
+    create_restoration_script
 
-    log_debug "STEP 10: Setting up firmware upgrade recovery"
-    if ! setup_recovery_information; then
-        exit 1
-    fi
+    debug_log "STEP 10: Setting up firmware upgrade recovery"
+    setup_recovery_information
 
-    log_debug "==================== INSTALLATION COMPLETE ===================="
+    debug_log "==================== INSTALLATION COMPLETE ===================="
     print_status "$GREEN" "=== Installation Complete ==="
     printf "\n"
 
@@ -3513,32 +2985,27 @@ main() {
     fi
 
     # Log successful completion
-    log_debug "INSTALLATION: Completing successfully"
-    log_info "============================================="
-    log_info "Installation completed successfully!"
-    log_info "Installation directory: $INSTALL_DIR"
-    log_info "Log file: $LOG_FILE"
-    log_info "============================================="
+    debug_log "INSTALLATION: Completing successfully"
+    log_message "INFO" "============================================="
+    log_message "INFO" "Installation completed successfully!"
+    log_message "INFO" "Installation directory: $INSTALL_DIR"
+    log_message "INFO" "Log file: $LOG_FILE"
+    log_message "INFO" "============================================="
 
     printf "\n"
     print_status "$GREEN" "📋 Installation log saved to: $LOG_FILE"
 
-    log_debug "==================== INSTALLATION SCRIPT COMPLETE ===================="
-    log_debug "Final status: SUCCESS"
-    log_debug "Script execution completed normally"
-    log_debug "Exit code: 0"
-
-    # Log function exit for debugging
-    if [ "${DEBUG:-0}" = "1" ] && command -v log_function_exit >/dev/null 2>&1; then
-        log_function_exit "main" "0"
-    fi
+    debug_log "==================== INSTALLATION SCRIPT COMPLETE ===================="
+    debug_log "Final status: SUCCESS"
+    debug_log "Script execution completed normally"
+    debug_log "Exit code: 0"
 }
 
 # Error handling function
 handle_error() {
     exit_code=$?
-    log_error "Installation failed with exit code: $exit_code"
-    log_error "Check the log file for details: $LOG_FILE"
+    log_message "ERROR" "Installation failed with exit code: $exit_code"
+    log_message "ERROR" "Check the log file for details: $LOG_FILE"
     print_status "$RED" "❌ Installation failed! Check log: $LOG_FILE"
     exit $exit_code
 }
@@ -3547,6 +3014,6 @@ handle_error() {
 trap handle_error INT TERM
 
 # Run main function
-log_debug "==================== INSTALL SCRIPT EXECUTION START ===================="
+debug_log "==================== INSTALL SCRIPT EXECUTION START ===================="
 main "$@"
-log_debug "==================== INSTALL SCRIPT EXECUTION END ===================="
+debug_log "==================== INSTALL SCRIPT EXECUTION END ===================="
