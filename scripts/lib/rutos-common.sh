@@ -356,33 +356,33 @@ version_compare() {
 log_message() {
     level="$1"
     message="$2"
-    
+
     # Show deprecation warning in debug mode
     if [ "${DEBUG:-0}" = "1" ]; then
         log_trace "DEPRECATED: log_message() called with level '$level' - use log_info(), log_error(), etc. instead"
     fi
-    
+
     # Map old log levels to new RUTOS library functions
     case "$level" in
-        "INFO"|"info")
+        "INFO" | "info")
             log_info "$message"
             ;;
-        "ERROR"|"error")
+        "ERROR" | "error")
             log_error "$message"
             ;;
-        "WARNING"|"warning"|"WARN"|"warn")
+        "WARNING" | "warning" | "WARN" | "warn")
             log_warning "$message"
             ;;
-        "DEBUG"|"debug")
+        "DEBUG" | "debug")
             log_debug "$message"
             ;;
-        "SUCCESS"|"success")
+        "SUCCESS" | "success")
             log_success "$message"
             ;;
-        "CONFIG_DEBUG"|"config_debug")
+        "CONFIG_DEBUG" | "config_debug")
             log_debug "CONFIG: $message"
             ;;
-        "DEBUG_EXEC"|"debug_exec")
+        "DEBUG_EXEC" | "debug_exec")
             log_debug "EXEC: $message"
             ;;
         *)
