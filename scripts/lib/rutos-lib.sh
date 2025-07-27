@@ -53,6 +53,11 @@ fi
 . "$_rutos_lib_dir/rutos-logging.sh"
 . "$_rutos_lib_dir/rutos-common.sh"
 
+# Load compatibility layer for legacy function support
+if [ -f "$_rutos_lib_dir/rutos-compatibility.sh" ]; then
+    . "$_rutos_lib_dir/rutos-compatibility.sh"
+fi
+
 # ============================================================================
 # RUTOS INITIALIZATION FUNCTION
 # ============================================================================

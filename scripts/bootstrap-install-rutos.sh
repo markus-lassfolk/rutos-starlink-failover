@@ -4,7 +4,7 @@
 # ==============================================================================
 # RUTOS Starlink Failover - Bootstrap Installation Script
 #
-# Version: 1.0.11
+# Version: 1.0.12
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # SPECIAL BOOTSTRAP SCRIPT - LIBRARY EXEMPT
@@ -27,7 +27,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.11"
+SCRIPT_VERSION="1.0.12"
 readonly SCRIPT_VERSION
 
 # Configuration
@@ -46,7 +46,7 @@ ORIGINAL_DEBUG="$DEBUG"
 ORIGINAL_RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
 
 # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap logging functions (replaced by full library after download)
-log_info() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
+log_info() {                                                      # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
     printf "[INFO] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" # VALIDATION_SKIP_PRINTF: Bootstrap logging (library unavailable)
 }
 
@@ -137,8 +137,8 @@ download_library_system() {
     lib_dir="$BOOTSTRAP_TEMP_DIR/lib"
     mkdir -p "$lib_dir"
 
-    # Download all library components
-    library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh"
+    # Download all library components including compatibility module
+    library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh rutos-compatibility.sh"
 
     for file in $library_files; do
         url="$BASE_URL/scripts/lib/$file"

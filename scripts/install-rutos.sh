@@ -502,27 +502,8 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
         esac
     }
 
-    # COMPATIBILITY: Add log_debug function for legacy code compatibility
-    debug_log() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_debug calls
-        log_debug "$1"
-    }
-
-    # COMPATIBILITY: Add debug_msg function for legacy code compatibility
-    debug_msg() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy debug_msg calls
-        log_debug "$1"
-    }
-
-    # COMPATIBILITY: Add print_status function for legacy code compatibility
-    print_status() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy print_status calls
-        color="$1"
-        message="$2"
-        printf "%s%s%s\n" "$color" "$message" "$NC"
-    }
-
-    # COMPATIBILITY: Add debug_exec function for legacy code compatibility
-    debug_exec() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy debug_exec calls
-        safe_execute "$*" "Execute command: $*"
-    }
+    # NOTE: Legacy compatibility functions (debug_log, debug_msg, print_status, debug_exec)
+    # are now provided automatically by the RUTOS library compatibility module
 else
     # Fallback to legacy logging system for remote installations when library unavailable
     printf "[INFO] Using built-in fallback logging system\n"
@@ -577,27 +558,11 @@ else
         esac
     }
 
-    # COMPATIBILITY: Add log_debug function for legacy code compatibility
-    debug_log() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_debug calls (fallback)
-        log_debug "$1"
-    }
-
-    # COMPATIBILITY: Add debug_msg function for legacy code compatibility
-    debug_msg() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy debug_msg calls (fallback)
-        log_debug "$1"
-    }
-
-    # COMPATIBILITY: Add print_status function for legacy code compatibility
-    print_status() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy print_status calls (fallback)
-        color="$1"
-        message="$2"
-        printf "%s%s%s\n" "$color" "$message" "$NC"
-    }
-
-    # COMPATIBILITY: Add debug_exec function for legacy code compatibility
-    debug_exec() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy debug_exec calls (fallback)
-        safe_execute "$*" "Execute command: $*"
-    }
+    # FALLBACK COMPATIBILITY: Minimal legacy function support when library unavailable
+    debug_log() { log_debug "$1"; }                           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
+    debug_msg() { log_debug "$1"; }                           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
+    print_status() { printf "%s%s%s\n" "$1" "$2" "$NC"; }     # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
+    debug_exec() { safe_execute "$*" "Execute command: $*"; } # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
 
     # VALIDATION_SKIP_LIBRARY_CHECK: Built-in safe_execute function for remote installation fallback
     safe_execute() {
