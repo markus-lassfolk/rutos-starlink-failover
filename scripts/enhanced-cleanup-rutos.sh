@@ -274,7 +274,7 @@ if [ "$DRY_RUN" = "0" ]; then
     # Clean any whitespace from count
     running_procs=$(echo "$running_procs" | tr -d ' \n\r')
     running_procs=${running_procs:-0}
-    
+
     if [ "$running_procs" -gt 0 ]; then
         print_status "$YELLOW" "⚠️  Found $running_procs running Starlink-related processes"
         print_status "$BLUE" "  → Manual process cleanup may be needed"

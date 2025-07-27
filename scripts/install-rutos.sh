@@ -24,7 +24,7 @@ debug_trace "16" "Shell options set successfully"
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
+# Note: readonly set after library loading to avoid conflicts
 BUILD_INFO="1.0.2+198.38fb60b-dirty"
 SCRIPT_NAME="install-rutos.sh"
 
@@ -56,17 +56,26 @@ if [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; th
     # Development mode: scripts directory available locally
     # shellcheck source=/dev/null
     debug_trace "47" "About to source library..."
+    debug_trace "48" "Temporarily unsetting readonly SCRIPT_VERSION to avoid conflicts"
+    # Workaround for readonly variable conflicts - unset and re-export for library
+    temp_script_version="$SCRIPT_VERSION"
+    unset SCRIPT_VERSION 2>/dev/null || true
     if . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
         LIBRARY_LOADED=1
-        debug_trace "50" "Local RUTOS library loaded successfully"
+        SCRIPT_VERSION="$temp_script_version" # Restore original value
+        readonly SCRIPT_VERSION # Now safe to make readonly
+        debug_trace "55" "Local RUTOS library loaded successfully"
         log_debug "RUTOS library system loaded from local development environment"
     else
         lib_error=$?
-        debug_trace "54" "Failed to load local RUTOS library (exit code: $lib_error)"
-        debug_trace "55" "Error attempting to source: $(dirname "$0")/lib/rutos-lib.sh"
+        SCRIPT_VERSION="$temp_script_version" # Restore original value
+        readonly SCRIPT_VERSION # Make readonly even if library failed
+        debug_trace "59" "Failed to load local RUTOS library (exit code: $lib_error)"
+        debug_trace "60" "Error attempting to source: $(dirname "$0")/lib/rutos-lib.sh"
     fi
 else
     debug_trace "53" "No local library found - will attempt remote download"
+    readonly SCRIPT_VERSION # Make readonly since no conflicts expected
 fi
 
 # Remote installation mode: download library to temp location and use it
