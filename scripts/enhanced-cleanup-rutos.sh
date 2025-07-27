@@ -167,7 +167,14 @@ safe_execute() {
     cmd="$1"
     description="$2"
 
-    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+    # Debug: Show execution decision
+    if [ "${DEBUG:-0}" = "1" ]; then
+        print_status "$CYAN" "[DEBUG] safe_execute: DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0}"
+        print_status "$CYAN" "[DEBUG] Command: $cmd"
+        print_status "$CYAN" "[DEBUG] Description: $description"
+    fi
+
+    if [ "$DRY_RUN" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
         print_status "$YELLOW" "[DRY-RUN] Would execute: $description"
         if [ "${DEBUG:-0}" = "1" ]; then
             print_status "$CYAN" "[DRY-RUN] Command: $cmd"
@@ -259,10 +266,15 @@ if [ "$DRY_RUN" = "0" ]; then
     # Only show running processes, don't kill them automatically for safety
     # Use BusyBox-compatible pgrep if available, fallback to ps
     if command -v pgrep >/dev/null 2>&1; then
-        running_procs=$(pgrep -c -f "(starlink|rutos)" || echo "0")
+        # BusyBox pgrep doesn't support -c flag, so count manually
+        running_procs=$(pgrep -f "(starlink|rutos)" 2>/dev/null | wc -l || echo "0")
     else
         running_procs=$(ps | grep -c -E "(starlink|rutos)" || echo "0")
     fi
+    # Clean any whitespace from count
+    running_procs=$(echo "$running_procs" | tr -d ' \n\r')
+    running_procs=${running_procs:-0}
+    
     if [ "$running_procs" -gt 0 ]; then
         print_status "$YELLOW" "⚠️  Found $running_procs running Starlink-related processes"
         print_status "$BLUE" "  → Manual process cleanup may be needed"
