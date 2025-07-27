@@ -216,7 +216,7 @@ config_debug() {
     if [ "${CONFIG_DEBUG:-0}" = "1" ] || [ "${DEBUG:-0}" = "1" ]; then
         timestamp=$(get_timestamp)
         printf "${CYAN}[%s] CONFIG DEBUG: %s${NC}\n" "$timestamp" "$1" >&2
-        log_debug "CONFIG: $1"
+        # Note: Only output once to avoid duplicates with RUTOS library logging
     fi
 }
 

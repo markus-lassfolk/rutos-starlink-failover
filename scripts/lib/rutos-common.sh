@@ -24,6 +24,54 @@ if [ "${_RUTOS_LOGGING_LOADED:-}" != "1" ]; then
 fi
 
 # ============================================================================
+# LOGGING COMPATIBILITY FUNCTIONS
+# ============================================================================
+# Provide fallback functions if logging module is not available
+
+# Ensure basic logging functions exist (compatibility for remote installation)
+if ! command -v log_trace >/dev/null 2>&1; then
+    log_trace() { 
+        [ "${RUTOS_TEST_MODE:-0}" = "1" ] && printf "[TRACE] %s\n" "$1" >&2 || true
+    }
+fi
+
+if ! command -v log_function_entry >/dev/null 2>&1; then
+    log_function_entry() { 
+        [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] Entering: %s(%s)\n" "$1" "$2" >&2 || true
+    }
+fi
+
+if ! command -v log_function_exit >/dev/null 2>&1; then
+    log_function_exit() { 
+        [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] Exiting: %s -> %s\n" "$1" "$2" >&2 || true
+    }
+fi
+
+if ! command -v log_info >/dev/null 2>&1; then
+    log_info() { 
+        printf "[INFO] %s\n" "$1" >&2
+    }
+fi
+
+if ! command -v log_error >/dev/null 2>&1; then
+    log_error() { 
+        printf "[ERROR] %s\n" "$1" >&2
+    }
+fi
+
+if ! command -v log_warning >/dev/null 2>&1; then
+    log_warning() { 
+        printf "[WARNING] %s\n" "$1" >&2
+    }
+fi
+
+if ! command -v log_debug >/dev/null 2>&1; then
+    log_debug() { 
+        [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] %s\n" "$1" >&2 || true
+    }
+fi
+
+# ============================================================================
 # ENVIRONMENT VALIDATION
 # ============================================================================
 
