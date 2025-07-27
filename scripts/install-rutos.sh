@@ -753,14 +753,14 @@ if [ "${DEBUG:-0}" = "1" ]; then
 fi
 
 # Log installation start
-log_message "INFO" "============================================="
-log_message "INFO" "Starlink Monitor Installation Script Started"
-log_message "INFO" "Script: $SCRIPT_NAME"
-log_message "INFO" "Version: $SCRIPT_VERSION"
-log_message "INFO" "Branch: $GITHUB_BRANCH"
-log_message "INFO" "Repository: $GITHUB_REPO"
-log_message "INFO" "DEBUG Mode: ${DEBUG:-0}"
-log_message "INFO" "============================================="
+log_info "============================================="
+log_info "Starlink Monitor Installation Script Started"
+log_info "Script: $SCRIPT_NAME"
+log_info "Version: $SCRIPT_VERSION"
+log_info "Branch: $GITHUB_BRANCH"
+log_info "Repository: $GITHUB_REPO"
+log_info "DEBUG Mode: ${DEBUG:-0}"
+log_info "============================================="
 
 # Function to show version information
 show_version() {
@@ -883,47 +883,47 @@ download_file() {
     output="$2"
 
     debug_msg "Downloading $url to $output"
-    log_message "INFO" "Starting download: $url -> $output"
+    log_info "Starting download: $url -> $output"
 
     # Try wget first, then curl
     if command -v wget >/dev/null 2>&1; then
         if [ "${DEBUG:-0}" = "1" ]; then
             if debug_exec wget -O "$output" "$url"; then
-                log_message "INFO" "Download successful: $output"
+                log_info "Download successful: $output"
                 return 0
             else
-                log_message "ERROR" "Download failed with wget: $url"
+                log_error "Download failed with wget: $url"
                 return 1
             fi
         else
             if wget -q -O "$output" "$url" 2>/dev/null; then
-                log_message "INFO" "Download successful: $output"
+                log_info "Download successful: $output"
                 return 0
             else
-                log_message "ERROR" "Download failed with wget: $url"
+                log_error "Download failed with wget: $url"
                 return 1
             fi
         fi
     elif command -v curl >/dev/null 2>&1; then
         if [ "${DEBUG:-0}" = "1" ]; then
             if debug_exec curl -fL -o "$output" "$url"; then
-                log_message "INFO" "Download successful: $output"
+                log_info "Download successful: $output"
                 return 0
             else
-                log_message "ERROR" "Download failed with curl: $url"
+                log_error "Download failed with curl: $url"
                 return 1
             fi
         else
             if curl -fsSL -o "$output" "$url" 2>/dev/null; then
-                log_message "INFO" "Download successful: $output"
+                log_info "Download successful: $output"
                 return 0
             else
-                log_message "ERROR" "Download failed with curl: $url"
+                log_error "Download failed with curl: $url"
                 return 1
             fi
         fi
     else
-        log_message "ERROR" "Neither wget nor curl available for downloads"
+        log_error "Neither wget nor curl available for downloads"
         log_error "Error: Neither wget nor curl available for downloads"
         return 1
     fi
@@ -2735,7 +2735,7 @@ store_version_in_persistent_config() {
     persistent_config="$PERSISTENT_CONFIG_DIR/config.sh"
 
     if [ ! -f "$persistent_config" ]; then
-        log_message "ERROR" "Persistent config not found: $persistent_config"
+        log_error "Persistent config not found: $persistent_config"
         return 1
     fi
 
@@ -2764,7 +2764,7 @@ RECOVERY_INSTALL_URL="https://raw.githubusercontent.com/$GITHUB_REPO/v$version/s
 # ==============================================================================
 EOF
 
-    log_message "INFO" "Stored version $version in persistent config for recovery"
+    log_info "Stored version $version in persistent config for recovery"
     return 0
 }
 
@@ -2775,7 +2775,7 @@ create_version_pinned_recovery_script() {
 
     # Ensure persistent config directory exists
     mkdir -p "$PERSISTENT_CONFIG_DIR" 2>/dev/null || {
-        log_message "ERROR" "Cannot create persistent config directory"
+        log_error "Cannot create persistent config directory"
         return 1
     }
 
@@ -2833,7 +2833,7 @@ EOF
     # Make script executable
     chmod +x "$recovery_script"
 
-    log_message "INFO" "Version-pinned recovery script created: $recovery_script"
+    log_info "Version-pinned recovery script created: $recovery_script"
     return 0
 }
 create_restoration_script() {
@@ -3435,11 +3435,11 @@ main() {
 
     # Log successful completion
     log_debug "INSTALLATION: Completing successfully"
-    log_message "INFO" "============================================="
-    log_message "INFO" "Installation completed successfully!"
-    log_message "INFO" "Installation directory: $INSTALL_DIR"
-    log_message "INFO" "Log file: $LOG_FILE"
-    log_message "INFO" "============================================="
+    log_info "============================================="
+    log_info "Installation completed successfully!"
+    log_info "Installation directory: $INSTALL_DIR"
+    log_info "Log file: $LOG_FILE"
+    log_info "============================================="
 
     printf "\n"
     print_status "$GREEN" "📋 Installation log saved to: $LOG_FILE"
@@ -3458,8 +3458,8 @@ main() {
 # Error handling function
 handle_error() {
     exit_code=$?
-    log_message "ERROR" "Installation failed with exit code: $exit_code"
-    log_message "ERROR" "Check the log file for details: $LOG_FILE"
+    log_error "Installation failed with exit code: $exit_code"
+    log_error "Check the log file for details: $LOG_FILE"
     print_status "$RED" "❌ Installation failed! Check log: $LOG_FILE"
     exit $exit_code
 }

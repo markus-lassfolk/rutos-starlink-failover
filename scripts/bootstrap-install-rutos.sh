@@ -2,7 +2,7 @@
 # ==============================================================================
 # RUTOS Starlink Failover - Bootstrap Installation Script
 #
-# Version: 1.0.7
+# Version: 1.0.8
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # SPECIAL BOOTSTRAP SCRIPT - LIBRARY EXEMPT
@@ -17,7 +17,7 @@
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/bootstrap-install-rutos.sh | sh
-#   
+#
 # With debug mode:
 #   curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/bootstrap-install-rutos.sh | DEBUG=1 RUTOS_TEST_MODE=1 sh
 # ==============================================================================
@@ -25,9 +25,8 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.7"
+SCRIPT_VERSION="1.0.8"
 readonly SCRIPT_VERSION
-
 
 # Configuration
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
@@ -36,7 +35,7 @@ BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
 # Logging setup (minimal bootstrap-only logging - will be replaced by full RUTOS library)
 DRY_RUN="${DRY_RUN:-0}"
-DEBUG="${DEBUG:-0}" 
+DEBUG="${DEBUG:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Store original values for handoff to main install script
@@ -45,21 +44,21 @@ ORIGINAL_DEBUG="$DEBUG"
 ORIGINAL_RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
 
 # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap logging functions (replaced by full library after download)
-log_info() {  # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
+log_info() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
     printf "[INFO] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
-log_debug() {  # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
+log_debug() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
     if [ "$DEBUG" = "1" ]; then
         printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
-log_error() {  # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
+log_error() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
     printf "[ERROR] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
-log_trace() {  # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
+log_trace() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
     if [ "$RUTOS_TEST_MODE" = "1" ]; then
         printf "[TRACE] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
@@ -98,10 +97,10 @@ download_file() {
     url="$1"
     output_file="$2"
     description="$3"
-    
+
     log_trace "Downloading $description from: $url"
     log_trace "Target file: $output_file"
-    
+
     # Try curl first (VALIDATION_SKIP_SAFE_EXECUTE: Bootstrap phase before library available)
     if command -v curl >/dev/null 2>&1; then
         if curl -fsSL --connect-timeout 10 --max-time 60 "$url" -o "$output_file"; then
@@ -112,7 +111,7 @@ download_file() {
             log_debug "curl failed with exit code $curl_exit_code for $description"
         fi
     fi
-    
+
     # Fallback to wget (VALIDATION_SKIP_SAFE_EXECUTE: Bootstrap phase before library available)
     if command -v wget >/dev/null 2>&1; then
         if wget -q -O "$output_file" "$url"; then
@@ -123,7 +122,7 @@ download_file() {
             log_debug "wget failed with exit code $wget_exit_code for $description"
         fi
     fi
-    
+
     log_error "Failed to download $description from $url"
     return 1
 }
@@ -197,7 +196,7 @@ execute_with_library() {
 
     # Export environment variables for the installation script
     export DRY_RUN DEBUG RUTOS_TEST_MODE
-    
+
     # Smart ALLOW_TEST_EXECUTION logic:
     # - If DRY_RUN=1: Allow test execution (safe mode)
     # - If DRY_RUN=0 and RUTOS_TEST_MODE=1: Allow test execution (real execution with enhanced logging)
@@ -208,7 +207,7 @@ execute_with_library() {
         ALLOW_TEST_EXECUTION="${ALLOW_TEST_EXECUTION:-0}"
     fi
     export ALLOW_TEST_EXECUTION
-    
+
     export USE_LIBRARY=1           # Signal to install script that library is available
     export LIBRARY_PATH="$lib_dir" # Tell install script where to find library
 
@@ -233,7 +232,7 @@ execute_with_library() {
     fi
 }
 
-# Cleanup function  
+# Cleanup function
 cleanup_bootstrap() {
     if [ -n "$BOOTSTRAP_TEMP_DIR" ] && [ -d "$BOOTSTRAP_TEMP_DIR" ]; then
         log_debug "Cleaning up bootstrap temporary directory: $BOOTSTRAP_TEMP_DIR"
@@ -248,7 +247,7 @@ trap cleanup_bootstrap EXIT INT TERM
 # Main bootstrap process
 main() {
     log_info "Starting RUTOS Starlink Failover Bootstrap Installation v$SCRIPT_VERSION"
-    
+
     # Show debug environment information
     if [ "$DEBUG" = "1" ]; then
         log_debug "Bootstrap environment:"
@@ -264,7 +263,7 @@ main() {
         log_debug "    DRY_RUN: $DRY_RUN (original: $ORIGINAL_DRY_RUN)"
         log_debug "    DEBUG: $DEBUG (original: $ORIGINAL_DEBUG)"
         log_debug "    RUTOS_TEST_MODE: $RUTOS_TEST_MODE (original: $ORIGINAL_RUTOS_TEST_MODE)"
-    fi    # Step 1: Create temporary directory
+    fi # Step 1: Create temporary directory
     if ! create_bootstrap_temp_dir; then
         log_error "Failed to create bootstrap temporary directory"
         exit 1
