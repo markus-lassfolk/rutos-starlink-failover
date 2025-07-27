@@ -26,7 +26,9 @@ set -e
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="1.0.0"
-readonly SCRIPT_VERSION# Configuration
+readonly SCRIPT_VERSION
+
+# Configuration
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
