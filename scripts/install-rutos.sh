@@ -1654,7 +1654,7 @@ install_config() {
 
             if [ -n "$validate_script_path" ]; then
                 # Run validation with repair but skip backup creation (we already have one)
-                if SKIP_BACKUP=1 "$validate_script_path" "$primary_config" --repair; then
+                if env SKIP_BACKUP=1 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}" DRY_RUN="${DRY_RUN:-0}" DEBUG="${DEBUG:-0}" "$validate_script_path" "$primary_config" --repair; then
                     print_status "$GREEN" "✓ Configuration formatting validation completed"
                 else
                     print_status "$YELLOW" "⚠ Configuration validation completed with warnings"
@@ -1700,7 +1700,7 @@ install_config() {
 
             if [ -n "$validate_script_path" ]; then
                 # Run validation with repair for new config (no backup needed for fresh install)
-                if SKIP_BACKUP=1 "$validate_script_path" "$primary_config" --repair; then
+                if env SKIP_BACKUP=1 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}" DRY_RUN="${DRY_RUN:-0}" DEBUG="${DEBUG:-0}" "$validate_script_path" "$primary_config" --repair; then
                     print_status "$GREEN" "✓ Configuration formatting validation completed"
                 else
                     print_status "$YELLOW" "⚠ Configuration validation completed with warnings"
@@ -1723,7 +1723,8 @@ install_config() {
 
                 # Run auto-detection and capture results
                 detection_results="/tmp/autodetect_results.$$"
-                if "$autodetect_script_path" >"$detection_results" 2>/dev/null; then
+                # Pass environment variables to auto-detect script
+                if env RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}" DRY_RUN="${DRY_RUN:-0}" DEBUG="${DEBUG:-0}" "$autodetect_script_path" >"$detection_results" 2>/dev/null; then
                     print_status "$GREEN" "✓ System auto-detection completed successfully"
 
                     # Apply detected settings to configuration
