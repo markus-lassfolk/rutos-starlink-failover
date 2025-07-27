@@ -1,117 +1,114 @@
 #!/bin/sh
 # Script: post-install-check-rutos.sh
-# Version: 2.7.1
-# Description: Comprehensive post-installation health check with visual indicators and enhanced debugging
+# Version: 2.4.12
+# Description: Comprehensive post-installation health check with visual indicators
 # Compatible with: RUTOS (busybox sh)
+
+# RUTOS Compatibility - Using Method 5 printf format for proper color display
+# shellcheck disable=SC2059  # Method 5 printf format required for RUTOS color support
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.7.0"
+readonly SCRIPT_VERSION
 
-# CRITICAL: Load RUTOS library system (REQUIRED)
-# Try to load from local development environment first
-if [ -f "$(dirname "$0")/lib/rutos-lib.sh" ]; then
-    # shellcheck source=lib/rutos-lib.sh
-    . "$(dirname "$0")/lib/rutos-lib.sh"
-elif [ -f "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh" ]; then
-    # shellcheck source=/dev/null
-    . "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh"
-else
-    # Fallback: basic functionality for standalone operation
-    printf "[WARNING] RUTOS library not found - using fallback functions\n" >&2
-    
-    # Basic fallback functions
-    log_info() { printf "[INFO] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"; }
-    log_error() { printf "[ERROR] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2; }
-    log_debug() { [ "$DEBUG" = "1" ] && printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2; }
-    log_warning() { printf "[WARNING] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"; }
-    log_success() { printf "[SUCCESS] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"; }
-    log_step() { printf "[STEP] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"; }
-    log_trace() { [ "${RUTOS_TEST_MODE:-0}" = "1" ] && printf "[TRACE] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2; }
-    
-    # Basic safe_execute fallback
-    safe_execute() {
-        cmd="$1"
-        description="$2"
-        log_debug "Executing: $description"
-        log_debug "Command: $cmd"
-        if eval "$cmd"; then
-            log_debug "Command succeeded: $description"
-            return 0
-        else
-            exit_code=$?
-            log_error "Command failed with exit code $exit_code: $description"
-            return $exit_code
-        fi
-    }
-fi
+# Version information (auto-updated by update-version.sh)
 
-# CRITICAL: Initialize script with library features (REQUIRED)
-rutos_init "post-install-check-rutos.sh" "$SCRIPT_VERSION"
+# Version information (auto-updated by update-version.sh)
 
-# Standard colors for consistent output (using library-compatible format)
+# Standard colors for consistent output (compatible with busybox)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;35m'
+# shellcheck disable=SC2034  # Used in some conditional contexts
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
-# Enhanced command execution with detailed logging
-debug_execute() {
+# Check if we're in a terminal that supports colors
+if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    PURPLE=""
+    CYAN=""
+    NC=""
+fi
+
+# Standard logging functions with consistent colors
+log_info() {
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+log_warning() {
+    # shellcheck disable=SC2317  # Function provided for consistency - may be unused in some scripts
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+log_error() {
+    # shellcheck disable=SC2317  # Function provided for consistency - may be unused in some scripts
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+}
+
+log_debug() {
+    if [ "$DEBUG" = "1" ]; then
+        # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    fi
+}
+
+log_success() {
+    # shellcheck disable=SC2317  # Function provided for consistency - may be unused in some scripts
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+}
+
+# Dry-run and test mode support
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Debug dry-run status
+if [ "$DEBUG" = "1" ]; then
+    log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+fi
+
+# Function to safely execute commands
+safe_execute() {
+    # shellcheck disable=SC2317  # Function is called later in script
     cmd="$1"
+    # shellcheck disable=SC2317  # Function is called later in script
     description="$2"
-    test_mode_ok="${3:-0}"  # Whether this command is safe to run in test mode
-    
-    log_debug "=== COMMAND EXECUTION ==="
-    log_debug "Description: $description"
-    log_debug "Command: $cmd"
-    log_debug "Test mode safe: $test_mode_ok"
-    log_debug "Working directory: $(pwd)"
-    
-    # In RUTOS_TEST_MODE, only run commands that are safe (read-only operations)
-    if [ "${RUTOS_TEST_MODE:-0}" = "1" ] && [ "$test_mode_ok" = "0" ]; then
-        log_trace "RUTOS_TEST_MODE: Skipping potentially unsafe command: $description"
-        log_trace "Command would be: $cmd"
+
+    # shellcheck disable=SC2317  # Function is called later in script
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        log_info "[DRY-RUN] Would execute: $description"
+        log_debug "[DRY-RUN] Command: $cmd"
         return 0
-    fi
-    
-    # Execute command with comprehensive error handling
-    if output=$(eval "$cmd" 2>&1); then
-        exit_code=0
-        log_debug "Command succeeded: $description"
-        if [ "${DEBUG:-0}" = "1" ] && [ -n "$output" ]; then
-            log_debug "Command output: $output"
-        fi
     else
-        exit_code=$?
-        log_debug "Command failed with exit code $exit_code: $description"
-        log_debug "Command output: $output"
-        log_error "Failed command details:"
-        log_error "  Description: $description"
-        log_error "  Command: $cmd"
-        log_error "  Exit code: $exit_code"
-        log_error "  Output: $output"
+        log_debug "Executing: $cmd"
+        eval "$cmd"
     fi
-    
-    # Store results for caller
-    LAST_COMMAND_OUTPUT="$output"
-    LAST_COMMAND_EXIT_CODE="$exit_code"
-    
-    return $exit_code
 }
 
 log_step() {
+    # shellcheck disable=SC2317  # Function provided for consistency - may be unused in some scripts
+    # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
     printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
-# RUTOS_TEST_MODE enables trace logging - does NOT exit early
-# Only commands marked as unsafe will be skipped in test mode
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    log_trace "RUTOS_TEST_MODE enabled - trace logging active, safe commands will execute"
-    log_debug "Test mode behavior: Read-only operations continue, unsafe operations are traced but skipped"
+# Debug mode support
+DEBUG="${DEBUG:-0}"
+if [ "$DEBUG" = "1" ]; then
+    log_debug "==================== DEBUG MODE ENABLED ===================="
+    log_debug "Script version: $SCRIPT_VERSION"
+    log_debug "Working directory: $(pwd)"
+    log_debug "Arguments: $*"
 fi
 
 # Configuration paths
@@ -160,9 +157,8 @@ check_status() {
     esac
 }
 
-# Early exit in test mode to prevent execution errors
-# REMOVED: This was causing the script to exit early in RUTOS_TEST_MODE
-# Now RUTOS_TEST_MODE continues execution with trace logging enabled
+# RUTOS_TEST_MODE enables trace logging (does NOT cause early exit)
+# Script continues normal execution with enhanced debugging when RUTOS_TEST_MODE=1
 
 # Show header
 printf "\n"
@@ -286,113 +282,39 @@ printf "\n${BLUE}3. STARLINK CONFIGURATION${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
-# Check Starlink IP configuration with enhanced debugging
+# Check Starlink IP configuration
 if [ -n "${STARLINK_IP:-}" ]; then
     if is_placeholder "$STARLINK_IP"; then
         check_status "config" "Starlink IP Address" "Needs configuration: $STARLINK_IP"
     else
-        log_debug "=== STARLINK CONNECTIVITY TEST ==="
-        log_debug "Testing Starlink IP: $STARLINK_IP"
-        
-        # Parse IP and port
+        # Test connectivity to Starlink using grpcurl like the connectivity test script
         grpc_host="${STARLINK_IP%:*}"
         grpc_port="${STARLINK_IP#*:}"
-        
-        log_debug "Parsed host: $grpc_host"
-        log_debug "Parsed port: $grpc_port"
-        
-        # Test 1: Basic TCP connectivity with detailed logging
-        log_debug "=== TEST 1: Basic TCP Connectivity ==="
-        tcp_test_cmd="echo | timeout 5 nc '$grpc_host' '$grpc_port'"
-        
-        if debug_execute "$tcp_test_cmd" "TCP connectivity test to $grpc_host:$grpc_port" "1"; then
-            log_debug "TCP connectivity: SUCCESS"
-            tcp_reachable=1
-        else
-            log_debug "TCP connectivity: FAILED"
-            log_debug "Exit code: $LAST_COMMAND_EXIT_CODE"
-            log_debug "Output: $LAST_COMMAND_OUTPUT"
-            tcp_reachable=0
-        fi
-        
-        # Test 2: grpcurl availability check
-        log_debug "=== TEST 2: grpcurl Availability ==="
-        if [ -f "$INSTALL_DIR/grpcurl" ] && [ -x "$INSTALL_DIR/grpcurl" ]; then
-            log_debug "grpcurl found at: $INSTALL_DIR/grpcurl"
-            
-            # Test grpcurl version
-            grpcurl_version_cmd="'$INSTALL_DIR/grpcurl' --version"
-            if debug_execute "$grpcurl_version_cmd" "Check grpcurl version" "1"; then
-                log_debug "grpcurl version: $LAST_COMMAND_OUTPUT"
-                grpcurl_available=1
-            else
-                log_debug "grpcurl version check failed: $LAST_COMMAND_OUTPUT"
-                grpcurl_available=0
-            fi
-        else
-            log_debug "grpcurl not found or not executable at: $INSTALL_DIR/grpcurl"
-            grpcurl_available=0
-        fi
-        
-        # Test 3: Starlink API test (only if TCP and grpcurl work)
-        if [ "$tcp_reachable" = "1" ] && [ "$grpcurl_available" = "1" ]; then
-            log_debug "=== TEST 3: Starlink gRPC API Test ==="
-            grpc_test_cmd="timeout 10 '$INSTALL_DIR/grpcurl' -plaintext -d '{\"get_device_info\":{}}' '$grpc_host:$grpc_port' SpaceX.API.Device.Device/Handle"
-            
-            if debug_execute "$grpc_test_cmd" "Starlink gRPC API test" "1"; then
-                log_debug "Starlink API test: SUCCESS"
-                log_debug "API response received (truncated): $(echo "$LAST_COMMAND_OUTPUT" | head -c 200)..."
-                check_status "pass" "Starlink IP Address" "gRPC API responding: $STARLINK_IP"
-            else
-                log_debug "Starlink API test: FAILED"
-                log_debug "Exit code: $LAST_COMMAND_EXIT_CODE"
-                log_debug "Error output: $LAST_COMMAND_OUTPUT"
-                
-                # Analyze the failure
-                case "$LAST_COMMAND_EXIT_CODE" in
-                    "124") # timeout
-                        check_status "warn" "Starlink IP Address" "API timeout (dish may be offline): $STARLINK_IP"
-                        ;;
-                    "2"|"14") # grpcurl connection errors
-                        check_status "warn" "Starlink IP Address" "TCP works but gRPC service unavailable: $STARLINK_IP"
-                        ;;
-                    *)
-                        check_status "warn" "Starlink IP Address" "TCP works but API error (exit $LAST_COMMAND_EXIT_CODE): $STARLINK_IP"
-                        ;;
-                esac
-            fi
-        elif [ "$tcp_reachable" = "1" ]; then
-            check_status "pass" "Starlink IP Address" "TCP port reachable: $STARLINK_IP (grpcurl not available for full test)"
-        else
-            # Enhanced failure analysis for TCP connectivity
-            log_debug "=== TCP FAILURE ANALYSIS ==="
-            log_debug "Checking if host resolves..."
-            
-            # Test if it's a hostname resolution issue
-            if echo "$grpc_host" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
-                log_debug "Host is an IP address: $grpc_host"
-                
-                # Test ping to see if host is reachable at all
-                ping_cmd="ping -c 1 -W 2 '$grpc_host'"
-                if debug_execute "$ping_cmd" "Ping test to $grpc_host" "1"; then
-                    check_status "fail" "Starlink IP Address" "Host responds to ping but port $grpc_port closed: $STARLINK_IP"
+
+        # Use netcat for basic connectivity test first
+        if command -v nc >/dev/null 2>&1; then
+            if echo | timeout 5 nc "$grpc_host" "$grpc_port" 2>/dev/null; then
+                # Try grpcurl test if basic connectivity works
+                if [ -f "$INSTALL_DIR/grpcurl" ] && [ -x "$INSTALL_DIR/grpcurl" ]; then
+                    if timeout 10 "$INSTALL_DIR/grpcurl" -plaintext -d '{"get_device_info":{}}' "$grpc_host:$grpc_port" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
+                        check_status "pass" "Starlink IP Address" "gRPC API responding: $STARLINK_IP"
+                    else
+                        check_status "warn" "Starlink IP Address" "Port open but gRPC API not responding: $STARLINK_IP"
+                    fi
                 else
-                    check_status "fail" "Starlink IP Address" "Host unreachable (no ping response): $STARLINK_IP"
+                    check_status "pass" "Starlink IP Address" "TCP port reachable: $STARLINK_IP (grpcurl not available for full test)"
                 fi
             else
-                log_debug "Host appears to be a hostname: $grpc_host"
-                
-                # Test hostname resolution
-                nslookup_cmd="nslookup '$grpc_host'"
-                if debug_execute "$nslookup_cmd" "DNS lookup for $grpc_host" "1"; then
-                    check_status "fail" "Starlink IP Address" "DNS resolves but connection failed: $STARLINK_IP"
-                else
-                    check_status "fail" "Starlink IP Address" "DNS resolution failed: $STARLINK_IP"
-                fi
+                check_status "fail" "Starlink IP Address" "Not reachable: $STARLINK_IP"
+            fi
+        else
+            # Fallback to basic TCP test
+            if timeout 5 sh -c "echo >/dev/tcp/$grpc_host/$grpc_port" 2>/dev/null; then
+                check_status "pass" "Starlink IP Address" "TCP port reachable: $STARLINK_IP"
+            else
+                check_status "fail" "Starlink IP Address" "Not reachable: $STARLINK_IP"
             fi
         fi
-        
-        log_debug "=== STARLINK TEST COMPLETE ==="
     fi
 else
     check_status "config" "Starlink IP Address" "Not configured (using default 192.168.100.1:9200)"
@@ -403,80 +325,37 @@ printf "\n${BLUE}4. NETWORK CONFIGURATION${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
-# Check MWAN interface configuration with enhanced debugging
+# Check MWAN interface configuration
 if [ -n "${MWAN_IFACE:-}" ]; then
     if is_placeholder "$MWAN_IFACE"; then
         check_status "config" "MWAN Interface" "Needs configuration: $MWAN_IFACE"
     else
-        log_debug "=== MWAN INTERFACE CHECK ==="
-        log_debug "Checking MWAN interface: $MWAN_IFACE"
-        
-        # Check if interface exists in UCI network config
-        uci_check_cmd="uci get network.'$MWAN_IFACE'"
-        if debug_execute "$uci_check_cmd" "Check UCI network interface $MWAN_IFACE" "1"; then
-            log_debug "UCI interface check: SUCCESS"
-            log_debug "Interface config: $LAST_COMMAND_OUTPUT"
-            
-            # Get interface details
-            interface_proto=$(uci get "network.$MWAN_IFACE.proto" 2>/dev/null || echo "unknown")
-            log_debug "Interface protocol: $interface_proto"
-            
-            check_status "pass" "MWAN Interface" "Configured: $MWAN_IFACE (proto: $interface_proto)"
+        # Check if interface exists in UCI
+        if uci get network."$MWAN_IFACE" >/dev/null 2>&1; then
+            check_status "pass" "MWAN Interface" "Configured: $MWAN_IFACE"
         else
-            log_debug "UCI interface check: FAILED"
-            log_debug "Exit code: $LAST_COMMAND_EXIT_CODE"
-            log_debug "Error: $LAST_COMMAND_OUTPUT"
-            
-            # List available interfaces for debugging
-            available_interfaces_cmd="uci show network | grep '=interface$' | cut -d'.' -f2 | cut -d'=' -f1"
-            if debug_execute "$available_interfaces_cmd" "List available network interfaces" "1"; then
-                available_list=$(echo "$LAST_COMMAND_OUTPUT" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
-                check_status "fail" "MWAN Interface" "Interface '$MWAN_IFACE' not found. Available: $available_list"
-            else
-                check_status "fail" "MWAN Interface" "Interface '$MWAN_IFACE' not found in UCI"
-            fi
+            check_status "fail" "MWAN Interface" "Interface not found in UCI: $MWAN_IFACE"
         fi
     fi
 else
     check_status "config" "MWAN Interface" "Not configured"
 fi
 
-# Check MWAN member configuration with enhanced debugging
+# Check MWAN member configuration
 if [ -n "${MWAN_MEMBER:-}" ]; then
     if is_placeholder "$MWAN_MEMBER"; then
         check_status "config" "MWAN Member" "Needs configuration: $MWAN_MEMBER"
     else
-        log_debug "=== MWAN MEMBER CHECK ==="
-        log_debug "Checking MWAN member: $MWAN_MEMBER"
-        
-        # Check if member exists in MWAN3 config
-        mwan_check_cmd="uci get 'mwan3.$MWAN_MEMBER'"
-        if debug_execute "$mwan_check_cmd" "Check MWAN3 member $MWAN_MEMBER" "1"; then
-            log_debug "MWAN member check: SUCCESS"
-            
-            # Get member details
-            member_interface_cmd="uci get 'mwan3.$MWAN_MEMBER.interface'"
-            if debug_execute "$member_interface_cmd" "Get member interface" "1"; then
-                member_interface="$LAST_COMMAND_OUTPUT"
-                log_debug "Member interface: $member_interface"
-                check_status "pass" "MWAN Member" "Configured: $MWAN_MEMBER (interface: $member_interface)"
-            else
-                check_status "pass" "MWAN Member" "Configured: $MWAN_MEMBER (interface: unknown)"
-            fi
+        # Check if member exists in MWAN3 using correct UCI path
+        if uci get "mwan3.$MWAN_MEMBER" >/dev/null 2>&1; then
+            member_interface=$(uci get "mwan3.$MWAN_MEMBER.interface" 2>/dev/null || echo "unknown")
+            check_status "pass" "MWAN Member" "Configured: $MWAN_MEMBER (interface: $member_interface)"
         else
-            log_debug "MWAN member check: FAILED"
-            log_debug "Exit code: $LAST_COMMAND_EXIT_CODE"
-            log_debug "Error: $LAST_COMMAND_OUTPUT"
-            
-            # List available members for debugging
-            available_members_cmd="uci show mwan3 | grep '=member$' | cut -d'.' -f2 | cut -d'=' -f1"
-            if debug_execute "$available_members_cmd" "List available MWAN members" "1"; then
-                if [ -n "$LAST_COMMAND_OUTPUT" ]; then
-                    members_list=$(echo "$LAST_COMMAND_OUTPUT" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
-                    check_status "warn" "MWAN Member" "Member '$MWAN_MEMBER' not found. Available: $members_list"
-                else
-                    check_status "warn" "MWAN Member" "Member '$MWAN_MEMBER' not found. No MWAN members configured"
-                fi
+            # Provide helpful feedback about available members
+            available_members=$(uci show mwan3 2>/dev/null | grep "=member$" | cut -d'.' -f2 | cut -d'=' -f1 | head -5)
+            if [ -n "$available_members" ]; then
+                members_list=$(echo "$available_members" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+                check_status "warn" "MWAN Member" "Member '$MWAN_MEMBER' not found. Available: $members_list"
             else
                 check_status "warn" "MWAN Member" "Member '$MWAN_MEMBER' not found in MWAN3 config"
             fi
@@ -491,64 +370,25 @@ printf "\n${BLUE}5. NOTIFICATION SYSTEM${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
-# Check Pushover configuration with enhanced debugging
+# Check Pushover configuration
 if [ -n "${PUSHOVER_TOKEN:-}" ] && [ -n "${PUSHOVER_USER:-}" ]; then
     if is_placeholder "$PUSHOVER_TOKEN" || is_placeholder "$PUSHOVER_USER"; then
         check_status "config" "Pushover Notifications" "Needs configuration: TOKEN and USER required"
     else
-        log_debug "=== PUSHOVER NOTIFICATION TEST ==="
-        log_debug "Testing Pushover API connectivity"
-        log_debug "Token length: ${#PUSHOVER_TOKEN} characters"
-        log_debug "User length: ${#PUSHOVER_USER} characters"
-        
-        # Check if curl is available
+        # Test Pushover API
         if command -v curl >/dev/null 2>&1; then
-            log_debug "curl is available for API testing"
-            
-            # Test Pushover API with enhanced error handling
-            pushover_cmd="curl -s --max-time 10 -d 'token=$PUSHOVER_TOKEN' -d 'user=$PUSHOVER_USER' -d 'message=Starlink Monitor Test' https://api.pushover.net/1/messages.json"
-            
-            if debug_execute "$pushover_cmd" "Pushover API test" "1"; then
-                log_debug "Pushover API call completed"
-                log_debug "Response: $LAST_COMMAND_OUTPUT"
-                
-                # Check response status
-                if echo "$LAST_COMMAND_OUTPUT" | grep -q '"status":1'; then
-                    log_debug "Pushover API test: SUCCESS"
-                    check_status "pass" "Pushover Notifications" "API test successful"
-                else
-                    log_debug "Pushover API test: FAILED"
-                    
-                    # Extract error details from response
-                    if echo "$LAST_COMMAND_OUTPUT" | grep -q '"errors"'; then
-                        error_details=$(echo "$LAST_COMMAND_OUTPUT" | sed -n 's/.*"errors":\["\([^"]*\)".*/\1/p')
-                        check_status "fail" "Pushover Notifications" "API error: $error_details"
-                    else
-                        check_status "fail" "Pushover Notifications" "API test failed - check credentials"
-                    fi
-                fi
+            test_response=$(curl -s --max-time 10 \
+                -d "token=$PUSHOVER_TOKEN" \
+                -d "user=$PUSHOVER_USER" \
+                -d "message=Starlink Monitor Test" \
+                https://api.pushover.net/1/messages.json 2>/dev/null || echo '{"status":0}')
+
+            if echo "$test_response" | grep -q '"status":1'; then
+                check_status "pass" "Pushover Notifications" "API test successful"
             else
-                log_debug "Pushover API call failed"
-                log_debug "Exit code: $LAST_COMMAND_EXIT_CODE"
-                log_debug "Error: $LAST_COMMAND_OUTPUT"
-                
-                case "$LAST_COMMAND_EXIT_CODE" in
-                    "28"|"124") # timeout
-                        check_status "fail" "Pushover Notifications" "API timeout - check network connectivity"
-                        ;;
-                    "6") # DNS resolution failed
-                        check_status "fail" "Pushover Notifications" "DNS resolution failed for api.pushover.net"
-                        ;;
-                    "7") # Connection failed
-                        check_status "fail" "Pushover Notifications" "Connection failed - check network/firewall"
-                        ;;
-                    *)
-                        check_status "fail" "Pushover Notifications" "API test failed (exit $LAST_COMMAND_EXIT_CODE)"
-                        ;;
-                esac
+                check_status "fail" "Pushover Notifications" "API test failed - check credentials"
             fi
         else
-            log_debug "curl not available for API testing"
             check_status "warn" "Pushover Notifications" "Configured but curl not available for testing"
         fi
     fi

@@ -4,12 +4,10 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
-readonly SCRIPT_VERSION="2.7.0"
 
+# VALIDATION_SKIP_COLOR_CHECK: Uses RUTOS library for colors
 # CRITICAL: Load RUTOS library system (REQUIRED)
 # shellcheck source=/dev/null
 . "$(dirname "$0")/lib/rutos-lib.sh"
@@ -33,33 +31,42 @@ fi
 # Initialize script with RUTOS library features if available
 if command -v rutos_init >/dev/null 2>&1; then
     rutos_init "check_starlink_api-rutos.sh" "$SCRIPT_VERSION"
-    # Library is loaded, all functions available
 else
     # Fallback: Initialize minimal logging if library not available
     printf "[WARNING] RUTOS library not available, using minimal fallback\n" >&2
     # VALIDATION_SKIP_PRINTF_CHECK: Fallback logging when RUTOS library unavailable
-    # Define minimal fallback functions only if library functions not available
-    if ! command -v log_info >/dev/null 2>&1; then
-        # VALIDATION_SKIP_LIBRARY_CHECK: Conditional fallback functions when library not available
-        log_info() { printf "[INFO] %s\n" "$1" >&2; }
-        log_error() { printf "[ERROR] %s\n" "$1" >&2; }
-        log_debug() { [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] %s\n" "$1" >&2; }
-        # Fallback function stubs that might not exist in library
-        log_function_entry() { [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] ENTER: %s(%s)\n" "$1" "$2" >&2; }
-        log_function_exit() { [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] EXIT: %s -> %s\n" "$1" "$2" >&2; }
-    fi
+    # Define minimal fallback functions
+    log_info() { printf "[INFO] %s\n" "$1" >&2; }
+    log_error() { printf "[ERROR] %s\n" "$1" >&2; }
+    log_debug() { [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] %s\n" "$1" >&2; }
 fi
 
-# RUTOS test mode support (for testing framework) - AFTER library init
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
-    exit 0
-fi
+# RUTOS_TEST_MODE enables trace logging (does NOT cause early exit)
+# Script continues normal execution with enhanced debugging when RUTOS_TEST_MODE=1
 
 # ==============================================================================
 # Starlink API Version Monitor
 #
-# Version: 2.7.1
+# Version: 2.6.0
+# Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
+#
+# This script runs periodically (ideally once per day via cron) to check if the
+# Starlink dish's gRPC API version has changed.
+#
+# The Starlink API is unofficial and can change with firmware updates. A change
+# in the API version can break monitoring scripts that rely on specific data
+# structures. This script provides an essential early warning by sending a
+# Pushover notification when it detects a new version number.
+#
+# It is stateful, storing the last known version in a text file to compare
+# against on each run.
+#
+# ==============================================================================
+
+# Exit on first error, undefined variable, or pipe failure for script robustness.
+set -eu
+
+# --- User Configuration ---
 
 # Set default installation directory if not already set
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
@@ -102,24 +109,10 @@ JQ_CMD="$INSTALL_DIR/jq"
 # Dry-run and test mode support
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-TEST_MODE="${TEST_MODE:-0}"
 
-# Capture original values for debug display
-ORIGINAL_DRY_RUN="$DRY_RUN"
-ORIGINAL_TEST_MODE="$TEST_MODE"
-ORIGINAL_RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
-
-# Debug output showing all variable states for troubleshooting
+# Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    log_debug "==================== DEBUG INTEGRATION STATUS ===================="
-    log_debug "DRY_RUN: current=$DRY_RUN, original=$ORIGINAL_DRY_RUN"
-    log_debug "TEST_MODE: current=$TEST_MODE, original=$ORIGINAL_TEST_MODE"
-    log_debug "RUTOS_TEST_MODE: current=$RUTOS_TEST_MODE, original=$ORIGINAL_RUTOS_TEST_MODE"
-    log_debug "DEBUG: ${DEBUG:-0}"
-    log_debug "Script supports: DRY_RUN=1, TEST_MODE=1, RUTOS_TEST_MODE=1, DEBUG=1"
-    # Additional printf statement to satisfy validation pattern
-    printf "[DEBUG] Variable States: DRY_RUN=%s TEST_MODE=%s RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$TEST_MODE" "$RUTOS_TEST_MODE" >&2
-    log_debug "==================================================================="
+    log_debug "DRY_RUN=${DRY_RUN:-0}, RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0}"
 fi
 
 # Early exit in test mode to prevent execution errors
@@ -154,17 +147,12 @@ log_syslog() {
     message="$1"
     # Use -- to prevent messages starting with - from being treated as options
     logger -t "$LOG_TAG" -- "$message"
-    # Also use library logging for consistency if available
-    if command -v rutos_init >/dev/null 2>&1; then
-        log_info "$message"
-    else
-        printf "[INFO] %s\n" "$message" >&2
-    fi
+    # Also use library logging for consistency
+    log_info "$message"
 }
 
 # Validate binary with detailed logging
 validate_binary() {
-    log_function_entry "validate_binary" "$1, $2"
     binary_path="$1"
     binary_name="$2"
 
@@ -173,7 +161,6 @@ validate_binary() {
     if [ ! -f "$binary_path" ]; then
         log_syslog "ERROR: $binary_name not found at $binary_path"
         log_debug "FILE CHECK FAILED: $binary_path does not exist"
-        log_function_exit "validate_binary" "1"
         return 1
     fi
 
@@ -181,7 +168,6 @@ validate_binary() {
         log_syslog "ERROR: $binary_name not executable at $binary_path"
         log_debug "PERMISSION CHECK FAILED: $binary_path is not executable"
         log_debug "FILE PERMISSIONS: $(ls -la "$binary_path" 2>/dev/null || echo 'Cannot read permissions')"
-        log_function_exit "validate_binary" "1"
         return 1
     fi
 
@@ -194,12 +180,10 @@ validate_binary() {
         log_debug "BINARY TEST PASSED: $binary_name is functional"
     fi
 
-    log_function_exit "validate_binary" "0"
     return 0
 }
 
 send_notification() {
-    log_function_entry "send_notification" "$1, $2"
     title="$1"
     message="$2"
 
@@ -215,14 +199,12 @@ send_notification() {
     if [ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] || [ -z "$PUSHOVER_TOKEN" ]; then
         log_syslog "ERROR: PUSHOVER_TOKEN not configured properly"
         log_debug "NOTIFICATION FAILED: Invalid or missing PUSHOVER_TOKEN"
-        log_function_exit "send_notification" "1"
         return 1
     fi
 
     if [ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ] || [ -z "$PUSHOVER_USER" ]; then
         log_syslog "ERROR: PUSHOVER_USER not configured properly"
         log_debug "NOTIFICATION FAILED: Invalid or missing PUSHOVER_USER"
-        log_function_exit "send_notification" "1"
         return 1
     fi
 
@@ -231,32 +213,34 @@ send_notification() {
 
     if [ "${DEBUG:-0}" = "1" ]; then
         # In debug mode, show curl output
-        curl_cmd="curl -s --max-time 15 -F \"token=$PUSHOVER_TOKEN\" -F \"user=$PUSHOVER_USER\" -F \"title=$title\" -F \"message=$message\" https://api.pushover.net/1/messages.json"
-        if safe_execute "$curl_cmd" "Send Pushover notification with debug output"; then
-            response=$(eval "$curl_cmd" 2>&1)
-            curl_exit=$?
-            log_debug "CURL EXIT CODE: $curl_exit"
-            log_debug "CURL RESPONSE: $response"
+        response=$(curl -s --max-time 15 \
+            -F "token=$PUSHOVER_TOKEN" \
+            -F "user=$PUSHOVER_USER" \
+            -F "title=$title" \
+            -F "message=$message" \
+            https://api.pushover.net/1/messages.json 2>&1)
+        curl_exit=$?
+        log_debug "CURL EXIT CODE: $curl_exit"
+        log_debug "CURL RESPONSE: $response"
 
-            if [ $curl_exit -eq 0 ]; then
-                log_syslog "Pushover notification sent successfully"
-                log_debug "NOTIFICATION SUCCESS: Pushover API responded"
-                log_function_exit "send_notification" "0"
-            else
-                log_syslog "ERROR: Failed to send Pushover notification (curl exit: $curl_exit)"
-                log_debug "NOTIFICATION FAILED: curl command failed"
-                log_function_exit "send_notification" "1"
-            fi
+        if [ $curl_exit -eq 0 ]; then
+            log_syslog "Pushover notification sent successfully"
+            log_debug "NOTIFICATION SUCCESS: Pushover API responded"
+        else
+            log_syslog "ERROR: Failed to send Pushover notification (curl exit: $curl_exit)"
+            log_debug "NOTIFICATION FAILED: curl command failed"
         fi
     else
         # In normal mode, suppress output
-        curl_cmd="curl -s --max-time 15 -F \"token=$PUSHOVER_TOKEN\" -F \"user=$PUSHOVER_USER\" -F \"title=$title\" -F \"message=$message\" https://api.pushover.net/1/messages.json >/dev/null 2>&1"
-        if safe_execute "$curl_cmd" "Send Pushover notification"; then
+        if curl -s --max-time 15 \
+            -F "token=$PUSHOVER_TOKEN" \
+            -F "user=$PUSHOVER_USER" \
+            -F "title=$title" \
+            -F "message=$message" \
+            https://api.pushover.net/1/messages.json >/dev/null 2>&1; then
             log_syslog "Pushover notification sent successfully"
-            log_function_exit "send_notification" "0"
         else
             log_syslog "ERROR: Failed to send Pushover notification"
-            log_function_exit "send_notification" "1"
         fi
     fi
 }
@@ -357,12 +341,6 @@ log_debug "GRPC COMMAND: $grpc_cmd"
 # Execute gRPC call with detailed error handling
 if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "GRPC EXECUTION: Running in debug mode with full output"
-
-    # Log command execution in debug mode
-    if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "EXECUTING COMMAND: $grpc_cmd"
-    fi
-
     grpc_output=$(eval "$grpc_cmd" 2>&1)
     grpc_exit=$?
     log_debug "GRPC EXIT CODE: $grpc_exit"
@@ -389,10 +367,6 @@ if [ "${DEBUG:-0}" = "1" ]; then
     fi
 else
     # Normal execution (less verbose)
-    # Log command execution in debug mode (even when DEBUG=0, log for audit trail)
-    if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "EXECUTING COMMAND: $grpc_cmd (non-debug mode)"
-    fi
     current_version=$(eval "$grpc_cmd" 2>/dev/null | $JQ_CMD -r '.apiVersion // "0"' 2>/dev/null || echo "0")
 fi
 
@@ -438,35 +412,25 @@ if [ "$current_version" != "$known_version" ]; then
     # Update the known version file with the new version for the next check.
     log_debug "VERSION FILE UPDATE: Writing '$current_version' to $KNOWN_API_VERSION_FILE"
 
-    # Log command execution in debug mode
-    if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "EXECUTING COMMAND: echo '$current_version' > '$KNOWN_API_VERSION_FILE'"
-    fi
+    if echo "$current_version" >"$KNOWN_API_VERSION_FILE" 2>/dev/null; then
+        log_syslog "INFO: Updated known version file to $current_version."
+        log_debug "VERSION FILE UPDATE: Successfully wrote to file"
 
-    # Protect state-changing command with DRY_RUN check
-    if [ "${DRY_RUN:-0}" = "1" ]; then
-        log_debug "DRY-RUN: Would write '$current_version' to $KNOWN_API_VERSION_FILE"
-    else
-        if echo "$current_version" >"$KNOWN_API_VERSION_FILE" 2>/dev/null; then
-            log_syslog "INFO: Updated known version file to $current_version."
-            log_debug "VERSION FILE UPDATE: Successfully wrote to file"
-
-            # Verify the write was successful
-            if [ "${DEBUG:-0}" = "1" ]; then
-                written_version=$(cat "$KNOWN_API_VERSION_FILE" 2>/dev/null || echo "FAILED_TO_READ")
-                log_debug "VERSION FILE VERIFY: File now contains: '$written_version'"
-                if [ "$written_version" = "$current_version" ]; then
-                    log_debug "VERSION FILE VERIFY: Write verification successful"
-                else
-                    log_debug "VERSION FILE VERIFY: Write verification failed!"
-                    log_syslog "WARNING: Version file update may have failed"
-                fi
+        # Verify the write was successful
+        if [ "${DEBUG:-0}" = "1" ]; then
+            written_version=$(cat "$KNOWN_API_VERSION_FILE" 2>/dev/null || echo "FAILED_TO_READ")
+            log_debug "VERSION FILE VERIFY: File now contains: '$written_version'"
+            if [ "$written_version" = "$current_version" ]; then
+                log_debug "VERSION FILE VERIFY: Write verification successful"
+            else
+                log_debug "VERSION FILE VERIFY: Write verification failed!"
+                log_syslog "WARNING: Version file update may have failed"
             fi
-        else
-            log_syslog "ERROR: Failed to update known version file"
-            log_debug "VERSION FILE UPDATE: Write failed - check permissions on $KNOWN_API_VERSION_FILE"
-            log_debug "DIRECTORY PERMISSIONS: $(ls -la "$(dirname "$KNOWN_API_VERSION_FILE")" 2>/dev/null || echo 'Cannot read directory permissions')"
         fi
+    else
+        log_syslog "ERROR: Failed to update known version file"
+        log_debug "VERSION FILE UPDATE: Write failed - check permissions on $KNOWN_API_VERSION_FILE"
+        log_debug "DIRECTORY PERMISSIONS: $(ls -la "$(dirname "$KNOWN_API_VERSION_FILE")" 2>/dev/null || echo 'Cannot read directory permissions')"
     fi
 else
     log_syslog "INFO: API version is unchanged. No action needed."
@@ -484,18 +448,7 @@ log_debug "Exit code: 0"
 # Clean up any temporary files
 if [ -f /tmp/api_check_error.log ]; then
     log_debug "CLEANUP: Removing temporary error log"
-
-    # Log command execution in debug mode
-    if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "EXECUTING COMMAND: rm -f /tmp/api_check_error.log"
-    fi
-
-    # Protect state-changing command with DRY_RUN check
-    if [ "${DRY_RUN:-0}" = "1" ]; then
-        log_debug "DRY-RUN: Would remove /tmp/api_check_error.log"
-    else
-        rm -f /tmp/api_check_error.log
-    fi
+    rm -f /tmp/api_check_error.log
 fi
 
 exit 0

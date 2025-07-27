@@ -197,11 +197,8 @@ debug_log() {
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
-# Early exit in test mode to prevent execution errors
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
-    exit 0
-fi
+# RUTOS_TEST_MODE enables trace logging (does NOT cause early exit)
+# DRY_RUN prevents actual changes but allows full execution for debugging
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then

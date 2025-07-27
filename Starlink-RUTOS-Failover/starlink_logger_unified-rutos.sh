@@ -3,7 +3,7 @@
 # ==============================================================================
 # Unified Starlink Performance Data Logger for OpenWrt/RUTOS
 #
-# Version: 2.7.1
+# Version: 2.7.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script runs periodically via cron to gather real-time performance data
@@ -22,10 +22,6 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="2.7.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
@@ -71,11 +67,8 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "==================================================================="
 fi
 
-# Early exit in test mode to prevent execution errors
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ]; then
-    log_info "RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution"
-    exit 0
-fi
+# RUTOS_TEST_MODE enables trace logging (does NOT cause early exit)
+# DRY_RUN prevents actual changes but allows full execution for debugging
 
 log_info "Starting Starlink Logger v$SCRIPT_VERSION"
 
@@ -107,7 +100,7 @@ AGGREGATED_LOG_FILE="${LOG_DIR}/starlink_aggregated.csv"
 AGGREGATION_BATCH_SIZE="${AGGREGATION_BATCH_SIZE:-60}"
 
 # Create necessary directories
-safe_execute "mkdir -p \"$LOG_DIR\" \"\$(dirname \"$STATE_FILE\")\"" "Create required directories"
+mkdir -p "$LOG_DIR" "$(dirname "$STATE_FILE")" 2>/dev/null || true
 
 # Debug configuration
 log_debug "GPS_LOGGING=$ENABLE_GPS_LOGGING, CELLULAR_LOGGING=$ENABLE_CELLULAR_LOGGING"

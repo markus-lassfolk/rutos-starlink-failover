@@ -3,7 +3,7 @@
 # ==============================================================================
 # Unified Starlink Proactive Quality Monitor for OpenWrt/RUTOS
 #
-# Version: 2.7.1
+# Version: 2.7.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 # shellcheck disable=SC1091  # False positive: "Source" in URL comment, not shell command
 #
@@ -25,10 +25,6 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="2.7.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
@@ -71,11 +67,8 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "==================================================================="
 fi
 
-# Early exit in test mode to prevent execution errors
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ]; then
-    log_info "RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution"
-    exit 0
-fi
+# RUTOS_TEST_MODE enables trace logging (does NOT cause early exit)
+# DRY_RUN prevents actual changes but allows full execution for debugging
 
 # Enhanced troubleshooting mode - show more execution details
 if [ "${DEBUG:-0}" = "1" ]; then
@@ -123,7 +116,7 @@ GPS_LOG_FILE="${LOG_DIR}/gps_data.csv"
 CELLULAR_LOG_FILE="${LOG_DIR}/cellular_data.csv"
 
 # Create necessary directories
-safe_execute "mkdir -p \"$STATE_DIR\" \"$LOG_DIR\"" "Create required directories"
+mkdir -p "$STATE_DIR" "$LOG_DIR" 2>/dev/null || true
 
 # Debug configuration
 log_debug "GPS_TRACKING=$ENABLE_GPS_TRACKING, CELLULAR_TRACKING=$ENABLE_CELLULAR_TRACKING"
