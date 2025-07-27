@@ -567,7 +567,7 @@ else
     # FALLBACK COMPATIBILITY: Minimal legacy function support when library unavailable
     debug_log() { log_debug "$1"; }                           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
     debug_msg() { log_debug "$1"; }                           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
-    print_status() { printf "${1}%s${NC}\n" "$2"; }     # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
+    print_status() { printf "${1}%s${NC}\n" "$2"; }           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
     debug_exec() { safe_execute "$*" "Execute command: $*"; } # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
     config_debug() { log_debug "$1"; }                        # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
 
@@ -2124,8 +2124,12 @@ install_config() {
 
                         if [ "$results_size" -gt 0 ]; then
                             while IFS= read -r line; do
+                                # Process detection results
+                                true
                             done <"$detection_results"
                         else
+                            # Empty results file
+                            true
                         fi
                     else
                     fi

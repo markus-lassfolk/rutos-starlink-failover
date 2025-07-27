@@ -23,8 +23,11 @@ fi
 # Only load if RUTOS library is present
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
+# Only set if not already defined as readonly
+if ! readonly SCRIPT_VERSION 2>/dev/null; then
+    SCRIPT_VERSION="2.7.1"
+    readonly SCRIPT_VERSION
+fi
 if [ "${_RUTOS_LIB_LOADED:-}" != "1" ]; then
     printf "ERROR: RUTOS compatibility module requires RUTOS library to be loaded first\n" >&2
     exit 1
