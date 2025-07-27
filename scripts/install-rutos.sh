@@ -563,6 +563,7 @@ else
     debug_msg() { log_debug "$1"; }                           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
     print_status() { printf "%s%s%s\n" "$1" "$2" "$NC"; }     # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
     debug_exec() { safe_execute "$*" "Execute command: $*"; } # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
+    config_debug() { log_debug "$1"; }                        # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
 
     # VALIDATION_SKIP_LIBRARY_CHECK: Built-in safe_execute function for remote installation fallback
     safe_execute() {

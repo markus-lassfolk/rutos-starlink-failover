@@ -70,6 +70,11 @@ log_message() {
     esac
 }
 
+# Legacy config_debug() -> log_debug()
+config_debug() {
+    log_debug "$1"
+}
+
 # Additional legacy patterns can be added here as discovered
 # For example:
 # legacy_function_name() {
@@ -81,7 +86,7 @@ log_message() {
 # ==============================================================================
 
 # Export compatibility information for debugging
-export _RUTOS_COMPATIBILITY_FUNCTIONS="debug_log debug_msg print_status debug_exec log_message"
+export _RUTOS_COMPATIBILITY_FUNCTIONS="debug_log debug_msg print_status debug_exec log_message config_debug"
 
 # Log compatibility loading if debug mode is enabled
 if [ "${DEBUG:-0}" = "1" ]; then
