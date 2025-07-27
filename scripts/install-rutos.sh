@@ -501,6 +501,11 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
             *) log_info "[$level] $message" ;;
         esac
     }
+
+    # COMPATIBILITY: Add log_debug function for legacy code compatibility
+    debug_log() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_debug calls
+        log_debug "$1"
+    }
 else
     # Fallback to legacy logging system for remote installations when library unavailable
     printf "[INFO] Using built-in fallback logging system\n"
@@ -553,6 +558,11 @@ else
             "DEBUG") log_debug "$message" ;;
             *) log_info "[$level] $message" ;;
         esac
+    }
+
+    # COMPATIBILITY: Add log_debug function for legacy code compatibility
+    debug_log() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_debug calls (fallback)
+        log_debug "$1"
     }
 
     # VALIDATION_SKIP_LIBRARY_CHECK: Built-in safe_execute function for remote installation fallback
@@ -1300,7 +1310,7 @@ check_system() {
     log_step "Checking system compatibility..."
 
     arch=""
-    debug_log "ARCH CHECK: Getting system architecture"
+    log_debug "ARCH CHECK: Getting system architecture"
     if [ "${DEBUG:-0}" = "1" ]; then
         debug_msg "Executing: uname -m"
         arch=$(uname -m)
@@ -1309,26 +1319,26 @@ check_system() {
         arch=$(uname -m)
     fi
 
-    debug_log "ARCH CHECK: Detected architecture: $arch"
+    log_debug "ARCH CHECK: Detected architecture: $arch"
     if [ "$arch" != "armv7l" ]; then
-        debug_log "ARCH CHECK: Non-standard architecture detected"
+        log_debug "ARCH CHECK: Non-standard architecture detected"
         print_status "$YELLOW" "Warning: This script is designed for ARMv7 (RUTX50)"
         print_status "$YELLOW" "Your architecture: $arch"
         print_status "$YELLOW" "You may need to adjust binary URLs"
         printf "Continue anyway? (y/N): "
         read -r answer
-        debug_log "ARCH CHECK: User response: $answer"
+        log_debug "ARCH CHECK: User response: $answer"
         if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
-            debug_log "ARCH CHECK: User declined to continue with non-standard architecture"
+            log_debug "ARCH CHECK: User declined to continue with non-standard architecture"
             exit 1
         fi
-        debug_log "ARCH CHECK: User chose to continue despite architecture mismatch"
+        log_debug "ARCH CHECK: User chose to continue despite architecture mismatch"
     else
-        debug_log "ARCH CHECK: Architecture validation passed"
+        log_debug "ARCH CHECK: Architecture validation passed"
         debug_msg "Architecture check passed: $arch matches expected armv7l"
     fi
 
-    debug_log "SYSTEM CHECK: Checking for OpenWrt/RUTOS system files"
+    log_debug "SYSTEM CHECK: Checking for OpenWrt/RUTOS system files"
     debug_msg "Checking for OpenWrt/RUTOS system files"
     if [ ! -f "/etc/openwrt_version" ] && [ ! -f "/etc/rutos_version" ]; then
         print_status "$YELLOW" "Warning: This doesn't appear to be OpenWrt/RUTOS"
@@ -1379,62 +1389,62 @@ create_directories() {
 
 # Download and install binaries
 install_binaries() {
-    debug_log "FUNCTION: install_binaries"
-    debug_log "BINARY INSTALLATION: Starting binary installation process"
+    log_debug "FUNCTION: install_binaries"
+    log_debug "BINARY INSTALLATION: Starting binary installation process"
     print_status "$BLUE" "Installing required binaries..."
 
     # Install grpcurl
-    debug_log "GRPCURL INSTALL: Checking for existing grpcurl at $INSTALL_DIR/grpcurl"
+    log_debug "GRPCURL INSTALL: Checking for existing grpcurl at $INSTALL_DIR/grpcurl"
     if [ ! -f "$INSTALL_DIR/grpcurl" ]; then
         # Try to detect latest version dynamically first
         print_status "$YELLOW" "Detecting latest grpcurl version..."
         dynamic_grpcurl_url=""
         if dynamic_grpcurl_url=$(detect_latest_grpcurl_version); then
-            debug_log "GRPCURL INSTALL: Dynamic detection successful, trying latest version"
+            log_debug "GRPCURL INSTALL: Dynamic detection successful, trying latest version"
             print_status "$YELLOW" "Downloading grpcurl (latest detected version)..."
 
             if curl -fL --progress-bar "$dynamic_grpcurl_url" -o /tmp/grpcurl.tar.gz; then
-                debug_log "GRPCURL INSTALL: Latest version download successful, extracting archive"
+                log_debug "GRPCURL INSTALL: Latest version download successful, extracting archive"
                 if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
                     chmod +x "$INSTALL_DIR/grpcurl"
                     rm /tmp/grpcurl.tar.gz
-                    debug_log "GRPCURL INSTALL: Latest version installation completed successfully"
+                    log_debug "GRPCURL INSTALL: Latest version installation completed successfully"
                     # Get version for display
                     grpcurl_version=$("$INSTALL_DIR/grpcurl" --version 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
                     print_status "$GREEN" "✓ grpcurl installed (latest: $grpcurl_version)"
                 else
-                    debug_log "GRPCURL INSTALL: Latest version extraction failed, trying fallback to stable version"
+                    log_debug "GRPCURL INSTALL: Latest version extraction failed, trying fallback to stable version"
                     rm -f /tmp/grpcurl.tar.gz
                     print_status "$YELLOW" "Latest version extraction failed, trying stable version..."
                     # Fall through to stable version logic below
                     dynamic_grpcurl_url=""
                 fi
             else
-                debug_log "GRPCURL INSTALL: Latest version download failed, trying fallback to stable version"
+                log_debug "GRPCURL INSTALL: Latest version download failed, trying fallback to stable version"
                 print_status "$YELLOW" "Latest version download failed, trying stable version..."
                 # Fall through to stable version logic below
                 dynamic_grpcurl_url=""
             fi
         else
-            debug_log "GRPCURL INSTALL: Dynamic detection failed, trying stable version"
+            log_debug "GRPCURL INSTALL: Dynamic detection failed, trying stable version"
             print_status "$YELLOW" "Could not detect latest version, using stable version..."
         fi
 
         # If dynamic detection failed, use our known stable version
         if [ -z "$dynamic_grpcurl_url" ]; then
-            debug_log "GRPCURL INSTALL: Using stable version from $GRPCURL_URL"
+            log_debug "GRPCURL INSTALL: Using stable version from $GRPCURL_URL"
             print_status "$YELLOW" "Downloading grpcurl (stable version v1.9.3)..."
 
             # Try primary stable version
             if curl -fL --progress-bar "$GRPCURL_URL" -o /tmp/grpcurl.tar.gz; then
-                debug_log "GRPCURL INSTALL: Stable version download successful, extracting archive"
+                log_debug "GRPCURL INSTALL: Stable version download successful, extracting archive"
                 if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
                     chmod +x "$INSTALL_DIR/grpcurl"
                     rm /tmp/grpcurl.tar.gz
-                    debug_log "GRPCURL INSTALL: Stable version installation completed successfully"
+                    log_debug "GRPCURL INSTALL: Stable version installation completed successfully"
                     print_status "$GREEN" "✓ grpcurl installed (stable v1.9.3)"
                 else
-                    debug_log "GRPCURL INSTALL: Stable version extraction failed, trying fallback"
+                    log_debug "GRPCURL INSTALL: Stable version extraction failed, trying fallback"
                     rm -f /tmp/grpcurl.tar.gz
                     print_status "$YELLOW" "Stable version failed, trying alternative version..."
 
@@ -1443,7 +1453,7 @@ install_binaries() {
                         tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl
                         chmod +x "$INSTALL_DIR/grpcurl"
                         rm /tmp/grpcurl.tar.gz
-                        debug_log "GRPCURL INSTALL: Fallback version installation completed successfully"
+                        log_debug "GRPCURL INSTALL: Fallback version installation completed successfully"
                         print_status "$GREEN" "✓ grpcurl installed (fallback version v1.9.1)"
                     else
                         print_status "$RED" "Error: Failed to download grpcurl (all versions tried)"
@@ -1451,7 +1461,7 @@ install_binaries() {
                     fi
                 fi
             else
-                debug_log "GRPCURL INSTALL: Stable version download failed, trying fallback"
+                log_debug "GRPCURL INSTALL: Stable version download failed, trying fallback"
                 print_status "$YELLOW" "Stable version download failed, trying alternative version..."
 
                 # Try fallback version
@@ -1459,7 +1469,7 @@ install_binaries() {
                     if tar -zxf /tmp/grpcurl.tar.gz -C "$INSTALL_DIR" grpcurl 2>/dev/null; then
                         chmod +x "$INSTALL_DIR/grpcurl"
                         rm /tmp/grpcurl.tar.gz
-                        debug_log "GRPCURL INSTALL: Fallback version installation completed successfully"
+                        log_debug "GRPCURL INSTALL: Fallback version installation completed successfully"
                         print_status "$GREEN" "✓ grpcurl installed (fallback version v1.9.1)"
                     else
                         rm -f /tmp/grpcurl.tar.gz
@@ -1467,75 +1477,75 @@ install_binaries() {
                         return 1
                     fi
                 else
-                    debug_log "GRPCURL INSTALL: All download attempts failed"
+                    log_debug "GRPCURL INSTALL: All download attempts failed"
                     print_status "$RED" "Error: Failed to download grpcurl (all versions tried)"
                     return 1
                 fi
             fi
         fi
     else
-        debug_log "GRPCURL INSTALL: Already exists, skipping download"
+        log_debug "GRPCURL INSTALL: Already exists, skipping download"
         print_status "$GREEN" "✓ grpcurl already installed"
     fi
 
     # Install jq
-    debug_log "JQ INSTALL: Checking for existing jq at $INSTALL_DIR/jq"
+    log_debug "JQ INSTALL: Checking for existing jq at $INSTALL_DIR/jq"
     if [ ! -f "$INSTALL_DIR/jq" ]; then
         # Try to detect latest version dynamically first
         print_status "$YELLOW" "Detecting latest jq version..."
         dynamic_jq_url=""
         if dynamic_jq_url=$(detect_latest_jq_version); then
-            debug_log "JQ INSTALL: Dynamic detection successful, trying latest version"
+            log_debug "JQ INSTALL: Dynamic detection successful, trying latest version"
             print_status "$YELLOW" "Downloading jq (latest detected version)..."
 
             if curl -fL --progress-bar "$dynamic_jq_url" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
                 if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
-                    debug_log "JQ INSTALL: Latest version installation completed successfully"
+                    log_debug "JQ INSTALL: Latest version installation completed successfully"
                     # Get version for display
                     jq_version=$("$INSTALL_DIR/jq" --version 2>/dev/null || echo "unknown")
                     print_status "$GREEN" "✓ jq installed (latest: $jq_version)"
                 else
-                    debug_log "JQ INSTALL: Latest version validation failed, trying fallback to stable version"
+                    log_debug "JQ INSTALL: Latest version validation failed, trying fallback to stable version"
                     rm -f "$INSTALL_DIR/jq"
                     print_status "$YELLOW" "Latest version validation failed, trying stable version..."
                     # Fall through to stable version logic below
                     dynamic_jq_url=""
                 fi
             else
-                debug_log "JQ INSTALL: Latest version download failed, trying fallback to stable version"
+                log_debug "JQ INSTALL: Latest version download failed, trying fallback to stable version"
                 rm -f "$INSTALL_DIR/jq"
                 print_status "$YELLOW" "Latest version download failed, trying stable version..."
                 # Fall through to stable version logic below
                 dynamic_jq_url=""
             fi
         else
-            debug_log "JQ INSTALL: Dynamic detection failed, trying stable version"
+            log_debug "JQ INSTALL: Dynamic detection failed, trying stable version"
             print_status "$YELLOW" "Could not detect latest version, using stable version..."
         fi
 
         # If dynamic detection failed, use our known stable version
         if [ -z "$dynamic_jq_url" ]; then
-            debug_log "JQ INSTALL: Using stable version from $JQ_URL"
+            log_debug "JQ INSTALL: Using stable version from $JQ_URL"
             print_status "$YELLOW" "Downloading jq (stable version v1.7.1)..."
 
             # Try primary stable version first
             if curl -fL --progress-bar "$JQ_URL" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
                 if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
-                    debug_log "JQ INSTALL: Stable version installation completed successfully"
+                    log_debug "JQ INSTALL: Stable version installation completed successfully"
                     jq_version=$("$INSTALL_DIR/jq" --version 2>/dev/null || echo "unknown")
                     print_status "$GREEN" "✓ jq installed (stable: $jq_version)"
                 else
-                    debug_log "JQ INSTALL: Stable version validation failed, trying fallback"
+                    log_debug "JQ INSTALL: Stable version validation failed, trying fallback"
                     rm -f "$INSTALL_DIR/jq"
                     print_status "$YELLOW" "Stable version failed validation, trying alternative version..."
 
                     # Fallback to alternative version
                     if curl -fL --progress-bar "$JQ_FALLBACK_URL" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
                         if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
-                            debug_log "JQ INSTALL: Fallback version installation completed successfully"
+                            log_debug "JQ INSTALL: Fallback version installation completed successfully"
                             print_status "$GREEN" "✓ jq installed (fallback version v1.6)"
                         else
-                            debug_log "JQ INSTALL: Fallback version validation failed"
+                            log_debug "JQ INSTALL: Fallback version validation failed"
                             print_status "$RED" "Error: Fallback jq version failed validation"
                             return 1
                         fi
@@ -1545,22 +1555,22 @@ install_binaries() {
                     fi
                 fi
             else
-                debug_log "JQ INSTALL: Stable version download failed, trying fallback"
+                log_debug "JQ INSTALL: Stable version download failed, trying fallback"
                 rm -f "$INSTALL_DIR/jq"
                 print_status "$YELLOW" "Stable version download failed, trying alternative version..."
 
                 # Try fallback version
                 if curl -fL --progress-bar "$JQ_FALLBACK_URL" -o "$INSTALL_DIR/jq" && [ -s "$INSTALL_DIR/jq" ]; then
                     if chmod +x "$INSTALL_DIR/jq" && "$INSTALL_DIR/jq" --version >/dev/null 2>&1; then
-                        debug_log "JQ INSTALL: Fallback version installation completed successfully"
+                        log_debug "JQ INSTALL: Fallback version installation completed successfully"
                         print_status "$GREEN" "✓ jq installed (fallback version v1.6)"
                     else
-                        debug_log "JQ INSTALL: Fallback version validation failed"
+                        log_debug "JQ INSTALL: Fallback version validation failed"
                         print_status "$RED" "Error: Fallback jq version failed validation"
                         return 1
                     fi
                 else
-                    debug_log "JQ INSTALL: All download attempts failed"
+                    log_debug "JQ INSTALL: All download attempts failed"
                     print_status "$RED" "Error: Failed to download jq (all versions tried)"
                     return 1
                 fi
@@ -2442,7 +2452,7 @@ EOF
 
 # Install GPS integration components
 install_gps_integration() {
-    debug_log "FUNCTION: install_gps_integration"
+    log_debug "FUNCTION: install_gps_integration"
     print_status "$BLUE" "Installing GPS integration components..."
 
     # Create GPS integration directory
@@ -2500,7 +2510,7 @@ install_gps_integration() {
 
 # Install cellular integration components
 install_cellular_integration() {
-    debug_log "FUNCTION: install_cellular_integration"
+    log_debug "FUNCTION: install_cellular_integration"
     print_status "$BLUE" "Installing cellular integration components..."
 
     # Create cellular integration directory
@@ -2543,7 +2553,7 @@ install_cellular_integration() {
 
 # Install enhanced monitoring scripts
 install_enhanced_monitoring() {
-    debug_log "FUNCTION: install_enhanced_monitoring"
+    log_debug "FUNCTION: install_enhanced_monitoring"
     print_status "$BLUE" "Installing enhanced monitoring scripts..."
 
     # Enhanced scripts to install
@@ -3292,39 +3302,39 @@ main() {
 
     # Add test mode for troubleshooting
     if [ "${TEST_MODE:-0}" = "1" ]; then
-        debug_log "TEST MODE ENABLED: Running in test mode"
+        log_debug "TEST MODE ENABLED: Running in test mode"
         DEBUG=1 # Force debug mode in test mode
         set -x  # Enable command tracing
-        debug_log "TEST MODE: All commands will be traced"
+        log_debug "TEST MODE: All commands will be traced"
     fi
 
     # Enhanced debug mode with detailed startup logging
     DEBUG="${DEBUG:-0}"
     if [ "$DEBUG" = "1" ]; then
-        debug_log "==================== INSTALL SCRIPT DEBUG MODE ENABLED ===================="
-        debug_log "Script version: $SCRIPT_VERSION"
-        debug_log "Script build: $BUILD_INFO"
-        debug_log "Script name: $SCRIPT_NAME"
-        debug_log "Current working directory: $(pwd)"
-        debug_log "Script path: $0"
-        debug_log "Process ID: $$"
-        debug_log "User: $(whoami 2>/dev/null || echo 'unknown')"
-        debug_log "Arguments: $*"
-        debug_log "Environment DEBUG: ${DEBUG:-0}"
-        debug_log "Environment TEST_MODE: ${TEST_MODE:-0}"
+        log_debug "==================== INSTALL SCRIPT DEBUG MODE ENABLED ===================="
+        log_debug "Script version: $SCRIPT_VERSION"
+        log_debug "Script build: $BUILD_INFO"
+        log_debug "Script name: $SCRIPT_NAME"
+        log_debug "Current working directory: $(pwd)"
+        log_debug "Script path: $0"
+        log_debug "Process ID: $$"
+        log_debug "User: $(whoami 2>/dev/null || echo 'unknown')"
+        log_debug "Arguments: $*"
+        log_debug "Environment DEBUG: ${DEBUG:-0}"
+        log_debug "Environment TEST_MODE: ${TEST_MODE:-0}"
 
-        debug_log "CONFIGURATION PATHS:"
-        debug_log "  GITHUB_REPO=$GITHUB_REPO"
-        debug_log "  GITHUB_BRANCH=$GITHUB_BRANCH"
-        debug_log "  BASE_URL=$BASE_URL"
-        debug_log "  LOG_FILE=$LOG_FILE"
-        debug_log "  LOG_DIR=$LOG_DIR"
+        log_debug "CONFIGURATION PATHS:"
+        log_debug "  GITHUB_REPO=$GITHUB_REPO"
+        log_debug "  GITHUB_BRANCH=$GITHUB_BRANCH"
+        log_debug "  BASE_URL=$BASE_URL"
+        log_debug "  LOG_FILE=$LOG_FILE"
+        log_debug "  LOG_DIR=$LOG_DIR"
 
-        debug_log "RUNTIME ENVIRONMENT:"
-        debug_log "  OpenWRT Release: $(head -3 /etc/openwrt_release 2>/dev/null | tr '\n' ' ' || echo 'not found')"
-        debug_log "  Available disk space: $(df -h /tmp 2>/dev/null | tail -1 | awk '{print $4}' || echo 'unknown')"
-        debug_log "  Available memory: $(free -m 2>/dev/null | grep Mem | awk '{print $7"M available"}' || echo 'unknown')"
-        debug_log "  Network connectivity: $(ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 && echo 'online' || echo 'offline/limited')"
+        log_debug "RUNTIME ENVIRONMENT:"
+        log_debug "  OpenWRT Release: $(head -3 /etc/openwrt_release 2>/dev/null | tr '\n' ' ' || echo 'not found')"
+        log_debug "  Available disk space: $(df -h /tmp 2>/dev/null | tail -1 | awk '{print $4}' || echo 'unknown')"
+        log_debug "  Available memory: $(free -m 2>/dev/null | grep Mem | awk '{print $7"M available"}' || echo 'unknown')"
+        log_debug "  Network connectivity: $(ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 && echo 'online' || echo 'offline/limited')"
 
         show_version
         printf "\n"
@@ -3340,50 +3350,50 @@ main() {
     print_status "$GREEN" "=== Starlink Monitoring System Installer ==="
     printf "\n"
 
-    debug_log "==================== INSTALLATION START ===================="
-    debug_log "Starting installation process"
+    log_debug "==================== INSTALLATION START ===================="
+    log_debug "Starting installation process"
     debug_msg "Starting installation process"
 
-    debug_log "STEP 1: Checking root privileges and system compatibility"
+    log_debug "STEP 1: Checking root privileges and system compatibility"
     check_root
 
-    debug_log "STEP 2: Validating system requirements"
+    log_debug "STEP 2: Validating system requirements"
     check_system
 
-    debug_log "STEP 3: Creating directory structure"
+    log_debug "STEP 3: Creating directory structure"
     create_directories
 
-    debug_log "STEP 4: Installing binary dependencies"
+    log_debug "STEP 4: Installing binary dependencies"
     install_binaries
 
-    debug_log "STEP 5: Installing monitoring scripts"
+    log_debug "STEP 5: Installing monitoring scripts"
     install_scripts
 
-    debug_log "STEP 5.1: Installing enhanced monitoring scripts"
+    log_debug "STEP 5.1: Installing enhanced monitoring scripts"
     install_enhanced_monitoring
 
-    debug_log "STEP 5.2: Installing GPS integration components"
+    log_debug "STEP 5.2: Installing GPS integration components"
     install_gps_integration
 
-    debug_log "STEP 5.3: Installing cellular integration components"
+    log_debug "STEP 5.3: Installing cellular integration components"
     install_cellular_integration
 
-    debug_log "STEP 6: Installing configuration files"
+    log_debug "STEP 6: Installing configuration files"
     install_config
 
-    debug_log "STEP 7: Configuring cron jobs"
+    log_debug "STEP 7: Configuring cron jobs"
     configure_cron
 
-    debug_log "STEP 8: Creating uninstall script"
+    log_debug "STEP 8: Creating uninstall script"
     create_uninstall
 
-    debug_log "STEP 9: Setting up auto-restoration"
+    log_debug "STEP 9: Setting up auto-restoration"
     create_restoration_script
 
-    debug_log "STEP 10: Setting up firmware upgrade recovery"
+    log_debug "STEP 10: Setting up firmware upgrade recovery"
     setup_recovery_information
 
-    debug_log "==================== INSTALLATION COMPLETE ===================="
+    log_debug "==================== INSTALLATION COMPLETE ===================="
     print_status "$GREEN" "=== Installation Complete ==="
     printf "\n"
 
@@ -3424,7 +3434,7 @@ main() {
     fi
 
     # Log successful completion
-    debug_log "INSTALLATION: Completing successfully"
+    log_debug "INSTALLATION: Completing successfully"
     log_message "INFO" "============================================="
     log_message "INFO" "Installation completed successfully!"
     log_message "INFO" "Installation directory: $INSTALL_DIR"
@@ -3434,10 +3444,10 @@ main() {
     printf "\n"
     print_status "$GREEN" "📋 Installation log saved to: $LOG_FILE"
 
-    debug_log "==================== INSTALLATION SCRIPT COMPLETE ===================="
-    debug_log "Final status: SUCCESS"
-    debug_log "Script execution completed normally"
-    debug_log "Exit code: 0"
+    log_debug "==================== INSTALLATION SCRIPT COMPLETE ===================="
+    log_debug "Final status: SUCCESS"
+    log_debug "Script execution completed normally"
+    log_debug "Exit code: 0"
 
     # Log function exit for debugging
     if [ "${DEBUG:-0}" = "1" ] && command -v log_function_exit >/dev/null 2>&1; then
@@ -3458,6 +3468,6 @@ handle_error() {
 trap handle_error INT TERM
 
 # Run main function
-debug_log "==================== INSTALL SCRIPT EXECUTION START ===================="
+log_debug "==================== INSTALL SCRIPT EXECUTION START ===================="
 main "$@"
-debug_log "==================== INSTALL SCRIPT EXECUTION END ===================="
+log_debug "==================== INSTALL SCRIPT EXECUTION END ===================="

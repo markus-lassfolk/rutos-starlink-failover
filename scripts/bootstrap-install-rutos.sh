@@ -2,7 +2,7 @@
 # ==============================================================================
 # RUTOS Starlink Failover - Bootstrap Installation Script
 #
-# Version: 1.0.0
+# Version: 1.0.7
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # SPECIAL BOOTSTRAP SCRIPT - LIBRARY EXEMPT
@@ -25,7 +25,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.5"
+SCRIPT_VERSION="1.0.7"
 readonly SCRIPT_VERSION
 
 
