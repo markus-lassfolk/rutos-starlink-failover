@@ -11,7 +11,7 @@ mkdir -p "$temp_dir/lib"
 
 echo "1. Downloading library files to temp directory..."
 
-# Download the library files 
+# Download the library files
 curl -fsSL "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/lib/rutos-lib.sh" \
     -o "$temp_dir/lib/rutos-lib.sh"
 curl -fsSL "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/lib/rutos-colors.sh" \
@@ -26,7 +26,7 @@ curl -fsSL "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-fai
 echo "2. Testing library loading in exact bootstrap environment..."
 
 # Create a test script that mimics install-rutos.sh library loading
-cat > "$temp_dir/test-install.sh" << 'EOF'
+cat >"$temp_dir/test-install.sh" <<'EOF'
 #!/bin/sh
 set -eu
 
