@@ -126,7 +126,9 @@ download_file() {
     
     log_error "Failed to download $description from $url"
     return 1
-}# Download RUTOS library system
+}
+
+# Download RUTOS library system
 download_library_system() {
     log_info "Downloading RUTOS library system..."
 
