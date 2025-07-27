@@ -22,7 +22,7 @@
 # Version information (auto-updated by update-version.sh)
 if [ -z "${SCRIPT_VERSION:-}" ]; then
     # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+    SCRIPT_VERSION="2.7.1"
     readonly SCRIPT_VERSION
 fi
 

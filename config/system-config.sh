@@ -11,7 +11,7 @@ readonly TEMPLATE_VERSION
 # Note: Only set SCRIPT_VERSION if not already set (prevents conflicts when sourced)
 if [ -z "${SCRIPT_VERSION:-}" ]; then
     # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+    SCRIPT_VERSION="2.7.1"
     readonly SCRIPT_VERSION
 fi
 # Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
