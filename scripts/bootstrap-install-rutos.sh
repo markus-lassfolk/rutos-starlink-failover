@@ -4,7 +4,7 @@
 # ==============================================================================
 # RUTOS Starlink Failover - Bootstrap Installation Script
 #
-# Version: 1.0.13
+# Version: 1.0.14
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # SPECIAL BOOTSTRAP SCRIPT - LIBRARY EXEMPT
@@ -13,9 +13,10 @@
 # logging once the library is downloaded and the main install script is executed.
 #
 # This is a lightweight bootstrap script that:
-# 1. Downloads the RUTOS library system to a temporary location
-# 2. Downloads the main install-rutos.sh script
-# 3. Executes install-rutos.sh with full library support
+# 1. Performs automatic system cleanup (enhanced-cleanup-rutos.sh --auto)
+# 2. Downloads the RUTOS library system to a temporary location
+# 3. Downloads the main install-rutos.sh script
+# 4. Executes install-rutos.sh with full library support
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/bootstrap-install-rutos.sh | sh
@@ -27,7 +28,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.13"
+SCRIPT_VERSION="1.0.14"
 readonly SCRIPT_VERSION
 
 # Configuration
@@ -265,7 +266,34 @@ main() {
         log_debug "    DRY_RUN: $DRY_RUN (original: $ORIGINAL_DRY_RUN)"
         log_debug "    DEBUG: $DEBUG (original: $ORIGINAL_DEBUG)"
         log_debug "    RUTOS_TEST_MODE: $RUTOS_TEST_MODE (original: $ORIGINAL_RUTOS_TEST_MODE)"
-    fi # Step 1: Create temporary directory
+    fi
+
+    # AUTOMATIC CLEANUP: Ensure clean system before installation
+    log_info "Performing automatic system cleanup before installation..."
+
+    # Download and execute enhanced cleanup script
+    cleanup_url="$BASE_URL/scripts/enhanced-cleanup-rutos.sh"
+    cleanup_script="/tmp/enhanced-cleanup-rutos-$SESSION_ID.sh"
+
+    if download_file "$cleanup_url" "$cleanup_script" "enhanced-cleanup-rutos.sh"; then
+        chmod +x "$cleanup_script" 2>/dev/null || true
+
+        log_debug "Executing automatic cleanup with --auto flag..."
+
+        # Execute cleanup in auto mode (immediate execution without warnings)
+        if sh "$cleanup_script" --auto; then
+            log_info "✅ Automatic cleanup completed - system is clean"
+        else
+            log_debug "Note: Cleanup script reported issues, but continuing with installation..."
+        fi
+
+        # Clean up the cleanup script itself
+        rm -f "$cleanup_script" 2>/dev/null || true
+    else
+        log_debug "Note: Could not download cleanup script, proceeding with installation..."
+    fi
+
+    # Step 1: Create temporary directory
     if ! create_bootstrap_temp_dir; then
         log_error "Failed to create bootstrap temporary directory"
         exit 1

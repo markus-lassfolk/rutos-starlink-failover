@@ -16,55 +16,10 @@ readonly SCRIPT_VERSION
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="install-rutos.sh"
 
-# Extract build info safely (handle remote execution via curl | sh)
-if [ -f "$0" ] && [ "$0" != "sh" ]; then
-    BUILD_INFO=$(grep "# Build:" "$0" | head -1 | sed 's/# Build: //' 2>/dev/null || echo "1.0.2+198.38fb60b-dirty")
-else
-    # When run via curl | sh, $0 is "sh", so use embedded build info
-    BUILD_INFO="1.0.2+198.38fb60b-dirty"
-fi
-
 # Configuration - can be overridden by environment variables
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
 BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
-
-# Enhanced debug output for troubleshooting
-if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[DEBUG] ===== SYSTEM INFORMATION =====\n" >&2
-    printf "[DEBUG] Script: %s v%s\n" "$SCRIPT_NAME" "$SCRIPT_VERSION" >&2
-    printf "[DEBUG] Build: %s\n" "$BUILD_INFO" >&2
-    printf "[DEBUG] Execution mode: %s\n" "$([ "$0" = "sh" ] && echo 'remote (curl | sh)' || echo 'local')" >&2
-    printf "[DEBUG] Shell: %s\n" "$(readlink /proc/$$/exe 2>/dev/null || echo 'unknown')" >&2
-    printf "[DEBUG] User: %s (UID: %s)\n" "$(id -un 2>/dev/null || echo 'unknown')" "$(id -u 2>/dev/null || echo 'unknown')" >&2
-    printf "[DEBUG] Working directory: %s\n" "$(pwd)" >&2
-    printf "[DEBUG] System: %s\n" "$(uname -a 2>/dev/null || echo 'unknown')" >&2
-
-    # Show environment variables
-    printf "[DEBUG] Environment variables:\n" >&2
-    printf "[DEBUG]   DEBUG=%s\n" "${DEBUG:-0}" >&2
-    printf "[DEBUG]   RUTOS_TEST_MODE=%s\n" "${RUTOS_TEST_MODE:-0}" >&2
-    printf "[DEBUG]   USE_LIBRARY=%s\n" "${USE_LIBRARY:-1}" >&2
-    printf "[DEBUG]   GITHUB_BRANCH=%s\n" "$GITHUB_BRANCH" >&2
-    printf "[DEBUG]   GITHUB_REPO=%s\n" "$GITHUB_REPO" >&2
-    printf "[DEBUG]   BASE_URL=%s\n" "$BASE_URL" >&2
-
-    # Check available tools
-    printf "[DEBUG] Available download tools:\n" >&2
-    printf "[DEBUG]   curl: %s\n" "$(command -v curl >/dev/null 2>&1 && which curl || echo 'not available')" >&2
-    printf "[DEBUG]   wget: %s\n" "$(command -v wget >/dev/null 2>&1 && which wget || echo 'not available')" >&2
-
-    # Check filesystem info
-    printf "[DEBUG] Filesystem information:\n" >&2
-    printf "[DEBUG]   /tmp permissions: %s\n" "$(ls -ld /tmp 2>/dev/null || echo 'unavailable')" >&2
-    printf "[DEBUG]   /var/tmp permissions: %s\n" "$(ls -ld /var/tmp 2>/dev/null || echo 'unavailable')" >&2
-    printf "[DEBUG]   Current dir permissions: %s\n" "$(ls -ld . 2>/dev/null || echo 'unavailable')" >&2
-    printf "[DEBUG]   Disk space:\n" >&2
-    df -h 2>/dev/null | while read -r line; do
-        printf "[DEBUG]     %s\n" "$line" >&2
-    done
-    printf "[DEBUG] ===== END SYSTEM INFORMATION =====\n" >&2
-fi
 
 # Try to load RUTOS library system if available locally (development mode)
 # For remote installation via curl, we'll use built-in fallback functions
@@ -881,50 +836,43 @@ detect_latest_jq_version() {
 download_file() {
     url="$1"
     output="$2"
-
+    
     log_debug "Downloading $url to $output"
     log_info "Starting download: $url -> $output"
 
+    # Check if output directory exists and is writable
+    output_dir="$(dirname "$output")"
+    if [ ! -d "$output_dir" ]; then
+        log_error "Output directory does not exist: $output_dir"
+        return 1
+    fi
+    
+    if [ ! -w "$output_dir" ]; then
+        log_error "Output directory not writable: $output_dir"
+        return 1
+    fi
+
     # Try wget first, then curl
     if command -v wget >/dev/null 2>&1; then
-        if [ "${DEBUG:-0}" = "1" ]; then
-            if debug_exec wget -O "$output" "$url"; then
-                log_info "Download successful: $output"
-                return 0
-            else
-                log_error "Download failed with wget: $url"
-                return 1
-            fi
+        log_debug "Using wget for download"
+        if safe_execute "wget -q -O '$output' '$url'" "Download with wget"; then
+            log_info "Download successful: $output"
+            return 0
         else
-            if wget -q -O "$output" "$url" 2>/dev/null; then
-                log_info "Download successful: $output"
-                return 0
-            else
-                log_error "Download failed with wget: $url"
-                return 1
-            fi
+            log_error "Download failed with wget: $url"
+            return 1
         fi
     elif command -v curl >/dev/null 2>&1; then
-        if [ "${DEBUG:-0}" = "1" ]; then
-            if debug_exec curl -fL -o "$output" "$url"; then
-                log_info "Download successful: $output"
-                return 0
-            else
-                log_error "Download failed with curl: $url"
-                return 1
-            fi
+        log_debug "Using curl for download"
+        if safe_execute "curl -fsSL -o '$output' '$url'" "Download with curl"; then
+            log_info "Download successful: $output"
+            return 0
         else
-            if curl -fsSL -o "$output" "$url" 2>/dev/null; then
-                log_info "Download successful: $output"
-                return 0
-            else
-                log_error "Download failed with curl: $url"
-                return 1
-            fi
+            log_error "Download failed with curl: $url"
+            return 1
         fi
     else
         log_error "Neither wget nor curl available for downloads"
-        log_error "Error: Neither wget nor curl available for downloads"
         return 1
     fi
 }
@@ -1920,8 +1868,10 @@ install_scripts() {
 
 # Install configuration
 install_config() {
+    
     print_status "$BLUE" "Installing configuration..."
     config_dir="$(dirname "$0")/../config"
+    
 
     # Ensure persistent configuration directory exists first
     mkdir -p "$PERSISTENT_CONFIG_DIR" 2>/dev/null || {
@@ -1939,7 +1889,9 @@ install_config() {
     else
         # Download from repository
         print_status "$BLUE" "Downloading unified configuration template..."
-        if download_file "$BASE_URL/config/config.unified.template.sh" "$temp_unified_template"; then
+        template_url="$BASE_URL/config/config.unified.template.sh"
+        
+        if download_file "$template_url" "$temp_unified_template"; then
             print_status "$GREEN" "✓ Unified configuration template downloaded"
         else
             print_status "$RED" "✗ Unified configuration template could not be downloaded"
@@ -2081,10 +2033,12 @@ install_config() {
 
             # Check if auto-detect script is available
             autodetect_script_path=""
+            
             if [ -f "$INSTALL_DIR/scripts/auto-detect-config-rutos.sh" ]; then
                 autodetect_script_path="$INSTALL_DIR/scripts/auto-detect-config-rutos.sh"
             elif [ -f "$(dirname "$0")/auto-detect-config-rutos.sh" ]; then
                 autodetect_script_path="$(dirname "$0")/auto-detect-config-rutos.sh"
+            else
             fi
 
             if [ -n "$autodetect_script_path" ] && [ -x "$autodetect_script_path" ]; then
@@ -2092,18 +2046,36 @@ install_config() {
 
                 # Run auto-detection and capture results
                 detection_results="/tmp/autodetect_results.$$"
-                if "$autodetect_script_path" >"$detection_results" 2>/dev/null; then
+                
+                if safe_execute "'$autodetect_script_path' >'$detection_results' 2>/dev/null" "Run auto-detection script"; then
                     print_status "$GREEN" "✓ System auto-detection completed successfully"
+                    
+                    # Check results file
+                    if [ -f "$detection_results" ]; then
+                        results_size=$(wc -c <"$detection_results" 2>/dev/null || echo "0")
+                        
+                        if [ "$results_size" -gt 0 ]; then
+                            while IFS= read -r line; do
+                            done < "$detection_results"
+                        else
+                        fi
+                    else
+                    fi
 
                     # Apply detected settings to configuration
                     print_status "$BLUE" "Applying auto-detected settings to configuration..."
 
                     # Source the detection results
                     # shellcheck disable=SC1090  # Dynamic file sourcing
-                    . "$detection_results" 2>/dev/null || true
+                    if . "$detection_results" 2>/dev/null; then
+                    else
+                        source_exit=$?
+                    fi
 
                     # Create a backup before applying auto-detected settings
-                    cp "$primary_config" "${primary_config}.pre-autodetect" 2>/dev/null || true
+                    if cp "$primary_config" "${primary_config}.pre-autodetect" 2>/dev/null; then
+                    else
+                    fi
 
                     # Apply auto-detected settings using sed (busybox compatible)
                     config_updated=0
@@ -2238,13 +2210,13 @@ configure_cron() {
     # Create backup of existing crontab
     if [ -f "$CRON_FILE" ]; then
         backup_file="$CRON_FILE.backup.$(date +%Y%m%d_%H%M%S)"
-        cp "$CRON_FILE" "$backup_file"
+        safe_execute "cp '$CRON_FILE' '$backup_file'" "Backup existing crontab"
         print_status "$GREEN" "✓ Existing crontab backed up to: $backup_file"
     fi
 
     # Create the cron file if it doesn't exist
     if [ ! -f "$CRON_FILE" ]; then
-        touch "$CRON_FILE"
+        safe_execute "touch '$CRON_FILE'" "Create cron file"
     fi
 
     # Remove any existing entries added by this install script to prevent duplicates
@@ -3295,6 +3267,7 @@ EOF
 
 # Main installation function
 main() {
+    
     # Log function entry for debugging
     if [ "${DEBUG:-0}" = "1" ] && command -v log_function_entry >/dev/null 2>&1; then
         log_function_entry "main" "$*"
@@ -3352,46 +3325,71 @@ main() {
 
     log_debug "==================== INSTALLATION START ===================="
     log_debug "Starting installation process"
-    log_debug "Starting installation process"
 
     log_debug "STEP 1: Checking root privileges and system compatibility"
-    check_root
+    if ! check_root; then
+        exit 1
+    fi
 
     log_debug "STEP 2: Validating system requirements"
-    check_system
+    if ! check_system; then
+        exit 1
+    fi
 
     log_debug "STEP 3: Creating directory structure"
-    create_directories
+    if ! create_directories; then
+        exit 1
+    fi
 
     log_debug "STEP 4: Installing binary dependencies"
-    install_binaries
+    if ! install_binaries; then
+        exit 1
+    fi
 
     log_debug "STEP 5: Installing monitoring scripts"
-    install_scripts
+    if ! install_scripts; then
+        exit 1
+    fi
 
     log_debug "STEP 5.1: Installing enhanced monitoring scripts"
-    install_enhanced_monitoring
+    if ! install_enhanced_monitoring; then
+        exit 1
+    fi
 
     log_debug "STEP 5.2: Installing GPS integration components"
-    install_gps_integration
+    if ! install_gps_integration; then
+        exit 1
+    fi
 
     log_debug "STEP 5.3: Installing cellular integration components"
-    install_cellular_integration
+    if ! install_cellular_integration; then
+        exit 1
+    fi
 
     log_debug "STEP 6: Installing configuration files"
-    install_config
+    if ! install_config; then
+        exit 1
+    fi
 
     log_debug "STEP 7: Configuring cron jobs"
-    configure_cron
+    if ! configure_cron; then
+        exit 1
+    fi
 
     log_debug "STEP 8: Creating uninstall script"
-    create_uninstall
+    if ! create_uninstall; then
+        exit 1
+    fi
 
     log_debug "STEP 9: Setting up auto-restoration"
-    create_restoration_script
+    if ! create_restoration_script; then
+        exit 1
+    fi
 
     log_debug "STEP 10: Setting up firmware upgrade recovery"
-    setup_recovery_information
+    if ! setup_recovery_information; then
+        exit 1
+    fi
 
     log_debug "==================== INSTALLATION COMPLETE ===================="
     print_status "$GREEN" "=== Installation Complete ==="
