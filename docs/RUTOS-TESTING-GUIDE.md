@@ -1,5 +1,7 @@
 # RUTOS Testing Guide
 
+**Version:** 2.7.1 | **Updated:** 2025-07-27
+
 **Version:** 2.6.0 | **Updated:** 2025-07-24
 
 **Version:** 2.5.0 | **Updated:** 2025-07-24

@@ -1,6 +1,6 @@
 # Starlink API Change Response Process
 
-Version: 2.6.0 | Updated: 2025-07-24
+Version: 2.7.1
 
 If you receive a notification that the Starlink API schema has changed, follow these steps to quickly restore monitoring
 and failover functionality:

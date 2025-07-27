@@ -5,7 +5,7 @@
 # ==============================================================================
 # Enhanced Pushover Notifier for Starlink Monitoring System
 #
-# Version: 2.7.0
+# Version: 2.7.1
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script serves as the central notification hub for the Starlink monitoring
@@ -17,6 +17,10 @@
 set -eu
 
 # BusyBox compatibility: set PS4 without LINENO for debug mode
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"
+readonly SCRIPT_VERSION
 PS4='+ '
 
 # Version information (auto-updated by update-version.sh)

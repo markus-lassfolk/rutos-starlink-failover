@@ -1,6 +1,10 @@
 #!/bin/sh
 # Test file for validation
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="1.0.0"
 
 # Support for basic environment variables

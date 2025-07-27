@@ -4,7 +4,7 @@
 
 # Version information (auto-updated by update-version.sh)
 # shellcheck disable=SC2034  # SCRIPT_VERSION used for validation compliance
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Colors for output (compatible with busybox)

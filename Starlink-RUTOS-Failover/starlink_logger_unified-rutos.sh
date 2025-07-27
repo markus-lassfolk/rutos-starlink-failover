@@ -3,7 +3,7 @@
 # ==============================================================================
 # Unified Starlink Performance Data Logger for OpenWrt/RUTOS
 #
-# Version: 2.7.0
+# Version: 2.7.1
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script runs periodically via cron to gather real-time performance data
@@ -22,6 +22,10 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="2.7.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)

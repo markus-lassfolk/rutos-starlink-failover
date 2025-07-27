@@ -2,7 +2,7 @@
 # ==============================================================================
 # RUTOS Colors Library
 #
-# Version: 2.7.0
+# Version: 2.7.1
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # Provides standardized color definitions for all RUTOS scripts.
@@ -10,6 +10,10 @@
 # ==============================================================================
 
 # Prevent multiple sourcing
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"
+readonly SCRIPT_VERSION
 if [ "${_RUTOS_COLORS_LOADED:-}" = "1" ]; then
     return 0
 fi

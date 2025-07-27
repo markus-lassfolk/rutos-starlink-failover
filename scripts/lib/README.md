@@ -1,5 +1,7 @@
 # RUTOS Library System Documentation
 
+**Version:** 2.7.1 | **Updated:** 2025-07-27
+
 ## Overview
 
 The RUTOS Library System provides standardized, reusable components for all RUTOS Starlink Failover scripts. This modular approach ensures consistency, maintainability, and proper POSIX sh compatibility across the entire project.

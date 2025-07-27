@@ -4,6 +4,10 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="2.7.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
@@ -55,7 +59,7 @@ fi
 # ==============================================================================
 # Starlink API Version Monitor
 #
-# Version: 2.6.0
+# Version: 2.7.1
 
 # Set default installation directory if not already set
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"

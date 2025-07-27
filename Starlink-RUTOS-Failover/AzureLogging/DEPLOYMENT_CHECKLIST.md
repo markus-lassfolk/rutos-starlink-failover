@@ -1,6 +1,6 @@
 # Deployment and Validation Checklist
 
-Version: 2.6.0
+Version: 2.7.1
 
 **Version:** 2.6.0 | **Updated:** 2025-07-24
 

@@ -11,7 +11,7 @@ set -eu
 # Test directory
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 TEST_DIR="/tmp/starlink-validation-test"
 CONFIG_FILE="$TEST_DIR/config.sh"

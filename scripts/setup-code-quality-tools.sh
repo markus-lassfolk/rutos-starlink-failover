@@ -1,6 +1,6 @@
 #!/bin/bash
 # Setup script for comprehensive code quality tools
-# Version: 2.6.0
+# Version: 2.7.1
 # Description: Installs all code quality tools for the RUTOS Starlink Failover project
 
 set -e
@@ -9,7 +9,7 @@ set -e
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="2.4.11"
 

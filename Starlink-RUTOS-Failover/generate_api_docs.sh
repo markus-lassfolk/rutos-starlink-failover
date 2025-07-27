@@ -3,7 +3,7 @@
 # ==============================================================================
 # Starlink API Documentation Generator
 #
-# Version: 2.6.0
+# Version: 2.7.1
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script is a utility for developers and enthusiasts who want to explore
@@ -21,7 +21,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

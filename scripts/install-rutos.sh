@@ -11,9 +11,9 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
-# Build: 1.0.2+198.38fb60b-dirty
+BUILD_INFO="1.0.2+198.38fb60b-dirty"
 SCRIPT_NAME="install-rutos.sh"
 
 # Configuration - can be overridden by environment variables

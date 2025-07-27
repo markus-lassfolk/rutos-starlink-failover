@@ -1,6 +1,6 @@
 # Azure Logging Installation and Verification Guide
 
-Version: 2.6.0 | Updated: 2025-07-24
+Version: 2.7.1
 
 This guide covers the comprehensive installation and verification system for Azure logging integration with RUTOS,
 Starlink monitoring, and GPS data collection.

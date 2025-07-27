@@ -13,7 +13,7 @@
 # Starlink gRPC endpoint IP and port
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 echo "Loading test configuration version: $SCRIPT_VERSION"
 export STARLINK_IP="192.168.100.1"

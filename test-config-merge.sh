@@ -7,7 +7,7 @@
 # Tests basic config merging functionality
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Display version if requested

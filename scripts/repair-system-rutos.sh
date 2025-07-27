@@ -1,13 +1,13 @@
 #!/bin/sh
 # Script: repair-system-rutos.sh
-# Version: 2.7.0
+# Version: 2.7.1
 # Description: Automatic system repair for common Starlink monitoring issues
 # Compatible with: RUTOS (busybox sh)
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Version information (used for logging and debugging)

@@ -3,12 +3,12 @@
 # shellcheck disable=SC2034  # Variables are used when sourced by other scripts
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 # Used for troubleshooting: echo "Config version: $SCRIPT_VERSION"
 
 # Template version (auto-updated by update-version.sh)
-TEMPLATE_VERSION="2.6.0"
+TEMPLATE_VERSION="2.7.1"
 readonly TEMPLATE_VERSION
 
 # ==============================================================================

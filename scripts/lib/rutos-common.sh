@@ -10,6 +10,10 @@
 # ==============================================================================
 
 # Prevent multiple sourcing
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"
+readonly SCRIPT_VERSION
 if [ "${_RUTOS_COMMON_LOADED:-}" = "1" ]; then
     return 0
 fi
@@ -51,6 +55,10 @@ validate_rutos_environment() {
         fi
     fi
 
+    # Version information for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ]; then
+        log_debug "Script: rutos-common.sh v$SCRIPT_VERSION"
+    fi
     log_debug "RUTOS environment validated"
     log_function_exit "validate_rutos_environment" "0"
     return 0

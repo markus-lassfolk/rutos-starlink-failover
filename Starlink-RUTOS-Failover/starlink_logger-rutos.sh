@@ -3,7 +3,7 @@
 # ==============================================================================
 # Starlink Performance Data Logger for OpenWrt/RUTOS
 #
-# Version: 2.5.0
+# Version: 2.7.1
 # Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 #
 # Starlink Logger - Enhanced CSV Logging for RUTOS
@@ -26,7 +26,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Use version for validation

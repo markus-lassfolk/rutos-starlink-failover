@@ -14,7 +14,7 @@
 # - Automated monitoring and alerting
 # - Complete verification and health checks
 #
-# Version: 2.4.12
+# Version: 2.7.1
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 # ==============================================================================
 
@@ -24,7 +24,7 @@ set -eu
 # Check if terminal supports colors (simplified for RUTOS compatibility)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     RED='\033[0;31m'

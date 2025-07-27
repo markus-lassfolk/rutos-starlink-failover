@@ -9,6 +9,10 @@
 # This allows gradual migration to RUTOS library standards without breaking existing code.
 #
 # Legacy patterns mapped to RUTOS library functions:
+    # Version information for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ]; then
+        log_debug "Script: rutos-compatibility.sh v$SCRIPT_VERSION"
+    fi
 # - debug_log() -> log_debug()
 # - debug_msg() -> log_debug()
 # - print_status() -> printf with colors
@@ -17,6 +21,10 @@
 # ==============================================================================
 
 # Only load if RUTOS library is present
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"
+readonly SCRIPT_VERSION
 if [ "${_RUTOS_LIB_LOADED:-}" != "1" ]; then
     printf "ERROR: RUTOS compatibility module requires RUTOS library to be loaded first\n" >&2
     exit 1
