@@ -234,7 +234,7 @@ EOF
     # Show current cron status for verification
     print_status "$BLUE" "Current cron entries for our scripts:"
     grep -n "starlink.*rutos\|check_starlink_api" "$CRON_FILE" 2>/dev/null || print_status "$YELLOW" "No entries found"
-    
+
     print_status "$BLUE" "=== DEBUG CRON CONFIGURATION COMPLETE ==="
 }
 
@@ -243,15 +243,15 @@ main() {
     print_status "$GREEN" "Starting cron configuration debugging..."
     print_status "$BLUE" "Install directory: $INSTALL_DIR"
     print_status "$BLUE" "Cron file: $CRON_FILE"
-    
+
     # Check if install directory exists
     if [ ! -d "$INSTALL_DIR" ]; then
         print_status "$RED" "ERROR: Install directory not found: $INSTALL_DIR"
         exit 1
     fi
-    
+
     configure_cron
-    
+
     print_status "$GREEN" "Cron debugging complete!"
 }
 

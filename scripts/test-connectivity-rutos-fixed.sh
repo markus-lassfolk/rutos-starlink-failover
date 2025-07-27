@@ -91,7 +91,7 @@ load_config() {
 
     . "$CONFIG_FILE"
     log_success "Configuration loaded successfully"
-    
+
     # Ensure Starlink connection variables are defined
     STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
     STARLINK_PORT="${STARLINK_PORT:-9200}"

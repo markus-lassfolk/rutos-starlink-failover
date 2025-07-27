@@ -20,7 +20,7 @@ printf "Testing all three main scripts with DEBUG=1 and RUTOS_TEST_MODE=1\n\n"
 TEST_CONFIG="/tmp/test-starlink-config.sh"
 printf "${YELLOW}Creating test configuration file: $TEST_CONFIG${NC}\n"
 
-cat > "$TEST_CONFIG" << 'EOF'
+cat >"$TEST_CONFIG" <<'EOF'
 # Test configuration for RUTOS Starlink Failover
 STARLINK_IP="192.168.100.1"
 MWAN_IFACE="starlink"
