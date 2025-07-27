@@ -1806,11 +1806,12 @@ configure_cron() {
         fi
     fi
 
-    # Check if our scripts already have cron entries (check each script individually)
-    existing_monitor=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    existing_logger=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    existing_api_check=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
-    existing_maintenance=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    # Check if our scripts already have ACTIVE (non-commented) cron entries
+    # Only count lines that are NOT commented out (don't start with #)
+    existing_monitor=$(grep -c "^[^#]*starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    existing_logger=$(grep -c "^[^#]*starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    existing_api_check=$(grep -c "^[^#]*check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
+    existing_maintenance=$(grep -c "^[^#]*system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
 
     # Clean any whitespace/newlines from the counts (fix for RUTOS busybox grep -c behavior)
     existing_monitor=$(echo "$existing_monitor" | tr -d '\n\r' | sed 's/[^0-9]//g')
@@ -1881,8 +1882,8 @@ EOF
         print_status "$YELLOW" "⚠ Preserving existing system-maintenance cron configuration"
     fi
 
-    # Check for existing auto-update entries
-    existing_autoupdate=$(grep -c "self-update-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    # Check for existing ACTIVE (non-commented) auto-update entries
+    existing_autoupdate=$(grep -c "^[^#]*self-update-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_autoupdate=$(echo "$existing_autoupdate" | tr -d '\n\r' | sed 's/[^0-9]//g')
     existing_autoupdate=${existing_autoupdate:-0}
 
