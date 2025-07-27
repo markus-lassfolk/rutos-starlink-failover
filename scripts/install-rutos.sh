@@ -511,6 +511,13 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
     debug_msg() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy debug_msg calls
         log_debug "$1"
     }
+
+    # COMPATIBILITY: Add print_status function for legacy code compatibility
+    print_status() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy print_status calls
+        color="$1"
+        message="$2"
+        printf "%s%s%s\n" "$color" "$message" "$NC"
+    }
 else
     # Fallback to legacy logging system for remote installations when library unavailable
     printf "[INFO] Using built-in fallback logging system\n"
@@ -573,6 +580,13 @@ else
     # COMPATIBILITY: Add debug_msg function for legacy code compatibility
     debug_msg() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy debug_msg calls (fallback)
         log_debug "$1"
+    }
+
+    # COMPATIBILITY: Add print_status function for legacy code compatibility
+    print_status() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy print_status calls (fallback)
+        color="$1"
+        message="$2"
+        printf "%s%s%s\n" "$color" "$message" "$NC"
     }
 
     # VALIDATION_SKIP_LIBRARY_CHECK: Built-in safe_execute function for remote installation fallback

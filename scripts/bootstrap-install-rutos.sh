@@ -9,14 +9,6 @@
 #
 # SPECIAL BOOTSTRAP SCRIPT - LIBRARY EXEMPT
 # This script cannot use the RUTOS library because it downloads the library itself.
-# It provides its own minimal logging that will be replaced by full RUTOS library# ==============================================================================
-# RUTOS Starlink Failover - Bootstrap Installation Script
-#
-# Version: 1.0.8
-# Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
-#
-# SPECIAL BOOTSTRAP SCRIPT - LIBRARY EXEMPT
-# This script cannot use the RUTOS library because it downloads the library itself.
 # It provides its own minimal logging that will be replaced by full RUTOS library
 # logging once the library is downloaded and the main install script is executed.
 #
@@ -35,7 +27,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.9"
+SCRIPT_VERSION="1.0.10"
 readonly SCRIPT_VERSION
 
 # Configuration
