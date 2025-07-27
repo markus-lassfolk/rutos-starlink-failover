@@ -486,6 +486,21 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
     rutos_init "$SCRIPT_NAME" "$SCRIPT_VERSION"
     log_info "Using RUTOS library system for standardized logging"
     log_debug "Library mode: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo "local development" || echo "downloaded remote")"
+
+    # COMPATIBILITY: Add log_message function for legacy code compatibility
+    log_message() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_message calls
+        level="$1"
+        message="$2"
+        case "$level" in
+            "INFO") log_info "$message" ;;
+            "SUCCESS") log_success "$message" ;;
+            "WARNING") log_warning "$message" ;;
+            "ERROR") log_error "$message" ;;
+            "STEP") log_step "$message" ;;
+            "DEBUG") log_debug "$message" ;;
+            *) log_info "[$level] $message" ;;
+        esac
+    }
 else
     # Fallback to legacy logging system for remote installations when library unavailable
     printf "[INFO] Using built-in fallback logging system\n"
@@ -523,6 +538,21 @@ else
         if [ "${DEBUG:-0}" = "1" ]; then
             printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
         fi
+    }
+
+    # COMPATIBILITY: Add log_message function for legacy code compatibility
+    log_message() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_message calls (fallback)
+        level="$1"
+        message="$2"
+        case "$level" in
+            "INFO") log_info "$message" ;;
+            "SUCCESS") log_success "$message" ;;
+            "WARNING") log_warning "$message" ;;
+            "ERROR") log_error "$message" ;;
+            "STEP") log_step "$message" ;;
+            "DEBUG") log_debug "$message" ;;
+            *) log_info "[$level] $message" ;;
+        esac
     }
 
     # VALIDATION_SKIP_LIBRARY_CHECK: Built-in safe_execute function for remote installation fallback
