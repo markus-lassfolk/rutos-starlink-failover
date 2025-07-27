@@ -242,36 +242,58 @@ printf "\n${BLUE}2. CRON SCHEDULING${NC}\n"
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
 printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
-# Check cron entries
+# Check cron entries (only count ACTIVE non-commented entries)
 CRON_FILE="/etc/crontabs/root"
 if [ -f "$CRON_FILE" ]; then
-    monitor_entries=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    logger_entries=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    api_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
-    maintenance_entries=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    # Only count lines that are NOT commented out (don't start with #)
+    monitor_entries=$(grep -c "^[^#]*starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    logger_entries=$(grep -c "^[^#]*starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    api_entries=$(grep -c "^[^#]*check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
+    maintenance_entries=$(grep -c "^[^#]*system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+    autoupdate_entries=$(grep -c "^[^#]*self-update-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+
+    # Clean any whitespace/newlines from the counts (fix for RUTOS busybox grep -c behavior)
+    monitor_entries=$(echo "$monitor_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    logger_entries=$(echo "$logger_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    api_entries=$(echo "$api_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    maintenance_entries=$(echo "$maintenance_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    autoupdate_entries=$(echo "$autoupdate_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
+
+    # Ensure we have valid numbers (default to 0 if empty)
+    monitor_entries=${monitor_entries:-0}
+    logger_entries=${logger_entries:-0}
+    api_entries=${api_entries:-0}
+    maintenance_entries=${maintenance_entries:-0}
+    autoupdate_entries=${autoupdate_entries:-0}
 
     if [ "$monitor_entries" -gt 0 ]; then
-        check_status "pass" "Monitor Cron Job" "$monitor_entries entry(s) configured"
+        check_status "pass" "Monitor Cron Job" "$monitor_entries active entry(s) configured"
     else
-        check_status "fail" "Monitor Cron Job" "No cron entries found"
+        check_status "fail" "Monitor Cron Job" "No active cron entries found"
     fi
 
     if [ "$logger_entries" -gt 0 ]; then
-        check_status "pass" "Logger Cron Job" "$logger_entries entry(s) configured"
+        check_status "pass" "Logger Cron Job" "$logger_entries active entry(s) configured"
     else
-        check_status "fail" "Logger Cron Job" "No cron entries found"
+        check_status "fail" "Logger Cron Job" "No active cron entries found"
     fi
 
     if [ "$api_entries" -gt 0 ]; then
-        check_status "pass" "API Check Cron Job" "$api_entries entry(s) configured"
+        check_status "pass" "API Check Cron Job" "$api_entries active entry(s) configured"
     else
-        check_status "warn" "API Check Cron Job" "No cron entries (optional)"
+        check_status "warn" "API Check Cron Job" "No active cron entries (optional)"
     fi
 
     if [ "$maintenance_entries" -gt 0 ]; then
-        check_status "pass" "Maintenance Cron Job" "$maintenance_entries entry(s) configured"
+        check_status "pass" "Maintenance Cron Job" "$maintenance_entries active entry(s) configured"
     else
-        check_status "warn" "Maintenance Cron Job" "No cron entries (optional)"
+        check_status "warn" "Maintenance Cron Job" "No active cron entries (optional)"
+    fi
+
+    if [ "$autoupdate_entries" -gt 0 ]; then
+        check_status "pass" "Auto-Update Cron Job" "$autoupdate_entries active entry(s) configured"
+    else
+        check_status "warn" "Auto-Update Cron Job" "No active cron entries (optional)"
     fi
 else
     check_status "fail" "Cron Configuration" "Crontab file missing: $CRON_FILE"
