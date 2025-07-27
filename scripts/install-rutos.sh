@@ -50,14 +50,20 @@ debug_trace "40" "Checking for local library: $(dirname "$0")/lib/rutos-lib.sh"
 
 if [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; then
     debug_trace "43" "Local library found - attempting to load"
+    debug_trace "44" "Script location: $0"
+    debug_trace "45" "Library path: $(dirname "$0")/lib/rutos-lib.sh"
+    debug_trace "46" "Library exists: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo 'yes' || echo 'no')"
     # Development mode: scripts directory available locally
     # shellcheck source=/dev/null
+    debug_trace "47" "About to source library..."
     if . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
         LIBRARY_LOADED=1
-        debug_trace "47" "Local RUTOS library loaded successfully"
+        debug_trace "50" "Local RUTOS library loaded successfully"
         log_debug "RUTOS library system loaded from local development environment"
     else
-        debug_trace "50" "Failed to load local RUTOS library"
+        lib_error=$?
+        debug_trace "54" "Failed to load local RUTOS library (exit code: $lib_error)"
+        debug_trace "55" "Error attempting to source: $(dirname "$0")/lib/rutos-lib.sh"
     fi
 else
     debug_trace "53" "No local library found - will attempt remote download"
@@ -67,7 +73,7 @@ fi
 if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
     debug_trace "57" "Starting remote library download process"
     debug_trace "58" "LIBRARY_LOADED=$LIBRARY_LOADED, USE_LIBRARY=${USE_LIBRARY:-1}"
-    
+
     # Create temporary directory for library with fallback options
     printf "[DEBUG] ===== TEMPORARY DIRECTORY SETUP =====\n" >&2
     debug_trace "62" "Starting temporary directory setup"
@@ -476,12 +482,12 @@ debug_trace "474" "LIBRARY_LOADED=$LIBRARY_LOADED"
 if [ "$LIBRARY_LOADED" = "1" ]; then
     debug_trace "477" "Using RUTOS library system - calling rutos_init"
     debug_trace "478" "Parameters: SCRIPT_NAME=$SCRIPT_NAME, SCRIPT_VERSION=$SCRIPT_VERSION"
-    
+
     # Use new RUTOS library system (either local development or downloaded)
     debug_trace "481" "About to call rutos_init function"
     rutos_init "$SCRIPT_NAME" "$SCRIPT_VERSION"
     debug_trace "483" "rutos_init completed successfully"
-    
+
     log_info "Using RUTOS library system for standardized logging"
     debug_trace "486" "Logged library usage info"
     log_debug "Library mode: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo "local development" || echo "downloaded remote")"
@@ -561,7 +567,7 @@ else
     # FALLBACK COMPATIBILITY: Minimal legacy function support when library unavailable
     debug_log() { log_debug "$1"; }                           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
     debug_msg() { log_debug "$1"; }                           # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
-    print_status() { printf "%s%s%s\n" "$1" "$2" "$NC"; }     # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
+    print_status() { printf "${1}%s${NC}\n" "$2"; }     # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
     debug_exec() { safe_execute "$*" "Execute command: $*"; } # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
     config_debug() { log_debug "$1"; }                        # VALIDATION_SKIP_LIBRARY_CHECK: Fallback compatibility
 
@@ -897,7 +903,7 @@ detect_latest_jq_version() {
 download_file() {
     url="$1"
     output="$2"
-    
+
     log_debug "Downloading $url to $output"
     log_info "Starting download: $url -> $output"
 
@@ -907,7 +913,7 @@ download_file() {
         log_error "Output directory does not exist: $output_dir"
         return 1
     fi
-    
+
     if [ ! -w "$output_dir" ]; then
         log_error "Output directory not writable: $output_dir"
         return 1
@@ -1929,10 +1935,9 @@ install_scripts() {
 
 # Install configuration
 install_config() {
-    
+
     print_status "$BLUE" "Installing configuration..."
     config_dir="$(dirname "$0")/../config"
-    
 
     # Ensure persistent configuration directory exists first
     mkdir -p "$PERSISTENT_CONFIG_DIR" 2>/dev/null || {
@@ -1951,7 +1956,7 @@ install_config() {
         # Download from repository
         print_status "$BLUE" "Downloading unified configuration template..."
         template_url="$BASE_URL/config/config.unified.template.sh"
-        
+
         if download_file "$template_url" "$temp_unified_template"; then
             print_status "$GREEN" "✓ Unified configuration template downloaded"
         else
@@ -2094,12 +2099,14 @@ install_config() {
 
             # Check if auto-detect script is available
             autodetect_script_path=""
-            
+
             if [ -f "$INSTALL_DIR/scripts/auto-detect-config-rutos.sh" ]; then
                 autodetect_script_path="$INSTALL_DIR/scripts/auto-detect-config-rutos.sh"
             elif [ -f "$(dirname "$0")/auto-detect-config-rutos.sh" ]; then
                 autodetect_script_path="$(dirname "$0")/auto-detect-config-rutos.sh"
             else
+                # No auto-detect script found
+                true
             fi
 
             if [ -n "$autodetect_script_path" ] && [ -x "$autodetect_script_path" ]; then
@@ -2107,17 +2114,17 @@ install_config() {
 
                 # Run auto-detection and capture results
                 detection_results="/tmp/autodetect_results.$$"
-                
+
                 if safe_execute "'$autodetect_script_path' >'$detection_results' 2>/dev/null" "Run auto-detection script"; then
                     print_status "$GREEN" "✓ System auto-detection completed successfully"
-                    
+
                     # Check results file
                     if [ -f "$detection_results" ]; then
                         results_size=$(wc -c <"$detection_results" 2>/dev/null || echo "0")
-                        
+
                         if [ "$results_size" -gt 0 ]; then
                             while IFS= read -r line; do
-                            done < "$detection_results"
+                            done <"$detection_results"
                         else
                         fi
                     else
@@ -3328,7 +3335,7 @@ EOF
 
 # Main installation function
 main() {
-    
+
     # Log function entry for debugging
     if [ "${DEBUG:-0}" = "1" ] && command -v log_function_entry >/dev/null 2>&1; then
         log_function_entry "main" "$*"

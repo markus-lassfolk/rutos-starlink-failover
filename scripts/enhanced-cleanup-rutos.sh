@@ -46,6 +46,13 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 FORCE_CLEANUP="${FORCE_CLEANUP:-0}"
 QUICK_MODE="${QUICK_MODE:-0}" # New: Skip warnings for automated testing
 
+# Debug: Show initial state
+if [ "${DEBUG:-0}" = "1" ]; then
+    print_status "$CYAN" "[DEBUG] Cleanup script starting..."
+    print_status "$CYAN" "  Initial DRY_RUN=$DRY_RUN"
+    print_status "$CYAN" "  Arguments: $*"
+fi
+
 # Enhanced argument parsing
 parse_arguments() {
     while [ $# -gt 0 ]; do
@@ -128,6 +135,15 @@ EOF
 
 # Parse arguments
 parse_arguments "$@"
+
+# Debug: Show argument parsing results
+if [ "${DEBUG:-0}" = "1" ]; then
+    print_status "$CYAN" "[DEBUG] Argument parsing complete:"
+    print_status "$CYAN" "  DRY_RUN=$DRY_RUN"
+    print_status "$CYAN" "  FORCE_CLEANUP=$FORCE_CLEANUP"
+    print_status "$CYAN" "  QUICK_MODE=$QUICK_MODE"
+    print_status "$CYAN" "  Arguments received: $*"
+fi
 
 # Enhanced safety warnings
 if [ "$DRY_RUN" = "0" ]; then
@@ -241,12 +257,21 @@ done
 print_status "$YELLOW" "Checking for running Starlink processes..."
 if [ "$DRY_RUN" = "0" ]; then
     # Only show running processes, don't kill them automatically for safety
-    running_procs=$(ps aux | grep -E "(starlink|rutos)" | grep -v grep | wc -l || echo "0")
+    # Use BusyBox-compatible pgrep if available, fallback to ps
+    if command -v pgrep >/dev/null 2>&1; then
+        running_procs=$(pgrep -c -f "(starlink|rutos)" || echo "0")
+    else
+        running_procs=$(ps | grep -c -E "(starlink|rutos)" || echo "0")
+    fi
     if [ "$running_procs" -gt 0 ]; then
         print_status "$YELLOW" "⚠️  Found $running_procs running Starlink-related processes"
         print_status "$BLUE" "  → Manual process cleanup may be needed"
         if [ "${DEBUG:-0}" = "1" ]; then
-            ps aux | grep -E "(starlink|rutos)" | grep -v grep || true
+            if command -v pgrep >/dev/null 2>&1; then
+                pgrep -f "(starlink|rutos)" || true
+            else
+                ps | grep -E "(starlink|rutos)" || true
+            fi
         fi
     else
         print_status "$GREEN" "  ✅ No running Starlink processes found"
