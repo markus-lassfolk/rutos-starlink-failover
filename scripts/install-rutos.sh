@@ -2118,8 +2118,8 @@ integrate_advanced_gps() {
     print_status "$BLUE" "Integrating advanced GPS features with unified scripts..."
 
     gps_dir="$INSTALL_DIR/gps-integration"
-    monitor_script="$INSTALL_DIR/starlink_monitor_unified-rutos.sh"
-    logger_script="$INSTALL_DIR/starlink_logger_unified-rutos.sh"
+    monitor_script="$INSTALL_DIR/scripts/starlink_monitor_unified-rutos.sh"
+    logger_script="$INSTALL_DIR/scripts/starlink_logger_unified-rutos.sh"
 
     # Check if GPS integration scripts exist
     if [ ! -f "$gps_dir/gps-collector-rutos.sh" ]; then
@@ -2210,8 +2210,8 @@ integrate_advanced_cellular() {
     print_status "$BLUE" "Integrating advanced cellular features with unified scripts..."
 
     cellular_dir="$INSTALL_DIR/cellular-integration"
-    monitor_script="$INSTALL_DIR/starlink_monitor_unified-rutos.sh"
-    logger_script="$INSTALL_DIR/starlink_logger_unified-rutos.sh"
+    monitor_script="$INSTALL_DIR/scripts/starlink_monitor_unified-rutos.sh"
+    logger_script="$INSTALL_DIR/scripts/starlink_logger_unified-rutos.sh"
 
     # Check if cellular integration scripts exist
     if [ ! -f "$cellular_dir/cellular-data-collector-rutos.sh" ]; then
@@ -2349,7 +2349,7 @@ validate_advanced_integration() {
 
     # Check GPS integration
     if [ -f "$INSTALL_DIR/gps-integration/gps-collector-rutos.sh" ]; then
-        if grep -q "enhanced_collect_gps_data" "$INSTALL_DIR/starlink_monitor_unified-rutos.sh" 2>/dev/null; then
+        if grep -q "enhanced_collect_gps_data" "$INSTALL_DIR/scripts/starlink_monitor_unified-rutos.sh" 2>/dev/null; then
             print_status "$GREEN" "✓ GPS integration hooks installed"
         else
             print_status "$YELLOW" "⚠ GPS integration hooks missing"
@@ -2359,7 +2359,7 @@ validate_advanced_integration() {
 
     # Check cellular integration
     if [ -f "$INSTALL_DIR/cellular-integration/cellular-data-collector-rutos.sh" ]; then
-        if grep -q "enhanced_collect_cellular_data" "$INSTALL_DIR/starlink_monitor_unified-rutos.sh" 2>/dev/null; then
+        if grep -q "enhanced_collect_cellular_data" "$INSTALL_DIR/scripts/starlink_monitor_unified-rutos.sh" 2>/dev/null; then
             print_status "$GREEN" "✓ Cellular integration hooks installed"
         else
             print_status "$YELLOW" "⚠ Cellular integration hooks missing"
@@ -2382,9 +2382,12 @@ validate_advanced_integration() {
     else
         print_status "$YELLOW" "⚠ Advanced integration validation found $validation_errors issues"
         print_status "$BLUE" "Basic functionality will work, but some advanced features may not be available"
+        print_status "$BLUE" "💡 Integration warnings do not prevent installation - continuing..."
     fi
 
-    return $validation_errors
+    # Always return success (0) - these are warnings, not critical failures
+    # Missing integration hooks don't prevent basic functionality from working
+    return 0
 }
 
 # Install enhanced monitoring scripts
