@@ -25,7 +25,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="1.0.1"
 readonly SCRIPT_VERSION
 
 
