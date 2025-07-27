@@ -180,6 +180,20 @@ if [ -f "$CONFIG_FILE" ]; then
         exit 1
     }
     check_status "pass" "Configuration File" "Successfully loaded from $CONFIG_FILE"
+    
+    # Ensure Starlink connection variables have defaults
+    STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+    STARLINK_PORT="${STARLINK_PORT:-9200}"
+    
+    # Debug: Show loaded Starlink configuration
+    log_debug "=== CONFIGURATION LOADED ==="
+    log_debug "Configuration file: $CONFIG_FILE"
+    log_debug "STARLINK_IP=${STARLINK_IP:-not_set}"
+    log_debug "STARLINK_PORT=${STARLINK_PORT:-not_set}"
+    log_debug "GRPCURL_CMD=${GRPCURL_CMD:-not_set}"
+    log_debug "JQ_CMD=${JQ_CMD:-not_set}"
+    log_debug "INSTALL_DIR=${INSTALL_DIR:-not_set}"
+    
 else
     check_status "fail" "Configuration File" "Missing: $CONFIG_FILE"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
@@ -309,32 +323,51 @@ if [ -n "${STARLINK_IP:-}" ]; then
     if is_placeholder "$STARLINK_IP"; then
         check_status "config" "Starlink IP Address" "Needs configuration: $STARLINK_IP"
     else
-        # Test connectivity to Starlink using grpcurl like the connectivity test script
-        grpc_host="${STARLINK_IP%:*}"
-        grpc_port="${STARLINK_IP#*:}"
+        # Use separate IP and PORT variables (standardized format)
+        grpc_host="$STARLINK_IP"
+        grpc_port="${STARLINK_PORT:-9200}"
+        
+        log_debug "=== STARLINK CONNECTIVITY TEST ==="
+        log_debug "Testing Starlink gRPC endpoint: $grpc_host:$grpc_port"
+        log_debug "STARLINK_IP=$STARLINK_IP"
+        log_debug "STARLINK_PORT=$grpc_port"
 
         # Use netcat for basic connectivity test first
         if command -v nc >/dev/null 2>&1; then
+            log_debug "Testing basic TCP connectivity with netcat..."
             if echo | timeout 5 nc "$grpc_host" "$grpc_port" 2>/dev/null; then
+                log_debug "✓ TCP port $grpc_port is reachable on $grpc_host"
+                
                 # Try grpcurl test if basic connectivity works
                 if [ -f "$INSTALL_DIR/grpcurl" ] && [ -x "$INSTALL_DIR/grpcurl" ]; then
+                    grpc_cmd="$INSTALL_DIR/grpcurl -plaintext -d '{\"get_device_info\":{}}' $grpc_host:$grpc_port SpaceX.API.Device.Device/Handle"
+                    log_debug "Testing gRPC API with command:"
+                    log_debug "  $grpc_cmd"
+                    
                     if timeout 10 "$INSTALL_DIR/grpcurl" -plaintext -d '{"get_device_info":{}}' "$grpc_host:$grpc_port" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
-                        check_status "pass" "Starlink IP Address" "gRPC API responding: $STARLINK_IP"
+                        log_debug "✓ gRPC API responding successfully"
+                        check_status "pass" "Starlink IP Address" "gRPC API responding: $grpc_host:$grpc_port"
                     else
-                        check_status "warn" "Starlink IP Address" "Port open but gRPC API not responding: $STARLINK_IP"
+                        log_debug "✗ gRPC API not responding"
+                        check_status "warn" "Starlink IP Address" "Port open but gRPC API not responding: $grpc_host:$grpc_port"
                     fi
                 else
-                    check_status "pass" "Starlink IP Address" "TCP port reachable: $STARLINK_IP (grpcurl not available for full test)"
+                    log_debug "⚠ grpcurl not available for full gRPC test"
+                    check_status "pass" "Starlink IP Address" "TCP port reachable: $grpc_host:$grpc_port (grpcurl not available for full test)"
                 fi
             else
-                check_status "fail" "Starlink IP Address" "Not reachable: $STARLINK_IP"
+                log_debug "✗ TCP port $grpc_port not reachable on $grpc_host"
+                check_status "fail" "Starlink IP Address" "Not reachable: $grpc_host:$grpc_port"
             fi
         else
+            log_debug "netcat not available, trying TCP test..."
             # Fallback to basic TCP test
             if timeout 5 sh -c "echo >/dev/tcp/$grpc_host/$grpc_port" 2>/dev/null; then
-                check_status "pass" "Starlink IP Address" "TCP port reachable: $STARLINK_IP"
+                log_debug "✓ TCP connection successful via /dev/tcp"
+                check_status "pass" "Starlink IP Address" "TCP port reachable: $grpc_host:$grpc_port"
             else
-                check_status "fail" "Starlink IP Address" "Not reachable: $STARLINK_IP"
+                log_debug "✗ TCP connection failed via /dev/tcp"
+                check_status "fail" "Starlink IP Address" "Not reachable: $grpc_host:$grpc_port"
             fi
         fi
     fi

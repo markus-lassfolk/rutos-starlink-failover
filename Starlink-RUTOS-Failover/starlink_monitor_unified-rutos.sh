@@ -359,9 +359,30 @@ get_starlink_status() {
         log_debug "DRY-RUN: Would execute grpc command to fetch Starlink status"
         status_data='{"mockData": "true"}' # Mock data for dry-run mode
     else
+        # Enhanced debug execution like check_starlink_api-rutos.sh
+        if [ "${DEBUG:-0}" = "1" ]; then
+            log_debug "GRPC COMMAND: $grpc_cmd"
+            log_debug "GRPC EXECUTION: Running in debug mode with full output"
+        fi
+        
         if ! status_data=$(eval "$grpc_cmd"); then
+            grpc_exit_code=$?
+            if [ "${DEBUG:-0}" = "1" ]; then
+                log_debug "GRPC EXIT CODE: $grpc_exit_code"
+            fi
             log_error "Failed to fetch Starlink status data"
             return 1
+        fi
+        
+        if [ "${DEBUG:-0}" = "1" ]; then
+            log_debug "GRPC EXIT CODE: 0"
+            # Show first 500 chars of raw output like check_starlink_api-rutos.sh
+            raw_output_preview=$(echo "$status_data" | head -c 500)
+            log_debug "GRPC RAW OUTPUT (first 500 chars): $raw_output_preview"
+            if [ ${#status_data} -gt 500 ]; then
+                log_debug "GRPC RAW OUTPUT: (truncated - full response is ${#status_data} characters)"
+            fi
+            log_debug "GRPC SUCCESS: Processing JSON response for metrics extraction"
         fi
     fi
 
@@ -382,9 +403,57 @@ analyze_starlink_metrics() {
     log_debug "Analyzing Starlink metrics"
 
     # Extract core metrics
-    uptime_s=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceInfo.uptimeS // 0' 2>/dev/null)
+    uptime_s=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceState.uptimeS // 0' 2>/dev/null)
     latency=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingLatencyMs // 999' 2>/dev/null)
-    packet_loss=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingDropRate // 1' 2>/dev/null)
+    
+    # Check if popPingDropRate field exists, use 0 (no loss) as fallback instead of 1 (100% loss)
+    packet_loss=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingDropRate // 0' 2>/dev/null)
+    packet_loss_field_exists=$(echo "$status_data" | "$JQ_CMD" -r 'has("dishGetStatus") and .dishGetStatus | has("popPingDropRate")' 2>/dev/null)
+    log_debug "Packet loss field exists: $packet_loss_field_exists, raw value: $packet_loss"
+    
+    # If packet loss field doesn't exist, try to get it from history API
+    if [ "$packet_loss_field_exists" = "false" ]; then
+        log_debug "popPingDropRate not found in status, trying history API"
+        if [ "${DRY_RUN:-0}" = "1" ]; then
+            packet_loss="0"
+            log_debug "DRY_RUN mode: using fallback packet loss value"
+        else
+            # Use head to limit response size at source and add timeout
+            history_cmd="/usr/local/starlink-monitor/grpcurl -plaintext -max-time 5 -d '{\"get_history\":{}}' $STARLINK_IP:$STARLINK_PORT SpaceX.API.Device.Device/Handle 2>/dev/null | head -c 10000"
+            log_debug "EXECUTING HISTORY COMMAND: $history_cmd"
+            if [ "${DEBUG:-0}" = "1" ]; then
+                log_debug "HISTORY GRPC COMMAND: $history_cmd"
+                log_debug "HISTORY GRPC EXECUTION: Running with 5s timeout and 10KB data limit"
+            fi
+            
+            if history_data=$(eval "$history_cmd"); then
+                if [ "${DEBUG:-0}" = "1" ]; then
+                    log_debug "HISTORY GRPC EXIT CODE: 0"
+                    # Show first 300 chars for history debug (shorter than status)
+                    history_preview=$(echo "$history_data" | head -c 300)
+                    log_debug "HISTORY GRPC RAW OUTPUT (first 300 chars): $history_preview"
+                    response_size=${#history_data}
+                    log_debug "HISTORY GRPC RAW OUTPUT: (limited response size: ${response_size} characters, max 10KB)"
+                    log_debug "HISTORY GRPC SUCCESS: Processing limited JSON response for packet loss only"
+                fi
+                
+                # Extract only packet loss data efficiently - avoid processing full response
+                packet_loss=$(echo "$history_data" | "$JQ_CMD" -r '.dishGetHistory.popPingDropRate[-1] // 0' 2>/dev/null)
+                log_debug "Retrieved packet loss from history: $packet_loss"
+                
+                # Clear limited history data from memory immediately
+                history_data=""
+            else
+                history_exit_code=$?
+                if [ "${DEBUG:-0}" = "1" ]; then
+                    log_debug "HISTORY GRPC EXIT CODE: $history_exit_code"
+                fi
+                log_debug "History API also failed, using 0 as fallback"
+                packet_loss="0"
+            fi
+        fi
+    fi
+    
     obstruction=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.fractionObstructed // 0' 2>/dev/null)
 
     # Extract enhanced metrics for intelligent monitoring

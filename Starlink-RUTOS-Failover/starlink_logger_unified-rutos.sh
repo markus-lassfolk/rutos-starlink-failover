@@ -702,9 +702,30 @@ main() {
         log_debug "DRY-RUN: Would execute grpc command to fetch Starlink status"
         status_data='{"mockData": "true"}' # Mock data for dry-run mode
     else
+        # Enhanced debug execution like check_starlink_api-rutos.sh
+        if [ "${DEBUG:-0}" = "1" ]; then
+            log_debug "GRPC COMMAND: $grpc_cmd"
+            log_debug "GRPC EXECUTION: Running in debug mode with full output"
+        fi
+        
         if ! status_data=$(eval "$grpc_cmd"); then
+            grpc_exit_code=$?
+            if [ "${DEBUG:-0}" = "1" ]; then
+                log_debug "GRPC EXIT CODE: $grpc_exit_code"
+            fi
             log_error "Failed to fetch Starlink status data"
             exit 1
+        fi
+        
+        if [ "${DEBUG:-0}" = "1" ]; then
+            log_debug "GRPC EXIT CODE: 0"
+            # Show first 500 chars of raw output like check_starlink_api-rutos.sh
+            raw_output_preview=$(echo "$status_data" | head -c 500)
+            log_debug "GRPC RAW OUTPUT (first 500 chars): $raw_output_preview"
+            if [ ${#status_data} -gt 500 ]; then
+                log_debug "GRPC RAW OUTPUT: (truncated - full response is ${#status_data} characters)"
+            fi
+            log_debug "GRPC SUCCESS: Processing JSON response for data extraction"
         fi
     fi
 
