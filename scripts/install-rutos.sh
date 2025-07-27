@@ -8,7 +8,19 @@
 #
 # ==============================================================================
 
+# ENHANCED DEBUG TRACING: Add line number tracking for exit code 2 debugging
+debug_trace() {
+    if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+        printf "[TRACE-LINE-%s] %s\n" "$1" "$2" >&2
+    fi
+}
+
+debug_trace "11" "Script starting - install-rutos.sh"
+debug_trace "12" "Setting shell options: set -eu"
+
 set -eu
+
+debug_trace "16" "Shell options set successfully"
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.1"
@@ -16,27 +28,49 @@ readonly SCRIPT_VERSION
 BUILD_INFO="1.0.2+198.38fb60b-dirty"
 SCRIPT_NAME="install-rutos.sh"
 
+debug_trace "24" "Version information set: SCRIPT_VERSION=$SCRIPT_VERSION"
+debug_trace "25" "BUILD_INFO=$BUILD_INFO"
+debug_trace "26" "SCRIPT_NAME=$SCRIPT_NAME"
+
 # Configuration - can be overridden by environment variables
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
 BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
+debug_trace "32" "Configuration set: GITHUB_BRANCH=$GITHUB_BRANCH"
+debug_trace "33" "GITHUB_REPO=$GITHUB_REPO"
+debug_trace "34" "BASE_URL=$BASE_URL"
+
 # Try to load RUTOS library system if available locally (development mode)
 # For remote installation via curl, we'll use built-in fallback functions
 LIBRARY_LOADED=0
+
+debug_trace "39" "Starting library loading process"
+debug_trace "40" "Checking for local library: $(dirname "$0")/lib/rutos-lib.sh"
+
 if [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; then
+    debug_trace "43" "Local library found - attempting to load"
     # Development mode: scripts directory available locally
     # shellcheck source=/dev/null
     if . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
         LIBRARY_LOADED=1
+        debug_trace "47" "Local RUTOS library loaded successfully"
         log_debug "RUTOS library system loaded from local development environment"
+    else
+        debug_trace "50" "Failed to load local RUTOS library"
     fi
+else
+    debug_trace "53" "No local library found - will attempt remote download"
 fi
 
 # Remote installation mode: download library to temp location and use it
 if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
+    debug_trace "57" "Starting remote library download process"
+    debug_trace "58" "LIBRARY_LOADED=$LIBRARY_LOADED, USE_LIBRARY=${USE_LIBRARY:-1}"
+    
     # Create temporary directory for library with fallback options
     printf "[DEBUG] ===== TEMPORARY DIRECTORY SETUP =====\n" >&2
+    debug_trace "62" "Starting temporary directory setup"
 
     # Function to check available disk space in KB
     check_disk_space() {
@@ -436,11 +470,22 @@ LOG_DIR="$(dirname "$LOG_FILE")"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 
 # Initialize logging system
+debug_trace "473" "Starting logging system initialization"
+debug_trace "474" "LIBRARY_LOADED=$LIBRARY_LOADED"
+
 if [ "$LIBRARY_LOADED" = "1" ]; then
+    debug_trace "477" "Using RUTOS library system - calling rutos_init"
+    debug_trace "478" "Parameters: SCRIPT_NAME=$SCRIPT_NAME, SCRIPT_VERSION=$SCRIPT_VERSION"
+    
     # Use new RUTOS library system (either local development or downloaded)
+    debug_trace "481" "About to call rutos_init function"
     rutos_init "$SCRIPT_NAME" "$SCRIPT_VERSION"
+    debug_trace "483" "rutos_init completed successfully"
+    
     log_info "Using RUTOS library system for standardized logging"
+    debug_trace "486" "Logged library usage info"
     log_debug "Library mode: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo "local development" || echo "downloaded remote")"
+    debug_trace "488" "Logged library mode"
 
     # COMPATIBILITY: Add log_message function for legacy code compatibility
     log_message() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_message calls
@@ -551,14 +596,20 @@ else
 fi
 
 # Dry-run and test mode support
+debug_trace "599" "Setting up dry-run and test mode variables"
+
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 TEST_MODE="${TEST_MODE:-0}"
+
+debug_trace "605" "Variables set: DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE, TEST_MODE=$TEST_MODE"
 
 # Capture original values for debug display
 ORIGINAL_DRY_RUN="$DRY_RUN"
 ORIGINAL_TEST_MODE="$TEST_MODE"
 ORIGINAL_RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
+
+debug_trace "612" "Original values captured"
 
 # Debug output showing all variable states for troubleshooting
 if [ "${DEBUG:-0}" = "1" ]; then
@@ -576,14 +627,24 @@ fi
 # RUTOS_TEST_MODE enables trace logging - does NOT exit early
 # Only DRY_RUN=1 should prevent actual changes
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+    debug_trace "628" "RUTOS_TEST_MODE is enabled - trace logging active"
     log_trace "RUTOS_TEST_MODE enabled - trace logging active"
+else
+    debug_trace "631" "RUTOS_TEST_MODE is not enabled"
 fi
+
+debug_trace "634" "About to log script initialization"
 
 # Log script initialization
 log_info "Starting Starlink Monitoring System Installation v$SCRIPT_VERSION"
+debug_trace "638" "Logged script start message"
+
 log_info "Build: $BUILD_INFO"
+debug_trace "641" "Logged build info"
+
 log_debug "GitHub Repository: $GITHUB_REPO"
 log_debug "GitHub Branch: $GITHUB_BRANCH"
+debug_trace "645" "Logged GitHub repository info"
 
 # Legacy safe_exec function - now uses library safe_execute if available
 safe_exec() {
