@@ -506,6 +506,11 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
     debug_log() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_debug calls
         log_debug "$1"
     }
+
+    # COMPATIBILITY: Add debug_msg function for legacy code compatibility
+    debug_msg() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy debug_msg calls
+        log_debug "$1"
+    }
 else
     # Fallback to legacy logging system for remote installations when library unavailable
     printf "[INFO] Using built-in fallback logging system\n"
@@ -562,6 +567,11 @@ else
 
     # COMPATIBILITY: Add log_debug function for legacy code compatibility
     debug_log() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy log_debug calls (fallback)
+        log_debug "$1"
+    }
+
+    # COMPATIBILITY: Add debug_msg function for legacy code compatibility
+    debug_msg() { # VALIDATION_SKIP_LIBRARY_CHECK: Compatibility function for legacy debug_msg calls (fallback)
         log_debug "$1"
     }
 
@@ -812,7 +822,7 @@ version_compare() {
 
 # Function to detect latest grpcurl version dynamically
 detect_latest_grpcurl_version() {
-    debug_msg "Attempting to detect latest grpcurl version..."
+    log_debug "Attempting to detect latest grpcurl version..."
 
     # Try to get latest version from GitHub API
     latest_version=""
@@ -834,19 +844,19 @@ detect_latest_grpcurl_version() {
         # Remove the 'v' prefix for filename construction
         version_number=$(echo "$latest_version" | sed 's/^v//')
         dynamic_url="https://github.com/fullstorydev/grpcurl/releases/download/${latest_version}/grpcurl_${version_number}_linux_armv7.tar.gz"
-        debug_msg "Detected latest grpcurl version: $latest_version"
-        debug_msg "Constructed dynamic URL: $dynamic_url"
+        log_debug "Detected latest grpcurl version: $latest_version"
+        log_debug "Constructed dynamic URL: $dynamic_url"
         printf "%s" "$dynamic_url"
         return 0
     else
-        debug_msg "Failed to detect latest grpcurl version or invalid format: '$latest_version'"
+        log_debug "Failed to detect latest grpcurl version or invalid format: '$latest_version'"
         return 1
     fi
 }
 
 # Function to detect latest jq version dynamically
 detect_latest_jq_version() {
-    debug_msg "Attempting to detect latest jq version..."
+    log_debug "Attempting to detect latest jq version..."
 
     # Try to get latest version from GitHub API
     latest_version=""
@@ -867,12 +877,12 @@ detect_latest_jq_version() {
     if [ -n "$latest_version" ] && echo "$latest_version" | grep -qE '^jq-[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
         # Construct the dynamic URL for ARM binary
         dynamic_url="https://github.com/jqlang/jq/releases/download/${latest_version}/jq-linux-armhf"
-        debug_msg "Detected latest jq version: $latest_version"
-        debug_msg "Constructed dynamic URL: $dynamic_url"
+        log_debug "Detected latest jq version: $latest_version"
+        log_debug "Constructed dynamic URL: $dynamic_url"
         printf "%s" "$dynamic_url"
         return 0
     else
-        debug_msg "Failed to detect latest jq version or invalid format: '$latest_version'"
+        log_debug "Failed to detect latest jq version or invalid format: '$latest_version'"
         return 1
     fi
 }
@@ -882,7 +892,7 @@ download_file() {
     url="$1"
     output="$2"
 
-    debug_msg "Downloading $url to $output"
+    log_debug "Downloading $url to $output"
     log_info "Starting download: $url -> $output"
 
     # Try wget first, then curl
@@ -1312,9 +1322,9 @@ check_system() {
     arch=""
     log_debug "ARCH CHECK: Getting system architecture"
     if [ "${DEBUG:-0}" = "1" ]; then
-        debug_msg "Executing: uname -m"
+        log_debug "Executing: uname -m"
         arch=$(uname -m)
-        debug_msg "System architecture: $arch"
+        log_debug "System architecture: $arch"
     else
         arch=$(uname -m)
     fi
@@ -1335,11 +1345,11 @@ check_system() {
         log_debug "ARCH CHECK: User chose to continue despite architecture mismatch"
     else
         log_debug "ARCH CHECK: Architecture validation passed"
-        debug_msg "Architecture check passed: $arch matches expected armv7l"
+        log_debug "Architecture check passed: $arch matches expected armv7l"
     fi
 
     log_debug "SYSTEM CHECK: Checking for OpenWrt/RUTOS system files"
-    debug_msg "Checking for OpenWrt/RUTOS system files"
+    log_debug "Checking for OpenWrt/RUTOS system files"
     if [ ! -f "/etc/openwrt_version" ] && [ ! -f "/etc/rutos_version" ]; then
         print_status "$YELLOW" "Warning: This doesn't appear to be OpenWrt/RUTOS"
         printf "Continue anyway? (y/N): "
@@ -1350,11 +1360,11 @@ check_system() {
     else
         if [ -f "/etc/openwrt_version" ]; then
             openwrt_version=$(cat /etc/openwrt_version 2>/dev/null)
-            debug_msg "OpenWrt version: $openwrt_version"
+            log_debug "OpenWrt version: $openwrt_version"
         fi
         if [ -f "/etc/rutos_version" ]; then
             rutos_version=$(cat /etc/rutos_version 2>/dev/null)
-            debug_msg "RUTOS version: $rutos_version"
+            log_debug "RUTOS version: $rutos_version"
         fi
     fi
     print_status "$GREEN" "✓ System compatibility checked"
@@ -1364,7 +1374,7 @@ check_system() {
 create_directories() {
     print_status "$BLUE" "Creating directory structure..."
 
-    debug_msg "Creating main installation directory: $INSTALL_DIR"
+    log_debug "Creating main installation directory: $INSTALL_DIR"
     debug_exec mkdir -p "$INSTALL_DIR"
     debug_exec mkdir -p "$INSTALL_DIR/config"
     debug_exec mkdir -p "$INSTALL_DIR/scripts"
@@ -1378,7 +1388,7 @@ create_directories() {
 
     # Verify directories were created
     if [ "${DEBUG:-0}" = "1" ]; then
-        debug_msg "Verifying directory structure:"
+        log_debug "Verifying directory structure:"
         debug_exec ls -la "$INSTALL_DIR"
         debug_exec ls -la "/etc/starlink-logs"
         debug_exec ls -la "$PERSISTENT_CONFIG_DIR"
@@ -1906,15 +1916,15 @@ install_scripts() {
     print_status "$BLUE" "  - Documentation: $INSTALL_DIR/INSTALLED_SCRIPTS.md"
 
     if [ "${DEBUG:-0}" = "1" ]; then
-        debug_msg "Detailed script listing:"
-        debug_msg "Utility scripts:"
+        log_debug "Detailed script listing:"
+        log_debug "Utility scripts:"
         find "$INSTALL_DIR/scripts" -name "*-rutos.sh" -type f | sort | while IFS= read -r script; do
-            debug_msg "  $(basename "$script")"
+            log_debug "  $(basename "$script")"
         done
-        debug_msg "Test scripts:"
+        log_debug "Test scripts:"
         find "$INSTALL_DIR/scripts/tests" -name "*-rutos.sh" -type f 2>/dev/null | sort | while IFS= read -r script; do
-            debug_msg "  $(basename "$script")"
-        done || debug_msg "  (No test scripts directory or scripts found)"
+            log_debug "  $(basename "$script")"
+        done || log_debug "  (No test scripts directory or scripts found)"
     fi
 }
 
@@ -2250,7 +2260,7 @@ configure_cron() {
     # Remove any existing entries added by this install script to prevent duplicates
     # Only remove entries that match our exact pattern (default install script entries)
     if [ -f "$CRON_FILE" ]; then
-        debug_msg "Cleaning up previous install script entries"
+        log_debug "Cleaning up previous install script entries"
 
         # Create temp file for clean crontab
         temp_cron="/tmp/crontab_clean.tmp"
@@ -2274,7 +2284,7 @@ configure_cron() {
 
         # Remove excessive blank lines (more than 1 consecutive blank line)
         # This keeps single blank lines for readability but removes excessive gaps
-        debug_msg "Removing excessive blank lines from crontab"
+        log_debug "Removing excessive blank lines from crontab"
         awk '
         BEGIN { blank_count = 0 }
         /^$/ { 
@@ -2289,10 +2299,10 @@ configure_cron() {
 
         # Replace the crontab with cleaned version
         if mv "$temp_cron" "$CRON_FILE" 2>/dev/null; then
-            debug_msg "Crontab cleaned successfully and blank lines normalized"
+            log_debug "Crontab cleaned successfully and blank lines normalized"
         else
             # If move failed, ensure we don't lose the original
-            debug_msg "Failed to update crontab, preserving original"
+            log_debug "Failed to update crontab, preserving original"
             rm -f "$temp_cron" 2>/dev/null || true
         fi
     fi
@@ -2445,8 +2455,8 @@ EOF
 
     # Show current cron status for verification
     if [ "${DEBUG:-0}" = "1" ]; then
-        debug_msg "Current cron entries for our scripts:"
-        grep -n "starlink.*rutos\|check_starlink_api" "$CRON_FILE" 2>/dev/null || debug_msg "No entries found"
+        log_debug "Current cron entries for our scripts:"
+        grep -n "starlink.*rutos\|check_starlink_api" "$CRON_FILE" 2>/dev/null || log_debug "No entries found"
     fi
 }
 
@@ -2472,7 +2482,7 @@ install_gps_integration() {
     for component in $gps_components; do
         component=$(echo "$component" | tr -d ' \t\n\r') # Clean whitespace
         if [ -n "$component" ]; then
-            debug_msg "Installing GPS component: $component"
+            log_debug "Installing GPS component: $component"
             local_path="$(dirname "$0")/../gps-integration/$component"
 
             if [ -f "$local_path" ]; then
@@ -2529,7 +2539,7 @@ install_cellular_integration() {
     for component in $cellular_components; do
         component=$(echo "$component" | tr -d ' \t\n\r') # Clean whitespace
         if [ -n "$component" ]; then
-            debug_msg "Installing cellular component: $component"
+            log_debug "Installing cellular component: $component"
             local_path="$(dirname "$0")/../cellular-integration/$component"
 
             if [ -f "$local_path" ]; then
@@ -2568,7 +2578,7 @@ install_enhanced_monitoring() {
     for script in $enhanced_scripts; do
         script=$(echo "$script" | tr -d ' \t\n\r') # Clean whitespace
         if [ -n "$script" ]; then
-            debug_msg "Installing enhanced script: $script"
+            log_debug "Installing enhanced script: $script"
             local_path="$(dirname "$0")/../Starlink-RUTOS-Failover/$script"
 
             if [ -f "$local_path" ]; then
@@ -3342,7 +3352,7 @@ main() {
             if [ "$remote_version" != "$SCRIPT_VERSION" ]; then
                 print_status "$YELLOW" "WARNING: Remote version ($remote_version) differs from script version ($SCRIPT_VERSION)"
             else
-                debug_msg "Script version matches remote version: $SCRIPT_VERSION"
+                log_debug "Script version matches remote version: $SCRIPT_VERSION"
             fi
         fi
         printf "\n"
@@ -3352,7 +3362,7 @@ main() {
 
     log_debug "==================== INSTALLATION START ===================="
     log_debug "Starting installation process"
-    debug_msg "Starting installation process"
+    log_debug "Starting installation process"
 
     log_debug "STEP 1: Checking root privileges and system compatibility"
     check_root

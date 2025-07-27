@@ -1,5 +1,15 @@
 #!/bin/sh
+# VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap script downloads library itself
+# VALIDATION_SKIP_RUTOS_INIT: Bootstrap script doesn't use library
 # ==============================================================================
+# RUTOS Starlink Failover - Bootstrap Installation Script
+#
+# Version: 1.0.9
+# Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
+#
+# SPECIAL BOOTSTRAP SCRIPT - LIBRARY EXEMPT
+# This script cannot use the RUTOS library because it downloads the library itself.
+# It provides its own minimal logging that will be replaced by full RUTOS library# ==============================================================================
 # RUTOS Starlink Failover - Bootstrap Installation Script
 #
 # Version: 1.0.8
@@ -25,7 +35,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.8"
+SCRIPT_VERSION="1.0.9"
 readonly SCRIPT_VERSION
 
 # Configuration
@@ -45,7 +55,7 @@ ORIGINAL_RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
 
 # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap logging functions (replaced by full library after download)
 log_info() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
-    printf "[INFO] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "[INFO] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" # VALIDATION_SKIP_PRINTF: Bootstrap logging (library unavailable)
 }
 
 log_debug() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
