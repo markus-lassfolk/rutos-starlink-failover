@@ -25,7 +25,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.1"
+SCRIPT_VERSION="1.0.2"
 readonly SCRIPT_VERSION
 
 
@@ -197,7 +197,18 @@ execute_with_library() {
 
     # Export environment variables for the installation script
     export DRY_RUN DEBUG RUTOS_TEST_MODE
-    export ALLOW_TEST_EXECUTION="${ALLOW_TEST_EXECUTION:-0}"
+    
+    # Smart ALLOW_TEST_EXECUTION logic:
+    # - If DRY_RUN=1: Allow test execution (safe mode)
+    # - If DRY_RUN=0 and RUTOS_TEST_MODE=1: Allow test execution (real execution with enhanced logging)
+    # - If DRY_RUN=0 and RUTOS_TEST_MODE=0: Don't need test execution (normal mode)
+    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
+        ALLOW_TEST_EXECUTION=1
+    else
+        ALLOW_TEST_EXECUTION="${ALLOW_TEST_EXECUTION:-0}"
+    fi
+    export ALLOW_TEST_EXECUTION
+    
     export USE_LIBRARY=1           # Signal to install script that library is available
     export LIBRARY_PATH="$lib_dir" # Tell install script where to find library
 
@@ -205,7 +216,7 @@ execute_with_library() {
     log_trace "  DRY_RUN=$DRY_RUN"
     log_trace "  DEBUG=$DEBUG"
     log_trace "  RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-    log_trace "  ALLOW_TEST_EXECUTION=$ALLOW_TEST_EXECUTION"
+    log_trace "  ALLOW_TEST_EXECUTION=$ALLOW_TEST_EXECUTION (auto-set: DRY_RUN=$DRY_RUN or RUTOS_TEST_MODE=$RUTOS_TEST_MODE)"
     log_trace "  USE_LIBRARY=$USE_LIBRARY"
     log_trace "  LIBRARY_PATH=$LIBRARY_PATH"
 
