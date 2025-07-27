@@ -385,7 +385,7 @@ log_message() {
         "DEBUG_EXEC" | "debug_exec")
             log_debug "EXEC: $message"
             ;;
-        "TRACE"|"trace")
+        "TRACE" | "trace")
             log_trace "$message"
             ;;
         *)
