@@ -106,7 +106,7 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
     rutos_init_portable "$SCRIPT_NAME" "$SCRIPT_VERSION"
     log_info "Using RUTOS library system for standardized logging"
     log_debug "Library mode: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo "local development" || echo "downloaded remote")"
-    
+
     # Ensure log_message compatibility function is available
     # (It should be loaded from rutos-common.sh, but add fallback just in case)
     if ! command -v log_message >/dev/null 2>&1; then
@@ -114,13 +114,13 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
             level="$1"
             message="$2"
             case "$level" in
-                "INFO"|"info") log_info "$message" ;;
-                "ERROR"|"error") log_error "$message" ;;
-                "WARNING"|"warning"|"WARN"|"warn") log_warning "$message" ;;
-                "DEBUG"|"debug") log_debug "$message" ;;
-                "SUCCESS"|"success") log_success "$message" ;;
-                "CONFIG_DEBUG"|"config_debug") log_debug "CONFIG: $message" ;;
-                "DEBUG_EXEC"|"debug_exec") log_debug "EXEC: $message" ;;
+                "INFO" | "info") log_info "$message" ;;
+                "ERROR" | "error") log_error "$message" ;;
+                "WARNING" | "warning" | "WARN" | "warn") log_warning "$message" ;;
+                "DEBUG" | "debug") log_debug "$message" ;;
+                "SUCCESS" | "success") log_success "$message" ;;
+                "CONFIG_DEBUG" | "config_debug") log_debug "CONFIG: $message" ;;
+                "DEBUG_EXEC" | "debug_exec") log_debug "EXEC: $message" ;;
                 *) log_info "$message" ;;
             esac
         }
@@ -168,13 +168,13 @@ else
         level="$1"
         message="$2"
         case "$level" in
-            "INFO"|"info") log_info "$message" ;;
-            "ERROR"|"error") log_error "$message" ;;
-            "WARNING"|"warning"|"WARN"|"warn") log_warning "$message" ;;
-            "DEBUG"|"debug") log_debug "$message" ;;
-            "SUCCESS"|"success") log_success "$message" ;;
-            "CONFIG_DEBUG"|"config_debug") log_debug "CONFIG: $message" ;;
-            "DEBUG_EXEC"|"debug_exec") log_debug "EXEC: $message" ;;
+            "INFO" | "info") log_info "$message" ;;
+            "ERROR" | "error") log_error "$message" ;;
+            "WARNING" | "warning" | "WARN" | "warn") log_warning "$message" ;;
+            "DEBUG" | "debug") log_debug "$message" ;;
+            "SUCCESS" | "success") log_success "$message" ;;
+            "CONFIG_DEBUG" | "config_debug") log_debug "CONFIG: $message" ;;
+            "DEBUG_EXEC" | "debug_exec") log_debug "EXEC: $message" ;;
             *) log_info "$message" ;;
         esac
     }
@@ -1246,7 +1246,6 @@ This document lists all scripts installed by the Starlink monitoring system.
 - `update-config-rutos.sh` - Configuration updater
 - `merge-config-rutos.sh` - Configuration merger (unified template)
 - `restore-config-rutos.sh` - Configuration restore
-- `cleanup-rutos.sh` - System cleanup utility
 - `self-update-rutos.sh` - Self-update system
 - `uci-optimizer-rutos.sh` - UCI configuration optimizer
 - `verify-cron-rutos.sh` - Cron job verifier
@@ -1267,7 +1266,6 @@ This document lists all scripts installed by the Starlink monitoring system.
 - `test-connectivity-rutos.sh` - Test network connectivity
 - `test-colors-rutos.sh` - Test color output
 - `test-method5-rutos.sh` - Test Method5 format compatibility
-- `test-cron-cleanup-rutos.sh` - Test cron cleanup
 - `test-notification-merge-rutos.sh` - Test notification merging
 - `debug-notification-merge-rutos.sh` - Debug notification settings
 
@@ -1427,17 +1425,17 @@ install_scripts() {
 
     # CRITICAL: Install RUTOS library system (REQUIRED for script operation)
     print_status "$BLUE" "Installing RUTOS library system..."
-    
+
     # Create library directory
     mkdir -p "$INSTALL_DIR/scripts/lib"
-    
+
     # Library files to install
     for lib_file in \
         rutos-lib.sh \
         rutos-colors.sh \
         rutos-logging.sh \
         rutos-common.sh; do
-        
+
         # Try local library first
         if [ -f "$script_dir/../scripts/lib/$lib_file" ]; then
             cp "$script_dir/../scripts/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"
@@ -1456,7 +1454,7 @@ install_scripts() {
             fi
         fi
     done
-    
+
     print_status "$GREEN" "✓ RUTOS library system installed successfully"
 
     # Install all utility and test scripts with *-rutos.sh naming convention
@@ -1470,7 +1468,6 @@ install_scripts() {
         update-config-rutos.sh \
         merge-config-rutos.sh \
         restore-config-rutos.sh \
-        cleanup-rutos.sh \
         self-update-rutos.sh \
         uci-optimizer-rutos.sh \
         verify-cron-rutos.sh \
@@ -1523,7 +1520,6 @@ install_scripts() {
         test-connectivity-rutos-fixed.sh \
         test-colors-rutos.sh \
         test-method5-rutos.sh \
-        test-cron-cleanup-rutos.sh \
         test-notification-merge-rutos.sh \
         debug-notification-merge-rutos.sh; do
         # Try local script first
@@ -1557,7 +1553,7 @@ install_scripts() {
 
     # Library files to install
     library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh"
-    
+
     for lib_file in $library_files; do
         if [ -f "$script_dir/lib/$lib_file" ]; then
             # Local development installation
@@ -2141,7 +2137,7 @@ install_enhanced_monitoring() {
         script=$(echo "$script" | tr -d ' \t\n\r') # Clean whitespace
         log_debug "DEBUG: Raw script value: '$script'"
         log_debug "DEBUG: Script length: ${#script}"
-        
+
         if [ -n "$script" ]; then
             processed_count=$((processed_count + 1))
             log_debug "DEBUG: Processing script #$processed_count: '$script'"
@@ -2163,7 +2159,7 @@ install_enhanced_monitoring() {
                 log_debug "DEBUG: Download URL: '$download_url'"
                 log_debug "DEBUG: Target path: '$target_path'"
                 log_debug "DEBUG: Target directory exists: $([ -d "$(dirname "$target_path")" ] && echo 'YES' || echo 'NO')"
-                
+
                 if download_file "$download_url" "$target_path"; then
                     log_debug "DEBUG: BRANCH: Download successful for $script"
                     chmod +x "$target_path"
