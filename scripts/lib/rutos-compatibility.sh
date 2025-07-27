@@ -9,10 +9,10 @@
 # This allows gradual migration to RUTOS library standards without breaking existing code.
 #
 # Legacy patterns mapped to RUTOS library functions:
-    # Version information for troubleshooting
-    if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Script: rutos-compatibility.sh v$SCRIPT_VERSION"
-    fi
+# Version information for troubleshooting
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "Script: rutos-compatibility.sh v$SCRIPT_VERSION"
+fi
 # - debug_log() -> log_debug()
 # - debug_msg() -> log_debug()
 # - print_status() -> printf with colors
