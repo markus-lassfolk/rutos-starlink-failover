@@ -251,6 +251,11 @@ print_status() {
     printf "${color}%s${NC}\n" "$message"
 }
 
+# Fallback debug_msg function (compatibility alias for debug_log)
+debug_msg() {
+    debug_log "$1"
+}
+
 # Function to execute commands with debug output
 debug_exec() {
     if [ "${DEBUG:-0}" = "1" ]; then
@@ -2952,7 +2957,6 @@ main() {
 
     debug_log "==================== INSTALLATION START ===================="
     debug_log "Starting installation process"
-    debug_msg "Starting installation process"
 
     debug_log "STEP 1: Checking root privileges and system compatibility"
     check_root
