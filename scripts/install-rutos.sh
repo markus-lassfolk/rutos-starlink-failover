@@ -224,9 +224,9 @@ config_debug() {
 debug_log() {
     if [ "${DEBUG:-0}" = "1" ]; then
         printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
-        # Only use log_message if it's available (after library loading)
-        if command -v log_message >/dev/null 2>&1; then
-            log_message "DEBUG" "$1"
+        # Only use log_debug if RUTOS library is loaded (avoid deprecated log_message)
+        if command -v log_debug >/dev/null 2>&1; then
+            log_debug "$1"
         fi
     fi
 }
@@ -242,6 +242,14 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 if [ "${DEBUG:-0}" = "1" ]; then
     debug_log "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
 fi
+
+# Fallback print_status function (for compatibility before RUTOS library loads)
+print_status() {
+    color="$1"
+    message="$2"
+    # Use Method 5 format for RUTOS compatibility (embed variables in format string)
+    printf "${color}%s${NC}\n" "$message"
+}
 
 # Function to execute commands with debug output
 debug_exec() {
@@ -2932,7 +2940,7 @@ main() {
         printf "\n"
         if remote_version=$(detect_remote_version); then
             if [ "$remote_version" != "$SCRIPT_VERSION" ]; then
-                print_status "$YELLOW" "WARNING: Remote version ($remote_version) differs from script version ($SCRIPT_VERSION)"
+                log_warning "Remote version ($remote_version) differs from script version ($SCRIPT_VERSION)"
             else
                 debug_msg "Script version matches remote version: $SCRIPT_VERSION"
             fi
