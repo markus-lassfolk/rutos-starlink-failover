@@ -91,6 +91,10 @@ load_config() {
 
     . "$CONFIG_FILE"
     log_success "Configuration loaded successfully"
+    
+    # Ensure Starlink connection variables are defined
+    STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+    STARLINK_PORT="${STARLINK_PORT:-9200}"
 }
 
 # Test 1: System requirements
@@ -262,7 +266,7 @@ test_starlink_api() {
         grpcurl_cmd="grpcurl"
     fi
 
-    if ! timeout 10 "$grpcurl_cmd" -plaintext -d '{}' "$STARLINK_IP" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
+    if ! timeout 10 "$grpcurl_cmd" -plaintext -d '{}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/GetStatus >/dev/null 2>&1; then
         log_error "Starlink gRPC API call failed"
         log_error "Check if Starlink dish is online and API is accessible"
         return 1

@@ -297,7 +297,7 @@ grpcurl: error: context deadline exceeded
 
 ```bash
 # Example error handling
-if ! timeout 10 grpcurl -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null; then
+if ! timeout 10 grpcurl -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null; then
     log "error" "Failed to get data from Starlink API"
     # Fallback logic here
 fi
@@ -355,7 +355,7 @@ call_starlink_api() {
 
     while [ $retry_count -lt $max_retries ]; do
         local response
-        if response=$(timeout 10 grpcurl -plaintext -max-time 10 -d "{\"$method\":{}}" "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null); then
+        if response=$(timeout 10 grpcurl -plaintext -max-time 10 -d "{\"$method\":{}}" "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null); then
             echo "$response"
             return 0
         fi

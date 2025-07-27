@@ -1,24 +1,7 @@
 #!/bin/sh
-
-# ==================================# Configuration
-GITHUB_REPO="markus-lassfolk/rutos-starlink-failover"
-GITHUB_BRANCH="main"
-RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
-INSTALL_DIR="/usr/local/starlink-monitor"
-# shellcheck disable=SC2034  # Used in future backup functionality
-BACKUP_DIR="/usr/local/starlink-monitor-backup" # Used in backup functionality (placeholder for now)
-# shellcheck disable=SC2034  # Used in future update functionality
-TMP_DIR="/tmp/starlink-update" # Used in update process (placeholder for now)
-VERSION_FILE="$INSTALL_DIR/VERSION"
-CONFIG_FILE="/usr/local/starlink-monitor/config/config.sh"
-SCRIPT_NAME="$(basename "$0")"==================================
-# Self-Update Script for RUTOS Starlink Failover System
-
-set -eu
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
+# Script: self-update-rutos.sh
+# Version: 2.7.1
+# Description: Self-Update Script for RUTOS Starlink Failover System
 #
 # This script checks for newer versions on GitHub and performs automatic
 # updates of the Starlink monitoring system on RUTOS devices.
@@ -51,10 +34,17 @@ readonly SCRIPT_VERSION
 #   2 - Update available (when using --check-only)
 #   3 - Update failed, rollback performed
 #   4 - Update delayed due to auto-update policy
-#
-# ==============================================================================
 
 set -eu
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"
+
+# CRITICAL: Load RUTOS library system (REQUIRED)
+. "$(dirname "$0")/lib/rutos-lib.sh"
+
+# CRITICAL: Initialize script with library features (REQUIRED)
+rutos_init "self-update-rutos.sh" "$SCRIPT_VERSION"
 
 # Configuration
 GITHUB_REPO="markus-lassfolk/rutos-starlink-failover"
@@ -66,7 +56,6 @@ BACKUP_DIR="/usr/local/starlink-monitor-backup" # Used in backup functionality (
 # shellcheck disable=SC2034
 TMP_DIR="/tmp/starlink-update" # Used in update process (placeholder for now)
 VERSION_FILE="$INSTALL_DIR/VERSION"
-CONFIG_FILE="/usr/local/starlink-monitor/config/config.sh"
 SCRIPT_NAME="$(basename "$0")"
 
 # Command line options
@@ -76,7 +65,45 @@ BACKUP_ONLY=false
 AUTO_UPDATE_MODE=false
 INSTALL_CRON=false
 REMOVE_CRON=false
-DEBUG="${DEBUG:-0}"
+
+# Configuration loading
+CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
+if [ -f "$CONFIG_FILE" ]; then
+    # shellcheck source=/dev/null
+    . "$CONFIG_FILE"
+    log_debug "Configuration loaded from: $CONFIG_FILE"
+else
+    log_warning "Configuration file not found: $CONFIG_FILE - using defaults"
+fi
+
+# === DEBUG: Configuration Values Loaded ===
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "==================== SELF-UPDATE CONFIGURATION DEBUG ===================="
+    log_debug "CONFIG_FILE: $CONFIG_FILE"
+    log_debug "Update settings:"
+    log_debug "  SCRIPT_VERSION: ${SCRIPT_VERSION}"
+    log_debug "  GITHUB_REPO: ${GITHUB_REPO}"
+    log_debug "  GITHUB_BRANCH: ${GITHUB_BRANCH}"
+    log_debug "  INSTALL_DIR: ${INSTALL_DIR}"
+    log_debug "  VERSION_FILE: ${VERSION_FILE}"
+    
+    log_debug "Notification settings:"
+    log_debug "  PUSHOVER_TOKEN: ${PUSHOVER_TOKEN:-UNSET}"
+    log_debug "  PUSHOVER_USER: ${PUSHOVER_USER:-UNSET}"
+    log_debug "  ENABLE_PUSHOVER: ${ENABLE_PUSHOVER:-UNSET}"
+    
+    log_debug "Command line options:"
+    log_debug "  CHECK_ONLY: ${CHECK_ONLY}"
+    log_debug "  FORCE_UPDATE: ${FORCE_UPDATE}"
+    log_debug "  AUTO_UPDATE_MODE: ${AUTO_UPDATE_MODE}"
+    
+    # Check for functionality-affecting issues
+    if [ "${PUSHOVER_TOKEN:-}" = "" ] && [ "${ENABLE_PUSHOVER:-}" = "true" ]; then
+        log_debug "⚠️  WARNING: Pushover enabled but PUSHOVER_TOKEN not set"
+    fi
+    
+    log_debug "======================================================================"
+fi
 
 # Check if terminal supports colors (RUTOS busybox compatible)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
@@ -135,60 +162,13 @@ fi
 
 # Function to safely execute commands
 safe_execute() {
-    # shellcheck disable=SC2317  # Function is called later in script
-    cmd="$1"
-    # shellcheck disable=SC2317  # Function is called later in script
-    description="$2"
-
-    # shellcheck disable=SC2317  # Function is called later in script
-    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-        log_info "[DRY-RUN] Would execute: $description"
-        log_debug "[DRY-RUN] Command: $cmd"
-        return 0
-    else
-        log_debug "Executing: $cmd"
-        eval "$cmd"
-    fi
-}
-
-log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-}
-
 # Enhanced debug mode initialization
-if [ "$DEBUG" = "1" ]; then
-    log_debug "==================== DEBUG MODE ENABLED ===================="
-    log_debug "Script: $SCRIPT_NAME v$SCRIPT_VERSION"
-    log_debug "Working directory: $(pwd)"
-    log_debug "Arguments: $*"
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "Self-update script starting with enhanced debug mode"
     log_debug "Install directory: $INSTALL_DIR"
     log_debug "GitHub repository: $GITHUB_REPO"
     log_debug "Raw URL: $RAW_URL"
-    log_debug "=============================================================="
 fi
-
-# Load configuration for auto-update settings
-load_config() {
-    if [ -f "$CONFIG_FILE" ]; then
-        log_debug "Loading configuration from: $CONFIG_FILE"
-        # shellcheck source=/dev/null
-        . "$CONFIG_FILE"
-    else
-        log_debug "Config file not found, using defaults"
-        # Default configuration
-        AUTO_UPDATE_ENABLED="${AUTO_UPDATE_ENABLED:-true}"
-        AUTO_UPDATE_NOTIFICATIONS_ENABLED="${AUTO_UPDATE_NOTIFICATIONS_ENABLED:-true}"
-        UPDATE_PATCH_DELAY="${UPDATE_PATCH_DELAY:-Never}"
-        UPDATE_MINOR_DELAY="${UPDATE_MINOR_DELAY:-Never}"
-        UPDATE_MAJOR_DELAY="${UPDATE_MAJOR_DELAY:-Never}"
-        AUTO_UPDATE_SCHEDULE="${AUTO_UPDATE_SCHEDULE:-15 */4 * * *}"
-        PUSHOVER_TOKEN="${PUSHOVER_TOKEN:-}"
-        PUSHOVER_USER="${PUSHOVER_USER:-}"
-    fi
-
-    # Ensure notification variables are set
-    AUTO_UPDATE_NOTIFICATIONS_ENABLED="${AUTO_UPDATE_NOTIFICATIONS_ENABLED:-true}"
-}
 
 # Store current version in persistent config for firmware upgrade recovery
 store_version_for_recovery() {

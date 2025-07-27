@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # ==============================================================================
-# Starlink Proactive Quality Monitor for OpenWrt/RUTOS
+# Starlink Proactive Quality Monitor for OpenWrt/RUstatus_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetStatus')
+history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory')S
 #
 # Version: 2.7.1
 # Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
@@ -141,8 +142,8 @@ if [ ! -x "$JQ_CMD" ] && ! command -v jq >/dev/null 2>&1; then
     exit 1
 fi
 
-status_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetStatus')
-history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory')
+status_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetStatus')
+history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory')
 
 # Check if API calls were successful
 if [ -z "$status_data" ] || [ -z "$history_data" ]; then

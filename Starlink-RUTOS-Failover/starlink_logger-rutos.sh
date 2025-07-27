@@ -207,15 +207,15 @@ PERFORMANCE_ALERT_THRESHOLD="${PERFORMANCE_ALERT_THRESHOLD:-50}" # Alert if scri
 # --- Data Gathering ---
 # We make two API calls to get a complete set of metrics.
 debug_log "STEP: Making API calls to gather data"
-debug_log "API CALL: Getting status data from $STARLINK_IP"
+debug_log "API CALL: Getting status data from $STARLINK_IP:$STARLINK_PORT"
 
-status_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetStatus')
+status_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetStatus')
 status_exit=$?
 debug_log "API RESULT: get_status exit code: $status_exit"
 debug_log "API RESULT: status_data length: ${#status_data}"
 
-debug_log "API CALL: Getting history data from $STARLINK_IP"
-history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory')
+debug_log "API CALL: Getting history data from $STARLINK_IP:$STARLINK_PORT"
+history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory')
 history_exit=$?
 debug_log "API RESULT: get_history exit code: $history_exit"
 debug_log "API RESULT: history_data length: ${#history_data}"

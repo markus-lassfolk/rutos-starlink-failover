@@ -479,7 +479,7 @@ detect_starlink_endpoint() {
         printf "DETECTED_STARLINK_PORT=\"%s\"\n" "$port"
         return 0
     else
-        log_warning "⚠ Could not detect Starlink gRPC endpoint, using default: 192.168.100.1:9200"
+        log_warning "⚠ Could not detect Starlink gRPC endpoint, using defaults: IP=192.168.100.1, PORT=9200"
         printf "DETECTED_STARLINK_IP=\"192.168.100.1\"\n"
         printf "DETECTED_STARLINK_PORT=\"9200\"\n"
         return 1

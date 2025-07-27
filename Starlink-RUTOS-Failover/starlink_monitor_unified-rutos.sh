@@ -89,6 +89,46 @@ else
     exit 1
 fi
 
+# === DEBUG: Configuration Values Loaded ===
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "==================== CONFIGURATION DEBUG ===================="
+    log_debug "CONFIG_FILE: $CONFIG_FILE"
+    log_debug "Required connection variables:"
+    log_debug "  STARLINK_IP: ${STARLINK_IP:-UNSET}"
+    log_debug "  STARLINK_PORT: ${STARLINK_PORT:-UNSET}"
+    log_debug "  MWAN_IFACE: ${MWAN_IFACE:-UNSET}"
+    log_debug "  MWAN_MEMBER: ${MWAN_MEMBER:-UNSET}"
+    
+    log_debug "Feature flags:"
+    log_debug "  ENABLE_GPS_TRACKING: ${ENABLE_GPS_TRACKING:-UNSET}"
+    log_debug "  ENABLE_CELLULAR_TRACKING: ${ENABLE_CELLULAR_TRACKING:-UNSET}"
+    log_debug "  ENABLE_ENHANCED_FAILOVER: ${ENABLE_ENHANCED_FAILOVER:-UNSET}"
+    log_debug "  ENABLE_PUSHOVER: ${ENABLE_PUSHOVER:-UNSET}"
+    
+    log_debug "Monitoring thresholds:"
+    log_debug "  LATENCY_THRESHOLD: ${LATENCY_THRESHOLD:-UNSET}"
+    log_debug "  PACKET_LOSS_THRESHOLD: ${PACKET_LOSS_THRESHOLD:-UNSET}"
+    log_debug "  OBSTRUCTION_THRESHOLD: ${OBSTRUCTION_THRESHOLD:-UNSET}"
+    
+    log_debug "Directories and paths:"
+    log_debug "  LOG_DIR: ${LOG_DIR:-UNSET}"
+    log_debug "  STATE_DIR: ${STATE_DIR:-UNSET}"
+    log_debug "  LOG_TAG: ${LOG_TAG:-UNSET}"
+    
+    # Check for functionality-affecting issues
+    if [ "${STARLINK_IP:-}" = "" ]; then
+        log_debug "⚠️  WARNING: STARLINK_IP not set - Starlink API calls will fail"
+    fi
+    if [ "${MWAN_IFACE:-}" = "" ]; then
+        log_debug "⚠️  WARNING: MWAN_IFACE not set - Failover functionality disabled"
+    fi
+    if [ "${MWAN_MEMBER:-}" = "" ]; then
+        log_debug "⚠️  WARNING: MWAN_MEMBER not set - Failover functionality disabled"
+    fi
+    
+    log_debug "==============================================================="
+fi
+
 # Load placeholder utilities for graceful degradation
 script_dir="$(dirname "$0")/../scripts"
 if [ -f "$script_dir/placeholder-utils.sh" ]; then
@@ -104,6 +144,10 @@ LOG_TAG="${LOG_TAG:-StarlinkMonitor}"
 LOG_RETENTION_DAYS="${LOG_RETENTION_DAYS:-7}"
 STATE_DIR="${STATE_DIR:-/tmp/run}"
 LOG_DIR="${LOG_DIR:-/etc/starlink-logs}"
+
+# Starlink connection settings with defaults
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
 
 # Enhanced feature flags (configuration-controlled)
 ENABLE_GPS_TRACKING="${ENABLE_GPS_TRACKING:-false}"

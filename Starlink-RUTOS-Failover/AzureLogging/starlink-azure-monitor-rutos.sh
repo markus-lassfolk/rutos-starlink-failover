@@ -371,10 +371,9 @@ collect_starlink_data() {
     fi
 
     # Get status data from Starlink
-    status_json
-    status_json=$("$GRPCURL_CMD" -plaintext -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null)
+    status_json=$("$GRPCURL_CMD" -plaintext -d '{"get_status":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null)
 
-    if ! "$GRPCURL_CMD" -plaintext -d '{"get_status":{}}' "$STARLINK_IP" SpaceX.API.Device.Device/Handle >/dev/null 2>&1 || [ -z "$status_json" ]; then
+    if ! "$GRPCURL_CMD" -plaintext -d '{"get_status":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle >/dev/null 2>&1 || [ -z "$status_json" ]; then
         log_error "Failed to get Starlink status data"
         return 1
     fi

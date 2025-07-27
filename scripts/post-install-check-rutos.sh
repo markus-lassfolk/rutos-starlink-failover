@@ -339,7 +339,7 @@ if [ -n "${STARLINK_IP:-}" ]; then
         fi
     fi
 else
-    check_status "config" "Starlink IP Address" "Not configured (using default 192.168.100.1:9200)"
+    check_status "config" "Starlink IP Address" "Not configured (using defaults: IP=${STARLINK_IP:-192.168.100.1}, PORT=${STARLINK_PORT:-9200})"
 fi
 
 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility

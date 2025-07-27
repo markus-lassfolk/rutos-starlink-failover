@@ -7,110 +7,47 @@ set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 
-# Version information (auto-updated by update-version.sh)
+# CRITICAL: Load RUTOS library system (REQUIRED)
+. "$(dirname "$0")/lib/rutos-lib.sh"
 
-# Version information (auto-updated by update-version.sh)
+# CRITICAL: Initialize script with library features (REQUIRED)
+rutos_init "system-maintenance-rutos.sh" "$SCRIPT_VERSION"
 
-# Standard colors for consistent output (compatible with busybox)
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-# Check if we're in a terminal that supports colors
-if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
-    RED=""
-    GREEN=""
-    YELLOW=""
-    BLUE=""
-    CYAN=""
-    NC=""
+# Configuration loading
+# --- Configuration Loading ---
+CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
+if [ -f "$CONFIG_FILE" ]; then
+    # shellcheck source=/dev/null
+    . "$CONFIG_FILE"
+    log_debug "Configuration loaded from: $CONFIG_FILE"
+else
+    log_warning "Configuration file not found: $CONFIG_FILE - using defaults"
 fi
 
-# Standard logging functions with consistent colors (define all before use)
-log_debug() {
-    if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
-        logger -t "SystemMaintenance" -p user.debug "$1"
-    fi
-}
-
-log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    # Also log to syslog for system tracking
-    logger -t "SystemMaintenance" -p user.info "$1"
-}
-
-log_warning() {
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    logger -t "SystemMaintenance" -p user.warning "$1"
-}
-
-log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
-    logger -t "SystemMaintenance" -p user.error "$1"
-}
-
-log_success() {
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    logger -t "SystemMaintenance" -p user.notice "SUCCESS: $1"
-}
-
-log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    logger -t "SystemMaintenance" -p user.info "STEP: $1"
-}
-
-# Version information for troubleshooting
+# === DEBUG: Configuration Values Loaded ===
 if [ "${DEBUG:-0}" = "1" ]; then
-    log_debug "Script: system-maintenance-rutos.sh v$SCRIPT_VERSION"
-fi
-
-# Debug mode support
-DEBUG="${DEBUG:-0}"
-if [ "$DEBUG" = "1" ]; then
-    log_debug "==================== DEBUG MODE ENABLED ===================="
-    log_debug "Script version: $SCRIPT_VERSION"
-    log_debug "Working directory: $(pwd)"
-    log_debug "Arguments: $*"
-fi
-
-# Dry-run and test mode support
-DRY_RUN="${DRY_RUN:-0}"
-RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
-
-# Debug dry-run status
-if [ "$DEBUG" = "1" ]; then
-    log_debug "DRY_RUN=$DRY_RUN, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-fi
-
-# Function to safely execute commands
-safe_execute() {
-    cmd="$1"
-    description="$2"
-
-    if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-        log_info "[DRY-RUN] Would execute: $description"
-        log_debug "[DRY-RUN] Command: $cmd"
-        return 0
-    else
-        log_debug "Executing: $cmd"
-        eval "$cmd"
+    log_debug "==================== MAINTENANCE CONFIGURATION DEBUG ===================="
+    log_debug "CONFIG_FILE: $CONFIG_FILE"
+    log_debug "System maintenance settings:"
+    log_debug "  SCRIPT_VERSION: ${SCRIPT_VERSION}"
+    log_debug "  LOG_TAG: ${LOG_TAG:-SystemMaintenance}"
+    log_debug "  INSTALL_DIR: ${INSTALL_DIR:-/usr/local/starlink-monitor}"
+    
+    log_debug "Connection variables:"
+    log_debug "  STARLINK_IP: ${STARLINK_IP:-UNSET}"
+    log_debug "  MWAN_IFACE: ${MWAN_IFACE:-UNSET}"
+    
+    # Check for functionality-affecting issues
+    if [ "${STARLINK_IP:-}" = "" ]; then
+        log_debug "⚠️  WARNING: STARLINK_IP not set - connectivity checks may fail"
     fi
-}
-
-# Early exit in test mode to prevent execution errors
-if [ "$RUTOS_TEST_MODE" = "1" ]; then
-    log_info "RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution"
-    exit 0
+    
+    log_debug "======================================================================"
 fi
 
 # Maintenance configuration
-if [ "$DRY_RUN" = "1" ]; then
+if [ "${DRY_RUN:-0}" = "1" ]; then
     MAINTENANCE_LOG="/tmp/system-maintenance-dryrun.log"
     log_info "DRY_RUN mode: Using temporary log file: $MAINTENANCE_LOG"
 else
@@ -120,25 +57,6 @@ ISSUES_FIXED_COUNT=0
 ISSUES_FOUND_COUNT=0
 CRITICAL_ISSUES_COUNT=0
 RUN_MODE="${1:-auto}" # auto, check, fix, report
-
-# Configuration file paths (try multiple locations)
-CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
-if [ ! -f "$CONFIG_FILE" ]; then
-    CONFIG_FILE="/usr/local/starlink-monitor/config/config.sh"
-fi
-if [ ! -f "$CONFIG_FILE" ]; then
-    CONFIG_FILE="/root/config.sh"
-fi
-
-# Load configuration if available
-if [ -f "$CONFIG_FILE" ]; then
-    log_debug "Loading configuration from: $CONFIG_FILE"
-    # shellcheck source=/dev/null
-    . "$CONFIG_FILE"
-else
-    log_warning "Configuration file not found - Pushover notifications disabled"
-fi
-
 # Maintenance-specific configuration with defaults
 MAINTENANCE_PUSHOVER_ENABLED="${MAINTENANCE_PUSHOVER_ENABLED:-${ENABLE_PUSHOVER_NOTIFICATIONS:-false}}"
 MAINTENANCE_PUSHOVER_TOKEN="${MAINTENANCE_PUSHOVER_TOKEN:-${PUSHOVER_TOKEN:-}}"

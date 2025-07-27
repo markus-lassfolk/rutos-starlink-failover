@@ -9,23 +9,17 @@ readonly SCRIPT_VERSION
 
 # VALIDATION_SKIP_COLOR_CHECK: Uses RUTOS library for colors
 # CRITICAL: Load RUTOS library system (REQUIRED)
-# shellcheck source=/dev/null
-. "$(dirname "$0")/lib/rutos-lib.sh"
-
-# Load RUTOS library system for standardized logging and utilities
-# Try multiple paths for library loading (development, installation)
-if [ -f "$(dirname "$0")/../scripts/lib/rutos-lib.sh" ]; then
-    # shellcheck source=/dev/null
-    . "$(dirname "$0")/../scripts/lib/rutos-lib.sh"
-elif [ -f "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh" ]; then
-    # shellcheck source=/dev/null
-    . "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh"
-elif [ -f "./lib/rutos-lib.sh" ]; then
-    # shellcheck source=/dev/null
-    . "./lib/rutos-lib.sh"
-else
-    # Fallback logging if library not available
-    printf "[WARNING] RUTOS library not found, using fallback logging\n"
+if ! . "$(dirname "$0")/../scripts/lib/rutos-lib.sh" 2>/dev/null &&
+    ! . "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh" 2>/dev/null &&
+    ! . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
+    # CRITICAL ERROR: RUTOS library not found - this script requires the library system
+    printf "CRITICAL ERROR: RUTOS library system not found!\n" >&2
+    printf "Expected locations:\n" >&2
+    printf "  - $(dirname "$0")/../scripts/lib/rutos-lib.sh\n" >&2
+    printf "  - /usr/local/starlink-monitor/scripts/lib/rutos-lib.sh\n" >&2
+    printf "  - $(dirname "$0")/lib/rutos-lib.sh\n" >&2
+    printf "\nThis script requires the RUTOS library for proper operation.\n" >&2
+    exit 1
 fi
 
 # Initialize script with RUTOS library features if available
@@ -106,19 +100,62 @@ KNOWN_API_VERSION_FILE="/root/starlink_api_version.txt"
 GRPCURL_CMD="$INSTALL_DIR/grpcurl"
 JQ_CMD="$INSTALL_DIR/jq"
 
-# Dry-run and test mode support
+# === DEBUG: Configuration Values Loaded ===
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "==================== API CHECKER CONFIGURATION DEBUG ===================="
+    log_debug "CONFIG_FILE: $CONFIG_FILE"
+    log_debug "Core connection settings:"
+    log_debug "  STARLINK_IP: ${STARLINK_IP}"
+    log_debug "  STARLINK_PORT: ${STARLINK_PORT}"
+    log_debug "  INSTALL_DIR: ${INSTALL_DIR:-UNSET}"
+    
+    log_debug "Binary paths:"
+    log_debug "  GRPCURL_CMD: ${GRPCURL_CMD}"
+    log_debug "  JQ_CMD: ${JQ_CMD}"
+    
+    log_debug "Notification settings:"
+    if [ "${#PUSHOVER_TOKEN}" -gt 10 ]; then
+        log_debug "  PUSHOVER_TOKEN: ${PUSHOVER_TOKEN%"${PUSHOVER_TOKEN#??????????}"}... (length: ${#PUSHOVER_TOKEN})"
+    else
+        log_debug "  PUSHOVER_TOKEN: ${PUSHOVER_TOKEN} (length: ${#PUSHOVER_TOKEN})"
+    fi
+    if [ "${#PUSHOVER_USER}" -gt 10 ]; then
+        log_debug "  PUSHOVER_USER: ${PUSHOVER_USER%"${PUSHOVER_USER#??????????}"}... (length: ${#PUSHOVER_USER})"
+    else
+        log_debug "  PUSHOVER_USER: ${PUSHOVER_USER} (length: ${#PUSHOVER_USER})"
+    fi
+    log_debug "  LOG_TAG: ${LOG_TAG}"
+    
+    log_debug "State files:"
+    log_debug "  KNOWN_API_VERSION_FILE: ${KNOWN_API_VERSION_FILE}"
+    
+    # Check for functionality-affecting issues
+    if [ "${STARLINK_IP:-}" = "" ]; then
+        log_debug "⚠️  WARNING: STARLINK_IP not set - API calls will fail"
+    fi
+    if [ ! -f "${GRPCURL_CMD}" ]; then
+        log_debug "⚠️  WARNING: grpcurl binary not found at ${GRPCURL_CMD}"
+    fi
+    if [ ! -f "${JQ_CMD}" ]; then
+        log_debug "⚠️  WARNING: jq binary not found at ${JQ_CMD}"
+    fi
+    
+    log_debug "======================================================================"
+fi
+
+# Dry-run and test mode support (FIXED: No early exit for RUTOS_TEST_MODE)
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "DRY_RUN=${DRY_RUN:-0}, RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0}"
-fi
-
-# Early exit in test mode to prevent execution errors
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ]; then
-    log_info "RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution"
-    exit 0
+    if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+        log_debug "RUTOS_TEST_MODE enabled - trace logging active, script will continue normally"
+    fi
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        log_debug "DRY_RUN enabled - no actual changes will be made"
+    fi
 fi
 
 # Function to safely execute commands
@@ -332,10 +369,10 @@ log_debug "KNOWN VERSION: Final value: '$known_version'"
 
 # Get the current version from the dish. We use 'get_device_info' as it's a lightweight call.
 log_debug "CURRENT VERSION: Starting gRPC call to Starlink"
-log_debug "GRPC CALL: $GRPCURL_CMD -plaintext -max-time 10 -d '{\"get_device_info\":{}}' $STARLINK_IP SpaceX.API.Device.Device/Handle"
+log_debug "GRPC CALL: $GRPCURL_CMD -plaintext -max-time 10 -d '{\"get_device_info\":{}}' $STARLINK_IP:$STARLINK_PORT SpaceX.API.Device.Device/Handle"
 
 # Build the gRPC command step by step for better debugging
-grpc_cmd="$GRPCURL_CMD -plaintext -max-time 10 -d '{\"get_device_info\":{}}' $STARLINK_IP SpaceX.API.Device.Device/Handle"
+grpc_cmd="$GRPCURL_CMD -plaintext -max-time 10 -d '{\"get_device_info\":{}}' $STARLINK_IP:$STARLINK_PORT SpaceX.API.Device.Device/Handle"
 log_debug "GRPC COMMAND: $grpc_cmd"
 
 # Execute gRPC call with detailed error handling

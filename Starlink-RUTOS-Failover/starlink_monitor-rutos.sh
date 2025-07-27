@@ -66,6 +66,10 @@ else
     exit 1
 fi
 
+# Ensure Starlink connection variables are defined
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
+
 # Load placeholder utilities for graceful degradation
 script_dir="$(dirname "$0")/../scripts"
 if [ -f "$script_dir/placeholder-utils.sh" ]; then
@@ -225,7 +229,7 @@ call_starlink_api() {
     delay=2
 
     while [ $retry_count -lt $max_retries ]; do
-        if timeout "$API_TIMEOUT" "$GRPCURL_CMD" -plaintext -max-time "$API_TIMEOUT" -d "{\"$method\":{}}" "$STARLINK_IP" SpaceX.API.Device.Device/Handle 2>/dev/null; then
+        if timeout "$API_TIMEOUT" "$GRPCURL_CMD" -plaintext -max-time "$API_TIMEOUT" -d "{\"$method\":{}}" "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null; then
             return 0
         fi
 

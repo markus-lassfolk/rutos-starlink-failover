@@ -1223,6 +1223,7 @@ This document lists all scripts installed by the Starlink monitoring system.
 ```
 /usr/local/starlink-monitor/
 ├── scripts/                 # Main utility scripts
+│   ├── lib/                # RUTOS library system (logging, colors, utilities)
 │   ├── tests/              # Test and debug scripts  
 │   └── [utility scripts]
 ├── config/                 # Configuration files
@@ -1424,6 +1425,40 @@ install_scripts() {
         fi
     done
 
+    # CRITICAL: Install RUTOS library system (REQUIRED for script operation)
+    print_status "$BLUE" "Installing RUTOS library system..."
+    
+    # Create library directory
+    mkdir -p "$INSTALL_DIR/scripts/lib"
+    
+    # Library files to install
+    for lib_file in \
+        rutos-lib.sh \
+        rutos-colors.sh \
+        rutos-logging.sh \
+        rutos-common.sh; do
+        
+        # Try local library first
+        if [ -f "$script_dir/../scripts/lib/$lib_file" ]; then
+            cp "$script_dir/../scripts/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"
+            chmod +x "$INSTALL_DIR/scripts/lib/$lib_file"
+            print_status "$GREEN" "✓ Library installed: $lib_file"
+        else
+            # Download from repository
+            print_status "$BLUE" "Downloading library: $lib_file..."
+            if download_file "$BASE_URL/scripts/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"; then
+                chmod +x "$INSTALL_DIR/scripts/lib/$lib_file"
+                print_status "$GREEN" "✓ Library downloaded: $lib_file"
+            else
+                print_status "$RED" "Error: Failed to install library: $lib_file"
+                print_status "$RED" "CRITICAL: Scripts will not work without the RUTOS library system!"
+                return 1
+            fi
+        fi
+    done
+    
+    print_status "$GREEN" "✓ RUTOS library system installed successfully"
+
     # Install all utility and test scripts with *-rutos.sh naming convention
     # Core utility scripts
     for script in \
@@ -1512,6 +1547,36 @@ install_scripts() {
     done
 
     print_status "$GREEN" "✓ All scripts installation completed"
+
+    # Install RUTOS library system (CRITICAL - required for script operation)
+    print_status "$BLUE" "Installing RUTOS library system..."
+    mkdir -p "$INSTALL_DIR/scripts/lib" 2>/dev/null || {
+        print_status "$RED" "✗ Failed to create library directory"
+        return 1
+    }
+
+    # Library files to install
+    library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh"
+    
+    for lib_file in $library_files; do
+        if [ -f "$script_dir/lib/$lib_file" ]; then
+            # Local development installation
+            cp "$script_dir/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"
+            print_status "$GREEN" "✓ Library installed: $lib_file"
+        else
+            # Remote installation - download library files
+            print_status "$BLUE" "Downloading library: $lib_file..."
+            if download_file "$BASE_URL/scripts/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"; then
+                print_status "$GREEN" "✓ Library downloaded: $lib_file"
+            else
+                print_status "$RED" "✗ Failed to download library: $lib_file"
+                print_status "$RED" "This is a critical error - scripts will not work without the library system"
+                return 1
+            fi
+        fi
+    done
+
+    print_status "$GREEN" "✓ RUTOS library system installed successfully"
 
     # Create script documentation
     create_script_documentation

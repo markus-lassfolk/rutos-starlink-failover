@@ -95,14 +95,50 @@ ENABLE_CELLULAR_LOGGING="${ENABLE_CELLULAR_LOGGING:-false}"
 ENABLE_STATISTICAL_AGGREGATION="${ENABLE_STATISTICAL_AGGREGATION:-false}"
 ENABLE_ENHANCED_METRICS="${ENABLE_ENHANCED_METRICS:-false}"
 
+# === DEBUG: Configuration Values Loaded ===
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "==================== LOGGER CONFIGURATION DEBUG ===================="
+    log_debug "CONFIG_FILE: $CONFIG_FILE"
+    log_debug "Core logging settings:"
+    log_debug "  LOG_TAG: ${LOG_TAG}"
+    log_debug "  LOG_DIR: ${LOG_DIR}"
+    log_debug "  OUTPUT_CSV: ${OUTPUT_CSV}"
+    log_debug "  STATE_FILE: ${STATE_FILE}"
+    
+    log_debug "Enhanced feature flags:"
+    log_debug "  ENABLE_GPS_LOGGING: ${ENABLE_GPS_LOGGING}"
+    log_debug "  ENABLE_CELLULAR_LOGGING: ${ENABLE_CELLULAR_LOGGING}"
+    log_debug "  ENABLE_STATISTICAL_AGGREGATION: ${ENABLE_STATISTICAL_AGGREGATION}"
+    log_debug "  ENABLE_ENHANCED_METRICS: ${ENABLE_ENHANCED_METRICS}"
+    
+    log_debug "Connection variables:"
+    log_debug "  STARLINK_IP: ${STARLINK_IP:-UNSET}"
+    log_debug "  STARLINK_PORT: ${STARLINK_PORT:-UNSET}"
+    log_debug "  MWAN_IFACE: ${MWAN_IFACE:-UNSET}"
+    
+    # Check for functionality-affecting issues
+    if [ "${STARLINK_IP:-}" = "" ]; then
+        log_debug "⚠️  WARNING: STARLINK_IP not set - Starlink API calls will fail"
+    fi
+    if [ "${ENABLE_GPS_LOGGING}" = "true" ] && [ ! -d "/etc/starlink-config" ]; then
+        log_debug "⚠️  WARNING: GPS logging enabled but config directory missing"
+    fi
+    
+    log_debug "======================================================================="
+fi
+
 # Enhanced logging settings (only used if enabled)
 AGGREGATED_LOG_FILE="${LOG_DIR}/starlink_aggregated.csv"
 AGGREGATION_BATCH_SIZE="${AGGREGATION_BATCH_SIZE:-60}"
 
+# Starlink connection settings with defaults
+STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
+STARLINK_PORT="${STARLINK_PORT:-9200}"
+
 # Create necessary directories
 mkdir -p "$LOG_DIR" "$(dirname "$STATE_FILE")" 2>/dev/null || true
 
-# Debug configuration
+# Debug configuration (original simplified version)
 log_debug "GPS_LOGGING=$ENABLE_GPS_LOGGING, CELLULAR_LOGGING=$ENABLE_CELLULAR_LOGGING"
 log_debug "AGGREGATION=$ENABLE_STATISTICAL_AGGREGATION, ENHANCED_METRICS=$ENABLE_ENHANCED_METRICS"
 
