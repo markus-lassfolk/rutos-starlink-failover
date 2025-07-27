@@ -1733,7 +1733,11 @@ install_config() {
     print_status "$BLUE" "  Installation link: /root/starlink-monitor -> $INSTALL_DIR"
 
     # Cleanup temporary files
-    rm -f "$temp_unified_template" "$temp_merged_config" 2>/dev/null || true
+    rm -f "$temp_unified_template" 2>/dev/null || true
+    # Only cleanup temp_merged_config if it was defined (merge operations)
+    if [ -n "${temp_merged_config:-}" ]; then
+        rm -f "$temp_merged_config" 2>/dev/null || true
+    fi
 }
 
 # Configure cron jobs
