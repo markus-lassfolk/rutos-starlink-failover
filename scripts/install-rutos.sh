@@ -106,6 +106,25 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
     rutos_init_portable "$SCRIPT_NAME" "$SCRIPT_VERSION"
     log_info "Using RUTOS library system for standardized logging"
     log_debug "Library mode: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo "local development" || echo "downloaded remote")"
+    
+    # Ensure log_message compatibility function is available
+    # (It should be loaded from rutos-common.sh, but add fallback just in case)
+    if ! command -v log_message >/dev/null 2>&1; then
+        log_message() {
+            level="$1"
+            message="$2"
+            case "$level" in
+                "INFO"|"info") log_info "$message" ;;
+                "ERROR"|"error") log_error "$message" ;;
+                "WARNING"|"warning"|"WARN"|"warn") log_warning "$message" ;;
+                "DEBUG"|"debug") log_debug "$message" ;;
+                "SUCCESS"|"success") log_success "$message" ;;
+                "CONFIG_DEBUG"|"config_debug") log_debug "CONFIG: $message" ;;
+                "DEBUG_EXEC"|"debug_exec") log_debug "EXEC: $message" ;;
+                *) log_info "$message" ;;
+            esac
+        }
+    fi
 else
     # Fallback to legacy logging system for remote installations when library unavailable
     printf "[INFO] Using built-in fallback logging system\n"
@@ -142,6 +161,22 @@ else
         if [ "${DEBUG:-0}" = "1" ]; then
             printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
         fi
+    }
+
+    # Compatibility function for legacy log_message calls
+    log_message() {
+        level="$1"
+        message="$2"
+        case "$level" in
+            "INFO"|"info") log_info "$message" ;;
+            "ERROR"|"error") log_error "$message" ;;
+            "WARNING"|"warning"|"WARN"|"warn") log_warning "$message" ;;
+            "DEBUG"|"debug") log_debug "$message" ;;
+            "SUCCESS"|"success") log_success "$message" ;;
+            "CONFIG_DEBUG"|"config_debug") log_debug "CONFIG: $message" ;;
+            "DEBUG_EXEC"|"debug_exec") log_debug "EXEC: $message" ;;
+            *) log_info "$message" ;;
+        esac
     }
 
     # Initialize logging variables
@@ -181,7 +216,7 @@ config_debug() {
     if [ "${CONFIG_DEBUG:-0}" = "1" ] || [ "${DEBUG:-0}" = "1" ]; then
         timestamp=$(get_timestamp)
         printf "${CYAN}[%s] CONFIG DEBUG: %s${NC}\n" "$timestamp" "$1" >&2
-        log_message "CONFIG_DEBUG" "$1"
+        log_debug "CONFIG: $1"
     fi
 }
 
@@ -189,7 +224,10 @@ config_debug() {
 debug_log() {
     if [ "${DEBUG:-0}" = "1" ]; then
         printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
-        log_message "DEBUG" "$1"
+        # Only use log_message if it's available (after library loading)
+        if command -v log_message >/dev/null 2>&1; then
+            log_message "DEBUG" "$1"
+        fi
     fi
 }
 
@@ -210,7 +248,7 @@ debug_exec() {
     if [ "${DEBUG:-0}" = "1" ]; then
         timestamp=$(get_timestamp)
         printf "${CYAN}[%s] DEBUG EXEC: %s${NC}\n" "$timestamp" "$*" >&2
-        log_message "DEBUG_EXEC" "$*"
+        log_debug "EXEC: $*"
     fi
     "$@"
 }
@@ -320,26 +358,32 @@ JQ_FALLBACK_URL="https://github.com/jqlang/jq/releases/download/jq-1.6/jq-linux3
 # Early debug detection - show immediately if DEBUG is set
 if [ "${DEBUG:-0}" = "1" ]; then
     printf "\n"
-    log_debug "==================== DEBUG MODE ENABLED ===================="
-    log_debug "Script starting with DEBUG=1"
-    log_debug "Environment variables:"
-    log_debug "  DEBUG=${DEBUG:-0}"
-    log_debug "  GITHUB_BRANCH=${GITHUB_BRANCH:-main}"
-    log_debug "  GITHUB_REPO=${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
-    log_debug "  LOG_FILE=$LOG_FILE"
-    log_debug "==========================================================="
+    if command -v log_debug >/dev/null 2>&1; then
+        log_debug "==================== DEBUG MODE ENABLED ===================="
+        log_debug "Script starting with DEBUG=1"
+        log_debug "Environment variables:"
+        log_debug "  DEBUG=${DEBUG:-0}"
+        log_debug "  GITHUB_BRANCH=${GITHUB_BRANCH:-main}"
+        log_debug "  GITHUB_REPO=${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
+        log_debug "  LOG_FILE=$LOG_FILE"
+        log_debug "==========================================================="
+    else
+        printf "[DEBUG] [%s] DEBUG MODE ENABLED\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
+        printf "[DEBUG] [%s] Script starting with DEBUG=1\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
+        printf "[DEBUG] [%s] Environment: DEBUG=${DEBUG:-0}, GITHUB_BRANCH=${GITHUB_BRANCH:-main}\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
+    fi
     echo ""
 fi
 
 # Log installation start
-log_message "INFO" "============================================="
-log_message "INFO" "Starlink Monitor Installation Script Started"
-log_message "INFO" "Script: $SCRIPT_NAME"
-log_message "INFO" "Version: $SCRIPT_VERSION"
-log_message "INFO" "Branch: $GITHUB_BRANCH"
-log_message "INFO" "Repository: $GITHUB_REPO"
-log_message "INFO" "DEBUG Mode: ${DEBUG:-0}"
-log_message "INFO" "============================================="
+log_info "============================================="
+log_info "Starlink Monitor Installation Script Started"
+log_info "Script: $SCRIPT_NAME"
+log_info "Version: $SCRIPT_VERSION"
+log_info "Branch: $GITHUB_BRANCH"
+log_info "Repository: $GITHUB_REPO"
+log_info "DEBUG Mode: ${DEBUG:-0}"
+log_info "============================================="
 
 # Function to show version information
 show_version() {
@@ -462,47 +506,47 @@ download_file() {
     output="$2"
 
     debug_msg "Downloading $url to $output"
-    log_message "INFO" "Starting download: $url -> $output"
+    log_debug "Starting download: $url -> $output"
 
     # Try wget first, then curl
     if command -v wget >/dev/null 2>&1; then
         if [ "${DEBUG:-0}" = "1" ]; then
             if debug_exec wget -O "$output" "$url"; then
-                log_message "INFO" "Download successful: $output"
+                log_info "Download successful: $output"
                 return 0
             else
-                log_message "ERROR" "Download failed with wget: $url"
+                log_error "Download failed with wget: $url"
                 return 1
             fi
         else
             if wget -q -O "$output" "$url" 2>/dev/null; then
-                log_message "INFO" "Download successful: $output"
+                log_info "Download successful: $output"
                 return 0
             else
-                log_message "ERROR" "Download failed with wget: $url"
+                log_error "Download failed with wget: $url"
                 return 1
             fi
         fi
     elif command -v curl >/dev/null 2>&1; then
         if [ "${DEBUG:-0}" = "1" ]; then
             if debug_exec curl -fL -o "$output" "$url"; then
-                log_message "INFO" "Download successful: $output"
+                log_info "Download successful: $output"
                 return 0
             else
-                log_message "ERROR" "Download failed with curl: $url"
+                log_error "Download failed with curl: $url"
                 return 1
             fi
         else
             if curl -fsSL -o "$output" "$url" 2>/dev/null; then
-                log_message "INFO" "Download successful: $output"
+                log_info "Download successful: $output"
                 return 0
             else
-                log_message "ERROR" "Download failed with curl: $url"
+                log_error "Download failed with curl: $url"
                 return 1
             fi
         fi
     else
-        log_message "ERROR" "Neither wget nor curl available for downloads"
+        log_error "Neither wget nor curl available for downloads"
         log_error "Error: Neither wget nor curl available for downloads"
         return 1
     fi
@@ -2298,7 +2342,7 @@ store_version_in_persistent_config() {
     persistent_config="$PERSISTENT_CONFIG_DIR/config.sh"
 
     if [ ! -f "$persistent_config" ]; then
-        log_message "ERROR" "Persistent config not found: $persistent_config"
+        log_error "Persistent config not found: $persistent_config"
         return 1
     fi
 
@@ -2327,7 +2371,7 @@ RECOVERY_INSTALL_URL="https://raw.githubusercontent.com/$GITHUB_REPO/v$version/s
 # ==============================================================================
 EOF
 
-    log_message "INFO" "Stored version $version in persistent config for recovery"
+    log_info "Stored version $version in persistent config for recovery"
     return 0
 }
 
@@ -2338,7 +2382,7 @@ create_version_pinned_recovery_script() {
 
     # Ensure persistent config directory exists
     mkdir -p "$PERSISTENT_CONFIG_DIR" 2>/dev/null || {
-        log_message "ERROR" "Cannot create persistent config directory"
+        log_error "Cannot create persistent config directory"
         return 1
     }
 
@@ -2396,7 +2440,7 @@ EOF
     # Make script executable
     chmod +x "$recovery_script"
 
-    log_message "INFO" "Version-pinned recovery script created: $recovery_script"
+    log_info "Version-pinned recovery script created: $recovery_script"
     return 0
 }
 create_restoration_script() {
@@ -2983,11 +3027,11 @@ main() {
 
     # Log successful completion
     debug_log "INSTALLATION: Completing successfully"
-    log_message "INFO" "============================================="
-    log_message "INFO" "Installation completed successfully!"
-    log_message "INFO" "Installation directory: $INSTALL_DIR"
-    log_message "INFO" "Log file: $LOG_FILE"
-    log_message "INFO" "============================================="
+    log_info "============================================="
+    log_info "Installation completed successfully!"
+    log_info "Installation directory: $INSTALL_DIR"
+    log_info "Log file: $LOG_FILE"
+    log_info "============================================="
 
     printf "\n"
     print_status "$GREEN" "📋 Installation log saved to: $LOG_FILE"
@@ -3001,8 +3045,8 @@ main() {
 # Error handling function
 handle_error() {
     exit_code=$?
-    log_message "ERROR" "Installation failed with exit code: $exit_code"
-    log_message "ERROR" "Check the log file for details: $LOG_FILE"
+    log_error "Installation failed with exit code: $exit_code"
+    log_error "Check the log file for details: $LOG_FILE"
     print_status "$RED" "❌ Installation failed! Check log: $LOG_FILE"
     exit $exit_code
 }

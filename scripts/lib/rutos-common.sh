@@ -345,3 +345,50 @@ version_compare() {
         return 2 # v1 > v2
     fi
 }
+
+# ============================================================================
+# BACKWARDS COMPATIBILITY FUNCTIONS
+# ============================================================================
+
+# DEPRECATED: log_message compatibility function
+# This function provides backwards compatibility for scripts using the old log_message format
+# New scripts should use the standard RUTOS logging functions directly
+log_message() {
+    level="$1"
+    message="$2"
+    
+    # Show deprecation warning in debug mode
+    if [ "${DEBUG:-0}" = "1" ]; then
+        log_trace "DEPRECATED: log_message() called with level '$level' - use log_info(), log_error(), etc. instead"
+    fi
+    
+    # Map old log levels to new RUTOS library functions
+    case "$level" in
+        "INFO"|"info")
+            log_info "$message"
+            ;;
+        "ERROR"|"error")
+            log_error "$message"
+            ;;
+        "WARNING"|"warning"|"WARN"|"warn")
+            log_warning "$message"
+            ;;
+        "DEBUG"|"debug")
+            log_debug "$message"
+            ;;
+        "SUCCESS"|"success")
+            log_success "$message"
+            ;;
+        "CONFIG_DEBUG"|"config_debug")
+            log_debug "CONFIG: $message"
+            ;;
+        "DEBUG_EXEC"|"debug_exec")
+            log_debug "EXEC: $message"
+            ;;
+        *)
+            # Unknown level - default to info but show warning
+            log_warning "Unknown log level '$level' in deprecated log_message() call"
+            log_info "$message"
+            ;;
+    esac
+}
