@@ -268,31 +268,6 @@ main() {
         log_debug "    RUTOS_TEST_MODE: $RUTOS_TEST_MODE (original: $ORIGINAL_RUTOS_TEST_MODE)"
     fi
 
-    # AUTOMATIC CLEANUP: Ensure clean system before installation
-    log_info "Performing automatic system cleanup before installation..."
-
-    # Download and execute enhanced cleanup script
-    cleanup_url="$BASE_URL/scripts/enhanced-cleanup-rutos.sh"
-    cleanup_script="/tmp/enhanced-cleanup-rutos-$SESSION_ID.sh"
-
-    if download_file "$cleanup_url" "$cleanup_script" "enhanced-cleanup-rutos.sh"; then
-        chmod +x "$cleanup_script" 2>/dev/null || true
-
-        log_debug "Executing automatic cleanup with --auto flag..."
-
-        # Execute cleanup in auto mode (immediate execution without warnings)
-        if sh "$cleanup_script" --auto; then
-            log_info "✅ Automatic cleanup completed - system is clean"
-        else
-            log_debug "Note: Cleanup script reported issues, but continuing with installation..."
-        fi
-
-        # Clean up the cleanup script itself
-        rm -f "$cleanup_script" 2>/dev/null || true
-    else
-        log_debug "Note: Could not download cleanup script, proceeding with installation..."
-    fi
-
     # Step 1: Create temporary directory
     if ! create_bootstrap_temp_dir; then
         log_error "Failed to create bootstrap temporary directory"
