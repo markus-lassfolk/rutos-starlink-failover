@@ -396,16 +396,16 @@ export MAINTENANCE_MAX_NOTIFICATIONS_PER_RUN="10"
 # -2=lowest, -1=low, 0=normal, 1=high, 2=emergency (emergency requires acknowledgment)
 
 # Priority for successful fixes (informational)
-export MAINTENANCE_PRIORITY_FIXED="0"    # Normal priority
+export MAINTENANCE_PRIORITY_FIXED="0" # Normal priority
 
 # Priority for failed fixes (needs attention)
-export MAINTENANCE_PRIORITY_FAILED="1"   # High priority
+export MAINTENANCE_PRIORITY_FAILED="1" # High priority
 
 # Priority for critical issues (urgent attention needed)
 export MAINTENANCE_PRIORITY_CRITICAL="2" # Emergency priority
 
 # Priority for found issues (awareness only)
-export MAINTENANCE_PRIORITY_FOUND="0"    # Normal priority
+export MAINTENANCE_PRIORITY_FOUND="0" # Normal priority
 
 # =============================================================================
 # SYSTEM MAINTENANCE BEHAVIOR CONTROL
@@ -1117,7 +1117,7 @@ export RUTOS_TEST_MODE="0"
 
 # Overall log level
 # Controls the minimum severity level for log messages
-# Levels: ERROR (only errors), WARN (warnings+errors), INFO (general info+above), 
+# Levels: ERROR (only errors), WARN (warnings+errors), INFO (general info+above),
 #         DEBUG (detailed debug+above), TRACE (everything)
 # Impact: Higher levels = much more verbose logging
 # Recommended: INFO for normal operation, DEBUG for troubleshooting
