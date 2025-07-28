@@ -52,7 +52,7 @@ config_debug() {
 # Extract the intelligent_config_merge function from install-rutos.sh
 extract_merge_function() {
     install_script="scripts/install-rutos.sh"
-    
+
     if [ ! -f "$install_script" ]; then
         log_error "Cannot find install-rutos.sh at: $install_script"
         return 1
@@ -62,7 +62,7 @@ extract_merge_function() {
 
     # Extract the function using awk
     temp_func="/tmp/merge_function_$$.sh"
-    
+
     awk '
     /^intelligent_config_merge\(\) \{/ { 
         print_func = 1
@@ -83,7 +83,7 @@ extract_merge_function() {
             exit 0
         }
     }
-    ' "$install_script" > "$temp_func"
+    ' "$install_script" >"$temp_func"
 
     if [ ! -s "$temp_func" ]; then
         log_error "Failed to extract intelligent_config_merge function"
@@ -92,13 +92,13 @@ extract_merge_function() {
     fi
 
     log_debug "Function extracted to: $temp_func"
-    
+
     # Source the extracted function
     . "$temp_func"
-    
+
     # Clean up
     rm -f "$temp_func"
-    
+
     log_debug "intelligent_config_merge function loaded successfully"
     return 0
 }
@@ -127,9 +127,9 @@ test_config_merge() {
     fi
 
     # Show file info
-    template_size=$(wc -c < "$template_file" 2>/dev/null || echo "unknown")
-    current_size=$(wc -c < "$current_config" 2>/dev/null || echo "unknown")
-    
+    template_size=$(wc -c <"$template_file" 2>/dev/null || echo "unknown")
+    current_size=$(wc -c <"$current_config" 2>/dev/null || echo "unknown")
+
     log_info "Template file size: $template_size bytes"
     log_info "Current config size: $current_size bytes"
 
@@ -150,28 +150,28 @@ test_config_merge() {
         echo "================================="
         log_info "✓ Configuration merge completed successfully!"
         echo
-        
+
         # Show results
         log_info "=== MERGE RESULTS ==="
         if [ -f "$output_config" ]; then
-            output_size=$(wc -c < "$output_config" 2>/dev/null || echo "unknown")
+            output_size=$(wc -c <"$output_config" 2>/dev/null || echo "unknown")
             log_info "Output file size: $output_size bytes"
             log_info "Output file location: $output_config"
-            
+
             # Show variable counts
             template_vars=$(grep -c "^export " "$template_file" 2>/dev/null || echo "0")
             current_vars=$(grep -c "^export " "$current_config" 2>/dev/null || echo "0")
             output_vars=$(grep -c "^export " "$output_config" 2>/dev/null || echo "0")
-            
+
             log_info "Variable counts:"
             log_info "  Template: $template_vars variables"
             log_info "  Current:  $current_vars variables"
             log_info "  Output:   $output_vars variables"
-            
+
             # Show some key preserved values
             echo
             log_info "=== KEY SETTINGS VERIFICATION ==="
-            
+
             # Check notification settings
             for var in "PUSHOVER_TOKEN" "PUSHOVER_USER" "NOTIFY_ON_CRITICAL"; do
                 if current_val=$(grep "^export $var=" "$current_config" 2>/dev/null); then
@@ -185,12 +185,12 @@ test_config_merge() {
                     fi
                 fi
             done
-            
+
         else
             log_error "Output file was not created!"
             return 1
         fi
-        
+
         return 0
     else
         echo "================================="
@@ -212,19 +212,19 @@ main() {
     # Parse command line arguments
     while [ $# -gt 0 ]; do
         case "$1" in
-            -t|--template)
+            -t | --template)
                 template_file="$2"
                 shift 2
                 ;;
-            -c|--current)
+            -c | --current)
                 current_config="$2"
                 shift 2
                 ;;
-            -o|--output)
+            -o | --output)
                 output_config="$2"
                 shift 2
                 ;;
-            -h|--help)
+            -h | --help)
                 echo "Usage: $0 [OPTIONS]"
                 echo "Options:"
                 echo "  -t, --template FILE    Template config file (default: config/config.template.sh)"
@@ -278,7 +278,7 @@ main() {
         echo
         log_info "To see what would be preserved in a real installation:"
         log_info "  grep '^export' \"$output_config\" | head -20"
-        
+
         exit 0
     else
         echo
