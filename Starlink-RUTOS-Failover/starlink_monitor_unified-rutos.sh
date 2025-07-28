@@ -98,23 +98,23 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "  STARLINK_PORT: ${STARLINK_PORT:-UNSET}"
     log_debug "  MWAN_IFACE: ${MWAN_IFACE:-UNSET}"
     log_debug "  MWAN_MEMBER: ${MWAN_MEMBER:-UNSET}"
-    
+
     log_debug "Feature flags:"
     log_debug "  ENABLE_GPS_TRACKING: ${ENABLE_GPS_TRACKING:-UNSET}"
     log_debug "  ENABLE_CELLULAR_TRACKING: ${ENABLE_CELLULAR_TRACKING:-UNSET}"
     log_debug "  ENABLE_ENHANCED_FAILOVER: ${ENABLE_ENHANCED_FAILOVER:-UNSET}"
     log_debug "  ENABLE_PUSHOVER: ${ENABLE_PUSHOVER:-UNSET}"
-    
+
     log_debug "Monitoring thresholds:"
     log_debug "  LATENCY_THRESHOLD: ${LATENCY_THRESHOLD:-UNSET}"
     log_debug "  PACKET_LOSS_THRESHOLD: ${PACKET_LOSS_THRESHOLD:-UNSET}"
     log_debug "  OBSTRUCTION_THRESHOLD: ${OBSTRUCTION_THRESHOLD:-UNSET}"
-    
+
     log_debug "Directories and paths:"
     log_debug "  LOG_DIR: ${LOG_DIR:-UNSET}"
     log_debug "  STATE_DIR: ${STATE_DIR:-UNSET}"
     log_debug "  LOG_TAG: ${LOG_TAG:-UNSET}"
-    
+
     # Check for functionality-affecting issues
     if [ "${STARLINK_IP:-}" = "" ]; then
         log_debug "⚠️  WARNING: STARLINK_IP not set - Starlink API calls will fail"
@@ -125,7 +125,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
     if [ "${MWAN_MEMBER:-}" = "" ]; then
         log_debug "⚠️  WARNING: MWAN_MEMBER not set - Failover functionality disabled"
     fi
-    
+
     log_debug "==============================================================="
 fi
 
@@ -148,6 +148,12 @@ LOG_DIR="${LOG_DIR:-/etc/starlink-logs}"
 # Starlink connection settings with defaults
 STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
 STARLINK_PORT="${STARLINK_PORT:-9200}"
+
+# Monitoring thresholds with defaults
+LATENCY_THRESHOLD="${LATENCY_THRESHOLD:-100}"
+PACKET_LOSS_THRESHOLD="${PACKET_LOSS_THRESHOLD:-5}"
+OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD:-0.001}"
+JITTER_THRESHOLD="${JITTER_THRESHOLD:-20}"
 
 # Enhanced feature flags (configuration-controlled)
 ENABLE_GPS_TRACKING="${ENABLE_GPS_TRACKING:-false}"
@@ -364,7 +370,7 @@ get_starlink_status() {
             log_debug "GRPC COMMAND: $grpc_cmd"
             log_debug "GRPC EXECUTION: Running in debug mode with full output"
         fi
-        
+
         if ! status_data=$(eval "$grpc_cmd"); then
             grpc_exit_code=$?
             if [ "${DEBUG:-0}" = "1" ]; then
@@ -373,7 +379,7 @@ get_starlink_status() {
             log_error "Failed to fetch Starlink status data"
             return 1
         fi
-        
+
         if [ "${DEBUG:-0}" = "1" ]; then
             log_debug "GRPC EXIT CODE: 0"
             # Show first 500 chars of raw output like check_starlink_api-rutos.sh
@@ -405,12 +411,12 @@ analyze_starlink_metrics() {
     # Extract core metrics
     uptime_s=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceState.uptimeS // 0' 2>/dev/null)
     latency=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingLatencyMs // 999' 2>/dev/null)
-    
+
     # Check if popPingDropRate field exists, use 0 (no loss) as fallback instead of 1 (100% loss)
     packet_loss=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingDropRate // 0' 2>/dev/null)
     packet_loss_field_exists=$(echo "$status_data" | "$JQ_CMD" -r 'has("dishGetStatus") and .dishGetStatus | has("popPingDropRate")' 2>/dev/null)
     log_debug "Packet loss field exists: $packet_loss_field_exists, raw value: $packet_loss"
-    
+
     # If packet loss field doesn't exist, try to get it from history API
     if [ "$packet_loss_field_exists" = "false" ]; then
         log_debug "popPingDropRate not found in status, trying history API"
@@ -425,7 +431,7 @@ analyze_starlink_metrics() {
                 log_debug "HISTORY GRPC COMMAND: $history_cmd"
                 log_debug "HISTORY GRPC EXECUTION: Running with 5s timeout and 10KB data limit"
             fi
-            
+
             if history_data=$(eval "$history_cmd"); then
                 if [ "${DEBUG:-0}" = "1" ]; then
                     log_debug "HISTORY GRPC EXIT CODE: 0"
@@ -436,11 +442,11 @@ analyze_starlink_metrics() {
                     log_debug "HISTORY GRPC RAW OUTPUT: (limited response size: ${response_size} characters, max 10KB)"
                     log_debug "HISTORY GRPC SUCCESS: Processing limited JSON response for packet loss only"
                 fi
-                
+
                 # Extract only packet loss data efficiently - avoid processing full response
                 packet_loss=$(echo "$history_data" | "$JQ_CMD" -r '.dishGetHistory.popPingDropRate[-1] // 0' 2>/dev/null)
                 log_debug "Retrieved packet loss from history: $packet_loss"
-                
+
                 # Clear limited history data from memory immediately
                 history_data=""
             else
@@ -453,7 +459,7 @@ analyze_starlink_metrics() {
             fi
         fi
     fi
-    
+
     obstruction=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.fractionObstructed // 0' 2>/dev/null)
 
     # Extract enhanced metrics for intelligent monitoring

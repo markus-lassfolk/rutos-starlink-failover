@@ -1022,7 +1022,38 @@ install_binaries() {
 
     # Install grpcurl
     debug_log "GRPCURL INSTALL: Checking for existing grpcurl at $INSTALL_DIR/grpcurl"
-    if [ ! -f "$INSTALL_DIR/grpcurl" ]; then
+
+    # Check if we already have grpcurl and if it's the latest version
+    skip_grpcurl_download=false
+    if [ -f "$INSTALL_DIR/grpcurl" ] && [ -x "$INSTALL_DIR/grpcurl" ]; then
+        # Get current installed version
+        current_grpcurl_version=$("$INSTALL_DIR/grpcurl" --version 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
+        debug_log "GRPCURL INSTALL: Found existing version: $current_grpcurl_version"
+
+        # Try to detect latest available version
+        print_status "$BLUE" "Checking for grpcurl updates (current: $current_grpcurl_version)..."
+        if latest_grpcurl_url=$(detect_latest_grpcurl_version 2>/dev/null); then
+            # Extract version from URL (e.g., v1.9.3 from the download URL)
+            latest_version=$(echo "$latest_grpcurl_url" | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1 || echo "unknown")
+            debug_log "GRPCURL INSTALL: Latest available version: $latest_version"
+
+            if [ "$current_grpcurl_version" = "$latest_version" ] || [ "v$current_grpcurl_version" = "$latest_version" ]; then
+                print_status "$GREEN" "✓ grpcurl is up to date ($current_grpcurl_version)"
+                skip_grpcurl_download=true
+            else
+                print_status "$YELLOW" "🔄 grpcurl update available: $current_grpcurl_version → $latest_version"
+            fi
+        else
+            # If we can't detect latest version, check if current version is acceptable
+            debug_log "GRPCURL INSTALL: Cannot detect latest version, checking if current is acceptable"
+            if [ "$current_grpcurl_version" != "unknown" ]; then
+                print_status "$GREEN" "✓ grpcurl already installed ($current_grpcurl_version) - version check skipped"
+                skip_grpcurl_download=true
+            fi
+        fi
+    fi
+
+    if [ "$skip_grpcurl_download" = false ]; then
         # Try to detect latest version dynamically first
         print_status "$YELLOW" "Detecting latest grpcurl version..."
         dynamic_grpcurl_url=""
@@ -1110,14 +1141,42 @@ install_binaries() {
                 fi
             fi
         fi
-    else
-        debug_log "GRPCURL INSTALL: Already exists, skipping download"
-        print_status "$GREEN" "✓ grpcurl already installed"
     fi
 
     # Install jq
     debug_log "JQ INSTALL: Checking for existing jq at $INSTALL_DIR/jq"
-    if [ ! -f "$INSTALL_DIR/jq" ]; then
+
+    # Check if we already have jq and if it's the latest version
+    skip_jq_download=false
+    if [ -f "$INSTALL_DIR/jq" ] && [ -x "$INSTALL_DIR/jq" ]; then
+        # Get current installed version
+        current_jq_version=$("$INSTALL_DIR/jq" --version 2>/dev/null | sed 's/jq-//' || echo "unknown")
+        debug_log "JQ INSTALL: Found existing version: $current_jq_version"
+
+        # Try to detect latest available version
+        print_status "$BLUE" "Checking for jq updates (current: $current_jq_version)..."
+        if latest_jq_url=$(detect_latest_jq_version 2>/dev/null); then
+            # Extract version from URL (e.g., 1.7.1 from the download URL)
+            latest_version=$(echo "$latest_jq_url" | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1 || echo "unknown")
+            debug_log "JQ INSTALL: Latest available version: $latest_version"
+
+            if [ "$current_jq_version" = "$latest_version" ]; then
+                print_status "$GREEN" "✓ jq is up to date ($current_jq_version)"
+                skip_jq_download=true
+            else
+                print_status "$YELLOW" "🔄 jq update available: $current_jq_version → $latest_version"
+            fi
+        else
+            # If we can't detect latest version, check if current version is acceptable
+            debug_log "JQ INSTALL: Cannot detect latest version, checking if current is acceptable"
+            if [ "$current_jq_version" != "unknown" ]; then
+                print_status "$GREEN" "✓ jq already installed ($current_jq_version) - version check skipped"
+                skip_jq_download=true
+            fi
+        fi
+    fi
+
+    if [ "$skip_jq_download" = false ]; then
         # Try to detect latest version dynamically first
         print_status "$YELLOW" "Detecting latest jq version..."
         dynamic_jq_url=""
@@ -1203,9 +1262,9 @@ install_binaries() {
                 fi
             fi
         fi
-    else
-        print_status "$GREEN" "✓ jq already installed"
     fi
+
+    print_status "$GREEN" "✓ Binary installation completed"
 }
 
 # Create documentation for installed scripts

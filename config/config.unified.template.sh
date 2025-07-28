@@ -58,9 +58,10 @@ export METRIC_BAD="20" # Failover priority when Starlink is down
 
 # --- Quality Thresholds ---
 # Adjust these based on your quality requirements
-export LATENCY_THRESHOLD="100"   # Milliseconds - above this triggers failover
-export PACKET_LOSS_THRESHOLD="5" # Percentage - above this triggers failover
-export JITTER_THRESHOLD="20"     # Milliseconds - network stability
+export LATENCY_THRESHOLD="100"       # Milliseconds - above this triggers failover
+export PACKET_LOSS_THRESHOLD="5"     # Percentage - above this triggers failover
+export OBSTRUCTION_THRESHOLD="0.001" # Percentage - above this triggers failover (0.1%)
+export JITTER_THRESHOLD="20"         # Milliseconds - network stability
 
 # --- Basic Timing ---
 export CHECK_INTERVAL="30"           # How often to test Starlink (seconds)
