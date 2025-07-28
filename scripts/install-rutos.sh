@@ -1026,8 +1026,8 @@ install_binaries() {
     # Check if we already have grpcurl and if it's the latest version
     skip_grpcurl_download=false
     if [ -f "$INSTALL_DIR/grpcurl" ] && [ -x "$INSTALL_DIR/grpcurl" ]; then
-        # Get current installed version
-        current_grpcurl_version=$("$INSTALL_DIR/grpcurl" --version 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
+        # Get current installed version (grpcurl uses -version, not --version)
+        current_grpcurl_version=$("$INSTALL_DIR/grpcurl" -version 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
         debug_log "GRPCURL INSTALL: Found existing version: $current_grpcurl_version"
 
         # Try to detect latest available version
@@ -1149,8 +1149,8 @@ install_binaries() {
     # Check if we already have jq and if it's the latest version
     skip_jq_download=false
     if [ -f "$INSTALL_DIR/jq" ] && [ -x "$INSTALL_DIR/jq" ]; then
-        # Get current installed version
-        current_jq_version=$("$INSTALL_DIR/jq" --version 2>/dev/null | sed 's/jq-//' || echo "unknown")
+        # Get current installed version (jq supports both --version and -V, using -V for brevity)
+        current_jq_version=$("$INSTALL_DIR/jq" -V 2>/dev/null | sed 's/jq-//' || echo "unknown")
         debug_log "JQ INSTALL: Found existing version: $current_jq_version"
 
         # Try to detect latest available version
