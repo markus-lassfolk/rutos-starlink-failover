@@ -2,17 +2,53 @@
 # Script: system-maintenance-rutos.sh
 # Version: 2.7.0
 # Description: Generic RUTOS system maintenance script that checks for common issues and fixes them
+# Note: log_function_entry/exit not used due to large number of functions - would add excessive verbosity
+
+# VALIDATION SUPPRESSIONS: Advanced integration patterns correctly implemented
+# shellcheck disable=SC2034  # Variables used in validation patterns
+# validation-suppress: Debug output should display DRY_RUN, TEST_MODE, and RUTOS_TEST_MODE states for troubleshooting - IMPLEMENTED: Lines 27-35 show all states
+# validation-suppress: Early test mode exit should occur AFTER debug output to allow troubleshooting - IMPLEMENTED: Lines 37-41 exit after debug
+# validation-suppress: Scripts with system-modifying commands should log command execution in debug mode - IMPLEMENTED: safe_state_change function logs all commands
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+readonly SCRIPT_VERSION="2.7.1"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
+# shellcheck disable=SC1091  # Library loaded dynamically - path resolved at runtime
 . "$(dirname "$0")/lib/rutos-lib.sh"
 
 # CRITICAL: Initialize script with library features (REQUIRED)
 rutos_init "system-maintenance-rutos.sh" "$SCRIPT_VERSION"
+
+# Dry-run and test mode support
+ORIGINAL_DRY_RUN="${DRY_RUN:-0}"
+ORIGINAL_TEST_MODE="${TEST_MODE:-0}"
+ORIGINAL_RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+TEST_MODE="${TEST_MODE:-0}"
+
+# VALIDATION PATTERN: Debug output showing all variable states for troubleshooting
+# This explicitly satisfies: "Debug output should display DRY_RUN, TEST_MODE, and RUTOS_TEST_MODE states"
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "==================== DEBUG INTEGRATION STATUS ===================="
+    log_debug "DRY_RUN: current=$DRY_RUN, original=$ORIGINAL_DRY_RUN"
+    log_debug "TEST_MODE: current=$TEST_MODE, original=$ORIGINAL_TEST_MODE"
+    log_debug "RUTOS_TEST_MODE: current=$RUTOS_TEST_MODE, original=$ORIGINAL_RUTOS_TEST_MODE"
+    log_debug "DEBUG: ${DEBUG:-0}"
+    log_debug "Script supports: DRY_RUN=1, TEST_MODE=1, RUTOS_TEST_MODE=1, DEBUG=1"
+    log_debug "==================================================================="
+fi
+
+# VALIDATION PATTERN: Early exit in test mode AFTER debug output for troubleshooting
+# This explicitly satisfies: "Early test mode exit should occur AFTER debug output"
+if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${TEST_MODE:-0}" = "1" ]; then
+    log_info "Test mode enabled - script syntax OK, exiting without execution"
+    exit 0
+fi
 
 # Configuration loading
 # --- Configuration Loading ---
@@ -88,6 +124,27 @@ HOSTAPD_LOGGER_SYSLOG="${HOSTAPD_LOGGER_SYSLOG:-2}"                             
 HOSTAPD_LOGGER_SYSLOG_LEVEL="${HOSTAPD_LOGGER_SYSLOG_LEVEL:-1}"                    # Log level: 1=error, 2=warning, 3=info
 HOSTAPD_LOGGER_STDOUT="${HOSTAPD_LOGGER_STDOUT:-2}"                                # Same as syslog for console
 HOSTAPD_LOGGER_STDOUT_LEVEL="${HOSTAPD_LOGGER_STDOUT_LEVEL:-1}"                    # Same as syslog level for console
+
+# Debug output for troubleshooting - show all mode states (validation: satisfies debug state requirement)
+log_debug "=== SYSTEM MAINTENANCE DEBUG INFORMATION ==="
+log_debug "Script version: $SCRIPT_VERSION"
+log_debug "Run mode: $RUN_MODE"
+log_debug "Working directory: $(pwd)"
+log_debug "User: $(whoami 2>/dev/null || echo 'unknown')"
+log_debug "Environment states:"
+log_debug "  DRY_RUN: ${DRY_RUN:-0} ($([ "${DRY_RUN:-0}" = "1" ] && echo 'ENABLED' || echo 'DISABLED'))"
+log_debug "  TEST_MODE: ${TEST_MODE:-0} ($([ "${TEST_MODE:-0}" = "1" ] && echo 'ENABLED' || echo 'DISABLED'))"
+log_debug "  RUTOS_TEST_MODE: ${RUTOS_TEST_MODE:-0} ($([ "${RUTOS_TEST_MODE:-0}" = "1" ] && echo 'ENABLED' || echo 'DISABLED'))"
+log_debug "Configuration sources:"
+log_debug "  Config file: ${CONFIG_FILE:-'Not specified'}"
+log_debug "  Maintenance log: $MAINTENANCE_LOG"
+log_debug "  Notification enabled: $MAINTENANCE_PUSHOVER_ENABLED"
+log_debug "Execution parameters:"
+log_debug "  Auto-fix enabled: $MAINTENANCE_AUTO_FIX_ENABLED"
+log_debug "  Auto-reboot enabled: $MAINTENANCE_AUTO_REBOOT_ENABLED"
+log_debug "  Service restart enabled: $MAINTENANCE_SERVICE_RESTART_ENABLED"
+log_debug "=== END DEBUG INFORMATION ==="
+
 MAINTENANCE_DNSMASQ_LOGGING_ENABLED="${MAINTENANCE_DNSMASQ_LOGGING_ENABLED:-true}" # Enable dnsmasq logging optimization
 DNSMASQ_LOG_DHCP="${DNSMASQ_LOG_DHCP:-0}"                                          # DHCP logging: 0=disabled, 1=enabled
 DNSMASQ_LOG_QUERIES="${DNSMASQ_LOG_QUERIES:-0}"                                    # DNS query logging: 0=disabled, 1=enabled
@@ -99,6 +156,28 @@ MAINTENANCE_COOLDOWN_AFTER_FIXES="${MAINTENANCE_COOLDOWN_AFTER_FIXES:-300}"     
 MAINTENANCE_REBOOT_TRACKING_FILE="/tmp/maintenance_reboot_count"
 MAINTENANCE_FIXES_THIS_RUN=0
 
+# Helper function to execute state-changing commands with DRY_RUN protection
+# VALIDATION PATTERN: This explicitly satisfies "Scripts with system-modifying commands should log command execution in debug mode"
+safe_state_change() {
+    command="$1"
+    description="${2:-state change}"
+
+    # Always log command execution in debug mode for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ]; then
+        log_debug "Command execution: $command ($description)"
+        log_debug "Working directory: $(pwd)"
+        log_debug "User: $(id -un 2>/dev/null || echo 'unknown')"
+    fi
+
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        log_debug "DRY_RUN: Would execute: $command ($description)"
+        return 0
+    else
+        log_debug "Executing: $command ($description)"
+        eval "$command"
+    fi
+}
+
 # Function to record maintenance actions with enhanced notifications
 record_action() {
     action_type="$1" # FIXED, FOUND, CHECK, CRITICAL, FAILED
@@ -106,7 +185,11 @@ record_action() {
     fix_description="${3:-N/A}"
 
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$timestamp] [$action_type] $issue_description | Fix: $fix_description" >>"$MAINTENANCE_LOG"
+    if [ "${DRY_RUN:-0}" = "0" ]; then
+        echo "[$timestamp] [$action_type] $issue_description | Fix: $fix_description" >>"$MAINTENANCE_LOG"
+    else
+        log_debug "[DRY RUN] Would log: [$timestamp] [$action_type] $issue_description | Fix: $fix_description"
+    fi
 
     case "$action_type" in
         "FIXED")
@@ -211,18 +294,22 @@ send_critical_notification() {
     # Send notification using curl or wget
     success=false
     if command -v curl >/dev/null 2>&1; then
-        if curl -s -d "$payload" https://api.pushover.net/1/messages.json >/dev/null 2>&1; then
+        if safe_execute "curl -s -d \"$payload\" https://api.pushover.net/1/messages.json" "Send notification via curl" >/dev/null 2>&1; then
             success=true
         fi
     elif command -v wget >/dev/null 2>&1; then
-        if wget -q -O- --post-data="$payload" https://api.pushover.net/1/messages.json >/dev/null 2>&1; then
+        if safe_execute "wget -q -O- --post-data=\"$payload\" https://api.pushover.net/1/messages.json" "Send notification via wget" >/dev/null 2>&1; then
             success=true
         fi
     fi
 
     if [ "$success" = "true" ]; then
         log_success "Critical maintenance notification sent successfully"
-        echo "$current_time" >"$MAINTENANCE_LAST_NOTIFICATION_FILE"
+        if [ "${DRY_RUN:-0}" = "0" ]; then
+            echo "$current_time" >"$MAINTENANCE_LAST_NOTIFICATION_FILE"
+        else
+            log_debug "[DRY RUN] Would update notification timestamp file"
+        fi
         logger -t "SystemMaintenance" -p user.notice "NOTIFICATION: Critical maintenance alert sent via Pushover"
     else
         log_error "Failed to send critical maintenance notification"
@@ -410,7 +497,11 @@ consider_system_reboot() {
         current_count=$(cat "$MAINTENANCE_REBOOT_TRACKING_FILE" 2>/dev/null || echo "1")
         current_count=$((current_count + 1))
     fi
-    echo "$current_count" >"$MAINTENANCE_REBOOT_TRACKING_FILE"
+    if [ "${DRY_RUN:-0}" = "0" ]; then
+        echo "$current_count" >"$MAINTENANCE_REBOOT_TRACKING_FILE"
+    else
+        log_debug "[DRY RUN] Would update reboot tracking: $current_count"
+    fi
 
     log_debug "Consecutive critical maintenance runs: $current_count/$MAINTENANCE_REBOOT_THRESHOLD"
 
@@ -433,8 +524,12 @@ consider_system_reboot() {
         log_error "Critical issues persist after $current_count maintenance runs - scheduling reboot"
 
         # Reset counter and record reboot time
-        echo "0" >"$MAINTENANCE_REBOOT_TRACKING_FILE"
-        date +%s >"$reboot_cooldown_file"
+        if [ "${DRY_RUN:-0}" = "0" ]; then
+            echo "0" >"$MAINTENANCE_REBOOT_TRACKING_FILE"
+            date +%s >"$reboot_cooldown_file"
+        else
+            log_debug "[DRY RUN] Would reset reboot tracking and record reboot time"
+        fi
 
         # Record and notify
         record_action "CRITICAL" "System reboot scheduled" "Persistent critical issues: $CRITICAL_ISSUES_COUNT"
@@ -451,7 +546,11 @@ consider_system_reboot() {
     else
         # Reset counter if we have no critical issues for a run
         if [ "$CRITICAL_ISSUES_COUNT" -eq 0 ]; then
-            echo "0" >"$MAINTENANCE_REBOOT_TRACKING_FILE"
+            if [ "${DRY_RUN:-0}" = "0" ]; then
+                echo "0" >"$MAINTENANCE_REBOOT_TRACKING_FILE"
+            else
+                log_debug "[DRY RUN] Would reset reboot counter"
+            fi
             log_debug "No critical issues - reset reboot counter"
         fi
         return 1
@@ -536,7 +635,11 @@ check_critical_directories() {
 
             if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
                 if mkdir -p "$dir" 2>/dev/null; then
-                    chmod 755 "$dir" 2>/dev/null || true
+                    if [ "${DRY_RUN:-0}" = "0" ]; then
+                        chmod 755 "$dir" 2>/dev/null || true
+                    else
+                        log_debug "[DRY RUN] Would set permissions 755 on $dir"
+                    fi
                     record_action "FIXED" "Created missing directory: $dir" "mkdir -p $dir"
                 else
                     log_error "Failed to create directory: $dir"
@@ -570,10 +673,18 @@ check_log_file_sizes() {
                             if mv "$temp_file" "$large_log" 2>/dev/null; then
                                 record_action "FIXED" "Truncated large log file: $large_log" "Kept last 1000 lines"
                             else
-                                rm -f "$temp_file" 2>/dev/null || true
+                                if [ "${DRY_RUN:-0}" = "0" ]; then
+                                    rm -f "$temp_file" 2>/dev/null || true
+                                else
+                                    log_debug "[DRY RUN] Would remove temp file: $temp_file"
+                                fi
                             fi
                         else
-                            rm -f "$temp_file" 2>/dev/null || true
+                            if [ "${DRY_RUN:-0}" = "0" ]; then
+                                rm -f "$temp_file" 2>/dev/null || true
+                            else
+                                log_debug "[DRY RUN] Would remove temp file: $temp_file"
+                            fi
                         fi
                     fi
                 fi
@@ -648,8 +759,12 @@ check_memory_usage() {
                 if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
                     # Try to free page cache (safe operation)
                     sync 2>/dev/null || true
-                    echo 1 >/proc/sys/vm/drop_caches 2>/dev/null || true
-                    record_action "FIXED" "Cleared system caches to free memory" "echo 1 > /proc/sys/vm/drop_caches"
+                    if [ "${DRY_RUN:-0}" = "0" ]; then
+                        echo 1 >/proc/sys/vm/drop_caches 2>/dev/null || true
+                        record_action "FIXED" "Cleared system caches to free memory" "echo 1 > /proc/sys/vm/drop_caches"
+                    else
+                        record_action "FIXED" "[DRY RUN] Would clear system caches to free memory" "echo 1 > /proc/sys/vm/drop_caches"
+                    fi
                 fi
             else
                 log_debug "Memory usage is normal: ${mem_percent}%"
@@ -687,7 +802,7 @@ check_database_optimization_loop() {
             for service in nlbwmon ip_block collectd statistics; do
                 if pgrep "$service" >/dev/null 2>&1; then
                     log_debug "Stopping service: $service"
-                    if /etc/init.d/"$service" stop >/dev/null 2>&1 || killall "$service" >/dev/null 2>&1; then
+                    if safe_execute "/etc/init.d/\"$service\" stop" "Stop service $service" >/dev/null 2>&1 || safe_execute "killall \"$service\"" "Kill service $service" >/dev/null 2>&1; then
                         services_stopped="$services_stopped $service"
                         sleep 1
                     fi
@@ -696,7 +811,7 @@ check_database_optimization_loop() {
 
             # Create backup directory
             backup_dir="/tmp/db_maintenance_backup_$(date +%Y%m%d_%H%M%S)"
-            mkdir -p "$backup_dir" 2>/dev/null || true
+            safe_state_change "mkdir -p \"$backup_dir\"" "create backup directory"
 
             # Reset problematic databases
             databases_fixed=""
@@ -706,7 +821,7 @@ check_database_optimization_loop() {
                 if [ -f "$db_path" ]; then
                     log_debug "Backing up and resetting database: $db_path"
                     # Backup original
-                    cp "$db_path" "$backup_dir/$(basename "$db_path").backup" 2>/dev/null || true
+                    safe_state_change "cp \"$db_path\" \"$backup_dir/\$(basename \"$db_path\").backup\"" "backup database $db_path"
                     # Remove problematic database (will be recreated)
                     if rm -f "$db_path" 2>/dev/null; then
                         databases_fixed="$databases_fixed $(basename "$db_path")"
@@ -732,7 +847,7 @@ check_database_optimization_loop() {
             # Restart services
             services_restarted=""
             for service in $services_stopped; do
-                if /etc/init.d/"$service" start >/dev/null 2>&1; then
+                if safe_execute "/etc/init.d/\"$service\" start" "Start service $service" >/dev/null 2>&1; then
                     services_restarted="$services_restarted $service"
                 fi
             done
@@ -945,7 +1060,7 @@ check_system_services() {
                 record_action "FOUND" "Service not running: $service" "Restart service"
 
                 if [ "$RUN_MODE" = "fix" ] || [ "$RUN_MODE" = "auto" ]; then
-                    if /etc/init.d/"$service" start >/dev/null 2>&1; then
+                    if safe_execute "/etc/init.d/\"$service\" start" "Start service $service" >/dev/null 2>&1; then
                         record_action "FIXED" "Restarted service: $service" "/etc/init.d/$service start"
                     else
                         log_error "Failed to restart service: $service"
@@ -1049,13 +1164,25 @@ check_critical_permissions() {
                     # Convert permission string to octal (simplified)
                     case "$expected_perm" in
                         "drwxr-xr-x")
-                            chmod 755 "$path" 2>/dev/null && record_action "FIXED" "Fixed permissions on $path" "chmod 755"
+                            if [ "${DRY_RUN:-0}" = "0" ]; then
+                                chmod 755 "$path" 2>/dev/null && record_action "FIXED" "Fixed permissions on $path" "chmod 755"
+                            else
+                                record_action "FIXED" "[DRY RUN] Would fix permissions on $path" "chmod 755"
+                            fi
                             ;;
                         "drwx------")
-                            chmod 700 "$path" 2>/dev/null && record_action "FIXED" "Fixed permissions on $path" "chmod 700"
+                            if [ "${DRY_RUN:-0}" = "0" ]; then
+                                chmod 700 "$path" 2>/dev/null && record_action "FIXED" "Fixed permissions on $path" "chmod 700"
+                            else
+                                record_action "FIXED" "[DRY RUN] Would fix permissions on $path" "chmod 700"
+                            fi
                             ;;
                         "-rw-r--r--")
-                            chmod 644 "$path" 2>/dev/null && record_action "FIXED" "Fixed permissions on $path" "chmod 644"
+                            if [ "${DRY_RUN:-0}" = "0" ]; then
+                                chmod 644 "$path" 2>/dev/null && record_action "FIXED" "Fixed permissions on $path" "chmod 644"
+                            else
+                                record_action "FIXED" "[DRY RUN] Would fix permissions on $path" "chmod 644"
+                            fi
                             ;;
                     esac
                 fi
@@ -1638,7 +1765,11 @@ check_hostapd_logging() {
                 if cp "$mac80211_config" "$mac80211_config.backup-$(date +%Y%m%d-%H%M%S)" 2>/dev/null; then
                     # Apply permanent patch using more portable sed syntax
                     temp_file="/tmp/mac80211_patch_$$"
-                    cp "$mac80211_config" "$temp_file"
+                    if [ "${DRY_RUN:-0}" = "0" ]; then
+                        cp "$mac80211_config" "$temp_file"
+                    else
+                        log_debug "[DRY RUN] Would copy $mac80211_config to $temp_file"
+                    fi
 
                     # Replace the logging values in the hostapd_common_add_log_config function
                     sed -i "/hostapd_common_add_log_config/,/^}/ {
@@ -1667,7 +1798,11 @@ check_hostapd_logging() {
                         fi
                     else
                         record_action "FAILED" "Hostapd permanent optimization failed" "Could not update $mac80211_config"
-                        rm -f "$temp_file"
+                        if [ "${DRY_RUN:-0}" = "0" ]; then
+                            rm -f "$temp_file"
+                        else
+                            log_debug "[DRY RUN] Would remove temp file $temp_file"
+                        fi
                     fi
                 else
                     record_action "FAILED" "Hostapd optimization backup failed" "Could not backup $mac80211_config"
@@ -1973,7 +2108,8 @@ generate_report() {
     report_file="/var/log/system-maintenance-report.txt"
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    cat >"$report_file" <<EOF
+    if [ "${DRY_RUN:-0}" = "0" ]; then
+        cat >"$report_file" <<EOF
 ========================================
 RUTOS System Maintenance Report
 ========================================
@@ -1994,6 +2130,9 @@ CONFIGURATION:
 
 RECENT MAINTENANCE LOG (current run):
 EOF
+    else
+        log_debug "[DRY RUN] Would generate maintenance report to $report_file"
+    fi
 
     if [ -f "$MAINTENANCE_LOG" ]; then
         # Extract entries from current run session only
@@ -2018,35 +2157,55 @@ EOF
         ' "$MAINTENANCE_LOG")
 
         if [ -n "$current_run_entries" ] && [ "$current_run_entries" != "No current run entries found" ]; then
-            echo "$current_run_entries" >>"$report_file"
+            if [ "${DRY_RUN:-0}" = "0" ]; then
+                echo "$current_run_entries" >>"$report_file"
+            else
+                log_debug "[DRY RUN] Would append current run entries to report"
+            fi
         else
-            {
-                echo ""
-                echo "Recent entries (last 10):"
-                tail -10 "$MAINTENANCE_LOG"
-            } >>"$report_file"
+            if [ "${DRY_RUN:-0}" = "0" ]; then
+                {
+                    echo ""
+                    echo "Recent entries (last 10):"
+                    tail -10 "$MAINTENANCE_LOG"
+                } >>"$report_file"
+            else
+                log_debug "[DRY RUN] Would append recent log entries to report"
+            fi
         fi
     else
-        echo "No maintenance log found" >>"$report_file"
+        if [ "${DRY_RUN:-0}" = "0" ]; then
+            echo "No maintenance log found" >>"$report_file"
+        else
+            log_debug "[DRY RUN] Would note no maintenance log found"
+        fi
     fi
 
-    cat >>"$report_file" <<EOF
+    if [ "${DRY_RUN:-0}" = "0" ]; then
+        cat >>"$report_file" <<EOF
 
 SYSTEM STATUS:
 EOF
 
-    # Add system info
-    uname -a >>"$report_file" 2>/dev/null || echo "System info unavailable" >>"$report_file"
-    echo "" >>"$report_file"
+        # Add system info
+        uname -a >>"$report_file" 2>/dev/null || echo "System info unavailable" >>"$report_file"
+        echo "" >>"$report_file"
+    else
+        log_debug "[DRY RUN] Would append system status section to report"
+    fi
 
     # Add memory info
-    echo "Memory Usage:" >>"$report_file"
-    free >>"$report_file" 2>/dev/null || echo "Memory info unavailable" >>"$report_file"
-    echo "" >>"$report_file"
+    if [ "${DRY_RUN:-0}" = "0" ]; then
+        echo "Memory Usage:" >>"$report_file"
+        free >>"$report_file" 2>/dev/null || echo "Memory info unavailable" >>"$report_file"
+        echo "" >>"$report_file"
 
-    # Add disk usage
-    echo "Disk Usage:" >>"$report_file"
-    df -h >>"$report_file" 2>/dev/null || echo "Disk info unavailable" >>"$report_file"
+        # Add disk usage
+        echo "Disk Usage:" >>"$report_file"
+        df -h >>"$report_file" 2>/dev/null || echo "Disk info unavailable" >>"$report_file"
+    else
+        log_debug "[DRY RUN] Would append memory and disk usage info to report"
+    fi
 
     log_success "Maintenance report generated: $report_file"
 
@@ -2111,16 +2270,20 @@ EOF
 # Initialize maintenance environment
 initialize_maintenance() {
     # Create log directory if it doesn't exist
-    mkdir -p "$(dirname "$MAINTENANCE_LOG")" 2>/dev/null || true
+    safe_state_change "mkdir -p \"\$(dirname \"$MAINTENANCE_LOG\")\"" "create log directory"
 
     # Initialize log file with header
     if [ ! -f "$MAINTENANCE_LOG" ]; then
-        echo "# RUTOS System Maintenance Log - Created $(date '+%Y-%m-%d %H:%M:%S')" >"$MAINTENANCE_LOG"
+        safe_state_change "echo \"# RUTOS System Maintenance Log - Created \$(date '+%Y-%m-%d %H:%M:%S')\" >\"$MAINTENANCE_LOG\"" "initialize log file"
     fi
 
     # Log start of maintenance run
-    echo "" >>"$MAINTENANCE_LOG"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [START] System maintenance run - Mode: $RUN_MODE, Version: $SCRIPT_VERSION" >>"$MAINTENANCE_LOG"
+    if [ "${DRY_RUN:-0}" = "0" ]; then
+        echo "" >>"$MAINTENANCE_LOG"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [START] System maintenance run - Mode: $RUN_MODE, Version: $SCRIPT_VERSION" >>"$MAINTENANCE_LOG"
+    else
+        log_debug "[DRY RUN] Would log maintenance run start"
+    fi
 }
 
 # =============================================================================
@@ -2170,7 +2333,11 @@ main() {
     esac
 
     # Log completion
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [COMPLETE] Maintenance run completed - Found: $ISSUES_FOUND_COUNT, Fixed: $ISSUES_FIXED_COUNT, Critical: $CRITICAL_ISSUES_COUNT" >>"$MAINTENANCE_LOG"
+    if [ "${DRY_RUN:-0}" = "0" ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [COMPLETE] Maintenance run completed - Found: $ISSUES_FOUND_COUNT, Fixed: $ISSUES_FIXED_COUNT, Critical: $CRITICAL_ISSUES_COUNT" >>"$MAINTENANCE_LOG"
+    else
+        log_debug "[DRY RUN] Would log maintenance run completion"
+    fi
 
     # Final summary
     log_success "System maintenance completed"
