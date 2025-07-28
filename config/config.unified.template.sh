@@ -102,6 +102,24 @@ export MAINTENANCE_NOTIFY_ON_FIXES="true"    # Notify when issues are fixed
 export MAINTENANCE_NOTIFY_ON_FAILURES="true" # Notify when fixes fail
 export MAINTENANCE_NOTIFY_ON_CRITICAL="true" # Always notify on critical issues
 
+# WiFi hostapd logging control
+export MAINTENANCE_HOSTAPD_LOGGING_ENABLED="true" # Enable hostapd logging optimization (true/false)
+export HOSTAPD_LOGGER_SYSLOG="2"                  # Module to log: 2=IEEE80211 (main logic), 127=all modules
+export HOSTAPD_LOGGER_SYSLOG_LEVEL="1"            # Log level: 1=error, 2=warning, 3=info, 4+=debug
+export HOSTAPD_LOGGER_STDOUT="2"                  # Same as syslog for console output
+export HOSTAPD_LOGGER_STDOUT_LEVEL="1"            # Same as syslog level for console output
+
+# DHCP dnsmasq logging control
+export MAINTENANCE_DNSMASQ_LOGGING_ENABLED="true" # Enable dnsmasq logging optimization (true/false)
+export DNSMASQ_LOG_DHCP="0"                       # DHCP logging: 0=disabled, 1=enabled (suppress routine lease renewals)
+export DNSMASQ_LOG_QUERIES="0"                    # DNS query logging: 0=disabled, 1=enabled (suppress DNS queries)
+
+# System-wide log level control
+export MAINTENANCE_SYSTEM_LOGLEVEL_ENABLED="true" # Enable system log level optimization (true/false)
+export SYSTEM_LOG_LEVEL="4"                       # System log level: 7=debug, 6=info, 5=notice, 4=warning, 3=error, 2=critical
+
+# Maintenance mode override (empty = use default from command line)
+
 # --- Auto-Update Configuration ---
 # Control how the system updates itself
 export UPDATE_PATCH_DELAY="1 day"  # Patch updates (2.1.0 -> 2.1.1)

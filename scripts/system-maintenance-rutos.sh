@@ -83,6 +83,16 @@ MAINTENANCE_AUTO_REBOOT_ENABLED="${MAINTENANCE_AUTO_REBOOT_ENABLED:-false}"     
 MAINTENANCE_REBOOT_THRESHOLD="${MAINTENANCE_REBOOT_THRESHOLD:-5}"                  # Reboot threshold
 MAINTENANCE_SERVICE_RESTART_ENABLED="${MAINTENANCE_SERVICE_RESTART_ENABLED:-true}" # Allow service restarts
 MAINTENANCE_DATABASE_FIX_ENABLED="${MAINTENANCE_DATABASE_FIX_ENABLED:-true}"       # Allow database fixes
+MAINTENANCE_HOSTAPD_LOGGING_ENABLED="${MAINTENANCE_HOSTAPD_LOGGING_ENABLED:-true}" # Enable hostapd logging optimization
+HOSTAPD_LOGGER_SYSLOG="${HOSTAPD_LOGGER_SYSLOG:-2}"                               # Module to log: 2=IEEE80211, 127=all
+HOSTAPD_LOGGER_SYSLOG_LEVEL="${HOSTAPD_LOGGER_SYSLOG_LEVEL:-1}"                   # Log level: 1=error, 2=warning, 3=info
+HOSTAPD_LOGGER_STDOUT="${HOSTAPD_LOGGER_STDOUT:-2}"                               # Same as syslog for console
+HOSTAPD_LOGGER_STDOUT_LEVEL="${HOSTAPD_LOGGER_STDOUT_LEVEL:-1}"                   # Same as syslog level for console
+MAINTENANCE_DNSMASQ_LOGGING_ENABLED="${MAINTENANCE_DNSMASQ_LOGGING_ENABLED:-true}" # Enable dnsmasq logging optimization
+DNSMASQ_LOG_DHCP="${DNSMASQ_LOG_DHCP:-0}"                                         # DHCP logging: 0=disabled, 1=enabled
+DNSMASQ_LOG_QUERIES="${DNSMASQ_LOG_QUERIES:-0}"                                   # DNS query logging: 0=disabled, 1=enabled
+MAINTENANCE_SYSTEM_LOGLEVEL_ENABLED="${MAINTENANCE_SYSTEM_LOGLEVEL_ENABLED:-true}" # Enable system log level optimization
+SYSTEM_LOG_LEVEL="${SYSTEM_LOG_LEVEL:-4}"                                         # System log level: 4=warning, 5=notice, 6=info, 7=debug
 MAINTENANCE_MODE_OVERRIDE="${MAINTENANCE_MODE_OVERRIDE:-}"                         # Mode override
 MAINTENANCE_MAX_FIXES_PER_RUN="${MAINTENANCE_MAX_FIXES_PER_RUN:-10}"               # Max fixes per run
 MAINTENANCE_COOLDOWN_AFTER_FIXES="${MAINTENANCE_COOLDOWN_AFTER_FIXES:-300}"        # Cooldown after fixes
@@ -1519,6 +1529,368 @@ check_enhanced_starlink_metrics() {
     fi
 }
 
+# Check and optimize hostapd logging configuration
+check_hostapd_logging() {
+    log_debug "Starting hostapd logging optimization check"
+
+    # Check if hostapd logging optimization is enabled
+    if [ "${MAINTENANCE_HOSTAPD_LOGGING_ENABLED:-true}" != "true" ]; then
+        log_debug "Hostapd logging optimization disabled in configuration"
+        return 0
+    fi
+
+    # Default values from configuration
+    target_syslog="${HOSTAPD_LOGGER_SYSLOG:-2}"
+    target_syslog_level="${HOSTAPD_LOGGER_SYSLOG_LEVEL:-1}"
+    target_stdout="${HOSTAPD_LOGGER_STDOUT:-2}"
+    target_stdout_level="${HOSTAPD_LOGGER_STDOUT_LEVEL:-1}"
+
+    # Find hostapd configuration files
+    hostapd_configs=$(find /var/run -name "hostapd-phy*.conf" 2>/dev/null)
+    
+    if [ -z "$hostapd_configs" ]; then
+        log_debug "No hostapd configuration files found in /var/run"
+        return 0
+    fi
+
+    changes_needed=0
+    configs_checked=0
+    
+    # Check each hostapd configuration file
+    for config_file in $hostapd_configs; do
+        if [ ! -f "$config_file" ]; then
+            continue
+        fi
+        
+        configs_checked=$((configs_checked + 1))
+        file_changed=0
+        
+        log_debug "Checking hostapd config: $config_file"
+        
+        # Check current values
+        current_syslog=$(grep '^logger_syslog=' "$config_file" 2>/dev/null | cut -d= -f2)
+        current_syslog_level=$(grep '^logger_syslog_level=' "$config_file" 2>/dev/null | cut -d= -f2)
+        current_stdout=$(grep '^logger_stdout=' "$config_file" 2>/dev/null | cut -d= -f2)
+        current_stdout_level=$(grep '^logger_stdout_level=' "$config_file" 2>/dev/null | cut -d= -f2)
+        
+        # Check if changes are needed
+        if [ "$current_syslog" != "$target_syslog" ] || \
+           [ "$current_syslog_level" != "$target_syslog_level" ] || \
+           [ "$current_stdout" != "$target_stdout" ] || \
+           [ "$current_stdout_level" != "$target_stdout_level" ]; then
+            
+            log_debug "Hostapd logging config needs optimization in $config_file"
+            log_debug "Current: syslog=$current_syslog/$current_syslog_level, stdout=$current_stdout/$current_stdout_level"
+            log_debug "Target: syslog=$target_syslog/$target_syslog_level, stdout=$target_stdout/$target_stdout_level"
+            
+            changes_needed=$((changes_needed + 1))
+            
+            if should_attempt_fix; then
+                log_debug "Optimizing hostapd logging in $config_file"
+                
+                # Apply optimizations (temporary - will be overwritten on wifi reload)
+                if sed -i "s/logger_syslog=.*/logger_syslog=$target_syslog/" "$config_file" 2>/dev/null; then
+                    file_changed=1
+                fi
+                
+                if sed -i "s/logger_syslog_level=.*/logger_syslog_level=$target_syslog_level/" "$config_file" 2>/dev/null; then
+                    file_changed=1
+                fi
+                
+                if sed -i "s/logger_stdout=.*/logger_stdout=$target_stdout/" "$config_file" 2>/dev/null; then
+                    file_changed=1
+                fi
+                
+                if sed -i "s/logger_stdout_level=.*/logger_stdout_level=$target_stdout_level/" "$config_file" 2>/dev/null; then
+                    file_changed=1
+                fi
+                
+                if [ "$file_changed" = "1" ]; then
+                    log_debug "Hostapd logging optimized in $config_file"
+                else
+                    log_warning "Failed to optimize hostapd logging in $config_file"
+                fi
+            fi
+        else
+            log_debug "Hostapd logging already optimized in $config_file"
+        fi
+    done
+    
+    # Apply permanent fix to system configuration if changes were needed
+    if [ "$changes_needed" -gt 0 ] && should_attempt_fix; then
+        log_debug "Applying permanent hostapd logging optimization"
+        
+        # Check if permanent fix is needed in system configuration
+        mac80211_config="/lib/netifd/wireless/mac80211.sh"
+        
+        if [ -f "$mac80211_config" ]; then
+            # Check if we've already patched this file
+            if ! grep -q "# RUTOS MAINTENANCE: hostapd logging optimization" "$mac80211_config" 2>/dev/null; then
+                log_debug "Applying permanent hostapd logging optimization to $mac80211_config"
+                
+                # Create backup
+                if cp "$mac80211_config" "$mac80211_config.backup-$(date +%Y%m%d-%H%M%S)" 2>/dev/null; then
+                    # Apply permanent patch using more portable sed syntax
+                    temp_file="/tmp/mac80211_patch_$$"
+                    cp "$mac80211_config" "$temp_file"
+                    
+                    # Replace the logging values in the hostapd_common_add_log_config function
+                    sed -i "/hostapd_common_add_log_config/,/^}/ {
+                        s/logger_syslog=127/logger_syslog=$target_syslog/g
+                        s/logger_syslog_level=2/logger_syslog_level=$target_syslog_level/g
+                        s/logger_stdout=127/logger_stdout=$target_stdout/g
+                        s/logger_stdout_level=2/logger_stdout_level=$target_stdout_level/g
+                    }" "$temp_file" 2>/dev/null
+                    
+                    if mv "$temp_file" "$mac80211_config" 2>/dev/null; then
+                        # Add marker comment
+                        if echo '# RUTOS MAINTENANCE: hostapd logging optimization applied' >> "$mac80211_config" 2>/dev/null; then
+                            record_action "FIXED" "Hostapd logging permanently optimized" "Applied to $configs_checked configs, reduced logging verbosity for better performance"
+                            
+                            # Trigger wifi reload to apply changes (only if we made changes)
+                            if [ "$changes_needed" -gt 0 ]; then
+                                log_debug "Reloading WiFi to apply hostapd logging changes"
+                                if wifi reload 2>/dev/null; then
+                                    log_debug "WiFi reloaded successfully to apply hostapd logging optimization"
+                                else
+                                    log_warning "WiFi reload failed - hostapd optimization may not be fully active"
+                                fi
+                            fi
+                        else
+                            log_warning "Failed to add optimization marker to $mac80211_config"
+                        fi
+                    else
+                        record_action "FAILED" "Hostapd permanent optimization failed" "Could not update $mac80211_config"
+                        rm -f "$temp_file"
+                    fi
+                else
+                    record_action "FAILED" "Hostapd optimization backup failed" "Could not backup $mac80211_config"
+                fi
+            else
+                log_debug "Permanent hostapd logging optimization already applied"
+                record_action "FOUND" "Hostapd logging temporarily sub-optimal" "Files will be regenerated on next wifi reload, permanent fix already in place"
+            fi
+        else
+            record_action "FOUND" "Hostapd logging sub-optimal" "Cannot apply permanent fix - $mac80211_config not found"
+        fi
+    elif [ "$changes_needed" -eq 0 ]; then
+        log_debug "Hostapd logging configuration is already optimal"
+    fi
+    
+    if [ "$configs_checked" -eq 0 ]; then
+        log_debug "No hostapd configuration files found to check"
+    else
+        log_debug "Checked $configs_checked hostapd configuration files, $changes_needed needed optimization"
+    fi
+}
+
+# Check and optimize dnsmasq logging configuration
+check_dnsmasq_logging() {
+    log_debug "Starting dnsmasq logging optimization check"
+
+    # Check if dnsmasq logging optimization is enabled
+    if [ "${MAINTENANCE_DNSMASQ_LOGGING_ENABLED:-true}" != "true" ]; then
+        log_debug "Dnsmasq logging optimization disabled in configuration"
+        return 0
+    fi
+
+    # Default values from configuration
+    target_log_dhcp="${DNSMASQ_LOG_DHCP:-0}"
+    target_log_queries="${DNSMASQ_LOG_QUERIES:-0}"
+
+    # UCI configuration file for dnsmasq
+    dhcp_config="/etc/config/dhcp"
+    
+    if [ ! -f "$dhcp_config" ]; then
+        log_debug "DHCP configuration file not found: $dhcp_config"
+        return 0
+    fi
+
+    changes_needed=0
+    
+    log_debug "Checking dnsmasq configuration: $dhcp_config"
+    
+    # Check current values using UCI
+    current_log_dhcp=$(uci get dhcp.@dnsmasq[0].logdhcp 2>/dev/null || echo "")
+    current_log_queries=$(uci get dhcp.@dnsmasq[0].logqueries 2>/dev/null || echo "")
+    
+    # If values are empty, they default to enabled (1) in dnsmasq
+    [ -z "$current_log_dhcp" ] && current_log_dhcp="1"
+    [ -z "$current_log_queries" ] && current_log_queries="1"
+    
+    log_debug "Current dnsmasq logging: logdhcp=$current_log_dhcp, logqueries=$current_log_queries"
+    log_debug "Target dnsmasq logging: logdhcp=$target_log_dhcp, logqueries=$target_log_queries"
+    
+    # Check if changes are needed
+    if [ "$current_log_dhcp" != "$target_log_dhcp" ] || [ "$current_log_queries" != "$target_log_queries" ]; then
+        log_debug "Dnsmasq logging configuration needs optimization"
+        changes_needed=1
+        
+        if should_attempt_fix; then
+            log_debug "Optimizing dnsmasq logging configuration"
+            
+            # Apply optimizations using UCI
+            changes_applied=0
+            
+            if [ "$current_log_dhcp" != "$target_log_dhcp" ]; then
+                if uci set dhcp.@dnsmasq[0].logdhcp="$target_log_dhcp" 2>/dev/null; then
+                    log_debug "Updated logdhcp from $current_log_dhcp to $target_log_dhcp"
+                    changes_applied=$((changes_applied + 1))
+                else
+                    log_warning "Failed to update logdhcp setting"
+                fi
+            fi
+            
+            if [ "$current_log_queries" != "$target_log_queries" ]; then
+                if uci set dhcp.@dnsmasq[0].logqueries="$target_log_queries" 2>/dev/null; then
+                    log_debug "Updated logqueries from $current_log_queries to $target_log_queries"
+                    changes_applied=$((changes_applied + 1))
+                else
+                    log_warning "Failed to update logqueries setting"
+                fi
+            fi
+            
+            # Commit UCI changes
+            if [ "$changes_applied" -gt 0 ]; then
+                if uci commit dhcp 2>/dev/null; then
+                    log_debug "UCI changes committed successfully"
+                    
+                    # Restart dnsmasq to apply changes
+                    log_debug "Restarting dnsmasq to apply logging changes"
+                    if /etc/init.d/dnsmasq restart 2>/dev/null; then
+                        record_action "FIXED" "Dnsmasq logging optimized" "Reduced log verbosity: DHCP=$target_log_dhcp, DNS queries=$target_log_queries"
+                        log_debug "Dnsmasq restarted successfully"
+                    else
+                        record_action "FAILED" "Dnsmasq restart failed" "Settings applied but service restart failed"
+                        log_warning "Dnsmasq restart failed - changes may not be fully active"
+                    fi
+                else
+                    record_action "FAILED" "Dnsmasq UCI commit failed" "Could not save configuration changes"
+                    log_warning "Failed to commit UCI changes"
+                fi
+            else
+                record_action "FAILED" "Dnsmasq optimization failed" "Could not apply any configuration changes"
+            fi
+        fi
+    else
+        log_debug "Dnsmasq logging configuration is already optimal"
+    fi
+    
+    # Report current status
+    if [ "$changes_needed" -eq 0 ]; then
+        log_debug "Dnsmasq logging is optimally configured"
+    else
+        log_debug "Dnsmasq logging optimization needed/attempted"
+    fi
+}
+
+# Check and optimize system-wide log level
+check_system_log_level() {
+    log_debug "Starting system log level optimization check"
+
+    # Check if system log level optimization is enabled
+    if [ "${MAINTENANCE_SYSTEM_LOGLEVEL_ENABLED:-true}" != "true" ]; then
+        log_debug "System log level optimization disabled in configuration"
+        return 0
+    fi
+
+    # Default value from configuration
+    target_log_level="${SYSTEM_LOG_LEVEL:-4}"
+
+    # Validate log level is in acceptable range
+    if [ "$target_log_level" -lt 2 ] || [ "$target_log_level" -gt 7 ]; then
+        log_warning "Invalid system log level: $target_log_level (must be 2-7), skipping optimization"
+        return 0
+    fi
+
+    # System configuration file
+    system_config="/etc/config/system"
+    
+    if [ ! -f "$system_config" ]; then
+        log_debug "System configuration file not found: $system_config"
+        return 0
+    fi
+
+    log_debug "Checking system log level configuration: $system_config"
+    
+    # Check current value using UCI
+    current_log_level=$(uci get system.@system[0].log_level 2>/dev/null || echo "")
+    
+    # If value is empty, OpenWRT defaults to level 6 (info)
+    [ -z "$current_log_level" ] && current_log_level="6"
+    
+    log_debug "Current system log level: $current_log_level"
+    log_debug "Target system log level: $target_log_level"
+    
+    # Map log levels to human-readable names for reporting
+    case "$current_log_level" in
+        7) current_level_name="debug" ;;
+        6) current_level_name="info" ;;
+        5) current_level_name="notice" ;;
+        4) current_level_name="warning" ;;
+        3) current_level_name="error" ;;
+        2) current_level_name="critical" ;;
+        *) current_level_name="unknown($current_log_level)" ;;
+    esac
+    
+    case "$target_log_level" in
+        7) target_level_name="debug" ;;
+        6) target_level_name="info" ;;
+        5) target_level_name="notice" ;;
+        4) target_level_name="warning" ;;
+        3) target_level_name="error" ;;
+        2) target_level_name="critical" ;;
+        *) target_level_name="unknown($target_log_level)" ;;
+    esac
+    
+    # Check if changes are needed
+    if [ "$current_log_level" != "$target_log_level" ]; then
+        log_debug "System log level needs optimization: $current_level_name -> $target_level_name"
+        
+        if should_attempt_fix; then
+            log_debug "Optimizing system log level from $current_level_name to $target_level_name"
+            
+            # Apply optimization using UCI
+            if uci set system.@system[0].log_level="$target_log_level" 2>/dev/null; then
+                log_debug "Updated log_level from $current_log_level to $target_log_level"
+                
+                # Commit UCI changes
+                if uci commit system 2>/dev/null; then
+                    log_debug "UCI changes committed successfully"
+                    
+                    # Restart logging system to apply changes
+                    log_debug "Restarting log system to apply changes"
+                    if /etc/init.d/log restart 2>/dev/null; then
+                        record_action "FIXED" "System log level optimized" "Reduced verbosity from $current_level_name to $target_level_name (suppresses routine notice messages)"
+                        log_debug "Log system restarted successfully"
+                    else
+                        record_action "FAILED" "Log system restart failed" "Settings applied but log service restart failed"
+                        log_warning "Log system restart failed - changes may not be fully active"
+                    fi
+                else
+                    record_action "FAILED" "System log level UCI commit failed" "Could not save configuration changes"
+                    log_warning "Failed to commit UCI changes"
+                fi
+            else
+                record_action "FAILED" "System log level optimization failed" "Could not update log_level setting"
+                log_warning "Failed to update log_level setting"
+            fi
+        fi
+    else
+        log_debug "System log level is already optimal: $current_level_name"
+    fi
+    
+    # Provide helpful information about what this level suppresses
+    case "$target_log_level" in
+        4) log_debug "Log level 4 (warning) suppresses: notice, info, and debug messages" ;;
+        5) log_debug "Log level 5 (notice) suppresses: info and debug messages" ;;
+        6) log_debug "Log level 6 (info) suppresses: debug messages only" ;;
+        7) log_debug "Log level 7 (debug) shows all log messages" ;;
+        3) log_debug "Log level 3 (error) suppresses: warning, notice, info, and debug messages" ;;
+        2) log_debug "Log level 2 (critical) suppresses: error, warning, notice, info, and debug messages" ;;
+    esac
+}
+
 # =============================================================================
 # MAIN EXECUTION FUNCTIONS
 # =============================================================================
@@ -1552,6 +1924,9 @@ run_all_checks() {
     check_starlink_script_health
     check_logger_sample_tracking
     check_enhanced_starlink_metrics
+    check_hostapd_logging
+    check_dnsmasq_logging
+    check_system_log_level
 
     # Add more checks here in the future
 

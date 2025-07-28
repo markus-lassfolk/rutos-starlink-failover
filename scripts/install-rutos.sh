@@ -1937,9 +1937,20 @@ EOF
         cat >>"$CRON_FILE" <<EOF
 # System maintenance - Added by install script $(date +%Y-%m-%d) - runs every 6 hours to check and fix common issues
 0 */6 * * * CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/system-maintenance-rutos.sh auto
+# System maintenance post-reboot - Added by install script $(date +%Y-%m-%d) - runs 10 minutes after reboot for post-boot optimization
+@reboot sleep 600 && CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/system-maintenance-rutos.sh auto
 EOF
         entries_added=$((entries_added + 1))
     else
+        # Check if post-reboot entry exists
+        existing_reboot_maintenance=$(grep -c "^[^#]*@reboot.*system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
+        if [ "$existing_reboot_maintenance" -eq 0 ]; then
+            print_status "$BLUE" "Adding post-reboot system-maintenance cron entry..."
+            cat >>"$CRON_FILE" <<EOF
+# System maintenance post-reboot - Added by install script $(date +%Y-%m-%d) - runs 10 minutes after reboot for post-boot optimization
+@reboot sleep 600 && CONFIG_FILE=/etc/starlink-config/config.sh $INSTALL_DIR/scripts/system-maintenance-rutos.sh auto
+EOF
+        fi
         print_status "$YELLOW" "⚠ Preserving existing system-maintenance cron configuration"
     fi
 
@@ -2495,6 +2506,7 @@ if [ -f "$CRON_FILE" ]; then
          s|^\([^#].*starlink_logger\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
          s|^\([^#].*check_starlink_api\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
          s|^\([^#].*system-maintenance-rutos\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
+         s|^\(@reboot.*system-maintenance-rutos\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
          s|^\([^#].*Starlink monitoring system.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g" \
         "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || {
         # If sed fails, preserve the file
