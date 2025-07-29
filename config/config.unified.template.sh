@@ -183,7 +183,7 @@ export STABILITY_CHECKS_REQUIRED="5"
 # All features include detailed usage guidance and impact explanations.
 #
 # BOOLEAN VALUE PATTERNS IN THIS CONFIG:
-# - Notification enables use "1"/"0" (legacy compatibility)  
+# - Notification enables use "1"/"0" (legacy compatibility)
 # - Feature enables use "true"/"false" (modern boolean logic)
 # - Priority/level values use numbers (1-3 for priorities, 0-7 for log levels)
 
