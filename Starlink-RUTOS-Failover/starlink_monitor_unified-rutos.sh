@@ -391,11 +391,20 @@ get_starlink_status() {
 
         if [ "${DEBUG:-0}" = "1" ]; then
             log_debug "GRPC EXIT CODE: 0"
-            # Show first 500 chars of raw output like check_starlink_api-rutos.sh
-            raw_output_preview=$(echo "$status_data" | head -c 500)
-            log_debug "GRPC RAW OUTPUT (first 500 chars): $raw_output_preview"
-            if [ ${#status_data} -gt 500 ]; then
+            # In debug mode, show complete GRPC response for troubleshooting field paths
+            if [ ${#status_data} -le 2000 ]; then
+                # Small response - show complete output
+                log_debug "GRPC RAW OUTPUT (complete): $status_data"
+            else
+                # Large response - show preview + offer complete output
+                raw_output_preview=$(echo "$status_data" | head -c 500)
+                log_debug "GRPC RAW OUTPUT (first 500 chars): $raw_output_preview"
                 log_debug "GRPC RAW OUTPUT: (truncated - full response is ${#status_data} characters)"
+                log_debug "DEBUG TIP: For complete JSON structure analysis, use: echo \"\$status_data\" | jq ."
+                # Optionally show complete output if RUTOS_TEST_MODE is enabled
+                if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+                    log_debug "GRPC COMPLETE OUTPUT (RUTOS_TEST_MODE): $status_data"
+                fi
             fi
             log_debug "GRPC SUCCESS: Processing JSON response for metrics extraction"
         fi

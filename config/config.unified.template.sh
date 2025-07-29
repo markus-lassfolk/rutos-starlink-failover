@@ -196,9 +196,6 @@ export STABILITY_CHECKS_REQUIRED="5"
 # Impact: Real-time awareness of connectivity issues vs no notifications
 export PUSHOVER_ENABLED="0" # 1=enabled, 0=disabled
 
-# Legacy compatibility variable for monitoring script
-export ENABLE_PUSHOVER="${PUSHOVER_ENABLED}" # Compatibility mapping
-
 # Pushover API credentials for notifications
 # Get your token from: https://pushover.net/apps/build
 # Get your user key from: https://pushover.net/
@@ -359,6 +356,26 @@ export ENABLE_STATISTICAL_AGGREGATION="false"
 # Impact: Higher values = more compression but less granular data
 # Recommended: 60 for long-term storage, 30 for more detailed analysis
 export AGGREGATION_BATCH_SIZE="60"
+
+# Statistical sampling configuration for enhanced analytics
+# Controls how frequently data is sampled for statistical analysis
+# Lower values = more frequent sampling, higher values = less frequent
+# Recommended: 30 seconds for balanced analytics vs performance
+export SAMPLING_INTERVAL="30"
+
+# Statistical aggregation time window (seconds)
+# Controls the time window over which statistics are calculated
+# Common values: 3600 = hourly windows, 1800 = 30-minute windows
+# Impact: Larger windows = smoother trends, smaller = more responsive
+# Recommended: 3600 (1 hour) for stable long-term analytics
+export AGGREGATION_WINDOW="3600"
+
+# Statistical percentiles to calculate for trend analysis
+# Format: Comma-separated list of percentile values (0-100)
+# Common values: "50,90,95,99" for comprehensive distribution analysis
+# Purpose: Understanding data distribution beyond simple averages
+# Recommended: "50,90,95" for balanced statistical insight
+export STATISTICAL_PERCENTILES="50,90,95"
 
 # --- System Maintenance Configuration ---
 # Automated system maintenance and optimization settings

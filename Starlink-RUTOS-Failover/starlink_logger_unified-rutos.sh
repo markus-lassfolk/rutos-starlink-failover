@@ -273,6 +273,8 @@ perform_statistical_aggregation() {
         location_changes = 0; cellular_handoffs = 0; state_changes = 0
         prev_lat = ""; prev_lon = ""; prev_operator = ""; prev_network = ""
     }
+    # Define abs function (POSIX-compatible)
+    function abs(x) { return (x < 0 ? -x : x) }
     {
         count++
         if (count == 1) first_timestamp = $1
@@ -307,7 +309,6 @@ perform_statistical_aggregation() {
             prev_operator = $14; prev_network = $15
         }
     }
-    abs() { return $(($1 < 0 ? -$1 : $1)); }
     END {
         if (count == 0) exit 1
         
@@ -556,7 +557,7 @@ extract_starlink_metrics() {
     log_debug "📊 Extracting basic performance metrics..."
 
     # Extract basic performance metrics with debug output
-    uptime_s=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceInfo.uptimeS // 0' 2>/dev/null)
+    uptime_s=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceState.uptimeS // 0' 2>/dev/null)
     log_debug "📊 UPTIME EXTRACTION: ${uptime_s}s"
     
     latency=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingLatencyMs // 999' 2>/dev/null)
@@ -568,10 +569,25 @@ extract_starlink_metrics() {
     obstruction=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.fractionObstructed // 0' 2>/dev/null)
     log_debug "📊 OBSTRUCTION EXTRACTION: ${obstruction} (raw)"
 
-    # Convert to hours and percentages
-    uptime_hours=$(awk "BEGIN {print $uptime_s / 3600}")
-    packet_loss_pct=$(awk "BEGIN {print $packet_loss * 100}")
-    obstruction_pct=$(awk "BEGIN {print $obstruction * 100}")
+    # Convert to hours and percentages with proper error handling
+    if [ "$uptime_s" != "null" ] && [ "$uptime_s" != "0" ]; then
+        uptime_hours=$(awk "BEGIN {printf \"%.2f\", $uptime_s / 3600}")
+    else
+        uptime_hours="0.00"
+    fi
+    
+    if [ "$packet_loss" != "null" ] && [ "$packet_loss" != "1" ]; then
+        packet_loss_pct=$(awk "BEGIN {printf \"%.2f\", $packet_loss * 100}")
+    else
+        # If packet_loss is 1 (100%), it's likely an error condition - check if it's really 100% or just default
+        packet_loss_pct=$(awk "BEGIN {printf \"%.2f\", $packet_loss * 100}")
+    fi
+    
+    if [ "$obstruction" != "null" ]; then
+        obstruction_pct=$(awk "BEGIN {printf \"%.6f\", $obstruction * 100}")
+    else
+        obstruction_pct="0.000000"
+    fi
     
     log_debug "📊 CONVERTED VALUES: uptime=${uptime_hours}h, loss=${packet_loss_pct}%, obstruction=${obstruction_pct}%"
 
@@ -589,15 +605,21 @@ extract_starlink_metrics() {
         log_debug "📊 SNR PERSISTENTLY LOW EXTRACTION: $is_snr_persistently_low"
         
         # Enhanced SNR extraction with fallback (matching monitor script)
-        snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // 0' 2>/dev/null)
-        if [ "$snr" = "0" ] && [ "$is_snr_above_noise_floor" = "true" ]; then
+        snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.signalQuality.snrDbTimes10 // 0' 2>/dev/null)
+        if [ "$snr" != "0" ] && [ "$snr" != "null" ]; then
+            # Convert from dB*10 to actual dB value
+            snr_value=$(echo "$snr / 10" | awk '{printf "%.3f", $1}')
+            log_debug "📊 SNR DIRECT EXTRACTION: ${snr_value}dB (raw=${snr})"
+            snr="$snr_value"
+        elif [ "$is_snr_above_noise_floor" = "true" ]; then
             snr="good"
             log_debug "📊 SNR FALLBACK: Using 'good' based on snrAboveNoiseFloor=true"
         else
-            log_debug "📊 SNR DIRECT EXTRACTION: ${snr}dB"
+            snr="0"
+            log_debug "📊 SNR EXTRACTION: No valid SNR data available"
         fi
         
-        gps_valid=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsValid // true' 2>/dev/null)
+        gps_valid=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsValid // false' 2>/dev/null)
         log_debug "📊 GPS VALID EXTRACTION: $gps_valid"
         
         gps_sats=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsSats // 0' 2>/dev/null)
