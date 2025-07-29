@@ -464,15 +464,19 @@ collect_gps_data() {
 
     # Fallback to Starlink GPS if RUTOS GPS unavailable
     if [ -z "$lat" ] && [ -n "${status_data:-}" ]; then
-        starlink_lat=$(echo "$status_data" | "$JQ_CMD" -r '.dishGpsStats.latitude // empty' 2>/dev/null)
-        starlink_lon=$(echo "$status_data" | "$JQ_CMD" -r '.dishGpsStats.longitude // empty' 2>/dev/null)
+        # Try different GPS location fields - the API structure might vary
+        starlink_lat=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.location.lla.lat // .location.lla.lat // .getLocation.lla.lat // empty' 2>/dev/null)
+        starlink_lon=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.location.lla.lon // .location.lla.lon // .getLocation.lla.lon // empty' 2>/dev/null)
         if [ -n "$starlink_lat" ] && [ -n "$starlink_lon" ] && [ "$starlink_lat" != "0" ]; then
             lat="$starlink_lat"
             lon="$starlink_lon"
-            alt=$(echo "$status_data" | "$JQ_CMD" -r '.dishGpsStats.altitude // 0' 2>/dev/null)
-            accuracy="medium"
+            alt=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.location.lla.alt // .location.lla.alt // .getLocation.lla.alt // 0' 2>/dev/null)
+            accuracy="high"
             source="starlink_gps"
             log_debug "GPS data from Starlink: lat=$lat, lon=$lon"
+        else
+            log_debug "📍 Starlink GPS: No location data available in get_status response"
+            log_debug "📍 GPS available but location data might require separate get_location API call"
         fi
     fi
 
@@ -563,7 +567,7 @@ extract_starlink_metrics() {
     latency=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingLatencyMs // 999' 2>/dev/null)
     log_debug "📊 LATENCY EXTRACTION: ${latency}ms"
     
-    packet_loss=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingDropRate // 1' 2>/dev/null)
+    packet_loss=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingDropRate // null' 2>/dev/null)
     log_debug "📊 PACKET LOSS EXTRACTION: ${packet_loss} (raw)"
     
     obstruction=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.fractionObstructed // 0' 2>/dev/null)
@@ -576,11 +580,12 @@ extract_starlink_metrics() {
         uptime_hours="0.00"
     fi
     
-    if [ "$packet_loss" != "null" ] && [ "$packet_loss" != "1" ]; then
+    if [ "$packet_loss" != "null" ] && [ "$packet_loss" != "" ]; then
         packet_loss_pct=$(awk "BEGIN {printf \"%.2f\", $packet_loss * 100}")
     else
-        # If packet_loss is 1 (100%), it's likely an error condition - check if it's really 100% or just default
-        packet_loss_pct=$(awk "BEGIN {printf \"%.2f\", $packet_loss * 100}")
+        # No packet loss data available - assume 0% loss (healthy connection)
+        packet_loss_pct="0.00"
+        log_debug "📊 PACKET LOSS: No data available, assuming 0% loss"
     fi
     
     if [ "$obstruction" != "null" ]; then
@@ -598,10 +603,10 @@ extract_starlink_metrics() {
         bootcount=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceInfo.bootcount // 0' 2>/dev/null)
         log_debug "📊 BOOTCOUNT EXTRACTION: $bootcount"
         
-        is_snr_above_noise_floor=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.readyStates.snrAboveNoiseFloor // false' 2>/dev/null)
+        is_snr_above_noise_floor=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.isSnrAboveNoiseFloor // false' 2>/dev/null)
         log_debug "📊 SNR ABOVE NOISE EXTRACTION: $is_snr_above_noise_floor"
         
-        is_snr_persistently_low=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.alerts.snrPersistentlyLow // false' 2>/dev/null)
+        is_snr_persistently_low=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.isSnrPersistentlyLow // false' 2>/dev/null)
         log_debug "📊 SNR PERSISTENTLY LOW EXTRACTION: $is_snr_persistently_low"
         
         # Enhanced SNR extraction with fallback (matching monitor script)
