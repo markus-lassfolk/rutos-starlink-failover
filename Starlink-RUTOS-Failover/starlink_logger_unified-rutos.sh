@@ -453,26 +453,50 @@ collect_gps_data() {
     # === RUTOS GPS Collection ===
     log_debug "📍 RUTOS GPS: Attempting to collect RUTOS GPS data..."
     if command -v gpsctl >/dev/null 2>&1; then
-        log_debug "📍 RUTOS GPS: gpsctl command found, executing gpsctl -i"
-        gps_output=$(gpsctl -i 2>/dev/null || echo "")
-        if [ -n "$gps_output" ]; then
-            log_debug "📍 RUTOS GPS: Raw gpsctl output received (${#gps_output} chars)"
-            log_debug "📍 RUTOS GPS: Raw output: $gps_output"
-            
-            rutos_lat=$(echo "$gps_output" | grep "Latitude:" | awk '{print $2}' | head -1)
-            rutos_lon=$(echo "$gps_output" | grep "Longitude:" | awk '{print $2}' | head -1)
-            rutos_alt=$(echo "$gps_output" | grep "Altitude:" | awk '{print $2}' | head -1)
-            
-            log_debug "📍 RUTOS GPS: Parsed values - lat=$rutos_lat, lon=$rutos_lon, alt=$rutos_alt"
-            
-            if [ -n "$rutos_lat" ] && [ -n "$rutos_lon" ] && [ "$rutos_lat" != "0.000000" ] && [ "$rutos_lat" != "0" ]; then
-                log_debug "📍 RUTOS GPS: Valid GPS data found"
-            else
-                log_debug "📍 RUTOS GPS: Invalid or zero GPS coordinates"
-                rutos_lat="" rutos_lon="" rutos_alt=""
-            fi
+        log_debug "📍 RUTOS GPS: gpsctl command found, using individual flags for data collection"
+        
+        # Use individual gpsctl flags for each GPS parameter
+        rutos_lat=$(gpsctl -i 2>/dev/null | tr -d '\n\r' || echo "")
+        rutos_lon=$(gpsctl -x 2>/dev/null | tr -d '\n\r' || echo "")
+        rutos_alt=$(gpsctl -a 2>/dev/null | tr -d '\n\r' || echo "")
+        
+        log_debug "📍 RUTOS GPS: Individual flag results - lat='$rutos_lat', lon='$rutos_lon', alt='$rutos_alt'"
+        
+        # Validate GPS data (check for valid numeric values and non-zero coordinates)
+        if [ -n "$rutos_lat" ] && [ -n "$rutos_lon" ]; then
+            # Check if latitude and longitude are valid numbers and not zero
+            case "$rutos_lat" in
+                0|0.0|0.00|0.000|0.0000|0.00000|0.000000) 
+                    log_debug "📍 RUTOS GPS: Latitude is zero - invalid GPS fix"
+                    rutos_lat="" rutos_lon="" rutos_alt=""
+                    ;;
+                *[!0-9.-]*) 
+                    log_debug "📍 RUTOS GPS: Latitude contains non-numeric characters: '$rutos_lat'"
+                    rutos_lat="" rutos_lon="" rutos_alt=""
+                    ;;
+                *)
+                    case "$rutos_lon" in
+                        0|0.0|0.00|0.000|0.0000|0.00000|0.000000) 
+                            log_debug "📍 RUTOS GPS: Longitude is zero - invalid GPS fix"
+                            rutos_lat="" rutos_lon="" rutos_alt=""
+                            ;;
+                        *[!0-9.-]*) 
+                            log_debug "📍 RUTOS GPS: Longitude contains non-numeric characters: '$rutos_lon'"
+                            rutos_lat="" rutos_lon="" rutos_alt=""
+                            ;;
+                        *)
+                            log_debug "📍 RUTOS GPS: Valid GPS coordinates found - lat=$rutos_lat, lon=$rutos_lon"
+                            # Set default altitude if empty or invalid
+                            case "$rutos_alt" in
+                                *[!0-9.-]*|"") rutos_alt="0" ;;
+                            esac
+                            ;;
+                    esac
+                    ;;
+            esac
         else
-            log_debug "📍 RUTOS GPS: No output from gpsctl command"
+            log_debug "📍 RUTOS GPS: Empty latitude or longitude from gpsctl"
+            rutos_lat="" rutos_lon="" rutos_alt=""
         fi
     else
         log_debug "📍 RUTOS GPS: gpsctl command not available"
