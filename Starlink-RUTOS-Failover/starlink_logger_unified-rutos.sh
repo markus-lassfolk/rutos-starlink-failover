@@ -99,32 +99,46 @@ ENABLE_ENHANCED_METRICS="${ENABLE_ENHANCED_METRICS:-false}"
 if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "==================== LOGGER CONFIGURATION DEBUG ===================="
     log_debug "CONFIG_FILE: $CONFIG_FILE"
-    log_debug "Core logging settings:"
-    log_debug "  LOG_TAG: ${LOG_TAG}"
-    log_debug "  LOG_DIR: ${LOG_DIR}"
-    log_debug "  OUTPUT_CSV: ${OUTPUT_CSV}"
-    log_debug "  STATE_FILE: ${STATE_FILE}"
-    
-    log_debug "Enhanced feature flags:"
-    log_debug "  ENABLE_GPS_LOGGING: ${ENABLE_GPS_LOGGING}"
-    log_debug "  ENABLE_CELLULAR_LOGGING: ${ENABLE_CELLULAR_LOGGING}"
-    log_debug "  ENABLE_STATISTICAL_AGGREGATION: ${ENABLE_STATISTICAL_AGGREGATION}"
-    log_debug "  ENABLE_ENHANCED_METRICS: ${ENABLE_ENHANCED_METRICS}"
-    
-    log_debug "Connection variables:"
+    log_debug "Required connection variables:"
     log_debug "  STARLINK_IP: ${STARLINK_IP:-UNSET}"
     log_debug "  STARLINK_PORT: ${STARLINK_PORT:-UNSET}"
-    log_debug "  MWAN_IFACE: ${MWAN_IFACE:-UNSET}"
-    
+
+    log_debug "Logger-specific settings:"
+    log_debug "  LOG_TAG: ${LOG_TAG:-UNSET}"
+    log_debug "  LOG_DIR: ${LOG_DIR:-UNSET}"
+    log_debug "  OUTPUT_CSV: ${OUTPUT_CSV:-UNSET}"
+    log_debug "  STATE_FILE: ${STATE_FILE:-UNSET}"
+
+    log_debug "Feature flags:"
+    log_debug "  ENABLE_GPS_LOGGING: ${ENABLE_GPS_LOGGING:-UNSET}"
+    log_debug "  ENABLE_CELLULAR_LOGGING: ${ENABLE_CELLULAR_LOGGING:-UNSET}"
+    log_debug "  ENABLE_STATISTICAL_AGGREGATION: ${ENABLE_STATISTICAL_AGGREGATION:-UNSET}"
+    log_debug "  ENABLE_ENHANCED_METRICS: ${ENABLE_ENHANCED_METRICS:-UNSET}"
+
+    log_debug "Sampling and aggregation:"
+    log_debug "  SAMPLING_INTERVAL: ${SAMPLING_INTERVAL:-UNSET}"
+    log_debug "  AGGREGATION_WINDOW: ${AGGREGATION_WINDOW:-UNSET}"
+    log_debug "  STATISTICAL_PERCENTILES: ${STATISTICAL_PERCENTILES:-UNSET}"
+
+    log_debug "Binary paths:"
+    log_debug "  GRPCURL_CMD: ${GRPCURL_CMD:-UNSET}"
+    log_debug "  JQ_CMD: ${JQ_CMD:-UNSET}"
+
     # Check for functionality-affecting issues
     if [ "${STARLINK_IP:-}" = "" ]; then
         log_debug "⚠️  WARNING: STARLINK_IP not set - Starlink API calls will fail"
     fi
-    if [ "${ENABLE_GPS_LOGGING}" = "true" ] && [ ! -d "/etc/starlink-config" ]; then
-        log_debug "⚠️  WARNING: GPS logging enabled but config directory missing"
+    if [ ! -f "${GRPCURL_CMD:-/usr/local/starlink-monitor/grpcurl}" ]; then
+        log_debug "⚠️  WARNING: grpcurl binary not found - API calls will fail"
     fi
-    
-    log_debug "======================================================================="
+    if [ ! -f "${JQ_CMD:-/usr/local/starlink-monitor/jq}" ]; then
+        log_debug "⚠️  WARNING: jq binary not found - JSON parsing will fail"
+    fi
+    if [ ! -d "${LOG_DIR:-/etc/starlink-logs}" ]; then
+        log_debug "⚠️  WARNING: LOG_DIR does not exist - will attempt to create"
+    fi
+
+    log_debug "==============================================================="
 fi
 
 # Enhanced logging settings (only used if enabled)
@@ -135,12 +149,55 @@ AGGREGATION_BATCH_SIZE="${AGGREGATION_BATCH_SIZE:-60}"
 STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
 STARLINK_PORT="${STARLINK_PORT:-9200}"
 
+# Binary paths with defaults
+GRPCURL_CMD="${GRPCURL_CMD:-/usr/local/starlink-monitor/grpcurl}"
+JQ_CMD="${JQ_CMD:-/usr/local/starlink-monitor/jq}"
+
 # Create necessary directories
 mkdir -p "$LOG_DIR" "$(dirname "$STATE_FILE")" 2>/dev/null || true
 
-# Debug configuration (original simplified version)
-log_debug "GPS_LOGGING=$ENABLE_GPS_LOGGING, CELLULAR_LOGGING=$ENABLE_CELLULAR_LOGGING"
-log_debug "AGGREGATION=$ENABLE_STATISTICAL_AGGREGATION, ENHANCED_METRICS=$ENABLE_ENHANCED_METRICS"
+# Enhanced troubleshooting mode - show more execution details
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_info "DEBUG MODE: Enhanced logging enabled for debugging"
+    log_trace "Starting comprehensive execution trace for starlink_logger_unified"
+    
+    log_debug "==================== FINAL CONFIGURATION STATE ===================="
+    log_debug "Derived settings after defaults applied:"
+    log_debug "  STARLINK_IP: $STARLINK_IP"
+    log_debug "  STARLINK_PORT: $STARLINK_PORT"
+    log_debug "  GRPCURL_CMD: $GRPCURL_CMD"
+    log_debug "  JQ_CMD: $JQ_CMD"
+    log_debug "  AGGREGATED_LOG_FILE: $AGGREGATED_LOG_FILE"
+    log_debug "  AGGREGATION_BATCH_SIZE: $AGGREGATION_BATCH_SIZE"
+    
+    log_debug "Directory creation results:"
+    if [ -d "$LOG_DIR" ]; then
+        log_debug "  ✓ LOG_DIR exists: $LOG_DIR"
+    else
+        log_debug "  ✗ LOG_DIR missing: $LOG_DIR"
+    fi
+    
+    if [ -d "$(dirname "$STATE_FILE")" ]; then
+        log_debug "  ✓ STATE_FILE directory exists: $(dirname "$STATE_FILE")"
+    else
+        log_debug "  ✗ STATE_FILE directory missing: $(dirname "$STATE_FILE")"
+    fi
+    
+    log_debug "Binary validation:"
+    if [ -f "$GRPCURL_CMD" ] && [ -x "$GRPCURL_CMD" ]; then
+        log_debug "  ✓ grpcurl binary found and executable: $GRPCURL_CMD"
+    else
+        log_debug "  ✗ grpcurl binary missing or not executable: $GRPCURL_CMD"
+    fi
+    
+    if [ -f "$JQ_CMD" ] && [ -x "$JQ_CMD" ]; then
+        log_debug "  ✓ jq binary found and executable: $JQ_CMD"
+    else
+        log_debug "  ✗ jq binary missing or not executable: $JQ_CMD"
+    fi
+    
+    log_debug "==============================================================="
+fi
 
 # =============================================================================
 # STATISTICAL AGGREGATION FUNCTIONS (Enhanced Feature)
@@ -487,58 +544,105 @@ collect_cellular_data() {
 extract_starlink_metrics() {
     status_data="$1"
 
-    log_debug "Extracting Starlink metrics from status data"
+    log_debug "📊 FUNCTION ENTRY: extract_starlink_metrics()"
+    log_debug "📊 STATUS DATA LENGTH: ${#status_data} characters"
+    
+    # Show sample of input data if debug enabled
+    if [ "${DEBUG:-0}" = "1" ]; then
+        sample_data=$(echo "$status_data" | head -c 200)
+        log_debug "📊 INPUT DATA SAMPLE: $sample_data..."
+    fi
 
-    # Extract basic performance metrics
+    log_debug "📊 Extracting basic performance metrics..."
+
+    # Extract basic performance metrics with debug output
     uptime_s=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceInfo.uptimeS // 0' 2>/dev/null)
+    log_debug "📊 UPTIME EXTRACTION: ${uptime_s}s"
+    
     latency=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingLatencyMs // 999' 2>/dev/null)
+    log_debug "📊 LATENCY EXTRACTION: ${latency}ms"
+    
     packet_loss=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingDropRate // 1' 2>/dev/null)
+    log_debug "📊 PACKET LOSS EXTRACTION: ${packet_loss} (raw)"
+    
     obstruction=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.fractionObstructed // 0' 2>/dev/null)
+    log_debug "📊 OBSTRUCTION EXTRACTION: ${obstruction} (raw)"
 
     # Convert to hours and percentages
     uptime_hours=$(awk "BEGIN {print $uptime_s / 3600}")
     packet_loss_pct=$(awk "BEGIN {print $packet_loss * 100}")
     obstruction_pct=$(awk "BEGIN {print $obstruction * 100}")
+    
+    log_debug "📊 CONVERTED VALUES: uptime=${uptime_hours}h, loss=${packet_loss_pct}%, obstruction=${obstruction_pct}%"
 
     # Extract enhanced metrics if enabled
     if [ "$ENABLE_ENHANCED_METRICS" = "true" ]; then
+        log_debug "📊 ENHANCED METRICS ENABLED - Extracting additional data..."
+        
         bootcount=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceInfo.bootcount // 0' 2>/dev/null)
+        log_debug "📊 BOOTCOUNT EXTRACTION: $bootcount"
+        
         is_snr_above_noise_floor=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.readyStates.snrAboveNoiseFloor // false' 2>/dev/null)
+        log_debug "📊 SNR ABOVE NOISE EXTRACTION: $is_snr_above_noise_floor"
+        
         is_snr_persistently_low=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.alerts.snrPersistentlyLow // false' 2>/dev/null)
+        log_debug "📊 SNR PERSISTENTLY LOW EXTRACTION: $is_snr_persistently_low"
+        
+        # Enhanced SNR extraction with fallback (matching monitor script)
         snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // 0' 2>/dev/null)
-        gps_valid=$(echo "$status_data" | "$JQ_CMD" -r '.gpsStats.gpsValid // true' 2>/dev/null)
-        gps_sats=$(echo "$status_data" | "$JQ_CMD" -r '.gpsStats.gpsSats // 0' 2>/dev/null)
+        if [ "$snr" = "0" ] && [ "$is_snr_above_noise_floor" = "true" ]; then
+            snr="good"
+            log_debug "📊 SNR FALLBACK: Using 'good' based on snrAboveNoiseFloor=true"
+        else
+            log_debug "📊 SNR DIRECT EXTRACTION: ${snr}dB"
+        fi
+        
+        gps_valid=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsValid // true' 2>/dev/null)
+        log_debug "📊 GPS VALID EXTRACTION: $gps_valid"
+        
+        gps_sats=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsSats // 0' 2>/dev/null)
+        log_debug "📊 GPS SATELLITES EXTRACTION: $gps_sats satellites"
 
-        log_debug "ENHANCED METRICS: uptime=${uptime_s}s, bootcount=$bootcount, SNR_above_noise=$is_snr_above_noise_floor, SNR_persistently_low=$is_snr_persistently_low, SNR_value=${snr}dB, GPS_valid=$gps_valid, GPS_sats=$gps_sats"
+        log_debug "📊 ENHANCED METRICS SUMMARY: uptime=${uptime_s}s, bootcount=$bootcount, SNR_above_noise=$is_snr_above_noise_floor, SNR_persistently_low=$is_snr_persistently_low, SNR_value=${snr}, GPS_valid=$gps_valid, GPS_sats=$gps_sats"
 
         # Check for reboot detection
+        log_debug "📊 REBOOT DETECTION: Checking bootcount against previous value..."
         reboot_detected="false"
         if [ -f "$STATE_FILE" ]; then
             last_bootcount=$(grep "^BOOTCOUNT=" "$STATE_FILE" | cut -d'=' -f2 2>/dev/null || echo "0")
+            log_debug "📊 REBOOT CHECK: last_bootcount=$last_bootcount, current_bootcount=$bootcount"
             if [ "$bootcount" != "$last_bootcount" ] && [ "$last_bootcount" != "0" ]; then
                 reboot_detected="true"
-                log_warning "Reboot detected: bootcount changed from $last_bootcount to $bootcount"
+                log_warning "🔄 REBOOT DETECTED: bootcount changed from $last_bootcount to $bootcount"
+            else
+                log_debug "📊 REBOOT CHECK: No reboot detected (bootcount unchanged)"
             fi
+        else
+            log_debug "📊 REBOOT CHECK: No state file found - first run"
         fi
 
         # Update state file
+        log_debug "📊 STATE UPDATE: Writing current bootcount to state file"
         cat >"$STATE_FILE" <<EOF
 BOOTCOUNT=$bootcount
 LAST_CHECK=$(date '+%Y-%m-%d %H:%M:%S')
 EOF
     else
         # Default values for enhanced metrics
+        log_debug "📊 ENHANCED METRICS DISABLED - Using default values"
         snr="0"
         is_snr_above_noise_floor="true"
         is_snr_persistently_low="false"
         gps_valid="true"
         gps_sats="0"
         reboot_detected="false"
+        log_debug "📊 DEFAULT VALUES: SNR=$snr, GPS_valid=$gps_valid, GPS_sats=$gps_sats"
     fi
 
-    log_debug "BASIC METRICS: latency=${latency}ms, loss=${packet_loss_pct}%, obstruction=${obstruction_pct}%, uptime=${uptime_hours}h"
+    log_debug "📊 FINAL METRICS SUMMARY: latency=${latency}ms, loss=${packet_loss_pct}%, obstruction=${obstruction_pct}%, uptime=${uptime_hours}h"
 
     # Store metrics globally for CSV output
+    log_debug "📊 STORING GLOBAL VARIABLES for CSV output..."
     CURRENT_TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
     CURRENT_LATENCY="$latency"
     CURRENT_PACKET_LOSS="$packet_loss_pct"
@@ -550,6 +654,9 @@ EOF
     CURRENT_GPS_VALID="$gps_valid"
     CURRENT_GPS_SATS="$gps_sats"
     CURRENT_REBOOT_DETECTED="$reboot_detected"
+    
+    log_debug "📊 STORED VARIABLES: timestamp=$CURRENT_TIMESTAMP, GPS_sats=$CURRENT_GPS_SATS, SNR=$CURRENT_SNR"
+    log_debug "📊 FUNCTION EXIT: extract_starlink_metrics() completed successfully"
 
     return 0
 }
@@ -586,72 +693,105 @@ create_csv_header() {
 }
 
 log_to_csv() {
-    log_debug "Logging data to CSV"
+    log_debug "📝 FUNCTION ENTRY: log_to_csv()"
+    log_debug "📝 CSV FILE: $OUTPUT_CSV"
 
     # Collect additional data if enabled
     gps_data=""
     cellular_data=""
 
     if [ "$ENABLE_GPS_LOGGING" = "true" ]; then
+        log_debug "📝 GPS LOGGING: Collecting GPS data..."
         gps_data=$(collect_gps_data)
-        log_debug "GPS data: $gps_data"
+        log_debug "📝 GPS DATA: $gps_data"
+    else
+        log_debug "📝 GPS LOGGING: Disabled"
     fi
 
     if [ "$ENABLE_CELLULAR_LOGGING" = "true" ]; then
+        log_debug "📝 CELLULAR LOGGING: Collecting cellular data..."
         cellular_data=$(collect_cellular_data)
-        log_debug "Cellular data: $cellular_data"
+        log_debug "📝 CELLULAR DATA: $cellular_data"
+    else
+        log_debug "📝 CELLULAR LOGGING: Disabled"
     fi
 
     # Create CSV header if file doesn't exist
     if [ ! -f "$OUTPUT_CSV" ]; then
+        log_debug "📝 CSV HEADER: File doesn't exist, creating header..."
         create_csv_header
+    else
+        log_debug "📝 CSV HEADER: File exists, appending data"
     fi
 
     # Format and append data based on enabled features
+    log_debug "📝 DATA FORMATTING: ENHANCED_METRICS=$ENABLE_ENHANCED_METRICS, GPS_LOGGING=$ENABLE_GPS_LOGGING, CELLULAR_LOGGING=$ENABLE_CELLULAR_LOGGING"
     if [ "$ENABLE_ENHANCED_METRICS" = "true" ] && [ "$ENABLE_GPS_LOGGING" = "true" ] && [ "$ENABLE_CELLULAR_LOGGING" = "true" ]; then
         # Full enhanced logging
+        log_debug "📝 FORMAT: Full enhanced logging (GPS + Cellular + Enhanced metrics)"
         gps_valid_flag=$([ "$CURRENT_GPS_VALID" = "true" ] && echo "1" || echo "0")
         snr_above_noise_flag=$([ "$CURRENT_SNR_ABOVE_NOISE" = "true" ] && echo "1" || echo "0")
         snr_persistently_low_flag=$([ "$CURRENT_SNR_PERSISTENTLY_LOW" = "true" ] && echo "1" || echo "0")
         reboot_flag=$([ "$CURRENT_REBOOT_DETECTED" = "true" ] && echo "1" || echo "0")
 
+        log_debug "📝 FLAGS: GPS_valid=$gps_valid_flag, SNR_above_noise=$snr_above_noise_flag, SNR_low=$snr_persistently_low_flag, reboot=$reboot_flag"
+        log_debug "📝 VALUES: GPS_sats=$CURRENT_GPS_SATS, SNR=$CURRENT_SNR, latency=$CURRENT_LATENCY"
+
         # Protect state-changing command with DRY_RUN check
         if [ "${DRY_RUN:-0}" = "1" ]; then
-            log_debug "DRY-RUN: Would append full featured data to $OUTPUT_CSV"
+            log_debug "📝 DRY-RUN: Would append full featured data to $OUTPUT_CSV"
         else
-            echo "$CURRENT_TIMESTAMP,$gps_data,$CURRENT_LATENCY,$CURRENT_PACKET_LOSS,$CURRENT_OBSTRUCTION,$CURRENT_UPTIME,$CURRENT_SNR,$snr_above_noise_flag,$snr_persistently_low_flag,$gps_valid_flag,$CURRENT_GPS_SATS,$cellular_data,$reboot_flag" >>"$OUTPUT_CSV"
+            data_line="$CURRENT_TIMESTAMP,$gps_data,$CURRENT_LATENCY,$CURRENT_PACKET_LOSS,$CURRENT_OBSTRUCTION,$CURRENT_UPTIME,$CURRENT_SNR,$snr_above_noise_flag,$snr_persistently_low_flag,$gps_valid_flag,$CURRENT_GPS_SATS,$cellular_data,$reboot_flag"
+            log_debug "📝 WRITING FULL DATA: $data_line"
+            echo "$data_line" >>"$OUTPUT_CSV"
         fi
 
     elif [ "$ENABLE_ENHANCED_METRICS" = "true" ]; then
         # Enhanced metrics only
+        log_debug "📝 FORMAT: Enhanced metrics only (no GPS/Cellular)"
         gps_valid_flag=$([ "$CURRENT_GPS_VALID" = "true" ] && echo "1" || echo "0")
         snr_above_noise_flag=$([ "$CURRENT_SNR_ABOVE_NOISE" = "true" ] && echo "1" || echo "0")
         snr_persistently_low_flag=$([ "$CURRENT_SNR_PERSISTENTLY_LOW" = "true" ] && echo "1" || echo "0")
         reboot_flag=$([ "$CURRENT_REBOOT_DETECTED" = "true" ] && echo "1" || echo "0")
 
+        log_debug "📝 FLAGS: GPS_valid=$gps_valid_flag, SNR_above_noise=$snr_above_noise_flag, SNR_low=$snr_persistently_low_flag, reboot=$reboot_flag"
+        log_debug "📝 VALUES: GPS_sats=$CURRENT_GPS_SATS, SNR=$CURRENT_SNR, latency=$CURRENT_LATENCY"
+
         # Protect state-changing command with DRY_RUN check
         if [ "${DRY_RUN:-0}" = "1" ]; then
-            log_debug "DRY-RUN: Would append enhanced metrics data to $OUTPUT_CSV"
+            log_debug "📝 DRY-RUN: Would append enhanced metrics data to $OUTPUT_CSV"
         else
-            echo "$CURRENT_TIMESTAMP,$CURRENT_LATENCY,$CURRENT_PACKET_LOSS,$CURRENT_OBSTRUCTION,$CURRENT_UPTIME,$CURRENT_SNR,$snr_above_noise_flag,$snr_persistently_low_flag,$gps_valid_flag,$CURRENT_GPS_SATS,$reboot_flag" >>"$OUTPUT_CSV"
+            data_line="$CURRENT_TIMESTAMP,$CURRENT_LATENCY,$CURRENT_PACKET_LOSS,$CURRENT_OBSTRUCTION,$CURRENT_UPTIME,$CURRENT_SNR,$snr_above_noise_flag,$snr_persistently_low_flag,$gps_valid_flag,$CURRENT_GPS_SATS,$reboot_flag"
+            log_debug "📝 WRITING ENHANCED DATA: $data_line"
+            echo "$data_line" >>"$OUTPUT_CSV"
         fi
 
     else
         # Basic logging (original format)
+        log_debug "📝 FORMAT: Basic logging (original format)"
+        log_debug "📝 VALUES: latency=$CURRENT_LATENCY, loss=$CURRENT_PACKET_LOSS, obstruction=$CURRENT_OBSTRUCTION, uptime=$CURRENT_UPTIME"
+        
         # Protect state-changing command with DRY_RUN check
         if [ "${DRY_RUN:-0}" = "1" ]; then
-            log_debug "DRY-RUN: Would append basic data to $OUTPUT_CSV"
+            log_debug "📝 DRY-RUN: Would append basic data to $OUTPUT_CSV"
         else
-            echo "$CURRENT_TIMESTAMP,$CURRENT_LATENCY,$CURRENT_PACKET_LOSS,$CURRENT_OBSTRUCTION,$CURRENT_UPTIME" >>"$OUTPUT_CSV"
+            data_line="$CURRENT_TIMESTAMP,$CURRENT_LATENCY,$CURRENT_PACKET_LOSS,$CURRENT_OBSTRUCTION,$CURRENT_UPTIME"
+            log_debug "📝 WRITING BASIC DATA: $data_line"
+            echo "$data_line" >>"$OUTPUT_CSV"
         fi
     fi
 
-    log_debug "Data logged to CSV successfully"
+    log_debug "📝 CSV WRITE: Data logged successfully"
 
     # Perform statistical aggregation if enabled
     if [ "$ENABLE_STATISTICAL_AGGREGATION" = "true" ]; then
+        log_debug "📝 AGGREGATION: Statistical aggregation enabled, running..."
         perform_statistical_aggregation "$OUTPUT_CSV"
+    else
+        log_debug "📝 AGGREGATION: Statistical aggregation disabled"
     fi
+    
+    log_debug "📝 FUNCTION EXIT: log_to_csv() completed successfully"
 }
 
 # =============================================================================

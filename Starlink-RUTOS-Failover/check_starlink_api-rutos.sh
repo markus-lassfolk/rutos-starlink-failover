@@ -68,9 +68,26 @@ INSTALL_DIR="${INSTALL_DIR:-/usr/local/starlink-monitor}"
 # Load configuration from config file if available
 CONFIG_FILE="${CONFIG_FILE:-/etc/starlink-config/config.sh}"
 if [ -f "$CONFIG_FILE" ]; then
-    # Source the configuration file
+    log_debug "Attempting to load configuration from: $CONFIG_FILE"
+    # Source the configuration file with error handling
     # shellcheck source=/dev/null
-    . "$CONFIG_FILE"
+    if ! . "$CONFIG_FILE" 2>/dev/null; then
+        log_error "CONFIGURATION ERROR: Failed to load $CONFIG_FILE"
+        log_error "This usually indicates a syntax error in the configuration file."
+        log_error "Common issues:"
+        log_error "  - Missing quotes around values"
+        log_error "  - Unescaped special characters"
+        log_error "  - Missing 'export' keyword"
+        log_error "  - Comments starting with words instead of #"
+        log_error ""
+        log_error "Please check line 775 and surrounding lines for syntax errors."
+        log_error "Each variable should be: export VARIABLE_NAME=\"value\""
+        log_error "Each comment should start with: # Comment text"
+        exit 1
+    fi
+    log_debug "Configuration loaded successfully from: $CONFIG_FILE"
+else
+    log_debug "Configuration file not found: $CONFIG_FILE (using defaults)"
 fi
 
 # Your Pushover Application API Token/Key.
@@ -134,10 +151,35 @@ if [ "${DEBUG:-0}" = "1" ]; then
         log_debug "⚠️  WARNING: STARLINK_IP not set - API calls will fail"
     fi
     if [ ! -f "${GRPCURL_CMD}" ]; then
-        log_debug "⚠️  WARNING: grpcurl binary not found at ${GRPCURL_CMD}"
+        log_debug "⚠️  WARNING: grpcurl binary not found at ${GRPCURL_CMD} - API calls will fail"
+    elif [ ! -x "${GRPCURL_CMD}" ]; then
+        log_debug "⚠️  WARNING: grpcurl binary not executable at ${GRPCURL_CMD}"
+    else
+        log_debug "✓ grpcurl binary found and executable: ${GRPCURL_CMD}"
     fi
     if [ ! -f "${JQ_CMD}" ]; then
-        log_debug "⚠️  WARNING: jq binary not found at ${JQ_CMD}"
+        log_debug "⚠️  WARNING: jq binary not found at ${JQ_CMD} - JSON parsing will fail"
+    elif [ ! -x "${JQ_CMD}" ]; then
+        log_debug "⚠️  WARNING: jq binary not executable at ${JQ_CMD}"
+    else
+        log_debug "✓ jq binary found and executable: ${JQ_CMD}"
+    fi
+    
+    log_debug "Pushover notification validation:"
+    if [ "${PUSHOVER_TOKEN}" = "YOUR_PUSHOVER_API_TOKEN" ]; then
+        log_debug "⚠️  WARNING: PUSHOVER_TOKEN not configured - notifications will fail"
+    elif [ "${#PUSHOVER_TOKEN}" -lt 30 ]; then
+        log_debug "⚠️  WARNING: PUSHOVER_TOKEN appears too short (${#PUSHOVER_TOKEN} chars)"
+    else
+        log_debug "✓ PUSHOVER_TOKEN appears valid (${#PUSHOVER_TOKEN} chars)"
+    fi
+    
+    if [ "${PUSHOVER_USER}" = "YOUR_PUSHOVER_USER_KEY" ]; then
+        log_debug "⚠️  WARNING: PUSHOVER_USER not configured - notifications will fail"
+    elif [ "${#PUSHOVER_USER}" -lt 30 ]; then
+        log_debug "⚠️  WARNING: PUSHOVER_USER appears too short (${#PUSHOVER_USER} chars)"
+    else
+        log_debug "✓ PUSHOVER_USER appears valid (${#PUSHOVER_USER} chars)"
     fi
     
     log_debug "======================================================================"

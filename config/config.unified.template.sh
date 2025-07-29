@@ -98,14 +98,41 @@ export LATENCY_THRESHOLD="100"
 # Too low: Failover during brief weather events, Too high: Noticeable performance issues
 export PACKET_LOSS_THRESHOLD="5"
 
-# Obstruction threshold (percentage as decimal: 0.001 = 0.1%)
+# Obstruction threshold (percentage as decimal: 0.03 = 3%)
 # How it works: Starlink reports obstructions (trees, buildings) blocking satellite view
 # What it indicates: Physical objects between dish and satellites
-# Why sensitive: Even tiny obstructions cause intermittent connectivity issues
-# Starlink reporting: Very accurate - 0.1% obstruction is significant
-# Recommended: 0.001 (0.1%) - very sensitive since obstructions indicate positioning issues
+# Realistic levels: 0-1% excellent, 1-3% good, 3-5% acceptable, 5%+ poor
+# Field experience: Many users see 0.1-0.5% regularly without outages
+# Starlink tolerance: Can handle brief obstructions up to 2-3% without significant impact
+# Recommended: 0.03 (3%) - balanced sensitivity that avoids false positives
 # Note: Consider dish relocation if this threshold is frequently exceeded
-export OBSTRUCTION_THRESHOLD="0.001"
+export OBSTRUCTION_THRESHOLD="0.03"
+
+# Enhanced obstruction analysis settings
+# Enable intelligent obstruction analysis using historical data
+# When true: Uses timeObstructed, avgProlongedObstructionIntervalS, and validS for smarter decisions
+# When false: Uses only current fractionObstructed for simple threshold comparison
+# Recommended: true for production, false for testing/debugging
+export ENABLE_INTELLIGENT_OBSTRUCTION="true"
+
+# Minimum hours of obstruction data required for intelligent analysis
+# If less data is available, falls back to simple threshold check
+# Purpose: Prevents decisions based on insufficient historical context
+# Recommended: 1 hour minimum, 4 hours for very stable analysis
+export OBSTRUCTION_MIN_DATA_HOURS="1"
+
+# Historical obstruction time threshold (percentage)
+# Triggers failover if time spent obstructed over the data period exceeds this
+# This is different from current obstruction - it's about cumulative time impact
+# Example: 1% means if dish was obstructed more than 1% of total time in the measurement period
+# Realistic values: 0.5-2% depending on your tolerance for service interruption
+export OBSTRUCTION_HISTORICAL_THRESHOLD="1.0"
+
+# Prolonged obstruction duration threshold (seconds)
+# Triggers failover if average prolonged obstruction duration exceeds this
+# What it catches: Situations where obstructions last long enough to disrupt service
+# Realistic values: 30-60 seconds (shorter = more sensitive to brief interruptions)
+export OBSTRUCTION_PROLONGED_THRESHOLD="30"
 
 # Jitter threshold in milliseconds (variation in latency)
 # What is jitter: The variation in ping times - indicates network stability
@@ -154,6 +181,11 @@ export STABILITY_CHECKS_REQUIRED="5"
 # Common features that enhance the monitoring experience but are not required.
 # Enable/disable features by changing values from 0 to 1 or "false" to "true"
 # All features include detailed usage guidance and impact explanations.
+#
+# BOOLEAN VALUE PATTERNS IN THIS CONFIG:
+# - Notification enables use "1"/"0" (legacy compatibility)  
+# - Feature enables use "true"/"false" (modern boolean logic)
+# - Priority/level values use numbers (1-3 for priorities, 0-7 for log levels)
 
 # --- Pushover Notification Settings ---
 

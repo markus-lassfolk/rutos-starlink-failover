@@ -109,6 +109,10 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "  LATENCY_THRESHOLD: ${LATENCY_THRESHOLD:-UNSET}"
     log_debug "  PACKET_LOSS_THRESHOLD: ${PACKET_LOSS_THRESHOLD:-UNSET}"
     log_debug "  OBSTRUCTION_THRESHOLD: ${OBSTRUCTION_THRESHOLD:-UNSET}"
+    log_debug "  ENABLE_INTELLIGENT_OBSTRUCTION: ${ENABLE_INTELLIGENT_OBSTRUCTION:-UNSET}"
+    log_debug "  OBSTRUCTION_MIN_DATA_HOURS: ${OBSTRUCTION_MIN_DATA_HOURS:-UNSET}"
+    log_debug "  OBSTRUCTION_HISTORICAL_THRESHOLD: ${OBSTRUCTION_HISTORICAL_THRESHOLD:-UNSET}"
+    log_debug "  OBSTRUCTION_PROLONGED_THRESHOLD: ${OBSTRUCTION_PROLONGED_THRESHOLD:-UNSET}"
 
     log_debug "Directories and paths:"
     log_debug "  LOG_DIR: ${LOG_DIR:-UNSET}"
@@ -150,9 +154,14 @@ STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
 STARLINK_PORT="${STARLINK_PORT:-9200}"
 
 # Monitoring thresholds with defaults
-LATENCY_THRESHOLD="${LATENCY_THRESHOLD:-100}"
-PACKET_LOSS_THRESHOLD="${PACKET_LOSS_THRESHOLD:-5}"
+# Default thresholds and parameters (set only if not already configured)
+LATENCY_THRESHOLD="${LATENCY_THRESHOLD:-150}"
+PACKET_LOSS_THRESHOLD="${PACKET_LOSS_THRESHOLD:-2}"
 OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD:-0.001}"
+ENABLE_INTELLIGENT_OBSTRUCTION="${ENABLE_INTELLIGENT_OBSTRUCTION:-true}"
+OBSTRUCTION_MIN_DATA_HOURS="${OBSTRUCTION_MIN_DATA_HOURS:-1}"
+OBSTRUCTION_HISTORICAL_THRESHOLD="${OBSTRUCTION_HISTORICAL_THRESHOLD:-1.0}"
+OBSTRUCTION_PROLONGED_THRESHOLD="${OBSTRUCTION_PROLONGED_THRESHOLD:-30}"
 JITTER_THRESHOLD="${JITTER_THRESHOLD:-20}"
 
 # Enhanced feature flags (configuration-controlled)
@@ -460,33 +469,56 @@ analyze_starlink_metrics() {
         fi
     fi
 
+    # Extract comprehensive obstruction metrics for intelligent analysis
     obstruction=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.fractionObstructed // 0' 2>/dev/null)
+    obstruction_time_pct=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.timeObstructed // 0' 2>/dev/null)
+    obstruction_valid_s=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.validS // 0' 2>/dev/null)
+    obstruction_avg_prolonged=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.avgProlongedObstructionIntervalS // 0' 2>/dev/null)
+    obstruction_patches_valid=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.patchesValid // 0' 2>/dev/null)
 
     # Extract enhanced metrics for intelligent monitoring
     bootcount=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceInfo.bootcount // 0' 2>/dev/null)
     is_snr_above_noise_floor=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.readyStates.snrAboveNoiseFloor // false' 2>/dev/null)
     is_snr_persistently_low=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.alerts.snrPersistentlyLow // false' 2>/dev/null)
-    snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // 0' 2>/dev/null)
-    gps_valid=$(echo "$status_data" | "$JQ_CMD" -r '.gpsStats.gpsValid // true' 2>/dev/null)
-    gps_sats=$(echo "$status_data" | "$JQ_CMD" -r '.gpsStats.gpsSats // 0' 2>/dev/null)
+    
+    # SNR field may not exist in all firmware versions - try multiple locations
+    snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // .dishGetStatus.downlinkThroughputBps // 0' 2>/dev/null)
+    # If no direct SNR available, use isSnrAboveNoiseFloor as boolean indicator
+    if [ "$snr" = "0" ] || [ "$snr" = "null" ]; then
+        if [ "$is_snr_above_noise_floor" = "true" ]; then
+            snr="good"
+        else
+            snr="poor"
+        fi
+    fi
+    
+    gps_valid=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsValid // true' 2>/dev/null)
+    gps_sats=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsSats // 0' 2>/dev/null)
 
-    log_debug "METRICS: uptime=${uptime_s}s, latency=${latency}ms, loss=${packet_loss}, obstruction=${obstruction}, SNR=${snr}dB, GPS_valid=$gps_valid, GPS_sats=$gps_sats"
+    log_debug "METRICS: uptime=${uptime_s}s, latency=${latency}ms, loss=${packet_loss}, obstruction=${obstruction}, SNR=${snr}, GPS_valid=$gps_valid, GPS_sats=$gps_sats"
+    log_debug "OBSTRUCTION DETAILS: current=${obstruction}, time_obstructed=${obstruction_time_pct}, valid_duration=${obstruction_valid_s}s, avg_prolonged=${obstruction_avg_prolonged}s, patches=${obstruction_patches_valid}"
+    log_debug "SNR DETAILS: above_noise_floor=$is_snr_above_noise_floor, persistently_low=$is_snr_persistently_low"
 
     # Convert packet loss to percentage for comparison
     packet_loss_pct=$(awk "BEGIN {print $packet_loss * 100}")
     obstruction_pct=$(awk "BEGIN {print $obstruction * 100}")
+    obstruction_time_pct_converted=$(awk "BEGIN {print $obstruction_time_pct * 100}")
 
     # Store metrics globally for use by other functions
     CURRENT_LATENCY="$latency"
     CURRENT_PACKET_LOSS="$packet_loss_pct"
     CURRENT_OBSTRUCTION="$obstruction_pct"
+    CURRENT_OBSTRUCTION_TIME_PCT="$obstruction_time_pct_converted"
+    CURRENT_OBSTRUCTION_VALID_S="$obstruction_valid_s"
+    CURRENT_OBSTRUCTION_AVG_PROLONGED="$obstruction_avg_prolonged"
+    CURRENT_OBSTRUCTION_PATCHES="$obstruction_patches_valid"
     CURRENT_SNR="$snr"
     CURRENT_GPS_VALID="$gps_valid"
     CURRENT_GPS_SATS="$gps_sats"
     CURRENT_UPTIME="$uptime_s"
 
     # Export infrastructure metrics for external use
-    export CURRENT_SNR CURRENT_UPTIME
+    export CURRENT_SNR CURRENT_UPTIME CURRENT_OBSTRUCTION_TIME_PCT CURRENT_OBSTRUCTION_VALID_S
     export STARLINK_BOOTCOUNT="$bootcount"
 
     return 0
@@ -519,10 +551,84 @@ analyze_connection_quality() {
         log_warning "High packet loss detected: ${CURRENT_PACKET_LOSS}% > ${PACKET_LOSS_THRESHOLD}%"
     fi
 
-    # Obstruction check
+    # Enhanced obstruction analysis using multiple metrics
     if awk "BEGIN {exit !($CURRENT_OBSTRUCTION > $OBSTRUCTION_THRESHOLD)}"; then
-        is_obstruction_poor=1
-        log_warning "High obstruction detected: ${CURRENT_OBSTRUCTION}% > ${OBSTRUCTION_THRESHOLD}%"
+        # Current obstruction is high, but check additional factors before triggering failover
+        
+        # Check if intelligent obstruction analysis is enabled
+        if [ "$ENABLE_INTELLIGENT_OBSTRUCTION" = "true" ]; then
+            # Calculate hours of valid obstruction data
+            obstruction_hours=$(awk "BEGIN {print $CURRENT_OBSTRUCTION_VALID_S / 3600}")
+            
+            # Check if we have sufficient data for intelligent analysis
+            if awk "BEGIN {exit !($obstruction_hours >= $OBSTRUCTION_MIN_DATA_HOURS)}"; then
+                # We have sufficient data - perform intelligent analysis
+                
+                # Check for prolonged obstructions
+                has_prolonged_obstructions=0
+                if [ "$CURRENT_OBSTRUCTION_AVG_PROLONGED" != "NaN" ] && [ "$CURRENT_OBSTRUCTION_AVG_PROLONGED" != "0" ]; then
+                    if awk "BEGIN {exit !($CURRENT_OBSTRUCTION_AVG_PROLONGED > $OBSTRUCTION_PROLONGED_THRESHOLD)}"; then
+                        has_prolonged_obstructions=1
+                    fi
+                fi
+                
+                # Intelligent decision logic
+                should_failover_obstruction=0
+                
+                # Case 1: High historical obstruction time
+                if awk "BEGIN {exit !($CURRENT_OBSTRUCTION_TIME_PCT > $OBSTRUCTION_HISTORICAL_THRESHOLD)}"; then
+                    should_failover_obstruction=1
+                    log_warning "Significant obstruction history: ${CURRENT_OBSTRUCTION_TIME_PCT}% > ${OBSTRUCTION_HISTORICAL_THRESHOLD}% over ${obstruction_hours}h"
+                fi
+                
+                # Case 2: Prolonged obstructions detected
+                if [ "$has_prolonged_obstructions" = "1" ]; then
+                    should_failover_obstruction=1
+                    log_warning "Prolonged obstructions: avg ${CURRENT_OBSTRUCTION_AVG_PROLONGED}s > ${OBSTRUCTION_PROLONGED_THRESHOLD}s threshold"
+                fi
+                
+                # Case 3: Current obstruction is extremely high (emergency threshold)
+                emergency_threshold=$(awk "BEGIN {print $OBSTRUCTION_THRESHOLD * 3}")
+                if awk "BEGIN {exit !($CURRENT_OBSTRUCTION > $emergency_threshold)}"; then
+                    should_failover_obstruction=1
+                    log_warning "Emergency obstruction level: ${CURRENT_OBSTRUCTION}% > ${emergency_threshold}% (3x threshold)"
+                fi
+                
+                # Case 4: Check data quality - insufficient valid patches suggests measurement issues
+                if [ "$CURRENT_OBSTRUCTION_PATCHES" -gt 0 ]; then
+                    if awk "BEGIN {exit !($CURRENT_OBSTRUCTION_PATCHES < 1000)}"; then
+                        log_warning "Low measurement quality: ${CURRENT_OBSTRUCTION_PATCHES} valid patches (may be unreliable)"
+                        # Reduce confidence in failover decision for poor quality data
+                        if [ "$should_failover_obstruction" = "0" ]; then
+                            log_info "Skipping failover due to questionable data quality"
+                        fi
+                    fi
+                fi
+                
+                if [ "$should_failover_obstruction" = "1" ]; then
+                    is_obstruction_poor=1
+                    log_warning "Intelligent obstruction analysis: FAILOVER RECOMMENDED"
+                    log_warning "  Current: ${CURRENT_OBSTRUCTION}% > ${OBSTRUCTION_THRESHOLD}%"
+                    log_warning "  Historical: ${CURRENT_OBSTRUCTION_TIME_PCT}% (threshold: ${OBSTRUCTION_HISTORICAL_THRESHOLD}%)"
+                    log_warning "  Prolonged avg: ${CURRENT_OBSTRUCTION_AVG_PROLONGED}s (threshold: ${OBSTRUCTION_PROLONGED_THRESHOLD}s)"
+                    log_warning "  Data period: ${obstruction_hours}h, patches: ${CURRENT_OBSTRUCTION_PATCHES}"
+                else
+                    log_info "Obstruction detected but within acceptable parameters"
+                    log_info "  Current: ${CURRENT_OBSTRUCTION}% (threshold: ${OBSTRUCTION_THRESHOLD}%)"
+                    log_info "  Historical: ${CURRENT_OBSTRUCTION_TIME_PCT}% over ${obstruction_hours}h (threshold: ${OBSTRUCTION_HISTORICAL_THRESHOLD}%)"
+                    log_info "  Assessment: Temporary/acceptable obstruction - no failover needed"
+                fi
+            else
+                # Insufficient data - fall back to simple threshold check
+                is_obstruction_poor=1
+                log_warning "High obstruction with insufficient history: ${CURRENT_OBSTRUCTION}% > ${OBSTRUCTION_THRESHOLD}%"
+                log_warning "Only ${obstruction_hours}h available (need ${OBSTRUCTION_MIN_DATA_HOURS}h) - using conservative failover"
+            fi
+        else
+            # Simple obstruction check (intelligent analysis disabled)
+            is_obstruction_poor=1
+            log_warning "High obstruction detected (simple mode): ${CURRENT_OBSTRUCTION}% > ${OBSTRUCTION_THRESHOLD}%"
+        fi
     fi
 
     # Enhanced signal quality analysis using SNR metrics
@@ -590,12 +696,12 @@ analyze_connection_quality() {
 trigger_failover() {
     log_info "Triggering Starlink failover..."
 
-    # Get current metric
-    current_metric=$(uci get mwan3.starlink.metric 2>/dev/null || echo "10")
+    # Get current metric from configured member
+    current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "10")
     new_metric=$((current_metric + 10))
 
     # Apply new metric
-    if safe_execute "uci set mwan3.starlink.metric=$new_metric" "Set mwan3 metric to $new_metric"; then
+    if safe_execute "uci set mwan3.${MWAN_MEMBER}.metric=$new_metric" "Set mwan3 metric to $new_metric"; then
         if safe_execute "uci commit mwan3" "Commit mwan3 changes"; then
             if safe_execute "/etc/init.d/mwan3 reload" "Reload mwan3 service"; then
                 log_info "Failover triggered successfully. Metric changed from $current_metric to $new_metric"
@@ -615,11 +721,11 @@ trigger_failover() {
 }
 
 # Function to restore Starlink interface when quality improves
-restore_starlink() {
-    log_info "Attempting to restore Starlink interface..."
+restore_primary() {
+    log_info "Restoring primary connection..."
 
     # Reset to default metric
-    if safe_execute "uci set mwan3.starlink.metric=10" "Reset mwan3 metric to default"; then
+    if safe_execute "uci set mwan3.${MWAN_MEMBER}.metric=10" "Reset mwan3 metric to default"; then
         if safe_execute "uci commit mwan3" "Commit mwan3 changes"; then
             if safe_execute "/etc/init.d/mwan3 reload" "Reload mwan3 service"; then
                 log_info "Starlink interface restored successfully"
