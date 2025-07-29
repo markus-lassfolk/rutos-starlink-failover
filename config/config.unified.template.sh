@@ -164,6 +164,9 @@ export STABILITY_CHECKS_REQUIRED="5"
 # Impact: Real-time awareness of connectivity issues vs no notifications
 export PUSHOVER_ENABLED="0" # 1=enabled, 0=disabled
 
+# Legacy compatibility variable for monitoring script
+export ENABLE_PUSHOVER="${PUSHOVER_ENABLED}" # Compatibility mapping
+
 # Pushover API credentials for notifications
 # Get your token from: https://pushover.net/apps/build
 # Get your user key from: https://pushover.net/
@@ -1199,28 +1202,28 @@ export MOCK_HARDWARE_RESPONSES="0"
 # Benefits: Better mobile setup support, location-based performance analysis
 # Requirements: GPS_ENABLED=1 must also be set for this to function
 # Recommended: false for stationary, true for mobile installations
-export ENABLE_GPS_TRACKING="${ENABLE_GPS_TRACKING:-false}"
+export ENABLE_GPS_TRACKING="false"
 
 # Enable cellular data collection for backup intelligence
 # What it adds: Cellular signal monitoring integrated with Starlink monitoring
 # Benefits: Smarter failover decisions based on cellular backup quality
 # Requirements: CELLULAR_ENABLED=1 must also be set for this to function
 # Recommended: false for Starlink-only, true for cellular backup setups
-export ENABLE_CELLULAR_TRACKING="${ENABLE_CELLULAR_TRACKING:-false}"
+export ENABLE_CELLULAR_TRACKING="false"
 
 # Enable multi-source GPS (RUTOS + Starlink + cellular estimation)
 # What it adds: GPS data fusion from multiple sources for improved accuracy
 # Benefits: Better location accuracy, redundancy if one GPS source fails
 # Requirements: Multiple GPS sources available on the system
 # Recommended: false for single GPS source, true for systems with multiple GPS sources
-export ENABLE_MULTI_SOURCE_GPS="${ENABLE_MULTI_SOURCE_GPS:-false}"
+export ENABLE_MULTI_SOURCE_GPS="false"
 
 # Enable enhanced failover logic (considers GPS + cellular + multiple factors)
 # What it adds: Sophisticated failover decisions beyond basic quality thresholds
 # Benefits: Smarter failover for mobile setups, cost-aware decisions
 # Requirements: GPS and/or cellular tracking enabled for full functionality
 # Recommended: false for basic setups, true for advanced mobile installations
-export ENABLE_ENHANCED_FAILOVER="${ENABLE_ENHANCED_FAILOVER:-false}"
+export ENABLE_ENHANCED_FAILOVER="false"
 
 # --- LOGGING ENHANCEMENTS ---
 
@@ -1229,35 +1232,35 @@ export ENABLE_ENHANCED_FAILOVER="${ENABLE_ENHANCED_FAILOVER:-false}"
 # Benefits: Location-based performance analysis, travel tracking
 # Impact: Additional log file storage for GPS data
 # Recommended: false for stationary, true for mobile setups needing location data
-export ENABLE_GPS_LOGGING="${ENABLE_GPS_LOGGING:-false}"
+export ENABLE_GPS_LOGGING="false"
 
 # Enable cellular data logging (signal strength, operator, network type)
 # What it adds: Detailed cellular backup performance data in logs
 # Benefits: Cellular backup analysis, signal quality tracking
 # Impact: Additional log file storage for cellular metrics
 # Recommended: false for Starlink-only, true for cellular backup analysis
-export ENABLE_CELLULAR_LOGGING="${ENABLE_CELLULAR_LOGGING:-false}"
+export ENABLE_CELLULAR_LOGGING="false"
 
 # Enable enhanced metrics (SNR, reboot detection, GPS stats)
 # What it adds: Signal-to-noise ratio, system reboot tracking, GPS quality metrics
 # Benefits: Better troubleshooting data, system health monitoring
 # Impact: Slightly larger log files with additional technical metrics
 # Recommended: false for basic logging, true for comprehensive system monitoring
-export ENABLE_ENHANCED_METRICS="${ENABLE_ENHANCED_METRICS:-false}"
+export ENABLE_ENHANCED_METRICS="false"
 
 # Enable statistical data aggregation (60:1 data reduction for long-term analytics)
 # What it does: Aggregates raw data into statistical summaries for long-term storage
 # Benefits: Enables long-term trend analysis without massive log files
 # How it works: 60 raw samples → 1 statistical record (min, max, avg, std dev)
 # Recommended: false for short-term monitoring, true for long-term analytics
-export ENABLE_STATISTICAL_AGGREGATION="${ENABLE_STATISTICAL_AGGREGATION:-false}"
+export ENABLE_STATISTICAL_AGGREGATION="false"
 
 # Aggregation batch size (number of raw samples to aggregate into one record)
 # Controls granularity of statistical aggregation
 # Common values: 60 = hourly summaries, 30 = 15-minute summaries, 120 = 2-hour summaries
 # Impact: Higher values = more compression but less granular historical data
 # Recommended: 60 (1-hour aggregation for good balance of detail vs storage)
-export AGGREGATION_BATCH_SIZE="${AGGREGATION_BATCH_SIZE:-60}"
+export AGGREGATION_BATCH_SIZE="60"
 
 # =============================================================================
 # UNIFIED SCRIPTS CONFIGURATION EXAMPLES

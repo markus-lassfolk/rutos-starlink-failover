@@ -7,9 +7,6 @@ set -e
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-readonly SCRIPT_VERSION="2.4.11"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 

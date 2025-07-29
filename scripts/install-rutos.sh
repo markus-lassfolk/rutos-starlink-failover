@@ -1029,42 +1029,64 @@ install_binaries() {
         # Get current installed version (grpcurl uses -version and outputs: "grpcurl v1.9.3")
         debug_log "GRPCURL INSTALL: Testing version detection..."
         
+        # Test if grpcurl binary is working (check for bus errors, segfaults, etc.)
+        debug_log "GRPCURL INSTALL: Testing binary functionality..."
+        grpcurl_test_output=$("$INSTALL_DIR/grpcurl" -version 2>&1 | head -1 || echo "BINARY_ERROR")
+        grpcurl_exit_code=$?
+        
         # Debug: Test what grpcurl actually outputs
         if [ "${DEBUG:-0}" = "1" ]; then
             debug_log "GRPCURL DEBUG: Testing -version output:"
-            debug_log "$(echo "$INSTALL_DIR/grpcurl -version:" && "$INSTALL_DIR/grpcurl" -version 2>&1 | head -1 || echo "FAILED")"
+            debug_log "$INSTALL_DIR/grpcurl -version:"
+            debug_log "Exit code: $grpcurl_exit_code"
+            debug_log "Output: '$grpcurl_test_output'"
         fi
         
-        # Extract version from "grpcurl v1.9.3" format
-        current_grpcurl_version_raw=$("$INSTALL_DIR/grpcurl" -version 2>/dev/null | head -1 || echo "")
-        current_grpcurl_version=$(echo "$current_grpcurl_version_raw" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//' || echo "unknown")
-        
-        debug_log "GRPCURL INSTALL: Raw output: '$current_grpcurl_version_raw'"
-        debug_log "GRPCURL INSTALL: Parsed version: '$current_grpcurl_version'"
-
-        # Try to detect latest available version
-        print_status "$BLUE" "Checking for grpcurl updates (current: $current_grpcurl_version)..."
-        if latest_grpcurl_url=$(detect_latest_grpcurl_version 2>/dev/null); then
-            # Extract version from URL (e.g., v1.9.3 from the download URL)
-            latest_version=$(echo "$latest_grpcurl_url" | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1 || echo "unknown")
-            # Clean up latest version for comparison (remove 'v' prefix)
-            latest_version_clean=$(echo "$latest_version" | sed 's/^v//')
-            debug_log "GRPCURL INSTALL: Latest available version: $latest_version (comparing: $latest_version_clean vs $current_grpcurl_version)"
-
-            if [ "$current_grpcurl_version" = "$latest_version_clean" ] && [ "$current_grpcurl_version" != "unknown" ]; then
-                print_status "$GREEN" "✓ grpcurl is up to date ($current_grpcurl_version)"
-                skip_grpcurl_download=true
-            else
-                print_status "$YELLOW" "🔄 grpcurl update available: $current_grpcurl_version → $latest_version"
-            fi
+        # Check if binary is corrupted (bus error, segfault, etc.)
+        if [ $grpcurl_exit_code -ne 0 ] || echo "$grpcurl_test_output" | grep -qE "(Bus error|Segmentation fault|core dumped|BINARY_ERROR)" 2>/dev/null; then
+            debug_log "GRPCURL INSTALL: Binary appears corrupted (exit code: $grpcurl_exit_code, output: '$grpcurl_test_output')"
+            print_status "$YELLOW" "⚠️ Existing grpcurl binary is corrupted, will re-download"
+            # Force re-download due to corrupted binary
+            skip_grpcurl_download=false
         else
-            # If we can't detect latest version, check if current version is acceptable
-            debug_log "GRPCURL INSTALL: Cannot detect latest version, checking if current is acceptable"
-            if [ "$current_grpcurl_version" != "unknown" ]; then
-                print_status "$GREEN" "✓ grpcurl already installed ($current_grpcurl_version) - version check skipped"
-                skip_grpcurl_download=true
+            # Extract version from "grpcurl v1.9.3" format
+            current_grpcurl_version_raw="$grpcurl_test_output"
+            current_grpcurl_version=$(echo "$current_grpcurl_version_raw" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//' || echo "unknown")
+            
+            debug_log "GRPCURL INSTALL: Raw output: '$current_grpcurl_version_raw'"
+            debug_log "GRPCURL INSTALL: Parsed version: '$current_grpcurl_version'"
+
+            # Only proceed with version checking if we got a valid version
+            if [ "$current_grpcurl_version" != "unknown" ] && [ -n "$current_grpcurl_version" ]; then
+                # Try to detect latest available version
+                print_status "$BLUE" "Checking for grpcurl updates (current: $current_grpcurl_version)..."
+                if latest_grpcurl_url=$(detect_latest_grpcurl_version 2>/dev/null); then
+                    # Extract version from URL (e.g., v1.9.3 from the download URL)
+                    latest_version=$(echo "$latest_grpcurl_url" | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1 || echo "unknown")
+                    # Clean up latest version for comparison (remove 'v' prefix)
+                    latest_version_clean=$(echo "$latest_version" | sed 's/^v//')
+                    debug_log "GRPCURL INSTALL: Latest available version: $latest_version (comparing: $latest_version_clean vs $current_grpcurl_version)"
+
+                    if [ "$current_grpcurl_version" = "$latest_version_clean" ] && [ "$current_grpcurl_version" != "unknown" ]; then
+                        print_status "$GREEN" "✓ grpcurl is up to date ($current_grpcurl_version)"
+                        skip_grpcurl_download=true
+                    else
+                        print_status "$YELLOW" "🔄 grpcurl update available: $current_grpcurl_version → $latest_version"
+                    fi
+                else
+                    # If we can't detect latest version, check if current version is acceptable
+                    debug_log "GRPCURL INSTALL: Cannot detect latest version, checking if current is acceptable"
+                    print_status "$GREEN" "✓ grpcurl already installed ($current_grpcurl_version) - version check skipped"
+                    skip_grpcurl_download=true
+                fi
+            else
+                debug_log "GRPCURL INSTALL: Could not determine version from working binary, will re-download"
+                print_status "$YELLOW" "⚠️ Could not determine grpcurl version, will re-download"
+                skip_grpcurl_download=false
             fi
         fi
+    else
+        debug_log "GRPCURL INSTALL: No existing grpcurl binary found"
     fi
 
     if [ "$skip_grpcurl_download" = false ]; then
@@ -1081,8 +1103,9 @@ install_binaries() {
                     chmod +x "$INSTALL_DIR/grpcurl"
                     rm /tmp/grpcurl.tar.gz
                     debug_log "GRPCURL INSTALL: Latest version installation completed successfully"
-                    # Get version for display
-                    grpcurl_version=$("$INSTALL_DIR/grpcurl" --version 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
+                    # Get version for display (grpcurl uses -version and outputs: "grpcurl v1.9.3")
+                    grpcurl_version_test=$("$INSTALL_DIR/grpcurl" -version 2>/dev/null | head -1 || echo "")
+                    grpcurl_version=$(echo "$grpcurl_version_test" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "installed")
                     print_status "$GREEN" "✓ grpcurl installed (latest: $grpcurl_version)"
                 else
                     debug_log "GRPCURL INSTALL: Latest version extraction failed, trying fallback to stable version"
