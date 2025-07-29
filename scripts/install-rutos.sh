@@ -1026,18 +1026,32 @@ install_binaries() {
     # Check if we already have grpcurl and if it's the latest version
     skip_grpcurl_download=false
     if [ -f "$INSTALL_DIR/grpcurl" ] && [ -x "$INSTALL_DIR/grpcurl" ]; then
-        # Get current installed version (grpcurl uses -version, not --version)
-        current_grpcurl_version=$("$INSTALL_DIR/grpcurl" -version 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
-        debug_log "GRPCURL INSTALL: Found existing version: $current_grpcurl_version"
+        # Get current installed version (grpcurl uses -version and outputs: "grpcurl v1.9.3")
+        debug_log "GRPCURL INSTALL: Testing version detection..."
+        
+        # Debug: Test what grpcurl actually outputs
+        if [ "${DEBUG:-0}" = "1" ]; then
+            debug_log "GRPCURL DEBUG: Testing -version output:"
+            debug_log "$(echo "$INSTALL_DIR/grpcurl -version:" && "$INSTALL_DIR/grpcurl" -version 2>&1 | head -1 || echo "FAILED")"
+        fi
+        
+        # Extract version from "grpcurl v1.9.3" format
+        current_grpcurl_version_raw=$("$INSTALL_DIR/grpcurl" -version 2>/dev/null | head -1 || echo "")
+        current_grpcurl_version=$(echo "$current_grpcurl_version_raw" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//' || echo "unknown")
+        
+        debug_log "GRPCURL INSTALL: Raw output: '$current_grpcurl_version_raw'"
+        debug_log "GRPCURL INSTALL: Parsed version: '$current_grpcurl_version'"
 
         # Try to detect latest available version
         print_status "$BLUE" "Checking for grpcurl updates (current: $current_grpcurl_version)..."
         if latest_grpcurl_url=$(detect_latest_grpcurl_version 2>/dev/null); then
             # Extract version from URL (e.g., v1.9.3 from the download URL)
             latest_version=$(echo "$latest_grpcurl_url" | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1 || echo "unknown")
-            debug_log "GRPCURL INSTALL: Latest available version: $latest_version"
+            # Clean up latest version for comparison (remove 'v' prefix)
+            latest_version_clean=$(echo "$latest_version" | sed 's/^v//')
+            debug_log "GRPCURL INSTALL: Latest available version: $latest_version (comparing: $latest_version_clean vs $current_grpcurl_version)"
 
-            if [ "$current_grpcurl_version" = "$latest_version" ] || [ "v$current_grpcurl_version" = "$latest_version" ]; then
+            if [ "$current_grpcurl_version" = "$latest_version_clean" ] && [ "$current_grpcurl_version" != "unknown" ]; then
                 print_status "$GREEN" "✓ grpcurl is up to date ($current_grpcurl_version)"
                 skip_grpcurl_download=true
             else
