@@ -438,46 +438,130 @@ perform_statistical_aggregation() {
 collect_gps_data() {
     # Skip if GPS logging is disabled
     if [ "$ENABLE_GPS_LOGGING" != "true" ]; then
-        log_debug "GPS logging disabled, returning default values"
-        printf "0,0,0,false,0"
+        log_debug "📍 GPS COLLECTION: GPS logging disabled (ENABLE_GPS_LOGGING=$ENABLE_GPS_LOGGING), returning default values"
+        printf "0,0,0,none,none"
         return 0
     fi
 
+    log_debug "📍 GPS COLLECTION: Starting GPS data collection from available sources"
+    log_debug "📍 GPS CONFIG: PRIMARY_SOURCE=${GPS_PRIMARY_SOURCE:-starlink}, SECONDARY_SOURCE=${GPS_SECONDARY_SOURCE:-rutos}"
+    
     lat="" lon="" alt="" accuracy="" source=""
+    rutos_lat="" rutos_lon="" rutos_alt=""
+    starlink_lat="" starlink_lon="" starlink_alt=""
 
-    log_debug "Collecting GPS data from available sources"
-
-    # Try RUTOS GPS first (most accurate for position)
+    # === RUTOS GPS Collection ===
+    log_debug "📍 RUTOS GPS: Attempting to collect RUTOS GPS data..."
     if command -v gpsctl >/dev/null 2>&1; then
+        log_debug "📍 RUTOS GPS: gpsctl command found, executing gpsctl -i"
         gps_output=$(gpsctl -i 2>/dev/null || echo "")
         if [ -n "$gps_output" ]; then
-            lat=$(echo "$gps_output" | grep "Latitude:" | awk '{print $2}' | head -1)
-            lon=$(echo "$gps_output" | grep "Longitude:" | awk '{print $2}' | head -1)
-            alt=$(echo "$gps_output" | grep "Altitude:" | awk '{print $2}' | head -1)
-            if [ -n "$lat" ] && [ -n "$lon" ] && [ "$lat" != "0.000000" ]; then
-                accuracy="high"
-                source="rutos_gps"
-                log_debug "GPS data from RUTOS: lat=$lat, lon=$lon"
+            log_debug "📍 RUTOS GPS: Raw gpsctl output received (${#gps_output} chars)"
+            log_debug "📍 RUTOS GPS: Raw output: $gps_output"
+            
+            rutos_lat=$(echo "$gps_output" | grep "Latitude:" | awk '{print $2}' | head -1)
+            rutos_lon=$(echo "$gps_output" | grep "Longitude:" | awk '{print $2}' | head -1)
+            rutos_alt=$(echo "$gps_output" | grep "Altitude:" | awk '{print $2}' | head -1)
+            
+            log_debug "📍 RUTOS GPS: Parsed values - lat=$rutos_lat, lon=$rutos_lon, alt=$rutos_alt"
+            
+            if [ -n "$rutos_lat" ] && [ -n "$rutos_lon" ] && [ "$rutos_lat" != "0.000000" ] && [ "$rutos_lat" != "0" ]; then
+                log_debug "📍 RUTOS GPS: Valid GPS data found"
+            else
+                log_debug "📍 RUTOS GPS: Invalid or zero GPS coordinates"
+                rutos_lat="" rutos_lon="" rutos_alt=""
             fi
+        else
+            log_debug "📍 RUTOS GPS: No output from gpsctl command"
         fi
+    else
+        log_debug "📍 RUTOS GPS: gpsctl command not available"
     fi
 
-    # Fallback to Starlink GPS if RUTOS GPS unavailable
-    if [ -z "$lat" ] && [ -n "${status_data:-}" ]; then
-        # Try different GPS location fields - the API structure might vary
+    # === Starlink GPS Collection ===
+    log_debug "📍 STARLINK GPS: Attempting to collect Starlink GPS data..."
+    if [ -n "${status_data:-}" ]; then
+        log_debug "📍 STARLINK GPS: status_data available, trying different field paths"
+        
+        # Try multiple possible field paths for GPS location
         starlink_lat=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.location.lla.lat // .location.lla.lat // .getLocation.lla.lat // empty' 2>/dev/null)
         starlink_lon=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.location.lla.lon // .location.lla.lon // .getLocation.lla.lon // empty' 2>/dev/null)
-        if [ -n "$starlink_lat" ] && [ -n "$starlink_lon" ] && [ "$starlink_lat" != "0" ]; then
-            lat="$starlink_lat"
-            lon="$starlink_lon"
-            alt=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.location.lla.alt // .location.lla.alt // .getLocation.lla.alt // 0' 2>/dev/null)
-            accuracy="high"
-            source="starlink_gps"
-            log_debug "GPS data from Starlink: lat=$lat, lon=$lon"
+        starlink_alt=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.location.lla.alt // .location.lla.alt // .getLocation.lla.alt // 0' 2>/dev/null)
+        
+        log_debug "📍 STARLINK GPS: Field extraction results - lat=$starlink_lat, lon=$starlink_lon, alt=$starlink_alt"
+        
+        if [ -n "$starlink_lat" ] && [ -n "$starlink_lon" ] && [ "$starlink_lat" != "0" ] && [ "$starlink_lat" != "empty" ]; then
+            log_debug "📍 STARLINK GPS: Valid GPS data found in get_status response"
         else
-            log_debug "📍 Starlink GPS: No location data available in get_status response"
-            log_debug "📍 GPS available but location data might require separate get_location API call"
+            log_debug "📍 STARLINK GPS: No location data in get_status, trying separate get_location API call"
+            
+            # Try separate get_location API call
+            location_cmd="$GRPCURL_CMD -plaintext -d '{\"getLocation\":{}}' $STARLINK_IP:$STARLINK_PORT SpaceX.API.Device.Device/Handle 2>/dev/null"
+            log_debug "📍 STARLINK GPS: Executing get_location API call"
+            
+            if location_data=$(eval "$location_cmd" 2>/dev/null); then
+                log_debug "📍 STARLINK GPS: get_location API call successful"
+                starlink_lat=$(echo "$location_data" | "$JQ_CMD" -r '.getLocation.lla.lat // empty' 2>/dev/null)
+                starlink_lon=$(echo "$location_data" | "$JQ_CMD" -r '.getLocation.lla.lon // empty' 2>/dev/null)
+                starlink_alt=$(echo "$location_data" | "$JQ_CMD" -r '.getLocation.lla.alt // 0' 2>/dev/null)
+                log_debug "📍 STARLINK GPS: get_location results - lat=$starlink_lat, lon=$starlink_lon, alt=$starlink_alt"
+                
+                if [ -n "$starlink_lat" ] && [ -n "$starlink_lon" ] && [ "$starlink_lat" != "0" ] && [ "$starlink_lat" != "empty" ]; then
+                    log_debug "📍 STARLINK GPS: Valid GPS data found via get_location API"
+                else
+                    log_debug "📍 STARLINK GPS: No valid location data from get_location API either"
+                    starlink_lat="" starlink_lon="" starlink_alt=""
+                fi
+            else
+                log_debug "📍 STARLINK GPS: get_location API call failed"
+                starlink_lat="" starlink_lon="" starlink_alt=""
+            fi
         fi
+    else
+        log_debug "📍 STARLINK GPS: No status_data available for GPS extraction"
+    fi
+
+    # === GPS Source Priority Logic ===
+    log_debug "📍 GPS PRIORITY: Applying GPS source priority logic"
+    log_debug "📍 GPS SOURCES: RUTOS=[${rutos_lat:-empty}], STARLINK=[${starlink_lat:-empty}]"
+    
+    primary_source="${GPS_PRIMARY_SOURCE:-starlink}"
+    secondary_source="${GPS_SECONDARY_SOURCE:-rutos}"
+    
+    log_debug "📍 GPS PRIORITY: Primary=$primary_source, Secondary=$secondary_source"
+    
+    # Apply primary source preference
+    if [ "$primary_source" = "starlink" ] && [ -n "$starlink_lat" ]; then
+        lat="$starlink_lat"
+        lon="$starlink_lon"
+        alt="${starlink_alt:-0}"
+        accuracy="high"
+        source="starlink_gps"
+        log_debug "📍 GPS SELECTION: Using PRIMARY source (Starlink): lat=$lat, lon=$lon"
+    elif [ "$primary_source" = "rutos" ] && [ -n "$rutos_lat" ]; then
+        lat="$rutos_lat"
+        lon="$rutos_lon"
+        alt="${rutos_alt:-0}"
+        accuracy="high"
+        source="rutos_gps"
+        log_debug "📍 GPS SELECTION: Using PRIMARY source (RUTOS): lat=$lat, lon=$lon"
+    # Fallback to secondary source
+    elif [ "$secondary_source" = "starlink" ] && [ -n "$starlink_lat" ]; then
+        lat="$starlink_lat"
+        lon="$starlink_lon"
+        alt="${starlink_alt:-0}"
+        accuracy="medium"
+        source="starlink_gps"
+        log_debug "📍 GPS SELECTION: Using SECONDARY source (Starlink): lat=$lat, lon=$lon"
+    elif [ "$secondary_source" = "rutos" ] && [ -n "$rutos_lat" ]; then
+        lat="$rutos_lat"
+        lon="$rutos_lon"
+        alt="${rutos_alt:-0}"
+        accuracy="medium"
+        source="rutos_gps"
+        log_debug "📍 GPS SELECTION: Using SECONDARY source (RUTOS): lat=$lat, lon=$lon"
+    else
+        log_debug "📍 GPS SELECTION: No valid GPS data from any source"
     fi
 
     # Set defaults if no GPS data available
@@ -486,6 +570,8 @@ collect_gps_data() {
     alt="${alt:-0}"
     accuracy="${accuracy:-none}"
     source="${source:-none}"
+
+    log_debug "📍 GPS FINAL: lat=$lat, lon=$lon, alt=$alt, accuracy=$accuracy, source=$source"
 
     # Return GPS data for CSV logging
     printf "%s,%s,%s,%s,%s" "$lat" "$lon" "$alt" "$accuracy" "$source"
