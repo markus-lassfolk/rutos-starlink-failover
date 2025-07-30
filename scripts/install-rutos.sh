@@ -32,11 +32,19 @@ BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 # Try to load RUTOS library system if available locally (development mode)
 # For remote installation via curl, we'll use built-in fallback functions
 LIBRARY_LOADED=0
-if [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; then
+
+# First, check if bootstrap script provided a library path
+if [ -n "${LIBRARY_PATH:-}" ] && [ -f "$LIBRARY_PATH/rutos-lib.sh" ]; then
+    # Bootstrap installation mode: library already downloaded by bootstrap script
+    if . "$LIBRARY_PATH/rutos-lib.sh" 2>/dev/null; then
+        LIBRARY_LOADED=1
+        printf "[DEBUG] RUTOS library system loaded from bootstrap environment: %s\n" "$LIBRARY_PATH" >&2
+    fi
+elif [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; then
     # Development mode: scripts directory available locally
     if . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
         LIBRARY_LOADED=1
-        log_debug "RUTOS library system loaded from local development environment"
+        printf "[DEBUG] RUTOS library system loaded from local development environment\n" >&2
     fi
 fi
 
@@ -177,6 +185,11 @@ else
             "DEBUG_EXEC" | "debug_exec") log_debug "EXEC: $message" ;;
             *) log_info "$message" ;;
         esac
+    }
+
+    # Built-in get_timestamp function (fallback when library not available)
+    get_timestamp() {
+        date '+%Y-%m-%d %H:%M:%S'
     }
 
     # Initialize logging variables
@@ -1581,8 +1594,16 @@ install_scripts() {
         view-logs-rutos.sh \
         analyze-outage-correlation-rutos.sh \
         analyze-outage-correlation-optimized-rutos.sh \
+        analyze-decision-log-rutos.sh \
+        watch-decisions-rutos.sh \
         check-pushover-logs-rutos.sh \
         diagnose-pushover-notifications-rutos.sh \
+        auto-detect-config-rutos.sh \
+        debug-config-rutos.sh \
+        enhanced-cleanup-rutos.sh \
+        setup-cron-monitoring-rutos.sh \
+        cron-monitor-wrapper-rutos.sh \
+        cron-health-monitor-rutos.sh \
         test-all-scripts-rutos.sh \
         validate-persistent-config-rutos.sh \
         dev-testing-rutos.sh; do
