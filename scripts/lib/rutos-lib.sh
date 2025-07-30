@@ -49,7 +49,25 @@ fi
 . "$_rutos_lib_dir/rutos-colors.sh"
 . "$_rutos_lib_dir/rutos-logging.sh"
 . "$_rutos_lib_dir/rutos-common.sh"
-. "$_rutos_lib_dir/rutos-data-collection.sh"
+
+# Load optional compatibility module (for legacy script support)
+if [ -f "$_rutos_lib_dir/rutos-compatibility.sh" ]; then
+    . "$_rutos_lib_dir/rutos-compatibility.sh"
+else
+    _RUTOS_COMPATIBILITY_LOADED=0
+fi
+
+# Load optional data collection module (graceful degradation if missing)
+if [ -f "$_rutos_lib_dir/rutos-data-collection.sh" ]; then
+    . "$_rutos_lib_dir/rutos-data-collection.sh"
+else
+    # Stub functions if data collection module is not available
+    collect_system_info() { printf "Data collection not available\n"; }
+    collect_network_info() { printf "Network collection not available\n"; }
+    collect_gps_info() { printf "GPS collection not available\n"; }
+    collect_cellular_info() { printf "Cellular collection not available\n"; }
+    _RUTOS_DATA_COLLECTION_LOADED=0
+fi
 
 # ============================================================================
 # RUTOS INITIALIZATION FUNCTION
@@ -117,6 +135,7 @@ rutos_lib_info() {
     printf "  Colors Module: %s\n" "${_RUTOS_COLORS_LOADED:-not loaded}"
     printf "  Logging Module: %s\n" "${_RUTOS_LOGGING_LOADED:-not loaded}"
     printf "  Common Module: %s\n" "${_RUTOS_COMMON_LOADED:-not loaded}"
+    printf "  Compatibility Module: %s\n" "${_RUTOS_COMPATIBILITY_LOADED:-not loaded}"
     printf "  Data Collection Module: %s\n" "${_RUTOS_DATA_COLLECTION_LOADED:-not loaded}"
     printf "  Current Log Level: %s\n" "${LOG_LEVEL:-not set}"
     printf "  Environment Variables:\n"
@@ -141,8 +160,13 @@ rutos_lib_check() {
         missing_modules="$missing_modules common"
     fi
 
+    # Optional modules - warn but don't fail if missing
+    if [ "${_RUTOS_COMPATIBILITY_LOADED:-0}" != "1" ]; then
+        printf "WARNING: Compatibility module not available (legacy function support disabled)\n" >&2
+    fi
+
     if [ "${_RUTOS_DATA_COLLECTION_LOADED:-0}" != "1" ]; then
-        missing_modules="$missing_modules data-collection"
+        printf "WARNING: Data collection module not available (GPS/cellular features disabled)\n" >&2
     fi
 
     if [ -n "$missing_modules" ]; then
