@@ -1694,66 +1694,6 @@ install_scripts() {
 
     print_status "$GREEN" "✓ All scripts installation completed"
 
-    # Install RUTOS library system (CRITICAL - required for script operation)
-    print_status "$BLUE" "Installing RUTOS library system..."
-    mkdir -p "$INSTALL_DIR/scripts/lib" 2>/dev/null || {
-        print_status "$RED" "✗ Failed to create library directory"
-        return 1
-    }
-
-    # Critical library files (required for basic functionality)
-    critical_libraries="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh"
-    
-    # Optional library files (graceful degradation if missing)
-    optional_libraries="rutos-compatibility.sh rutos-data-collection.sh"
-
-    # Install critical libraries first
-    for lib_file in $critical_libraries; do
-        if [ -f "$script_dir/lib/$lib_file" ]; then
-            # Local development installation
-            cp "$script_dir/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"
-            print_status "$GREEN" "✓ Critical library installed: $lib_file"
-        else
-            # Remote installation - download library files
-            print_status "$BLUE" "Downloading critical library: $lib_file..."
-            if download_file "$BASE_URL/scripts/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"; then
-                print_status "$GREEN" "✓ Critical library downloaded: $lib_file"
-            else
-                print_status "$RED" "✗ Failed to download critical library: $lib_file"
-                print_status "$RED" "This is a critical error - scripts will not work without the core library system"
-                return 1
-            fi
-        fi
-    done
-
-    # Install optional libraries (non-critical)
-    for lib_file in $optional_libraries; do
-        if [ -f "$script_dir/lib/$lib_file" ]; then
-            # Local development installation
-            cp "$script_dir/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"
-            print_status "$GREEN" "✓ Optional library installed: $lib_file"
-        else
-            # Remote installation - download library files
-            print_status "$BLUE" "Downloading optional library: $lib_file..."
-            if download_file "$BASE_URL/scripts/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"; then
-                print_status "$GREEN" "✓ Optional library downloaded: $lib_file"
-            else
-                print_status "$YELLOW" "Warning: Failed to download optional library: $lib_file"
-                case "$lib_file" in
-                    "rutos-compatibility.sh")
-                        print_status "$YELLOW" "  → Legacy function support will be disabled"
-                        ;;
-                    "rutos-data-collection.sh")
-                        print_status "$YELLOW" "  → GPS/cellular features will be disabled"
-                        ;;
-                esac
-                print_status "$YELLOW" "  → Installation will continue with basic functionality"
-            fi
-        fi
-    done
-
-    print_status "$GREEN" "✓ RUTOS library system installed successfully"
-
     # Create script documentation
     create_script_documentation
 
