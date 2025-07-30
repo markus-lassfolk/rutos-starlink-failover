@@ -315,29 +315,36 @@ log_decision() {
         snr_above_noise="${CURRENT_SNR_ABOVE_NOISE:-true}"
         snr_persistently_low="${CURRENT_SNR_PERSISTENTLY_LOW:-false}"
         
-        if [ "$snr_above_noise" = "false" ] || [ "$snr_persistently_low" = "true" ]; then
+        # CORRECTED LOGIC: Only consider SNR poor if it's persistently low
+        # above_noise_floor=false may just mean "not measured" and is not reliable
+        if [ "$snr_persistently_low" = "true" ]; then
             snr_poor=1
-            log_debug "SNR DECISION LOGIC: SNR marked as poor via readyStates (above_noise=$snr_above_noise, persistently_low=$snr_persistently_low)"
-        else
-            # Fallback to numeric comparison if readyStates not available
-            snr_comparison=$(echo "$current_snr < 8" | bc -l 2>/dev/null || echo "")
-            log_debug "SNR DECISION LOGIC: readyStates good, checking numeric fallback bc result='$snr_comparison'"
+            log_debug "SNR DECISION LOGIC: SNR marked as poor - persistently low signal detected"
+            log_warning "Poor SNR detected: above_noise_floor=$snr_above_noise, persistently_low=$snr_persistently_low"
+        elif [ "$snr_above_noise" = "false" ] && [ "$current_snr" != "unknown" ]; then
+            # Secondary check: if above_noise is false AND we have a numeric value, check if it's very low
+            snr_comparison=$(echo "$current_snr < 3" | bc -l 2>/dev/null || echo "")
+            log_debug "SNR DECISION LOGIC: above_noise=false, checking if SNR < 3dB, bc result='$snr_comparison'"
             if [ "$snr_comparison" = "1" ]; then
                 snr_poor=1
-                log_debug "SNR DECISION LOGIC: SNR marked as poor via numeric comparison fallback"
+                log_debug "SNR DECISION LOGIC: SNR marked as poor - below 3dB with above_noise=false"
+                log_warning "Poor SNR detected: Very low SNR ($current_snr dB) with above_noise_floor=false"
             elif [ -z "$snr_comparison" ]; then
                 # bc failed, try integer comparison as final fallback
                 snr_int=$(echo "$current_snr" | cut -d'.' -f1 2>/dev/null || echo "999")
                 log_debug "SNR DECISION LOGIC: bc failed, using integer fallback snr_int='$snr_int'"
-                if [ "$snr_int" -lt 8 ] 2>/dev/null; then
+                if [ "$snr_int" -lt 3 ] 2>/dev/null; then
                     snr_poor=1
-                    log_debug "SNR DECISION LOGIC: SNR marked as poor via integer comparison fallback"
+                    log_debug "SNR DECISION LOGIC: SNR marked as poor - below 3dB integer check"
+                    log_warning "Poor SNR detected: Very low SNR ($current_snr dB) with above_noise_floor=false"
                 else
-                    log_debug "SNR DECISION LOGIC: SNR is good via integer comparison fallback"
+                    log_debug "SNR DECISION LOGIC: SNR acceptable despite above_noise=false (SNR >= 3dB)"
                 fi
             else
-                log_debug "SNR DECISION LOGIC: SNR is good via readyStates and numeric confirmation"
+                log_debug "SNR DECISION LOGIC: SNR acceptable despite above_noise=false (SNR >= 3dB)"
             fi
+        else
+            log_debug "SNR DECISION LOGIC: SNR is good (persistently_low=false, readyStates normal)"
         fi
         log_debug "SNR DECISION LOGIC: final snr_poor=$snr_poor"
     fi
@@ -1121,8 +1128,29 @@ trigger_failover() {
             if safe_execute "/etc/init.d/mwan3 reload" "Reload mwan3 service"; then
                 log_info "Failover triggered successfully. Metric changed from $current_metric to $new_metric"
                 
+                # Wait for mwan3 service to settle and create necessary files
+                log_debug "Waiting for mwan3 service to initialize..."
+                sleep 3
+                
+                # Optional: Verify mwan3 status files were created (with timeout)
+                mwan3_ready=0
+                for i in 1 2 3 4 5; do
+                    if [ -f "/var/run/mwan3.pid" ] || [ -d "/var/run/mwan3" ] || [ -f "/tmp/run/mwan3.pid" ]; then
+                        mwan3_ready=1
+                        log_debug "MWAN3 service appears ready (attempt $i/5)"
+                        break
+                    else
+                        log_debug "MWAN3 service not ready yet (attempt $i/5), waiting..."
+                        sleep 1
+                    fi
+                done
+                
+                if [ "$mwan3_ready" = "0" ]; then
+                    log_warning "MWAN3 service may not be fully initialized (status files not found)"
+                fi
+                
                 # Log the successful failover decision
-                additional_notes="Quality factors: $quality_factors, Previous metric: $current_metric"
+                additional_notes="Quality factors: $quality_factors; Previous metric: $current_metric"
                 log_failover "$severity" "$trigger_reason" "success" "$additional_notes"
 
                 # Send notification if enabled
@@ -1164,6 +1192,27 @@ restore_primary() {
         if safe_execute "uci commit mwan3" "Commit mwan3 changes"; then
             if safe_execute "/etc/init.d/mwan3 reload" "Reload mwan3 service"; then
                 log_info "Starlink interface restored successfully"
+                
+                # Wait for mwan3 service to settle after restore
+                log_debug "Waiting for mwan3 service to initialize after restore..."
+                sleep 3
+                
+                # Optional: Verify mwan3 status files were created (with timeout)
+                mwan3_ready=0
+                for i in 1 2 3 4 5; do
+                    if [ -f "/var/run/mwan3.pid" ] || [ -d "/var/run/mwan3" ] || [ -f "/tmp/run/mwan3.pid" ]; then
+                        mwan3_ready=1
+                        log_debug "MWAN3 service appears ready after restore (attempt $i/5)"
+                        break
+                    else
+                        log_debug "MWAN3 service not ready yet after restore (attempt $i/5), waiting..."
+                        sleep 1
+                    fi
+                done
+                
+                if [ "$mwan3_ready" = "0" ]; then
+                    log_warning "MWAN3 service may not be fully initialized after restore (status files not found)"
+                fi
                 
                 # Log the successful restore decision
                 log_restore "$restore_reason" "success" "$additional_notes"
