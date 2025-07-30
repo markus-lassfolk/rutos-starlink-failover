@@ -67,7 +67,7 @@ echo ""
 echo "📋 SCENARIO 3: Scheduled Reboot (5 minutes away)"
 echo "-------------------------------------------------"
 current_time=$(date +%s)
-reboot_time=$((current_time + 300))  # 5 minutes from now
+reboot_time=$((current_time + 300)) # 5 minutes from now
 health_scheduled="reboot_imminent,PASSED,NO_LIMIT,NO_LIMIT,false,false,false,true,300"
 reboot_scheduled="UPDATE_DOWNLOADING,false,$reboot_time,300,false"
 
@@ -90,7 +90,7 @@ fi
 echo ""
 echo "📋 SCENARIO 4: Scheduled Reboot (15 minutes away)"
 echo "--------------------------------------------------"
-reboot_time_far=$((current_time + 900))  # 15 minutes from now
+reboot_time_far=$((current_time + 900)) # 15 minutes from now
 health_scheduled_far="healthy,PASSED,NO_LIMIT,NO_LIMIT,false,false,false,false,900"
 reboot_scheduled_far="UPDATE_DOWNLOADING,false,$reboot_time_far,900,false"
 

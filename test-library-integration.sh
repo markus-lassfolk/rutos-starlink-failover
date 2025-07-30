@@ -86,7 +86,7 @@ else
     echo "⚠️  GPS data collection failed (may be expected if gpsctl not available)"
 fi
 
-# Test cellular data collection with library  
+# Test cellular data collection with library
 ENABLE_CELLULAR_LOGGING="false"
 export ENABLE_CELLULAR_LOGGING
 echo "Testing cellular data collection (disabled mode):"

@@ -43,14 +43,14 @@ export ENABLE_GPS_LOGGING
 echo "Testing enhanced GPS data collection with diagnostics:"
 if command -v collect_gps_data_enhanced >/dev/null 2>&1; then
     echo "✅ collect_gps_data_enhanced() function available"
-    
+
     # Test the function (will show debug output if DEBUG=1)
     gps_enhanced_result=$(collect_gps_data_enhanced 2>/dev/null || echo "ERROR")
     if [ "$gps_enhanced_result" != "ERROR" ]; then
         echo "✅ Enhanced GPS collection successful:"
         echo "   Result: $gps_enhanced_result"
         echo "   Format: lat,lon,alt,accuracy,source,uncertainty_meters,gps_time_s,utc_offset_s"
-        
+
         # Parse and display components
         lat=$(echo "$gps_enhanced_result" | cut -d',' -f1)
         lon=$(echo "$gps_enhanced_result" | cut -d',' -f2)
@@ -60,7 +60,7 @@ if command -v collect_gps_data_enhanced >/dev/null 2>&1; then
         uncertainty=$(echo "$gps_enhanced_result" | cut -d',' -f6)
         gps_time=$(echo "$gps_enhanced_result" | cut -d',' -f7)
         utc_offset=$(echo "$gps_enhanced_result" | cut -d',' -f8)
-        
+
         echo "   📍 Coordinates: $lat, $lon (altitude: ${alt}m)"
         echo "   🎯 Accuracy: $accuracy (source: $source)"
         echo "   📏 Uncertainty: ${uncertainty}m"
@@ -80,14 +80,14 @@ echo "====================================="
 echo "Testing Starlink health assessment:"
 if command -v check_starlink_health >/dev/null 2>&1; then
     echo "✅ check_starlink_health() function available"
-    
+
     # Test the function
     health_result=$(check_starlink_health 2>/dev/null || echo "ERROR")
     if [ "$health_result" != "ERROR" ]; then
         echo "✅ Health monitoring successful:"
         echo "   Result: $health_result"
         echo "   Format: overall,hardware_test,dl_bw_reason,ul_bw_reason,thermal_throttle,thermal_shutdown,roaming"
-        
+
         # Parse and display components
         overall=$(echo "$health_result" | cut -d',' -f1)
         hardware_test=$(echo "$health_result" | cut -d',' -f2)
@@ -96,13 +96,13 @@ if command -v check_starlink_health >/dev/null 2>&1; then
         thermal_throttle=$(echo "$health_result" | cut -d',' -f5)
         thermal_shutdown=$(echo "$health_result" | cut -d',' -f6)
         roaming=$(echo "$health_result" | cut -d',' -f7)
-        
+
         echo "   🏥 Overall Status: $overall"
         echo "   🔧 Hardware Self-Test: $hardware_test"
         echo "   📶 Bandwidth Restrictions: DL=$dl_bw_reason, UL=$ul_bw_reason"
         echo "   🌡️  Thermal Status: Throttle=$thermal_throttle, Shutdown=$thermal_shutdown"
         echo "   🌍 Roaming Alert: $roaming"
-        
+
         # Test failover decision
         echo ""
         echo "Testing failover decision logic:"
@@ -134,7 +134,7 @@ standard_gps=$(collect_gps_data 2>/dev/null || echo "ERROR")
 echo "   Standard: $standard_gps"
 echo "   Format: lat,lon,alt,accuracy,source"
 
-# Enhanced GPS  
+# Enhanced GPS
 echo "Enhanced GPS collection:"
 enhanced_gps=$(collect_gps_data_enhanced 2>/dev/null || echo "ERROR")
 echo "   Enhanced: $enhanced_gps"
@@ -145,7 +145,7 @@ echo "🎯 INTEGRATION TEST SUMMARY"
 echo "=========================="
 echo "Enhanced data collection library provides:"
 echo "✨ Enhanced GPS collection with uncertainty and timing data"
-echo "🏥 Comprehensive health monitoring for failover decisions"  
+echo "🏥 Comprehensive health monitoring for failover decisions"
 echo "🚨 Automated failover trigger detection"
 echo "📡 Support for multiple Starlink API endpoints (get_location, get_diagnostics)"
 echo "⚡ Backwards compatibility with existing functions"

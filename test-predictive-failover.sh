@@ -33,7 +33,7 @@ export STARLINK_IP="192.168.100.1"
 export STARLINK_PORT="9200"
 
 # Configuration for reboot warning window
-export REBOOT_WARNING_SECONDS="300"  # 5 minutes warning window
+export REBOOT_WARNING_SECONDS="300" # 5 minutes warning window
 
 echo ""
 echo "🕐 REBOOT WARNING CONFIGURATION"
@@ -47,22 +47,22 @@ echo "==================================="
 
 if command -v get_reboot_status >/dev/null 2>&1; then
     echo "✅ get_reboot_status() function available"
-    
+
     # Test reboot status monitoring
     echo "Getting current reboot status:"
     reboot_status=$(get_reboot_status 2>/dev/null || echo "ERROR")
-    
+
     if [ "$reboot_status" != "ERROR" ]; then
         echo "✅ Reboot status retrieved: $reboot_status"
         echo "   Format: update_state,requires_reboot,scheduled_utc,countdown,reboot_ready"
-        
+
         # Parse and display components
         update_state=$(echo "$reboot_status" | cut -d',' -f1)
         requires_reboot=$(echo "$reboot_status" | cut -d',' -f2)
         scheduled_utc=$(echo "$reboot_status" | cut -d',' -f3)
         countdown=$(echo "$reboot_status" | cut -d',' -f4)
         reboot_ready=$(echo "$reboot_status" | cut -d',' -f5)
-        
+
         echo ""
         echo "📈 REBOOT STATUS BREAKDOWN:"
         echo "   🔧 Software Update State: $update_state"
@@ -70,7 +70,7 @@ if command -v get_reboot_status >/dev/null 2>&1; then
         echo "   📅 Scheduled UTC Time: $scheduled_utc"
         echo "   ⏱️  Countdown: ${countdown}s"
         echo "   ✅ Reboot Ready: $reboot_ready"
-        
+
         # Convert scheduled time to human readable if available
         if [ "$scheduled_utc" != "0" ] && [ "$scheduled_utc" != "null" ]; then
             if command -v date >/dev/null 2>&1; then
@@ -78,7 +78,7 @@ if command -v get_reboot_status >/dev/null 2>&1; then
                 echo "   📅 Scheduled Time (readable): $scheduled_readable"
             fi
         fi
-        
+
         # Test failover decision for reboot
         echo ""
         echo "🚨 TESTING REBOOT FAILOVER DECISION:"
@@ -93,7 +93,7 @@ if command -v get_reboot_status >/dev/null 2>&1; then
         else
             echo "❌ should_failover_for_reboot() function not available"
         fi
-        
+
     else
         echo "⚠️  Reboot status retrieval failed (may be expected if Starlink not available)"
     fi
@@ -107,15 +107,15 @@ echo "=========================================================="
 
 if command -v check_starlink_health >/dev/null 2>&1; then
     echo "✅ check_starlink_health() function available"
-    
+
     # Test integrated health check
     echo "Getting comprehensive health status with reboot monitoring:"
     health_status=$(check_starlink_health 2>/dev/null || echo "ERROR")
-    
+
     if [ "$health_status" != "ERROR" ]; then
         echo "✅ Health status retrieved: $health_status"
         echo "   Format: overall,hardware_test,dl_bw_reason,ul_bw_reason,thermal_throttle,thermal_shutdown,roaming,reboot_imminent,reboot_countdown"
-        
+
         # Parse enhanced health status
         overall=$(echo "$health_status" | cut -d',' -f1)
         hardware_test=$(echo "$health_status" | cut -d',' -f2)
@@ -126,7 +126,7 @@ if command -v check_starlink_health >/dev/null 2>&1; then
         roaming=$(echo "$health_status" | cut -d',' -f7)
         reboot_imminent=$(echo "$health_status" | cut -d',' -f8)
         reboot_countdown=$(echo "$health_status" | cut -d',' -f9)
-        
+
         echo ""
         echo "📊 ENHANCED HEALTH STATUS BREAKDOWN:"
         echo "   🏥 Overall Status: $overall"
@@ -136,7 +136,7 @@ if command -v check_starlink_health >/dev/null 2>&1; then
         echo "   🌍 Roaming Alert: $roaming"
         echo "   🔄 Reboot Imminent: $reboot_imminent"
         echo "   ⏱️  Reboot Countdown: ${reboot_countdown}s"
-        
+
         # Highlight reboot status
         if [ "$reboot_imminent" = "true" ]; then
             echo ""
@@ -149,7 +149,7 @@ if command -v check_starlink_health >/dev/null 2>&1; then
                 echo "   📋 Recommendation: Execute failover immediately - reboot required or overdue"
             fi
         fi
-        
+
         # Test overall failover decision
         echo ""
         echo "🚨 TESTING INTEGRATED FAILOVER DECISION:"
@@ -173,7 +173,7 @@ if command -v check_starlink_health >/dev/null 2>&1; then
         else
             echo "❌ should_trigger_failover() function not available"
         fi
-        
+
     else
         echo "⚠️  Health status retrieval failed (may be expected if Starlink not available)"
     fi
