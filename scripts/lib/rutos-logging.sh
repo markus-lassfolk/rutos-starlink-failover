@@ -87,48 +87,57 @@ _log_message() {
     color="$2"
     message="$3"
     destination="${4:-stdout}"
+    syslog_priority="${5:-daemon.info}"
 
     timestamp=$(get_timestamp)
 
+    # Output to console with colors
     if [ "$destination" = "stderr" ]; then
         printf "${color}[%s]${NC} [%s] %s\n" "$level" "$timestamp" "$message" >&2
     else
         printf "${color}[%s]${NC} [%s] %s\n" "$level" "$timestamp" "$message"
     fi
+    
+    # Also send to syslog (without colors) for human-readable system logs
+    if command -v logger >/dev/null 2>&1; then
+        # Use script name or default tag for syslog
+        log_tag="${LOG_TAG:-${SCRIPT_NAME:-RutosScript}}"
+        logger -t "$log_tag" -p "$syslog_priority" "[$level] $message"
+    fi
 }
 
 # Standard logging functions
 log_info() {
-    _log_message "INFO" "$GREEN" "$1" "stdout"
+    _log_message "INFO" "$GREEN" "$1" "stdout" "daemon.info"
 }
 
 log_success() {
-    _log_message "SUCCESS" "$GREEN" "$1" "stdout"
+    _log_message "SUCCESS" "$GREEN" "$1" "stdout" "daemon.info"
 }
 
 log_warning() {
-    _log_message "WARNING" "$YELLOW" "$1" "stderr"
+    _log_message "WARNING" "$YELLOW" "$1" "stderr" "daemon.warn"
 }
 
 log_error() {
-    _log_message "ERROR" "$RED" "$1" "stderr"
+    _log_message "ERROR" "$RED" "$1" "stderr" "daemon.err"
 }
 
 log_step() {
-    _log_message "STEP" "$BLUE" "$1" "stdout"
+    _log_message "STEP" "$BLUE" "$1" "stdout" "daemon.info"
 }
 
 # Debug logging (only shown when DEBUG=1)
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
-        _log_message "DEBUG" "$CYAN" "$1" "stderr"
+        _log_message "DEBUG" "$CYAN" "$1" "stderr" "daemon.debug"
     fi
 }
 
 # Trace logging (only shown when RUTOS_TEST_MODE=1)
 log_trace() {
     if [ "$RUTOS_TEST_MODE" = "1" ] || [ "$LOG_LEVEL" = "TRACE" ]; then
-        _log_message "TRACE" "$PURPLE" "$1" "stderr"
+        _log_message "TRACE" "$PURPLE" "$1" "stderr" "daemon.debug"
     fi
 }
 

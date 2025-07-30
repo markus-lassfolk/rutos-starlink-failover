@@ -196,6 +196,71 @@ log_debug "GPS_TRACKING=$ENABLE_GPS_TRACKING, CELLULAR_TRACKING=$ENABLE_CELLULAR
 log_debug "ENHANCED_FAILOVER=$ENABLE_ENHANCED_FAILOVER, MULTI_SOURCE_GPS=$ENABLE_MULTI_SOURCE_GPS"
 
 # =============================================================================
+# PUSHOVER NOTIFICATION SYSTEM
+# =============================================================================
+
+# Send Pushover notification with proper error handling
+send_pushover_notification() {
+    local title="$1"
+    local message="$2"
+    local priority="${3:-0}"
+    
+    log_debug "Attempting to send Pushover notification: $title"
+    
+    # Check if Pushover is configured via placeholder utilities
+    if command -v is_pushover_configured >/dev/null 2>&1; then
+        if is_pushover_configured; then
+            # Use safe_send_notification if available from placeholder-utils.sh
+            if command -v safe_send_notification >/dev/null 2>&1; then
+                log_debug "Using safe_send_notification function"
+                safe_send_notification "$title" "$message" "$priority"
+                return $?
+            fi
+        else
+            log_debug "Pushover not properly configured, skipping notification"
+            return 1
+        fi
+    fi
+    
+    # Fallback: Direct Pushover API call if configured
+    if [ -n "${PUSHOVER_TOKEN:-}" ] && [ -n "${PUSHOVER_USER:-}" ]; then
+        # Skip if values are placeholders
+        case "$PUSHOVER_TOKEN" in
+            "YOUR_"*|"CHANGE_ME"|"REPLACE_ME"|"TODO"|"FIXME"|"EXAMPLE"|"PLACEHOLDER") 
+                log_debug "Pushover token is placeholder, skipping notification"
+                return 1 
+                ;;
+        esac
+        case "$PUSHOVER_USER" in
+            "YOUR_"*|"CHANGE_ME"|"REPLACE_ME"|"TODO"|"FIXME"|"EXAMPLE"|"PLACEHOLDER") 
+                log_debug "Pushover user is placeholder, skipping notification"
+                return 1 
+                ;;
+        esac
+        
+        log_debug "Sending Pushover notification via API"
+        response=$(curl -s --max-time 10 \
+            -F "token=$PUSHOVER_TOKEN" \
+            -F "user=$PUSHOVER_USER" \
+            -F "title=$title" \
+            -F "message=$message" \
+            -F "priority=$priority" \
+            https://api.pushover.net/1/messages.json 2>/dev/null)
+        
+        if [ $? -eq 0 ]; then
+            log_debug "Pushover notification sent successfully"
+            return 0
+        else
+            log_warning "Failed to send Pushover notification"
+            return 1
+        fi
+    else
+        log_debug "Pushover credentials not configured, skipping notification"
+        return 1
+    fi
+}
+
+# =============================================================================
 # DECISION LOGGING SYSTEM
 # Comprehensive logging of all failover decisions and reasoning
 # =============================================================================
