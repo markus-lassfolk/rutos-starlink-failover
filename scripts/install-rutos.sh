@@ -61,7 +61,9 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
         if curl -fsSL "${BASE_URL}/scripts/lib/rutos-lib.sh" -o "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
             curl -fsSL "${BASE_URL}/scripts/lib/rutos-colors.sh" -o "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
             curl -fsSL "${BASE_URL}/scripts/lib/rutos-logging.sh" -o "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
-            curl -fsSL "${BASE_URL}/scripts/lib/rutos-common.sh" -o "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
+            curl -fsSL "${BASE_URL}/scripts/lib/rutos-common.sh" -o "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null &&
+            curl -fsSL "${BASE_URL}/scripts/lib/rutos-compatibility.sh" -o "$TEMP_LIB_DIR/rutos-compatibility.sh" 2>/dev/null &&
+            curl -fsSL "${BASE_URL}/scripts/lib/rutos-data-collection.sh" -o "$TEMP_LIB_DIR/rutos-data-collection.sh" 2>/dev/null; then
             # Set library path and load it
             RUTOS_LIB_PATH="$TEMP_LIB_DIR"
             if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
@@ -75,7 +77,9 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
         if wget -q "${BASE_URL}/scripts/lib/rutos-lib.sh" -O "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
             wget -q "${BASE_URL}/scripts/lib/rutos-colors.sh" -O "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
             wget -q "${BASE_URL}/scripts/lib/rutos-logging.sh" -O "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
-            wget -q "${BASE_URL}/scripts/lib/rutos-common.sh" -O "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
+            wget -q "${BASE_URL}/scripts/lib/rutos-common.sh" -O "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null &&
+            wget -q "${BASE_URL}/scripts/lib/rutos-compatibility.sh" -O "$TEMP_LIB_DIR/rutos-compatibility.sh" 2>/dev/null &&
+            wget -q "${BASE_URL}/scripts/lib/rutos-data-collection.sh" -O "$TEMP_LIB_DIR/rutos-data-collection.sh" 2>/dev/null; then
             # Set library path and load it
             RUTOS_LIB_PATH="$TEMP_LIB_DIR"
             if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
@@ -1543,7 +1547,9 @@ install_scripts() {
         rutos-lib.sh \
         rutos-colors.sh \
         rutos-logging.sh \
-        rutos-common.sh; do
+        rutos-common.sh \
+        rutos-compatibility.sh \
+        rutos-data-collection.sh; do
 
         # Try local library first
         if [ -f "$script_dir/../scripts/lib/$lib_file" ]; then
@@ -1669,7 +1675,7 @@ install_scripts() {
     }
 
     # Library files to install
-    library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh"
+    library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh rutos-compatibility.sh rutos-data-collection.sh"
 
     for lib_file in $library_files; do
         if [ -f "$script_dir/lib/$lib_file" ]; then

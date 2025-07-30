@@ -139,7 +139,7 @@ download_library_system() {
     mkdir -p "$lib_dir"
 
     # Download all library components including compatibility module
-    library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh rutos-compatibility.sh"
+    library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh rutos-compatibility.sh rutos-data-collection.sh"
 
     for file in $library_files; do
         url="$BASE_URL/scripts/lib/$file"
