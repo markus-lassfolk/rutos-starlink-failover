@@ -320,31 +320,9 @@ log_decision() {
         if [ "$snr_persistently_low" = "true" ]; then
             snr_poor=1
             log_debug "SNR DECISION LOGIC: SNR marked as poor - persistently low signal detected"
-            log_warning "Poor SNR detected: above_noise_floor=$snr_above_noise, persistently_low=$snr_persistently_low"
-        elif [ "$snr_above_noise" = "false" ] && [ "$current_snr" != "unknown" ]; then
-            # Secondary check: if above_noise is false AND we have a numeric value, check if it's very low
-            snr_comparison=$(echo "$current_snr < 3" | bc -l 2>/dev/null || echo "")
-            log_debug "SNR DECISION LOGIC: above_noise=false, checking if SNR < 3dB, bc result='$snr_comparison'"
-            if [ "$snr_comparison" = "1" ]; then
-                snr_poor=1
-                log_debug "SNR DECISION LOGIC: SNR marked as poor - below 3dB with above_noise=false"
-                log_warning "Poor SNR detected: Very low SNR ($current_snr dB) with above_noise_floor=false"
-            elif [ -z "$snr_comparison" ]; then
-                # bc failed, try integer comparison as final fallback
-                snr_int=$(echo "$current_snr" | cut -d'.' -f1 2>/dev/null || echo "999")
-                log_debug "SNR DECISION LOGIC: bc failed, using integer fallback snr_int='$snr_int'"
-                if [ "$snr_int" -lt 3 ] 2>/dev/null; then
-                    snr_poor=1
-                    log_debug "SNR DECISION LOGIC: SNR marked as poor - below 3dB integer check"
-                    log_warning "Poor SNR detected: Very low SNR ($current_snr dB) with above_noise_floor=false"
-                else
-                    log_debug "SNR DECISION LOGIC: SNR acceptable despite above_noise=false (SNR >= 3dB)"
-                fi
-            else
-                log_debug "SNR DECISION LOGIC: SNR acceptable despite above_noise=false (SNR >= 3dB)"
-            fi
+            log_warning "Poor SNR detected: persistently_low=true (above_noise_floor=$snr_above_noise)"
         else
-            log_debug "SNR DECISION LOGIC: SNR is good (persistently_low=false, readyStates normal)"
+            log_debug "SNR DECISION LOGIC: SNR is good (persistently_low=false, above_noise_floor=$snr_above_noise)"
         fi
         log_debug "SNR DECISION LOGIC: final snr_poor=$snr_poor"
     fi
@@ -422,28 +400,48 @@ log_decision() {
             ;;
     esac
     
-    # Log detailed reasoning
-    if [ "$current_latency" != "unknown" ] || [ "$current_packet_loss" != "unknown" ] || [ "$current_obstruction" != "unknown" ]; then
-        log_info "📊 METRICS: Latency=${current_latency}ms (threshold ${LATENCY_THRESHOLD:-150}ms), Loss=${current_packet_loss}% (threshold ${PACKET_LOSS_THRESHOLD:-2}%), Obstruction=${current_obstruction}% (threshold ${OBSTRUCTION_THRESHOLD:-0.001}%)"
-    fi
+    # Only log detailed context for important decisions to reduce log spam
+    # Maintenance actions get minimal logging, failovers get full context
+    case "$decision_type" in
+        "soft_failover"|"hard_failover"|"restore"|"evaluation")
+            # Log detailed reasoning for important decisions
+            if [ "$current_latency" != "unknown" ] || [ "$current_packet_loss" != "unknown" ] || [ "$current_obstruction" != "unknown" ]; then
+                log_info "📊 METRICS: Latency=${current_latency}ms (threshold ${LATENCY_THRESHOLD:-150}ms), Loss=${current_packet_loss}% (threshold ${PACKET_LOSS_THRESHOLD:-2}%), Obstruction=${current_obstruction}% (threshold ${OBSTRUCTION_THRESHOLD:-0.001}%)"
+            fi
+            
+            if [ "$current_snr" != "unknown" ]; then
+                log_info "📡 SIGNAL: SNR=${current_snr}dB"
+            fi
+            
+            if [ "$gps_context" != "none" ]; then
+                log_info "📍 GPS: $gps_context"
+            fi
+            
+            if [ "$cellular_context" != "none" ]; then
+                log_info "📱 CELLULAR: $cellular_context"
+            fi
+            ;;
+        "maintenance")
+            # Minimal logging for maintenance actions to reduce spam
+            log_debug "Maintenance context: metrics available, GPS=$gps_context, cellular=$cellular_context"
+            ;;
+    esac
     
-    if [ "$current_snr" != "unknown" ]; then
-        log_info "📡 SIGNAL: SNR=${current_snr}dB"
-    fi
-    
-    if [ "$gps_context" != "none" ]; then
-        log_info "📍 GPS: $gps_context"
-    fi
-    
-    if [ "$cellular_context" != "none" ]; then
-        log_info "📱 CELLULAR: $cellular_context"
-    fi
-    
-    log_info "🎯 ACTION: $action_taken → $action_result (metric: $current_metric → $new_metric)"
-    
-    if [ -n "$additional_notes" ]; then
-        log_info "📝 NOTES: $additional_notes"
-    fi
+    # Log action details - simplified for maintenance, detailed for important decisions
+    case "$decision_type" in
+        "soft_failover"|"hard_failover"|"restore"|"evaluation")
+            log_info "🎯 ACTION: $action_taken → $action_result (metric: $current_metric → $new_metric)"
+            if [ -n "$additional_notes" ]; then
+                log_info "📝 NOTES: $additional_notes"
+            fi
+            ;;
+        "maintenance")
+            log_debug "Action: $action_taken → $action_result"
+            if [ -n "$additional_notes" ]; then
+                log_debug "Notes: $additional_notes"
+            fi
+            ;;
+    esac
 }
 
 # Log a decision evaluation without action
@@ -1016,11 +1014,15 @@ analyze_connection_quality() {
         fi
     fi
 
-    # Enhanced signal quality analysis using SNR metrics
-    if [ "$is_snr_above_noise_floor" = "false" ] || [ "$is_snr_persistently_low" = "true" ]; then
+    # Enhanced signal quality analysis using SNR metrics - CONSERVATIVE APPROACH
+    # Only trigger on persistently_low=true (indicates real sustained problems)
+    # above_noise_floor=false can be normal in good connections, so don't use it alone
+    if [ "$is_snr_persistently_low" = "true" ]; then
         is_snr_poor=1
         failure_reasons="${failure_reasons}poor_snr,"
-        log_warning "Poor SNR detected: above_noise_floor=$is_snr_above_noise_floor, persistently_low=$is_snr_persistently_low"
+        log_warning "Poor SNR detected: persistently_low=true (above_noise_floor=$is_snr_above_noise_floor)"
+    else
+        log_debug "SNR status: above_noise_floor=$is_snr_above_noise_floor, persistently_low=$is_snr_persistently_low (no action needed)"
     fi
 
     # Enhanced GPS analysis (if GPS tracking enabled)
