@@ -12,17 +12,31 @@
 ### 2. SNR Field Enhancement ✅
 **Problem**: Script was looking for non-existent `.dishGetStatus.snr` field
 
-**Solution**: Enhanced SNR extraction with fallback logic:
+**Solution**: Enhanced SNR extraction using only reliable signal quality indicators:
 ```bash
-# Try to get numeric SNR first
-snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // .dishGetStatus.downlinkThroughputBps // 0')
+# Try to get numeric SNR first (never use throughput as it represents usage, not signal quality)
+snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // null')
 
-# If no numeric SNR available, use boolean indicator
-if [ "$snr" = "0" ] || [ "$snr" = "null" ]; then
-    if [ "$is_snr_above_noise_floor" = "true" ]; then
-        snr="good"  # When isSnrAboveNoiseFloor=true
+# Always use readyStates as authoritative source for SNR quality
+if [ "$snr" = "null" ] || [ "$snr" = "0" ] || [ -z "$snr" ]; then
+    # No direct SNR available - use readyStates to determine signal quality
+    if [ "$is_snr_above_noise_floor" = "true" ] && [ "$is_snr_persistently_low" = "false" ]; then
+        snr="15.0"  # Represent good SNR with reasonable value for logging
     else
-        snr="poor" # When isSnrAboveNoiseFloor=false
+        snr="5.0"   # Represent poor SNR with low value for logging
+    fi
+else
+    # Validate SNR is reasonable (not throughput data)
+    snr_int=$(echo "$snr" | cut -d'.' -f1 2>/dev/null || echo "0")
+    if [ "$snr_int" -gt 100 ] 2>/dev/null; then
+        # Invalid SNR value, fall back to readyStates
+        if [ "$is_snr_above_noise_floor" = "true" ] && [ "$is_snr_persistently_low" = "false" ]; then
+            snr="15.0"
+        else
+            snr="5.0"
+        fi
+    fi
+fi
     fi
 fi
 ```

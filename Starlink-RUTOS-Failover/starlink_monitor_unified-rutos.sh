@@ -240,8 +240,41 @@ log_decision() {
     if [ "$current_obstruction" != "unknown" ] && [ "$(echo "$current_obstruction > ${OBSTRUCTION_THRESHOLD:-0.001}" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
         obstruction_poor=1
     fi
-    if [ "$current_snr" != "unknown" ] && [ "$(echo "$current_snr < 8" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
-        snr_poor=1
+    
+    # SNR analysis - for decision logging, mirror the actual failover logic  
+    if [ "$current_snr" != "unknown" ]; then
+        log_debug "SNR DECISION LOGIC: current_snr='$current_snr'"
+        
+        # Use the same logic as the actual failover decision (readyStates-based)
+        # Check if we have readyStates available
+        snr_above_noise="${CURRENT_SNR_ABOVE_NOISE:-true}"
+        snr_persistently_low="${CURRENT_SNR_PERSISTENTLY_LOW:-false}"
+        
+        if [ "$snr_above_noise" = "false" ] || [ "$snr_persistently_low" = "true" ]; then
+            snr_poor=1
+            log_debug "SNR DECISION LOGIC: SNR marked as poor via readyStates (above_noise=$snr_above_noise, persistently_low=$snr_persistently_low)"
+        else
+            # Fallback to numeric comparison if readyStates not available
+            snr_comparison=$(echo "$current_snr < 8" | bc -l 2>/dev/null || echo "")
+            log_debug "SNR DECISION LOGIC: readyStates good, checking numeric fallback bc result='$snr_comparison'"
+            if [ "$snr_comparison" = "1" ]; then
+                snr_poor=1
+                log_debug "SNR DECISION LOGIC: SNR marked as poor via numeric comparison fallback"
+            elif [ -z "$snr_comparison" ]; then
+                # bc failed, try integer comparison as final fallback
+                snr_int=$(echo "$current_snr" | cut -d'.' -f1 2>/dev/null || echo "999")
+                log_debug "SNR DECISION LOGIC: bc failed, using integer fallback snr_int='$snr_int'"
+                if [ "$snr_int" -lt 8 ] 2>/dev/null; then
+                    snr_poor=1
+                    log_debug "SNR DECISION LOGIC: SNR marked as poor via integer comparison fallback"
+                else
+                    log_debug "SNR DECISION LOGIC: SNR is good via integer comparison fallback"
+                fi
+            else
+                log_debug "SNR DECISION LOGIC: SNR is good via readyStates and numeric confirmation"
+            fi
+        fi
+        log_debug "SNR DECISION LOGIC: final snr_poor=$snr_poor"
     fi
     
     # Create quality factors summary
@@ -266,9 +299,11 @@ log_decision() {
     # Collect cellular context if enabled
     if [ "$ENABLE_CELLULAR_TRACKING" = "true" ]; then
         if command -v gsmctl >/dev/null 2>&1; then
-            local signal=$(gsmctl -S 2>/dev/null | grep -o '[0-9]\+' | head -1 || echo "")
-            if [ -n "$signal" ]; then
-                cellular_context="signal:${signal}dbm"
+            # Use proper AT+CSQ command like the library does
+            local signal_info=$(gsmctl -A 'AT+CSQ' 2>/dev/null | grep "+CSQ:" | head -1 || echo "+CSQ: 99,99")
+            local signal_strength=$(echo "$signal_info" | awk -F'[: ,]' '{print $3}' | tr -d '\n\r' | head -1)
+            if [ -n "$signal_strength" ] && [ "$signal_strength" != "99" ] && [ "$signal_strength" -ge 0 ] 2>/dev/null; then
+                cellular_context="signal:${signal_strength}dbm"
             else
                 cellular_context="no_signal"
             fi
@@ -724,14 +759,31 @@ analyze_starlink_metrics() {
     is_snr_above_noise_floor=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.readyStates.snrAboveNoiseFloor // false' 2>/dev/null)
     is_snr_persistently_low=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.alerts.snrPersistentlyLow // false' 2>/dev/null)
     
-    # SNR field may not exist in all firmware versions - try multiple locations
-    snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // .dishGetStatus.downlinkThroughputBps // 0' 2>/dev/null)
-    # If no direct SNR available, use isSnrAboveNoiseFloor as boolean indicator
-    if [ "$snr" = "0" ] || [ "$snr" = "null" ]; then
-        if [ "$is_snr_above_noise_floor" = "true" ]; then
-            snr="good"
+    # SNR field may not exist in all firmware versions - use readyStates only
+    snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // null' 2>/dev/null)
+    
+    # Always use readyStates as the authoritative source for SNR quality
+    # Never use throughput data as it represents current usage, not signal quality
+    if [ "$snr" = "null" ] || [ "$snr" = "0" ] || [ -z "$snr" ]; then
+        # No direct SNR available - use readyStates to determine signal quality
+        if [ "$is_snr_above_noise_floor" = "true" ] && [ "$is_snr_persistently_low" = "false" ]; then
+            snr="15.0"  # Represent good SNR with reasonable value for logging
         else
-            snr="poor"
+            snr="5.0"   # Represent poor SNR with low value for logging
+        fi
+        log_debug "SNR not available in API, using readyStates: above_noise=$is_snr_above_noise_floor, persistently_low=$is_snr_persistently_low → SNR=$snr"
+    else
+        # Validate that we have actual SNR data (should be reasonable dB value, not throughput)
+        snr_int=$(echo "$snr" | cut -d'.' -f1 2>/dev/null || echo "0")
+        if [ "$snr_int" -gt 100 ] 2>/dev/null; then
+            log_warning "SNR value unusually high ($snr), likely invalid data. Using readyStates instead."
+            if [ "$is_snr_above_noise_floor" = "true" ] && [ "$is_snr_persistently_low" = "false" ]; then
+                snr="15.0"
+            else
+                snr="5.0"
+            fi
+        else
+            log_debug "Using direct SNR value from API: $snr dB"
         fi
     fi
     
@@ -756,12 +808,15 @@ analyze_starlink_metrics() {
     CURRENT_OBSTRUCTION_AVG_PROLONGED="$obstruction_avg_prolonged"
     CURRENT_OBSTRUCTION_PATCHES="$obstruction_patches_valid"
     CURRENT_SNR="$snr"
+    CURRENT_SNR_ABOVE_NOISE="$is_snr_above_noise_floor"
+    CURRENT_SNR_PERSISTENTLY_LOW="$is_snr_persistently_low"
     CURRENT_GPS_VALID="$gps_valid"
     CURRENT_GPS_SATS="$gps_sats"
     CURRENT_UPTIME="$uptime_s"
 
     # Export infrastructure metrics for external use
     export CURRENT_SNR CURRENT_UPTIME CURRENT_OBSTRUCTION_TIME_PCT CURRENT_OBSTRUCTION_VALID_S
+    export CURRENT_SNR_ABOVE_NOISE CURRENT_SNR_PERSISTENTLY_LOW
     export STARLINK_BOOTCOUNT="$bootcount"
 
     return 0

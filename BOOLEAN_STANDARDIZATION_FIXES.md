@@ -29,15 +29,27 @@ snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // 0' 2>/dev/null)
 
 **After**:
 ```bash
-# SNR field may not exist in all firmware versions - try multiple locations
-snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // .dishGetStatus.downlinkThroughputBps // 0' 2>/dev/null)
-# If no direct SNR available, use isSnrAboveNoiseFloor as boolean indicator
-if [ "$snr" = "0" ] || [ "$snr" = "null" ]; then
-    if [ "$is_snr_above_noise_floor" = "true" ]; then
-        snr="good"
+# SNR field may not exist in all firmware versions - use readyStates only
+snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // null' 2>/dev/null)
+# Always use readyStates as authoritative source (never throughput as it shows usage, not signal quality)
+if [ "$snr" = "null" ] || [ "$snr" = "0" ] || [ -z "$snr" ]; then
+    if [ "$is_snr_above_noise_floor" = "true" ] && [ "$is_snr_persistently_low" = "false" ]; then
+        snr="15.0"  # Good signal quality
     else
-        snr="poor"
+        snr="5.0"   # Poor signal quality
     fi
+else
+    # Validate that we have actual SNR data (reasonable dB value)
+    snr_int=$(echo "$snr" | cut -d'.' -f1 2>/dev/null || echo "0")
+    if [ "$snr_int" -gt 100 ] 2>/dev/null; then
+        # Invalid SNR value, fall back to readyStates
+        if [ "$is_snr_above_noise_floor" = "true" ] && [ "$is_snr_persistently_low" = "false" ]; then
+            snr="15.0"
+        else
+            snr="5.0"
+        fi
+    fi
+fi
 fi
 ```
 
