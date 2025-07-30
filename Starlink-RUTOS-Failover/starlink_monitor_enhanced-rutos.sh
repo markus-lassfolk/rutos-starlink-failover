@@ -107,64 +107,79 @@ safe_execute() {
 # =============================================================================
 
 collect_gps_data() {
-    lat="" lon="" alt="" accuracy="" source="" timestamp=""
+    log_debug "🛰️ ENHANCED GPS: Using standardized library functions for GPS data collection"
+    
+    # Use library function if available, fallback to local implementation
+    if [ "${_RUTOS_DATA_COLLECTION_LOADED:-0}" = "1" ] && command -v collect_gps_data_lib >/dev/null 2>&1; then
+        collect_gps_data_lib
+    else
+        # Fallback implementation when library not available
+        lat="" lon="" alt="" accuracy="" source="" timestamp=""
 
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
-    # Try RUTOS GPS first (most accurate for position)
-    if command -v gpsctl >/dev/null 2>&1; then
-        gps_output=$(gpsctl -i 2>/dev/null || echo "")
-        if [ -n "$gps_output" ]; then
-            lat=$(echo "$gps_output" | grep "Latitude:" | awk '{print $2}' | head -1)
-            lon=$(echo "$gps_output" | grep "Longitude:" | awk '{print $2}' | head -1)
-            alt=$(echo "$gps_output" | grep "Altitude:" | awk '{print $2}' | head -1)
-            if [ -n "$lat" ] && [ -n "$lon" ] && [ "$lat" != "0.000000" ]; then
-                accuracy="high"
-                source="rutos_gps"
-            fi
-        fi
-    fi
-
-    # Try Starlink GPS as backup
-    if [ -z "$lat" ] || [ "$lat" = "0.000000" ]; then
-        if [ -n "${GRPCURL_CMD:-}" ] && [ -x "${GRPCURL_CMD:-}" ]; then
-            starlink_gps=$("$GRPCURL_CMD" -plaintext -d '{"get_location":{}}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device.Handle 2>/dev/null || echo "")
-            if [ -n "$starlink_gps" ]; then
-                lat=$(echo "$starlink_gps" | grep -o '"latitude":[^,]*' | cut -d':' -f2 | tr -d ' "')
-                lon=$(echo "$starlink_gps" | grep -o '"longitude":[^,]*' | cut -d':' -f2 | tr -d ' "')
-                alt=$(echo "$starlink_gps" | grep -o '"altitude":[^,]*' | cut -d':' -f2 | tr -d ' "')
-                if [ -n "$lat" ] && [ -n "$lon" ] && [ "$lat" != "0" ]; then
-                    accuracy="medium"
-                    source="starlink_gps"
+        # Try RUTOS GPS first (most accurate for position)
+        if command -v gpsctl >/dev/null 2>&1; then
+            gps_output=$(gpsctl -i 2>/dev/null || echo "")
+            if [ -n "$gps_output" ]; then
+                lat=$(echo "$gps_output" | grep "Latitude:" | awk '{print $2}' | head -1)
+                lon=$(echo "$gps_output" | grep "Longitude:" | awk '{print $2}' | head -1)
+                alt=$(echo "$gps_output" | grep "Altitude:" | awk '{print $2}' | head -1)
+                if [ -n "$lat" ] && [ -n "$lon" ] && [ "$lat" != "0.000000" ]; then
+                    accuracy="high"
+                    source="rutos_gps"
                 fi
             fi
         fi
-    fi
 
-    # Fallback to cellular tower location
-    if [ -z "$lat" ] || [ "$lat" = "0.000000" ] || [ "$lat" = "0" ]; then
-        if command -v gsmctl >/dev/null 2>&1; then
-            # Try to get cell tower location (less accurate but still useful)
-            cell_info=$(gsmctl -A 'AT+QENG="servingcell"' 2>/dev/null || echo "")
-            if [ -n "$cell_info" ]; then
-                # This would need cell tower database lookup - simplified for now
-                lat="0.0"
-                lon="0.0"
-                alt="0"
-                accuracy="low"
-                source="cellular_tower"
+        # Try Starlink GPS as backup
+        if [ -z "$lat" ] || [ "$lat" = "0.000000" ]; then
+            if [ -n "${GRPCURL_CMD:-}" ] && [ -x "${GRPCURL_CMD:-}" ]; then
+                starlink_gps=$("$GRPCURL_CMD" -plaintext -d '{"get_location":{}}' "${STARLINK_IP:-192.168.100.1}:${STARLINK_PORT:-9200}" SpaceX.API.Device.Device.Handle 2>/dev/null || echo "")
+                if [ -n "$starlink_gps" ]; then
+                    lat=$(echo "$starlink_gps" | grep -o '"latitude":[^,]*' | cut -d':' -f2 | tr -d ' "')
+                    lon=$(echo "$starlink_gps" | grep -o '"longitude":[^,]*' | cut -d':' -f2 | tr -d ' "')
+                    alt=$(echo "$starlink_gps" | grep -o '"altitude":[^,]*' | cut -d':' -f2 | tr -d ' "')
+                    if [ -n "$lat" ] && [ -n "$lon" ] && [ "$lat" != "0" ]; then
+                        accuracy="medium"
+                        source="starlink_gps"
+                    fi
+                fi
             fi
         fi
+
+        # Fallback to cellular tower location
+        if [ -z "$lat" ] || [ "$lat" = "0.000000" ] || [ "$lat" = "0" ]; then
+            if command -v gsmctl >/dev/null 2>&1; then
+                # Try to get cell tower location (less accurate but still useful)
+                cell_info=$(gsmctl -A 'AT+QENG="servingcell"' 2>/dev/null || echo "")
+                if [ -n "$cell_info" ]; then
+                    # This would need cell tower database lookup - simplified for now
+                    lat="0.0"
+                    lon="0.0"
+                    alt="0"
+                    accuracy="low"
+                    source="cellular_tower"
+                fi
+            fi
+        fi
+
+        # Default values if no GPS available
+        lat="${lat:-0.0}"
+        lon="${lon:-0.0}"
+        alt="${alt:-0}"
+        accuracy="${accuracy:-none}"
+        source="${source:-unavailable}"
+
+        # Use library sanitization if available
+        if command -v sanitize_csv_field >/dev/null 2>&1; then
+            lat=$(sanitize_csv_field "$lat" 12)
+            lon=$(sanitize_csv_field "$lon" 12)
+            alt=$(sanitize_csv_field "$alt" 8)
+        fi
+
+        printf "%s" "$timestamp,$lat,$lon,$alt,$accuracy,$source"
     fi
-
-    # Default values if no GPS available
-    lat="${lat:-0.0}"
-    lon="${lon:-0.0}"
-    alt="${alt:-0}"
-    accuracy="${accuracy:-none}"
-    source="${source:-unavailable}"
-
-    printf "%s" "$timestamp,$lat,$lon,$alt,$accuracy,$source"
 }
 
 # =============================================================================
@@ -173,88 +188,116 @@ collect_gps_data() {
 # =============================================================================
 
 collect_cellular_data() {
-    timestamp="" modem_id="" signal_strength="" signal_quality="" network_type=""
-    operator="" roaming_status="" connection_status="" data_usage_mb=""
-    frequency_band="" cell_id="" lac="" error_rate=""
-
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-
-    # Collect data for primary modem (mob1s1a1)
-    modem_id="primary"
-    if command -v gsmctl >/dev/null 2>&1; then
-        # Signal strength and quality
-        signal_info=$(gsmctl -A 'AT+CSQ' 2>/dev/null | grep "+CSQ:" || echo "+CSQ: 99,99")
-        signal_rssi=$(echo "$signal_info" | cut -d',' -f1 | cut -d':' -f2 | tr -d ' ')
-        signal_ber=$(echo "$signal_info" | cut -d',' -f2 | tr -d ' ')
-
-        # Convert RSSI to dBm
-        if [ "$signal_rssi" != "99" ] && [ "$signal_rssi" -ge 0 ] && [ "$signal_rssi" -le 31 ]; then
-            signal_strength=$((signal_rssi * 2 - 113))
-        else
-            signal_strength="-113"
-        fi
-
-        signal_quality="$signal_ber"
-
-        # Network type and operator
-        network_info=$(gsmctl -A 'AT+COPS?' 2>/dev/null | grep "+COPS:" || echo "")
-        if [ -n "$network_info" ]; then
-            operator=$(echo "$network_info" | cut -d'"' -f2 | head -1)
-        fi
-        operator="${operator:-Unknown}"
-
-        # Network technology
-        tech_info=$(gsmctl -A 'AT+QNWINFO' 2>/dev/null | grep "+QNWINFO:" || echo "")
-        if echo "$tech_info" | grep -q "LTE"; then
-            network_type="LTE"
-        elif echo "$tech_info" | grep -q "NR5G\|5G"; then
-            network_type="5G"
-        elif echo "$tech_info" | grep -q "WCDMA\|UMTS"; then
-            network_type="3G"
-        else
-            network_type="Unknown"
-        fi
-
-        # Roaming status
-        roaming_info=$(gsmctl -A 'AT+CREG?' 2>/dev/null | grep "+CREG:" || echo "")
-        if echo "$roaming_info" | grep -q ",5"; then
-            roaming_status="roaming"
-        else
-            roaming_status="home"
-        fi
-
-        # Connection status
-        if ip route show | grep -q "mob1s1a1"; then
-            connection_status="connected"
-        else
-            connection_status="disconnected"
-        fi
-
-        # Data usage (simplified - would need more complex tracking)
-        data_usage_mb="0"
-
-        # Additional details
-        frequency_band="unknown"
-        cell_id="0"
-        lac="0"
-        error_rate="0"
-
+    log_debug "📱 ENHANCED CELLULAR: Using standardized library functions for cellular data collection"
+    
+    # Use library function if available, fallback to local implementation
+    if [ "${_RUTOS_DATA_COLLECTION_LOADED:-0}" = "1" ] && command -v collect_cellular_data_lib >/dev/null 2>&1; then
+        collect_cellular_data_lib
     else
-        # Default values when gsmctl not available
-        signal_strength="-113"
-        signal_quality="99"
-        network_type="Unknown"
-        operator="Unknown"
-        roaming_status="unknown"
-        connection_status="unknown"
-        data_usage_mb="0"
-        frequency_band="unknown"
-        cell_id="0"
-        lac="0"
-        error_rate="0"
-    fi
+        # Fallback implementation when library not available
+        timestamp="" modem_id="" signal_strength="" signal_quality="" network_type=""
+        operator="" roaming_status="" connection_status="" data_usage_mb=""
+        frequency_band="" cell_id="" lac="" error_rate=""
 
-    printf "%s" "$timestamp,$modem_id,$signal_strength,$signal_quality,$network_type,$operator,$roaming_status,$connection_status,$data_usage_mb,$frequency_band,$cell_id,$lac,$error_rate"
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        modem_id="primary"
+        
+        if command -v gsmctl >/dev/null 2>&1; then
+            log_debug "📱 ENHANCED CELLULAR: gsmctl available, collecting enhanced cellular data"
+            
+            # Signal strength and quality
+            signal_info=$(gsmctl -A 'AT+CSQ' 2>/dev/null | grep "+CSQ:" | head -1 || echo "+CSQ: 99,99")
+            signal_rssi=$(echo "$signal_info" | cut -d',' -f1 | cut -d':' -f2 | tr -d ' \n\r')
+            signal_ber=$(echo "$signal_info" | cut -d',' -f2 | tr -d ' \n\r')
+
+            # Convert RSSI to dBm
+            if [ "$signal_rssi" != "99" ] && [ "$signal_rssi" -ge 0 ] && [ "$signal_rssi" -le 31 ]; then
+                signal_strength=$((signal_rssi * 2 - 113))
+            else
+                signal_strength="-113"
+            fi
+
+            signal_quality="$signal_ber"
+
+            # Network type and operator
+            network_info=$(gsmctl -A 'AT+COPS?' 2>/dev/null | grep "+COPS:" | head -1 || echo "")
+            if [ -n "$network_info" ]; then
+                operator_raw=$(echo "$network_info" | cut -d'"' -f2 | head -1 | tr -d '\n\r,')
+                # Use library sanitization if available
+                if command -v sanitize_csv_field >/dev/null 2>&1; then
+                    operator=$(sanitize_csv_field "$operator_raw" 20)
+                else
+                    operator=$(echo "$operator_raw" | head -c 20)
+                fi
+            fi
+            operator="${operator:-Unknown}"
+
+            # Network technology  
+            tech_info=$(gsmctl -A 'AT+QNWINFO' 2>/dev/null | grep "+QNWINFO:" | head -1 || echo "")
+            if echo "$tech_info" | grep -q "LTE"; then
+                network_type="LTE"
+            elif echo "$tech_info" | grep -q "NR5G\|5G"; then
+                network_type="5G"
+            elif echo "$tech_info" | grep -q "WCDMA\|UMTS"; then
+                network_type="3G"
+            else
+                network_type="Unknown"
+            fi
+
+            # Roaming status
+            roaming_info=$(gsmctl -A 'AT+CREG?' 2>/dev/null | grep "+CREG:" | head -1 || echo "")
+            if echo "$roaming_info" | grep -q ",5"; then
+                roaming_status="roaming"
+            else
+                roaming_status="home"
+            fi
+
+            # Connection status
+            if ip route show | grep -q "mob1s1a1"; then
+                connection_status="connected"
+            else
+                connection_status="disconnected"
+            fi
+
+            # Additional details
+            data_usage_mb="0"
+            frequency_band="unknown"
+            cell_id="0"
+            lac="0"
+            error_rate="0"
+
+        else
+            log_debug "📱 ENHANCED CELLULAR: gsmctl not available, using default values"
+            signal_strength="-113"
+            signal_quality="99"
+            network_type="Unknown"
+            operator="Unknown"
+            roaming_status="unknown"
+            connection_status="unknown"
+            data_usage_mb="0"
+            frequency_band="unknown"
+            cell_id="0"
+            lac="0"
+            error_rate="0"
+        fi
+
+        # Final data sanitization for CSV safety
+        if command -v sanitize_csv_field >/dev/null 2>&1; then
+            operator=$(sanitize_csv_field "$operator" 20)
+            network_type=$(sanitize_csv_field "$network_type" 15)
+            roaming_status=$(sanitize_csv_field "$roaming_status" 10)
+            connection_status=$(sanitize_csv_field "$connection_status" 15)
+        else
+            operator=$(echo "$operator" | tr -d ',\n\r' | head -c 20)
+            network_type=$(echo "$network_type" | tr -d ',\n\r' | head -c 15)
+            roaming_status=$(echo "$roaming_status" | tr -d ',\n\r' | head -c 10)
+            connection_status=$(echo "$connection_status" | tr -d ',\n\r' | head -c 15)
+        fi
+        
+        log_debug "📱 ENHANCED CELLULAR: Final sanitized data - operator='$operator', network='$network_type'"
+
+        printf "%s" "$timestamp,$modem_id,$signal_strength,$signal_quality,$network_type,$operator,$roaming_status,$connection_status,$data_usage_mb,$frequency_band,$cell_id,$lac,$error_rate"
+    fi
 }
 
 # =============================================================================

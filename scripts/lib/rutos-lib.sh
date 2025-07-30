@@ -49,6 +49,7 @@ fi
 . "$_rutos_lib_dir/rutos-colors.sh"
 . "$_rutos_lib_dir/rutos-logging.sh"
 . "$_rutos_lib_dir/rutos-common.sh"
+. "$_rutos_lib_dir/rutos-data-collection.sh"
 
 # ============================================================================
 # RUTOS INITIALIZATION FUNCTION
@@ -116,6 +117,7 @@ rutos_lib_info() {
     printf "  Colors Module: %s\n" "${_RUTOS_COLORS_LOADED:-not loaded}"
     printf "  Logging Module: %s\n" "${_RUTOS_LOGGING_LOADED:-not loaded}"
     printf "  Common Module: %s\n" "${_RUTOS_COMMON_LOADED:-not loaded}"
+    printf "  Data Collection Module: %s\n" "${_RUTOS_DATA_COLLECTION_LOADED:-not loaded}"
     printf "  Current Log Level: %s\n" "${LOG_LEVEL:-not set}"
     printf "  Environment Variables:\n"
     printf "    DRY_RUN: %s\n" "${DRY_RUN:-not set}"
@@ -137,6 +139,10 @@ rutos_lib_check() {
 
     if [ "${_RUTOS_COMMON_LOADED:-0}" != "1" ]; then
         missing_modules="$missing_modules common"
+    fi
+
+    if [ "${_RUTOS_DATA_COLLECTION_LOADED:-0}" != "1" ]; then
+        missing_modules="$missing_modules data-collection"
     fi
 
     if [ -n "$missing_modules" ]; then

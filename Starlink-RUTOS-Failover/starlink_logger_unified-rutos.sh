@@ -433,224 +433,29 @@ perform_statistical_aggregation() {
 
 # =============================================================================
 # GPS DATA COLLECTION (Enhanced Feature)
+# Using standardized RUTOS library function
 # =============================================================================
 
-collect_gps_data() {
-    # Skip if GPS logging is disabled
-    if [ "$ENABLE_GPS_LOGGING" != "true" ]; then
-        log_debug "📍 GPS COLLECTION: GPS logging disabled (ENABLE_GPS_LOGGING=$ENABLE_GPS_LOGGING), returning default values"
-        printf "0,0,0,none,none"
-        return 0
-    fi
-
-    log_debug "📍 GPS COLLECTION: Starting GPS data collection from available sources"
-    log_debug "📍 GPS CONFIG: PRIMARY_SOURCE=${GPS_PRIMARY_SOURCE:-starlink}, SECONDARY_SOURCE=${GPS_SECONDARY_SOURCE:-rutos}"
-    
-    lat="" lon="" alt="" accuracy="" source=""
-    rutos_lat="" rutos_lon="" rutos_alt=""
-    starlink_lat="" starlink_lon="" starlink_alt=""
-
-    # === RUTOS GPS Collection ===
-    log_debug "📍 RUTOS GPS: Attempting to collect RUTOS GPS data..."
-    if command -v gpsctl >/dev/null 2>&1; then
-        log_debug "📍 RUTOS GPS: gpsctl command found, using individual flags for data collection"
-        
-        # Use individual gpsctl flags for each GPS parameter
-        rutos_lat=$(gpsctl -i 2>/dev/null | tr -d '\n\r' || echo "")
-        rutos_lon=$(gpsctl -x 2>/dev/null | tr -d '\n\r' || echo "")
-        rutos_alt=$(gpsctl -a 2>/dev/null | tr -d '\n\r' || echo "")
-        
-        log_debug "📍 RUTOS GPS: Individual flag results - lat='$rutos_lat', lon='$rutos_lon', alt='$rutos_alt'"
-        
-        # Validate GPS data (check for valid numeric values and non-zero coordinates)
-        if [ -n "$rutos_lat" ] && [ -n "$rutos_lon" ]; then
-            # Check if latitude and longitude are valid numbers and not zero
-            case "$rutos_lat" in
-                0|0.0|0.00|0.000|0.0000|0.00000|0.000000) 
-                    log_debug "📍 RUTOS GPS: Latitude is zero - invalid GPS fix"
-                    rutos_lat="" rutos_lon="" rutos_alt=""
-                    ;;
-                *[!0-9.-]*) 
-                    log_debug "📍 RUTOS GPS: Latitude contains non-numeric characters: '$rutos_lat'"
-                    rutos_lat="" rutos_lon="" rutos_alt=""
-                    ;;
-                *)
-                    case "$rutos_lon" in
-                        0|0.0|0.00|0.000|0.0000|0.00000|0.000000) 
-                            log_debug "📍 RUTOS GPS: Longitude is zero - invalid GPS fix"
-                            rutos_lat="" rutos_lon="" rutos_alt=""
-                            ;;
-                        *[!0-9.-]*) 
-                            log_debug "📍 RUTOS GPS: Longitude contains non-numeric characters: '$rutos_lon'"
-                            rutos_lat="" rutos_lon="" rutos_alt=""
-                            ;;
-                        *)
-                            log_debug "📍 RUTOS GPS: Valid GPS coordinates found - lat=$rutos_lat, lon=$rutos_lon"
-                            # Set default altitude if empty or invalid
-                            case "$rutos_alt" in
-                                *[!0-9.-]*|"") rutos_alt="0" ;;
-                            esac
-                            ;;
-                    esac
-                    ;;
-            esac
-        else
-            log_debug "📍 RUTOS GPS: Empty latitude or longitude from gpsctl"
-            rutos_lat="" rutos_lon="" rutos_alt=""
-        fi
-    else
-        log_debug "📍 RUTOS GPS: gpsctl command not available"
-    fi
-
-    # === Starlink GPS Collection ===
-    log_debug "📍 STARLINK GPS: Attempting to collect Starlink GPS data..."
-    if [ -n "${status_data:-}" ]; then
-        log_debug "📍 STARLINK GPS: status_data available, trying different field paths"
-        
-        # Try multiple possible field paths for GPS location
-        starlink_lat=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.location.lla.lat // .location.lla.lat // .getLocation.lla.lat // empty' 2>/dev/null)
-        starlink_lon=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.location.lla.lon // .location.lla.lon // .getLocation.lla.lon // empty' 2>/dev/null)
-        starlink_alt=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.location.lla.alt // .location.lla.alt // .getLocation.lla.alt // 0' 2>/dev/null)
-        
-        log_debug "📍 STARLINK GPS: Field extraction results - lat=$starlink_lat, lon=$starlink_lon, alt=$starlink_alt"
-        
-        if [ -n "$starlink_lat" ] && [ -n "$starlink_lon" ] && [ "$starlink_lat" != "0" ] && [ "$starlink_lat" != "empty" ]; then
-            log_debug "📍 STARLINK GPS: Valid GPS data found in get_status response"
-        else
-            log_debug "📍 STARLINK GPS: No location data in get_status, trying separate get_location API call"
-            
-            # Try separate get_location API call
-            location_cmd="$GRPCURL_CMD -plaintext -d '{\"getLocation\":{}}' $STARLINK_IP:$STARLINK_PORT SpaceX.API.Device.Device/Handle 2>/dev/null"
-            log_debug "📍 STARLINK GPS: Executing get_location API call"
-            
-            if location_data=$(eval "$location_cmd" 2>/dev/null); then
-                log_debug "📍 STARLINK GPS: get_location API call successful"
-                starlink_lat=$(echo "$location_data" | "$JQ_CMD" -r '.getLocation.lla.lat // empty' 2>/dev/null)
-                starlink_lon=$(echo "$location_data" | "$JQ_CMD" -r '.getLocation.lla.lon // empty' 2>/dev/null)
-                starlink_alt=$(echo "$location_data" | "$JQ_CMD" -r '.getLocation.lla.alt // 0' 2>/dev/null)
-                log_debug "📍 STARLINK GPS: get_location results - lat=$starlink_lat, lon=$starlink_lon, alt=$starlink_alt"
-                
-                if [ -n "$starlink_lat" ] && [ -n "$starlink_lon" ] && [ "$starlink_lat" != "0" ] && [ "$starlink_lat" != "empty" ]; then
-                    log_debug "📍 STARLINK GPS: Valid GPS data found via get_location API"
-                else
-                    log_debug "📍 STARLINK GPS: No valid location data from get_location API either"
-                    starlink_lat="" starlink_lon="" starlink_alt=""
-                fi
-            else
-                log_debug "📍 STARLINK GPS: get_location API call failed"
-                starlink_lat="" starlink_lon="" starlink_alt=""
-            fi
-        fi
-    else
-        log_debug "📍 STARLINK GPS: No status_data available for GPS extraction"
-    fi
-
-    # === GPS Source Priority Logic ===
-    log_debug "📍 GPS PRIORITY: Applying GPS source priority logic"
-    log_debug "📍 GPS SOURCES: RUTOS=[${rutos_lat:-empty}], STARLINK=[${starlink_lat:-empty}]"
-    
-    primary_source="${GPS_PRIMARY_SOURCE:-starlink}"
-    secondary_source="${GPS_SECONDARY_SOURCE:-rutos}"
-    
-    log_debug "📍 GPS PRIORITY: Primary=$primary_source, Secondary=$secondary_source"
-    
-    # Apply primary source preference
-    if [ "$primary_source" = "starlink" ] && [ -n "$starlink_lat" ]; then
-        lat="$starlink_lat"
-        lon="$starlink_lon"
-        alt="${starlink_alt:-0}"
-        accuracy="high"
-        source="starlink_gps"
-        log_debug "📍 GPS SELECTION: Using PRIMARY source (Starlink): lat=$lat, lon=$lon"
-    elif [ "$primary_source" = "rutos" ] && [ -n "$rutos_lat" ]; then
-        lat="$rutos_lat"
-        lon="$rutos_lon"
-        alt="${rutos_alt:-0}"
-        accuracy="high"
-        source="rutos_gps"
-        log_debug "📍 GPS SELECTION: Using PRIMARY source (RUTOS): lat=$lat, lon=$lon"
-    # Fallback to secondary source
-    elif [ "$secondary_source" = "starlink" ] && [ -n "$starlink_lat" ]; then
-        lat="$starlink_lat"
-        lon="$starlink_lon"
-        alt="${starlink_alt:-0}"
-        accuracy="medium"
-        source="starlink_gps"
-        log_debug "📍 GPS SELECTION: Using SECONDARY source (Starlink): lat=$lat, lon=$lon"
-    elif [ "$secondary_source" = "rutos" ] && [ -n "$rutos_lat" ]; then
-        lat="$rutos_lat"
-        lon="$rutos_lon"
-        alt="${rutos_alt:-0}"
-        accuracy="medium"
-        source="rutos_gps"
-        log_debug "📍 GPS SELECTION: Using SECONDARY source (RUTOS): lat=$lat, lon=$lon"
-    else
-        log_debug "📍 GPS SELECTION: No valid GPS data from any source"
-    fi
-
-    # Set defaults if no GPS data available
-    lat="${lat:-0}"
-    lon="${lon:-0}"
-    alt="${alt:-0}"
-    accuracy="${accuracy:-none}"
-    source="${source:-none}"
-
-    log_debug "📍 GPS FINAL: lat=$lat, lon=$lon, alt=$alt, accuracy=$accuracy, source=$source"
-
-    # Return GPS data for CSV logging
-    printf "%s,%s,%s,%s,%s" "$lat" "$lon" "$alt" "$accuracy" "$source"
-}
+# GPS data collection now uses the standardized library function
+# The library function handles all GPS sources and provides consistent formatting
+# Configuration variables:
+# - ENABLE_GPS_LOGGING: true/false to enable GPS collection
+# - GPS_PRIMARY_SOURCE: "starlink" or "rutos" for primary GPS source
+# - GPS_SECONDARY_SOURCE: "rutos" or "starlink" for fallback source
+# 
+# Returns: "lat,lon,alt,accuracy,source" format
 
 # =============================================================================
-# CELLULAR DATA COLLECTION (Enhanced Feature)
+# CELLULAR DATA COLLECTION (Enhanced Feature) 
+# Using standardized RUTOS library function
 # =============================================================================
 
-collect_cellular_data() {
-    # Skip if cellular logging is disabled
-    if [ "$ENABLE_CELLULAR_LOGGING" != "true" ]; then
-        log_debug "Cellular logging disabled, returning default values"
-        printf "0,0,Unknown,Unknown,home"
-        return 0
-    fi
-
-    signal_strength="" signal_quality="" network_type="" operator="" roaming_status=""
-
-    log_debug "Collecting cellular data from primary modem"
-
-    if command -v gsmctl >/dev/null 2>&1; then
-        # Signal strength and quality
-        signal_info=$(gsmctl -A 'AT+CSQ' 2>/dev/null | grep "+CSQ:" || echo "+CSQ: 99,99")
-        signal_strength=$(echo "$signal_info" | awk -F'[: ,]' '{print $3}' | head -1)
-        signal_quality=$(echo "$signal_info" | awk -F'[: ,]' '{print $4}' | head -1)
-
-        # Network registration and operator
-        reg_info=$(gsmctl -A 'AT+COPS?' 2>/dev/null | grep "+COPS:" || echo "+COPS: 0,0,\"Unknown\"")
-        operator=$(echo "$reg_info" | sed 's/.*"\([^"]*\)".*/\1/')
-
-        # Network type
-        network_info=$(gsmctl -A 'AT+QNWINFO' 2>/dev/null | grep "+QNWINFO:" || echo "+QNWINFO: \"Unknown\"")
-        network_type=$(echo "$network_info" | awk -F'"' '{print $2}')
-
-        # Roaming status
-        roaming_info=$(gsmctl -A 'AT+CREG?' 2>/dev/null | grep "+CREG:" || echo "+CREG: 0,1")
-        roaming_status=$(echo "$roaming_info" | awk -F'[: ,]' '{print $4}' | head -1)
-        [ "$roaming_status" = "5" ] && roaming_status="roaming" || roaming_status="home"
-
-        log_debug "Cellular data: signal=$signal_strength, operator=$operator, network=$network_type"
-    else
-        log_debug "gsmctl not available, using default cellular values"
-    fi
-
-    # Set defaults if no data available
-    signal_strength="${signal_strength:-0}"
-    signal_quality="${signal_quality:-0}"
-    network_type="${network_type:-Unknown}"
-    operator="${operator:-Unknown}"
-    roaming_status="${roaming_status:-home}"
-
-    # Return cellular data for CSV logging
-    printf "%s,%s,%s,%s,%s" "$signal_strength" "$signal_quality" "$network_type" "$operator" "$roaming_status"
-}
+# Cellular data collection now uses the standardized library function
+# The library function handles AT command parsing and CSV sanitization
+# Configuration variables:
+# - ENABLE_CELLULAR_LOGGING: true/false to enable cellular collection
+#
+# Returns: "signal_strength,signal_quality,network_type,operator,roaming_status" format
 
 # =============================================================================
 # STARLINK DATA EXTRACTION
@@ -838,7 +643,7 @@ log_to_csv() {
     cellular_data=""
 
     if [ "$ENABLE_GPS_LOGGING" = "true" ]; then
-        log_debug "📝 GPS LOGGING: Collecting GPS data..."
+        log_debug "📝 GPS LOGGING: Collecting GPS data using library function..."
         gps_data=$(collect_gps_data)
         log_debug "📝 GPS DATA: $gps_data"
     else
@@ -846,7 +651,7 @@ log_to_csv() {
     fi
 
     if [ "$ENABLE_CELLULAR_LOGGING" = "true" ]; then
-        log_debug "📝 CELLULAR LOGGING: Collecting cellular data..."
+        log_debug "📝 CELLULAR LOGGING: Collecting cellular data using library function..."
         cellular_data=$(collect_cellular_data)
         log_debug "📝 CELLULAR DATA: $cellular_data"
     else

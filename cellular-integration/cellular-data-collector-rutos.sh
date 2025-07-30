@@ -164,8 +164,8 @@ get_modem_info() {
         network_info=$(gsmctl -A "AT+COPS?" -M "$modem_id" 2>/dev/null || echo "")
         if [ -n "$network_info" ]; then
             # Parse COPS response: +COPS: <mode>,<format>,"<operator>",<AcT>
-            operator=$(echo "$network_info" | grep "+COPS:" | sed 's/.*"\([^"]*\)".*/\1/' 2>/dev/null || echo "Unknown")
-            network_type_code=$(echo "$network_info" | grep "+COPS:" | sed 's/.*,\([0-9]*\)$/\1/' 2>/dev/null || echo "")
+            operator=$(echo "$network_info" | grep "+COPS:" | sed 's/.*"\([^"]*\)".*/\1/' 2>/dev/null | tr -d '\n\r,' | head -c 25 || echo "Unknown")
+            network_type_code=$(echo "$network_info" | grep "+COPS:" | sed 's/.*,\([0-9]*\)$/\1/' 2>/dev/null | tr -d '\n\r' || echo "")
             case "$network_type_code" in
                 "0") network_type="GSM" ;;
                 "2") network_type="UTRAN" ;;
@@ -288,7 +288,19 @@ get_modem_info() {
         fi
     fi
 
-    # Output structured data
+    # Output structured data (sanitize all fields to prevent CSV corruption)
+    # Remove newlines, carriage returns, and commas from all fields
+    modem_interface=$(echo "$modem_interface" | tr -d '\n\r,' | head -c 20)
+    signal_dbm=$(echo "$signal_dbm" | tr -d '\n\r,' | head -c 10)
+    signal_quality=$(echo "$signal_quality" | tr -d '\n\r,' | head -c 15)
+    network_type=$(echo "$network_type" | tr -d '\n\r,' | head -c 15)
+    operator=$(echo "$operator" | tr -d '\n\r,' | head -c 25)
+    roaming_status=$(echo "$roaming_status" | tr -d '\n\r,' | head -c 15)
+    connection_status=$(echo "$connection_status" | tr -d '\n\r,' | head -c 15)
+    data_usage_rx=$(echo "$data_usage_rx" | tr -d '\n\r,' | head -c 10)
+    data_usage_tx=$(echo "$data_usage_tx" | tr -d '\n\r,' | head -c 10)
+    ip_address=$(echo "$ip_address" | tr -d '\n\r,' | head -c 15)
+    
     printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
         "$modem_interface" \
         "$signal_dbm" \
