@@ -97,7 +97,7 @@ _log_message() {
     else
         printf "${color}[%s]${NC} [%s] %s\n" "$level" "$timestamp" "$message"
     fi
-    
+
     # Also send to syslog (without colors) for human-readable system logs
     if command -v logger >/dev/null 2>&1; then
         # Use script name or default tag for syslog
