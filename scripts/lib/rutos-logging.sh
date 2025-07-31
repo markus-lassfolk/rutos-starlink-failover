@@ -107,10 +107,6 @@ _log_message() {
 }
 
 # Standard logging functions
-# Version information for troubleshooting
-if [ "${DEBUG:-0}" = "1" ]; then
-    log_debug "Script: rutos-logging.sh v$SCRIPT_VERSION"
-fi
 log_info() {
     _log_message "INFO" "$GREEN" "$1" "stdout" "daemon.info"
 }
