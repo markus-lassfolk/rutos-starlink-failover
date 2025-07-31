@@ -11,7 +11,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="install-rutos.sh"
@@ -33,18 +33,21 @@ BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 # For remote installation via curl, we'll use built-in fallback functions
 LIBRARY_LOADED=0
 
-# First, check if bootstrap script provided a library path
-if [ -n "${LIBRARY_PATH:-}" ] && [ -f "$LIBRARY_PATH/rutos-lib.sh" ]; then
-    # Bootstrap installation mode: library already downloaded by bootstrap script
-    if . "$LIBRARY_PATH/rutos-lib.sh" 2>/dev/null; then
+# Check if library is available via LIBRARY_PATH (bootstrap mode)
+if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_PATH}/rutos-lib.sh" ]; then
+    # Bootstrap mode: library provided by bootstrap script
+    if . "${LIBRARY_PATH}/rutos-lib.sh" 2>/dev/null; then
         LIBRARY_LOADED=1
-        printf "[DEBUG] RUTOS library system loaded from bootstrap environment: %s\n" "$LIBRARY_PATH" >&2
+        printf "[INFO] RUTOS library system loaded from bootstrap path: %s\n" "$LIBRARY_PATH"
     fi
-elif [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; then
+fi
+
+# Check for local development environment
+if [ "$LIBRARY_LOADED" = "0" ] && [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; then
     # Development mode: scripts directory available locally
     if . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
         LIBRARY_LOADED=1
-        printf "[DEBUG] RUTOS library system loaded from local development environment\n" >&2
+        printf "[INFO] RUTOS library system loaded from local development environment\n"
     fi
 fi
 
@@ -61,9 +64,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
         if curl -fsSL "${BASE_URL}/scripts/lib/rutos-lib.sh" -o "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
             curl -fsSL "${BASE_URL}/scripts/lib/rutos-colors.sh" -o "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
             curl -fsSL "${BASE_URL}/scripts/lib/rutos-logging.sh" -o "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
-            curl -fsSL "${BASE_URL}/scripts/lib/rutos-common.sh" -o "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null &&
-            curl -fsSL "${BASE_URL}/scripts/lib/rutos-compatibility.sh" -o "$TEMP_LIB_DIR/rutos-compatibility.sh" 2>/dev/null &&
-            curl -fsSL "${BASE_URL}/scripts/lib/rutos-data-collection.sh" -o "$TEMP_LIB_DIR/rutos-data-collection.sh" 2>/dev/null; then
+            curl -fsSL "${BASE_URL}/scripts/lib/rutos-common.sh" -o "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
             # Set library path and load it
             RUTOS_LIB_PATH="$TEMP_LIB_DIR"
             if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
@@ -77,9 +78,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
         if wget -q "${BASE_URL}/scripts/lib/rutos-lib.sh" -O "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
             wget -q "${BASE_URL}/scripts/lib/rutos-colors.sh" -O "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
             wget -q "${BASE_URL}/scripts/lib/rutos-logging.sh" -O "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
-            wget -q "${BASE_URL}/scripts/lib/rutos-common.sh" -O "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null &&
-            wget -q "${BASE_URL}/scripts/lib/rutos-compatibility.sh" -O "$TEMP_LIB_DIR/rutos-compatibility.sh" 2>/dev/null &&
-            wget -q "${BASE_URL}/scripts/lib/rutos-data-collection.sh" -O "$TEMP_LIB_DIR/rutos-data-collection.sh" 2>/dev/null; then
+            wget -q "${BASE_URL}/scripts/lib/rutos-common.sh" -O "$TEMP_LIB_DIR/rutos-common.sh" 2>/dev/null; then
             # Set library path and load it
             RUTOS_LIB_PATH="$TEMP_LIB_DIR"
             if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
@@ -189,11 +188,6 @@ else
             "DEBUG_EXEC" | "debug_exec") log_debug "EXEC: $message" ;;
             *) log_info "$message" ;;
         esac
-    }
-
-    # Built-in get_timestamp function (fallback when library not available)
-    get_timestamp() {
-        date '+%Y-%m-%d %H:%M:%S'
     }
 
     # Initialize logging variables
@@ -1542,14 +1536,13 @@ install_scripts() {
     # Create library directory
     mkdir -p "$INSTALL_DIR/scripts/lib"
 
-    # Critical library files (required for basic functionality)
-    critical_libraries="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh"
-    
-    # Optional library files (graceful degradation if missing)
-    optional_libraries="rutos-compatibility.sh rutos-data-collection.sh"
+    # Library files to install
+    for lib_file in \
+        rutos-lib.sh \
+        rutos-colors.sh \
+        rutos-logging.sh \
+        rutos-common.sh; do
 
-    # Install critical libraries first
-    for lib_file in $critical_libraries; do
         # Try local library first
         if [ -f "$script_dir/../scripts/lib/$lib_file" ]; then
             cp "$script_dir/../scripts/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"
@@ -1562,37 +1555,9 @@ install_scripts() {
                 chmod +x "$INSTALL_DIR/scripts/lib/$lib_file"
                 print_status "$GREEN" "✓ Library downloaded: $lib_file"
             else
-                print_status "$RED" "Error: Failed to install critical library: $lib_file"
-                print_status "$RED" "CRITICAL: Scripts will not work without the core RUTOS library system!"
+                print_status "$RED" "Error: Failed to install library: $lib_file"
+                print_status "$RED" "CRITICAL: Scripts will not work without the RUTOS library system!"
                 return 1
-            fi
-        fi
-    done
-
-    # Install optional libraries (non-critical)
-    for lib_file in $optional_libraries; do
-        # Try local library first
-        if [ -f "$script_dir/../scripts/lib/$lib_file" ]; then
-            cp "$script_dir/../scripts/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"
-            chmod +x "$INSTALL_DIR/scripts/lib/$lib_file"
-            print_status "$GREEN" "✓ Optional library installed: $lib_file"
-        else
-            # Download from repository (with extended timeout for large files)
-            print_status "$BLUE" "Downloading optional library: $lib_file..."
-            if download_file "$BASE_URL/scripts/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"; then
-                chmod +x "$INSTALL_DIR/scripts/lib/$lib_file"
-                print_status "$GREEN" "✓ Optional library downloaded: $lib_file"
-            else
-                print_status "$YELLOW" "Warning: Failed to install optional library: $lib_file"
-                case "$lib_file" in
-                    "rutos-compatibility.sh")
-                        print_status "$YELLOW" "  → Legacy function support will be disabled"
-                        ;;
-                    "rutos-data-collection.sh")
-                        print_status "$YELLOW" "  → GPS/cellular features will be disabled"
-                        ;;
-                esac
-                print_status "$YELLOW" "  → Installation will continue with basic functionality"
             fi
         fi
     done
@@ -1627,16 +1592,8 @@ install_scripts() {
         view-logs-rutos.sh \
         analyze-outage-correlation-rutos.sh \
         analyze-outage-correlation-optimized-rutos.sh \
-        analyze-decision-log-rutos.sh \
-        watch-decisions-rutos.sh \
         check-pushover-logs-rutos.sh \
         diagnose-pushover-notifications-rutos.sh \
-        auto-detect-config-rutos.sh \
-        debug-config-rutos.sh \
-        enhanced-cleanup-rutos.sh \
-        setup-cron-monitoring-rutos.sh \
-        cron-monitor-wrapper-rutos.sh \
-        cron-health-monitor-rutos.sh \
         test-all-scripts-rutos.sh \
         validate-persistent-config-rutos.sh \
         dev-testing-rutos.sh; do
@@ -1693,6 +1650,36 @@ install_scripts() {
     done
 
     print_status "$GREEN" "✓ All scripts installation completed"
+
+    # Install RUTOS library system (CRITICAL - required for script operation)
+    print_status "$BLUE" "Installing RUTOS library system..."
+    mkdir -p "$INSTALL_DIR/scripts/lib" 2>/dev/null || {
+        print_status "$RED" "✗ Failed to create library directory"
+        return 1
+    }
+
+    # Library files to install
+    library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh"
+
+    for lib_file in $library_files; do
+        if [ -f "$script_dir/lib/$lib_file" ]; then
+            # Local development installation
+            cp "$script_dir/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"
+            print_status "$GREEN" "✓ Library installed: $lib_file"
+        else
+            # Remote installation - download library files
+            print_status "$BLUE" "Downloading library: $lib_file..."
+            if download_file "$BASE_URL/scripts/lib/$lib_file" "$INSTALL_DIR/scripts/lib/$lib_file"; then
+                print_status "$GREEN" "✓ Library downloaded: $lib_file"
+            else
+                print_status "$RED" "✗ Failed to download library: $lib_file"
+                print_status "$RED" "This is a critical error - scripts will not work without the library system"
+                return 1
+            fi
+        fi
+    done
+
+    print_status "$GREEN" "✓ RUTOS library system installed successfully"
 
     # Create script documentation
     create_script_documentation
