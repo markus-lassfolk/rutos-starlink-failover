@@ -99,24 +99,31 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_
     printf "[EARLY_DEBUG] About to source library, capturing any errors...\n" >&2
     library_error_output=""
     
-    # Source library and capture ALL output (including debug from library)
-    printf "[EARLY_DEBUG] Sourcing library with full debug capture...\n" >&2
-    if library_error_output=$(. "${LIBRARY_PATH}/rutos-lib.sh" 2>&1); then
+    # Source library directly (not in a subshell to preserve function definitions)
+    printf "[EARLY_DEBUG] Sourcing library directly...\n" >&2
+    if . "${LIBRARY_PATH}/rutos-lib.sh" 2>/tmp/library_load_output.$$; then
         LIBRARY_LOADED=1
         printf "[INFO] RUTOS library system loaded from bootstrap path: %s\n" "$LIBRARY_PATH"
         printf "[EARLY_DEBUG] Library loading successful via LIBRARY_PATH\n" >&2
         
         # Show library loading output for debugging
-        if [ -n "$library_error_output" ]; then
+        if [ -f "/tmp/library_load_output.$$" ] && [ -s "/tmp/library_load_output.$$" ]; then
             printf "[EARLY_DEBUG] Library loading output:\n" >&2
-            echo "$library_error_output" | while IFS= read -r line; do
+            while IFS= read -r line; do
                 printf "[EARLY_DEBUG]   %s\n" "$line" >&2
-            done
+            done < "/tmp/library_load_output.$$"
         fi
+        rm -f "/tmp/library_load_output.$$" 2>/dev/null
     else
         library_exit_code=$?
         printf "[EARLY_DEBUG] Library loading FAILED via LIBRARY_PATH with exit code: %d\n" "$library_exit_code" >&2
-        printf "[EARLY_DEBUG] Library error output: %s\n" "$library_error_output" >&2
+        if [ -f "/tmp/library_load_output.$$" ]; then
+            printf "[EARLY_DEBUG] Library error output:\n" >&2
+            while IFS= read -r line; do
+                printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+            done < "/tmp/library_load_output.$$"
+        fi
+        rm -f "/tmp/library_load_output.$$" 2>/dev/null
         
         # Show detailed file info for debugging
         printf "[EARLY_DEBUG] Library file details:\n" >&2
