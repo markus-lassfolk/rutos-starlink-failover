@@ -136,9 +136,9 @@ PUSHOVER_TOKEN="your_pushover_token"
 PUSHOVER_USER="your_pushover_user_key"
 
 # Failover thresholds
-PACKET_LOSS_THRESHOLD=0.05    # 5%
-OBSTRUCTION_THRESHOLD=0.001   # 0.1%
-LATENCY_THRESHOLD_MS=150      # 150ms
+PACKET_LOSS_THRESHOLD=5       # 5%
+OBSTRUCTION_THRESHOLD=3       # 3%
+LATENCY_THRESHOLD=150         # 150ms
 ```
 
 ### 1.1 Advanced Configuration (RUTX50 Production)

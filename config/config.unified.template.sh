@@ -89,24 +89,26 @@ export METRIC_BAD="20"
 # Too low: Frequent unnecessary failovers, Too high: Poor user experience
 export LATENCY_THRESHOLD="100"
 
-# Packet loss threshold (percentage as decimal: 0.05 = 5%)
+# Packet loss threshold (percentage value: 5 = 5%, 2 = 2%, 1 = 1%)
 # How it works: If packet loss exceeds this percentage, triggers failover
 # What causes it: Obstructions, weather, dish movement, satellite handoffs
 # Normal Starlink: <1% loss is excellent, 1-3% acceptable, >5% problematic
 # Impact on apps: Web browsing tolerates 2-3%, streaming fails above 5%
 # Recommended: 5% for balanced reliability vs stability
+# IMPORTANT: Use percentage values directly (5 for 5%, not 0.05)
 # Too low: Failover during brief weather events, Too high: Noticeable performance issues
 export PACKET_LOSS_THRESHOLD="5"
 
-# Obstruction threshold (percentage as decimal: 0.03 = 3%)
+# Obstruction threshold (percentage value: 3 = 3%, 1 = 1%, 0.5 = 0.5%)
 # How it works: Starlink reports obstructions (trees, buildings) blocking satellite view
 # What it indicates: Physical objects between dish and satellites
 # Realistic levels: 0-1% excellent, 1-3% good, 3-5% acceptable, 5%+ poor
 # Field experience: Many users see 0.1-0.5% regularly without outages
 # Starlink tolerance: Can handle brief obstructions up to 2-3% without significant impact
-# Recommended: 0.03 (3%) - balanced sensitivity that avoids false positives
+# Recommended: 3 (3%) - balanced sensitivity that avoids false positives
+# IMPORTANT: Use percentage values directly (3 for 3%, not 0.03)
 # Note: Consider dish relocation if this threshold is frequently exceeded
-export OBSTRUCTION_THRESHOLD="0.03"
+export OBSTRUCTION_THRESHOLD="3"
 
 # Enhanced obstruction analysis settings
 # Enable intelligent obstruction analysis using historical data

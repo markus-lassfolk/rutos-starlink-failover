@@ -157,7 +157,7 @@ STARLINK_PORT="${STARLINK_PORT:-9200}"
 # Default thresholds and parameters (set only if not already configured)
 LATENCY_THRESHOLD="${LATENCY_THRESHOLD:-150}"
 PACKET_LOSS_THRESHOLD="${PACKET_LOSS_THRESHOLD:-2}"
-OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD:-0.001}"
+OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD:-0.1}"
 ENABLE_INTELLIGENT_OBSTRUCTION="${ENABLE_INTELLIGENT_OBSTRUCTION:-true}"
 OBSTRUCTION_MIN_DATA_HOURS="${OBSTRUCTION_MIN_DATA_HOURS:-1}"
 OBSTRUCTION_HISTORICAL_THRESHOLD="${OBSTRUCTION_HISTORICAL_THRESHOLD:-1.0}"
@@ -302,7 +302,7 @@ log_decision() {
     if [ "$current_packet_loss" != "unknown" ] && [ "$(echo "$current_packet_loss > ${PACKET_LOSS_THRESHOLD:-2}" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
         loss_poor=1
     fi
-    if [ "$current_obstruction" != "unknown" ] && [ "$(echo "$current_obstruction > ${OBSTRUCTION_THRESHOLD:-0.001}" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
+    if [ "$current_obstruction" != "unknown" ] && [ "$(echo "$current_obstruction > ${OBSTRUCTION_THRESHOLD:-0.1}" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
         obstruction_poor=1
     fi
     
@@ -406,7 +406,7 @@ log_decision() {
         "soft_failover"|"hard_failover"|"restore"|"evaluation")
             # Log detailed reasoning for important decisions
             if [ "$current_latency" != "unknown" ] || [ "$current_packet_loss" != "unknown" ] || [ "$current_obstruction" != "unknown" ]; then
-                log_info "📊 METRICS: Latency=${current_latency}ms (threshold ${LATENCY_THRESHOLD:-150}ms), Loss=${current_packet_loss}% (threshold ${PACKET_LOSS_THRESHOLD:-2}%), Obstruction=${current_obstruction}% (threshold ${OBSTRUCTION_THRESHOLD:-0.001}%)"
+                log_info "📊 METRICS: Latency=${current_latency}ms (threshold ${LATENCY_THRESHOLD:-150}ms), Loss=${current_packet_loss}% (threshold ${PACKET_LOSS_THRESHOLD:-2}%), Obstruction=${current_obstruction}% (threshold ${OBSTRUCTION_THRESHOLD:-0.1}%)"
             fi
             
             if [ "$current_snr" != "unknown" ]; then
@@ -1286,7 +1286,7 @@ main() {
                 fi
             else
                 # Quality is good, check if we need to restore interface
-                current_metric=$(uci get mwan3.starlink.metric 2>/dev/null || echo "10")
+                current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "10")
                 good_metric="${METRIC_GOOD:-1}"
                 if [ "$current_metric" -gt "$good_metric" ]; then
                     log_info "Quality restored and metric is elevated ($current_metric), restoring interface"
