@@ -213,9 +213,23 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
     # Test if the function exists
     printf "[EARLY_DEBUG] Testing function availability...\n" >&2
     printf "[EARLY_DEBUG] Available functions starting with 'rutos':\n" >&2
-    set | grep '^rutos' | head -10 | while IFS= read -r line; do
-        printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+    
+    # Test specific functions directly to avoid subshell issues
+    for func_name in rutos_init_portable rutos_init rutos_init_simple log_info log_debug log_error; do
+        if command -v "$func_name" >/dev/null 2>&1; then
+            printf "[EARLY_DEBUG]   ✓ %s (available)\n" "$func_name" >&2
+        else
+            printf "[EARLY_DEBUG]   ✗ %s (not found)\n" "$func_name" >&2
+        fi
     done
+    
+    # Also try to list all functions (alternative approach)
+    printf "[EARLY_DEBUG] Checking function environment:\n" >&2
+    if set | grep -q '^rutos_init_portable ()'; then
+        printf "[EARLY_DEBUG]   Function definition found in environment\n" >&2
+    else
+        printf "[EARLY_DEBUG]   Function definition NOT found in environment\n" >&2
+    fi
     
     if command -v rutos_init_portable >/dev/null 2>&1; then
         printf "[EARLY_DEBUG] rutos_init_portable function found, calling it...\n" >&2
