@@ -1,13 +1,13 @@
 #!/bin/sh
 # Script: cellular-data-collector-rutos.sh
-# Version: 2.7.0
+# Version: 2.8.0
 # Description: Comprehensive cellular data collection for RUTOS modems with 4G/5G support
 # Collects signal strength, network type, operator, roaming status, and data usage
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: fix-database-spam-rutos.sh
-# Version: 2.7.1
+# Version: 2.8.0
 # Description: Fix RUTOS database spam issues including "Can't open database" and optimization loops
 # Based on user's manual solutions but enhanced for safety and integration
 
@@ -9,7 +9,7 @@ set -e # Exit on error
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

@@ -3,7 +3,7 @@
 # ==============================================================================
 # Enhanced Starlink Logger with GPS and Cellular Integration
 #
-# Version: 2.7.1
+# Version: 2.8.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script provides enhanced logging for Starlink monitoring with:
@@ -17,7 +17,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # RUTOS test mode support (for testing framework)

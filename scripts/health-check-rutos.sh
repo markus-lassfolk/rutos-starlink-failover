@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: health-check.sh
-# Version: 2.7.1
+# Version: 2.8.0
 # Description: Comprehensive system health check that orchestrates all other test scripts
 
 # RUTOS Compatibility - Using Method 5 printf format for proper color display
@@ -9,7 +9,7 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Version information (auto-updated by update-version.sh)

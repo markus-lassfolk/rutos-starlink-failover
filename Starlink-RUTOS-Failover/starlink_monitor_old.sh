@@ -4,7 +4,7 @@
 # Starlink Proactive Quality Monitor for OpenWrt/RUstatus_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_status":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetStatus')
 history_data=$($GRPCURL_CMD -plaintext -max-time 10 -d '{"get_history":{}}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null | $JQ_CMD -r '.dishGetHistory')S
 #
-# Version: 2.7.1
+# Version: 2.8.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-victron/
 #
 # This script proactively monitors the quality of a Starlink internet connection
@@ -27,7 +27,7 @@ set -eu
 # Configuration validation
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 if [ -z "${STARLINK_IP:-}" ] || [ -z "${MWAN_IFACE:-}" ] || [ -z "${MWAN_MEMBER:-}" ]; then
     echo "Error: Critical configuration variables not set"

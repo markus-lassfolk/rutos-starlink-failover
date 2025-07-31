@@ -1,13 +1,13 @@
 #!/bin/sh
 # Script: analyze-failover-timing-rutos.sh
-# Version: 1.0.0
+# Version: 2.8.0
 # Description: Advanced failover timing analysis for RUTOS Starlink monitoring
 # Analyzes failover decisions, timing optimization, and threshold effectiveness
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

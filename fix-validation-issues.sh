@@ -1,11 +1,11 @@
 #!/bin/sh
 # Quick validation fixes for the most critical issues
-# Version: 2.7.1
+# Version: 2.8.0
 
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

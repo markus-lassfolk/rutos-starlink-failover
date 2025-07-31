@@ -3,7 +3,7 @@
 # ==============================================================================
 # Enhanced Starlink Proactive Quality Monitor for OpenWrt/RUTOS
 #
-# Version: 2.7.1
+# Version: 2.8.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script proactively monitors the quality of a Starlink internet connection
@@ -23,7 +23,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # RUTOS test mode support (for testing framework)

@@ -3,7 +3,7 @@
 # ==============================================================================
 # Unified Starlink Proactive Quality Monitor for OpenWrt/RUTOS
 #
-# Version: 2.7.0
+# Version: 2.8.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 # shellcheck disable=SC1091  # False positive: "Source" in URL comment, not shell command
 #
@@ -25,6 +25,10 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.8.0"
+readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="2.7.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
@@ -1314,6 +1318,31 @@ main() {
     log_maintenance_action "monitoring_cycle_end" "cycle_completion" "success" "All operations completed"
     log_function_exit "main" "0"
 }
+
+# Delegate detailed and aggregated logging to logger script
+log_detailed_performance() {
+    local logger_script="$(dirname "$0")/starlink_logger_unified-rutos.sh"
+    if [ -f "$logger_script" ]; then
+        "$logger_script" --log-detailed
+        log_debug "Delegated detailed performance logging to logger script: $logger_script"
+    else
+        log_warning "Logger script not found: $logger_script"
+    fi
+}
+
+log_aggregated_performance() {
+    local logger_script="$(dirname "$0")/starlink_logger_unified-rutos.sh"
+    if [ -f "$logger_script" ]; then
+        "$logger_script" --log-aggregated
+        log_debug "Delegated aggregated performance logging to logger script: $logger_script"
+    else
+        log_warning "Logger script not found: $logger_script"
+    fi
+}
+
+# Call logging functions
+log_detailed_performance
+log_aggregated_performance
 
 # Execute main function
 main "$@"

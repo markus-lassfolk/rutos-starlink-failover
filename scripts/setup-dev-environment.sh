@@ -1,6 +1,6 @@
 #!/bin/sh
 # Setup script for RUTOS development environment
-# Version: 2.7.1
+# Version: 2.8.0
 # Description: Sets up pre-commit hooks and validation tools
 
 set -e
@@ -10,7 +10,7 @@ set -e
 # shellcheck disable=SC2034
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # shellcheck disable=SC2034

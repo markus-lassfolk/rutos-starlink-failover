@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: test-monitoring.sh
-# Version: 2.4.12
+# Version: 2.8.0
 # Description: Test monitoring system connectivity and configuration
 
 # RUTOS Compatibility - Dynamic sourcing patterns
@@ -10,7 +10,7 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

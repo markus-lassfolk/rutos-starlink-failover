@@ -3,7 +3,7 @@
 # System Configuration for RUTOS Starlink Monitoring
 
 # Template version (auto-updated by update-version.sh)
-TEMPLATE_VERSION="2.7.1"
+TEMPLATE_VERSION="2.8.0"
 readonly TEMPLATE_VERSION
 # This file defines expected system components for dynamic testing and validation
 
@@ -11,7 +11,7 @@ readonly TEMPLATE_VERSION
 # Note: Only set SCRIPT_VERSION if not already set (prevents conflicts when sourced)
 if [ -z "${SCRIPT_VERSION:-}" ]; then
     # Version information (auto-updated by update-version.sh)
-    SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
     readonly SCRIPT_VERSION
 fi
 # Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"

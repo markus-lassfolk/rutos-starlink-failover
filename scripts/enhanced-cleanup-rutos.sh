@@ -1,12 +1,12 @@
 #!/bin/sh
 # Script: enhanced-cleanup-rutos.sh
-# Version: 2.7.1
+# Version: 2.8.0
 # Description: Enhanced cleanup script for complete system reset between test runs
 
 set -eu
 
 # Version information
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # RUTOS-compatible color detection

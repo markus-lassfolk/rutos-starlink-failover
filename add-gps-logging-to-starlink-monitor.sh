@@ -1,13 +1,13 @@
 #!/bin/sh
 # Script: add-gps-logging-to-starlink-monitor.sh
-# Version: 2.4.6
+# Version: 2.8.0
 # Description: Adds GPS data collection to existing Starlink monitoring using Victron approach
 # Based on your rutos-victron-gps repository patterns
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

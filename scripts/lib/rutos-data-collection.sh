@@ -13,6 +13,10 @@
 # ==============================================================================
 
 # Prevent multiple sourcing
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.8.0"
+readonly SCRIPT_VERSION
 if [ "${_RUTOS_DATA_COLLECTION_LOADED:-}" = "1" ]; then
     return 0
 fi
@@ -358,6 +362,8 @@ collect_cellular_data_enhanced() {
     fi
 
     timestamp="" modem_id="" signal_strength="" signal_quality="" network_type=""
+        echo "rutos-data-collection.sh v$SCRIPT_VERSION"
+        echo ""
     operator="" roaming_status="" connection_status="" data_usage_mb=""
     frequency_band="" cell_id="" lac="" error_rate=""
 
@@ -417,6 +423,8 @@ collect_cellular_data_enhanced() {
         fi
 
         # Additional details (simplified for now)
+        echo "rutos-data-collection.sh v$SCRIPT_VERSION"
+        echo ""
         data_usage_mb="0"
         frequency_band="unknown"
         cell_id="0"
@@ -432,6 +440,8 @@ collect_cellular_data_enhanced() {
         operator="Unknown"
         roaming_status="unknown"
         connection_status="unknown"
+        echo "rutos-data-collection.sh v$SCRIPT_VERSION"
+        echo ""
         data_usage_mb="0"
         frequency_band="unknown"
         cell_id="0"
@@ -450,6 +460,8 @@ collect_cellular_data_enhanced() {
     printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" \
         "$timestamp" "$modem_id" "$signal_strength" "$signal_quality" \
         "$network_type" "$operator" "$roaming_status" "$connection_status" \
+        echo "rutos-data-collection.sh v$SCRIPT_VERSION"
+        echo ""
         "$data_usage_mb" "$frequency_band" "$cell_id" "$lac" "$error_rate"
 }
 

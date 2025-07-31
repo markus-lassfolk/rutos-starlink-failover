@@ -1,6 +1,6 @@
 #!/bin/sh
 # COMPREHENSIVE STARLINK IP:PORT STANDARDIZATION SUMMARY
-# Version: 1.1.0 - Final Check Results
+# Version: 2.8.0
 
 printf "🎯 STARLINK CONNECTION STRING STANDARDIZATION - COMPLETE ✅\n\n"
 

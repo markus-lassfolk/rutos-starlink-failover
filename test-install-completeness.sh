@@ -7,7 +7,7 @@ set -e
 # Colors for output (RUTOS-compatible detection)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 RED=""
 GREEN=""

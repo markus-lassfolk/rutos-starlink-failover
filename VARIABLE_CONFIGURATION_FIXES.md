@@ -1,5 +1,7 @@
 # Variable Configuration Issues - Resolution Summary
 
+**Version:** 2.8.0 | **Updated:** 2025-07-31
+
 ## Problem Identification
 
 The user reported seeing "UNSET" variables in the monitor script debug output, specifically:

@@ -1,6 +1,6 @@
 #!/bin/sh
 # RUTOS Fix Verification Script
-# Version: 2.7.1
+# Version: 2.8.0
 #
 # This script tests the early exit pattern fixes on actual RUTOS hardware
 # Run this script on your RUTX50 router to verify the fixes work correctly
@@ -8,7 +8,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Colors for output (RUTOS compatible)

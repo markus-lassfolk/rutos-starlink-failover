@@ -1,7 +1,7 @@
 #!/bin/sh
 # shellcheck disable=SC2059
 # Script: diagnose-database-loop-rutos.sh
-# Version: 2.6.0
+# Version: 2.8.0
 # Description: Quick diagnostic for RUTOS database optimization loop
 # shellcheck disable=SC2059  # Using Method 5 printf format for RUTOS compatibility
 
@@ -10,7 +10,7 @@ set -e
 # Colors for output
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 RED='\033[0;31m'
 GREEN='\033[0;32m'

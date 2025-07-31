@@ -2,7 +2,7 @@
 set -e
 
 # Test script for enhanced GPS and drop rate calculation features
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="2.8.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
 . "$(dirname "$0")/scripts/lib/rutos-lib.sh"

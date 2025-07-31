@@ -10,6 +10,10 @@
 # ==============================================================================
 
 # Prevent multiple sourcing
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.8.0"
+readonly SCRIPT_VERSION
 if [ "${_RUTOS_LOGGING_LOADED:-}" = "1" ]; then
     return 0
 fi
@@ -107,6 +111,10 @@ _log_message() {
 }
 
 # Standard logging functions
+    # Version information for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ]; then
+        log_debug "Script: rutos-logging.sh v$SCRIPT_VERSION"
+    fi
 log_info() {
     _log_message "INFO" "$GREEN" "$1" "stdout" "daemon.info"
 }

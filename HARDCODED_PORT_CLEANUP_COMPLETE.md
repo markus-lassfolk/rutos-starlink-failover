@@ -1,6 +1,6 @@
 #!/bin/sh
 # FINAL HARDCODED PORT CLEANUP SUMMARY
-# Version: 1.0.0
+# Version: 2.8.0
 
 printf "🔍 HARDCODED :9200 REFERENCES - CLEANUP COMPLETE ✅\n\n"
 

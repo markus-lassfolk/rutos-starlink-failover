@@ -3,7 +3,7 @@
 # ==============================================================================
 # Variable Consistency Checker for RUTOS Starlink Scripts
 #
-# Version: 2.7.1
+# Version: 2.8.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script checks for configuration variable consistency across all scripts,
@@ -13,7 +13,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 
 # Load RUTOS library system for standardized logging and utilities
 . "$(dirname "$0")/lib/rutos-lib.sh"

@@ -1,14 +1,14 @@
 #!/bin/sh
 # shellcheck disable=SC2059  # RUTOS requires Method 5 printf format (embedded variables)
 # Script: dev-testing-rutos.sh
-# Version: 2.5.0
+# Version: 2.8.0
 # Description: Simple RUTOS script testing with AI-friendly error reporting
 # Usage: ./scripts/dev-testing-rutos.sh [--debug] [--help]
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Load RUTOS library system for standardized logging and utilities

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: cleanup-rutos.sh
-# Version: 2.5.0
+# Version: 2.8.0
 # Description: Cleanup and undo Starlink Monitor installation artifacts for testing
 
 set -eu
@@ -10,7 +10,7 @@ set -eu
 # shellcheck disable=SC2034  # CYAN may not be used but should be defined for consistency
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Use version for logging

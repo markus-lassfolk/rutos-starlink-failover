@@ -2,7 +2,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="2.8.0"
 
 # Simple logging for standalone analysis
 log_info() { printf "[INFO] %s\n" "$1"; }
@@ -277,4 +277,6 @@ else
     log_success "No variable naming issues found!"
 fi
 
+        echo "analyze-variable-usage-rutos.sh v$SCRIPT_VERSION"
+        echo ""
 log_success "Variable usage analysis complete"

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: self-update-rutos.sh
-# Version: 2.7.1
+# Version: 2.8.0
 # Description: Self-Update Script for RUTOS Starlink Failover System
 #
 # This script checks for newer versions on GitHub and performs automatic
@@ -38,7 +38,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
 . "$(dirname "$0")/lib/rutos-lib.sh"

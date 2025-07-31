@@ -2,7 +2,7 @@
 # ==============================================================================
 # Fix STABILITY_CHECKS_REQUIRED Missing Configuration Issue
 #
-# Version: 2.7.0
+# Version: 2.8.0
 # Description: Fixes the infinite failover loop caused by missing
 #              STABILITY_CHECKS_REQUIRED configuration
 # ==============================================================================
@@ -10,7 +10,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

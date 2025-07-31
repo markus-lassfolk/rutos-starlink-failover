@@ -2,7 +2,7 @@
 # Quick test script to validate config type detection logic
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Display version if requested

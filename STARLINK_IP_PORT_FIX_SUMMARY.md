@@ -1,6 +1,6 @@
 #!/bin/sh
 # Final Validation: Starlink IP:PORT Configuration Fix Summary
-# Version: 1.0.0
+# Version: 2.8.0
 
 set -e
 

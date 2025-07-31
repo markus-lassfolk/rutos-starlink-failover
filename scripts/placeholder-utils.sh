@@ -12,7 +12,7 @@
 # Note: This utility is sourced, so only set version if not already set
 if [ -z "${SCRIPT_VERSION:-}" ]; then
     # Version information (auto-updated by update-version.sh)
-    SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
     readonly SCRIPT_VERSION
 fi
 

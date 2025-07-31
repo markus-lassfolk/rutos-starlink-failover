@@ -4,6 +4,10 @@
 set -e
 
 # Test script location and library loading
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.8.0"
+readonly SCRIPT_VERSION
 SCRIPT_DIR="$(dirname "$0")"
 echo "Testing predictive reboot failover from directory: $SCRIPT_DIR"
 

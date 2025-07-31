@@ -2,7 +2,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="2.8.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
 . "$(dirname "$0")/../lib/rutos-lib.sh"
@@ -19,6 +19,8 @@ rutos_init "watch-decisions-rutos.sh" "$SCRIPT_VERSION"
 DECISION_LOG_FILE="${1:-/etc/starlink-logs/failover_decisions.csv}"
 REFRESH_INTERVAL="${2:-5}"  # Default refresh every 5 seconds
 
+        echo "watch-decisions-rutos.sh v$SCRIPT_VERSION"
+        echo ""
 show_usage() {
     printf "${BLUE}Usage: %s [decision_log_file] [refresh_interval]${NC}\n" "$(basename "$0")"
     printf "\n"
@@ -37,6 +39,8 @@ show_usage() {
 # Check if log file exists
 if [ ! -f "$DECISION_LOG_FILE" ]; then
     log_error "Decision log file not found: $DECISION_LOG_FILE"
+        echo "watch-decisions-rutos.sh v$SCRIPT_VERSION"
+        echo ""
     show_usage
     exit 1
 fi

@@ -1,10 +1,10 @@
 #!/bin/sh
 # Configuration merging script for Starlink RUTOS Failover
-# Version: 2.7.1
+# Version: 2.8.0
 # Description: Unified template configuration merging functions
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Use version for logging

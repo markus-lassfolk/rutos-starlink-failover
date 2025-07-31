@@ -1,11 +1,11 @@
 #!/bin/sh
 # Test script to verify configuration debug output and no early exits
-# Version: 1.0.0
+# Version: 2.8.0
 
 set -e
 
 # Version information
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="2.8.0"
 
 # Colors for output
 GREEN='\033[0;32m'

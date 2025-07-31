@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: post-install-check-rutos.sh
-# Version: 2.4.12
+# Version: 2.8.0
 # Description: Comprehensive post-installation health check with visual indicators
 # Compatible with: RUTOS (busybox sh)
 
@@ -10,7 +10,7 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Version information (auto-updated by update-version.sh)

@@ -1,6 +1,6 @@
 # Azure Logging Solution Overview
 
-Version: 2.7.1
+Version: 2.8.0
 
 ## Complete Unified System
 

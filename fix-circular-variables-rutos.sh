@@ -2,9 +2,13 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.0"
+SCRIPT_VERSION="2.8.0"
 
 # Simple logging for standalone analysis
+    # Version information for troubleshooting
+    if [ "${DEBUG:-0}" = "1" ]; then
+        log_debug "Script: fix-circular-variables-rutos.sh v$SCRIPT_VERSION"
+    fi
 log_info() { printf "[INFO] %s\n" "$1"; }
 log_step() { printf "[STEP] %s\n" "$1"; }
 log_warning() { printf "[WARN] %s\n" "$1"; }
