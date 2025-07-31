@@ -225,12 +225,21 @@ execute_with_library() {
     # Execute the installation script
     log_info "Starting installation script with library support..."
 
-    if sh "$install_script"; then
+    # Capture both output and error code for better debugging
+    output=$(sh "$install_script" 2>&1)
+    exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
         log_info "Installation completed successfully!"
         return 0
     else
-        exit_code=$?
         log_error "Installation script failed with exit code: $exit_code"
+        if [ -n "$output" ]; then
+            log_error "Installation script output:"
+            printf "%s\n" "$output" | while IFS= read -r line; do
+                log_error "  $line"
+            done
+        fi
         return $exit_code
     fi
 }
