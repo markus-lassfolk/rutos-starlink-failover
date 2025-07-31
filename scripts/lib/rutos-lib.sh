@@ -148,7 +148,7 @@ rutos_init() {
     script_version="${2:-unknown}"
 
     printf "[LIB_DEBUG] rutos_init called with script_name='%s', script_version='%s'\n" "$script_name" "$script_version" >&2
-    
+
     printf "[LIB_DEBUG] Setting up logging levels...\n" >&2
     # Set up logging levels
     if command -v setup_logging_levels >/dev/null 2>&1; then
@@ -209,11 +209,11 @@ rutos_init_portable() {
     script_version="${2:-unknown}"
 
     printf "[LIB_DEBUG] rutos_init_portable called with script_name='%s', script_version='%s'\n" "$script_name" "$script_version" >&2
-    
+
     printf "[LIB_DEBUG] Setting SKIP_RUTOS_VALIDATION=1\n" >&2
     # Skip RUTOS environment validation
     SKIP_RUTOS_VALIDATION=1
-    
+
     printf "[LIB_DEBUG] Calling rutos_init...\n" >&2
     if rutos_init "$script_name" "$script_version"; then
         printf "[LIB_DEBUG] ✓ rutos_init_portable completed successfully\n" >&2
