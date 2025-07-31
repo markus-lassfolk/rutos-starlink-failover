@@ -12,7 +12,7 @@
 # 2. OPTIONAL BASIC     - Common optional features with clear explanations
 # 3. ADVANCED GPS       - GPS integration with detailed usage guidance
 # 4. ADVANCED CELLULAR  - Multi-modem cellular with intelligent failover
-# 5. ADVANCED SYSTEM    - Performance, security, predictive failover, and maintenance
+# 5. ADVANCED SYSTEM    - Performance, security, and maintenance optimization
 # 6. EXPERT/DEBUG       - Developer tools and troubleshooting settings
 #
 # Template version: 2.7.1
@@ -89,26 +89,24 @@ export METRIC_BAD="20"
 # Too low: Frequent unnecessary failovers, Too high: Poor user experience
 export LATENCY_THRESHOLD="100"
 
-# Packet loss threshold (percentage value: 5 = 5%, 2 = 2%, 1 = 1%)
+# Packet loss threshold (percentage as decimal: 0.05 = 5%)
 # How it works: If packet loss exceeds this percentage, triggers failover
 # What causes it: Obstructions, weather, dish movement, satellite handoffs
 # Normal Starlink: <1% loss is excellent, 1-3% acceptable, >5% problematic
 # Impact on apps: Web browsing tolerates 2-3%, streaming fails above 5%
 # Recommended: 5% for balanced reliability vs stability
-# IMPORTANT: Use percentage values directly (5 for 5%, not 0.05)
 # Too low: Failover during brief weather events, Too high: Noticeable performance issues
 export PACKET_LOSS_THRESHOLD="5"
 
-# Obstruction threshold (percentage value: 3 = 3%, 1 = 1%, 0.5 = 0.5%)
+# Obstruction threshold (percentage as decimal: 0.03 = 3%)
 # How it works: Starlink reports obstructions (trees, buildings) blocking satellite view
 # What it indicates: Physical objects between dish and satellites
 # Realistic levels: 0-1% excellent, 1-3% good, 3-5% acceptable, 5%+ poor
 # Field experience: Many users see 0.1-0.5% regularly without outages
 # Starlink tolerance: Can handle brief obstructions up to 2-3% without significant impact
-# Recommended: 3 (3%) - balanced sensitivity that avoids false positives
-# IMPORTANT: Use percentage values directly (3 for 3%, not 0.03)
+# Recommended: 0.03 (3%) - balanced sensitivity that avoids false positives
 # Note: Consider dish relocation if this threshold is frequently exceeded
-export OBSTRUCTION_THRESHOLD="3"
+export OBSTRUCTION_THRESHOLD="0.03"
 
 # Enhanced obstruction analysis settings
 # Enable intelligent obstruction analysis using historical data
@@ -1012,10 +1010,9 @@ export CELLULAR_PERFORMANCE_WEIGHT="30"
 # ==============================================================================
 # 5. ADVANCED SYSTEM CONFIGURATION
 # ==============================================================================
-# Performance optimization, security, predictive failover, and advanced system
-# management. These settings are for users who want to fine-tune system behavior
-# and implement advanced features like security hardening, performance monitoring,
-# and intelligent predictive failover for scheduled maintenance.
+# Performance optimization, security, and advanced system management.
+# These settings are for users who want to fine-tune system behavior and
+# implement advanced features like security hardening and performance monitoring.
 
 # --- Performance Settings ---
 # Control system resource usage and performance monitoring
@@ -1088,59 +1085,6 @@ export ENABLE_DATABASE_OPTIMIZATION="1"
 # Storage consideration: Requires disk space for backup retention
 # Recommended: Default location unless specific backup strategy required
 export BACKUP_DIR="/etc/starlink-backups"
-
-# --- Predictive Failover Settings ---
-# Advanced predictive failover capabilities for scheduled Starlink reboots and maintenance
-
-# Enable comprehensive health monitoring (true/false)
-# What it does: Monitors hardware health, thermal status, bandwidth restrictions, and reboot schedules
-# Benefits: Proactive detection of issues before they cause service interruption
-# Data sources: Hardware self-test, thermal sensors, software update state, reboot schedules
-# Impact: Additional API calls for diagnostic data, enhanced failover intelligence
-# Recommended: true (enables intelligent predictive failover decisions)
-export ENABLE_HEALTH_MONITORING="true"
-
-# Reboot warning window (seconds before scheduled reboot to trigger failover)
-# What it controls: How far in advance to trigger failover before scheduled Starlink reboots
-# Purpose: Minimize service interruption during planned maintenance windows
-# Calculation examples:
-#   300 = 5 minutes (balanced - adequate warning without premature failover)
-#   600 = 10 minutes (conservative - early failover for maximum stability)
-#   60 = 1 minute (aggressive - last-minute failover, minimal cellular usage)
-# Benefits: Predictive failover prevents service drops during maintenance
-# Impact: Earlier failover = more cellular usage but better service continuity
-# Recommended: 300 (5 minutes provides good balance of prediction vs cellular usage)
-export REBOOT_WARNING_SECONDS="300"
-
-# Enable predictive reboot monitoring (true/false)
-# What it monitors: Starlink software update state, scheduled reboot times, update progress
-# Detection methods: softwareUpdateState, rebootScheduledUtcTime, swupdateRebootReady
-# Benefits: Automatic detection of scheduled maintenance before service interruption
-# Data required: Access to Starlink get_diagnostics and get_status APIs
-# Impact: Enhanced monitoring with intelligent reboot prediction
-# Recommended: true (essential for predictive failover capabilities)
-export ENABLE_PREDICTIVE_REBOOT_MONITORING="true"
-
-# Enhanced failover decision logging (true/false)
-# What it logs: Detailed reasoning for failover decisions including predictive factors
-# Benefits: Comprehensive audit trail for troubleshooting and optimization
-# Log details: Reboot countdowns, health factors, decision criteria, API responses
-# Log format: CSV file with timestamp, decision type, metrics, actions, and results
-# Log location: ${LOG_DIR}/failover_decisions.csv (default: /etc/starlink-logs/)
-# Impact: More detailed logs with enhanced debugging information and decision history
-# Analysis tools: Use scripts/analyze-decision-log-rutos.sh for detailed analysis
-# Real-time view: Use scripts/watch-decisions-rutos.sh for live monitoring
-# Recommended: true for comprehensive monitoring, false only if storage is extremely limited
-export ENABLE_ENHANCED_FAILOVER_LOGGING="true"
-
-# Minimum hardware health score for stable operation (0-100)
-# What it monitors: Overall hardware health score from Starlink diagnostics
-# Purpose: Trigger failover if hardware health degrades below acceptable threshold
-# Scale: 0 = critical failure, 50 = degraded but functional, 100 = perfect health
-# Realistic values: 70-80 for production systems (allows minor issues without failover)
-# Impact: Lower values = more tolerance for hardware issues but potential performance degradation
-# Recommended: 75 (balanced between reliability and avoiding unnecessary failovers)
-export HARDWARE_HEALTH_THRESHOLD="75"
 
 # --- Data Limits and Thresholds ---
 # Monitoring and alerting for data usage limits (important for cellular backup)
