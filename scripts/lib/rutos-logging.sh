@@ -12,8 +12,12 @@
 # Prevent multiple sourcing
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
+# Only set SCRIPT_VERSION if not already set (to avoid conflicts with calling scripts)
+if [ -z "${SCRIPT_VERSION:-}" ]; then
+    SCRIPT_VERSION="2.8.0"
+    readonly SCRIPT_VERSION
+fi
+
 if [ "${_RUTOS_LOGGING_LOADED:-}" = "1" ]; then
     return 0
 fi
