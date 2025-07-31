@@ -106,6 +106,26 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_
         printf "[INFO] RUTOS library system loaded from bootstrap path: %s\n" "$LIBRARY_PATH"
         printf "[EARLY_DEBUG] Library loading successful via LIBRARY_PATH\n" >&2
         
+        # CRITICAL: Test function availability immediately after sourcing
+        printf "[EARLY_DEBUG] Testing function availability immediately after sourcing...\n" >&2
+        functions_available=0
+        for test_func in rutos_init_portable rutos_init log_info log_debug log_error; do
+            if command -v "$test_func" >/dev/null 2>&1; then
+                printf "[EARLY_DEBUG] ✓ Function available immediately after sourcing: %s\n" "$test_func" >&2
+                functions_available=$((functions_available + 1))
+            else
+                printf "[EARLY_DEBUG] ✗ Function NOT available immediately after sourcing: %s\n" "$test_func" >&2
+            fi
+        done
+        
+        printf "[EARLY_DEBUG] Total functions available: %d/5\n" "$functions_available" >&2
+        
+        if [ "$functions_available" -ge 3 ]; then
+            printf "[EARLY_DEBUG] Sufficient functions available - library loading successful\n" >&2
+        else
+            printf "[EARLY_DEBUG] WARNING: Only %d functions available - possible library loading issue\n" "$functions_available" >&2
+        fi
+        
         # Show library loading output for debugging
         if [ -f "/tmp/library_load_output.$$" ] && [ -s "/tmp/library_load_output.$$" ]; then
             printf "[EARLY_DEBUG] Library loading output:\n" >&2
