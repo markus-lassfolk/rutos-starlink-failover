@@ -9,45 +9,37 @@
 # ==============================================================================
 
 # CRITICAL: Add immediate debug output before any potential failures
-printf "[EARLY_DEBUG] install-rutos.sh starting at $(date '+%Y-%m-%d %H:%M:%S')\n" >&2
-printf "[EARLY_DEBUG] Script file: $0\n" >&2
-printf "[EARLY_DEBUG] Working directory: $(pwd)\n" >&2
+printf "[EARLY_DEBUG] install-rutos.sh starting\n" >&2
+printf "[EARLY_DEBUG] Script file: %s\n" "$0" >&2
 printf "[EARLY_DEBUG] Environment check:\n" >&2
-printf "[EARLY_DEBUG]   LIBRARY_PATH=${LIBRARY_PATH:-not_set}\n" >&2
-printf "[EARLY_DEBUG]   USE_LIBRARY=${USE_LIBRARY:-not_set}\n" >&2
-printf "[EARLY_DEBUG]   DEBUG=${DEBUG:-not_set}\n" >&2
-printf "[EARLY_DEBUG]   RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-not_set}\n" >&2
-printf "[EARLY_DEBUG]   DRY_RUN=${DRY_RUN:-not_set}\n" >&2
+printf "[EARLY_DEBUG]   LIBRARY_PATH=%s\n" "${LIBRARY_PATH:-not_set}" >&2
+printf "[EARLY_DEBUG]   USE_LIBRARY=%s\n" "${USE_LIBRARY:-not_set}" >&2
+printf "[EARLY_DEBUG]   DEBUG=%s\n" "${DEBUG:-not_set}" >&2
+printf "[EARLY_DEBUG]   RUTOS_TEST_MODE=%s\n" "${RUTOS_TEST_MODE:-not_set}" >&2
+printf "[EARLY_DEBUG]   DRY_RUN=%s\n" "${DRY_RUN:-not_set}" >&2
 
-# Test basic shell functionality
-printf "[EARLY_DEBUG] Testing basic shell functionality...\n" >&2
-if printf "[EARLY_DEBUG] printf test: OK\n" >&2; then
-    printf "[EARLY_DEBUG] Shell printf: WORKING\n" >&2
-else
-    printf "[EARLY_DEBUG] Shell printf: FAILED\n" >&2
-fi
-
-# Test file operations
-printf "[EARLY_DEBUG] Testing file operations...\n" >&2
+printf "[EARLY_DEBUG] Testing LIBRARY_PATH...\n" >&2
 if [ -n "${LIBRARY_PATH:-}" ]; then
-    printf "[EARLY_DEBUG] LIBRARY_PATH is set to: ${LIBRARY_PATH}\n" >&2
+    printf "[EARLY_DEBUG] LIBRARY_PATH is set\n" >&2
     if [ -d "${LIBRARY_PATH}" ]; then
         printf "[EARLY_DEBUG] LIBRARY_PATH directory exists\n" >&2
         if [ -f "${LIBRARY_PATH}/rutos-lib.sh" ]; then
-            printf "[EARLY_DEBUG] rutos-lib.sh found in LIBRARY_PATH\n" >&2
+            printf "[EARLY_DEBUG] rutos-lib.sh found\n" >&2
         else
-            printf "[EARLY_DEBUG] rutos-lib.sh NOT found in LIBRARY_PATH\n" >&2
+            printf "[EARLY_DEBUG] rutos-lib.sh NOT found\n" >&2
         fi
     else
-        printf "[EARLY_DEBUG] LIBRARY_PATH directory does NOT exist\n" >&2
+        printf "[EARLY_DEBUG] LIBRARY_PATH directory missing\n" >&2
     fi
 else
-    printf "[EARLY_DEBUG] LIBRARY_PATH is not set\n" >&2
+    printf "[EARLY_DEBUG] LIBRARY_PATH not set\n" >&2
 fi
 
 printf "[EARLY_DEBUG] About to set shell options...\n" >&2
 
-set -eu
+# TEMPORARILY disable strict mode for library loading debugging
+# set -eu
+printf "[EARLY_DEBUG] Shell strict mode disabled for debugging\n" >&2
 
 printf "[EARLY_DEBUG] Shell options set successfully\n" >&2
 
@@ -89,15 +81,7 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_
         exit 2
     fi
     
-    # Show first few lines of library for debugging
-    printf "[EARLY_DEBUG] Library file first 3 lines:\n" >&2
-    head -3 "${LIBRARY_PATH}/rutos-lib.sh" 2>&1 | while IFS= read -r line; do
-        printf "[EARLY_DEBUG]   %s\n" "$line" >&2
-    done
-    
-    # Capture detailed sourcing error
-    printf "[EARLY_DEBUG] About to source library, capturing any errors...\n" >&2
-    library_error_output=""
+    printf "[EARLY_DEBUG] About to source library...\n" >&2
     
     # Source library directly (not in a subshell to preserve function definitions)
     printf "[EARLY_DEBUG] Sourcing library directly...\n" >&2
@@ -106,24 +90,12 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_
         printf "[INFO] RUTOS library system loaded from bootstrap path: %s\n" "$LIBRARY_PATH"
         printf "[EARLY_DEBUG] Library loading successful via LIBRARY_PATH\n" >&2
         
-        # CRITICAL: Test function availability immediately after sourcing
-        printf "[EARLY_DEBUG] Testing function availability immediately after sourcing...\n" >&2
-        functions_available=0
-        for test_func in rutos_init_portable rutos_init log_info log_debug log_error; do
-            if command -v "$test_func" >/dev/null 2>&1; then
-                printf "[EARLY_DEBUG] ✓ Function available immediately after sourcing: %s\n" "$test_func" >&2
-                functions_available=$((functions_available + 1))
-            else
-                printf "[EARLY_DEBUG] ✗ Function NOT available immediately after sourcing: %s\n" "$test_func" >&2
-            fi
-        done
-        
-        printf "[EARLY_DEBUG] Total functions available: %d/5\n" "$functions_available" >&2
-        
-        if [ "$functions_available" -ge 3 ]; then
-            printf "[EARLY_DEBUG] Sufficient functions available - library loading successful\n" >&2
+        # Quick function availability test
+        printf "[EARLY_DEBUG] Testing critical functions...\n" >&2
+        if command -v rutos_init_portable >/dev/null 2>&1; then
+            printf "[EARLY_DEBUG] ✓ rutos_init_portable available\n" >&2
         else
-            printf "[EARLY_DEBUG] WARNING: Only %d functions available - possible library loading issue\n" "$functions_available" >&2
+            printf "[EARLY_DEBUG] ✗ rutos_init_portable NOT available\n" >&2
         fi
         
         # Show library loading output for debugging
@@ -253,7 +225,8 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
     printf "[EARLY_DEBUG] Available functions starting with 'rutos':\n" >&2
     
     # Test specific functions directly to avoid subshell issues
-    for func_name in rutos_init_portable rutos_init rutos_init_simple log_info log_debug log_error; do
+    printf "[EARLY_DEBUG] Testing critical functions...\n" >&2
+    for func_name in rutos_init_portable rutos_init log_info log_debug log_error; do
         if command -v "$func_name" >/dev/null 2>&1; then
             printf "[EARLY_DEBUG]   ✓ %s (available)\n" "$func_name" >&2
         else
@@ -261,25 +234,7 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
         fi
     done
     
-    # Show all available functions for comprehensive debugging
-    printf "[EARLY_DEBUG] All available functions (first 50):\n" >&2
-    set | grep '()' | head -50 | while IFS= read -r line; do
-        printf "[EARLY_DEBUG]   %s\n" "$line" >&2
-    done
-    
-    # Show specific rutos functions if any exist
-    printf "[EARLY_DEBUG] Functions containing 'rutos':\n" >&2
-    set | grep 'rutos' | while IFS= read -r line; do
-        printf "[EARLY_DEBUG]   %s\n" "$line" >&2
-    done
-    
-    # Also try to list all functions (alternative approach)
-    printf "[EARLY_DEBUG] Checking function environment:\n" >&2
-    if set | grep -q '^rutos_init_portable ()'; then
-        printf "[EARLY_DEBUG]   Function definition found in environment\n" >&2
-    else
-        printf "[EARLY_DEBUG]   Function definition NOT found in environment\n" >&2
-    fi
+    printf "[EARLY_DEBUG] Proceeding with function calls...\n" >&2
     
     if command -v rutos_init_portable >/dev/null 2>&1; then
         printf "[EARLY_DEBUG] rutos_init_portable function found, calling it...\n" >&2
@@ -301,10 +256,7 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
         fi
     else
         printf "[EARLY_DEBUG] Neither rutos_init_portable nor rutos_init functions found\n" >&2
-        printf "[EARLY_DEBUG] All available functions:\n" >&2
-        set | grep '()' | head -20 | while IFS= read -r line; do
-            printf "[EARLY_DEBUG]   %s\n" "$line" >&2
-        done
+        printf "[EARLY_DEBUG] Function loading failed - exiting\n" >&2
         exit 2
     fi
     
