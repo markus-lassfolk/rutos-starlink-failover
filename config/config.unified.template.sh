@@ -24,7 +24,7 @@
 if [ -z "${SCRIPT_VERSION:-}" ]; then
     # Script configuration template for Starlink RUTOS Failover
     # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+    SCRIPT_VERSION="2.8.0"
     readonly SCRIPT_VERSION
 fi
 
