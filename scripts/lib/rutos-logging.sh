@@ -13,7 +13,9 @@
 
 # Version information (auto-updated by update-version.sh)
 # Only set SCRIPT_VERSION if not already set (to avoid conflicts with calling scripts)
-if [ -z "${SCRIPT_VERSION:-}" ]; then
+# Use a safer approach that doesn't trigger readonly errors
+if ! readonly SCRIPT_VERSION 2>/dev/null; then
+    # Variable is not yet set as readonly, safe to set it
     SCRIPT_VERSION="2.8.0"
     readonly SCRIPT_VERSION
 fi
