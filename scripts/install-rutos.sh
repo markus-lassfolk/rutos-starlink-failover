@@ -98,10 +98,21 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_
     # Capture detailed sourcing error
     printf "[EARLY_DEBUG] About to source library, capturing any errors...\n" >&2
     library_error_output=""
+    
+    # Source library and capture ALL output (including debug from library)
+    printf "[EARLY_DEBUG] Sourcing library with full debug capture...\n" >&2
     if library_error_output=$(. "${LIBRARY_PATH}/rutos-lib.sh" 2>&1); then
         LIBRARY_LOADED=1
         printf "[INFO] RUTOS library system loaded from bootstrap path: %s\n" "$LIBRARY_PATH"
         printf "[EARLY_DEBUG] Library loading successful via LIBRARY_PATH\n" >&2
+        
+        # Show library loading output for debugging
+        if [ -n "$library_error_output" ]; then
+            printf "[EARLY_DEBUG] Library loading output:\n" >&2
+            echo "$library_error_output" | while IFS= read -r line; do
+                printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+            done
+        fi
     else
         library_exit_code=$?
         printf "[EARLY_DEBUG] Library loading FAILED via LIBRARY_PATH with exit code: %d\n" "$library_exit_code" >&2
@@ -221,6 +232,18 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
         else
             printf "[EARLY_DEBUG]   ✗ %s (not found)\n" "$func_name" >&2
         fi
+    done
+    
+    # Show all available functions for comprehensive debugging
+    printf "[EARLY_DEBUG] All available functions (first 50):\n" >&2
+    set | grep '()' | head -50 | while IFS= read -r line; do
+        printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+    done
+    
+    # Show specific rutos functions if any exist
+    printf "[EARLY_DEBUG] Functions containing 'rutos':\n" >&2
+    set | grep 'rutos' | while IFS= read -r line; do
+        printf "[EARLY_DEBUG]   %s\n" "$line" >&2
     done
     
     # Also try to list all functions (alternative approach)
