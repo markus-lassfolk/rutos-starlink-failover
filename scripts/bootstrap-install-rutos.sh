@@ -4,7 +4,7 @@
 # ==============================================================================
 # RUTOS Starlink Failover - Bootstrap Installation Script
 #
-# Version: 2.7.1
+# Version: 2.8.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # SPECIAL BOOTSTRAP SCRIPT - LIBRARY EXEMPT
@@ -28,7 +28,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 readonly SCRIPT_VERSION
 
 # Configuration
@@ -106,56 +106,27 @@ download_file() {
 
     # Try curl first (VALIDATION_SKIP_SAFE_EXECUTE: Bootstrap phase before library available)
     if command -v curl >/dev/null 2>&1; then
-        # Use longer timeouts for larger files like rutos-data-collection.sh
-        case "$description" in
-            *data-collection*) 
-                connect_timeout=15
-                max_time=120
-                log_trace "Using extended timeouts for large file: $description"
-                ;;
-            *)
-                connect_timeout=10
-                max_time=60
-                ;;
-        esac
-
-        log_trace "curl -fsSL --connect-timeout $connect_timeout --max-time $max_time \"$url\" -o \"$output_file\""
-        if curl -fsSL --connect-timeout "$connect_timeout" --max-time "$max_time" "$url" -o "$output_file"; then
+        if curl -fsSL --connect-timeout 10 --max-time 60 "$url" -o "$output_file"; then
             log_debug "Downloaded $description successfully (curl)"
             return 0
         else
             curl_exit_code=$?
             log_debug "curl failed with exit code $curl_exit_code for $description"
-            log_trace "curl error details: connect_timeout=${connect_timeout}s, max_time=${max_time}s"
         fi
     fi
 
     # Fallback to wget (VALIDATION_SKIP_SAFE_EXECUTE: Bootstrap phase before library available)
     if command -v wget >/dev/null 2>&1; then
-        # Use longer timeouts for larger files
-        case "$description" in
-            *data-collection*) 
-                timeout_opts="--timeout=120 --tries=3"
-                log_trace "Using extended timeouts for large file with wget: $description"
-                ;;
-            *)
-                timeout_opts="--timeout=60 --tries=2"
-                ;;
-        esac
-
-        log_trace "wget $timeout_opts -q -O \"$output_file\" \"$url\""
-        if wget $timeout_opts -q -O "$output_file" "$url"; then
+        if wget -q -O "$output_file" "$url"; then
             log_debug "Downloaded $description successfully (wget)"
             return 0
         else
             wget_exit_code=$?
             log_debug "wget failed with exit code $wget_exit_code for $description"
-            log_trace "wget error details: timeout settings: $timeout_opts"
         fi
     fi
 
     log_error "Failed to download $description from $url"
-    log_error "Both curl and wget failed - check network connectivity"
     return 1
 }
 
@@ -168,51 +139,19 @@ download_library_system() {
     mkdir -p "$lib_dir"
 
     # Download all library components including compatibility module
-    library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh rutos-compatibility.sh rutos-data-collection.sh"
+    library_files="rutos-lib.sh rutos-colors.sh rutos-logging.sh rutos-common.sh rutos-compatibility.sh"
 
-    # Count total files for progress tracking
-    total_files=0
-    for f in $library_files; do
-        total_files=$((total_files + 1))
-    done
-    log_debug "Will download $total_files library files"
-
-    current_file=0
-    failed_files=""
     for file in $library_files; do
-        current_file=$((current_file + 1))
         url="$BASE_URL/scripts/lib/$file"
         output_file="$lib_dir/$file"
 
-        log_trace "[$current_file/$total_files] Starting download: $file"
-        log_trace "Downloading $file from: $url"
-        log_trace "Target file: $output_file"
-
         if ! download_file "$url" "$output_file" "$file"; then
-            log_error "Failed to download library component: $file (file $current_file of $total_files)"
-            # For rutos-data-collection.sh, we can continue without it (it's optional for basic functionality)
-            case "$file" in
-                rutos-data-collection.sh)
-                    log_warning "rutos-data-collection.sh download failed - GPS/cellular data collection will be unavailable"
-                    log_warning "This is not critical for basic monitoring functionality"
-                    failed_files="$failed_files $file"
-                    ;;
-                *)
-                    log_error "Critical library component $file failed to download - cannot continue"
-                    return 1
-                    ;;
-            esac
-        else
-            file_size=$(wc -c <"$output_file" 2>/dev/null || echo 'unknown')
-            log_trace "Downloaded library file: $file ($file_size bytes)"
-            log_debug "[$current_file/$total_files] Successfully downloaded: $file"
+            log_error "Failed to download library component: $file"
+            return 1
         fi
-    done
 
-    if [ -n "$failed_files" ]; then
-        log_warning "Some optional library components failed to download:$failed_files"
-        log_warning "Basic monitoring will work, but some advanced features may be unavailable"
-    fi
+        log_trace "Downloaded library file: $file ($(wc -c <"$output_file" 2>/dev/null || echo 'unknown') bytes)"
+    done
 
     log_debug "Library system downloaded successfully to: $lib_dir"
     return 0
