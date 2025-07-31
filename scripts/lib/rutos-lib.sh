@@ -10,14 +10,30 @@
 #   rutos_init "script-name" "1.0.0"
 # ==============================================================================
 
+# CRITICAL: Add immediate debug output for library loading
+printf "[LIB_DEBUG] rutos-lib.sh starting at $(date '+%Y-%m-%d %H:%M:%S')\n" >&2
+printf "[LIB_DEBUG] Called from script: $0\n" >&2
+printf "[LIB_DEBUG] Current working directory: $(pwd)\n" >&2
+printf "[LIB_DEBUG] Environment check:\n" >&2
+printf "[LIB_DEBUG]   DEBUG=${DEBUG:-not_set}\n" >&2
+printf "[LIB_DEBUG]   RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-not_set}\n" >&2
+printf "[LIB_DEBUG]   _RUTOS_LIB_LOADED=${_RUTOS_LIB_LOADED:-not_set}\n" >&2
+
 # Prevent multiple sourcing
 if [ "${_RUTOS_LIB_LOADED:-}" = "1" ]; then
+    printf "[LIB_DEBUG] Library already loaded, returning early\n" >&2
     return 0
 fi
+
+printf "[LIB_DEBUG] Setting _RUTOS_LIB_LOADED=1\n" >&2
 _RUTOS_LIB_LOADED=1
+
+printf "[LIB_DEBUG] Starting library directory detection...\n" >&2
 
 # Determine library directory
 _rutos_lib_dir=""
+
+printf "[LIB_DEBUG] Testing possible library directories...\n" >&2
 
 # Try different possible locations for the lib directory
 for _possible_dir in \
@@ -27,14 +43,24 @@ for _possible_dir in \
     "./scripts/lib" \
     "./lib"; do
 
+    printf "[LIB_DEBUG] Testing directory: %s\n" "$_possible_dir" >&2
+    printf "[LIB_DEBUG]   Directory exists: $([ -d "$_possible_dir" ] && echo yes || echo no)\n" >&2
+    printf "[LIB_DEBUG]   rutos-colors.sh exists: $([ -f "$_possible_dir/rutos-colors.sh" ] && echo yes || echo no)\n" >&2
+
     if [ -d "$_possible_dir" ] && [ -f "$_possible_dir/rutos-colors.sh" ]; then
         _rutos_lib_dir="$_possible_dir"
+        printf "[LIB_DEBUG] ✓ Found library directory: %s\n" "$_possible_dir" >&2
         break
+    else
+        printf "[LIB_DEBUG] ✗ Directory not suitable: %s\n" "$_possible_dir" >&2
     fi
 done
 
+printf "[LIB_DEBUG] Library directory detection complete: %s\n" "${_rutos_lib_dir:-NOT_FOUND}" >&2
+
 # Verify we found the library directory
 if [ -z "$_rutos_lib_dir" ]; then
+    printf "[LIB_DEBUG] ✗ FATAL: No suitable library directory found\n" >&2
     printf "ERROR: Could not locate RUTOS library directory\n" >&2
     printf "Expected to find rutos-colors.sh in one of these locations:\n" >&2
     printf "  - \$(dirname \$0)/lib/\n" >&2
@@ -45,22 +71,63 @@ if [ -z "$_rutos_lib_dir" ]; then
     exit 1
 fi
 
+printf "[LIB_DEBUG] Starting to load library modules from: %s\n" "$_rutos_lib_dir" >&2
+
 # Load all library modules in the correct order
-. "$_rutos_lib_dir/rutos-colors.sh"
-. "$_rutos_lib_dir/rutos-logging.sh"
-. "$_rutos_lib_dir/rutos-common.sh"
+printf "[LIB_DEBUG] Loading rutos-colors.sh...\n" >&2
+if . "$_rutos_lib_dir/rutos-colors.sh"; then
+    printf "[LIB_DEBUG] ✓ rutos-colors.sh loaded successfully\n" >&2
+else
+    printf "[LIB_DEBUG] ✗ FAILED to load rutos-colors.sh\n" >&2
+    exit 1
+fi
+
+printf "[LIB_DEBUG] Loading rutos-logging.sh...\n" >&2
+if . "$_rutos_lib_dir/rutos-logging.sh"; then
+    printf "[LIB_DEBUG] ✓ rutos-logging.sh loaded successfully\n" >&2
+else
+    printf "[LIB_DEBUG] ✗ FAILED to load rutos-logging.sh\n" >&2
+    exit 1
+fi
+
+printf "[LIB_DEBUG] Loading rutos-common.sh...\n" >&2
+if . "$_rutos_lib_dir/rutos-common.sh"; then
+    printf "[LIB_DEBUG] ✓ rutos-common.sh loaded successfully\n" >&2
+else
+    printf "[LIB_DEBUG] ✗ FAILED to load rutos-common.sh\n" >&2
+    exit 1
+fi
+
+# Load optional modules with graceful handling
+printf "[LIB_DEBUG] Loading optional modules...\n" >&2
 
 # Load optional compatibility module (for legacy script support)
 if [ -f "$_rutos_lib_dir/rutos-compatibility.sh" ]; then
-    . "$_rutos_lib_dir/rutos-compatibility.sh"
+    printf "[LIB_DEBUG] Loading rutos-compatibility.sh...\n" >&2
+    if . "$_rutos_lib_dir/rutos-compatibility.sh"; then
+        printf "[LIB_DEBUG] ✓ rutos-compatibility.sh loaded successfully\n" >&2
+        _RUTOS_COMPATIBILITY_LOADED=1
+    else
+        printf "[LIB_DEBUG] ✗ FAILED to load rutos-compatibility.sh\n" >&2
+        _RUTOS_COMPATIBILITY_LOADED=0
+    fi
 else
+    printf "[LIB_DEBUG] rutos-compatibility.sh not found (optional)\n" >&2
     _RUTOS_COMPATIBILITY_LOADED=0
 fi
 
 # Load optional data collection module (graceful degradation if missing)
 if [ -f "$_rutos_lib_dir/rutos-data-collection.sh" ]; then
-    . "$_rutos_lib_dir/rutos-data-collection.sh"
+    printf "[LIB_DEBUG] Loading rutos-data-collection.sh...\n" >&2
+    if . "$_rutos_lib_dir/rutos-data-collection.sh"; then
+        printf "[LIB_DEBUG] ✓ rutos-data-collection.sh loaded successfully\n" >&2
+        _RUTOS_DATA_COLLECTION_LOADED=1
+    else
+        printf "[LIB_DEBUG] ✗ FAILED to load rutos-data-collection.sh\n" >&2
+        _RUTOS_DATA_COLLECTION_LOADED=0
+    fi
 else
+    printf "[LIB_DEBUG] rutos-data-collection.sh not found (optional)\n" >&2
     # Stub functions if data collection module is not available
     collect_system_info() { printf "Data collection not available\n"; }
     collect_network_info() { printf "Network collection not available\n"; }
@@ -68,6 +135,8 @@ else
     collect_cellular_info() { printf "Cellular collection not available\n"; }
     _RUTOS_DATA_COLLECTION_LOADED=0
 fi
+
+printf "[LIB_DEBUG] All library modules loaded successfully\n" >&2
 
 # ============================================================================
 # RUTOS INITIALIZATION FUNCTION
@@ -78,14 +147,34 @@ rutos_init() {
     script_name="${1:-$(basename "$0")}"
     script_version="${2:-unknown}"
 
+    printf "[LIB_DEBUG] rutos_init called with script_name='%s', script_version='%s'\n" "$script_name" "$script_version" >&2
+    
+    printf "[LIB_DEBUG] Setting up logging levels...\n" >&2
     # Set up logging levels
-    setup_logging_levels
+    if command -v setup_logging_levels >/dev/null 2>&1; then
+        setup_logging_levels
+        printf "[LIB_DEBUG] ✓ Logging levels set up\n" >&2
+    else
+        printf "[LIB_DEBUG] ✗ setup_logging_levels function not found\n" >&2
+    fi
 
+    printf "[LIB_DEBUG] Setting up cleanup handlers...\n" >&2
     # Set up cleanup handlers
-    setup_cleanup_handlers
+    if command -v setup_cleanup_handlers >/dev/null 2>&1; then
+        setup_cleanup_handlers
+        printf "[LIB_DEBUG] ✓ Cleanup handlers set up\n" >&2
+    else
+        printf "[LIB_DEBUG] ✗ setup_cleanup_handlers function not found\n" >&2
+    fi
 
+    printf "[LIB_DEBUG] Logging script initialization...\n" >&2
     # Log script initialization
-    log_script_init "$script_name" "$script_version"
+    if command -v log_script_init >/dev/null 2>&1; then
+        log_script_init "$script_name" "$script_version"
+        printf "[LIB_DEBUG] ✓ Script initialization logged\n" >&2
+    else
+        printf "[LIB_DEBUG] ✗ log_script_init function not found\n" >&2
+    fi
 
     # Validate RUTOS environment (unless in test mode)
     if [ "${SKIP_RUTOS_VALIDATION:-0}" != "1" ]; then
@@ -119,9 +208,20 @@ rutos_init_portable() {
     script_name="${1:-$(basename "$0")}"
     script_version="${2:-unknown}"
 
+    printf "[LIB_DEBUG] rutos_init_portable called with script_name='%s', script_version='%s'\n" "$script_name" "$script_version" >&2
+    
+    printf "[LIB_DEBUG] Setting SKIP_RUTOS_VALIDATION=1\n" >&2
     # Skip RUTOS environment validation
     SKIP_RUTOS_VALIDATION=1
-    rutos_init "$script_name" "$script_version"
+    
+    printf "[LIB_DEBUG] Calling rutos_init...\n" >&2
+    if rutos_init "$script_name" "$script_version"; then
+        printf "[LIB_DEBUG] ✓ rutos_init_portable completed successfully\n" >&2
+        return 0
+    else
+        printf "[LIB_DEBUG] ✗ rutos_init_portable FAILED\n" >&2
+        return 1
+    fi
 }
 
 # ============================================================================
@@ -135,7 +235,6 @@ rutos_lib_info() {
     printf "  Colors Module: %s\n" "${_RUTOS_COLORS_LOADED:-not loaded}"
     printf "  Logging Module: %s\n" "${_RUTOS_LOGGING_LOADED:-not loaded}"
     printf "  Common Module: %s\n" "${_RUTOS_COMMON_LOADED:-not loaded}"
-    printf "  Compatibility Module: %s\n" "${_RUTOS_COMPATIBILITY_LOADED:-not loaded}"
     printf "  Data Collection Module: %s\n" "${_RUTOS_DATA_COLLECTION_LOADED:-not loaded}"
     printf "  Current Log Level: %s\n" "${LOG_LEVEL:-not set}"
     printf "  Environment Variables:\n"
@@ -160,13 +259,8 @@ rutos_lib_check() {
         missing_modules="$missing_modules common"
     fi
 
-    # Optional modules - warn but don't fail if missing
-    if [ "${_RUTOS_COMPATIBILITY_LOADED:-0}" != "1" ]; then
-        printf "WARNING: Compatibility module not available (legacy function support disabled)\n" >&2
-    fi
-
     if [ "${_RUTOS_DATA_COLLECTION_LOADED:-0}" != "1" ]; then
-        printf "WARNING: Data collection module not available (GPS/cellular features disabled)\n" >&2
+        missing_modules="$missing_modules data-collection"
     fi
 
     if [ -n "$missing_modules" ]; then
