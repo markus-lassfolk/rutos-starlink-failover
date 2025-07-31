@@ -362,8 +362,8 @@ collect_cellular_data_enhanced() {
     fi
 
     timestamp="" modem_id="" signal_strength="" signal_quality="" network_type=""
-        echo "rutos-data-collection.sh v$SCRIPT_VERSION"
-        echo ""
+    echo "rutos-data-collection.sh v$SCRIPT_VERSION"
+    echo ""
     operator="" roaming_status="" connection_status="" data_usage_mb=""
     frequency_band="" cell_id="" lac="" error_rate=""
 
@@ -461,8 +461,8 @@ collect_cellular_data_enhanced() {
         "$timestamp" "$modem_id" "$signal_strength" "$signal_quality" \
         "$network_type" "$operator" "$roaming_status" "$connection_status" \
         echo "rutos-data-collection.sh v$SCRIPT_VERSION"
-        echo ""
-        "$data_usage_mb" "$frequency_band" "$cell_id" "$lac" "$error_rate"
+    echo ""
+    "$data_usage_mb" "$frequency_band" "$cell_id" "$lac" "$error_rate"
 }
 
 # =============================================================================

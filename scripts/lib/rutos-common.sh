@@ -51,10 +51,10 @@ if ! command -v log_function_exit >/dev/null 2>&1; then
     }
 fi
 
-    # Version information for troubleshooting
-    if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Script: rutos-common.sh v$SCRIPT_VERSION"
-    fi
+# Version information for troubleshooting
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "Script: rutos-common.sh v$SCRIPT_VERSION"
+fi
 if ! command -v log_info >/dev/null 2>&1; then
     log_info() {
         printf "[INFO] %s\n" "$1" >&2
