@@ -71,7 +71,7 @@ printf "\n=== AVAILABLE FUNCTIONS ===\n"
 printf "Functions starting with 'rutos':\n"
 compgen -A function | grep "^rutos" || printf "No functions found starting with 'rutos'\n"
 
-printf "\nFunctions starting with 'log':\n"  
+printf "\nFunctions starting with 'log':\n"
 compgen -A function | grep "^log" || printf "No functions found starting with 'log'\n"
 
 # Test 5: Try to call a function if available
