@@ -5,7 +5,22 @@
 
 printf "=== Testing Function Availability ===\n"
 
-# Set up paths like the install script does
+# Download and set up the library first
+printf "Downloading bootstrap installer...\n"
+if ! curl -fsSL "https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/bootstrap-install-rutos.sh" -o bootstrap-install-rutos.sh; then
+    printf "ERROR: Failed to download bootstrap installer\n"
+    exit 1
+fi
+
+chmod +x bootstrap-install-rutos.sh
+
+printf "Running bootstrap to download library...\n"
+if ! ./bootstrap-install-rutos.sh; then
+    printf "ERROR: Bootstrap failed\n"
+    exit 1
+fi
+
+# Now test function availability
 SCRIPT_DIR="$(dirname "$0")"
 LIBRARY_PATH="$SCRIPT_DIR/scripts/lib"
 
