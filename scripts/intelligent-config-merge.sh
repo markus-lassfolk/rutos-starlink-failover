@@ -8,7 +8,7 @@
 # Function to perform intelligent config merge using unified template approach
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Use version for logging

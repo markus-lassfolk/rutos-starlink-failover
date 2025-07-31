@@ -1,6 +1,6 @@
 # Development Tools Setup
 
-Version: 2.8.0
+Version: 2.7.1
 
 This directory contains setup scripts for installing code quality tools locally for the RUTOS Starlink Failover project.
 

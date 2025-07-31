@@ -2,7 +2,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="1.0.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
 . "$(dirname "$0")/../lib/rutos-lib.sh"
@@ -22,8 +22,6 @@ HOURS_TO_ANALYZE="${2:-24}"  # Default to last 24 hours
 SHOW_ALL="${3:-false}"       # Show all decisions or just summary
 
 # Color formatting for better readability
-        echo "analyze-decision-log-rutos.sh v$SCRIPT_VERSION"
-        echo ""
 show_usage() {
     printf "${BLUE}Usage: %s [decision_log_file] [hours_to_analyze] [show_all]${NC}\n" "$(basename "$0")"
     printf "\n"
@@ -41,8 +39,6 @@ show_usage() {
 # Check if log file exists
 if [ ! -f "$DECISION_LOG_FILE" ]; then
     log_error "Decision log file not found: $DECISION_LOG_FILE"
-        echo "analyze-decision-log-rutos.sh v$SCRIPT_VERSION"
-        echo ""
     show_usage
     exit 1
 fi

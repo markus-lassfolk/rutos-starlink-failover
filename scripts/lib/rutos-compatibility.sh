@@ -2,7 +2,7 @@
 # ==============================================================================
 # RUTOS Library - Legacy Compatibility Module
 #
-# Version: 2.8.0
+# Version: 2.7.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # Provides compatibility functions for legacy logging patterns found in older scripts.
@@ -25,7 +25,7 @@ fi
 # Version information (auto-updated by update-version.sh)
 # Only set if not already defined as readonly
 if ! readonly SCRIPT_VERSION 2>/dev/null; then
-SCRIPT_VERSION="2.8.0"
+    SCRIPT_VERSION="2.7.1"
     readonly SCRIPT_VERSION
 fi
 if [ "${_RUTOS_LIB_LOADED:-}" != "1" ]; then

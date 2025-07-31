@@ -7,10 +7,6 @@
 # ==============================================================================
 
 # Prevent multiple sourcing
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
 if [ "${_RUTOS_COLORS_LOADED:-}" = "1" ]; then
     return 0
 fi

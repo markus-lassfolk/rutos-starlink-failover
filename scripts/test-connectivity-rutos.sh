@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: test-connectivity.sh
-# Version: 2.8.0
+# Version: 2.7.0
 # Description: Comprehensive connectivity and credential testing for Starlink monitoring system
 
 # Early exit in test mode to prevent any execution errors
@@ -12,7 +12,7 @@ fi
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Version information (auto-updated by update-version.sh)

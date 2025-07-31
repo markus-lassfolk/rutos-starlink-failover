@@ -6,10 +6,6 @@
 set -e
 
 # Configuration
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
 VALIDATION_FILE="scripts/pre-commit-validation.sh"
 
 # Color definitions
@@ -34,15 +30,6 @@ print_status() {
 }
 
 main() {
-    # Display script version for troubleshooting
-    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
-        printf "[DEBUG] %s v%s\n" "fix-validation-severity.sh" "$SCRIPT_VERSION" >&2
-    fi
-    log_debug "==================== SCRIPT START ==================="
-    log_debug "Script: fix-validation-severity.sh v$SCRIPT_VERSION"
-    log_debug "Working directory: $(pwd)"
-    log_debug "Arguments: $*"
-    log_debug "======================================================"
     print_status "$BLUE" "=== Fixing Validation Severity Levels ==="
 
     if [ ! -f "$VALIDATION_FILE" ]; then

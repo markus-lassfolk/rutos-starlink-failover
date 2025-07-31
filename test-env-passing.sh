@@ -1,10 +1,6 @@
 #!/bin/bash
 # Test script to verify environment variable passing fixes
 
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
 echo "=============================================="
 echo "Testing Environment Variable Passing Fixes"
 echo "=============================================="

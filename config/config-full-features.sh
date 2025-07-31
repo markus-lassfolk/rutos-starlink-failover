@@ -2,10 +2,10 @@
 # Full-featured test config to enable ALL analytics and logging
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 
 # Configuration metadata for troubleshooting
-CONFIG_VERSION="2.8.0"
+CONFIG_VERSION="2.7.1"
 CONFIG_TYPE="full_test"
 
 # Basic required variables

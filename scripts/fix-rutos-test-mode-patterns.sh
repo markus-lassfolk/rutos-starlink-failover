@@ -1,12 +1,12 @@
 #!/bin/sh
 # Script: fix-rutos-test-mode-patterns.sh
-# Version: 2.8.0
+# Version: 1.0.0
 # Description: Fix incorrect RUTOS_TEST_MODE usage patterns across the codebase
 
 set -e
 
 # Version information
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="1.0.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
 . "$(dirname "$0")/lib/rutos-lib.sh"

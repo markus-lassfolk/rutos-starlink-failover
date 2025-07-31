@@ -31,7 +31,7 @@ cat >"$temp_dir/test-install.sh" <<'EOF'
 set -eu
 
 # Mimic install-rutos.sh exactly
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 echo "Testing library loading..."

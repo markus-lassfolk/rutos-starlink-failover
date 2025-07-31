@@ -13,7 +13,7 @@ set -eu
 
 # Script version information
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 SCRIPT_NAME="update-config.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"

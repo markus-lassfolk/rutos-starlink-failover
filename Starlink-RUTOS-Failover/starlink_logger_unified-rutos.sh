@@ -3,7 +3,7 @@
 # ==============================================================================
 # Unified Starlink Performance Data Logger for OpenWrt/RUTOS
 #
-# Version: 2.8.0
+# Version: 2.7.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script runs periodically via cron to gather real-time performance data
@@ -22,10 +22,6 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="2.7.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
@@ -834,62 +830,6 @@ main() {
     log_info "Logging cycle completed successfully"
     log_function_exit "main" "0"
 }
-
-# Enhanced error handling for configuration validation
-validate_config() {
-    log_debug "Validating configuration variables..."
-
-    if [ -z "${STARLINK_IP:-}" ]; then
-        log_warning "STARLINK_IP is not set. Defaulting to 192.168.100.1"
-        STARLINK_IP="192.168.100.1"
-    fi
-
-    if [ -z "${STARLINK_PORT:-}" ]; then
-        log_warning "STARLINK_PORT is not set. Defaulting to 9200"
-        STARLINK_PORT="9200"
-    fi
-
-    if [ ! -d "${LOG_DIR:-}" ]; then
-        log_warning "LOG_DIR does not exist. Attempting to create: $LOG_DIR"
-        mkdir -p "$LOG_DIR" || log_error "Failed to create LOG_DIR: $LOG_DIR"
-    fi
-
-    if [ ! -f "${GRPCURL_CMD:-}" ]; then
-        log_error "grpcurl binary not found at $GRPCURL_CMD"
-        exit 1
-    fi
-
-    if [ ! -f "${JQ_CMD:-}" ]; then
-        log_error "jq binary not found at $JQ_CMD"
-        exit 1
-    fi
-
-    log_debug "Configuration validation completed successfully"
-}
-
-# Enhanced debug logging for edge cases
-log_debug "Starting enhanced debug logging..."
-log_debug "Configuration file: $CONFIG_FILE"
-log_debug "Output CSV file: $OUTPUT_CSV"
-log_debug "State file: $STATE_FILE"
-log_debug "Log directory: $LOG_DIR"
-log_debug "Aggregated log file: $AGGREGATED_LOG_FILE"
-
-# Call validation function
-validate_config
-
-# Enhanced statistical aggregation logic
-optimize_aggregation() {
-    log_debug "Optimizing statistical aggregation logic..."
-    # Add optimized logic here
-}
-
-# Call optimization function
-optimize_aggregation
-
-# Enhanced documentation for complex logic
-log_debug "Adding comments to clarify statistical aggregation logic..."
-# ...existing code...
 
 # Execute main function
 main "$@"

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: test-pushover.sh
-# Version: 2.8.0
+# Version: 2.7.1
 # Description: Simple Pushover notification test script
 
 # RUTOS Compatibility - Dynamic sourcing and intentional variables
@@ -12,7 +12,7 @@ set -e # Exit on error
 
 # Script version - automatically updated by update-version.sh
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # RUTOS test mode support (for testing framework)

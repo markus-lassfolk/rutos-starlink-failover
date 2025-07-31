@@ -2,10 +2,6 @@
 # Test script to see enhanced debug logging for install_enhanced_monitoring
 
 # Load the library
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
 if [ -f "scripts/lib/rutos-lib.sh" ]; then
     . scripts/lib/rutos-lib.sh
     rutos_init_portable "test-enhanced-debug" "1.0.0"

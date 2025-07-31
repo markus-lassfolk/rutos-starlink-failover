@@ -3,7 +3,7 @@
 # ==============================================================================
 # RUTOS Library Implementation Test Script
 #
-# Version: 2.8.0
+# Version: 2.7.1
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script validates the RUTOS library system implementation across all
@@ -20,7 +20,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 
 # Load RUTOS library system for enhanced testing
 . "$(dirname "$0")/lib/rutos-lib.sh"

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: complete-setup.sh
-# Version: 2.8.0
+# Version: 2.7.1
 # Description: Legacy setup script for Azure logging integration (compatibility wrapper)
 
 set -e
@@ -8,7 +8,7 @@ set -e
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

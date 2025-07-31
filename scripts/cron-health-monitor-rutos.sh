@@ -2,7 +2,7 @@
 # ==============================================================================
 # RUTOS Cron Health Monitor - Monitors Cron System Health
 #
-# Version: 2.8.0
+# Version: 2.7.1
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script monitors the overall health of the cron system, detects missing
@@ -24,7 +24,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
 if ! . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
@@ -345,15 +345,6 @@ generate_health_report() {
 # --- Main Execution ---
 
 main() {
-    # Display script version for troubleshooting
-    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
-        printf "[DEBUG] %s v%s\n" "cron-health-monitor-rutos.sh" "$SCRIPT_VERSION" >&2
-    fi
-    log_debug "==================== SCRIPT START ==================="
-    log_debug "Script: cron-health-monitor-rutos.sh v$SCRIPT_VERSION"
-    log_debug "Working directory: $(pwd)"
-    log_debug "Arguments: $*"
-    log_debug "======================================================"
     log_info "Starting cron health monitoring check"
     
     # Perform health checks

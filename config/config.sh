@@ -2,10 +2,10 @@
 # Test config for health check testing
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 
 # Configuration metadata for troubleshooting
-CONFIG_VERSION="2.8.0"
+CONFIG_VERSION="2.7.1"
 CONFIG_TYPE="test"
 
 # Basic required variables

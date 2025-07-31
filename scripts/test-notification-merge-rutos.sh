@@ -8,7 +8,7 @@ set -eu
 
 # Script version
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Colors for output (Method 5 format - RUTOS compatible)

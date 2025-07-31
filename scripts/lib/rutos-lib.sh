@@ -11,10 +11,6 @@
 # ==============================================================================
 
 # Prevent multiple sourcing
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
 if [ "${_RUTOS_LIB_LOADED:-}" = "1" ]; then
     return 0
 fi
@@ -114,10 +110,6 @@ rutos_init_simple() {
 
     # Load minimal components
     setup_logging_levels
-    # Version information for troubleshooting
-    if [ "${DEBUG:-0}" = "1" ]; then
-        log_debug "Script: rutos-lib.sh v$SCRIPT_VERSION"
-    fi
     log_info "Starting $script_name"
     check_test_mode_exit
 }

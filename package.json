@@ -1,6 +1,6 @@
 {
   "name": "rutos-starlink-failover-tools",
-  "version": "2.8.0",
+  "version": "2.7.1",
   "description": "Development tools for RUTOS Starlink Failover project",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "markdownlint-cli": "^0.37.0",
-    "prettier": "^3.6.2"
+    "prettier": "^3.0.0"
   },
   "keywords": [
     "rutos",
@@ -18,8 +18,5 @@
     "router",
     "failover",
     "monitoring"
-  ],
-  "dependencies": {
-    "markdownlint": "^0.38.0"
-  }
+  ]
 }

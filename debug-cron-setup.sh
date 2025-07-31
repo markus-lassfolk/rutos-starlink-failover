@@ -5,10 +5,6 @@
 set -e
 
 # Debug mode for verbose output
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
 DEBUG="${DEBUG:-1}"
 
 # Configuration from install-rutos.sh
@@ -244,15 +240,6 @@ EOF
 
 # Main execution
 main() {
-    # Display script version for troubleshooting
-    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
-        printf "[DEBUG] %s v%s\n" "debug-cron-setup.sh" "$SCRIPT_VERSION" >&2
-    fi
-    log_debug "==================== SCRIPT START ==================="
-    log_debug "Script: debug-cron-setup.sh v$SCRIPT_VERSION"
-    log_debug "Working directory: $(pwd)"
-    log_debug "Arguments: $*"
-    log_debug "======================================================"
     print_status "$GREEN" "Starting cron configuration debugging..."
     print_status "$BLUE" "Install directory: $INSTALL_DIR"
     print_status "$BLUE" "Cron file: $CRON_FILE"

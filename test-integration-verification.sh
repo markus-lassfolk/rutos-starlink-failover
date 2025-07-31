@@ -5,10 +5,6 @@
 set -e
 
 # Test directories
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
 TEST_DIR="/tmp/starlink-test-$(date +%s)"
 echo "Creating test installation in: $TEST_DIR"
 

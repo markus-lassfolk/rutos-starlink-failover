@@ -8,7 +8,7 @@ set -e
 # Colors for test output (RUTOS-compatible detection)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Dry-run and test mode support

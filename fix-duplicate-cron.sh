@@ -2,11 +2,11 @@
 # =============================================================================
 # CRON CLEANUP SCRIPT - Fix Duplicate Entries
 # =============================================================================
-# Version: 2.8.0
+# Version: 2.7.1
 # This script removes duplicate cron entries created during unified script migration
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Colors for output

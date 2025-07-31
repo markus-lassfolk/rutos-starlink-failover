@@ -5,7 +5,7 @@
 # ==============================================================================
 # Enhanced Pushover Notifier for Starlink Monitoring System
 #
-# Version: 2.8.0
+# Version: 2.7.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script serves as the central notification hub for the Starlink monitoring
@@ -20,7 +20,7 @@ set -eu
 PS4='+ '
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
 # Load RUTOS library system for standardized logging and utilities

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: check-pushover-logs-rutos.sh
-# Version: 2.8.0
+# Version: 2.7.0
 # Description: Check Pushover notification logs and system status
 
 # RUTOS Compatibility - Using Method 5 printf format for proper color display
@@ -9,7 +9,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

@@ -1,13 +1,13 @@
 #!/bin/sh
 # Script: smart-failover-engine-rutos.sh
-# Version: 2.8.0
+# Version: 2.7.0
 # Description: Intelligent failover decision engine for Starlink + multiple cellular modems
 # Makes smart decisions based on signal strength, roaming costs, network type, and location patterns
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # Standard colors for consistent output (compatible with busybox)

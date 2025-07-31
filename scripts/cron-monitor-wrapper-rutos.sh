@@ -2,7 +2,7 @@
 # ==============================================================================
 # RUTOS Cron Monitor Wrapper - Universal Cron Job Error Monitoring
 #
-# Version: 2.8.0
+# Version: 2.7.1
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script wraps around any cron job to provide comprehensive error monitoring,
@@ -28,7 +28,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
 if ! . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
@@ -282,15 +282,6 @@ log_execution() {
 # --- Main Execution ---
 
 main() {
-    # Display script version for troubleshooting
-    if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
-        printf "[DEBUG] %s v%s\n" "cron-monitor-wrapper-rutos.sh" "$SCRIPT_VERSION" >&2
-    fi
-    log_debug "==================== SCRIPT START ==================="
-    log_debug "Script: cron-monitor-wrapper-rutos.sh v$SCRIPT_VERSION"
-    log_debug "Working directory: $(pwd)"
-    log_debug "Arguments: $*"
-    log_debug "======================================================"
     if [ $# -eq 0 ]; then
         log_error "Usage: $0 <script_to_execute> [arguments...]"
         log_error "Example: $0 /root/starlink-monitor/starlink_monitor-rutos.sh"

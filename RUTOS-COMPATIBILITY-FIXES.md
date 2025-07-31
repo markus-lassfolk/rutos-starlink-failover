@@ -2,7 +2,7 @@
 
 **Version:** 2.6.0 | **Updated:** 2025-07-24
 
-Version: 2.8.0
+Version: 2.7.1
 
 This document outlines the specific changes made to ensure compatibility with RUTOS embedded Linux environment.
 

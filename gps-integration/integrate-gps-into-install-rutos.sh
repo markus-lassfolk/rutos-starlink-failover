@@ -1,13 +1,13 @@
 #!/bin/sh
 # Script: integrate-gps-into-install-rutos.sh
-# Version: 2.8.0
+# Version: 2.7.0
 # Description: Complete GPS integration into install-rutos.sh with automatic optimization
 # Provides automatic installation, health checks, and optimized logging with 60:1 data reduction
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 readonly SCRIPT_VERSION
 
 # RUTOS test mode support (for testing framework)
@@ -503,7 +503,7 @@ create_system_monitoring_integration() {
     cat >/tmp/enhanced_health_check_with_gps.sh <<'EOF'
 #!/bin/sh
 # Enhanced Health Check with GPS Integration
-# Version: 2.8.0
+# Version: 2.7.0
 
 # Standard health check functions
 validate_starlink_connectivity() {

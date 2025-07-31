@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2059 # RUTOS Method 5 color format uses variables in printf strings intentionally
 # Pre-commit validation script for RUTOS Starlink Failover Project
-# Version: 2.8.0
+# Version: 2.7.1
 # Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility
 #              and markdown files for documentation quality
 #
@@ -19,7 +19,7 @@
 # and collect all validation issues before exiting
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.1"
 
 # CRITICAL: Allow test execution for validation scripts
 # This prevents RUTOS_TEST_MODE from causing early exit in validation tools

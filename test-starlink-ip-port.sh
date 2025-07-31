@@ -1,11 +1,11 @@
 #!/bin/sh
 # Test script to verify STARLINK_IP and STARLINK_PORT are properly combined
-# Version: 2.8.0
+# Version: 1.0.0
 
 set -e
 
 # Version information
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="1.0.0"
 
 # Colors for output
 GREEN='\033[0;32m'

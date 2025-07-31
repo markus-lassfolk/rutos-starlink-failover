@@ -4,7 +4,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+SCRIPT_VERSION="2.7.0"
 readonly SCRIPT_VERSION
 
 # VALIDATION_SKIP_COLOR_CHECK: Uses RUTOS library for colors
@@ -41,7 +41,7 @@ fi
 # ==============================================================================
 # Starlink API Version Monitor
 #
-# Version: 2.8.0
+# Version: 2.6.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # This script runs periodically (ideally once per day via cron) to check if the

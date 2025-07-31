@@ -1,6 +1,6 @@
 #!/bin/sh
 # Script: system-maintenance-rutos.sh
-# Version: 2.8.0
+# Version: 2.7.0
 # Description: Generic RUTOS system maintenance script that checks for common issues and fixes them
 # Note: log_function_entry/exit not used due to large number of functions - would add excessive verbosity
 
@@ -13,10 +13,6 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
 readonly SCRIPT_VERSION="2.7.1"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
