@@ -80,13 +80,47 @@ printf "[EARLY_DEBUG] Starting library loading process...\n" >&2
 printf "[EARLY_DEBUG] Checking LIBRARY_PATH method...\n" >&2
 if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_PATH}/rutos-lib.sh" ]; then
     printf "[EARLY_DEBUG] Attempting to source library from: ${LIBRARY_PATH}/rutos-lib.sh\n" >&2
-    # Bootstrap mode: library provided by bootstrap script
-    if . "${LIBRARY_PATH}/rutos-lib.sh" 2>/dev/null; then
+    
+    # Test file readability first
+    if [ -r "${LIBRARY_PATH}/rutos-lib.sh" ]; then
+        printf "[EARLY_DEBUG] Library file is readable\n" >&2
+    else
+        printf "[EARLY_DEBUG] Library file is NOT readable\n" >&2
+        exit 2
+    fi
+    
+    # Show first few lines of library for debugging
+    printf "[EARLY_DEBUG] Library file first 3 lines:\n" >&2
+    head -3 "${LIBRARY_PATH}/rutos-lib.sh" 2>&1 | while IFS= read -r line; do
+        printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+    done
+    
+    # Capture detailed sourcing error
+    printf "[EARLY_DEBUG] About to source library, capturing any errors...\n" >&2
+    library_error_output=""
+    if library_error_output=$(. "${LIBRARY_PATH}/rutos-lib.sh" 2>&1); then
         LIBRARY_LOADED=1
         printf "[INFO] RUTOS library system loaded from bootstrap path: %s\n" "$LIBRARY_PATH"
         printf "[EARLY_DEBUG] Library loading successful via LIBRARY_PATH\n" >&2
     else
-        printf "[EARLY_DEBUG] Library loading FAILED via LIBRARY_PATH\n" >&2
+        library_exit_code=$?
+        printf "[EARLY_DEBUG] Library loading FAILED via LIBRARY_PATH with exit code: %d\n" "$library_exit_code" >&2
+        printf "[EARLY_DEBUG] Library error output: %s\n" "$library_error_output" >&2
+        
+        # Show detailed file info for debugging
+        printf "[EARLY_DEBUG] Library file details:\n" >&2
+        ls -la "${LIBRARY_PATH}/rutos-lib.sh" 2>&1 | while IFS= read -r line; do
+            printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+        done
+        
+        # Show directory contents
+        printf "[EARLY_DEBUG] Library directory contents:\n" >&2
+        ls -la "${LIBRARY_PATH}/" 2>&1 | while IFS= read -r line; do
+            printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+        done
+        
+        printf "[EARLY_DEBUG] Exiting due to library loading failure\n" >&2
+        exit 2
     fi
 else
     printf "[EARLY_DEBUG] LIBRARY_PATH method not available (LIBRARY_LOADED=$LIBRARY_LOADED, LIBRARY_PATH=${LIBRARY_PATH:-empty}, file_exists=$([ -f "${LIBRARY_PATH:-}/rutos-lib.sh" ] && echo yes || echo no))\n" >&2
