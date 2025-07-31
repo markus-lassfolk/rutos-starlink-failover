@@ -143,8 +143,6 @@ else
 fi
 
 printf "[EARLY_DEBUG] Library loading complete, LIBRARY_LOADED=$LIBRARY_LOADED\n" >&2
-    fi
-fi
 
 # Remote installation mode: download library to temp location and use it
 if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
