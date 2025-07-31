@@ -211,6 +211,12 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
     printf "[EARLY_DEBUG] About to call rutos_init_portable with: SCRIPT_NAME=$SCRIPT_NAME, SCRIPT_VERSION=$SCRIPT_VERSION\n" >&2
     
     # Test if the function exists
+    printf "[EARLY_DEBUG] Testing function availability...\n" >&2
+    printf "[EARLY_DEBUG] Available functions starting with 'rutos':\n" >&2
+    set | grep '^rutos' | head -10 | while IFS= read -r line; do
+        printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+    done
+    
     if command -v rutos_init_portable >/dev/null 2>&1; then
         printf "[EARLY_DEBUG] rutos_init_portable function found, calling it...\n" >&2
         # Use new RUTOS library system (either local development or downloaded)
@@ -220,8 +226,21 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
             printf "[EARLY_DEBUG] rutos_init_portable FAILED with exit code: $?\n" >&2
             exit 2
         fi
+    elif command -v rutos_init >/dev/null 2>&1; then
+        printf "[EARLY_DEBUG] rutos_init function found (fallback), calling it...\n" >&2
+        # Fallback to regular rutos_init
+        if rutos_init "$SCRIPT_NAME" "$SCRIPT_VERSION"; then
+            printf "[EARLY_DEBUG] rutos_init completed successfully\n" >&2
+        else
+            printf "[EARLY_DEBUG] rutos_init FAILED with exit code: $?\n" >&2
+            exit 2
+        fi
     else
-        printf "[EARLY_DEBUG] rutos_init_portable function NOT found\n" >&2
+        printf "[EARLY_DEBUG] Neither rutos_init_portable nor rutos_init functions found\n" >&2
+        printf "[EARLY_DEBUG] All available functions:\n" >&2
+        set | grep '()' | head -20 | while IFS= read -r line; do
+            printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+        done
         exit 2
     fi
     
