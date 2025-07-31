@@ -8,7 +8,48 @@
 #
 # ==============================================================================
 
+# CRITICAL: Add immediate debug output before any potential failures
+printf "[EARLY_DEBUG] install-rutos.sh starting at $(date '+%Y-%m-%d %H:%M:%S')\n" >&2
+printf "[EARLY_DEBUG] Script file: $0\n" >&2
+printf "[EARLY_DEBUG] Working directory: $(pwd)\n" >&2
+printf "[EARLY_DEBUG] Environment check:\n" >&2
+printf "[EARLY_DEBUG]   LIBRARY_PATH=${LIBRARY_PATH:-not_set}\n" >&2
+printf "[EARLY_DEBUG]   USE_LIBRARY=${USE_LIBRARY:-not_set}\n" >&2
+printf "[EARLY_DEBUG]   DEBUG=${DEBUG:-not_set}\n" >&2
+printf "[EARLY_DEBUG]   RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-not_set}\n" >&2
+printf "[EARLY_DEBUG]   DRY_RUN=${DRY_RUN:-not_set}\n" >&2
+
+# Test basic shell functionality
+printf "[EARLY_DEBUG] Testing basic shell functionality...\n" >&2
+if printf "[EARLY_DEBUG] printf test: OK\n" >&2; then
+    printf "[EARLY_DEBUG] Shell printf: WORKING\n" >&2
+else
+    printf "[EARLY_DEBUG] Shell printf: FAILED\n" >&2
+fi
+
+# Test file operations
+printf "[EARLY_DEBUG] Testing file operations...\n" >&2
+if [ -n "${LIBRARY_PATH:-}" ]; then
+    printf "[EARLY_DEBUG] LIBRARY_PATH is set to: ${LIBRARY_PATH}\n" >&2
+    if [ -d "${LIBRARY_PATH}" ]; then
+        printf "[EARLY_DEBUG] LIBRARY_PATH directory exists\n" >&2
+        if [ -f "${LIBRARY_PATH}/rutos-lib.sh" ]; then
+            printf "[EARLY_DEBUG] rutos-lib.sh found in LIBRARY_PATH\n" >&2
+        else
+            printf "[EARLY_DEBUG] rutos-lib.sh NOT found in LIBRARY_PATH\n" >&2
+        fi
+    else
+        printf "[EARLY_DEBUG] LIBRARY_PATH directory does NOT exist\n" >&2
+    fi
+else
+    printf "[EARLY_DEBUG] LIBRARY_PATH is not set\n" >&2
+fi
+
+printf "[EARLY_DEBUG] About to set shell options...\n" >&2
+
 set -eu
+
+printf "[EARLY_DEBUG] Shell options set successfully\n" >&2
 
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="2.8.0"
@@ -33,21 +74,41 @@ BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 # For remote installation via curl, we'll use built-in fallback functions
 LIBRARY_LOADED=0
 
+printf "[EARLY_DEBUG] Starting library loading process...\n" >&2
+
 # Check if library is available via LIBRARY_PATH (bootstrap mode)
+printf "[EARLY_DEBUG] Checking LIBRARY_PATH method...\n" >&2
 if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_PATH}/rutos-lib.sh" ]; then
+    printf "[EARLY_DEBUG] Attempting to source library from: ${LIBRARY_PATH}/rutos-lib.sh\n" >&2
     # Bootstrap mode: library provided by bootstrap script
     if . "${LIBRARY_PATH}/rutos-lib.sh" 2>/dev/null; then
         LIBRARY_LOADED=1
         printf "[INFO] RUTOS library system loaded from bootstrap path: %s\n" "$LIBRARY_PATH"
+        printf "[EARLY_DEBUG] Library loading successful via LIBRARY_PATH\n" >&2
+    else
+        printf "[EARLY_DEBUG] Library loading FAILED via LIBRARY_PATH\n" >&2
     fi
+else
+    printf "[EARLY_DEBUG] LIBRARY_PATH method not available (LIBRARY_LOADED=$LIBRARY_LOADED, LIBRARY_PATH=${LIBRARY_PATH:-empty}, file_exists=$([ -f "${LIBRARY_PATH:-}/rutos-lib.sh" ] && echo yes || echo no))\n" >&2
 fi
 
 # Check for local development environment
+printf "[EARLY_DEBUG] Checking local development method...\n" >&2
 if [ "$LIBRARY_LOADED" = "0" ] && [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; then
+    printf "[EARLY_DEBUG] Attempting to source library from local development: $(dirname "$0")/lib/rutos-lib.sh\n" >&2
     # Development mode: scripts directory available locally
     if . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
         LIBRARY_LOADED=1
         printf "[INFO] RUTOS library system loaded from local development environment\n"
+        printf "[EARLY_DEBUG] Library loading successful via local development\n" >&2
+    else
+        printf "[EARLY_DEBUG] Library loading FAILED via local development\n" >&2
+    fi
+else
+    printf "[EARLY_DEBUG] Local development method not available (LIBRARY_LOADED=$LIBRARY_LOADED, dirname=$0, dir_exists=$([ -d "$(dirname "$0")/lib" ] && echo yes || echo no), file_exists=$([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo yes || echo no))\n" >&2
+fi
+
+printf "[EARLY_DEBUG] Library loading complete, LIBRARY_LOADED=$LIBRARY_LOADED\n" >&2
     fi
 fi
 
@@ -112,11 +173,42 @@ LOG_DIR="$(dirname "$LOG_FILE")"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 
 # Initialize logging system
+printf "[EARLY_DEBUG] About to initialize logging system (LIBRARY_LOADED=$LIBRARY_LOADED)...\n" >&2
 if [ "$LIBRARY_LOADED" = "1" ]; then
-    # Use new RUTOS library system (either local development or downloaded)
-    rutos_init_portable "$SCRIPT_NAME" "$SCRIPT_VERSION"
-    log_info "Using RUTOS library system for standardized logging"
-    log_debug "Library mode: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo "local development" || echo "downloaded remote")"
+    printf "[EARLY_DEBUG] Using RUTOS library system for logging\n" >&2
+    printf "[EARLY_DEBUG] About to call rutos_init_portable with: SCRIPT_NAME=$SCRIPT_NAME, SCRIPT_VERSION=$SCRIPT_VERSION\n" >&2
+    
+    # Test if the function exists
+    if command -v rutos_init_portable >/dev/null 2>&1; then
+        printf "[EARLY_DEBUG] rutos_init_portable function found, calling it...\n" >&2
+        # Use new RUTOS library system (either local development or downloaded)
+        if rutos_init_portable "$SCRIPT_NAME" "$SCRIPT_VERSION"; then
+            printf "[EARLY_DEBUG] rutos_init_portable completed successfully\n" >&2
+        else
+            printf "[EARLY_DEBUG] rutos_init_portable FAILED with exit code: $?\n" >&2
+            exit 2
+        fi
+    else
+        printf "[EARLY_DEBUG] rutos_init_portable function NOT found\n" >&2
+        exit 2
+    fi
+    
+    printf "[EARLY_DEBUG] About to call log_info...\n" >&2
+    if command -v log_info >/dev/null 2>&1; then
+        log_info "Using RUTOS library system for standardized logging"
+        printf "[EARLY_DEBUG] log_info call successful\n" >&2
+    else
+        printf "[EARLY_DEBUG] log_info function not available\n" >&2
+        exit 2
+    fi
+    
+    printf "[EARLY_DEBUG] About to call log_debug...\n" >&2
+    if command -v log_debug >/dev/null 2>&1; then
+        log_debug "Library mode: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo "local development" || echo "downloaded remote")"
+        printf "[EARLY_DEBUG] log_debug call successful\n" >&2
+    else
+        printf "[EARLY_DEBUG] log_debug function not available\n" >&2
+    fi
 
     # Ensure log_message compatibility function is available
     # (It should be loaded from rutos-common.sh, but add fallback just in case)
@@ -137,8 +229,10 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
         }
     fi
 else
+    printf "[EARLY_DEBUG] Library not loaded, using fallback logging system\n" >&2
     # Fallback to legacy logging system for remote installations when library unavailable
     printf "[INFO] Using built-in fallback logging system\n"
+    printf "[EARLY_DEBUG] Fallback logging system initialized\n" >&2
 
     # Built-in color detection (simplified for remote execution)
     if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
