@@ -16,8 +16,8 @@ if [ "${FORCE_LIBRARY_LOAD:-0}" = "1" ] && [ -f "$(dirname "$0")/lib/rutos-lib.s
     . "$(dirname "$0")/lib/rutos-lib.sh"
     # Initialize script with full RUTOS library features
 
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+    # Version information (auto-updated by update-version.sh)
+    readonly SCRIPT_VERSION="2.7.1"
 
     rutos_init "dev-testing-rutos.sh" "$SCRIPT_VERSION"
     LIBRARY_LOADED=1
@@ -34,7 +34,8 @@ GITHUB_BRANCH="main"
 GITHUB_RAW_BASE="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
 # Standard colors for consistent output (compatible with busybox) - only if library not loaded
-if [ "${LIBRARY_LOADED:-0}" = "0" ]; then
+# Colors and logging functions are now provided by RUTOS library - removed custom definitions
+# if [ "${LIBRARY_LOADED:-0}" = "0" ]; then
     RED='[0;31m'
     GREEN='[0;32m'
     YELLOW='[1;33m'
@@ -253,7 +254,7 @@ self_update() {
 
     log_debug "Downloading from: $SCRIPT_URL"
 
-    if curl -fsSL "$SCRIPT_URL" -o "$TEMP_SCRIPT" 2>/dev/null; then
+    if safe_execute "curl -fsSL \"$SCRIPT_URL\" -o \"$TEMP_SCRIPT\"" 2>/dev/null; then
         # Extract version from downloaded script - try multiple patterns
         latest_version=""
 
@@ -697,11 +698,14 @@ ${CYAN}── Test %s: %s ──${NC}
 
         # Strip whitespace from metrics
         output_lines=$(echo "$output_lines" | tr -d ' 
-')
+
+')
         error_lines=$(echo "$error_lines" | tr -d ' 
-')
+
+')
         output_size=$(echo "$output_size" | tr -d ' 
-')
+
+')
 
         # Analyze debug patterns in output
         debug_messages=$(grep -c "\[DEBUG\]" "$output_file" 2>/dev/null || echo 0)
@@ -712,15 +716,20 @@ ${CYAN}── Test %s: %s ──${NC}
 
         # Strip whitespace from message counts
         debug_messages=$(echo "$debug_messages" | tr -d ' 
-')
+
+')
         info_messages=$(echo "$info_messages" | tr -d ' 
-')
+
+')
         warning_messages=$(echo "$warning_messages" | tr -d ' 
-')
+
+')
         error_messages=$(echo "$error_messages" | tr -d ' 
-')
+
+')
         step_messages=$(echo "$step_messages" | tr -d ' 
-')
+
+')
 
         # Extract exceptions and errors with line numbers
         exceptions_found=""
@@ -731,7 +740,8 @@ ${CYAN}── Test %s: %s ──${NC}
         # Analyze shell trace for execution flow
         shell_trace_lines=$(grep -c "^+ " "$error_file" 2>/dev/null || echo 0)
         shell_trace_lines=$(echo "$shell_trace_lines" | tr -d ' 
-')
+
+')
 
         # Determine test status
         test_status="passed"
@@ -1767,16 +1777,19 @@ ${YELLOW}⚠️  Library implementation validation completed with warnings${NC}
         if [ -f "$temp_results" ] && [ -s "$temp_results" ]; then
             # Use more robust counting to avoid whitespace issues - fix command order
             TOTAL_SCRIPTS=$(wc -l <"$temp_results" | tr -d ' 
-')
+
+')
 
             # Fix grep fallback - tr should happen on grep output, not on fallback
             PASSED_COUNT=$(grep -c "^PASS:" "$temp_results" 2>/dev/null || echo "0")
             PASSED_SCRIPTS=$(printf "%s" "$PASSED_COUNT" | tr -d ' 
-')
+
+')
 
             FAILED_COUNT=$(grep -c "^FAIL:" "$temp_results" 2>/dev/null || echo "0")
             FAILED_SCRIPTS=$(printf "%s" "$FAILED_COUNT" | tr -d ' 
-')
+
+')
 
             # Debug the calculated values
             log_debug "Result counts: TOTAL=$TOTAL_SCRIPTS, PASSED=$PASSED_SCRIPTS, FAILED=$FAILED_SCRIPTS"

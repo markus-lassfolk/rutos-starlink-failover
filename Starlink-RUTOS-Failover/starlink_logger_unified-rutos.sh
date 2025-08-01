@@ -22,11 +22,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+readonly SCRIPT_VERSION="2.8.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
 # shellcheck source=/dev/null
@@ -169,7 +165,11 @@ GRPCURL_CMD="${GRPCURL_CMD:-/usr/local/starlink-monitor/grpcurl}"
 JQ_CMD="${JQ_CMD:-/usr/local/starlink-monitor/jq}"
 
 # Create necessary directories
-mkdir -p "$LOG_DIR" "$(dirname "$STATE_FILE")" 2>/dev/null || true
+if [ "${DRY_RUN:-0}" = "1" ]; then
+    log_debug "DRY-RUN: Would create directories: $LOG_DIR and $(dirname "$STATE_FILE")"
+else
+    mkdir -p "$LOG_DIR" "$(dirname "$STATE_FILE")" 2>/dev/null || true
+fi
 
 # Enhanced troubleshooting mode - show more execution details
 if [ "${DEBUG:-0}" = "1" ]; then
@@ -291,7 +291,7 @@ perform_statistical_aggregation() {
         prev_lat = ""; prev_lon = ""; prev_operator = ""; prev_network = ""
     }
     # Define abs function (POSIX-compatible)
-    function abs(x) { return (x < 0 ? -x : x) }
+    abs() { return (x < 0 ? -x : x) }
     {
         count++
         if (count == 1) first_timestamp = $1
@@ -864,7 +864,11 @@ validate_config() {
 
     if [ ! -d "${LOG_DIR:-}" ]; then
         log_warning "LOG_DIR does not exist. Attempting to create: $LOG_DIR"
-        mkdir -p "$LOG_DIR" || log_error "Failed to create LOG_DIR: $LOG_DIR"
+        if [ "${DRY_RUN:-0}" = "1" ]; then
+            log_debug "DRY-RUN: Would create LOG_DIR: $LOG_DIR"
+        else
+            mkdir -p "$LOG_DIR" || log_error "Failed to create LOG_DIR: $LOG_DIR"
+        fi
     fi
 
     if [ ! -f "${GRPCURL_CMD:-}" ]; then

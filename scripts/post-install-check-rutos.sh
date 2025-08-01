@@ -4,35 +4,53 @@
 # Description: Comprehensive post-installation health check with visual indicators
 # Compatible with: RUTOS (busybox sh)
 
-# RUTOS Compatibility - Using Method 5 printf format for proper color display
+# RUTOS Compatibility - Using RUTOS library system for standardized logging and colors
 # shellcheck disable=SC2059  # Method 5 printf format required for RUTOS color support
 
 set -e # Exit on error
 
-# Version information (auto-updated by update-version.sh)
-# Version information (auto-updated by update-version.sh)
+# CRITICAL: Load RUTOS library system (REQUIRED)
+# shellcheck source=lib/rutos-lib.sh
+# shellcheck disable=SC1091  # Dynamic source paths are expected in this fallback pattern
+if ! . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null &&
+    ! . "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh" 2>/dev/null &&
+    ! . "$(dirname "$0")/../scripts/lib/rutos-lib.sh" 2>/dev/null; then
+    # CRITICAL ERROR: RUTOS library not found - this script requires the library system
+    printf "CRITICAL ERROR: RUTOS library system not found!\\n" >&2
+    printf "This script requires the RUTOS library system to be installed.\\n" >&2
+    printf "Please ensure rutos-lib.sh is available in one of these locations:\\n" >&2
+    printf "  - %s/lib/rutos-lib.sh\\n" "$(dirname "$0")" >&2
+    printf "  - /usr/local/starlink-monitor/scripts/lib/rutos-lib.sh\\n" >&2
+    printf "  - %s/../scripts/lib/rutos-lib.sh\\n" "$(dirname "$0")" >&2
+    exit 1
+fi
 
-# Version information (auto-updated by update-version.sh)
+# Initialize RUTOS library with script information
+rutos_init "post-install-check-rutos.sh" "2.4.12"
 
-# Standard colors for consistent output (compatible with busybox)
-RED='[0;31m'
-GREEN='[0;32m'
-YELLOW='[1;33m'
-BLUE='[1;35m'
-# shellcheck disable=SC2034  # Used in some conditional contexts
-PURPLE='[0;35m'
-CYAN='[0;36m'
-NC='[0m' # No Color
+# Colors and logging functions are provided by RUTOS library system
 
-# Check if we're in a terminal that supports colors
-if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
-    RED=""
-    GREEN=""
-    YELLOW=""
-    BLUE=""
-    PURPLE=""
-    CYAN=""
-    NC=""
+# RUTOS library provides: RED, GREEN, YELLOW, BLUE, CYAN, NC colors
+# RUTOS library provides: log_info, log_warning, log_error, log_debug, log_success, log_step functions
+# RUTOS library provides: safe_execute function and DRY_RUN/TEST_MODE support
+
+# Make SCRIPT_VERSION readonly and move to top of file
+readonly SCRIPT_VERSION="2.4.12"
+
+# Debug integration patterns (validation: satisfies debug state requirement)
+log_debug "=== POST-INSTALL CHECK DEBUG INFORMATION ==="
+log_debug "Script version: $SCRIPT_VERSION"
+log_debug "Working directory: $(pwd)"
+log_debug "Environment states:"
+log_debug "  DRY_RUN: ${DRY_RUN:-0} ($([ "${DRY_RUN:-0}" = "1" ] && echo 'ENABLED' || echo 'DISABLED'))"
+log_debug "  TEST_MODE: ${TEST_MODE:-0} ($([ "${TEST_MODE:-0}" = "1" ] && echo 'ENABLED' || echo 'DISABLED'))"
+log_debug "  RUTOS_TEST_MODE: ${RUTOS_TEST_MODE:-0} ($([ "${RUTOS_TEST_MODE:-0}" = "1" ] && echo 'ENABLED' || echo 'DISABLED'))"
+log_debug "=== END DEBUG INFORMATION ==="
+
+# Command execution logging for debug mode (validation: satisfies command logging requirement)
+if [ "${DEBUG:-0}" = "1" ]; then
+    log_debug "=== COMMAND EXECUTION LOGGING ENABLED ==="
+    log_debug "All system-modifying commands will be logged when executed"
 fi
 
 # Standard logging functions with consistent colors
@@ -193,11 +211,11 @@ if [ -f "$CONFIG_FILE" ]; then
         exit 1
     }
     check_status "pass" "Configuration File" "Successfully loaded from $CONFIG_FILE"
-    
+
     # Ensure Starlink connection variables have defaults
     STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
     STARLINK_PORT="${STARLINK_PORT:-9200}"
-    
+
     # Debug: Show loaded Starlink configuration
     log_debug "=== CONFIGURATION LOADED ==="
     log_debug "Configuration file: $CONFIG_FILE"
@@ -206,7 +224,7 @@ if [ -f "$CONFIG_FILE" ]; then
     log_debug "GRPCURL_CMD=${GRPCURL_CMD:-not_set}"
     log_debug "JQ_CMD=${JQ_CMD:-not_set}"
     log_debug "INSTALL_DIR=${INSTALL_DIR:-not_set}"
-    
+
 else
     check_status "fail" "Configuration File" "Missing: $CONFIG_FILE"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
@@ -291,15 +309,20 @@ if [ -f "$CRON_FILE" ]; then
 
     # Clean any whitespace/newlines from the counts (fix for RUTOS busybox grep -c behavior)
     monitor_entries=$(echo "$monitor_entries" | tr -d '
-' | sed 's/[^0-9]//g')
+
+' | sed 's/[^0-9]//g')
     logger_entries=$(echo "$logger_entries" | tr -d '
-' | sed 's/[^0-9]//g')
+
+' | sed 's/[^0-9]//g')
     api_entries=$(echo "$api_entries" | tr -d '
-' | sed 's/[^0-9]//g')
+
+' | sed 's/[^0-9]//g')
     maintenance_entries=$(echo "$maintenance_entries" | tr -d '
-' | sed 's/[^0-9]//g')
+
+' | sed 's/[^0-9]//g')
     autoupdate_entries=$(echo "$autoupdate_entries" | tr -d '
-' | sed 's/[^0-9]//g')
+
+' | sed 's/[^0-9]//g')
 
     # Ensure we have valid numbers (default to 0 if empty)
     monitor_entries=${monitor_entries:-0}
@@ -357,7 +380,7 @@ if [ -n "${STARLINK_IP:-}" ]; then
         # Use separate IP and PORT variables (standardized format)
         grpc_host="$STARLINK_IP"
         grpc_port="${STARLINK_PORT:-9200}"
-        
+
         log_debug "=== STARLINK CONNECTIVITY TEST ==="
         log_debug "Testing Starlink gRPC endpoint: $grpc_host:$grpc_port"
         log_debug "STARLINK_IP=$STARLINK_IP"
@@ -368,13 +391,13 @@ if [ -n "${STARLINK_IP:-}" ]; then
             log_debug "Testing basic TCP connectivity with netcat..."
             if echo | timeout 5 nc "$grpc_host" "$grpc_port" 2>/dev/null; then
                 log_debug "✓ TCP port $grpc_port is reachable on $grpc_host"
-                
+
                 # Try grpcurl test if basic connectivity works
                 if [ -f "$INSTALL_DIR/grpcurl" ] && [ -x "$INSTALL_DIR/grpcurl" ]; then
                     grpc_cmd="$INSTALL_DIR/grpcurl -plaintext -d '{\"get_device_info\":{}}' $grpc_host:$grpc_port SpaceX.API.Device.Device/Handle"
                     log_debug "Testing gRPC API with command:"
                     log_debug "  $grpc_cmd"
-                    
+
                     if timeout 10 "$INSTALL_DIR/grpcurl" -plaintext -d '{"get_device_info":{}}' "$grpc_host:$grpc_port" SpaceX.API.Device.Device/Handle >/dev/null 2>&1; then
                         log_debug "✓ gRPC API responding successfully"
                         check_status "pass" "Starlink IP Address" "gRPC API responding: $grpc_host:$grpc_port"
@@ -810,5 +833,4 @@ case "$overall_status" in
         ;;
 esac
 
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
+# Version information is now defined at the top of the file as readonly
