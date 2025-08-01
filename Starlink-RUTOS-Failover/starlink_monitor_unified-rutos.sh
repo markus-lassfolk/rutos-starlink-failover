@@ -41,8 +41,7 @@ if ! . "$(dirname "$0")/../scripts/lib/rutos-lib.sh" 2>/dev/null &&
     printf "  - $(dirname "$0")/../scripts/lib/rutos-lib.sh\n" >&2
     printf "  - /usr/local/starlink-monitor/scripts/lib/rutos-lib.sh\n" >&2
     printf "  - $(dirname "$0")/lib/rutos-lib.sh\n" >&2
-    printf "\nThis script requires the RUTOS library for proper operation.\n"
-" >&2
+    printf "\nThis script requires the RUTOS library for proper operation.\n" >&2
     exit 1
 fi
 
@@ -627,18 +626,14 @@ collect_cellular_data() {
         log_debug "📱 CELLULAR MONITOR: Getting operator with AT+COPS?"
         reg_info=$(gsmctl -A 'AT+COPS?' 2>/dev/null | grep "+COPS:" | head -1 || echo "+COPS: 0,0,\"Unknown\"")
         log_debug "📱 CELLULAR MONITOR: Operator info raw: '$reg_info'"
-        operator=$(echo "$reg_info" | sed 's/.*"\([^"]*\)".*//' | tr -d '
-
-,' | head -c 20)
+        operator=$(echo "$reg_info" | sed 's/.*"\([^"]*\)".*//' | tr -d '\n\r,' | head -c 20)
         log_debug "📱 CELLULAR MONITOR: Parsed operator: '$operator'"
 
         # Network type
         log_debug "📱 CELLULAR MONITOR: Getting network type with AT+QNWINFO"
         network_info=$(gsmctl -A 'AT+QNWINFO' 2>/dev/null | grep "+QNWINFO:" | head -1 || echo "+QNWINFO: \"Unknown\"")
         log_debug "📱 CELLULAR MONITOR: Network info raw: '$network_info'"
-        network_type=$(echo "$network_info" | awk -F'"' '{print $2}' | tr -d '
-
-,' | head -c 15)
+        network_type=$(echo "$network_info" | awk -F'"' '{print $2}' | tr -d '\n\r,' | head -c 15)
         log_debug "📱 CELLULAR MONITOR: Parsed network type: '$network_type'"
 
         # Roaming status
@@ -669,12 +664,8 @@ collect_cellular_data() {
     
     # Clean and validate operator (remove any problematic characters)
     case "$operator" in
-        *[,
-
-]*|"") operator="Unknown" ;;
-        *) operator=$(echo "$operator" | tr -d ',
-
-' | head -c 20) ;;
+        *[,\n\r]*|"") operator="Unknown" ;;
+        *) operator=$(echo "$operator" | tr -d ',\n\r' | head -c 20) ;;
     esac
     
     # Validate roaming status
