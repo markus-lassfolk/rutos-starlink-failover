@@ -14,6 +14,7 @@ set -e
 SCRIPT_VERSION="1.0.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
+# shellcheck disable=SC1091 # Library path is dynamic based on deployment location
 . "$(dirname "$0")/scripts/lib/rutos-lib.sh"
 
 # CRITICAL: Initialize script with library features (REQUIRED)
@@ -21,25 +22,25 @@ rutos_init "github-auth-integration-rutos.sh" "$SCRIPT_VERSION"
 
 # Integration with PowerShell issue creation
 use_powershell_integration() {
-    local error_log="$1"
-    local issues_created="${2:-1}"
-    
+    error_log="$1"
+    issues_created="${2:-1}"
+
     log_step "Using PowerShell integration for GitHub issue creation"
-    
+
     # Check if PowerShell script exists
-    local ps_script="automation/create-copilot-issues-optimized.ps1"
+    ps_script="automation/create-copilot-issues-optimized.ps1"
     if [ ! -f "$ps_script" ]; then
         log_error "PowerShell script not found: $ps_script"
         return 1
     fi
-    
+
     # Create a temporary analysis file from error log
-    local temp_analysis="/tmp/autonomous-error-analysis.txt"
-    create_error_analysis_for_powershell "$error_log" > "$temp_analysis"
-    
+    temp_analysis="/tmp/autonomous-error-analysis.txt"
+    create_error_analysis_for_powershell "$error_log" >"$temp_analysis"
+
     log_info "Created error analysis for PowerShell: $temp_analysis"
     log_info "Running PowerShell issue creation..."
-    
+
     # Run PowerShell script with production mode
     if command -v pwsh >/dev/null 2>&1; then
         pwsh -File "$ps_script" -Production -MaxIssues "$issues_created" -PriorityFilter "Critical" -DebugMode
@@ -49,18 +50,18 @@ use_powershell_integration() {
         log_error "PowerShell not available for issue creation"
         return 1
     fi
-    
+
     # Clean up
     rm -f "$temp_analysis"
-    
+
     log_success "PowerShell integration completed"
 }
 
 # Create error analysis in format expected by PowerShell script
 create_error_analysis_for_powershell() {
-    local error_log="$1"
-    
-    cat << EOF
+    error_log="$1"
+
+    cat <<EOF
 # Autonomous Error Analysis
 # Generated: $(date)
 # Source: $error_log
@@ -70,13 +71,13 @@ create_error_analysis_for_powershell() {
 The autonomous monitoring system has detected critical errors that require immediate attention:
 
 EOF
-    
+
     # Extract recent critical errors
     if [ -f "$error_log" ]; then
         grep -A 20 "Category: CRITICAL" "$error_log" | head -50 || true
     fi
-    
-    cat << EOF
+
+    cat <<EOF
 
 ## Recommended Actions
 
@@ -97,35 +98,36 @@ EOF
 
 # Direct GitHub API integration (alternative to PowerShell)
 create_github_issue_direct() {
-    local title="$1"
-    local body="$2"
-    local labels="$3"
-    
+    title="$1"
+    body="$2"
+    labels="$3"
+
     log_step "Creating GitHub issue via API..."
-    
-    local api_url="https://api.github.com/repos/${REPO_OWNER:-markus-lassfolk}/${REPO_NAME:-rutos-starlink-failover}/issues"
-    
+
+    api_url="https://api.github.com/repos/${REPO_OWNER:-markus-lassfolk}/${REPO_NAME:-rutos-starlink-failover}/issues"
+
     # Create issue JSON
-    local issue_json=$(cat << EOF
+    issue_json=$(
+        cat <<EOF
 {
   "title": "$title",
   "body": $(echo "$body" | jq -R -s .),
   "labels": $(echo "$labels" | jq -R 'split(",") | map(select(length > 0))')
 }
 EOF
-)
-    
+    )
+
     # Create the issue
-    local response=$(curl -s -X POST \
+    response=$(curl -s -X POST \
         -H "Authorization: Bearer $GITHUB_TOKEN" \
         -H "Accept: application/vnd.github.v3+json" \
         -H "Content-Type: application/json" \
         -d "$issue_json" \
         "$api_url")
-    
+
     # Check for success
     if echo "$response" | jq -e '.html_url' >/dev/null 2>&1; then
-        local issue_url=$(echo "$response" | jq -r '.html_url')
+        issue_url=$(echo "$response" | jq -r '.html_url')
         log_success "Issue created: $issue_url"
         return 0
     else
@@ -136,23 +138,24 @@ EOF
 
 # Hybrid approach: Use both direct API and PowerShell
 create_github_issue_hybrid() {
-    local error_context="$1"
-    
+    error_context="$1"
+
     log_info "=== Hybrid GitHub Issue Creation ==="
-    
+
     # Extract error details
-    local timestamp=$(date)
-    local host=$(hostname 2>/dev/null || echo "unknown")
-    local error_msg="Autonomous system detected critical errors"
-    
+    timestamp=$(date)
+    host=$(hostname 2>/dev/null || echo "unknown")
+    error_msg="Autonomous system detected critical errors"
+
     # Try direct API first (faster)
     log_step "Attempting direct GitHub API creation..."
-    local title="🤖 Autonomous Error Alert: $host - $timestamp"
-    local body="## 🤖 Autonomous Error Report
+    title="🤖 Autonomous Error Alert: $host - $timestamp"
+    body="## 🤖 Autonomous Error Report
 
 **Detection Time:** $timestamp  
 **Host:** $host  
-**Error Context:** $error_context
+**Error Context:** $error_context  
+**Summary:** $error_msg
 
 ### 🚨 Critical Error Detected
 
@@ -174,9 +177,9 @@ The autonomous monitoring system has detected critical errors requiring immediat
 
 ---
 *This issue was created automatically by the autonomous monitoring system.*"
-    
-    local labels="autonomous,critical,error,rutos"
-    
+
+    labels="autonomous,critical,error,rutos"
+
     if create_github_issue_direct "$title" "$body" "$labels"; then
         log_success "Direct API issue creation successful"
         return 0
@@ -189,10 +192,10 @@ The autonomous monitoring system has detected critical errors requiring immediat
 # Test GitHub authentication methods
 test_all_auth_methods() {
     log_info "=== Testing All GitHub Authentication Methods ==="
-    
-    local success_count=0
-    local total_methods=4
-    
+
+    success_count=0
+    total_methods=4
+
     # Test 1: Environment variable
     log_step "Testing GITHUB_TOKEN environment variable..."
     if [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -205,14 +208,16 @@ test_all_auth_methods() {
     else
         log_warning "✗ GITHUB_TOKEN not set in environment"
     fi
-    
+
     # Test 2: Saved token file
     log_step "Testing saved token file..."
-    local saved_token="/etc/autonomous-system/github-token"
+    saved_token="/etc/autonomous-system/github-token"
     if [ -f "$saved_token" ]; then
         # Source the file and test token
-        ( . "$saved_token" && test_github_token_validity "$GITHUB_TOKEN" )
-        if [ $? -eq 0 ]; then
+        # shellcheck source=/dev/null
+        (. "$saved_token" && test_github_token_validity "$GITHUB_TOKEN")
+        token_test_result=$?
+        if [ $token_test_result -eq 0 ]; then
             log_success "✓ Saved token file is valid"
             success_count=$((success_count + 1))
         else
@@ -221,12 +226,12 @@ test_all_auth_methods() {
     else
         log_warning "✗ No saved token file found"
     fi
-    
+
     # Test 3: GitHub CLI
     log_step "Testing GitHub CLI authentication..."
     if command -v gh >/dev/null 2>&1; then
         if gh auth status >/dev/null 2>&1; then
-            local cli_token=$(gh auth token 2>/dev/null)
+            cli_token=$(gh auth token 2>/dev/null)
             if [ -n "$cli_token" ] && test_github_token_validity "$cli_token"; then
                 log_success "✓ GitHub CLI authentication is valid"
                 success_count=$((success_count + 1))
@@ -239,7 +244,7 @@ test_all_auth_methods() {
     else
         log_warning "✗ GitHub CLI not installed"
     fi
-    
+
     # Test 4: PowerShell integration
     log_step "Testing PowerShell integration..."
     if command -v pwsh >/dev/null 2>&1 || command -v powershell >/dev/null 2>&1; then
@@ -252,12 +257,12 @@ test_all_auth_methods() {
     else
         log_warning "✗ PowerShell not available"
     fi
-    
+
     # Summary
     log_info ""
     log_info "=== Authentication Test Summary ==="
     log_info "Methods available: $success_count/$total_methods"
-    
+
     if [ $success_count -eq 0 ]; then
         log_error "❌ No GitHub authentication methods available"
         log_info "Run: ./setup-github-token-rutos.sh to configure authentication"
@@ -273,16 +278,16 @@ test_all_auth_methods() {
 
 # Test token validity
 test_github_token_validity() {
-    local token="$1"
-    
+    token="$1"
+
     if [ -z "$token" ]; then
         return 1
     fi
-    
+
     # Test API access
-    local response=$(curl -s -H "Authorization: Bearer $token" \
+    response=$(curl -s -H "Authorization: Bearer $token" \
         "https://api.github.com/repos/${REPO_OWNER:-markus-lassfolk}/${REPO_NAME:-rutos-starlink-failover}")
-    
+
     echo "$response" | grep -q '"name"'
 }
 

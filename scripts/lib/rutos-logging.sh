@@ -1,36 +1,5 @@
 #!/bin/sh
 # ==============================================================================
-# RUTOS Logging Framework
-#
-# Provides 4-level standardized logging system for all RUTOS scripts:
-# # Error logging with enhanced context and autonomous system integration
-log_error_with_context() {
-    error_message="$1"
-    script_name="${2:-$(basename "$0")}"
-    line_number="${3:-unknown}"
-    function_name="${4:-main}"
-
-    # Always log the error message to stderr (basic error logging)
-    log_error "$error_message"
-
-    # Use centralized error logging if available (for autonomous monitoring)
-    if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
-        # Capture comprehensive error with centralized system
-        capture_error "ERROR" "$error_message" "$script_name" "$line_number" "$function_name"
-    fi
-
-    # Enhanced debug context (original functionality)
-    if [ "$DEBUG" = "1" ]; then
-        log_debug "ERROR CONTEXT:"
-        log_debug "  Script: $script_name"
-        log_debug "  Line: $line_number"
-        log_debug "  Function: $function_name"
-        log_debug "  Working Directory: $(pwd)"
-        log_debug "  Environment: DRY_RUN=$DRY_RUN DEBUG=$DEBUG RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
-    fi
-}
-
-# ==============================================================================
 # RUTOS Logging System
 #
 # Provides comprehensive logging capabilities for RUTOS shell scripts with:
@@ -274,12 +243,12 @@ capture_critical_error() {
     script_name="${2:-$(basename "$0")}"
     line_number="${3:-unknown}"
     function_name="${4:-main}"
-    
+
     # Always capture critical errors regardless of DEBUG mode
     if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
         capture_error "CRITICAL" "$error_message" "$script_name" "$line_number" "$function_name"
     fi
-    
+
     # Also use traditional error logging
     log_error_with_context "$error_message" "$script_name" "$line_number" "$function_name"
 }
@@ -290,11 +259,11 @@ capture_high_error() {
     script_name="${2:-$(basename "$0")}"
     line_number="${3:-unknown}"
     function_name="${4:-main}"
-    
+
     if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
         capture_error "HIGH" "$error_message" "$script_name" "$line_number" "$function_name"
     fi
-    
+
     log_error_with_context "$error_message" "$script_name" "$line_number" "$function_name"
 }
 
@@ -304,13 +273,13 @@ capture_warning() {
     script_name="${2:-$(basename "$0")}"
     line_number="${3:-unknown}"
     function_name="${4:-main}"
-    
+
     if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
         capture_error "MEDIUM" "$warning_message" "$script_name" "$line_number" "$function_name"
     fi
-    
+
     log_warning "$warning_message"
-    
+
     if [ "$DEBUG" = "1" ]; then
         log_debug "WARNING CONTEXT:"
         log_debug "  Script: $script_name"
@@ -374,7 +343,7 @@ safe_execute() {
         else
             exit_code=$?
             error_msg="Command failed: $description (exit code: $exit_code)"
-            
+
             # Use centralized error logging for autonomous monitoring
             if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
                 capture_error "HIGH" "$error_msg" "$(basename "$0")" "unknown" "safe_execute"
@@ -382,7 +351,7 @@ safe_execute() {
                 # Fallback to traditional error logging
                 log_error "$error_msg"
             fi
-            
+
             if [ "$RUTOS_TEST_MODE" = "1" ]; then
                 log_trace "EXECUTION RESULT: Failed (exit code: $exit_code)"
                 log_trace "Error context: Command '$command' failed"
@@ -419,14 +388,14 @@ autonomous_error() {
     script_name="${3:-$(basename "$0")}"
     line_number="${4:-unknown}"
     function_name="${5:-main}"
-    
+
     if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
         capture_error "$severity" "$error_message" "$script_name" "$line_number" "$function_name"
     fi
-    
+
     # Always log to stderr as well
     case "$severity" in
-        "CRITICAL"|"HIGH")
+        "CRITICAL" | "HIGH")
             log_error "$error_message"
             ;;
         "MEDIUM")

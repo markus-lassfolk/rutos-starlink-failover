@@ -1363,8 +1363,8 @@ validate_library_usage() {
         log_debug "Script uses RUTOS library: $file"
 
         # CRITICAL BLOCKING: Library scripts must load library properly (unless exempted)
-        if [ "$has_library_skip" = "0" ] && ! grep -q "\. \"\$(dirname \"\$0\")/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \$0)/lib/rutos-lib\.sh\"" "$file"; then
-            report_issue "CRITICAL" "$file" "1" "BLOCKING: RUTOS script must load library: . \"\$(dirname \"\$0\")/lib/rutos-lib.sh\""
+        if [ "$has_library_skip" = "0" ] && ! grep -q "\. \"\$(dirname \"\$0\")/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \$0)/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \"\$0\")/../scripts/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \$0)/../scripts/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \"\$0\")/scripts/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \$0)/scripts/lib/rutos-lib\.sh\"" "$file"; then
+            report_issue "CRITICAL" "$file" "1" "BLOCKING: RUTOS script must load library using one of the accepted patterns"
         fi
 
         # CRITICAL BLOCKING: Library scripts must call rutos_init (unless exempted)

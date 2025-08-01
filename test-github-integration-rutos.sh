@@ -7,7 +7,7 @@ set -e
 # Version information
 SCRIPT_VERSION="1.0.0"
 
-echo "=== GitHub Authentication Integration Test ==="
+echo "=== GitHub Authentication Integration Test v$SCRIPT_VERSION ==="
 echo "Testing autonomous system GitHub issue creation capabilities"
 echo ""
 
@@ -27,7 +27,8 @@ echo ""
 # Test 2: Check if we can create a test issue
 echo "TEST 2: Test Issue Creation"
 echo "=========================="
-read -p "Create a test GitHub issue? (y/N): " create_test
+printf "Create a test GitHub issue? (y/N): "
+read -r create_test
 if [ "$create_test" = "y" ] || [ "$create_test" = "Y" ]; then
     echo "Creating test issue..."
     if ./github-auth-integration-rutos.sh create-issue "Authentication integration test - $(date)"; then
@@ -49,7 +50,8 @@ echo "============================="
 if command -v pwsh >/dev/null 2>&1 || command -v powershell >/dev/null 2>&1; then
     if [ -f "automation/create-copilot-issues-optimized.ps1" ]; then
         echo "✅ PowerShell and issue creation script available"
-        read -p "Test PowerShell integration? (y/N): " test_ps
+        printf "Test PowerShell integration? (y/N): "
+        read -r test_ps
         if [ "$test_ps" = "y" ] || [ "$test_ps" = "Y" ]; then
             echo "Testing PowerShell integration..."
             ./github-auth-integration-rutos.sh powershell
@@ -70,10 +72,10 @@ echo "TEST 4: Autonomous Error Monitor"
 echo "==============================="
 if [ -f "autonomous-system/autonomous-error-monitor-rutos.sh" ]; then
     echo "✅ Autonomous error monitor script found"
-    
+
     # Create a test error for monitoring
     test_error_log="/tmp/test-rutos-autonomous-errors.log"
-    cat > "$test_error_log" << 'EOF'
+    cat >"$test_error_log" <<'EOF'
 ===== AUTONOMOUS ERROR ENTRY =====
 Error ID: ERR_TEST_12345
 Timestamp: 2025-08-01 12:34:56
@@ -93,25 +95,26 @@ Execution Mode: manual
 
 ===== END ERROR ENTRY =====
 EOF
-    
+
     echo "Created test error log: $test_error_log"
-    
-    read -p "Test autonomous error monitor? (y/N): " test_monitor
+
+    printf "Test autonomous error monitor? (y/N): "
+    read -r test_monitor
     if [ "$test_monitor" = "y" ] || [ "$test_monitor" = "Y" ]; then
         echo "Testing autonomous error monitor..."
         echo "Note: This may create a GitHub issue for the test error"
-        
+
         # Set environment for testing
         export ERROR_LOG="$test_error_log"
         export REPO_OWNER="markus-lassfolk"
         export REPO_NAME="rutos-starlink-failover"
-        
+
         if ./autonomous-system/autonomous-error-monitor-rutos.sh; then
             echo "✅ Autonomous error monitor test completed"
         else
             echo "❌ Autonomous error monitor test failed"
         fi
-        
+
         # Clean up
         rm -f "$test_error_log"
     else

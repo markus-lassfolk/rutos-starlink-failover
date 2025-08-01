@@ -1,113 +1,103 @@
-#!/bin/bash
+#!/bin/sh
 # ==============================================================================
-# Autonomous RUTOS System Setup Script
-# 
+# Autonomous System Setup Script for RUTOS Deployment
+# ==============================================================================
 # This script sets up the autonomous deployment and monitoring system for
-# RUTOS devices. It creates the necessary directory structure, configures
+# RUTOS devices. It creates the necessary directory structure, installs
+# scripts, configures SSH keys, generates configuration files, sets up
 # cron jobs, and prepares the system for autonomous operation.
 # ==============================================================================
 
-set -euo pipefail
+set -e
 
-SCRIPT_VERSION="1.0.0"
+# Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="1.0.0"
+
+# CRITICAL: Load RUTOS library system (REQUIRED)
+# shellcheck disable=SC1091 # Library path is dynamic based on deployment location
+. "$(dirname "$0")/../scripts/lib/rutos-lib.sh"
+
+# CRITICAL: Initialize script with library features (REQUIRED)
+rutos_init "setup-autonomous-system.sh" "$SCRIPT_VERSION"
+
 INSTALL_DIR="${INSTALL_DIR:-$HOME/autonomous-rutos}"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Logging functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $*"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $*"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $*"
-}
-
-log_debug() {
-    echo -e "${BLUE}[DEBUG]${NC} $*"
-}
 
 # Check prerequisites
 check_prerequisites() {
     log_info "🔍 Checking prerequisites..."
-    
-    local missing_deps=()
-    
+
+    missing_deps=""
+
     # Check for required commands
     for cmd in git curl ssh jq; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
-            missing_deps+=("$cmd")
+            if [ -z "$missing_deps" ]; then
+                missing_deps="$cmd"
+            else
+                missing_deps="$missing_deps $cmd"
+            fi
         fi
     done
-    
+
     # Check for GitHub CLI (recommended)
     if ! command -v gh >/dev/null 2>&1; then
         log_warn "GitHub CLI (gh) not found - will use PowerShell fallback if available"
     fi
-    
+
     # Check for PowerShell (fallback)
     if ! command -v pwsh >/dev/null 2>&1; then
         log_warn "PowerShell (pwsh) not found - GitHub CLI is required"
     fi
-    
-    if [[ ${#missing_deps[@]} -gt 0 ]]; then
-        log_error "Missing required dependencies: ${missing_deps[*]}"
+
+    if [ -n "$missing_deps" ]; then
+        log_error "Missing required dependencies: $missing_deps"
         log_info "Please install missing dependencies and run this script again."
         exit 1
     fi
-    
+
     log_info "✅ All prerequisites satisfied"
 }
 
 # Create directory structure
 create_directory_structure() {
     log_info "📁 Creating directory structure at $INSTALL_DIR..."
-    
+
     mkdir -p "$INSTALL_DIR"/{logs,config,scripts,keys,models}
-    
+
     # Set appropriate permissions
     chmod 700 "$INSTALL_DIR/keys"
     chmod 755 "$INSTALL_DIR"/{logs,config,scripts,models}
-    
+
     log_info "✅ Directory structure created"
 }
 
 # Copy autonomous system files
 copy_system_files() {
     log_info "📋 Copying autonomous system files..."
-    
+
     # Copy main scripts
     cp autonomous-system/autonomous-deployer-rutos.sh "$INSTALL_DIR/scripts/"
     cp autonomous-system/autonomous-error-monitor-rutos.sh "$INSTALL_DIR/scripts/"
-    
+
     # Copy configuration template
     cp autonomous-system/autonomous-config.template.conf "$INSTALL_DIR/config/"
-    
+
     # Make scripts executable
     chmod +x "$INSTALL_DIR/scripts"/*.sh
-    
+
     log_info "✅ System files copied"
 }
 
 # Configure SSH keys
 configure_ssh() {
     log_info "🔑 SSH key configuration..."
-    
-    local ssh_key_path="$INSTALL_DIR/keys/rutos_key"
-    
-    if [[ ! -f "$ssh_key_path" ]]; then
+
+    ssh_key_path="$INSTALL_DIR/keys/rutos_key"
+
+    if [ ! -f "$ssh_key_path" ]; then
         log_info "Generating SSH key pair for RUTOS access..."
         ssh-keygen -t rsa -b 4096 -f "$ssh_key_path" -N "" -C "autonomous-rutos-$(date +%Y%m%d)"
-        
+
         log_info "📋 SSH public key generated:"
         log_info "$(cat "$ssh_key_path.pub")"
         log_warn "⚠️  Please copy this public key to your RUTOS devices:"
@@ -120,23 +110,27 @@ configure_ssh() {
 # Create configuration file
 create_configuration() {
     log_info "⚙️ Creating configuration file..."
-    
-    local config_file="$INSTALL_DIR/config/autonomous-config.conf"
-    
-    if [[ ! -f "$config_file" ]]; then
+
+    config_file="$INSTALL_DIR/config/autonomous-config.conf"
+
+    if [ ! -f "$config_file" ]; then
         cp "$INSTALL_DIR/config/autonomous-config.template.conf" "$config_file"
-        
+
         # Interactive configuration
         log_info "📝 Please configure the following settings:"
-        
-        read -p "Enter RUTOS device IPs (space-separated): " rutos_hosts
-        read -p "Enter GitHub repository owner [$USER]: " repo_owner
+
+        printf "Enter RUTOS device IPs (space-separated): "
+        read -r rutos_hosts
+        printf "Enter GitHub repository owner [%s]: " "$USER"
+        read -r repo_owner
         repo_owner="${repo_owner:-$USER}"
-        read -p "Enter GitHub repository name [rutos-starlink-failover]: " repo_name
+        printf "Enter GitHub repository name [rutos-starlink-failover]: "
+        read -r repo_name
         repo_name="${repo_name:-rutos-starlink-failover}"
-        read -s -p "Enter GitHub token: " github_token
+        printf "Enter GitHub token: "
+        read -r github_token
         echo
-        
+
         # Update configuration file
         sed -i "s|^# RUTOS_HOSTS=.*|RUTOS_HOSTS=\"$rutos_hosts\"|" "$config_file"
         sed -i "s|^# SSH_KEY=.*|SSH_KEY=\"$INSTALL_DIR/keys/rutos_key\"|" "$config_file"
@@ -144,7 +138,7 @@ create_configuration() {
         sed -i "s|^# REPO_NAME=.*|REPO_NAME=\"$repo_name\"|" "$config_file"
         sed -i "s|^# GITHUB_TOKEN=.*|GITHUB_TOKEN=\"$github_token\"|" "$config_file"
         sed -i "s|^# DEBUG=.*|DEBUG=\"1\"|" "$config_file"
-        
+
         log_info "✅ Configuration file created: $config_file"
     else
         log_info "✅ Configuration file already exists"
@@ -154,13 +148,14 @@ create_configuration() {
 # Setup cron jobs
 setup_cron_jobs() {
     log_info "⏰ Setting up cron jobs..."
-    
-    local deployer_script="$INSTALL_DIR/scripts/autonomous-deployer-rutos.sh"
-    local monitor_script="$INSTALL_DIR/scripts/autonomous-error-monitor-rutos.sh"
-    local config_file="$INSTALL_DIR/config/autonomous-config.conf"
-    
+
+    deployer_script="$INSTALL_DIR/scripts/autonomous-deployer-rutos.sh"
+    monitor_script="$INSTALL_DIR/scripts/autonomous-error-monitor-rutos.sh"
+    config_file="$INSTALL_DIR/config/autonomous-config.conf"
+
     # Create cron entries
-    local cron_entries=$(cat << EOF
+    cron_entries=$(
+        cat <<EOF
 # Autonomous RUTOS System - Generated $(date)
 # Deployment every 6 hours
 0 */6 * * * cd "$INSTALL_DIR" && CONFIG_FILE="$config_file" "$deployer_script" >> "$INSTALL_DIR/logs/cron.log" 2>&1
@@ -171,14 +166,14 @@ setup_cron_jobs() {
 # Log cleanup daily at 2 AM
 0 2 * * * find "$INSTALL_DIR/logs" -name "*.log" -mtime +7 -delete
 EOF
-)
-    
+    )
+
     # Add to user's crontab
-    (crontab -l 2>/dev/null || echo "") | grep -v "Autonomous RUTOS System" > /tmp/current_cron
-    echo "$cron_entries" >> /tmp/current_cron
+    (crontab -l 2>/dev/null || echo "") | grep -v "Autonomous RUTOS System" >/tmp/current_cron
+    echo "$cron_entries" >>/tmp/current_cron
     crontab /tmp/current_cron
     rm /tmp/current_cron
-    
+
     log_info "✅ Cron jobs configured"
     log_info "📅 Deployment schedule: Every 6 hours"
     log_info "🔍 Error monitoring: Every 5 minutes"
@@ -187,17 +182,18 @@ EOF
 # Test system
 test_system() {
     log_info "🧪 Testing autonomous system..."
-    
-    local config_file="$INSTALL_DIR/config/autonomous-config.conf"
-    
+
+    config_file="$INSTALL_DIR/config/autonomous-config.conf"
+
     # Test configuration loading
-    if source "$config_file" 2>/dev/null; then
+    # shellcheck source=/dev/null
+    if . "$config_file" 2>/dev/null; then
         log_info "✅ Configuration loads successfully"
     else
         log_error "❌ Configuration file has errors"
         return 1
     fi
-    
+
     # Test deployer script
     cd "$INSTALL_DIR"
     if CONFIG_FILE="$config_file" TEST_MODE="true" "$INSTALL_DIR/scripts/autonomous-deployer-rutos.sh" >/dev/null 2>&1; then
@@ -205,14 +201,14 @@ test_system() {
     else
         log_warn "⚠️ Deployer script test failed (may need RUTOS host access)"
     fi
-    
+
     # Test error monitor
     if CONFIG_FILE="$config_file" "$INSTALL_DIR/scripts/autonomous-error-monitor-rutos.sh" >/dev/null 2>&1; then
         log_info "✅ Error monitor script test passed"
     else
         log_warn "⚠️ Error monitor script test failed (may need GitHub access)"
     fi
-    
+
     log_info "✅ System testing completed"
 }
 
@@ -248,7 +244,7 @@ display_summary() {
 main() {
     log_info "🚀 Starting Autonomous RUTOS System Setup v$SCRIPT_VERSION"
     echo
-    
+
     check_prerequisites
     create_directory_structure
     copy_system_files
@@ -257,11 +253,11 @@ main() {
     setup_cron_jobs
     test_system
     display_summary
-    
+
     log_info "✅ Setup completed successfully!"
 }
 
 # Execute main function
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
     main "$@"
 fi
