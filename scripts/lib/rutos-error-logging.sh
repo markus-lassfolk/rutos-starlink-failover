@@ -36,7 +36,7 @@ should_enable_centralized_logging() {
     fi
     
     # Check if we're in bootstrap/installation mode (no config exists)
-    local config_path="${CONFIG_DIR:-/etc/starlink-failover}/config.sh"
+    config_path="${CONFIG_DIR:-/etc/starlink-failover}/config.sh"
     if [ ! -f "$config_path" ]; then
         # Bootstrap mode - always enable centralized logging
         return 0
@@ -195,7 +195,7 @@ capture_call_stack() {
     # Try to get some stack information
     if [ -n "${BASH_SOURCE:-}" ]; then
         # Bash-specific stack trace
-        local i=0
+        i=0
         while [ $i -lt ${#BASH_SOURCE[@]} ]; do
             echo "  [$i] ${BASH_SOURCE[$i]:-unknown}:${BASH_LINENO[$i]:-?} in ${FUNCNAME[$i+1]:-main}()"
             i=$((i + 1))
@@ -215,11 +215,11 @@ capture_call_stack() {
 
 # Log error to centralized log with full context
 log_error_centralized() {
-    local error_message="$1"
-    local error_category="${2:-$ERROR_CATEGORY_MEDIUM}"
-    local script_context="${3:-}"
-    local line_number="${4:-unknown}"
-    local function_name="${5:-main}"
+    error_message="$1"
+    error_category="${2:-$ERROR_CATEGORY_MEDIUM}"
+    script_context="${3:-}"
+    line_number="${4:-unknown}"
+    function_name="${5:-main}"
     
     # Check if centralized logging should be enabled
     if ! should_enable_centralized_logging; then
@@ -236,7 +236,7 @@ log_error_centralized() {
     init_centralized_error_logging
     
     # Generate unique error ID
-    local error_id="ERR_$(date +%s)_$$_$(head -c 8 /dev/urandom 2>/dev/null | base64 | tr -d '+/=' | head -c 8 2>/dev/null || echo "$(date +%N)")"
+    error_id="ERR_$(date +%s)_$$_$(head -c 8 /dev/urandom 2>/dev/null | base64 | tr -d '+/=' | head -c 8 2>/dev/null || echo "$(date +%N)")"
     
     # Create comprehensive error entry
     {
@@ -297,9 +297,9 @@ log_low_error() {
 
 # Enhanced safe_execute with comprehensive error logging
 safe_execute_with_error_capture() {
-    local command="$1"
-    local description="$2"
-    local error_category="${3:-$ERROR_CATEGORY_MEDIUM}"
+    command="$1"
+    description="$2"
+    error_category="${3:-$ERROR_CATEGORY_MEDIUM}"
     
     # Log command execution in trace mode
     if [ "$RUTOS_TEST_MODE" = "1" ]; then
@@ -307,8 +307,8 @@ safe_execute_with_error_capture() {
     fi
     
     # Execute command and capture output and exit code
-    local output
-    local exit_code
+    output=""
+    exit_code=0
     
     if [ "$DRY_RUN" = "1" ]; then
         log_info "DRY-RUN: $description"
@@ -328,7 +328,7 @@ safe_execute_with_error_capture() {
             exit_code=$?
             
             # Log detailed error information to centralized log
-            local error_context="Command: $command | Description: $description | Exit Code: $exit_code"
+            error_context="Command: $command | Description: $description | Exit Code: $exit_code"
             if [ -n "$output" ]; then
                 error_context="$error_context | Output: $output"
             fi
@@ -368,9 +368,9 @@ setup_error_trap() {
 
 # Handle trapped errors
 handle_trapped_error() {
-    local exit_code="$1"
-    local line_number="${2:-unknown}"
-    local command="${3:-unknown}"
+    exit_code="$1"
+    line_number="${2:-unknown}"
+    command="${3:-unknown}"
     
     # Don't handle successful exits
     if [ "$exit_code" -eq 0 ]; then
@@ -378,7 +378,7 @@ handle_trapped_error() {
     fi
     
     # Log the trapped error
-    local error_context="Exit Code: $exit_code | Line: $line_number"
+    error_context="Exit Code: $exit_code | Line: $line_number"
     if [ "$command" != "unknown" ]; then
         error_context="$error_context | Command: $command"
     fi
@@ -392,8 +392,8 @@ handle_trapped_error() {
 
 # Enhanced version of log_error that always logs to centralized system
 log_error_enhanced() {
-    local error_message="$1"
-    local error_category="${2:-$ERROR_CATEGORY_MEDIUM}"
+    error_message="$1"
+    error_category="${2:-$ERROR_CATEGORY_MEDIUM}"
     
     # Always log to centralized system
     log_error_centralized "$error_message" "$error_category" "" "$(caller 2>/dev/null | cut -d' ' -f1 || echo 'unknown')" "$(caller 2>/dev/null | cut -d' ' -f2 || echo 'unknown')"
@@ -404,21 +404,15 @@ log_error_enhanced() {
     fi
 }
 
-# Override the original log_error function to include centralized logging
+# Enable centralized logging integration (POSIX sh compatible)
 if should_enable_centralized_logging; then
-    # Save original log_error if it exists
-    if command -v log_error >/dev/null 2>&1; then
-        eval "log_error_original() { $(declare -f log_error | sed '1d'); }"
-    fi
-    
-    # Replace log_error with enhanced version
-    log_error() {
-        log_error_enhanced "$@"
-    }
-    
+    # Note: Enhanced logging is already integrated into rutos-logging.sh functions
+    # This system works through the capture_error function calls in the main logging module
     _CENTRALIZED_LOGGING_ACTIVE=1
+    log_debug "Centralized error logging: ENABLED"
 else
     _CENTRALIZED_LOGGING_ACTIVE=0
+    log_debug "Centralized error logging: DISABLED"
 fi
 
 # ============================================================================
