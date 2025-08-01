@@ -954,9 +954,15 @@ intelligent_config_merge() {
         # Extract variable name from template line
         var_name=""
         if echo "$template_line" | grep -q "^export "; then
-            var_name=$(echo "$template_line" | sed 's/^export \([^=]*\)=.*//')
+            var_name=$(echo "$template_line" | sed 's/^export \([^=]*\)=.*/\1/')
         else
-            var_name=$(echo "$template_line" | sed 's/^\([^=]*\)=.*//')
+            var_name=$(echo "$template_line" | sed 's/^\([^=]*\)=.*/\1/')
+        fi
+
+        # Critical fix: Validate variable name to prevent infinite loop
+        if [ -z "$var_name" ] || ! echo "$var_name" | grep -q "^[A-Za-z_][A-Za-z0-9_]*$"; then
+            config_debug "Skipping invalid/empty variable name in line: $template_line"
+            continue
         fi
 
         if [ -n "$var_name" ]; then
@@ -1045,9 +1051,9 @@ intelligent_config_merge() {
             # Extract variable name from current config line
             var_name=""
             if echo "$current_line" | grep -q "^export "; then
-                var_name=$(echo "$current_line" | sed 's/^export \([^=]*\)=.*//')
+                var_name=$(echo "$current_line" | sed 's/^export \([^=]*\)=.*/\1/')
             else
-                var_name=$(echo "$current_line" | sed 's/^\([^=]*\)=.*//')
+                var_name=$(echo "$current_line" | sed 's/^\([^=]*\)=.*/\1/')
             fi
 
             if [ -n "$var_name" ]; then
@@ -1098,9 +1104,9 @@ EOF
                 # Extract variable name for comment
                 var_name=""
                 if echo "$extra_line" | grep -q "^export "; then
-                    var_name=$(echo "$extra_line" | sed 's/^export \([^=]*\)=.*//')
+                    var_name=$(echo "$extra_line" | sed 's/^export \([^=]*\)=.*/\1/')
                 else
-                    var_name=$(echo "$extra_line" | sed 's/^\([^=]*\)=.*//')
+                    var_name=$(echo "$extra_line" | sed 's/^\([^=]*\)=.*/\1/')
                 fi
 
                 {
@@ -2242,13 +2248,17 @@ configure_cron() {
 
     # Clean any whitespace/newlines from the counts (fix for RUTOS busybox grep -c behavior)
     existing_monitor=$(echo "$existing_monitor" | tr -d '
-' | sed 's/[^0-9]//g')
+
+' | sed 's/[^0-9]//g')
     existing_logger=$(echo "$existing_logger" | tr -d '
-' | sed 's/[^0-9]//g')
+
+' | sed 's/[^0-9]//g')
     existing_api_check=$(echo "$existing_api_check" | tr -d '
-' | sed 's/[^0-9]//g')
+
+' | sed 's/[^0-9]//g')
     existing_maintenance=$(echo "$existing_maintenance" | tr -d '
-' | sed 's/[^0-9]//g')
+
+' | sed 's/[^0-9]//g')
 
     # Ensure we have valid numbers (default to 0 if empty)
     existing_monitor=${existing_monitor:-0}
@@ -2327,7 +2337,8 @@ EOF
     # Check for existing ACTIVE (non-commented) auto-update entries
     existing_autoupdate=$(grep -c "^[^#]*self-update-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
     existing_autoupdate=$(echo "$existing_autoupdate" | tr -d '
-' | sed 's/[^0-9]//g')
+
+' | sed 's/[^0-9]//g')
     existing_autoupdate=${existing_autoupdate:-0}
 
     # Add auto-update script if not present (enabled by default with "Never" policy = notifications only)
@@ -2414,7 +2425,8 @@ install_gps_integration() {
     # Install each GPS component
     for component in $gps_components; do
         component=$(echo "$component" | tr -d ' 	
-') # Clean whitespace
+
+') # Clean whitespace
         if [ -n "$component" ]; then
             debug_msg "Installing GPS component: $component"
             local_path="$(dirname "$0")/../gps-integration/$component"
@@ -2472,7 +2484,8 @@ install_cellular_integration() {
     # Install each cellular component
     for component in $cellular_components; do
         component=$(echo "$component" | tr -d ' 	
-') # Clean whitespace
+
+') # Clean whitespace
         if [ -n "$component" ]; then
             debug_msg "Installing cellular component: $component"
             local_path="$(dirname "$0")/../cellular-integration/$component"
@@ -2797,7 +2810,8 @@ install_enhanced_monitoring() {
     processed_count=0
     for script in $enhanced_scripts; do
         script=$(echo "$script" | tr -d ' 	
-') # Clean whitespace
+
+') # Clean whitespace
         log_debug "DEBUG: Raw script value: '$script'"
         log_debug "DEBUG: Script length: ${#script}"
 
@@ -2927,7 +2941,8 @@ setup_recovery_information() {
     current_version=""
     if [ -f "$VERSION_FILE" ]; then
         current_version=$(tr -d '
- ' <"$VERSION_FILE" 2>/dev/null || echo "")
+
+ ' <"$VERSION_FILE" 2>/dev/null || echo "")
     fi
 
     # Fallback to script version if VERSION file not available
@@ -3709,3 +3724,4 @@ trap handle_error INT TERM
 debug_log "==================== INSTALL SCRIPT EXECUTION START ===================="
 main "$@"
 debug_log "==================== INSTALL SCRIPT EXECUTION END ===================="
+
