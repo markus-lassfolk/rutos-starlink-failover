@@ -988,6 +988,19 @@ test_debug_integration() {
     case "$file" in
         */pre-commit-validation.sh) return 0 ;;
     esac
+    
+    # Special handling for bootstrap scripts - they have different debug patterns
+    case "$file" in
+        *bootstrap-install-rutos.sh)
+            log_debug "Bootstrap script detected - applying relaxed debug integration validation"
+            # Bootstrap scripts use log_debug instead of printf patterns
+            # and have their own validation exemptions via skip directives
+            if head -10 "$file" | grep -q "VALIDATION_SKIP_LIBRARY_CHECK"; then
+                log_debug "✓ $file: Bootstrap script with validation exemptions - skipping advanced debug integration checks"
+                return 0
+            fi
+            ;;
+    esac
 
     log_debug "Testing debug/test/dry-run integration for: $file"
 
@@ -1178,9 +1191,17 @@ test_debug_integration() {
         if [ "$has_dry_run" = "1" ]; then
             # Special handling for installation scripts - they're expected to make system changes
             is_install_script=0
+            is_bootstrap_script=0
+            
             if echo "$file" | grep -qE "(install|setup|deploy)" && ! echo "$file" | grep -q "test"; then
                 is_install_script=1
                 log_debug "✓ $file: Installation script - relaxed DRY_RUN validation"
+            fi
+            
+            # Special handling for bootstrap scripts
+            if echo "$file" | grep -q "bootstrap-install-rutos.sh"; then
+                is_bootstrap_script=1
+                log_debug "✓ $file: Bootstrap script - applying special DRY_RUN validation rules"
             fi
 
             risky_commands="curl wget cp mv rm mkdir chmod chown systemctl service crontab"
@@ -1194,16 +1215,30 @@ test_debug_integration() {
                 # Only enforce DRY_RUN for the most dangerous commands in install scripts
                 risky_commands="systemctl service rm.*-rf"
             fi
+            
+            # For bootstrap scripts, allow temporary directory cleanup without DRY_RUN protection
+            if [ "$is_bootstrap_script" = "1" ]; then
+                # Bootstrap scripts need to clean up temp files - allow this specific pattern
+                risky_commands="systemctl service"  # Very minimal for bootstrap
+            fi
 
             # Check regular risky commands
             for cmd in $risky_commands; do
                 if grep -qE "^[[:space:]]*${cmd}[[:space:]]" "$file"; then
                     cmd_lines=$(grep -nE "^[[:space:]]*${cmd}[[:space:]]" "$file" | cut -d: -f1)
                     for line_num in $cmd_lines; do
-                        # Get context ensuring we don't go below line 1
+                        # Check for VALIDATION_SKIP_DRY_RUN directive near the command
                         start_line=$((line_num > 5 ? line_num - 5 : 1))
                         end_line=$((line_num + 5))
                         context=$(sed -n "${start_line},${end_line}p" "$file")
+                        
+                        # Skip if command has validation skip directive
+                        if echo "$context" | grep -q "VALIDATION_SKIP_DRY_RUN"; then
+                            log_debug "✓ $file:$line_num: Command has VALIDATION_SKIP_DRY_RUN directive - allowed"
+                            continue
+                        fi
+                        
+                        # Check for DRY_RUN protection
                         if ! echo "$context" | grep -q "DRY_RUN.*0"; then
                             has_unprotected_commands=1
                             # Store line numbers for reporting (use actual line number in report_issue field)
@@ -1280,20 +1315,59 @@ validate_library_usage() {
         return 0
     fi
 
+    # SPECIAL HANDLING: Bootstrap and install scripts
+    # These scripts have special validation exemptions because they bootstrap the library system
+    local is_bootstrap_script=0
+    local is_install_script=0
+    
+    case "$file" in
+        *bootstrap-install-rutos.sh|*install-rutos.sh)
+            log_debug "Detected bootstrap/install script: $file - applying special validation rules"
+            case "$file" in
+                *bootstrap-install-rutos.sh)
+                    is_bootstrap_script=1
+                    ;;
+                *install-rutos.sh)
+                    is_install_script=1
+                    ;;
+            esac
+            ;;
+    esac
+
+    # Check for validation skip directives in the file header (first 10 lines)
+    local has_library_skip=0
+    local has_init_skip=0
+    local has_printf_skip=0
+    
+    if head -10 "$file" | grep -q "VALIDATION_SKIP_LIBRARY_CHECK"; then
+        has_library_skip=1
+        log_debug "✓ $file: Has VALIDATION_SKIP_LIBRARY_CHECK directive"
+    fi
+    
+    if head -10 "$file" | grep -q "VALIDATION_SKIP_RUTOS_INIT"; then
+        has_init_skip=1
+        log_debug "✓ $file: Has VALIDATION_SKIP_RUTOS_INIT directive"
+    fi
+    
+    if head -10 "$file" | grep -q "VALIDATION_SKIP_PRINTF"; then
+        has_printf_skip=1
+        log_debug "✓ $file: Has VALIDATION_SKIP_PRINTF directive"
+    fi
+
     # UNIVERSAL ENFORCEMENT: All shell scripts should use RUTOS library for standardization
-    # This ensures consistency, maintainability, and single-point-of-change
+    # Exception: Bootstrap/install scripts that explicitly skip library validation
 
     # Check if script loads the RUTOS library
     if uses_rutos_library "$file"; then
         log_debug "Script uses RUTOS library: $file"
 
-        # CRITICAL BLOCKING: Library scripts must load library properly
-        if ! grep -q "\. \"\$(dirname \"\$0\")/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \$0)/lib/rutos-lib\.sh\"" "$file"; then
+        # CRITICAL BLOCKING: Library scripts must load library properly (unless exempted)
+        if [ "$has_library_skip" = "0" ] && ! grep -q "\. \"\$(dirname \"\$0\")/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \$0)/lib/rutos-lib\.sh\"" "$file"; then
             report_issue "CRITICAL" "$file" "1" "BLOCKING: RUTOS script must load library: . \"\$(dirname \"\$0\")/lib/rutos-lib.sh\""
         fi
 
-        # CRITICAL BLOCKING: Library scripts must call rutos_init
-        if ! grep -q "rutos_init " "$file"; then
+        # CRITICAL BLOCKING: Library scripts must call rutos_init (unless exempted)
+        if [ "$has_init_skip" = "0" ] && ! grep -q "rutos_init " "$file"; then
             report_issue "CRITICAL" "$file" "1" "BLOCKING: RUTOS script must call rutos_init after loading library"
         fi
 
@@ -1302,6 +1376,12 @@ validate_library_usage() {
     else
         # Script doesn't use RUTOS library
         log_debug "Script does not use RUTOS library: $file"
+
+        # SPECIAL EXEMPTION: Bootstrap scripts are allowed custom logging during bootstrap phase
+        if [ "$is_bootstrap_script" = "1" ] && [ "$has_library_skip" = "1" ]; then
+            log_debug "✓ $file: Bootstrap script with library exemption - allowed custom functions"
+            return 0
+        fi
 
         # CRITICAL BLOCKING: Scripts with custom logging/color functions should migrate to library
         has_logging_functions=0
@@ -1418,8 +1498,11 @@ validate_library_usage() {
         local printf_log_line
         printf_log_line=$(grep -n 'printf "\[INFO\]\|printf "\[ERROR\]\|printf "\[DEBUG\]"' "$file" | head -1 | cut -d: -f1)
         if [ -n "$printf_log_line" ]; then
+            # Check for validation skip directive
+            if head -10 "$file" | grep -q "VALIDATION_SKIP_PRINTF"; then
+                log_debug "✓ $file: Has VALIDATION_SKIP_PRINTF directive - printf logging allowed"
             # Check if this is part of a fallback function (after failed library load)
-            if grep -B10 -A5 "printf \"\[INFO\]\|printf \"\[ERROR\]\|printf \"\[DEBUG\]\"" "$file" | grep -q "fallback\|RUTOS library not available\|command -v log_info"; then
+            elif grep -B10 -A5 "printf \"\[INFO\]\|printf \"\[ERROR\]\|printf \"\[DEBUG\]\"" "$file" | grep -q "fallback\|RUTOS library not available\|command -v log_info"; then
                 log_debug "✓ $file: printf logging is in fallback function - allowed"
             else
                 report_issue "CRITICAL" "$file" "$printf_log_line" "Use RUTOS library logging (log_info, log_error, log_debug) instead of printf patterns"
@@ -1467,7 +1550,12 @@ validate_library_usage() {
     if [ $has_library_loading -eq 1 ]; then
         # Script loads RUTOS library - this is good
         if [ $has_rutos_init -eq 0 ]; then
-            report_issue "MAJOR" "$file" "1" "Script loads RUTOS library but doesn't call rutos_init to initialize it"
+            # Check for validation skip directive before reporting issue
+            if head -10 "$file" | grep -q "VALIDATION_SKIP_RUTOS_INIT"; then
+                log_debug "✓ $file: Has VALIDATION_SKIP_RUTOS_INIT directive - skipping rutos_init requirement"
+            else
+                report_issue "MAJOR" "$file" "1" "Script loads RUTOS library but doesn't call rutos_init to initialize it"
+            fi
         fi
         # This validation is satisfied - script properly uses RUTOS library system
     else

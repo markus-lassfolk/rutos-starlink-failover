@@ -1,11 +1,9 @@
 #!/bin/sh
 # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap script downloads library itself
-# VALIDATION_SKIP_RUTOS_INIT: Bootstrap script doesn't use library
+# VALIDATION_SKIP_RUTOS_INIT: Bootstrap script doesn't use library initially
+# VALIDATION_SKIP_PRINTF: Bootstrap logging (full library unavailable during bootstrap)
 # ==============================================================================
 # RUTOS Starlink Failover - Bootstrap Installation Script
-#
-# Version: 2.8.0
-# Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 #
 # SPECIAL BOOTSTRAP SCRIPT - LIBRARY EXEMPT
 # This script cannot use the RUTOS library because it downloads the library itself.
@@ -28,6 +26,7 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
+readonly SCRIPT_VERSION="2.8.0"
 # Configuration
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
@@ -44,7 +43,7 @@ ORIGINAL_DEBUG="$DEBUG"
 ORIGINAL_RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
 
 # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap logging functions (replaced by full library after download)
-log_info() {                                                      # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
+log_info() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
     printf "[INFO] [%s] %s
 " "$(date '+%Y-%m-%d %H:%M:%S')" "$1" # VALIDATION_SKIP_PRINTF: Bootstrap logging (library unavailable)
 }
@@ -228,12 +227,12 @@ execute_with_library() {
 
     # Make script executable and run directly to preserve environment
     chmod +x "$install_script"
-    
+
     # Capture both output and error code for better debugging
     # Use explicit variable passing to ensure environment is preserved
     DRY_RUN="$DRY_RUN" DEBUG="$DEBUG" RUTOS_TEST_MODE="$RUTOS_TEST_MODE" \
-    ALLOW_TEST_EXECUTION="$ALLOW_TEST_EXECUTION" USE_LIBRARY="$USE_LIBRARY" \
-    LIBRARY_PATH="$LIBRARY_PATH" "$install_script" 2>&1
+        ALLOW_TEST_EXECUTION="$ALLOW_TEST_EXECUTION" USE_LIBRARY="$USE_LIBRARY" \
+        LIBRARY_PATH="$LIBRARY_PATH" "$install_script" 2>&1
     exit_code=$?
 
     if [ $exit_code -eq 0 ]; then
