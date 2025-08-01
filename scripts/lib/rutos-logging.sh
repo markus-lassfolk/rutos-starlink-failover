@@ -28,9 +28,21 @@ log_error_with_context() {
         log_debug "  Working Directory: $(pwd)"
         log_debug "  Environment: DRY_RUN=$DRY_RUN DEBUG=$DEBUG RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
     fi
-} operation info
-# - DRY_RUN: Shows what would be done without executing
-# - DEBUG: Detailed debugging information with context
+}
+
+# ==============================================================================
+# RUTOS Logging System
+#
+# Provides comprehensive logging capabilities for RUTOS shell scripts with:
+# - Multi-level logging (INFO, SUCCESS, WARNING, ERROR, DEBUG, TRACE)
+# - Color-coded output for better readability
+# - Safe command execution with error handling
+# - Test mode support for script validation
+# - Context-aware error logging for troubleshooting
+#
+# Logging Modes:
+# - NORMAL: Standard info, success, warning, error messages
+# - DEBUG: Adds detailed debugging information with context
 # - RUTOS_TEST_MODE: Full execution trace with command tracking
 # ==============================================================================
 
