@@ -18,8 +18,8 @@ rutos_init "analyze-decision-log-rutos.sh" "$SCRIPT_VERSION"
 
 # Default configuration
 DECISION_LOG_FILE="${1:-/etc/starlink-logs/failover_decisions.csv}"
-HOURS_TO_ANALYZE="${2:-24}"  # Default to last 24 hours
-SHOW_ALL="${3:-false}"       # Show all decisions or just summary
+HOURS_TO_ANALYZE="${2:-24}" # Default to last 24 hours
+SHOW_ALL="${3:-false}"      # Show all decisions or just summary
 
 # Color formatting for better readability
 show_usage() {
@@ -51,7 +51,7 @@ cutoff_time=$(date -d "$HOURS_TO_ANALYZE hours ago" '+%Y-%m-%d %H:%M:%S' 2>/dev/
 
 if [ -z "$cutoff_time" ]; then
     log_warning "Unable to calculate cutoff time, analyzing entire log"
-    analysis_data=$(tail -n +2 "$DECISION_LOG_FILE")  # Skip header
+    analysis_data=$(tail -n +2 "$DECISION_LOG_FILE") # Skip header
 else
     log_debug "Cutoff time: $cutoff_time"
     # Filter records newer than cutoff time
@@ -166,7 +166,7 @@ echo "$analysis_data" | awk -F',' '
     $2 ~ /failover/ && $12 == "failed" { 
         printf "FAILED:    %s | Metric: %s → %s | Reason: %s\n", $1, $9, $10, $3 
     }
-' | tail -10  # Show last 10 metric changes
+' | tail -10 # Show last 10 metric changes
 
 printf "\n"
 
@@ -178,7 +178,7 @@ if [ "$SHOW_ALL" = "true" ]; then
     printf "${YELLOW}📋 RECENT DECISIONS (Last 20)${NC}\n"
     printf "%-19s %-15s %-25s %-10s %-30s\n" "Timestamp" "Type" "Reason" "Result" "Notes"
     printf "%-19s %-15s %-25s %-10s %-30s\n" "---------" "----" "------" "------" "-----"
-    
+
     echo "$analysis_data" | tail -20 | while IFS=',' read timestamp decision_type trigger_reason quality_factors latency packet_loss obstruction snr current_metric new_metric action_taken action_result gps_context cellular_context additional_notes; do
         # Truncate long fields for display
         short_timestamp=$(echo "$timestamp" | cut -c1-19)
@@ -186,14 +186,14 @@ if [ "$SHOW_ALL" = "true" ]; then
         short_reason=$(echo "$trigger_reason" | cut -c1-25)
         short_result=$(echo "$action_result" | cut -c1-10)
         short_notes=$(echo "$additional_notes" | cut -c1-30)
-        
+
         # Color code based on result
         case "$action_result" in
             "success") color="$GREEN" ;;
             "failed") color="$RED" ;;
             *) color="$NC" ;;
         esac
-        
+
         printf "${color}%-19s %-15s %-25s %-10s %-30s${NC}\n" "$short_timestamp" "$short_type" "$short_reason" "$short_result" "$short_notes"
     done
     printf "\n"

@@ -290,8 +290,7 @@ perform_statistical_aggregation() {
         location_changes = 0; cellular_handoffs = 0; state_changes = 0
         prev_lat = ""; prev_lon = ""; prev_operator = ""; prev_network = ""
     }
-    # Define abs function (POSIX-compatible)
-    abs() { return (x < 0 ? -x : x) }
+    # No custom function needed - use conditional expression inline
     {
         count++
         if (count == 1) first_timestamp = $1
@@ -300,7 +299,7 @@ perform_statistical_aggregation() {
         # GPS processing (if enabled)
         if ($2 != "" && $2 != "0") {
             total_lat += $2; total_lon += $3; total_alt += $4
-            if (prev_lat != "" && (abs($2 - prev_lat) > 0.001 || abs($3 - prev_lon) > 0.001)) {
+            if (prev_lat != "" && (($2 - prev_lat > 0 ? $2 - prev_lat : prev_lat - $2) > 0.001 || ($3 - prev_lon > 0 ? $3 - prev_lon : prev_lon - $3) > 0.001)) {
                 location_changes++
             }
             prev_lat = $2; prev_lon = $3

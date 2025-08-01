@@ -64,25 +64,25 @@ log_debug "📍 GPS CONFIG: PRIMARY=$GPS_PRIMARY_SOURCE, SECONDARY=$GPS_SECONDAR
 if gps_data=$(collect_gps_data); then
     log_success "GPS data collection completed"
     log_info "📍 GPS RESULT: $gps_data"
-    
+
     # Parse GPS data components
     gps_lat=$(echo "$gps_data" | cut -d',' -f1)
     gps_lon=$(echo "$gps_data" | cut -d',' -f2)
     gps_alt=$(echo "$gps_data" | cut -d',' -f3)
     gps_accuracy=$(echo "$gps_data" | cut -d',' -f4)
     gps_source=$(echo "$gps_data" | cut -d',' -f5)
-    
+
     log_info "📊 GPS ANALYSIS:"
     log_info "  Latitude: $gps_lat"
     log_info "  Longitude: $gps_lon"
     log_info "  Altitude: $gps_alt"
     log_info "  Accuracy: $gps_accuracy"
     log_info "  Source: $gps_source"
-    
+
     # Check for high-precision coordinates (more than 6 decimal places)
     lat_decimals=$(echo "$gps_lat" | grep -o '\.[0-9]*' | tr -d '.' | wc -c)
     lon_decimals=$(echo "$gps_lon" | grep -o '\.[0-9]*' | tr -d '.' | wc -c)
-    
+
     if [ "$lat_decimals" -gt 8 ] || [ "$lon_decimals" -gt 8 ]; then
         log_success "✅ High-precision GPS coordinates detected (>8 decimal places)"
     elif [ "$lat_decimals" -gt 6 ] || [ "$lon_decimals" -gt 6 ]; then
@@ -105,15 +105,15 @@ log_info "📊 STARLINK: Testing drop rate calculation from history data"
 # Test enhanced status retrieval
 if status_data=$(get_starlink_status_enhanced 2>/dev/null); then
     log_success "Enhanced Starlink status retrieved"
-    
+
     # Extract drop rate
     if [ -n "$JQ_CMD" ] && [ -f "$JQ_CMD" ]; then
         drop_rate=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingDropRate // "N/A"' 2>/dev/null)
         log_info "📊 DROP RATE: $drop_rate"
-        
+
         if [ "$drop_rate" != "N/A" ] && [ "$drop_rate" != "null" ]; then
             log_success "✅ Drop rate successfully obtained/calculated"
-            
+
             # Convert to percentage for readability
             if [ -n "$drop_rate" ] && [ "$drop_rate" != "0" ]; then
                 drop_percent=$(echo "$drop_rate" | awk '{printf "%.2f%%", $1 * 100}')
@@ -127,7 +127,7 @@ if status_data=$(get_starlink_status_enhanced 2>/dev/null); then
     fi
 else
     log_warning "Starlink API not accessible (expected in non-production environment)"
-    
+
     # Test standalone drop rate calculation
     log_info "Testing standalone drop rate calculation function"
     if drop_rate=$(calculate_starlink_drop_rate 2>/dev/null); then
@@ -152,7 +152,7 @@ log_info "📱 CELLULAR: Testing cellular data collection with library functions
 if cellular_data=$(collect_cellular_data); then
     log_success "Cellular data collection completed"
     log_info "📱 CELLULAR RESULT: $cellular_data"
-    
+
     # Parse cellular data components
     cell_timestamp=$(echo "$cellular_data" | cut -d',' -f1)
     cell_modem=$(echo "$cellular_data" | cut -d',' -f2)
@@ -160,7 +160,7 @@ if cellular_data=$(collect_cellular_data); then
     cell_quality=$(echo "$cellular_data" | cut -d',' -f4)
     cell_network=$(echo "$cellular_data" | cut -d',' -f5)
     cell_operator=$(echo "$cellular_data" | cut -d',' -f6)
-    
+
     log_info "📊 CELLULAR ANALYSIS:"
     log_info "  Signal Strength: $cell_signal dBm"
     log_info "  Signal Quality: $cell_quality"
