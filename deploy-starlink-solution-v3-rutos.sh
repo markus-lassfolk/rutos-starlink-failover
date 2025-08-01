@@ -26,7 +26,14 @@ set -eu
 SCRIPT_VERSION="3.0.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
-. "$(dirname "$0")/lib/rutos-lib.sh"
+# Check if running from bootstrap (library in different location)
+if [ "${USE_LIBRARY:-0}" = "1" ] && [ -n "${LIBRARY_PATH:-}" ]; then
+    # Bootstrap mode - library is in LIBRARY_PATH
+    . "$LIBRARY_PATH/rutos-lib.sh"
+else
+    # Normal mode - library is relative to script
+    . "$(dirname "$0")/lib/rutos-lib.sh"
+fi
 
 # CRITICAL: Initialize script with library features (REQUIRED)
 rutos_init "deploy-starlink-solution-v3-rutos.sh" "$SCRIPT_VERSION"
