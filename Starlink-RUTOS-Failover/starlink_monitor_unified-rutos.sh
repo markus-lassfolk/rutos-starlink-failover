@@ -36,18 +36,12 @@ if ! . "$(dirname "$0")/../scripts/lib/rutos-lib.sh" 2>/dev/null &&
     ! . "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh" 2>/dev/null &&
     ! . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
     # CRITICAL ERROR: RUTOS library not found - this script requires the library system
-    printf "CRITICAL ERROR: RUTOS library system not found!
-" >&2
-    printf "Expected locations:
-" >&2
-    printf "  - $(dirname "$0")/../scripts/lib/rutos-lib.sh
-" >&2
-    printf "  - /usr/local/starlink-monitor/scripts/lib/rutos-lib.sh
-" >&2
-    printf "  - $(dirname "$0")/lib/rutos-lib.sh
-" >&2
-    printf "
-This script requires the RUTOS library for proper operation.
+    printf "CRITICAL ERROR: RUTOS library system not found!\n" >&2
+    printf "Expected locations:\n" >&2
+    printf "  - $(dirname "$0")/../scripts/lib/rutos-lib.sh\n" >&2
+    printf "  - /usr/local/starlink-monitor/scripts/lib/rutos-lib.sh\n" >&2
+    printf "  - $(dirname "$0")/lib/rutos-lib.sh\n" >&2
+    printf "\nThis script requires the RUTOS library for proper operation.\n"
 " >&2
     exit 1
 fi
@@ -74,8 +68,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "DEBUG: ${DEBUG:-0}"
     log_debug "Script supports: DRY_RUN=1, TEST_MODE=1, RUTOS_TEST_MODE=1, DEBUG=1"
     # Additional printf statement to satisfy validation pattern
-    printf "[DEBUG] Variable States: DRY_RUN=%s TEST_MODE=%s RUTOS_TEST_MODE=%s
-" "$DRY_RUN" "$TEST_MODE" "$RUTOS_TEST_MODE" >&2
+    printf "[DEBUG] Variable States: DRY_RUN=%s TEST_MODE=%s RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$TEST_MODE" "$RUTOS_TEST_MODE" >&2
     log_debug "==================================================================="
 fi
 
@@ -347,9 +340,11 @@ log_decision() {
         # Get basic GPS status without full collection
         if command -v gpsctl >/dev/null 2>&1; then
             local lat=$(gpsctl -i 2>/dev/null | tr -d '
-' || echo "")
+
+' || echo "")
             local lon=$(gpsctl -x 2>/dev/null | tr -d '
-' || echo "")
+
+' || echo "")
             if [ -n "$lat" ] && [ -n "$lon" ] && [ "$lat" != "0" ]; then
                 gps_context="active:${lat},${lon}"
             else
@@ -366,7 +361,8 @@ log_decision() {
             # Use proper AT+CSQ command like the library does
             local signal_info=$(gsmctl -A 'AT+CSQ' 2>/dev/null | grep "+CSQ:" | head -1 || echo "+CSQ: 99,99")
             local signal_strength=$(echo "$signal_info" | awk -F'[: ,]' '{print $3}' | tr -d '
-' | head -1)
+
+' | head -1)
             if [ -n "$signal_strength" ] && [ "$signal_strength" != "99" ] && [ "$signal_strength" -ge 0 ] 2>/dev/null; then
                 cellular_context="signal:${signal_strength}dbm"
             else
@@ -531,11 +527,14 @@ collect_gps_data() {
         else
             # Use individual gpsctl flags for GPS collection
             rutos_lat=$(gpsctl -i 2>/dev/null | tr -d '
-' || echo "")
+
+' || echo "")
             rutos_lon=$(gpsctl -x 2>/dev/null | tr -d '
-' || echo "")
+
+' || echo "")
             rutos_alt=$(gpsctl -a 2>/dev/null | tr -d '
-' || echo "")
+
+' || echo "")
             
             # Validate GPS coordinates
             if validate_gps_coordinates "$rutos_lat" "$rutos_lon"; then
@@ -623,9 +622,11 @@ collect_cellular_data() {
         signal_info=$(gsmctl -A 'AT+CSQ' 2>/dev/null | grep "+CSQ:" | head -1 || echo "+CSQ: 99,99")
         log_debug "📱 CELLULAR MONITOR: Signal info raw: '$signal_info'"
         signal_strength=$(echo "$signal_info" | awk -F'[: ,]' '{print $3}' | tr -d '
-' | head -1)
+
+' | head -1)
         signal_quality=$(echo "$signal_info" | awk -F'[: ,]' '{print $4}' | tr -d '
-' | head -1)
+
+' | head -1)
         log_debug "📱 CELLULAR MONITOR: Parsed signal - strength='$signal_strength', quality='$signal_quality'"
 
         # Network registration and operator
@@ -633,7 +634,8 @@ collect_cellular_data() {
         reg_info=$(gsmctl -A 'AT+COPS?' 2>/dev/null | grep "+COPS:" | head -1 || echo "+COPS: 0,0,\"Unknown\"")
         log_debug "📱 CELLULAR MONITOR: Operator info raw: '$reg_info'"
         operator=$(echo "$reg_info" | sed 's/.*"\([^"]*\)".*//' | tr -d '
-,' | head -c 20)
+
+,' | head -c 20)
         log_debug "📱 CELLULAR MONITOR: Parsed operator: '$operator'"
 
         # Network type
@@ -641,7 +643,8 @@ collect_cellular_data() {
         network_info=$(gsmctl -A 'AT+QNWINFO' 2>/dev/null | grep "+QNWINFO:" | head -1 || echo "+QNWINFO: \"Unknown\"")
         log_debug "📱 CELLULAR MONITOR: Network info raw: '$network_info'"
         network_type=$(echo "$network_info" | awk -F'"' '{print $2}' | tr -d '
-,' | head -c 15)
+
+,' | head -c 15)
         log_debug "📱 CELLULAR MONITOR: Parsed network type: '$network_type'"
 
         # Roaming status
@@ -649,7 +652,8 @@ collect_cellular_data() {
         roaming_info=$(gsmctl -A 'AT+CREG?' 2>/dev/null | grep "+CREG:" | head -1 || echo "+CREG: 0,1")
         log_debug "📱 CELLULAR MONITOR: Roaming info raw: '$roaming_info'"
         roaming_status=$(echo "$roaming_info" | awk -F'[: ,]' '{print $4}' | tr -d '
-' | head -1)
+
+' | head -1)
         [ "$roaming_status" = "5" ] && roaming_status="roaming" || roaming_status="home"
         log_debug "📱 CELLULAR MONITOR: Parsed roaming status: '$roaming_status'"
 
@@ -665,18 +669,18 @@ collect_cellular_data() {
     
     # Clean and validate network type (remove any problematic characters)
     case "$network_type" in
-        *[,
-]*|"") network_type="Unknown" ;;
-        *) network_type=$(echo "$network_type" | tr -d ',
-' | head -c 15) ;;
+        *[,\n\r]*|"") network_type="Unknown" ;;
+        *) network_type=$(echo "$network_type" | tr -d ',\n\r' | head -c 15) ;;
     esac
     
     # Clean and validate operator (remove any problematic characters)
     case "$operator" in
         *[,
-]*|"") operator="Unknown" ;;
+
+]*|"") operator="Unknown" ;;
         *) operator=$(echo "$operator" | tr -d ',
-' | head -c 20) ;;
+
+' | head -c 20) ;;
     esac
     
     # Validate roaming status

@@ -38,12 +38,16 @@ if ! . "$(dirname "$0")/../scripts/lib/rutos-lib.sh" 2>/dev/null &&
     # CRITICAL ERROR: RUTOS library not found - this script requires the library system
     printf "CRITICAL ERROR: RUTOS library system not found!
 " >&2
+    # Print error details and suggestions
     printf "Expected locations:
 " >&2
+    # Standard installation locations
     printf "  - $(dirname "$0")/../scripts/lib/rutos-lib.sh
 " >&2
+    # Production installation location
     printf "  - /usr/local/starlink-monitor/scripts/lib/rutos-lib.sh
 " >&2
+    # Development location
     printf "  - $(dirname "$0")/lib/rutos-lib.sh
 " >&2
     printf "
@@ -74,8 +78,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "DEBUG: ${DEBUG:-0}"
     log_debug "Script supports: DRY_RUN=1, TEST_MODE=1, RUTOS_TEST_MODE=1, DEBUG=1"
     # Additional printf statement to satisfy validation pattern
-    printf "[DEBUG] Variable States: DRY_RUN=%s TEST_MODE=%s RUTOS_TEST_MODE=%s
-" "$DRY_RUN" "$TEST_MODE" "$RUTOS_TEST_MODE" >&2
+    printf "[DEBUG] Variable States: DRY_RUN=%s TEST_MODE=%s RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$TEST_MODE" "$RUTOS_TEST_MODE" >&2
     log_debug "==================================================================="
 fi
 
@@ -247,7 +250,8 @@ perform_statistical_aggregation() {
 
     # Count lines (excluding header)
     line_count=$(tail -n +2 "$source_file" | wc -l | tr -d ' 
-')
+
+')
 
     if [ "$line_count" -lt "$batch_size" ]; then
         log_debug "Insufficient data for aggregation ($line_count lines, need $batch_size)"
@@ -365,8 +369,7 @@ perform_statistical_aggregation() {
         else quality_score += 10
         
         # Output aggregated record
-        printf "%s,%s,%d,%.6f,%.6f,%.1f,%.3f,%s,%.1f,%.1f,%.1f,%s,%s,%.1f,%.1f,%.3f,%.1f,%.1f,%.1f,%.1f,%.2f,%.1f,%s,%d,%d,%d,%.1f
-",
+        printf "%s,%s,%d,%.6f,%.6f,%.1f,%.3f,%s,%.1f,%.1f,%.1f,%s,%s,%.1f,%.1f,%.3f,%.1f,%.1f,%.1f,%.1f,%.2f,%.1f,%s,%d,%d,%d,%.1f\n",
             first_timestamp, last_timestamp, count,
             avg_lat, avg_lon, avg_alt, 0.0, primary_gps, location_stability,
             avg_signal, avg_quality, primary_network, primary_operator, roaming_pct, cellular_stability,
