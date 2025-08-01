@@ -26,12 +26,6 @@ set -eu
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="3.0.0"
 
-# RUTOS test mode support (for testing framework)
-if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
-    exit 0
-fi
-
 # CRITICAL: Load RUTOS library system (REQUIRED)
 . "$(dirname "$0")/lib/rutos-lib.sh"
 
@@ -53,7 +47,6 @@ ARCHIVE_LOG_DIR="$LOG_BASE_DIR/archive"
 # State files for daemon operation
 LOGGER_PID_FILE="$STATE_DIR/intelligent_logger.pid"
 LOGGER_STATE_FILE="$STATE_DIR/logger_state.json"
-COLLECTION_STATE_FILE="$STATE_DIR/collection_state.json"
 
 # === CONFIGURATION LOADING ===
 CONFIG_FILE="${CONFIG_FILE:-$CONFIG_DIR/config.sh}"

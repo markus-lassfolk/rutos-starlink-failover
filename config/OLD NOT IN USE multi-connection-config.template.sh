@@ -4,6 +4,9 @@
 # Configuration for monitoring multiple cellular modems, WiFi, and Ethernet connections
 # =============================================================================
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="3.0.0"
+
 # =============================================================================
 # MULTI-CONNECTION MONITORING SETTINGS
 # =============================================================================

@@ -34,6 +34,6 @@ awk '
     next
 }
 { print }
-' scripts/install-rutos.sh > scripts/install-rutos.sh.tmp && mv scripts/install-rutos.sh.tmp scripts/install-rutos.sh
+' scripts/install-rutos.sh >scripts/install-rutos.sh.tmp && mv scripts/install-rutos.sh.tmp scripts/install-rutos.sh
 
 echo "Infinite loop fix complete!"

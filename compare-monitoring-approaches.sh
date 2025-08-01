@@ -1,64 +1,73 @@
 #!/bin/sh
 set -e
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="3.0.0"
+
+# CRITICAL: Load RUTOS library system (REQUIRED)
+. "$(dirname "$0")/scripts/lib/rutos-lib.sh"
+
+# CRITICAL: Initialize script with library features (REQUIRED)
+rutos_init "compare-monitoring-approaches.sh" "$SCRIPT_VERSION"
+
 # Comparison tool for monitoring approaches
-echo "🔄 RUTOS Starlink Monitoring: Cron vs Daemon Comparison"
-echo "======================================================="
+log_info "🔄 RUTOS Starlink Monitoring: Cron vs Daemon Comparison"
+log_step "======================================================="
 
 # Function to check current setup
 check_current_setup() {
     echo ""
-    echo "📊 Current System Analysis:"
+    log_info " Current System Analysis:"
     echo "----------------------------"
 
     # Check for cron-based monitoring
     if crontab -l 2>/dev/null | grep -q starlink; then
-        echo "✓ Found cron-based monitoring:"
+        log_success " Found cron-based monitoring:"
         crontab -l 2>/dev/null | grep starlink | sed 's/^/  /'
         CURRENT_MODE="cron"
     else
-        echo "ℹ️ No cron-based monitoring found"
+        log_info " No cron-based monitoring found"
         CURRENT_MODE="none"
     fi
 
     # Check for daemon-based monitoring
     if [ -f "/etc/init.d/starlink-monitor" ]; then
-        echo "✓ Found daemon service setup"
+        log_success " Found daemon service setup"
         if /etc/init.d/starlink-monitor status >/dev/null 2>&1; then
-            echo "✓ Daemon is currently running"
+            log_success " Daemon is currently running"
             CURRENT_MODE="daemon"
         else
-            echo "⚠️ Daemon service exists but not running"
+            log_warning " Daemon service exists but not running"
         fi
     else
-        echo "ℹ️ No daemon service found"
+        log_info " No daemon service found"
     fi
 
     # Check for intelligent monitoring script
     if [ -f "/root/starlink_monitor_unified-rutos.sh" ]; then
-        echo "✓ Intelligent monitoring script found"
+        log_success " Intelligent monitoring script found"
 
         # Test if it has new v3.0 features
         if grep -q "run_intelligent_monitoring" /root/starlink_monitor_unified-rutos.sh 2>/dev/null; then
-            echo "✓ Script has v3.0 intelligent features"
+            log_success " Script has v3.0 intelligent features"
             SCRIPT_VERSION="v3.0"
         else
-            echo "ℹ️ Script is legacy version"
+            log_info " Script is legacy version"
             SCRIPT_VERSION="legacy"
         fi
     else
-        echo "❌ No monitoring script found"
+        log_error " No monitoring script found"
         SCRIPT_VERSION="none"
     fi
 
     # Check MWAN3 availability
     if command -v mwan3 >/dev/null 2>&1; then
-        echo "✓ MWAN3 available"
+        log_success " MWAN3 available"
         interface_count=$(uci show mwan3 2>/dev/null | grep "interface=" | wc -l)
-        echo "ℹ️ MWAN3 interfaces configured: $interface_count"
+        log_info " MWAN3 interfaces configured: $interface_count"
         MWAN3_AVAILABLE="yes"
     else
-        echo "❌ MWAN3 not available"
+        log_error " MWAN3 not available"
         MWAN3_AVAILABLE="no"
     fi
 }
@@ -90,7 +99,7 @@ show_recommendations() {
     echo "========================================"
 
     if [ "$MWAN3_AVAILABLE" = "no" ]; then
-        echo "❌ MWAN3 Required: Install MWAN3 first for intelligent monitoring"
+        log_error " MWAN3 Required: Install MWAN3 first for intelligent monitoring"
         echo "   Command: opkg update && opkg install mwan3"
         echo ""
         return

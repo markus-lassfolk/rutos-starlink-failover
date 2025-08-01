@@ -1,9 +1,18 @@
 #!/bin/sh
 set -e
 
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="3.0.0"
+
+# CRITICAL: Load RUTOS library system (REQUIRED)
+. "$(dirname "$0")/scripts/lib/rutos-lib.sh"
+
+# CRITICAL: Initialize script with library features (REQUIRED)
+rutos_init "test-intelligent-system.sh" "$SCRIPT_VERSION"
+
 # Test script for the new intelligent monitoring system
-echo "🧪 Testing Intelligent Starlink Monitoring System"
-echo "=================================================="
+log_info "🧪 Testing Intelligent Starlink Monitoring System"
+log_step "=================================================="
 
 # Move to the correct directory
 cd "$(dirname "$0")/Starlink-RUTOS-Failover"
@@ -12,15 +21,15 @@ cd "$(dirname "$0")/Starlink-RUTOS-Failover"
 chmod +x starlink_monitor_unified-rutos.sh
 
 echo ""
-echo "📋 Testing help system..."
+log_info " Testing help system..."
 ./starlink_monitor_unified-rutos.sh help
 
 echo ""
-echo "🔍 Testing system validation..."
+log_info " Testing system validation..."
 ./starlink_monitor_unified-rutos.sh validate
 
 echo ""
-echo "🔍 Testing MWAN3 discovery..."
+log_info " Testing MWAN3 discovery..."
 ./starlink_monitor_unified-rutos.sh discover
 
 echo ""
@@ -32,7 +41,7 @@ echo "📊 Testing status check..."
 ./starlink_monitor_unified-rutos.sh status
 
 echo ""
-echo "✅ All tests completed!"
+log_success " All tests completed!"
 echo ""
 echo "Next steps:"
 echo "  1. Review the test output above"
