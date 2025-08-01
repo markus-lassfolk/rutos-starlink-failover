@@ -3,7 +3,7 @@ set -e
 
 # =============================================================================
 # Fix SCRIPT_VERSION readonly conflicts in RUTOS scripts
-# This script systematically fixes the "readonly: SCRIPT_VERSION: is read only" 
+# This script systematically fixes the "readonly: SCRIPT_VERSION: is read only"
 # error across all RUTOS scripts by ensuring proper version handling.
 # =============================================================================
 
@@ -38,47 +38,47 @@ log_info "======================================================================
 # Function to fix a single script file
 fix_script_version_conflicts() {
     script_file="$1"
-    
+
     if [ ! -f "$script_file" ]; then
         log_error "Script not found: $script_file"
         return 1
     fi
-    
+
     log_info "Processing: $script_file"
-    
+
     # Create temporary file for processing
     temp_file="/tmp/fix_script_$$.tmp"
-    
+
     # Extract current version from the script (first occurrence)
     current_version=$(grep '^SCRIPT_VERSION=' "$script_file" | head -1 | sed 's/SCRIPT_VERSION=//; s/"//g; s/'\''//g' 2>/dev/null || echo "2.8.0")
     log_debug "Detected current version: $current_version"
-    
+
     # Create the fixed version by processing line by line
     {
         found_lib_section=0
         version_added=0
         skip_next_blank=0
-        
+
         while IFS= read -r line; do
             # Skip any existing SCRIPT_VERSION or readonly SCRIPT_VERSION lines
             case "$line" in
-                SCRIPT_VERSION=*|readonly\ SCRIPT_VERSION*|"readonly SCRIPT_VERSION"*)
+                SCRIPT_VERSION=* | readonly\ SCRIPT_VERSION* | "readonly SCRIPT_VERSION"*)
                     log_debug "Removing line: $line"
                     skip_next_blank=1
                     continue
                     ;;
             esac
-            
+
             # Skip blank lines immediately after removed version lines
             if [ "$skip_next_blank" = "1" ] && [ -z "$line" ]; then
                 skip_next_blank=0
                 continue
             fi
             skip_next_blank=0
-            
+
             # Check for library loading section
             case "$line" in
-                *"# CRITICAL: Load RUTOS library system"*|*". \"*rutos-lib.sh"*|*"rutos_init"*)
+                *"# CRITICAL: Load RUTOS library system"* | *". \"*rutos-lib.sh"* | *"rutos_init"*)
                     if [ "$found_lib_section" = "0" ] && [ "$version_added" = "0" ]; then
                         # Add version information before the library section
                         echo ""
@@ -90,25 +90,25 @@ fix_script_version_conflicts() {
                     fi
                     ;;
             esac
-            
+
             # Output the current line
             echo "$line"
-            
-        done < "$script_file"
-        
+
+        done <"$script_file"
+
         # If we never found a library section, add version at the end of header comments
         if [ "$version_added" = "0" ]; then
             echo ""
             echo "# Version information (auto-updated by update-version.sh)"
             echo "SCRIPT_VERSION=\"$current_version\""
         fi
-        
-    } > "$temp_file"
-    
+
+    } >"$temp_file"
+
     # Count changes
     original_version_lines=$(grep -c '^SCRIPT_VERSION=\|^readonly SCRIPT_VERSION' "$script_file" 2>/dev/null || echo 0)
     new_version_lines=$(grep -c '^SCRIPT_VERSION=' "$temp_file" 2>/dev/null || echo 0)
-    
+
     if [ "$original_version_lines" -gt 1 ] || [ "$new_version_lines" -ne 1 ]; then
         if [ "$DRY_RUN" = "1" ]; then
             log_warning "[DRY-RUN] Would fix: $script_file"
@@ -131,7 +131,7 @@ fix_script_version_conflicts() {
     else
         log_debug "Skipped: $script_file (already correct)"
     fi
-    
+
     # Cleanup
     rm -f "$temp_file" 2>/dev/null || true
     return 0
@@ -163,7 +163,7 @@ if [ -d "scripts" ]; then
     done
 fi
 
-# Process scripts in Starlink-RUTOS-Failover directory  
+# Process scripts in Starlink-RUTOS-Failover directory
 if [ -d "Starlink-RUTOS-Failover" ]; then
     log_info "Processing Starlink-RUTOS-Failover/ directory..."
     find Starlink-RUTOS-Failover -name "*-rutos.sh" -type f | while IFS= read -r script_file; do

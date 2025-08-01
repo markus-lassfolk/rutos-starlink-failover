@@ -274,16 +274,16 @@ readonly SCRIPT_VERSION" "$file"
                     echo ""
                     echo "# Version information (auto-updated by update-version.sh)"
                     echo "SCRIPT_VERSION=\"$version\""
-                    
+
                     # Only add readonly for standalone scripts, NOT for RUTOS scripts
                     if [ "$is_rutos_script" = false ]; then
                         echo "readonly SCRIPT_VERSION"
                     fi
-                    
+
                     tail -n "+$insert_line" "$file"
                 } >"$temp_version_content"
                 mv "$temp_version_content" "$file"
-                
+
                 if [ "$is_rutos_script" = true ]; then
                     echo "    ✓ Added RUTOS script version (no readonly - library manages this)"
                 else
