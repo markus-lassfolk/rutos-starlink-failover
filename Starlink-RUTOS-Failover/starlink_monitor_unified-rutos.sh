@@ -231,13 +231,13 @@ send_pushover_notification() {
     if [ -n "${PUSHOVER_TOKEN:-}" ] && [ -n "${PUSHOVER_USER:-}" ]; then
         # Skip if values are placeholders
         case "$PUSHOVER_TOKEN" in
-            "YOUR_"*|"CHANGE_ME"|"REPLACE_ME"|"TODO"|"FIXME"|"EXAMPLE"|"PLACEHOLDER") 
+            YOUR_*|"CHANGE_ME"|"REPLACE_ME"|"TODO"|"FIXME"|"EXAMPLE"|"PLACEHOLDER") 
                 log_debug "Pushover token is placeholder, skipping notification"
                 return 1 
                 ;;
         esac
         case "$PUSHOVER_USER" in
-            "YOUR_"*|"CHANGE_ME"|"REPLACE_ME"|"TODO"|"FIXME"|"EXAMPLE"|"PLACEHOLDER") 
+            YOUR_*|"CHANGE_ME"|"REPLACE_ME"|"TODO"|"FIXME"|"EXAMPLE"|"PLACEHOLDER") 
                 log_debug "Pushover user is placeholder, skipping notification"
                 return 1 
                 ;;
@@ -1164,16 +1164,16 @@ trigger_failover() {
                 for i in 1 2 3 4 5; do
                     if [ -f "/var/run/mwan3.pid" ] || [ -d "/var/run/mwan3" ] || [ -f "/tmp/run/mwan3.pid" ]; then
                         mwan3_ready=1
-                        log_debug "MWAN3 service appears ready (attempt $i/5)"
+                        log_debug "MWAN3 service appears ready - attempt $i/5"
                         break
                     else
-                        log_debug "MWAN3 service not ready yet (attempt $i/5), waiting..."
+                        log_debug "MWAN3 service not ready yet - attempt $i/5, waiting..."
                         sleep 1
                     fi
                 done
                 
                 if [ "$mwan3_ready" = "0" ]; then
-                    log_warning "MWAN3 service may not be fully initialized (status files not found)"
+                    log_warning "MWAN3 service may not be fully initialized - status files not found"
                 fi
                 
                 # Log the successful failover decision
@@ -1182,7 +1182,7 @@ trigger_failover() {
 
                 # Send notification if enabled
                 if [ "${ENABLE_PUSHOVER:-false}" = "true" ]; then
-                    send_pushover_notification "Starlink Failover" "Quality degraded. Metric increased to $new_metric. Latency: ${CURRENT_LATENCY}ms, Loss: ${CURRENT_PACKET_LOSS}%, Obstruction: ${CURRENT_OBSTRUCTION}%"
+                    send_pushover_notification "Starlink Failover" "Quality degraded - metric increased to $new_metric"
                 fi
 
                 return 0
@@ -1212,7 +1212,7 @@ restore_primary() {
         additional_notes="Latency: ${CURRENT_LATENCY}ms, Loss: ${CURRENT_PACKET_LOSS}%, Obstruction: ${CURRENT_OBSTRUCTION}%"
     else
         restore_reason="metric_elevated"
-        additional_notes="Metric was elevated ($current_metric), restoring to normal"
+        additional_notes="Metric was elevated - $current_metric, restoring to normal"
     fi
     
     if safe_execute "uci set mwan3.${MWAN_MEMBER}.metric=$good_metric" "Reset mwan3 metric to $good_metric"; then
@@ -1229,16 +1229,16 @@ restore_primary() {
                 for i in 1 2 3 4 5; do
                     if [ -f "/var/run/mwan3.pid" ] || [ -d "/var/run/mwan3" ] || [ -f "/tmp/run/mwan3.pid" ]; then
                         mwan3_ready=1
-                        log_debug "MWAN3 service appears ready after restore (attempt $i/5)"
+                        log_debug "MWAN3 service appears ready after restore - attempt $i/5"
                         break
                     else
-                        log_debug "MWAN3 service not ready yet after restore (attempt $i/5), waiting..."
+                        log_debug "MWAN3 service not ready yet after restore - attempt $i/5, waiting..."
                         sleep 1
                     fi
                 done
                 
                 if [ "$mwan3_ready" = "0" ]; then
-                    log_warning "MWAN3 service may not be fully initialized after restore (status files not found)"
+                    log_warning "MWAN3 service may not be fully initialized after restore - status files not found"
                 fi
                 
                 # Log the successful restore decision
@@ -1314,14 +1314,14 @@ main() {
                 current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "10")
                 good_metric="${METRIC_GOOD:-1}"
                 if [ "$current_metric" -gt "$good_metric" ]; then
-                    log_info "Quality restored and metric is elevated ($current_metric), restoring interface"
+                    log_info "Quality restored and metric is elevated - $current_metric, restoring interface"
                     if restore_primary; then
                         log_maintenance_action "interface_restore" "restore_primary" "success" "Interface restored successfully"
                     else
                         log_maintenance_action "interface_restore" "restore_primary" "failed" "Restore attempt failed"
                     fi
                 else
-                    log_maintenance_action "status_check" "no_action_needed" "completed" "Connection stable, metric normal ($current_metric)"
+                    log_maintenance_action "status_check" "no_action_needed" "completed" "Connection stable, metric normal - $current_metric"
                 fi
             fi
         else
