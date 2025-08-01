@@ -386,7 +386,7 @@ export STATISTICAL_PERCENTILES="50,90,95"
 # What it does: Sends notifications when maintenance script finds/fixes issues
 # Why important: Know when your system is automatically healing itself
 # Uses main PUSHOVER_TOKEN/PUSHOVER_USER unless overridden below
-export MAINTENANCE_PUSHOVER_ENABLED="true"
+export MAINTENANCE_PUSHOVER_ENABLED="1" # 1=enabled, 0=disabled
 
 # Optional: Override Pushover credentials specifically for maintenance
 # Purpose: Separate maintenance alerts from monitoring alerts if desired

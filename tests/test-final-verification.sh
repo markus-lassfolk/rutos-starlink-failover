@@ -266,7 +266,7 @@ LATENCY_THRESHOLD_MS="150"
 PACKET_LOSS_THRESHOLD="0.05"
 AZURE_ENABLED="true"
 AZURE_ENDPOINT="https://test.azurewebsites.net/api/func"
-PUSHOVER_ENABLED="false"
+PUSHOVER_ENABLED="0"
 EOF
 
 # shellcheck source=/dev/null

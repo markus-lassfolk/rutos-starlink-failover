@@ -94,7 +94,7 @@ ISSUES_FOUND_COUNT=0
 CRITICAL_ISSUES_COUNT=0
 RUN_MODE="${1:-auto}" # auto, check, fix, report
 # Maintenance-specific configuration with defaults
-MAINTENANCE_PUSHOVER_ENABLED="${MAINTENANCE_PUSHOVER_ENABLED:-${ENABLE_PUSHOVER_NOTIFICATIONS:-false}}"
+MAINTENANCE_PUSHOVER_ENABLED="${MAINTENANCE_PUSHOVER_ENABLED:-${ENABLE_PUSHOVER_NOTIFICATIONS:-0}}"
 MAINTENANCE_PUSHOVER_TOKEN="${MAINTENANCE_PUSHOVER_TOKEN:-${PUSHOVER_TOKEN:-}}"
 MAINTENANCE_PUSHOVER_USER="${MAINTENANCE_PUSHOVER_USER:-${PUSHOVER_USER:-}}"
 MAINTENANCE_CRITICAL_THRESHOLD="${MAINTENANCE_CRITICAL_THRESHOLD:-3}"          # Send notification if 3+ critical issues
@@ -263,7 +263,7 @@ send_critical_notification() {
     priority="${3:-1}" # 1 = high priority
 
     # Check if Pushover is configured and enabled
-    if [ "$MAINTENANCE_PUSHOVER_ENABLED" != "true" ] || [ -z "$MAINTENANCE_PUSHOVER_TOKEN" ] || [ -z "$MAINTENANCE_PUSHOVER_USER" ]; then
+    if [ "$MAINTENANCE_PUSHOVER_ENABLED" != "1" ] || [ -z "$MAINTENANCE_PUSHOVER_TOKEN" ] || [ -z "$MAINTENANCE_PUSHOVER_USER" ]; then
         log_debug "Pushover not configured or disabled - skipping notification"
         return 0
     fi
@@ -331,7 +331,7 @@ send_maintenance_notification() {
     fi
 
     # Check if Pushover is configured and enabled
-    if [ "$MAINTENANCE_PUSHOVER_ENABLED" != "true" ] || [ -z "$MAINTENANCE_PUSHOVER_TOKEN" ] || [ -z "$MAINTENANCE_PUSHOVER_USER" ]; then
+    if [ "$MAINTENANCE_PUSHOVER_ENABLED" != "1" ] || [ -z "$MAINTENANCE_PUSHOVER_TOKEN" ] || [ -z "$MAINTENANCE_PUSHOVER_USER" ]; then
         log_debug "Pushover not configured or disabled - skipping notification"
         return 0
     fi
