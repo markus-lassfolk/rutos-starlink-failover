@@ -31,19 +31,25 @@ fi
 # Ensure basic logging functions exist (compatibility for remote installation)
 if ! command -v log_trace >/dev/null 2>&1; then
     log_trace() {
-        [ "${RUTOS_TEST_MODE:-0}" = "1" ] && printf "[TRACE] %s\n" "$1" >&2 || true
+        if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+            printf "[TRACE] %s\n" "$1" >&2
+        fi
     }
 fi
 
 if ! command -v log_function_entry >/dev/null 2>&1; then
     log_function_entry() {
-        [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] Entering: %s(%s)\n" "$1" "$2" >&2 || true
+        if [ "${DEBUG:-0}" = "1" ]; then
+            printf "[DEBUG] Entering: %s(%s)\n" "$1" "$2" >&2
+        fi
     }
 fi
 
 if ! command -v log_function_exit >/dev/null 2>&1; then
     log_function_exit() {
-        [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] Exiting: %s -> %s\n" "$1" "$2" >&2 || true
+        if [ "${DEBUG:-0}" = "1" ]; then
+            printf "[DEBUG] Exiting: %s -> %s\n" "$1" "$2" >&2
+        fi
     }
 fi
 
@@ -67,7 +73,9 @@ fi
 
 if ! command -v log_debug >/dev/null 2>&1; then
     log_debug() {
-        [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] %s\n" "$1" >&2 || true
+        if [ "${DEBUG:-0}" = "1" ]; then
+            printf "[DEBUG] %s\n" "$1" >&2
+        fi
     }
 fi
 

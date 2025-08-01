@@ -548,6 +548,7 @@ get_starlink_status_enhanced() {
             # Add calculated drop rate to status data for consistent processing
             if [ -n "$drop_rate" ] && [ "$drop_rate" != "0" ]; then
                 log_debug "📡 STARLINK STATUS: Adding calculated drop rate ($drop_rate) to status data"
+                # shellcheck disable=SC2016  #  is a jq variable, not shell variable
                 status_data=$(echo "$status_data" | "$JQ_CMD" --arg rate "$drop_rate" '.dishGetStatus.popPingDropRate = ($rate | tonumber)' 2>/dev/null)
             fi
         else
