@@ -175,7 +175,7 @@ mkdir -p "$LOG_DIR" "$(dirname "$STATE_FILE")" 2>/dev/null || true
 if [ "${DEBUG:-0}" = "1" ]; then
     log_info "DEBUG MODE: Enhanced logging enabled for debugging"
     log_trace "Starting comprehensive execution trace for starlink_logger_unified"
-    
+
     log_debug "==================== FINAL CONFIGURATION STATE ===================="
     log_debug "Derived settings after defaults applied:"
     log_debug "  STARLINK_IP: $STARLINK_IP"
@@ -184,33 +184,33 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "  JQ_CMD: $JQ_CMD"
     log_debug "  AGGREGATED_LOG_FILE: $AGGREGATED_LOG_FILE"
     log_debug "  AGGREGATION_BATCH_SIZE: $AGGREGATION_BATCH_SIZE"
-    
+
     log_debug "Directory creation results:"
     if [ -d "$LOG_DIR" ]; then
         log_debug "  ✓ LOG_DIR exists: $LOG_DIR"
     else
         log_debug "  ✗ LOG_DIR missing: $LOG_DIR"
     fi
-    
+
     if [ -d "$(dirname "$STATE_FILE")" ]; then
         log_debug "  ✓ STATE_FILE directory exists: $(dirname "$STATE_FILE")"
     else
         log_debug "  ✗ STATE_FILE directory missing: $(dirname "$STATE_FILE")"
     fi
-    
+
     log_debug "Binary validation:"
     if [ -f "$GRPCURL_CMD" ] && [ -x "$GRPCURL_CMD" ]; then
         log_debug "  ✓ grpcurl binary found and executable: $GRPCURL_CMD"
     else
         log_debug "  ✗ grpcurl binary missing or not executable: $GRPCURL_CMD"
     fi
-    
+
     if [ -f "$JQ_CMD" ] && [ -x "$JQ_CMD" ]; then
         log_debug "  ✓ jq binary found and executable: $JQ_CMD"
     else
         log_debug "  ✗ jq binary missing or not executable: $JQ_CMD"
     fi
-    
+
     log_debug "==============================================================="
 fi
 
@@ -459,11 +459,11 @@ perform_statistical_aggregation() {
 # - ENABLE_GPS_LOGGING: true/false to enable GPS collection
 # - GPS_PRIMARY_SOURCE: "starlink" or "rutos" for primary GPS source
 # - GPS_SECONDARY_SOURCE: "rutos" or "starlink" for fallback source
-# 
+#
 # Returns: "lat,lon,alt,accuracy,source" format
 
 # =============================================================================
-# CELLULAR DATA COLLECTION (Enhanced Feature) 
+# CELLULAR DATA COLLECTION (Enhanced Feature)
 # Using standardized RUTOS library function
 # =============================================================================
 
@@ -483,7 +483,7 @@ extract_starlink_metrics() {
 
     log_debug "📊 FUNCTION ENTRY: extract_starlink_metrics()"
     log_debug "📊 STATUS DATA LENGTH: ${#status_data} characters"
-    
+
     # Show sample of input data if debug enabled
     if [ "${DEBUG:-0}" = "1" ]; then
         sample_data=$(echo "$status_data" | head -c 200)
@@ -495,13 +495,13 @@ extract_starlink_metrics() {
     # Extract basic performance metrics with debug output
     uptime_s=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceState.uptimeS // 0' 2>/dev/null)
     log_debug "📊 UPTIME EXTRACTION: ${uptime_s}s"
-    
+
     latency=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingLatencyMs // 999' 2>/dev/null)
     log_debug "📊 LATENCY EXTRACTION: ${latency}ms"
-    
+
     packet_loss=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.popPingDropRate // null' 2>/dev/null)
     log_debug "📊 PACKET LOSS EXTRACTION: ${packet_loss} (raw)"
-    
+
     obstruction=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.obstructionStats.fractionObstructed // 0' 2>/dev/null)
     log_debug "📊 OBSTRUCTION EXTRACTION: ${obstruction} (raw)"
 
@@ -511,7 +511,7 @@ extract_starlink_metrics() {
     else
         uptime_hours="0.00"
     fi
-    
+
     if [ "$packet_loss" != "null" ] && [ "$packet_loss" != "" ]; then
         packet_loss_pct=$(awk "BEGIN {printf \"%.2f\", $packet_loss * 100}")
     else
@@ -519,28 +519,28 @@ extract_starlink_metrics() {
         packet_loss_pct="0.00"
         log_debug "📊 PACKET LOSS: No data available, assuming 0% loss"
     fi
-    
+
     if [ "$obstruction" != "null" ]; then
         obstruction_pct=$(awk "BEGIN {printf \"%.6f\", $obstruction * 100}")
     else
         obstruction_pct="0.000000"
     fi
-    
+
     log_debug "📊 CONVERTED VALUES: uptime=${uptime_hours}h, loss=${packet_loss_pct}%, obstruction=${obstruction_pct}%"
 
     # Extract enhanced metrics if enabled
     if [ "$ENABLE_ENHANCED_METRICS" = "true" ]; then
         log_debug "📊 ENHANCED METRICS ENABLED - Extracting additional data..."
-        
+
         bootcount=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceInfo.bootcount // 0' 2>/dev/null)
         log_debug "📊 BOOTCOUNT EXTRACTION: $bootcount"
-        
+
         is_snr_above_noise_floor=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.isSnrAboveNoiseFloor // false' 2>/dev/null)
         log_debug "📊 SNR ABOVE NOISE EXTRACTION: $is_snr_above_noise_floor"
-        
+
         is_snr_persistently_low=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.isSnrPersistentlyLow // false' 2>/dev/null)
         log_debug "📊 SNR PERSISTENTLY LOW EXTRACTION: $is_snr_persistently_low"
-        
+
         # Enhanced SNR extraction with fallback (matching monitor script)
         snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.signalQuality.snrDbTimes10 // 0' 2>/dev/null)
         if [ "$snr" != "0" ] && [ "$snr" != "null" ]; then
@@ -555,10 +555,10 @@ extract_starlink_metrics() {
             snr="0"
             log_debug "📊 SNR EXTRACTION: No valid SNR data available"
         fi
-        
+
         gps_valid=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsValid // false' 2>/dev/null)
         log_debug "📊 GPS VALID EXTRACTION: $gps_valid"
-        
+
         gps_sats=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsSats // 0' 2>/dev/null)
         log_debug "📊 GPS SATELLITES EXTRACTION: $gps_sats satellites"
 
@@ -613,7 +613,7 @@ EOF
     CURRENT_GPS_VALID="$gps_valid"
     CURRENT_GPS_SATS="$gps_sats"
     CURRENT_REBOOT_DETECTED="$reboot_detected"
-    
+
     log_debug "📊 STORED VARIABLES: timestamp=$CURRENT_TIMESTAMP, GPS_sats=$CURRENT_GPS_SATS, SNR=$CURRENT_SNR"
     log_debug "📊 FUNCTION EXIT: extract_starlink_metrics() completed successfully"
 
@@ -729,7 +729,7 @@ log_to_csv() {
         # Basic logging (original format)
         log_debug "📝 FORMAT: Basic logging (original format)"
         log_debug "📝 VALUES: latency=$CURRENT_LATENCY, loss=$CURRENT_PACKET_LOSS, obstruction=$CURRENT_OBSTRUCTION, uptime=$CURRENT_UPTIME"
-        
+
         # Protect state-changing command with DRY_RUN check
         if [ "${DRY_RUN:-0}" = "1" ]; then
             log_debug "📝 DRY-RUN: Would append basic data to $OUTPUT_CSV"
@@ -749,7 +749,7 @@ log_to_csv() {
     else
         log_debug "📝 AGGREGATION: Statistical aggregation disabled"
     fi
-    
+
     log_debug "📝 FUNCTION EXIT: log_to_csv() completed successfully"
 }
 
@@ -806,7 +806,7 @@ main() {
             log_debug "GRPC COMMAND: $grpc_cmd"
             log_debug "GRPC EXECUTION: Running in debug mode with full output"
         fi
-        
+
         if ! status_data=$(eval "$grpc_cmd"); then
             grpc_exit_code=$?
             if [ "${DEBUG:-0}" = "1" ]; then
@@ -815,7 +815,7 @@ main() {
             log_error "Failed to fetch Starlink status data"
             exit 1
         fi
-        
+
         if [ "${DEBUG:-0}" = "1" ]; then
             log_debug "GRPC EXIT CODE: 0"
             # Show first 500 chars of raw output like check_starlink_api-rutos.sh

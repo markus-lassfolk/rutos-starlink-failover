@@ -409,16 +409,17 @@ check_bash_syntax() {
         rm -f "$temp_file"
     fi
 
-    # Check for source command (but not in echo statements, comments, or variable names)
+    # Check for source command (but not in echo statements, printf statements, comments, or variable names)
     if grep -n '\bsource[[:space:]]' "$file" >/dev/null 2>&1; then
         temp_file="/tmp/bash_syntax_$$"
         grep -n '\bsource[[:space:]]' "$file" 2>/dev/null >"$temp_file"
         while IFS=: read -r line_num line_content; do
-            # Skip if it's within an echo statement (documentation), comment lines, or variable names
-            if ! echo "$line_content" | grep -q "echo.*source" &&
-                ! echo "$line_content" | grep -q "^[[:space:]]*#.*source" &&
-                ! echo "$line_content" | grep -q '\$[a-zA-Z_][a-zA-Z0-9_]*source' &&
-                ! echo "$line_content" | grep -q 'data_source\|gps_source'; then
+            # Skip if it's within text output statements, comments, or variable contexts
+            if ! echo "$line_content" | grep -qE "(echo|printf).*source" &&
+                ! echo "$line_content" | grep -qE "(^[[:space:]]*#.*source|#.*source)" &&
+                ! echo "$line_content" | grep -qE '\$[a-zA-Z_][a-zA-Z0-9_]*source|[a-zA-Z_][a-zA-Z0-9_]*_source' &&
+                ! echo "$line_content" | grep -qE '"[^"]*source[^"]*"' &&
+                ! echo "$line_content" | grep -qE "'[^']*source[^']*'" ; then
                 report_issue "MAJOR" "$file" "$line_num" "Uses 'source' command - use '.' (dot) for busybox"
             fi
         done <"$temp_file"

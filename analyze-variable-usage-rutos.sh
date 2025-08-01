@@ -11,7 +11,7 @@ log_warning() { printf "[WARN] %s\n" "$1"; }
 log_error() { printf "[ERROR] %s\n" "$1"; }
 log_success() { printf "[SUCCESS] %s\n" "$1"; }
 
-log_info "=== Variable Usage Analysis ===" 
+log_info "=== Variable Usage Analysis ==="
 
 # Variables that scripts expect but config defines differently
 log_step "1. Checking variable naming mismatches between scripts and config"
@@ -86,7 +86,7 @@ for script_var in $UNIQUE_SCRIPT_VARS; do
             break
         fi
     done
-    
+
     if [ $found -eq 0 ]; then
         # Check for similar variables (naming pattern mismatches)
         case "$script_var" in
@@ -210,19 +210,19 @@ for config_var in $CONFIG_VARS; do
             break
         fi
     done
-    
+
     if [ $found -eq 0 ]; then
         # Check special cases that might be used indirectly
         case "$config_var" in
-            "PUSHOVER_ENABLED"|"GPS_ENABLED"|"CELLULAR_ENABLED")
+            "PUSHOVER_ENABLED" | "GPS_ENABLED" | "CELLULAR_ENABLED")
                 # These are main enable flags, may be mapped to ENABLE_ variants
                 continue
                 ;;
-            "PUSHOVER_TOKEN"|"PUSHOVER_USER"|"PUSHOVER_TIMEOUT")
+            "PUSHOVER_TOKEN" | "PUSHOVER_USER" | "PUSHOVER_TIMEOUT")
                 # These are used when PUSHOVER is enabled
                 continue
                 ;;
-            "MAINTENANCE_PUSHOVER_ENABLED"|"MAINTENANCE_PUSHOVER_TOKEN"|"MAINTENANCE_PUSHOVER_USER")
+            "MAINTENANCE_PUSHOVER_ENABLED" | "MAINTENANCE_PUSHOVER_TOKEN" | "MAINTENANCE_PUSHOVER_USER")
                 # These are for maintenance notifications
                 continue
                 ;;

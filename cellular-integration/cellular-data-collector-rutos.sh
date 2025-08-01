@@ -300,7 +300,7 @@ get_modem_info() {
     data_usage_rx=$(echo "$data_usage_rx" | tr -d '\n\r,' | head -c 10)
     data_usage_tx=$(echo "$data_usage_tx" | tr -d '\n\r,' | head -c 10)
     ip_address=$(echo "$ip_address" | tr -d '\n\r,' | head -c 15)
-    
+
     printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
         "$modem_interface" \
         "$signal_dbm" \

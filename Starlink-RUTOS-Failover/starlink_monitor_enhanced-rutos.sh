@@ -109,7 +109,7 @@ safe_execute() {
 
 collect_gps_data() {
     log_debug "🛰️ ENHANCED GPS: Using standardized library functions for GPS data collection"
-    
+
     # Use library function if available, fallback to local implementation
     if [ "${_RUTOS_DATA_COLLECTION_LOADED:-0}" = "1" ] && command -v collect_gps_data_lib >/dev/null 2>&1; then
         collect_gps_data_lib
@@ -190,7 +190,7 @@ collect_gps_data() {
 
 collect_cellular_data() {
     log_debug "📱 ENHANCED CELLULAR: Using standardized library functions for cellular data collection"
-    
+
     # Use library function if available, fallback to local implementation
     if [ "${_RUTOS_DATA_COLLECTION_LOADED:-0}" = "1" ] && command -v collect_cellular_data_lib >/dev/null 2>&1; then
         collect_cellular_data_lib
@@ -202,10 +202,10 @@ collect_cellular_data() {
 
         timestamp=$(date '+%Y-%m-%d %H:%M:%S')
         modem_id="primary"
-        
+
         if command -v gsmctl >/dev/null 2>&1; then
             log_debug "📱 ENHANCED CELLULAR: gsmctl available, collecting enhanced cellular data"
-            
+
             # Signal strength and quality
             signal_info=$(gsmctl -A 'AT+CSQ' 2>/dev/null | grep "+CSQ:" | head -1 || echo "+CSQ: 99,99")
             signal_rssi=$(echo "$signal_info" | cut -d',' -f1 | cut -d':' -f2 | tr -d ' 
@@ -236,7 +236,7 @@ collect_cellular_data() {
             fi
             operator="${operator:-Unknown}"
 
-            # Network technology  
+            # Network technology
             tech_info=$(gsmctl -A 'AT+QNWINFO' 2>/dev/null | grep "+QNWINFO:" | head -1 || echo "")
             if echo "$tech_info" | grep -q "LTE"; then
                 network_type="LTE"
@@ -301,7 +301,7 @@ collect_cellular_data() {
             connection_status=$(echo "$connection_status" | tr -d ',
 ' | head -c 15)
         fi
-        
+
         log_debug "📱 ENHANCED CELLULAR: Final sanitized data - operator='$operator', network='$network_type'"
 
         printf "%s" "$timestamp,$modem_id,$signal_strength,$signal_quality,$network_type,$operator,$roaming_status,$connection_status,$data_usage_mb,$frequency_band,$cell_id,$lac,$error_rate"

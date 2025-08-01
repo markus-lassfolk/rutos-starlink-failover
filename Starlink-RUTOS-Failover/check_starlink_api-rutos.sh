@@ -137,11 +137,11 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "  STARLINK_IP: ${STARLINK_IP}"
     log_debug "  STARLINK_PORT: ${STARLINK_PORT}"
     log_debug "  INSTALL_DIR: ${INSTALL_DIR:-UNSET}"
-    
+
     log_debug "Binary paths:"
     log_debug "  GRPCURL_CMD: ${GRPCURL_CMD}"
     log_debug "  JQ_CMD: ${JQ_CMD}"
-    
+
     log_debug "Notification settings:"
     if [ "${#PUSHOVER_TOKEN}" -gt 10 ]; then
         log_debug "  PUSHOVER_TOKEN: ${PUSHOVER_TOKEN%"${PUSHOVER_TOKEN#??????????}"}... (length: ${#PUSHOVER_TOKEN})"
@@ -154,10 +154,10 @@ if [ "${DEBUG:-0}" = "1" ]; then
         log_debug "  PUSHOVER_USER: ${PUSHOVER_USER} (length: ${#PUSHOVER_USER})"
     fi
     log_debug "  LOG_TAG: ${LOG_TAG}"
-    
+
     log_debug "State files:"
     log_debug "  KNOWN_API_VERSION_FILE: ${KNOWN_API_VERSION_FILE}"
-    
+
     # Check for functionality-affecting issues
     if [ "${STARLINK_IP:-}" = "" ]; then
         log_debug "⚠️  WARNING: STARLINK_IP not set - API calls will fail"
@@ -176,7 +176,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
     else
         log_debug "✓ jq binary found and executable: ${JQ_CMD}"
     fi
-    
+
     log_debug "Pushover notification validation:"
     if [ "${PUSHOVER_TOKEN}" = "YOUR_PUSHOVER_API_TOKEN" ]; then
         log_debug "⚠️  WARNING: PUSHOVER_TOKEN not configured - notifications will fail"
@@ -185,7 +185,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
     else
         log_debug "✓ PUSHOVER_TOKEN appears valid (${#PUSHOVER_TOKEN} chars)"
     fi
-    
+
     if [ "${PUSHOVER_USER}" = "YOUR_PUSHOVER_USER_KEY" ]; then
         log_debug "⚠️  WARNING: PUSHOVER_USER not configured - notifications will fail"
     elif [ "${#PUSHOVER_USER}" -lt 30 ]; then
@@ -193,7 +193,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
     else
         log_debug "✓ PUSHOVER_USER appears valid (${#PUSHOVER_USER} chars)"
     fi
-    
+
     log_debug "======================================================================"
 fi
 

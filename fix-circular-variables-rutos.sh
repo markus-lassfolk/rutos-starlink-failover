@@ -51,7 +51,7 @@ log_info ""
 for var in $CIRCULAR_VARS; do
     current_line=$(grep "export $var=" "$CONFIG_FILE" | head -1)
     fallback_value=$(echo "$current_line" | sed 's/.*:-\([^}]*\)}.*/\1/')
-    
+
     log_info "Variable: $var"
     log_info "  Current: $current_line"
     log_info "  Should be: export $var=\"$fallback_value\""

@@ -91,7 +91,7 @@ printf "[EARLY_DEBUG] Checking LIBRARY_PATH method...
 if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_PATH}/rutos-lib.sh" ]; then
     printf "[EARLY_DEBUG] Attempting to source library from: ${LIBRARY_PATH}/rutos-lib.sh
 " >&2
-    
+
     # Test file readability first
     if [ -r "${LIBRARY_PATH}/rutos-lib.sh" ]; then
         printf "[EARLY_DEBUG] Library file is readable
@@ -101,10 +101,10 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_
 " >&2
         exit 2
     fi
-    
+
     printf "[EARLY_DEBUG] About to source library...
 " >&2
-    
+
     # Source library directly (not in a subshell to preserve function definitions)
     printf "[EARLY_DEBUG] Sourcing library directly...
 " >&2
@@ -114,13 +114,13 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_
 " "$LIBRARY_PATH"
         printf "[EARLY_DEBUG] Library loading successful via LIBRARY_PATH
 " >&2
-        
+
         # Quick function availability test
         printf "[EARLY_DEBUG] Testing critical functions...
 " >&2
 
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+        # Version information (auto-updated by update-version.sh)
+        SCRIPT_VERSION="2.8.0"
 
         if command -v rutos_init_portable >/dev/null 2>&1; then
             printf "[EARLY_DEBUG] ✓ rutos_init_portable available
@@ -129,7 +129,7 @@ SCRIPT_VERSION="2.8.0"
             printf "[EARLY_DEBUG] ✗ rutos_init_portable NOT available
 " >&2
         fi
-        
+
         # Show library loading output for debugging
         if [ -f "/tmp/library_load_output.$$" ] && [ -s "/tmp/library_load_output.$$" ]; then
             printf "[EARLY_DEBUG] Library loading output:
@@ -137,7 +137,7 @@ SCRIPT_VERSION="2.8.0"
             while IFS= read -r line; do
                 printf "[EARLY_DEBUG]   %s
 " "$line" >&2
-            done < "/tmp/library_load_output.$$"
+            done <"/tmp/library_load_output.$$"
         fi
         rm -f "/tmp/library_load_output.$$" 2>/dev/null
     else
@@ -150,10 +150,10 @@ SCRIPT_VERSION="2.8.0"
             while IFS= read -r line; do
                 printf "[EARLY_DEBUG]   %s
 " "$line" >&2
-            done < "/tmp/library_load_output.$$"
+            done <"/tmp/library_load_output.$$"
         fi
         rm -f "/tmp/library_load_output.$$" 2>/dev/null
-        
+
         # Show detailed file info for debugging
         printf "[EARLY_DEBUG] Library file details:
 " >&2
@@ -161,7 +161,7 @@ SCRIPT_VERSION="2.8.0"
             printf "[EARLY_DEBUG]   %s
 " "$line" >&2
         done
-        
+
         # Show directory contents
         printf "[EARLY_DEBUG] Library directory contents:
 " >&2
@@ -169,7 +169,7 @@ SCRIPT_VERSION="2.8.0"
             printf "[EARLY_DEBUG]   %s
 " "$line" >&2
         done
-        
+
         printf "[EARLY_DEBUG] Exiting due to library loading failure
 " >&2
         exit 2
@@ -277,13 +277,13 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
 " >&2
     printf "[EARLY_DEBUG] About to call rutos_init_portable with: SCRIPT_NAME=$SCRIPT_NAME, SCRIPT_VERSION=$SCRIPT_VERSION
 " >&2
-    
+
     # Test if the function exists
     printf "[EARLY_DEBUG] Testing function availability...
 " >&2
     printf "[EARLY_DEBUG] Available functions starting with 'rutos':
 " >&2
-    
+
     # Test specific functions directly to avoid subshell issues
     printf "[EARLY_DEBUG] Testing critical functions...
 " >&2
@@ -296,10 +296,10 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
 " "$func_name" >&2
         fi
     done
-    
+
     printf "[EARLY_DEBUG] Proceeding with function calls...
 " >&2
-    
+
     if command -v rutos_init_portable >/dev/null 2>&1; then
         printf "[EARLY_DEBUG] rutos_init_portable function found, calling it...
 " >&2
@@ -331,7 +331,7 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
 " >&2
         exit 2
     fi
-    
+
     printf "[EARLY_DEBUG] About to call log_info...
 " >&2
     if command -v log_info >/dev/null 2>&1; then
@@ -343,7 +343,7 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
 " >&2
         exit 2
     fi
-    
+
     printf "[EARLY_DEBUG] About to call log_debug...
 " >&2
     if command -v log_debug >/dev/null 2>&1; then
@@ -571,17 +571,10 @@ VERSION_URL="${BASE_URL}/VERSION"
 # shellcheck disable=SC2034  # Used for compatibility checks in future
 MIN_COMPATIBLE_VERSION="1.0.0" # Used for compatibility checks in future
 
-# Colors for output
-# RUTOS-compatible color detection - RESTORED TO WORKING VERSION
-# This approach showed colors successfully in user testing
-RED=""
-GREEN=""
-YELLOW=""
-BLUE=""
-CYAN=""
-NC=""
+# Colors for output are provided by RUTOS library system
+# Fallback color definitions are included in the conditional block above when library is not available
 
-# Only enable colors if explicitly requested or in very specific conditions
+# Installation configuration
 if [ "${FORCE_COLOR:-}" = "1" ]; then
     # Only enable if user explicitly forces colors
     RED="[0;31m"
@@ -1304,12 +1297,12 @@ install_binaries() {
     if [ -f "$INSTALL_DIR/grpcurl" ] && [ -x "$INSTALL_DIR/grpcurl" ]; then
         # Get current installed version (grpcurl uses -version and outputs: "grpcurl v1.9.3")
         debug_log "GRPCURL INSTALL: Testing version detection..."
-        
+
         # Test if grpcurl binary is working (check for bus errors, segfaults, etc.)
         debug_log "GRPCURL INSTALL: Testing binary functionality..."
         grpcurl_test_output=$("$INSTALL_DIR/grpcurl" -version 2>&1 | head -1 || echo "BINARY_ERROR")
         grpcurl_exit_code=$?
-        
+
         # Debug: Test what grpcurl actually outputs
         if [ "${DEBUG:-0}" = "1" ]; then
             debug_log "GRPCURL DEBUG: Testing -version output:"
@@ -1317,7 +1310,7 @@ install_binaries() {
             debug_log "Exit code: $grpcurl_exit_code"
             debug_log "Output: '$grpcurl_test_output'"
         fi
-        
+
         # Check if binary is corrupted (bus error, segfault, etc.)
         if [ $grpcurl_exit_code -ne 0 ] || echo "$grpcurl_test_output" | grep -qE "(Bus error|Segmentation fault|core dumped|BINARY_ERROR)" 2>/dev/null; then
             debug_log "GRPCURL INSTALL: Binary appears corrupted (exit code: $grpcurl_exit_code, output: '$grpcurl_test_output')"
@@ -1328,7 +1321,7 @@ install_binaries() {
             # Extract version from "grpcurl v1.9.3" format
             current_grpcurl_version_raw="$grpcurl_test_output"
             current_grpcurl_version=$(echo "$current_grpcurl_version_raw" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//' || echo "unknown")
-            
+
             debug_log "GRPCURL INSTALL: Raw output: '$current_grpcurl_version_raw'"
             debug_log "GRPCURL INSTALL: Parsed version: '$current_grpcurl_version'"
 
@@ -3724,4 +3717,3 @@ trap handle_error INT TERM
 debug_log "==================== INSTALL SCRIPT EXECUTION START ===================="
 main "$@"
 debug_log "==================== INSTALL SCRIPT EXECUTION END ===================="
-

@@ -25,11 +25,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
-
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
+readonly SCRIPT_VERSION="2.8.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
 if ! . "$(dirname "$0")/../scripts/lib/rutos-lib.sh" 2>/dev/null &&
@@ -174,6 +170,22 @@ ENABLE_CELLULAR_TRACKING="${ENABLE_CELLULAR_TRACKING:-false}"
 ENABLE_MULTI_SOURCE_GPS="${ENABLE_MULTI_SOURCE_GPS:-false}"
 ENABLE_ENHANCED_FAILOVER="${ENABLE_ENHANCED_FAILOVER:-false}"
 
+# Pushover notification compatibility mapping
+# Support both ENABLE_PUSHOVER (new) and PUSHOVER_ENABLED (legacy config format)
+if [ -n "${PUSHOVER_ENABLED:-}" ]; then
+    # Convert PUSHOVER_ENABLED=1/0 format to ENABLE_PUSHOVER=true/false
+    if [ "$PUSHOVER_ENABLED" = "1" ]; then
+        ENABLE_PUSHOVER="true"
+        log_debug "Configuration compatibility: Converted PUSHOVER_ENABLED=1 to ENABLE_PUSHOVER=true"
+    else
+        ENABLE_PUSHOVER="false"
+        log_debug "Configuration compatibility: Converted PUSHOVER_ENABLED=0 to ENABLE_PUSHOVER=false"
+    fi
+else
+    # Use default if neither is set
+    ENABLE_PUSHOVER="${ENABLE_PUSHOVER:-false}"
+fi
+
 # GPS and Cellular integration settings (only used if enabled)
 GPS_LOG_FILE="${LOG_DIR}/gps_data.csv"
 CELLULAR_LOG_FILE="${LOG_DIR}/cellular_data.csv"
@@ -190,7 +202,7 @@ if [ ! -f "$DECISION_LOG_FILE" ]; then
     if [ "${DRY_RUN:-0}" = "1" ]; then
         log_debug "DRY-RUN: Would create decision log header in $DECISION_LOG_FILE"
     else
-        echo "timestamp,decision_type,trigger_reason,quality_factors,latency_ms,packet_loss_pct,obstruction_pct,snr_db,current_metric,new_metric,action_taken,action_result,gps_context,cellular_context,additional_notes" > "$DECISION_LOG_FILE"
+        echo "timestamp,decision_type,trigger_reason,quality_factors,latency_ms,packet_loss_pct,obstruction_pct,snr_db,current_metric,new_metric,action_taken,action_result,gps_context,cellular_context,additional_notes" >"$DECISION_LOG_FILE"
         log_debug "Decision log initialized: $DECISION_LOG_FILE"
     fi
 fi
@@ -208,9 +220,9 @@ send_pushover_notification() {
     title="$1"
     message="$2"
     priority="${3:-0}"
-    
+
     log_debug "Attempting to send Pushover notification: $title"
-    
+
     # Check if Pushover is configured via placeholder utilities
     if command -v is_pushover_configured >/dev/null 2>&1; then
         if is_pushover_configured; then
@@ -225,33 +237,27 @@ send_pushover_notification() {
             return 1
         fi
     fi
-    
+
     # Fallback: Direct Pushover API call if configured
     if [ -n "${PUSHOVER_TOKEN:-}" ] && [ -n "${PUSHOVER_USER:-}" ]; then
         # Skip if values are placeholders
         case "$PUSHOVER_TOKEN" in
-            YOUR_*|"CHANGE_ME"|"REPLACE_ME"|"TODO"|"FIXME"|"EXAMPLE"|"PLACEHOLDER") 
+            YOUR_* | "CHANGE_ME" | "REPLACE_ME" | "TODO" | "FIXME" | "EXAMPLE" | "PLACEHOLDER")
                 log_debug "Pushover token is placeholder, skipping notification"
-                return 1 
+                return 1
                 ;;
         esac
         case "$PUSHOVER_USER" in
-            YOUR_*|"CHANGE_ME"|"REPLACE_ME"|"TODO"|"FIXME"|"EXAMPLE"|"PLACEHOLDER") 
+            YOUR_* | "CHANGE_ME" | "REPLACE_ME" | "TODO" | "FIXME" | "EXAMPLE" | "PLACEHOLDER")
                 log_debug "Pushover user is placeholder, skipping notification"
-                return 1 
+                return 1
                 ;;
         esac
-        
+
         log_debug "Sending Pushover notification via API"
-        response=$(curl -s --max-time 10 \
-            -F "token=$PUSHOVER_TOKEN" \
-            -F "user=$PUSHOVER_USER" \
-            -F "title=$title" \
-            -F "message=$message" \
-            -F "priority=$priority" \
-            https://api.pushover.net/1/messages.json 2>/dev/null)
-        
-        if [ $? -eq 0 ]; then
+        curl_cmd="curl -s --max-time 10 -F \"token=$PUSHOVER_TOKEN\" -F \"user=$PUSHOVER_USER\" -F \"title=$title\" -F \"message=$message\" -F \"priority=$priority\" https://api.pushover.net/1/messages.json"
+
+        if safe_execute "$curl_cmd" "Send Pushover notification"; then
             log_debug "Pushover notification sent successfully"
             return 0
         else
@@ -272,33 +278,33 @@ send_pushover_notification() {
 # Log a decision with comprehensive context and reasoning
 # Parameters: decision_type, trigger_reason, action_taken, action_result, [additional_notes]
 log_decision() {
-    decision_type="$1"      # "evaluation", "soft_failover", "hard_failover", "restore", "maintenance"
-    trigger_reason="$2"     # "quality_degraded", "scheduled_reboot", "manual", "quality_restored"
-    action_taken="$3"       # "no_action", "metric_increase", "metric_restore", "service_restart"
-    action_result="$4"      # "success", "failed", "skipped"
+    decision_type="$1"        # "evaluation", "soft_failover", "hard_failover", "restore", "maintenance"
+    trigger_reason="$2"       # "quality_degraded", "scheduled_reboot", "manual", "quality_restored"
+    action_taken="$3"         # "no_action", "metric_increase", "metric_restore", "service_restart"
+    action_result="$4"        # "success", "failed", "skipped"
     additional_notes="${5:-}" # Optional additional context
-    
+
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     quality_factors=""
     gps_context="none"
     cellular_context="none"
-    
+
     # Collect current metrics for decision context
     current_latency="${CURRENT_LATENCY:-unknown}"
     current_packet_loss="${CURRENT_PACKET_LOSS:-unknown}"
     current_obstruction="${CURRENT_OBSTRUCTION:-unknown}"
     current_snr="${CURRENT_SNR:-unknown}"
-    
+
     # Get current MWAN3 metric
     current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "unknown")
     new_metric="$current_metric"
-    
+
     # Calculate quality factors summary
     latency_poor=0
     loss_poor=0
     obstruction_poor=0
     snr_poor=0
-    
+
     # Check each quality factor
     if [ "$current_latency" != "unknown" ] && [ "$current_latency" -gt "${LATENCY_THRESHOLD:-150}" ] 2>/dev/null; then
         latency_poor=1
@@ -309,16 +315,16 @@ log_decision() {
     if [ "$current_obstruction" != "unknown" ] && [ "$(echo "$current_obstruction > ${OBSTRUCTION_THRESHOLD:-0.1}" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
         obstruction_poor=1
     fi
-    
-    # SNR analysis - for decision logging, mirror the actual failover logic  
+
+    # SNR analysis - for decision logging, mirror the actual failover logic
     if [ "$current_snr" != "unknown" ]; then
         log_debug "SNR DECISION LOGIC: current_snr='$current_snr'"
-        
+
         # Use the same logic as the actual failover decision (readyStates-based)
         # Check if we have readyStates available
         snr_above_noise="${CURRENT_SNR_ABOVE_NOISE:-true}"
         snr_persistently_low="${CURRENT_SNR_PERSISTENTLY_LOW:-false}"
-        
+
         # CORRECTED LOGIC: Only consider SNR poor if it's persistently low
         # above_noise_floor=false may just mean "not measured" and is not reliable
         if [ "$snr_persistently_low" = "true" ]; then
@@ -330,10 +336,10 @@ log_decision() {
         fi
         log_debug "SNR DECISION LOGIC: final snr_poor=$snr_poor"
     fi
-    
+
     # Create quality factors summary
     quality_factors="lat:${latency_poor},loss:${loss_poor},obs:${obstruction_poor},snr:${snr_poor}"
-    
+
     # Collect GPS context if enabled
     if [ "$ENABLE_GPS_TRACKING" = "true" ]; then
         # Get basic GPS status without full collection
@@ -349,7 +355,7 @@ log_decision() {
             gps_context="no_gpsctl"
         fi
     fi
-    
+
     # Collect cellular context if enabled
     if [ "$ENABLE_CELLULAR_TRACKING" = "true" ]; then
         if command -v gsmctl >/dev/null 2>&1; then
@@ -365,26 +371,26 @@ log_decision() {
             cellular_context="no_gsmctl"
         fi
     fi
-    
+
     # Update new_metric for specific actions
     case "$action_taken" in
         "metric_increase") new_metric="${METRIC_BAD:-20}" ;;
         "metric_restore") new_metric="${METRIC_GOOD:-1}" ;;
     esac
-    
+
     # Escape any commas in additional_notes to preserve CSV format
     additional_notes=$(echo "$additional_notes" | sed 's/,/;/g')
-    
+
     # Create comprehensive log entry
     log_entry="$timestamp,$decision_type,$trigger_reason,$quality_factors,$current_latency,$current_packet_loss,$current_obstruction,$current_snr,$current_metric,$new_metric,$action_taken,$action_result,$gps_context,$cellular_context,$additional_notes"
-    
+
     # Write to decision log (protect with DRY_RUN)
     if [ "${DRY_RUN:-0}" = "1" ]; then
         log_debug "DRY-RUN: Would log decision: $log_entry"
     else
-        echo "$log_entry" >> "$DECISION_LOG_FILE"
+        echo "$log_entry" >>"$DECISION_LOG_FILE"
     fi
-    
+
     # Also log to standard log with formatted output
     case "$decision_type" in
         "evaluation")
@@ -403,24 +409,24 @@ log_decision() {
             log_info "🔧 DECISION: Maintenance action - $trigger_reason"
             ;;
     esac
-    
+
     # Only log detailed context for important decisions to reduce log spam
     # Maintenance actions get minimal logging, failovers get full context
     case "$decision_type" in
-        "soft_failover"|"hard_failover"|"restore"|"evaluation")
+        "soft_failover" | "hard_failover" | "restore" | "evaluation")
             # Log detailed reasoning for important decisions
             if [ "$current_latency" != "unknown" ] || [ "$current_packet_loss" != "unknown" ] || [ "$current_obstruction" != "unknown" ]; then
                 log_info "📊 METRICS: Latency=${current_latency}ms threshold ${LATENCY_THRESHOLD:-150}ms, Loss=${current_packet_loss}% threshold ${PACKET_LOSS_THRESHOLD:-2}%, Obstruction=${current_obstruction}% threshold ${OBSTRUCTION_THRESHOLD:-0.1}%"
             fi
-            
+
             if [ "$current_snr" != "unknown" ]; then
                 log_info "📡 SIGNAL: SNR=${current_snr}dB"
             fi
-            
+
             if [ "$gps_context" != "none" ]; then
                 log_info "📍 GPS: $gps_context"
             fi
-            
+
             if [ "$cellular_context" != "none" ]; then
                 log_info "📱 CELLULAR: $cellular_context"
             fi
@@ -430,10 +436,10 @@ log_decision() {
             log_debug "Maintenance context: metrics available, GPS=$gps_context, cellular=$cellular_context"
             ;;
     esac
-    
+
     # Log action details - simplified for maintenance, detailed for important decisions
     case "$decision_type" in
-        "soft_failover"|"hard_failover"|"restore"|"evaluation")
+        "soft_failover" | "hard_failover" | "restore" | "evaluation")
             log_info "🎯 ACTION: $action_taken to $action_result metric: $current_metric to $new_metric"
             if [ -n "$additional_notes" ]; then
                 log_info "📝 NOTES: $additional_notes"
@@ -457,11 +463,11 @@ log_evaluation() {
 
 # Log a successful failover
 log_failover() {
-    severity="$1"  # "soft" or "hard"
+    severity="$1" # "soft" or "hard"
     reason="$2"
-    success="$3"   # "success" or "failed"
+    success="$3" # "success" or "failed"
     notes="${4:-}"
-    
+
     if [ "$severity" = "hard" ]; then
         log_decision "hard_failover" "$reason" "metric_increase" "$success" "$notes"
     else
@@ -472,7 +478,7 @@ log_failover() {
 # Log a successful restore
 log_restore() {
     reason="$1"
-    success="$2"   # "success" or "failed"
+    success="$2" # "success" or "failed"
     notes="${3:-}"
     log_decision "restore" "$reason" "metric_restore" "$success" "$notes"
 }
@@ -500,15 +506,15 @@ collect_gps_data() {
     fi
 
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     # Use standardized library function for GPS collection
     log_debug "📍 MONITOR GPS: Using library function for GPS data collection"
-    
+
     # Set library configuration variables for proper GPS collection
     ENABLE_GPS_LOGGING="true"
     export GPS_PRIMARY_SOURCE="${GPS_PRIMARY_SOURCE:-starlink}"
     export GPS_SECONDARY_SOURCE="${GPS_SECONDARY_SOURCE:-rutos}"
-    
+
     # Call the library function directly (avoiding name conflict)
     gps_result=""
     if [ "${_RUTOS_DATA_COLLECTION_LOADED:-0}" = "1" ]; then
@@ -519,16 +525,10 @@ collect_gps_data() {
             gps_result="0,0,0,none,none"
         else
             # Use individual gpsctl flags for GPS collection
-            rutos_lat=$(gpsctl -i 2>/dev/null | tr -d '
+            rutos_lat=$(gpsctl -i 2>/dev/null | tr -d "$(printf '\n')" || echo "")
+            rutos_lon=$(gpsctl -x 2>/dev/null | tr -d "$(printf '\n')" || echo "")
+            rutos_alt=$(gpsctl -a 2>/dev/null | tr -d "$(printf '\n')" || echo "")
 
-' || echo "")
-            rutos_lon=$(gpsctl -x 2>/dev/null | tr -d '
-
-' || echo "")
-            rutos_alt=$(gpsctl -a 2>/dev/null | tr -d '
-
-' || echo "")
-            
             # Validate GPS coordinates
             if validate_gps_coordinates "$rutos_lat" "$rutos_lon"; then
                 gps_result="$rutos_lat,$rutos_lon,${rutos_alt:-0},high,rutos_gps"
@@ -540,14 +540,14 @@ collect_gps_data() {
         log_debug "📍 MONITOR GPS: Library not loaded, using fallback GPS collection"
         gps_result="0,0,0,none,none"
     fi
-    
+
     # Parse the CSV result from library function
     lat=$(echo "$gps_result" | cut -d',' -f1)
-    lon=$(echo "$gps_result" | cut -d',' -f2) 
+    lon=$(echo "$gps_result" | cut -d',' -f2)
     alt=$(echo "$gps_result" | cut -d',' -f3)
     accuracy=$(echo "$gps_result" | cut -d',' -f4)
     data_source=$(echo "$gps_result" | cut -d',' -f5)
-    
+
     log_debug "📍 MONITOR GPS: GPS data - lat=$lat, lon=$lon, source=$data_source"
 
     # Log GPS data if we have coordinates (maintain monitor script behavior)
@@ -609,40 +609,34 @@ collect_cellular_data() {
     modem_id="primary"
     if command -v gsmctl >/dev/null 2>&1; then
         log_debug "📱 CELLULAR MONITOR: gsmctl command available, executing AT commands"
-        
+
         # Signal strength and quality
         log_debug "📱 CELLULAR MONITOR: Getting signal strength with AT+CSQ"
         signal_info=$(gsmctl -A 'AT+CSQ' 2>/dev/null | grep "+CSQ:" | head -1 || echo "+CSQ: 99,99")
         log_debug "📱 CELLULAR MONITOR: Signal info raw: '$signal_info'"
-        signal_strength=$(echo "$signal_info" | awk -F'[: ,]' '{print $3}' | tr -d '
-
-' | head -1)
-        signal_quality=$(echo "$signal_info" | awk -F'[: ,]' '{print $4}' | tr -d '
-
-' | head -1)
+        signal_strength=$(echo "$signal_info" | awk -F'[: ,]' '{print $3}' | tr -d "$(printf '\n')" | head -1)
+        signal_quality=$(echo "$signal_info" | awk -F'[: ,]' '{print $4}' | tr -d "$(printf '\n')" | head -1)
         log_debug "📱 CELLULAR MONITOR: Parsed signal - strength='$signal_strength', quality='$signal_quality'"
 
         # Network registration and operator
         log_debug "📱 CELLULAR MONITOR: Getting operator with AT+COPS?"
         reg_info=$(gsmctl -A 'AT+COPS?' 2>/dev/null | grep "+COPS:" | head -1 || echo "+COPS: 0,0,\"Unknown\"")
         log_debug "📱 CELLULAR MONITOR: Operator info raw: '$reg_info'"
-        operator=$(echo "$reg_info" | sed 's/.*"\([^"]*\)".*//' | tr -d '\n\r,' | head -c 20)
+        operator=$(echo "$reg_info" | sed 's/.*"\([^"]*\)".*//' | tr -d "$(printf '\n\r')," | head -c 20)
         log_debug "📱 CELLULAR MONITOR: Parsed operator: '$operator'"
 
         # Network type
         log_debug "📱 CELLULAR MONITOR: Getting network type with AT+QNWINFO"
         network_info=$(gsmctl -A 'AT+QNWINFO' 2>/dev/null | grep "+QNWINFO:" | head -1 || echo "+QNWINFO: \"Unknown\"")
         log_debug "📱 CELLULAR MONITOR: Network info raw: '$network_info'"
-        network_type=$(echo "$network_info" | awk -F'"' '{print $2}' | tr -d '\n\r,' | head -c 15)
+        network_type=$(echo "$network_info" | awk -F'"' '{print $2}' | tr -d "$(printf '\n\r')," | head -c 15)
         log_debug "📱 CELLULAR MONITOR: Parsed network type: '$network_type'"
 
         # Roaming status
         log_debug "📱 CELLULAR MONITOR: Getting roaming status with AT+CREG?"
         roaming_info=$(gsmctl -A 'AT+CREG?' 2>/dev/null | grep "+CREG:" | head -1 || echo "+CREG: 0,1")
         log_debug "📱 CELLULAR MONITOR: Roaming info raw: '$roaming_info'"
-        roaming_status=$(echo "$roaming_info" | awk -F'[: ,]' '{print $4}' | tr -d '
-
-' | head -1)
+        roaming_status=$(echo "$roaming_info" | awk -F'[: ,]' '{print $4}' | tr -d "$(printf '\n')" | head -1)
         [ "$roaming_status" = "5" ] && roaming_status="roaming" || roaming_status="home"
         log_debug "📱 CELLULAR MONITOR: Parsed roaming status: '$roaming_status'"
 
@@ -655,22 +649,22 @@ collect_cellular_data() {
     # Set defaults and clean data if no data available or invalid
     signal_strength="${signal_strength:-0}"
     signal_quality="${signal_quality:-0}"
-    
+
     # Clean and validate network type (remove any problematic characters)
     case "$network_type" in
-        *[,\n\r]*|"") network_type="Unknown" ;;
-        *) network_type=$(echo "$network_type" | tr -d ',\n\r' | head -c 15) ;;
+        *[,"$(printf '\n\r')"]* | "") network_type="Unknown" ;;
+        *) network_type=$(echo "$network_type" | tr -d "$(printf ',\n\r')" | head -c 15) ;;
     esac
-    
+
     # Clean and validate operator (remove any problematic characters)
     case "$operator" in
-        *[,\n\r]*|"") operator="Unknown" ;;
-        *) operator=$(echo "$operator" | tr -d ',\n\r' | head -c 20) ;;
+        *[,"$(printf '\n\r')"]* | "") operator="Unknown" ;;
+        *) operator=$(echo "$operator" | tr -d "$(printf ',\n\r')" | head -c 20) ;;
     esac
-    
+
     # Validate roaming status
     case "$roaming_status" in
-        roaming|home) ;;
+        roaming | home) ;;
         *) roaming_status="home" ;;
     esac
 
@@ -844,18 +838,18 @@ analyze_starlink_metrics() {
     bootcount=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.deviceInfo.bootcount // 0' 2>/dev/null)
     is_snr_above_noise_floor=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.readyStates.snrAboveNoiseFloor // false' 2>/dev/null)
     is_snr_persistently_low=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.alerts.snrPersistentlyLow // false' 2>/dev/null)
-    
+
     # SNR field may not exist in all firmware versions - use readyStates only
     snr=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.snr // null' 2>/dev/null)
-    
+
     # Always use readyStates as the authoritative source for SNR quality
     # Never use throughput data as it represents current usage, not signal quality
     if [ "$snr" = "null" ] || [ "$snr" = "0" ] || [ -z "$snr" ]; then
         # No direct SNR available - use readyStates to determine signal quality
         if [ "$is_snr_above_noise_floor" = "true" ] && [ "$is_snr_persistently_low" = "false" ]; then
-            snr="15.0"  # Represent good SNR with reasonable value for logging
+            snr="15.0" # Represent good SNR with reasonable value for logging
         else
-            snr="5.0"   # Represent poor SNR with low value for logging
+            snr="5.0" # Represent poor SNR with low value for logging
         fi
         log_debug "SNR not available in API, using readyStates: above_noise=$is_snr_above_noise_floor, persistently_low=$is_snr_persistently_low → SNR=$snr"
     else
@@ -872,7 +866,7 @@ analyze_starlink_metrics() {
             log_debug "Using direct SNR value from API: $snr dB"
         fi
     fi
-    
+
     gps_valid=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsValid // true' 2>/dev/null)
     gps_sats=$(echo "$status_data" | "$JQ_CMD" -r '.dishGetStatus.gpsStats.gpsSats // 0' 2>/dev/null)
 
@@ -922,7 +916,7 @@ analyze_connection_quality() {
     is_obstruction_poor=0
     is_snr_poor=0
     is_gps_poor=0
-    
+
     # Track individual failure reasons for detailed decision logging
     failure_reasons=""
 
@@ -943,16 +937,16 @@ analyze_connection_quality() {
     # Enhanced obstruction analysis using multiple metrics
     if [ "$(echo "$CURRENT_OBSTRUCTION > $OBSTRUCTION_THRESHOLD" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
         # Current obstruction is high, but check additional factors before triggering failover
-        
+
         # Check if intelligent obstruction analysis is enabled
         if [ "$ENABLE_INTELLIGENT_OBSTRUCTION" = "true" ]; then
             # Calculate hours of valid obstruction data
             obstruction_hours=$(awk "BEGIN {print $CURRENT_OBSTRUCTION_VALID_S / 3600}")
-            
+
             # Check if we have sufficient data for intelligent analysis
             if [ "$(echo "$obstruction_hours >= $OBSTRUCTION_MIN_DATA_HOURS" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
                 # We have sufficient data - perform intelligent analysis
-                
+
                 # Check for prolonged obstructions
                 has_prolonged_obstructions=0
                 if [ "$CURRENT_OBSTRUCTION_AVG_PROLONGED" != "NaN" ] && [ "$CURRENT_OBSTRUCTION_AVG_PROLONGED" != "0" ]; then
@@ -960,25 +954,25 @@ analyze_connection_quality() {
                         has_prolonged_obstructions=1
                     fi
                 fi
-                
+
                 # Intelligent decision logic
                 should_failover_obstruction=0
                 obstruction_analysis=""
-                
+
                 # Case 1: High historical obstruction time
                 if [ "$(echo "$CURRENT_OBSTRUCTION_TIME_PCT > $OBSTRUCTION_HISTORICAL_THRESHOLD" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
                     should_failover_obstruction=1
                     obstruction_analysis="${obstruction_analysis}historical_obst,"
                     log_warning "Significant obstruction history: ${CURRENT_OBSTRUCTION_TIME_PCT}% > ${OBSTRUCTION_HISTORICAL_THRESHOLD}% over ${obstruction_hours}h"
                 fi
-                
+
                 # Case 2: Prolonged obstructions detected
                 if [ "$has_prolonged_obstructions" = "1" ]; then
                     should_failover_obstruction=1
                     obstruction_analysis="${obstruction_analysis}prolonged_obst,"
                     log_warning "Prolonged obstructions: avg ${CURRENT_OBSTRUCTION_AVG_PROLONGED}s > ${OBSTRUCTION_PROLONGED_THRESHOLD}s threshold"
                 fi
-                
+
                 # Case 3: Current obstruction is extremely high (emergency threshold)
                 emergency_threshold=$(awk "BEGIN {print $OBSTRUCTION_THRESHOLD * 3}")
                 if [ "$(echo "$CURRENT_OBSTRUCTION > $emergency_threshold" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
@@ -986,7 +980,7 @@ analyze_connection_quality() {
                     obstruction_analysis="${obstruction_analysis}emergency_obst,"
                     log_warning "Emergency obstruction level: ${CURRENT_OBSTRUCTION}% > ${emergency_threshold}% 3x threshold"
                 fi
-                
+
                 # Case 4: Check data quality - insufficient valid patches suggests measurement issues
                 if [ "$CURRENT_OBSTRUCTION_PATCHES" -gt 0 ]; then
                     if [ "$CURRENT_OBSTRUCTION_PATCHES" -lt 1000 ] 2>/dev/null; then
@@ -999,7 +993,7 @@ analyze_connection_quality() {
                         fi
                     fi
                 fi
-                
+
                 if [ "$should_failover_obstruction" = "1" ]; then
                     is_obstruction_poor=1
                     failure_reasons="${failure_reasons}${obstruction_analysis}"
@@ -1114,11 +1108,11 @@ trigger_failover() {
 
     # Get current metric from configured member
     current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "10")
-    
+
     # Use fixed METRIC_BAD value instead of incremental increase
     # This prevents runaway metric increases from repeated failovers
     new_metric="${METRIC_BAD:-20}"
-    
+
     # Determine failover severity based on number of quality issues
     quality_factors=""
     if [ -n "${is_latency_poor:-}" ] && [ -n "${is_packet_loss_poor:-}" ] && [ -n "${is_obstruction_poor:-}" ]; then
@@ -1145,11 +1139,11 @@ trigger_failover() {
         if safe_execute "uci commit mwan3" "Commit mwan3 changes"; then
             if safe_execute "/etc/init.d/mwan3 reload" "Reload mwan3 service"; then
                 log_info "Failover triggered successfully. Metric changed from $current_metric to $new_metric"
-                
+
                 # Wait for mwan3 service to settle and create necessary files
                 log_debug "Waiting for mwan3 service to initialize..."
                 sleep 3
-                
+
                 # Optional: Verify mwan3 status files were created (with timeout)
                 mwan3_ready=0
                 for i in 1 2 3 4 5; do
@@ -1162,11 +1156,11 @@ trigger_failover() {
                         sleep 1
                     fi
                 done
-                
+
                 if [ "$mwan3_ready" = "0" ]; then
                     log_warning "MWAN3 service may not be fully initialized - status files not found"
                 fi
-                
+
                 # Log the successful failover decision
                 additional_notes="Quality factors: $quality_factors; Previous metric: $current_metric"
                 log_failover "$severity" "$trigger_reason" "success" "$additional_notes"
@@ -1190,13 +1184,13 @@ trigger_failover() {
 # Function to restore Starlink interface when quality improves
 restore_primary() {
     log_info "Restoring primary connection..."
-    
+
     # Get current metric for logging
     current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "unknown")
 
     # Reset to configured METRIC_GOOD value
     good_metric="${METRIC_GOOD:-1}"
-    
+
     # Determine restore reason based on current conditions
     if [ "${CURRENT_LATENCY:-0}" != "unknown" ] && [ "${CURRENT_PACKET_LOSS:-0}" != "unknown" ]; then
         restore_reason="quality_improved"
@@ -1205,16 +1199,16 @@ restore_primary() {
         restore_reason="metric_elevated"
         additional_notes="Metric was elevated - $current_metric, restoring to normal"
     fi
-    
+
     if safe_execute "uci set mwan3.${MWAN_MEMBER}.metric=$good_metric" "Reset mwan3 metric to $good_metric"; then
         if safe_execute "uci commit mwan3" "Commit mwan3 changes"; then
             if safe_execute "/etc/init.d/mwan3 reload" "Reload mwan3 service"; then
                 log_info "Starlink interface restored successfully"
-                
+
                 # Wait for mwan3 service to settle after restore
                 log_debug "Waiting for mwan3 service to initialize after restore..."
                 sleep 3
-                
+
                 # Optional: Verify mwan3 status files were created (with timeout)
                 mwan3_ready=0
                 for i in 1 2 3 4 5; do
@@ -1227,11 +1221,11 @@ restore_primary() {
                         sleep 1
                     fi
                 done
-                
+
                 if [ "$mwan3_ready" = "0" ]; then
                     log_warning "MWAN3 service may not be fully initialized after restore - status files not found"
                 fi
-                
+
                 # Log the successful restore decision
                 log_restore "$restore_reason" "success" "$additional_notes"
 
@@ -1288,10 +1282,10 @@ main() {
     # Main monitoring logic
     if status_data=$(get_starlink_status); then
         log_maintenance_action "api_communication" "starlink_status_fetch" "success" "Data retrieved successfully"
-        
+
         if analyze_starlink_metrics "$status_data"; then
             log_maintenance_action "data_analysis" "metrics_parsing" "success" "All metrics extracted"
-            
+
             if ! analyze_connection_quality; then
                 # Quality is poor, trigger failover
                 log_info "Connection quality analysis indicates failover needed"
