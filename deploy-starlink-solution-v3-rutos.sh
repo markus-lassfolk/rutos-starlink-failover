@@ -57,23 +57,37 @@ DEFAULT_DEEP_ANALYSIS_INTERVAL="300"
 # === PATHS AND DIRECTORIES (RUTOS PERSISTENT STORAGE) ===
 # CRITICAL: Use persistent storage that survives firmware upgrades on RUTOS
 # /root is wiped during firmware upgrades - use /opt or /mnt for persistence
-INSTALL_BASE_DIR="/opt/starlink"                         # Main installation directory (persistent)
-BACKUP_DIR="/opt/starlink/backup-$(date +%Y%m%d-%H%M%S)" # Backup location (persistent)
-CONFIG_DIR="/opt/starlink/config"                        # Configuration files (persistent)
-SCRIPTS_DIR="/opt/starlink/bin"                          # Executable scripts (persistent)
-LOG_DIR="/opt/starlink/logs"                             # Log files (persistent)
-STATE_DIR="/opt/starlink/state"                          # Runtime state files (persistent)
-LIB_DIR="/opt/starlink/lib"                              # Library files (persistent)
+# Note: Actual paths will be set after detecting available persistent storage
 HOTPLUG_DIR="/etc/hotplug.d/iface"                       # System hotplug directory
 INIT_D_DIR="/etc/init.d"                                 # System init.d directory
 
 # === RUTOS PERSISTENT STORAGE VERIFICATION ===
-# Ensure /opt is mounted and persistent
-PERSISTENT_STORAGE="/opt"
-if [ ! -d "$PERSISTENT_STORAGE" ]; then
-    log_error "/opt directory not available - RUTOS persistent storage issue"
+# Check for available persistent storage locations (in order of preference)
+PERSISTENT_STORAGE=""
+for storage_path in "/opt" "/mnt" "/usr/local" "/root"; do
+    if [ -d "$storage_path" ] && [ -w "$storage_path" ]; then
+        PERSISTENT_STORAGE="$storage_path"
+        log_debug "Found writable persistent storage: $storage_path"
+        break
+    fi
+done
+
+if [ -z "$PERSISTENT_STORAGE" ]; then
+    log_error "No writable persistent storage directory found. Checked: /opt /mnt /usr/local /root"
+    log_error "RUTOS system may have read-only filesystem issues"
     exit 1
 fi
+
+log_info "Using persistent storage: $PERSISTENT_STORAGE"
+
+# === SET DIRECTORY PATHS BASED ON DETECTED STORAGE ===
+INSTALL_BASE_DIR="$PERSISTENT_STORAGE/starlink"                         # Main installation directory (persistent)
+BACKUP_DIR="$PERSISTENT_STORAGE/starlink/backup-$(date +%Y%m%d-%H%M%S)" # Backup location (persistent)
+CONFIG_DIR="$PERSISTENT_STORAGE/starlink/config"                        # Configuration files (persistent)
+SCRIPTS_DIR="$PERSISTENT_STORAGE/starlink/bin"                          # Executable scripts (persistent)
+LOG_DIR="$PERSISTENT_STORAGE/starlink/logs"                             # Log files (persistent)
+STATE_DIR="$PERSISTENT_STORAGE/starlink/state"                          # Runtime state files (persistent)
+LIB_DIR="$PERSISTENT_STORAGE/starlink/lib"                              # Library files (persistent)
 
 # === BINARY URLS (ARMv7 for RUTX50) ===
 GRPCURL_URL="https://github.com/fullstorydev/grpcurl/releases/download/v1.9.3/grpcurl_1.9.3_linux_armv7.tar.gz"
@@ -133,7 +147,7 @@ setup_persistent_storage() {
 create_recovery_script() {
     log_info "Creating firmware upgrade recovery script..."
 
-    cat >"$SCRIPTS_DIR/recover-after-firmware-upgrade.sh" <<'EOF'
+    cat >"$SCRIPTS_DIR/recover-after-firmware-upgrade.sh" <<EOF
 #!/bin/sh
 # RUTOS Firmware Upgrade Recovery Script
 # This script restores the intelligent monitoring system after firmware upgrades
@@ -141,11 +155,11 @@ create_recovery_script() {
 
 set -e
 
-# Persistent storage locations
-INSTALL_BASE_DIR="/opt/starlink"
-CONFIG_DIR="/opt/starlink/config"
-SCRIPTS_DIR="/opt/starlink/bin"
-LOG_DIR="/opt/starlink/logs"
+# Persistent storage locations (set during installation)
+INSTALL_BASE_DIR="$INSTALL_BASE_DIR"
+CONFIG_DIR="$CONFIG_DIR"
+SCRIPTS_DIR="$SCRIPTS_DIR"
+LOG_DIR="$LOG_DIR"
 INIT_D_DIR="/etc/init.d"
 
 echo "🔄 RUTOS Firmware Upgrade Recovery - Starlink Intelligent Monitoring"
