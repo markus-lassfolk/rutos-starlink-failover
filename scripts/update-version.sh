@@ -6,6 +6,11 @@
 # This script automatically updates version numbers across the project
 # using git information and timestamps.
 #
+# CRITICAL: This script follows RUTOS library patterns and best practices
+# - RUTOS scripts (-rutos.sh) use library system (no readonly SCRIPT_VERSION)
+# - Standalone scripts can use readonly SCRIPT_VERSION
+# - Respects shell compatibility and POSIX requirements
+#
 # Usage:
 #   ./update-version.sh [major|minor|patch]
 #
@@ -14,8 +19,8 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
+SCRIPT_VERSION="2.8.0"
+# NOTE: This script is standalone and can use readonly. RUTOS scripts should NOT.
 
 # Get current directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -219,10 +224,31 @@ update_version_in_files() {
     eval "find \"$PROJECT_ROOT\" -name \"*.sh\" $exclusions" | while read -r file; do
         echo "  Processing: $file"
 
+        # Determine if this is a RUTOS script (uses library system)
+        is_rutos_script=false
+        if echo "$file" | grep -q -- "-rutos\.sh$"; then
+            is_rutos_script=true
+            log_debug "Detected RUTOS library script: $file"
+        fi
+
         if grep -q "^[[:space:]]*SCRIPT_VERSION=" "$file"; then
-            # Update existing SCRIPT_VERSION
-            sed -i "s/^[[:space:]]*SCRIPT_VERSION=.*/SCRIPT_VERSION=\"$version\"/" "$file"
-            echo "    ✓ Updated existing SCRIPT_VERSION"
+            # Update existing SCRIPT_VERSION (but don't touch readonly lines)
+            if [ "$is_rutos_script" = true ]; then
+                # RUTOS scripts: Only update the version value, remove any readonly declarations
+                sed -i "s/^[[:space:]]*SCRIPT_VERSION=.*/SCRIPT_VERSION=\"$version\"/" "$file"
+                # Remove any readonly SCRIPT_VERSION lines (library manages this)
+                sed -i "/^[[:space:]]*readonly[[:space:]]*SCRIPT_VERSION/d" "$file"
+                echo "    ✓ Updated RUTOS script version (removed readonly)"
+            else
+                # Standalone scripts: Update version and ensure readonly is present
+                sed -i "s/^[[:space:]]*SCRIPT_VERSION=.*/SCRIPT_VERSION=\"$version\"/" "$file"
+                if ! grep -q "^[[:space:]]*readonly[[:space:]]*SCRIPT_VERSION" "$file"; then
+                    # Add readonly after SCRIPT_VERSION line if missing
+                    sed -i "/^SCRIPT_VERSION=/a\\
+readonly SCRIPT_VERSION" "$file"
+                fi
+                echo "    ✓ Updated standalone script version (with readonly)"
+            fi
         else
             # Add SCRIPT_VERSION if missing
             if [ -f "$file" ] && head -1 "$file" | grep -q "^#!/"; then
@@ -248,11 +274,21 @@ update_version_in_files() {
                     echo ""
                     echo "# Version information (auto-updated by update-version.sh)"
                     echo "SCRIPT_VERSION=\"$version\""
-                    echo "readonly SCRIPT_VERSION"
+                    
+                    # Only add readonly for standalone scripts, NOT for RUTOS scripts
+                    if [ "$is_rutos_script" = false ]; then
+                        echo "readonly SCRIPT_VERSION"
+                    fi
+                    
                     tail -n "+$insert_line" "$file"
                 } >"$temp_version_content"
                 mv "$temp_version_content" "$file"
-                echo "    ✓ Added missing SCRIPT_VERSION"
+                
+                if [ "$is_rutos_script" = true ]; then
+                    echo "    ✓ Added RUTOS script version (no readonly - library manages this)"
+                else
+                    echo "    ✓ Added standalone script version (with readonly)"
+                fi
             fi
         fi
 
@@ -386,6 +422,11 @@ main() {
         echo ""
         echo "Usage: $0 [major|minor|patch|--help]"
         echo ""
+        echo "This script follows RUTOS best practices:"
+        echo "  - RUTOS scripts (*-rutos.sh) use library system (no readonly SCRIPT_VERSION)"
+        echo "  - Standalone scripts use readonly SCRIPT_VERSION"
+        echo "  - Respects shell compatibility and POSIX requirements"
+        echo ""
         echo "Options:"
         echo "  major    Increment major version (X.0.0)"
         echo "  minor    Increment minor version (X.Y.0)"
@@ -406,6 +447,7 @@ main() {
         log_debug "Working directory: $(pwd)"
         log_debug "Arguments: $*"
         log_debug "Level: $level"
+        log_debug "RUTOS Best Practices: Enabled"
         log_debug "=============================================================="
     fi
 
@@ -462,7 +504,9 @@ main() {
     echo "Updated files:"
     echo "- VERSION (project version file)"
     echo "- VERSION_INFO (detailed build information)"
-    echo "- All shell scripts (.sh files) throughout project"
+    echo "- All shell scripts (.sh files) following RUTOS best practices:"
+    echo "  * RUTOS scripts (*-rutos.sh): SCRIPT_VERSION without readonly"
+    echo "  * Standalone scripts: SCRIPT_VERSION with readonly"
     echo "- Configuration templates (config/*.sh)"
     echo "- Important documentation files (*.md)"
     echo "- package.json (if present)"
@@ -470,8 +514,10 @@ main() {
 
     echo ""
     echo "✅ All project files now use version: $new_version"
+    echo "✅ RUTOS library compatibility maintained"
     echo ""
     echo "💡 TIP: Run './scripts/pre-commit-validation.sh' to verify version consistency"
+    echo "💡 TIP: RUTOS scripts will get SCRIPT_VERSION managed by library system"
 }
 
 # Run main function

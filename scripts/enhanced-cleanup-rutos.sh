@@ -6,17 +6,14 @@
 set -eu
 
 # Version information
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # RUTOS-compatible color detection
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     RED=""
     GREEN=""
@@ -31,12 +28,18 @@ print_status() {
     message="$2"
     # Use Method 5 format that works in RUTOS (embed variables in format string)
     case "$color" in
-        "$RED") printf "${RED}%s${NC}\n" "$message" ;;
-        "$GREEN") printf "${GREEN}%s${NC}\n" "$message" ;;
-        "$YELLOW") printf "${YELLOW}%s${NC}\n" "$message" ;;
-        "$BLUE") printf "${BLUE}%s${NC}\n" "$message" ;;
-        "$CYAN") printf "${CYAN}%s${NC}\n" "$message" ;;
-        *) printf "%s\n" "$message" ;;
+        "$RED") printf "${RED}%s${NC}
+" "$message" ;;
+        "$GREEN") printf "${GREEN}%s${NC}
+" "$message" ;;
+        "$YELLOW") printf "${YELLOW}%s${NC}
+" "$message" ;;
+        "$BLUE") printf "${BLUE}%s${NC}
+" "$message" ;;
+        "$CYAN") printf "${CYAN}%s${NC}
+" "$message" ;;
+        *) printf "%s
+" "$message" ;;
     esac
 }
 
@@ -214,7 +217,7 @@ if [ -f "$CRON_FILE" ]; then
 
     # Enhanced regex to catch all variations
     temp_cron="/tmp/crontab_cleanup.tmp"
-    safe_execute "sed 's|^\([^#].*\(starlink.*\.sh\|check_starlink\|system-maintenance\|self-update\).*\)|# CLEANUP COMMENTED: \1|g' '$CRON_FILE' >'$temp_cron'" "Process crontab entries"
+    safe_execute "sed 's|^\([^#].*\(starlink.*\.sh\|check_starlink\|system-maintenance\|self-update\).*\)|# CLEANUP COMMENTED: |g' '$CRON_FILE' >'$temp_cron'" "Process crontab entries"
 
     # Clean up excessive blank lines
     safe_execute "awk 'BEGIN { blank_count = 0 } /^$/ { blank_count++; if (blank_count <= 1) print } /^./ { blank_count = 0; print }' '$temp_cron' >'${temp_cron}.clean' && mv '${temp_cron}.clean' '$temp_cron'" "Clean up blank lines"
@@ -273,7 +276,8 @@ if [ "$DRY_RUN" = "0" ]; then
         running_procs=$(ps | grep -c -E "(starlink|rutos)" || echo "0")
     fi
     # Clean any whitespace from count
-    running_procs=$(echo "$running_procs" | tr -d ' \n\r')
+    running_procs=$(echo "$running_procs" | tr -d ' 
+')
     running_procs=${running_procs:-0}
 
     if [ "$running_procs" -gt 0 ]; then
@@ -363,3 +367,6 @@ if [ "$total_issues" -eq 0 ] && [ "$DRY_RUN" = "0" ]; then
     print_status "$CYAN" "💡 Ready for next test:"
     print_status "$CYAN" "   curl -sSL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/bootstrap-install-rutos.sh | sh"
 fi
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

@@ -26,15 +26,13 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Use version for validation
 echo "$(basename "$0") v$SCRIPT_VERSION" >/dev/null 2>&1 || true
 
 # RUTOS test mode support (for testing framework)
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
@@ -53,7 +51,8 @@ fi
 # Debug logging function (defined early for use throughout script)
 debug_log() {
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "[DEBUG] [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
@@ -88,12 +87,14 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
+    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s
+" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
 fi
 
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
@@ -103,12 +104,15 @@ safe_execute() {
     description="$2"
 
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-        printf "[DRY-RUN] Would execute: %s\n" "$description" >&2
-        printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
+        printf "[DRY-RUN] Would execute: %s
+" "$description" >&2
+        printf "[DRY-RUN] Command: %s
+" "$cmd" >&2
         return 0
     else
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "[DEBUG] Executing: %s\n" "$cmd" >&2
+            printf "[DEBUG] Executing: %s
+" "$cmd" >&2
         fi
         eval "$cmd"
     fi
@@ -127,7 +131,8 @@ log() {
     logger -t "$LOG_TAG" -- "$1"
     # Also output to stderr if DEBUG is enabled
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "[%s] %s\n" "$LOG_TAG" "$1" >&2
+        printf "[%s] %s
+" "$LOG_TAG" "$1" >&2
     fi
 }
 
@@ -584,3 +589,6 @@ if [ -f /tmp/logger_error.log ]; then
     debug_log "CLEANUP: Removing temporary error log"
     rm -f /tmp/logger_error.log
 fi
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

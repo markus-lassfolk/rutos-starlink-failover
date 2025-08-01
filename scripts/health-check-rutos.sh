@@ -9,9 +9,6 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
@@ -20,14 +17,14 @@ readonly SCRIPT_VERSION
 # CRITICAL: Use RUTOS-compatible color detection
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
     # shellcheck disable=SC2034  # Used in some conditional contexts
-    PURPLE='\033[0;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    PURPLE='[0;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     # Colors disabled
     RED=""
@@ -41,29 +38,35 @@ fi
 
 # Standard logging functions with consistent colors
 log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_success() {
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Version information for troubleshooting
@@ -187,19 +190,24 @@ show_health_status() {
 
     case "$status" in
         "healthy")
-            printf "${GREEN}✅ HEALTHY${NC}   | %-25s | %s\n" "$component" "$message"
+            printf "${GREEN}✅ HEALTHY${NC}   | %-25s | %s
+" "$component" "$message"
             ;;
         "warning")
-            printf "${YELLOW}⚠️  WARNING${NC}   | %-25s | %s\n" "$component" "$message"
+            printf "${YELLOW}⚠️  WARNING${NC}   | %-25s | %s
+" "$component" "$message"
             ;;
         "critical")
-            printf "${RED}❌ CRITICAL${NC}  | %-25s | %s\n" "$component" "$message"
+            printf "${RED}❌ CRITICAL${NC}  | %-25s | %s
+" "$component" "$message"
             ;;
         "unknown")
-            printf "${CYAN}❓ UNKNOWN${NC}    | %-25s | %s\n" "$component" "$message"
+            printf "${CYAN}❓ UNKNOWN${NC}    | %-25s | %s
+" "$component" "$message"
             ;;
         *)
-            printf "${PURPLE}ℹ️  INFO${NC}      | %-25s | %s\n" "$component" "$message"
+            printf "${PURPLE}ℹ️  INFO${NC}      | %-25s | %s
+" "$component" "$message"
             ;;
     esac
 
@@ -357,9 +365,12 @@ check_cron_configuration() {
     api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0")
 
     # Strip whitespace from counts to prevent arithmetic errors
-    monitor_entries=$(echo "$monitor_entries" | tr -d ' \n\r')
-    logger_entries=$(echo "$logger_entries" | tr -d ' \n\r')
-    api_check_entries=$(echo "$api_check_entries" | tr -d ' \n\r')
+    monitor_entries=$(echo "$monitor_entries" | tr -d ' 
+')
+    logger_entries=$(echo "$logger_entries" | tr -d ' 
+')
+    api_check_entries=$(echo "$api_check_entries" | tr -d ' 
+')
 
     total_entries=$((monitor_entries + logger_entries + api_check_entries))
 
@@ -424,7 +435,8 @@ check_cron_configuration() {
     fi
 
     # Check for duplicate/conflicting entries
-    duplicate_lines=$(grep -E "(starlink_monitor-rutos\.sh|starlink_logger-rutos\.sh|check_starlink_api)" "$CRON_FILE" | sort | uniq -d | wc -l | tr -d ' \n\r')
+    duplicate_lines=$(grep -E "(starlink_monitor-rutos\.sh|starlink_logger-rutos\.sh|check_starlink_api)" "$CRON_FILE" | sort | uniq -d | wc -l | tr -d ' 
+')
     if [ "$duplicate_lines" -gt 0 ]; then
         show_health_status "warning" "Duplicate Entries" "Found $duplicate_lines duplicate cron lines"
         increment_counter "warning"
@@ -436,7 +448,8 @@ check_cron_configuration() {
     # Check for commented out entries (from old install scripts)
     commented_entries=$(grep -c "# COMMENTED BY.*starlink" "$CRON_FILE" 2>/dev/null || echo "0")
     # Strip whitespace from count to prevent arithmetic errors
-    commented_entries=$(echo "$commented_entries" | tr -d ' \n\r')
+    commented_entries=$(echo "$commented_entries" | tr -d ' 
+')
     if [ "$commented_entries" -gt 0 ]; then
         show_health_status "warning" "Commented Entries" "Found $commented_entries commented entries (cleanup recommended)"
         increment_counter "warning"
@@ -1070,7 +1083,8 @@ check_firmware_persistence() {
         fi
 
         # Check for backup history
-        backup_count=$(find "/etc/starlink-config" -name "config.sh.backup.*" -type f 2>/dev/null | wc -l | tr -d ' \n\r')
+        backup_count=$(find "/etc/starlink-config" -name "config.sh.backup.*" -type f 2>/dev/null | wc -l | tr -d ' 
+')
         if [ "$backup_count" -gt 0 ]; then
             show_health_status "healthy" "Backup History" "Found $backup_count timestamped configuration backups"
             increment_counter "healthy"
@@ -1084,7 +1098,8 @@ check_firmware_persistence() {
     if [ -f "/var/log/starlink-restore.log" ]; then
         # Check if log is recent (within last 30 days, indicating recent restoration activity)
         if [ -n "$(find "/var/log/starlink-restore.log" -mtime -30 2>/dev/null)" ]; then
-            log_lines=$(wc -l <"/var/log/starlink-restore.log" 2>/dev/null | tr -d ' \n\r' || echo "0")
+            log_lines=$(wc -l <"/var/log/starlink-restore.log" 2>/dev/null | tr -d ' 
+' || echo "0")
             show_health_status "healthy" "Restore Activity" "Recent activity logged ($log_lines lines)"
             increment_counter "healthy"
 
@@ -1405,10 +1420,12 @@ check_system_log_errors() {
     fi
 
     if [ -n "$recent_errors" ]; then
-        error_count=$(echo "$recent_errors" | wc -l | tr -d ' \n\r')
+        error_count=$(echo "$recent_errors" | wc -l | tr -d ' 
+')
         if [ "$error_count" -gt 0 ]; then
             # Show first few lines of recent errors for context
-            sample_errors=$(echo "$recent_errors" | head -3 | tr '\n' '; ')
+            sample_errors=$(echo "$recent_errors" | head -3 | tr '
+' '; ')
             show_health_status "warning" "$check_name" "Found $error_count recent errors: $sample_errors"
             increment_counter "warning"
             return 1
@@ -1490,21 +1507,30 @@ check_runtime_functionality() {
 show_health_summary() {
     echo ""
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
+    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}║${NC}                            ${BLUE}HEALTH CHECK SUMMARY${NC}                            ${PURPLE}║${NC}\n"
+    printf "${PURPLE}║${NC}                            ${BLUE}HEALTH CHECK SUMMARY${NC}                            ${PURPLE}║${NC}
+"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
     echo ""
 
     total_checks=$((HEALTHY_COUNT + WARNING_COUNT + CRITICAL_COUNT + UNKNOWN_COUNT))
 
-    printf "${GREEN}✅ HEALTHY:   %3d checks${NC}\n" "$HEALTHY_COUNT"
-    printf "${YELLOW}⚠️  WARNING:   %3d checks${NC}\n" "$WARNING_COUNT"
-    printf "${RED}❌ CRITICAL:  %3d checks${NC}\n" "$CRITICAL_COUNT"
-    printf "${CYAN}❓ UNKNOWN:    %3d checks${NC}\n" "$UNKNOWN_COUNT"
-    printf "${PURPLE}──────────────────────${NC}\n"
-    printf "${BLUE}📊 TOTAL:     %3d checks${NC}\n" "$total_checks"
+    printf "${GREEN}✅ HEALTHY:   %3d checks${NC}
+" "$HEALTHY_COUNT"
+    printf "${YELLOW}⚠️  WARNING:   %3d checks${NC}
+" "$WARNING_COUNT"
+    printf "${RED}❌ CRITICAL:  %3d checks${NC}
+" "$CRITICAL_COUNT"
+    printf "${CYAN}❓ UNKNOWN:    %3d checks${NC}
+" "$UNKNOWN_COUNT"
+    printf "${PURPLE}──────────────────────${NC}
+"
+    printf "${BLUE}📊 TOTAL:     %3d checks${NC}
+" "$total_checks"
 
     echo ""
 
@@ -1513,45 +1539,62 @@ show_health_summary() {
         health_percentage=$(((HEALTHY_COUNT * 100) / total_checks))
 
         if [ "$CRITICAL_COUNT" -gt 0 ]; then
-            printf "${RED}🚨 OVERALL STATUS: CRITICAL${NC}\n"
-            printf "${RED}   System has critical issues that need immediate attention${NC}\n"
+            printf "${RED}🚨 OVERALL STATUS: CRITICAL${NC}
+"
+            printf "${RED}   System has critical issues that need immediate attention${NC}
+"
             exit_code=2
         elif [ "$WARNING_COUNT" -gt 0 ]; then
-            printf "${YELLOW}⚠️  OVERALL STATUS: WARNING${NC}\n"
-            printf "${YELLOW}   System is functional but has issues that should be addressed${NC}\n"
+            printf "${YELLOW}⚠️  OVERALL STATUS: WARNING${NC}
+"
+            printf "${YELLOW}   System is functional but has issues that should be addressed${NC}
+"
             exit_code=1
         else
-            printf "${GREEN}🎉 OVERALL STATUS: HEALTHY${NC}\n"
-            printf "${GREEN}   System is operating normally${NC}\n"
+            printf "${GREEN}🎉 OVERALL STATUS: HEALTHY${NC}
+"
+            printf "${GREEN}   System is operating normally${NC}
+"
             exit_code=0
         fi
 
-        printf "${BLUE}📈 HEALTH SCORE: %d%%${NC}\n" "$health_percentage"
+        printf "${BLUE}📈 HEALTH SCORE: %d%%${NC}
+" "$health_percentage"
     else
-        printf "${RED}❌ OVERALL STATUS: NO CHECKS PERFORMED${NC}\n"
+        printf "${RED}❌ OVERALL STATUS: NO CHECKS PERFORMED${NC}
+"
         exit_code=3
     fi
 
     echo ""
-    printf "${CYAN}💡 Recommendations:${NC}\n"
+    printf "${CYAN}💡 Recommendations:${NC}
+"
 
     if [ "$CRITICAL_COUNT" -gt 0 ]; then
-        printf "${RED}   • Address critical issues immediately${NC}\n"
-        printf "${RED}   • Check connectivity and configuration${NC}\n"
+        printf "${RED}   • Address critical issues immediately${NC}
+"
+        printf "${RED}   • Check connectivity and configuration${NC}
+"
     fi
 
     if [ "$WARNING_COUNT" -gt 0 ]; then
-        printf "${YELLOW}   • Review warning items when convenient${NC}\n"
-        printf "${YELLOW}   • Consider enabling optional features${NC}\n"
+        printf "${YELLOW}   • Review warning items when convenient${NC}
+"
+        printf "${YELLOW}   • Consider enabling optional features${NC}
+"
     fi
 
     if [ "$UNKNOWN_COUNT" -gt 0 ]; then
-        printf "${CYAN}   • Install missing testing tools${NC}\n"
-        printf "${CYAN}   • Run individual tests for more details${NC}\n"
+        printf "${CYAN}   • Install missing testing tools${NC}
+"
+        printf "${CYAN}   • Run individual tests for more details${NC}
+"
     fi
 
-    printf "${BLUE}   • Run 'DEBUG=1 %s' for detailed troubleshooting${NC}\n" "$0"
-    printf "${BLUE}   • Check individual component logs in %s${NC}\n" "$LOG_DIR"
+    printf "${BLUE}   • Run 'DEBUG=1 %s' for detailed troubleshooting${NC}
+" "$0"
+    printf "${BLUE}   • Check individual component logs in %s${NC}
+" "$LOG_DIR"
 
     echo ""
     return $exit_code
@@ -1634,19 +1677,25 @@ main() {
 
     echo ""
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
+    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}║${NC}                    ${BLUE}STARLINK MONITOR HEALTH CHECK${NC}                     ${PURPLE}║${NC}\n"
+    printf "${PURPLE}║${NC}                    ${BLUE}STARLINK MONITOR HEALTH CHECK${NC}                     ${PURPLE}║${NC}
+"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}║${NC}                           ${CYAN}Version ${SCRIPT_VERSION}${NC}                            ${PURPLE}║${NC}\n"
+    printf "${PURPLE}║${NC}                           ${CYAN}Version ${SCRIPT_VERSION}${NC}                            ${PURPLE}║${NC}
+"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
     echo ""
 
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}%-15s | %-25s | %s${NC}\n" "STATUS" "COMPONENT" "DETAILS"
+    printf "${BLUE}%-15s | %-25s | %s${NC}
+" "STATUS" "COMPONENT" "DETAILS"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}%-15s | %-25s | %s${NC}\n" "===============" "=========================" "================================"
+    printf "${BLUE}%-15s | %-25s | %s${NC}
+" "===============" "=========================" "================================"
 
     # Initialize counters
     log_debug "COUNTER INIT: Resetting all health counters"
@@ -1706,15 +1755,18 @@ main() {
             # Check configuration
             if [ -z "${PUSHOVER_TOKEN:-}" ] || [ -z "${PUSHOVER_USER:-}" ]; then
                 log_error "Pushover credentials not configured"
-                printf "PUSHOVER_TOKEN: %s\n" "${PUSHOVER_TOKEN:-NOT_SET}"
-                printf "PUSHOVER_USER: %s\n" "${PUSHOVER_USER:-NOT_SET}"
+                printf "PUSHOVER_TOKEN: %s
+" "${PUSHOVER_TOKEN:-NOT_SET}"
+                printf "PUSHOVER_USER: %s
+" "${PUSHOVER_USER:-NOT_SET}"
                 exit 1
             fi
 
             # Check for placeholders
             if [ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] || [ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ]; then
                 log_error "Pushover credentials still have placeholder values"
-                printf "Please update your configuration with real Pushover credentials\n"
+                printf "Please update your configuration with real Pushover credentials
+"
                 exit 1
             fi
 
@@ -1733,14 +1785,19 @@ main() {
                 if echo "$test_response" | grep -q '"status":1'; then
                     show_health_status "healthy" "Pushover Test" "Test notification sent successfully"
                     log_info "✅ SUCCESS! Check your Pushover app for the test message"
-                    printf "\n${GREEN}Test completed successfully!${NC}\n"
-                    printf "If you received the notification, your Pushover system is working.\n"
-                    printf "If no notification arrived, check your Pushover app settings.\n"
+                    printf "
+${GREEN}Test completed successfully!${NC}
+"
+                    printf "If you received the notification, your Pushover system is working.
+"
+                    printf "If no notification arrived, check your Pushover app settings.
+"
                     exit 0
                 else
                     show_health_status "critical" "Pushover Test" "API call failed"
                     log_error "❌ API test failed"
-                    printf "Response: %s\n" "$test_response"
+                    printf "Response: %s
+" "$test_response"
                     exit 1
                 fi
             else
@@ -1799,3 +1856,6 @@ case "${1:-}" in
         main "$@"
         ;;
 esac
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

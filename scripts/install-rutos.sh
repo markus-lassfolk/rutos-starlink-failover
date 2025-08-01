@@ -9,43 +9,59 @@
 # ==============================================================================
 
 # CRITICAL: Add immediate debug output before any potential failures
-printf "[EARLY_DEBUG] install-rutos.sh starting\n" >&2
-printf "[EARLY_DEBUG] Script file: %s\n" "$0" >&2
-printf "[EARLY_DEBUG] Environment check:\n" >&2
-printf "[EARLY_DEBUG]   LIBRARY_PATH=%s\n" "${LIBRARY_PATH:-not_set}" >&2
-printf "[EARLY_DEBUG]   USE_LIBRARY=%s\n" "${USE_LIBRARY:-not_set}" >&2
-printf "[EARLY_DEBUG]   DEBUG=%s\n" "${DEBUG:-not_set}" >&2
-printf "[EARLY_DEBUG]   RUTOS_TEST_MODE=%s\n" "${RUTOS_TEST_MODE:-not_set}" >&2
-printf "[EARLY_DEBUG]   DRY_RUN=%s\n" "${DRY_RUN:-not_set}" >&2
+printf "[EARLY_DEBUG] install-rutos.sh starting
+" >&2
+printf "[EARLY_DEBUG] Script file: %s
+" "$0" >&2
+printf "[EARLY_DEBUG] Environment check:
+" >&2
+printf "[EARLY_DEBUG]   LIBRARY_PATH=%s
+" "${LIBRARY_PATH:-not_set}" >&2
+printf "[EARLY_DEBUG]   USE_LIBRARY=%s
+" "${USE_LIBRARY:-not_set}" >&2
+printf "[EARLY_DEBUG]   DEBUG=%s
+" "${DEBUG:-not_set}" >&2
+printf "[EARLY_DEBUG]   RUTOS_TEST_MODE=%s
+" "${RUTOS_TEST_MODE:-not_set}" >&2
+printf "[EARLY_DEBUG]   DRY_RUN=%s
+" "${DRY_RUN:-not_set}" >&2
 
-printf "[EARLY_DEBUG] Testing LIBRARY_PATH...\n" >&2
+printf "[EARLY_DEBUG] Testing LIBRARY_PATH...
+" >&2
 if [ -n "${LIBRARY_PATH:-}" ]; then
-    printf "[EARLY_DEBUG] LIBRARY_PATH is set\n" >&2
+    printf "[EARLY_DEBUG] LIBRARY_PATH is set
+" >&2
     if [ -d "${LIBRARY_PATH}" ]; then
-        printf "[EARLY_DEBUG] LIBRARY_PATH directory exists\n" >&2
+        printf "[EARLY_DEBUG] LIBRARY_PATH directory exists
+" >&2
         if [ -f "${LIBRARY_PATH}/rutos-lib.sh" ]; then
-            printf "[EARLY_DEBUG] rutos-lib.sh found\n" >&2
+            printf "[EARLY_DEBUG] rutos-lib.sh found
+" >&2
         else
-            printf "[EARLY_DEBUG] rutos-lib.sh NOT found\n" >&2
+            printf "[EARLY_DEBUG] rutos-lib.sh NOT found
+" >&2
         fi
     else
-        printf "[EARLY_DEBUG] LIBRARY_PATH directory missing\n" >&2
+        printf "[EARLY_DEBUG] LIBRARY_PATH directory missing
+" >&2
     fi
 else
-    printf "[EARLY_DEBUG] LIBRARY_PATH not set\n" >&2
+    printf "[EARLY_DEBUG] LIBRARY_PATH not set
+" >&2
 fi
 
-printf "[EARLY_DEBUG] About to set shell options...\n" >&2
+printf "[EARLY_DEBUG] About to set shell options...
+" >&2
 
 # TEMPORARILY disable strict mode for library loading debugging
 # set -eu
-printf "[EARLY_DEBUG] Shell strict mode disabled for debugging\n" >&2
+printf "[EARLY_DEBUG] Shell strict mode disabled for debugging
+" >&2
 
-printf "[EARLY_DEBUG] Shell options set successfully\n" >&2
+printf "[EARLY_DEBUG] Shell options set successfully
+" >&2
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="install-rutos.sh"
 
@@ -66,93 +82,127 @@ BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}"
 # For remote installation via curl, we'll use built-in fallback functions
 LIBRARY_LOADED=0
 
-printf "[EARLY_DEBUG] Starting library loading process...\n" >&2
+printf "[EARLY_DEBUG] Starting library loading process...
+" >&2
 
 # Check if library is available via LIBRARY_PATH (bootstrap mode)
-printf "[EARLY_DEBUG] Checking LIBRARY_PATH method...\n" >&2
+printf "[EARLY_DEBUG] Checking LIBRARY_PATH method...
+" >&2
 if [ "$LIBRARY_LOADED" = "0" ] && [ -n "${LIBRARY_PATH:-}" ] && [ -f "${LIBRARY_PATH}/rutos-lib.sh" ]; then
-    printf "[EARLY_DEBUG] Attempting to source library from: ${LIBRARY_PATH}/rutos-lib.sh\n" >&2
+    printf "[EARLY_DEBUG] Attempting to source library from: ${LIBRARY_PATH}/rutos-lib.sh
+" >&2
     
     # Test file readability first
     if [ -r "${LIBRARY_PATH}/rutos-lib.sh" ]; then
-        printf "[EARLY_DEBUG] Library file is readable\n" >&2
+        printf "[EARLY_DEBUG] Library file is readable
+" >&2
     else
-        printf "[EARLY_DEBUG] Library file is NOT readable\n" >&2
+        printf "[EARLY_DEBUG] Library file is NOT readable
+" >&2
         exit 2
     fi
     
-    printf "[EARLY_DEBUG] About to source library...\n" >&2
+    printf "[EARLY_DEBUG] About to source library...
+" >&2
     
     # Source library directly (not in a subshell to preserve function definitions)
-    printf "[EARLY_DEBUG] Sourcing library directly...\n" >&2
+    printf "[EARLY_DEBUG] Sourcing library directly...
+" >&2
     if . "${LIBRARY_PATH}/rutos-lib.sh" 2>/tmp/library_load_output.$$; then
         LIBRARY_LOADED=1
-        printf "[INFO] RUTOS library system loaded from bootstrap path: %s\n" "$LIBRARY_PATH"
-        printf "[EARLY_DEBUG] Library loading successful via LIBRARY_PATH\n" >&2
+        printf "[INFO] RUTOS library system loaded from bootstrap path: %s
+" "$LIBRARY_PATH"
+        printf "[EARLY_DEBUG] Library loading successful via LIBRARY_PATH
+" >&2
         
         # Quick function availability test
-        printf "[EARLY_DEBUG] Testing critical functions...\n" >&2
+        printf "[EARLY_DEBUG] Testing critical functions...
+" >&2
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.8.0"
+
         if command -v rutos_init_portable >/dev/null 2>&1; then
-            printf "[EARLY_DEBUG] ✓ rutos_init_portable available\n" >&2
+            printf "[EARLY_DEBUG] ✓ rutos_init_portable available
+" >&2
         else
-            printf "[EARLY_DEBUG] ✗ rutos_init_portable NOT available\n" >&2
+            printf "[EARLY_DEBUG] ✗ rutos_init_portable NOT available
+" >&2
         fi
         
         # Show library loading output for debugging
         if [ -f "/tmp/library_load_output.$$" ] && [ -s "/tmp/library_load_output.$$" ]; then
-            printf "[EARLY_DEBUG] Library loading output:\n" >&2
+            printf "[EARLY_DEBUG] Library loading output:
+" >&2
             while IFS= read -r line; do
-                printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+                printf "[EARLY_DEBUG]   %s
+" "$line" >&2
             done < "/tmp/library_load_output.$$"
         fi
         rm -f "/tmp/library_load_output.$$" 2>/dev/null
     else
         library_exit_code=$?
-        printf "[EARLY_DEBUG] Library loading FAILED via LIBRARY_PATH with exit code: %d\n" "$library_exit_code" >&2
+        printf "[EARLY_DEBUG] Library loading FAILED via LIBRARY_PATH with exit code: %d
+" "$library_exit_code" >&2
         if [ -f "/tmp/library_load_output.$$" ]; then
-            printf "[EARLY_DEBUG] Library error output:\n" >&2
+            printf "[EARLY_DEBUG] Library error output:
+" >&2
             while IFS= read -r line; do
-                printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+                printf "[EARLY_DEBUG]   %s
+" "$line" >&2
             done < "/tmp/library_load_output.$$"
         fi
         rm -f "/tmp/library_load_output.$$" 2>/dev/null
         
         # Show detailed file info for debugging
-        printf "[EARLY_DEBUG] Library file details:\n" >&2
+        printf "[EARLY_DEBUG] Library file details:
+" >&2
         ls -la "${LIBRARY_PATH}/rutos-lib.sh" 2>&1 | while IFS= read -r line; do
-            printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+            printf "[EARLY_DEBUG]   %s
+" "$line" >&2
         done
         
         # Show directory contents
-        printf "[EARLY_DEBUG] Library directory contents:\n" >&2
+        printf "[EARLY_DEBUG] Library directory contents:
+" >&2
         ls -la "${LIBRARY_PATH}/" 2>&1 | while IFS= read -r line; do
-            printf "[EARLY_DEBUG]   %s\n" "$line" >&2
+            printf "[EARLY_DEBUG]   %s
+" "$line" >&2
         done
         
-        printf "[EARLY_DEBUG] Exiting due to library loading failure\n" >&2
+        printf "[EARLY_DEBUG] Exiting due to library loading failure
+" >&2
         exit 2
     fi
 else
-    printf "[EARLY_DEBUG] LIBRARY_PATH method not available (LIBRARY_LOADED=$LIBRARY_LOADED, LIBRARY_PATH=${LIBRARY_PATH:-empty}, file_exists=$([ -f "${LIBRARY_PATH:-}/rutos-lib.sh" ] && echo yes || echo no))\n" >&2
+    printf "[EARLY_DEBUG] LIBRARY_PATH method not available (LIBRARY_LOADED=$LIBRARY_LOADED, LIBRARY_PATH=${LIBRARY_PATH:-empty}, file_exists=$([ -f "${LIBRARY_PATH:-}/rutos-lib.sh" ] && echo yes || echo no))
+" >&2
 fi
 
 # Check for local development environment
-printf "[EARLY_DEBUG] Checking local development method...\n" >&2
+printf "[EARLY_DEBUG] Checking local development method...
+" >&2
 if [ "$LIBRARY_LOADED" = "0" ] && [ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && [ -d "$(dirname "$0")/lib" ]; then
-    printf "[EARLY_DEBUG] Attempting to source library from local development: $(dirname "$0")/lib/rutos-lib.sh\n" >&2
+    printf "[EARLY_DEBUG] Attempting to source library from local development: $(dirname "$0")/lib/rutos-lib.sh
+" >&2
     # Development mode: scripts directory available locally
     if . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
         LIBRARY_LOADED=1
-        printf "[INFO] RUTOS library system loaded from local development environment\n"
-        printf "[EARLY_DEBUG] Library loading successful via local development\n" >&2
+        printf "[INFO] RUTOS library system loaded from local development environment
+"
+        printf "[EARLY_DEBUG] Library loading successful via local development
+" >&2
     else
-        printf "[EARLY_DEBUG] Library loading FAILED via local development\n" >&2
+        printf "[EARLY_DEBUG] Library loading FAILED via local development
+" >&2
     fi
 else
-    printf "[EARLY_DEBUG] Local development method not available (LIBRARY_LOADED=$LIBRARY_LOADED, dirname=$0, dir_exists=$([ -d "$(dirname "$0")/lib" ] && echo yes || echo no), file_exists=$([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo yes || echo no))\n" >&2
+    printf "[EARLY_DEBUG] Local development method not available (LIBRARY_LOADED=$LIBRARY_LOADED, dirname=$0, dir_exists=$([ -d "$(dirname "$0")/lib" ] && echo yes || echo no), file_exists=$([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo yes || echo no))
+" >&2
 fi
 
-printf "[EARLY_DEBUG] Library loading complete, LIBRARY_LOADED=$LIBRARY_LOADED\n" >&2
+printf "[EARLY_DEBUG] Library loading complete, LIBRARY_LOADED=$LIBRARY_LOADED
+" >&2
 
 # Remote installation mode: download library to temp location and use it
 if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
@@ -163,7 +213,8 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
     # Try to download library components
     library_downloaded=0
     if command -v curl >/dev/null 2>&1; then
-        printf "[INFO] Downloading RUTOS library system...\n"
+        printf "[INFO] Downloading RUTOS library system...
+"
         if curl -fsSL "${BASE_URL}/scripts/lib/rutos-lib.sh" -o "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
             curl -fsSL "${BASE_URL}/scripts/lib/rutos-colors.sh" -o "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
             curl -fsSL "${BASE_URL}/scripts/lib/rutos-logging.sh" -o "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
@@ -173,11 +224,13 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
             if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
                 LIBRARY_LOADED=1
                 library_downloaded=1
-                printf "[INFO] RUTOS library system downloaded and loaded successfully\n"
+                printf "[INFO] RUTOS library system downloaded and loaded successfully
+"
             fi
         fi
     elif command -v wget >/dev/null 2>&1; then
-        printf "[INFO] Downloading RUTOS library system...\n"
+        printf "[INFO] Downloading RUTOS library system...
+"
         if wget -q "${BASE_URL}/scripts/lib/rutos-lib.sh" -O "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null &&
             wget -q "${BASE_URL}/scripts/lib/rutos-colors.sh" -O "$TEMP_LIB_DIR/rutos-colors.sh" 2>/dev/null &&
             wget -q "${BASE_URL}/scripts/lib/rutos-logging.sh" -O "$TEMP_LIB_DIR/rutos-logging.sh" 2>/dev/null &&
@@ -187,7 +240,8 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
             if . "$TEMP_LIB_DIR/rutos-lib.sh" 2>/dev/null; then
                 LIBRARY_LOADED=1
                 library_downloaded=1
-                printf "[INFO] RUTOS library system downloaded and loaded successfully\n"
+                printf "[INFO] RUTOS library system downloaded and loaded successfully
+"
             fi
         fi
     fi
@@ -203,7 +257,8 @@ if [ "$LIBRARY_LOADED" = "0" ] && [ "${USE_LIBRARY:-1}" = "1" ]; then
     trap cleanup_temp_library EXIT INT TERM
 
     if [ "$LIBRARY_LOADED" = "0" ]; then
-        printf "[WARNING] Could not download RUTOS library system, using fallback logging\n"
+        printf "[WARNING] Could not download RUTOS library system, using fallback logging
+"
     fi
 fi
 
@@ -215,66 +270,89 @@ LOG_DIR="$(dirname "$LOG_FILE")"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 
 # Initialize logging system
-printf "[EARLY_DEBUG] About to initialize logging system (LIBRARY_LOADED=$LIBRARY_LOADED)...\n" >&2
+printf "[EARLY_DEBUG] About to initialize logging system (LIBRARY_LOADED=$LIBRARY_LOADED)...
+" >&2
 if [ "$LIBRARY_LOADED" = "1" ]; then
-    printf "[EARLY_DEBUG] Using RUTOS library system for logging\n" >&2
-    printf "[EARLY_DEBUG] About to call rutos_init_portable with: SCRIPT_NAME=$SCRIPT_NAME, SCRIPT_VERSION=$SCRIPT_VERSION\n" >&2
+    printf "[EARLY_DEBUG] Using RUTOS library system for logging
+" >&2
+    printf "[EARLY_DEBUG] About to call rutos_init_portable with: SCRIPT_NAME=$SCRIPT_NAME, SCRIPT_VERSION=$SCRIPT_VERSION
+" >&2
     
     # Test if the function exists
-    printf "[EARLY_DEBUG] Testing function availability...\n" >&2
-    printf "[EARLY_DEBUG] Available functions starting with 'rutos':\n" >&2
+    printf "[EARLY_DEBUG] Testing function availability...
+" >&2
+    printf "[EARLY_DEBUG] Available functions starting with 'rutos':
+" >&2
     
     # Test specific functions directly to avoid subshell issues
-    printf "[EARLY_DEBUG] Testing critical functions...\n" >&2
+    printf "[EARLY_DEBUG] Testing critical functions...
+" >&2
     for func_name in rutos_init_portable rutos_init log_info log_debug log_error; do
         if command -v "$func_name" >/dev/null 2>&1; then
-            printf "[EARLY_DEBUG]   ✓ %s (available)\n" "$func_name" >&2
+            printf "[EARLY_DEBUG]   ✓ %s (available)
+" "$func_name" >&2
         else
-            printf "[EARLY_DEBUG]   ✗ %s (not found)\n" "$func_name" >&2
+            printf "[EARLY_DEBUG]   ✗ %s (not found)
+" "$func_name" >&2
         fi
     done
     
-    printf "[EARLY_DEBUG] Proceeding with function calls...\n" >&2
+    printf "[EARLY_DEBUG] Proceeding with function calls...
+" >&2
     
     if command -v rutos_init_portable >/dev/null 2>&1; then
-        printf "[EARLY_DEBUG] rutos_init_portable function found, calling it...\n" >&2
+        printf "[EARLY_DEBUG] rutos_init_portable function found, calling it...
+" >&2
         # Use new RUTOS library system (either local development or downloaded)
         if rutos_init_portable "$SCRIPT_NAME" "$SCRIPT_VERSION"; then
-            printf "[EARLY_DEBUG] rutos_init_portable completed successfully\n" >&2
+            printf "[EARLY_DEBUG] rutos_init_portable completed successfully
+" >&2
         else
-            printf "[EARLY_DEBUG] rutos_init_portable FAILED with exit code: $?\n" >&2
+            printf "[EARLY_DEBUG] rutos_init_portable FAILED with exit code: $?
+" >&2
             exit 2
         fi
     elif command -v rutos_init >/dev/null 2>&1; then
-        printf "[EARLY_DEBUG] rutos_init function found (fallback), calling it...\n" >&2
+        printf "[EARLY_DEBUG] rutos_init function found (fallback), calling it...
+" >&2
         # Fallback to regular rutos_init
         if rutos_init "$SCRIPT_NAME" "$SCRIPT_VERSION"; then
-            printf "[EARLY_DEBUG] rutos_init completed successfully\n" >&2
+            printf "[EARLY_DEBUG] rutos_init completed successfully
+" >&2
         else
-            printf "[EARLY_DEBUG] rutos_init FAILED with exit code: $?\n" >&2
+            printf "[EARLY_DEBUG] rutos_init FAILED with exit code: $?
+" >&2
             exit 2
         fi
     else
-        printf "[EARLY_DEBUG] Neither rutos_init_portable nor rutos_init functions found\n" >&2
-        printf "[EARLY_DEBUG] Function loading failed - exiting\n" >&2
+        printf "[EARLY_DEBUG] Neither rutos_init_portable nor rutos_init functions found
+" >&2
+        printf "[EARLY_DEBUG] Function loading failed - exiting
+" >&2
         exit 2
     fi
     
-    printf "[EARLY_DEBUG] About to call log_info...\n" >&2
+    printf "[EARLY_DEBUG] About to call log_info...
+" >&2
     if command -v log_info >/dev/null 2>&1; then
         log_info "Using RUTOS library system for standardized logging"
-        printf "[EARLY_DEBUG] log_info call successful\n" >&2
+        printf "[EARLY_DEBUG] log_info call successful
+" >&2
     else
-        printf "[EARLY_DEBUG] log_info function not available\n" >&2
+        printf "[EARLY_DEBUG] log_info function not available
+" >&2
         exit 2
     fi
     
-    printf "[EARLY_DEBUG] About to call log_debug...\n" >&2
+    printf "[EARLY_DEBUG] About to call log_debug...
+" >&2
     if command -v log_debug >/dev/null 2>&1; then
         log_debug "Library mode: $([ -f "$(dirname "$0")/lib/rutos-lib.sh" ] && echo "local development" || echo "downloaded remote")"
-        printf "[EARLY_DEBUG] log_debug call successful\n" >&2
+        printf "[EARLY_DEBUG] log_debug call successful
+" >&2
     else
-        printf "[EARLY_DEBUG] log_debug function not available\n" >&2
+        printf "[EARLY_DEBUG] log_debug function not available
+" >&2
     fi
 
     # Ensure log_message compatibility function is available
@@ -296,42 +374,51 @@ if [ "$LIBRARY_LOADED" = "1" ]; then
         }
     fi
 else
-    printf "[EARLY_DEBUG] Library not loaded, using fallback logging system\n" >&2
+    printf "[EARLY_DEBUG] Library not loaded, using fallback logging system
+" >&2
     # Fallback to legacy logging system for remote installations when library unavailable
-    printf "[INFO] Using built-in fallback logging system\n"
-    printf "[EARLY_DEBUG] Fallback logging system initialized\n" >&2
+    printf "[INFO] Using built-in fallback logging system
+"
+    printf "[EARLY_DEBUG] Fallback logging system initialized
+" >&2
 
     # Built-in color detection (simplified for remote execution)
     if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-        RED='\033[0;31m'
-        GREEN='\033[0;32m'
-        YELLOW='\033[1;33m'
-        BLUE='\033[1;35m'
-        CYAN='\033[0;36m'
-        NC='\033[0m'
+        RED='[0;31m'
+        GREEN='[0;32m'
+        YELLOW='[1;33m'
+        BLUE='[1;35m'
+        CYAN='[0;36m'
+        NC='[0m'
     else
         RED="" GREEN="" YELLOW="" BLUE="" CYAN="" NC=""
     fi
 
     # Built-in logging functions
     log_info() {
-        printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+        printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
     log_success() {
-        printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+        printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
     log_warning() {
-        printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+        printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
     log_error() {
-        printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     }
     log_step() {
-        printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+        printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
     log_debug() {
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+            printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
         fi
     }
 
@@ -387,7 +474,8 @@ log_debug "GitHub Branch: $GITHUB_BRANCH"
 config_debug() {
     if [ "${CONFIG_DEBUG:-0}" = "1" ] || [ "${DEBUG:-0}" = "1" ]; then
         timestamp=$(get_timestamp)
-        printf "${CYAN}[%s] CONFIG DEBUG: %s${NC}\n" "$timestamp" "$1" >&2
+        printf "${CYAN}[%s] CONFIG DEBUG: %s${NC}
+" "$timestamp" "$1" >&2
         # Note: Only output once to avoid duplicates with RUTOS library logging
     fi
 }
@@ -395,7 +483,8 @@ config_debug() {
 # Enhanced debug_log function (consistent with other scripts)
 debug_log() {
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "[DEBUG] [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
         # Note: Only output once to avoid duplicates with RUTOS library logging
     fi
 }
@@ -417,7 +506,8 @@ print_status() {
     color="$1"
     message="$2"
     # Use Method 5 format for RUTOS compatibility (embed variables in format string)
-    printf "${color}%s${NC}\n" "$message"
+    printf "${color}%s${NC}
+" "$message"
 }
 
 # Fallback debug_msg function (compatibility alias for debug_log)
@@ -429,7 +519,8 @@ debug_msg() {
 debug_exec() {
     if [ "${DEBUG:-0}" = "1" ]; then
         timestamp=$(get_timestamp)
-        printf "${CYAN}[%s] DEBUG EXEC: %s${NC}\n" "$timestamp" "$*" >&2
+        printf "${CYAN}[%s] DEBUG EXEC: %s${NC}
+" "$timestamp" "$*" >&2
         # Note: Only output once to avoid duplicates with RUTOS library logging
     fi
     "$@"
@@ -493,24 +584,24 @@ NC=""
 # Only enable colors if explicitly requested or in very specific conditions
 if [ "${FORCE_COLOR:-}" = "1" ]; then
     # Only enable if user explicitly forces colors
-    RED="\033[0;31m"
-    GREEN="\033[0;32m"
-    YELLOW="\033[1;33m"
-    BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
-    CYAN="\033[0;36m"
-    NC="\033[0m" # No Color
+    RED="[0;31m"
+    GREEN="[0;32m"
+    YELLOW="[1;33m"
+    BLUE="[1;35m" # Bright magenta instead of dark blue for better readability
+    CYAN="[0;36m"
+    NC="[0m" # No Color
 elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     # Additional conservative check: only if stdout is a terminal and TERM is set properly
     # But still be very conservative about RUTOS
     case "${TERM:-}" in
         xterm* | screen* | tmux* | linux*)
             # Known terminal types that support colors
-            RED="\033[0;31m"
-            GREEN="\033[0;32m"
-            YELLOW="\033[1;33m"
-            BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
-            CYAN="\033[0;36m"
-            NC="\033[0m" # No Color
+            RED="[0;31m"
+            GREEN="[0;32m"
+            YELLOW="[1;33m"
+            BLUE="[1;35m" # Bright magenta instead of dark blue for better readability
+            CYAN="[0;36m"
+            NC="[0m" # No Color
             ;;
         *)
             # Unknown or limited terminal - stay safe with no colors
@@ -539,7 +630,8 @@ JQ_FALLBACK_URL="https://github.com/jqlang/jq/releases/download/jq-1.6/jq-linux3
 
 # Early debug detection - show immediately if DEBUG is set
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "\n"
+    printf "
+"
     if command -v log_debug >/dev/null 2>&1; then
         log_debug "==================== DEBUG MODE ENABLED ===================="
         log_debug "Script starting with DEBUG=1"
@@ -550,9 +642,12 @@ if [ "${DEBUG:-0}" = "1" ]; then
         log_debug "  LOG_FILE=$LOG_FILE"
         log_debug "==========================================================="
     else
-        printf "[DEBUG] [%s] DEBUG MODE ENABLED\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
-        printf "[DEBUG] [%s] Script starting with DEBUG=1\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
-        printf "[DEBUG] [%s] Environment: DEBUG=${DEBUG:-0}, GITHUB_BRANCH=${GITHUB_BRANCH:-main}\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
+        printf "[DEBUG] [%s] DEBUG MODE ENABLED
+" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
+        printf "[DEBUG] [%s] Script starting with DEBUG=1
+" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
+        printf "[DEBUG] [%s] Environment: DEBUG=${DEBUG:-0}, GITHUB_BRANCH=${GITHUB_BRANCH:-main}
+" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
     fi
     echo ""
 fi
@@ -584,16 +679,19 @@ detect_remote_version() {
     remote_version=""
     log_debug "Fetching remote version from $VERSION_URL"
     if command -v wget >/dev/null 2>&1; then
-        remote_version=$(wget -q -O - "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
+        remote_version=$(wget -q -O - "$VERSION_URL" 2>/dev/null | head -1 | tr -d '
+ ')
     elif command -v curl >/dev/null 2>&1; then
-        remote_version=$(curl -fsSL "$VERSION_URL" 2>/dev/null | head -1 | tr -d '\r\n ')
+        remote_version=$(curl -fsSL "$VERSION_URL" 2>/dev/null | head -1 | tr -d '
+ ')
     else
         log_debug "Cannot detect remote version - no wget or curl available"
         return 1
     fi
     if [ -n "$remote_version" ]; then
         log_debug "Remote version detected: $remote_version"
-        printf "%s\n" "$remote_version"
+        printf "%s
+" "$remote_version"
     else
         log_debug "Failed to detect remote version"
         return 1
@@ -625,12 +723,12 @@ detect_latest_grpcurl_version() {
         # GitHub API returns JSON with tag_name field
         latest_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/fullstorydev/grpcurl/releases/latest" 2>/dev/null |
             grep -o '"tag_name":[[:space:]]*"[^"]*"' |
-            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' |
+            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"//' |
             head -1)
     elif command -v wget >/dev/null 2>&1; then
         latest_version=$(wget -qO- --timeout=10 "https://api.github.com/repos/fullstorydev/grpcurl/releases/latest" 2>/dev/null |
             grep -o '"tag_name":[[:space:]]*"[^"]*"' |
-            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' |
+            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"//' |
             head -1)
     fi
 
@@ -659,12 +757,12 @@ detect_latest_jq_version() {
         # GitHub API returns JSON with tag_name field
         latest_version=$(curl -fsSL --max-time 10 "https://api.github.com/repos/jqlang/jq/releases/latest" 2>/dev/null |
             grep -o '"tag_name":[[:space:]]*"[^"]*"' |
-            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' |
+            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"//' |
             head -1)
     elif command -v wget >/dev/null 2>&1; then
         latest_version=$(wget -qO- --timeout=10 "https://api.github.com/repos/jqlang/jq/releases/latest" 2>/dev/null |
             grep -o '"tag_name":[[:space:]]*"[^"]*"' |
-            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"/\1/' |
+            sed 's/"tag_name":[[:space:]]*"\([^"]*\)"//' |
             head -1)
     fi
 
@@ -856,9 +954,9 @@ intelligent_config_merge() {
         # Extract variable name from template line
         var_name=""
         if echo "$template_line" | grep -q "^export "; then
-            var_name=$(echo "$template_line" | sed 's/^export \([^=]*\)=.*/\1/')
+            var_name=$(echo "$template_line" | sed 's/^export \([^=]*\)=.*//')
         else
-            var_name=$(echo "$template_line" | sed 's/^\([^=]*\)=.*/\1/')
+            var_name=$(echo "$template_line" | sed 's/^\([^=]*\)=.*//')
         fi
 
         if [ -n "$var_name" ]; then
@@ -947,9 +1045,9 @@ intelligent_config_merge() {
             # Extract variable name from current config line
             var_name=""
             if echo "$current_line" | grep -q "^export "; then
-                var_name=$(echo "$current_line" | sed 's/^export \([^=]*\)=.*/\1/')
+                var_name=$(echo "$current_line" | sed 's/^export \([^=]*\)=.*//')
             else
-                var_name=$(echo "$current_line" | sed 's/^\([^=]*\)=.*/\1/')
+                var_name=$(echo "$current_line" | sed 's/^\([^=]*\)=.*//')
             fi
 
             if [ -n "$var_name" ]; then
@@ -1000,9 +1098,9 @@ EOF
                 # Extract variable name for comment
                 var_name=""
                 if echo "$extra_line" | grep -q "^export "; then
-                    var_name=$(echo "$extra_line" | sed 's/^export \([^=]*\)=.*/\1/')
+                    var_name=$(echo "$extra_line" | sed 's/^export \([^=]*\)=.*//')
                 else
-                    var_name=$(echo "$extra_line" | sed 's/^\([^=]*\)=.*/\1/')
+                    var_name=$(echo "$extra_line" | sed 's/^\([^=]*\)=.*//')
                 fi
 
                 {
@@ -2143,10 +2241,14 @@ configure_cron() {
     existing_maintenance=$(grep -c "^[^#]*system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
 
     # Clean any whitespace/newlines from the counts (fix for RUTOS busybox grep -c behavior)
-    existing_monitor=$(echo "$existing_monitor" | tr -d '\n\r' | sed 's/[^0-9]//g')
-    existing_logger=$(echo "$existing_logger" | tr -d '\n\r' | sed 's/[^0-9]//g')
-    existing_api_check=$(echo "$existing_api_check" | tr -d '\n\r' | sed 's/[^0-9]//g')
-    existing_maintenance=$(echo "$existing_maintenance" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    existing_monitor=$(echo "$existing_monitor" | tr -d '
+' | sed 's/[^0-9]//g')
+    existing_logger=$(echo "$existing_logger" | tr -d '
+' | sed 's/[^0-9]//g')
+    existing_api_check=$(echo "$existing_api_check" | tr -d '
+' | sed 's/[^0-9]//g')
+    existing_maintenance=$(echo "$existing_maintenance" | tr -d '
+' | sed 's/[^0-9]//g')
 
     # Ensure we have valid numbers (default to 0 if empty)
     existing_monitor=${existing_monitor:-0}
@@ -2224,7 +2326,8 @@ EOF
 
     # Check for existing ACTIVE (non-commented) auto-update entries
     existing_autoupdate=$(grep -c "^[^#]*self-update-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0")
-    existing_autoupdate=$(echo "$existing_autoupdate" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    existing_autoupdate=$(echo "$existing_autoupdate" | tr -d '
+' | sed 's/[^0-9]//g')
     existing_autoupdate=${existing_autoupdate:-0}
 
     # Add auto-update script if not present (enabled by default with "Never" policy = notifications only)
@@ -2310,7 +2413,8 @@ install_gps_integration() {
 
     # Install each GPS component
     for component in $gps_components; do
-        component=$(echo "$component" | tr -d ' \t\n\r') # Clean whitespace
+        component=$(echo "$component" | tr -d ' 	
+') # Clean whitespace
         if [ -n "$component" ]; then
             debug_msg "Installing GPS component: $component"
             local_path="$(dirname "$0")/../gps-integration/$component"
@@ -2367,7 +2471,8 @@ install_cellular_integration() {
 
     # Install each cellular component
     for component in $cellular_components; do
-        component=$(echo "$component" | tr -d ' \t\n\r') # Clean whitespace
+        component=$(echo "$component" | tr -d ' 	
+') # Clean whitespace
         if [ -n "$component" ]; then
             debug_msg "Installing cellular component: $component"
             local_path="$(dirname "$0")/../cellular-integration/$component"
@@ -2691,7 +2796,8 @@ install_enhanced_monitoring() {
     script_count=0
     processed_count=0
     for script in $enhanced_scripts; do
-        script=$(echo "$script" | tr -d ' \t\n\r') # Clean whitespace
+        script=$(echo "$script" | tr -d ' 	
+') # Clean whitespace
         log_debug "DEBUG: Raw script value: '$script'"
         log_debug "DEBUG: Script length: ${#script}"
 
@@ -2753,7 +2859,8 @@ CRON_FILE="/etc/crontabs/root"
 print_status() {
     color="$1"
     message="$2"
-    printf "${color}%s${NC}\n" "$message"
+    printf "${color}%s${NC}
+" "$message"
 }
 
 print_status "$RED" "Uninstalling Starlink monitoring system..."
@@ -2770,12 +2877,12 @@ if [ -f "$CRON_FILE" ]; then
     date_stamp=$(date +%Y-%m-%d)
     
     # Use basic sed to comment out matching lines (more portable)
-    sed "s|^\([^#].*starlink_monitor\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
-         s|^\([^#].*starlink_logger\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
-         s|^\([^#].*check_starlink_api\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
-         s|^\([^#].*system-maintenance-rutos\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
-         s|^\(@reboot.*system-maintenance-rutos\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g; \
-         s|^\([^#].*Starlink monitoring system.*\)|# COMMENTED BY UNINSTALL $date_stamp: \1|g" \
+    sed "s|^\([^#].*starlink_monitor\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: |g; \
+         s|^\([^#].*starlink_logger\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: |g; \
+         s|^\([^#].*check_starlink_api\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: |g; \
+         s|^\([^#].*system-maintenance-rutos\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: |g; \
+         s|^\(@reboot.*system-maintenance-rutos\.sh.*\)|# COMMENTED BY UNINSTALL $date_stamp: |g; \
+         s|^\([^#].*Starlink monitoring system.*\)|# COMMENTED BY UNINSTALL $date_stamp: |g" \
         "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || {
         # If sed fails, preserve the file
         cat "$CRON_FILE" > /tmp/crontab.tmp 2>/dev/null || touch /tmp/crontab.tmp
@@ -2819,7 +2926,8 @@ setup_recovery_information() {
     # Get current version
     current_version=""
     if [ -f "$VERSION_FILE" ]; then
-        current_version=$(tr -d '\n\r ' <"$VERSION_FILE" 2>/dev/null || echo "")
+        current_version=$(tr -d '
+ ' <"$VERSION_FILE" 2>/dev/null || echo "")
     fi
 
     # Fallback to script version if VERSION file not available
@@ -3193,7 +3301,7 @@ merge_configurations() {
             # Apply setting to output config
             if grep -q "^${setting}=" "$output_config" 2>/dev/null; then
                 # Replace existing setting
-                setting_escaped=$(echo "$setting" | sed 's/[[\.*^$()+?{|]/\\&/g')
+                setting_escaped=$(echo "$setting" | sed 's/[[\.*^$()+?{|]/\&/g')
                 sed -i "s|^${setting_escaped}=.*|${persistent_value}|" "$output_config" 2>/dev/null
             else
                 # Add new setting
@@ -3434,13 +3542,15 @@ main() {
         debug_log "  LOG_DIR=$LOG_DIR"
 
         debug_log "RUNTIME ENVIRONMENT:"
-        debug_log "  OpenWRT Release: $(head -3 /etc/openwrt_release 2>/dev/null | tr '\n' ' ' || echo 'not found')"
+        debug_log "  OpenWRT Release: $(head -3 /etc/openwrt_release 2>/dev/null | tr '
+' ' ' || echo 'not found')"
         debug_log "  Available disk space: $(df -h /tmp 2>/dev/null | tail -1 | awk '{print $4}' || echo 'unknown')"
         debug_log "  Available memory: $(free -m 2>/dev/null | grep Mem | awk '{print $7"M available"}' || echo 'unknown')"
         debug_log "  Network connectivity: $(ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 && echo 'online' || echo 'offline/limited')"
 
         show_version
-        printf "\n"
+        printf "
+"
         if remote_version=$(detect_remote_version); then
             if [ "$remote_version" != "$SCRIPT_VERSION" ]; then
                 log_warning "Remote version ($remote_version) differs from script version ($SCRIPT_VERSION)"
@@ -3448,10 +3558,12 @@ main() {
                 debug_msg "Script version matches remote version: $SCRIPT_VERSION"
             fi
         fi
-        printf "\n"
+        printf "
+"
     fi
     print_status "$GREEN" "=== Starlink Monitoring System Installer ==="
-    printf "\n"
+    printf "
+"
 
     debug_log "==================== INSTALLATION START ===================="
     debug_log "Starting installation process"
@@ -3509,7 +3621,8 @@ main() {
 
     debug_log "==================== INSTALLATION COMPLETE ===================="
     print_status "$GREEN" "=== Installation Complete ==="
-    printf "\n"
+    printf "
+"
 
     # Determine available editor
     available_editor=""
@@ -3528,14 +3641,16 @@ main() {
     print_status "$YELLOW" "2. Run post-install validation: $INSTALL_DIR/scripts/post-install-check-rutos.sh"
     print_status "$YELLOW" "3. Configure mwan3 according to documentation"
     print_status "$YELLOW" "4. Start monitoring: The system will auto-start after configuration"
-    printf "\n"
+    printf "
+"
 
     print_status "$GREEN" "✅ READY TO GO:"
     print_status "$GREEN" "• Basic monitoring works with minimal configuration"
     print_status "$GREEN" "• Advanced GPS and Cellular features are installed and ready"
     print_status "$GREEN" "• Smart failover engine available for multi-connectivity setups"
     print_status "$GREEN" "• Run the post-install check to verify everything is working"
-    printf "\n"
+    printf "
+"
 
     print_status "$CYAN" "🚀 Advanced Features Available:"
     print_status "$YELLOW" "• Enhanced GPS: Set ENABLE_GPS_TRACKING=true for advanced location analytics"
@@ -3543,7 +3658,8 @@ main() {
     print_status "$YELLOW" "• Multi-source GPS: Automatic RUTOS + Starlink GPS correlation"
     print_status "$YELLOW" "• Roaming Protection: Smart cost-aware cellular switching"
     print_status "$YELLOW" "• Location Analytics: Daily GPS clustering and problematic area detection"
-    printf "\n"
+    printf "
+"
 
     print_status "$BLUE" "📁 Important Paths:"
     print_status "$BLUE" "• Config: $PERSISTENT_CONFIG_DIR/config.sh"
@@ -3552,7 +3668,8 @@ main() {
     print_status "$BLUE" "• Cellular Integration: $INSTALL_DIR/cellular-integration/"
     print_status "$BLUE" "• Logs: $LOG_FILE"
     print_status "$BLUE" "• Uninstall: $INSTALL_DIR/uninstall.sh"
-    printf "\n"
+    printf "
+"
 
     if [ "${DEBUG:-0}" != "1" ]; then
         print_status "$CYAN" "💡 Need help? Run with DEBUG=1 for detailed output"
@@ -3566,7 +3683,8 @@ main() {
     log_info "Log file: $LOG_FILE"
     log_info "============================================="
 
-    printf "\n"
+    printf "
+"
     print_status "$GREEN" "📋 Installation log saved to: $LOG_FILE"
 
     debug_log "==================== INSTALLATION SCRIPT COMPLETE ===================="

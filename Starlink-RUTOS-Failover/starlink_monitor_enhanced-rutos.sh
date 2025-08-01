@@ -23,24 +23,22 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # RUTOS test mode support (for testing framework)
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
 # Standard colors for consistent output (compatible with busybox)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
     # shellcheck disable=SC2034  # Color variables may not all be used
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     RED=""
     GREEN=""
@@ -81,7 +79,8 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
@@ -91,11 +90,13 @@ safe_execute() {
     description="$2"
 
     if [ "$DRY_RUN" = "1" ]; then
-        printf "[DRY-RUN] Would execute: %s\n" "$description" >&2
+        printf "[DRY-RUN] Would execute: %s
+" "$description" >&2
         return 0
     else
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "[DEBUG] Executing: %s\n" "$cmd" >&2
+            printf "[DEBUG] Executing: %s
+" "$cmd" >&2
         fi
         eval "$cmd"
     fi
@@ -207,8 +208,10 @@ collect_cellular_data() {
             
             # Signal strength and quality
             signal_info=$(gsmctl -A 'AT+CSQ' 2>/dev/null | grep "+CSQ:" | head -1 || echo "+CSQ: 99,99")
-            signal_rssi=$(echo "$signal_info" | cut -d',' -f1 | cut -d':' -f2 | tr -d ' \n\r')
-            signal_ber=$(echo "$signal_info" | cut -d',' -f2 | tr -d ' \n\r')
+            signal_rssi=$(echo "$signal_info" | cut -d',' -f1 | cut -d':' -f2 | tr -d ' 
+')
+            signal_ber=$(echo "$signal_info" | cut -d',' -f2 | tr -d ' 
+')
 
             # Convert RSSI to dBm
             if [ "$signal_rssi" != "99" ] && [ "$signal_rssi" -ge 0 ] && [ "$signal_rssi" -le 31 ]; then
@@ -222,7 +225,8 @@ collect_cellular_data() {
             # Network type and operator
             network_info=$(gsmctl -A 'AT+COPS?' 2>/dev/null | grep "+COPS:" | head -1 || echo "")
             if [ -n "$network_info" ]; then
-                operator_raw=$(echo "$network_info" | cut -d'"' -f2 | head -1 | tr -d '\n\r,')
+                operator_raw=$(echo "$network_info" | cut -d'"' -f2 | head -1 | tr -d '
+,')
                 # Use library sanitization if available
                 if command -v sanitize_csv_field >/dev/null 2>&1; then
                     operator=$(sanitize_csv_field "$operator_raw" 20)
@@ -288,10 +292,14 @@ collect_cellular_data() {
             roaming_status=$(sanitize_csv_field "$roaming_status" 10)
             connection_status=$(sanitize_csv_field "$connection_status" 15)
         else
-            operator=$(echo "$operator" | tr -d ',\n\r' | head -c 20)
-            network_type=$(echo "$network_type" | tr -d ',\n\r' | head -c 15)
-            roaming_status=$(echo "$roaming_status" | tr -d ',\n\r' | head -c 10)
-            connection_status=$(echo "$connection_status" | tr -d ',\n\r' | head -c 15)
+            operator=$(echo "$operator" | tr -d ',
+' | head -c 20)
+            network_type=$(echo "$network_type" | tr -d ',
+' | head -c 15)
+            roaming_status=$(echo "$roaming_status" | tr -d ',
+' | head -c 10)
+            connection_status=$(echo "$connection_status" | tr -d ',
+' | head -c 15)
         fi
         
         log_debug "📱 ENHANCED CELLULAR: Final sanitized data - operator='$operator', network='$network_type'"
@@ -375,7 +383,8 @@ log_enhanced_data() {
     log_individual_data "$gps_data" "$cellular_data" "$starlink_data"
 
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} Enhanced data logged: %s entries\n" "1" >&2
+        printf "${CYAN}[DEBUG]${NC} Enhanced data logged: %s entries
+" "1" >&2
     fi
 }
 
@@ -439,7 +448,8 @@ check_starlink_quality() {
     # Log the enhanced monitoring data
     log_enhanced_data
 
-    printf "${GREEN}[INFO]${NC} Starlink monitoring completed - State: %s, Metric: %s\n" "$current_state" "$current_metric"
+    printf "${GREEN}[INFO]${NC} Starlink monitoring completed - State: %s, Metric: %s
+" "$current_state" "$current_metric"
 }
 
 make_failover_decision() {
@@ -458,15 +468,18 @@ make_failover_decision() {
     # Smart failover logic
     if [ "$current_state" = "down" ] && [ "$current_metric" -lt 20 ]; then
         if [ "$cellular_available" = "1" ]; then
-            printf "${YELLOW}[WARNING]${NC} Starlink quality degraded, failing over to cellular backup\n"
+            printf "${YELLOW}[WARNING]${NC} Starlink quality degraded, failing over to cellular backup
+"
             safe_execute "uci set mwan3.starlink.metric=20" "Increase Starlink metric for failover"
             safe_execute "uci commit mwan3" "Commit mwan3 changes"
             safe_execute "/etc/init.d/mwan3 reload" "Reload mwan3 configuration"
         else
-            printf "${RED}[ERROR]${NC} Starlink quality degraded but no cellular backup available\n"
+            printf "${RED}[ERROR]${NC} Starlink quality degraded but no cellular backup available
+"
         fi
     elif [ "$current_state" = "up" ] && [ "$current_metric" -gt 10 ]; then
-        printf "${GREEN}[INFO]${NC} Starlink quality restored, failing back from cellular\n"
+        printf "${GREEN}[INFO]${NC} Starlink quality restored, failing back from cellular
+"
         safe_execute "uci set mwan3.starlink.metric=10" "Restore Starlink primary metric"
         safe_execute "uci commit mwan3" "Commit mwan3 changes"
         safe_execute "/etc/init.d/mwan3 reload" "Reload mwan3 configuration"
@@ -479,23 +492,32 @@ make_failover_decision() {
 
 main() {
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} Enhanced Starlink Monitor v%s starting\n" "$SCRIPT_VERSION" >&2
-        printf "${CYAN}[DEBUG]${NC} GPS Log: %s\n" "$GPS_LOG_FILE" >&2
-        printf "${CYAN}[DEBUG]${NC} Cellular Log: %s\n" "$CELLULAR_LOG_FILE" >&2
-        printf "${CYAN}[DEBUG]${NC} Enhanced Log: %s\n" "$ENHANCED_LOG_FILE" >&2
+        printf "${CYAN}[DEBUG]${NC} Enhanced Starlink Monitor v%s starting
+" "$SCRIPT_VERSION" >&2
+        printf "${CYAN}[DEBUG]${NC} GPS Log: %s
+" "$GPS_LOG_FILE" >&2
+        printf "${CYAN}[DEBUG]${NC} Cellular Log: %s
+" "$CELLULAR_LOG_FILE" >&2
+        printf "${CYAN}[DEBUG]${NC} Enhanced Log: %s
+" "$ENHANCED_LOG_FILE" >&2
     fi
 
     # Check if this is OpenWrt/RUTOS system
     if [ ! -f "/etc/openwrt_release" ]; then
-        printf "${RED}[ERROR]${NC} This script is designed for OpenWrt/RUTOS systems\n" >&2
+        printf "${RED}[ERROR]${NC} This script is designed for OpenWrt/RUTOS systems
+" >&2
         exit 1
     fi
 
     # Main monitoring cycle
     check_starlink_quality
 
-    printf "${GREEN}[SUCCESS]${NC} Enhanced monitoring cycle completed\n"
+    printf "${GREEN}[SUCCESS]${NC} Enhanced monitoring cycle completed
+"
 }
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

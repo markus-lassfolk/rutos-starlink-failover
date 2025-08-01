@@ -6,16 +6,13 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Color definitions (busybox compatible)
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+RED='[0;31m'
+GREEN='[0;32m'
+YELLOW='[1;33m'
+BLUE='[1;35m'
+CYAN='[0;36m'
+NC='[0m' # No Color
 
 # Check if we're in a terminal that supports colors
 if [ ! -t 1 ]; then
@@ -29,31 +26,37 @@ fi
 
 # RUTOS test mode support (for testing framework)
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
 # Standard logging functions
 log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Default configuration
@@ -118,18 +121,34 @@ parse_arguments() {
 
 # Show help message
 show_help() {
-    printf "${GREEN}Starlink Outage Correlation Analysis (Optimized) v%s${NC}\n\n" "$SCRIPT_VERSION"
-    printf "Analyzes RUTOS monitoring logs and correlates with known outages.\n\n"
-    printf "Usage: %s [options]\n\n" "$(basename "$0")"
-    printf "Options:\n"
-    printf "  --date YYYY-MM-DD     Analyze specific date (default: today)\n"
-    printf "  --log-dir PATH        Custom log directory (default: /etc/starlink-logs)\n"
-    printf "  --report-file PATH    Output report file\n"
-    printf "  --debug               Enable debug output\n"
-    printf "  --help                Show this help\n\n"
-    printf "Examples:\n"
-    printf "  %s --date 2025-07-24\n" "$(basename "$0")"
-    printf "  %s --debug --report-file /tmp/analysis.txt\n" "$(basename "$0")"
+    printf "${GREEN}Starlink Outage Correlation Analysis (Optimized) v%s${NC}
+
+" "$SCRIPT_VERSION"
+    printf "Analyzes RUTOS monitoring logs and correlates with known outages.
+
+"
+    printf "Usage: %s [options]
+
+" "$(basename "$0")"
+    printf "Options:
+"
+    printf "  --date YYYY-MM-DD     Analyze specific date (default: today)
+"
+    printf "  --log-dir PATH        Custom log directory (default: /etc/starlink-logs)
+"
+    printf "  --report-file PATH    Output report file
+"
+    printf "  --debug               Enable debug output
+"
+    printf "  --help                Show this help
+
+"
+    printf "Examples:
+"
+    printf "  %s --date 2025-07-24
+" "$(basename "$0")"
+    printf "  %s --debug --report-file /tmp/analysis.txt
+" "$(basename "$0")"
 }
 
 # Convert time to seconds since midnight (with octal fix)
@@ -172,10 +191,10 @@ extract_log_timestamp() {
     fi
 
     # Extract timestamp in format: 2025-07-24 13:43:12
-    timestamp=$(echo "$log_line" | sed -n 's/^\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*/\1/p' 2>/dev/null)
+    timestamp=$(echo "$log_line" | sed -n 's/^\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*//p' 2>/dev/null)
 
     if [ -z "$timestamp" ]; then
-        timestamp=$(echo "$log_line" | sed -n 's/^\([0-9-]* [0-9:]*\).*/\1/p' 2>/dev/null)
+        timestamp=$(echo "$log_line" | sed -n 's/^\([0-9-]* [0-9:]*\).*//p' 2>/dev/null)
     fi
 
     echo "$timestamp"
@@ -223,7 +242,8 @@ prepare_sorted_data() {
         timestamp=$(extract_log_timestamp "$line")
         if [ -n "$timestamp" ]; then
             seconds=$(log_timestamp_to_seconds "$timestamp")
-            printf "%06d|%s\n" "$seconds" "$line"
+            printf "%06d|%s
+" "$seconds" "$line"
         fi
     done | sort -n >"$temp_sorted_events"
 
@@ -233,7 +253,8 @@ prepare_sorted_data() {
         timestamp=$(extract_log_timestamp "$line")
         if [ -n "$timestamp" ]; then
             seconds=$(log_timestamp_to_seconds "$timestamp")
-            printf "%06d|%s\n" "$seconds" "$line"
+            printf "%06d|%s
+" "$seconds" "$line"
         fi
     done | sort -n >"$temp_sorted_metrics"
 
@@ -263,11 +284,14 @@ find_correlations_optimized() {
         '$1 >= start && $1 <= end { print $2 }' "$temp_sorted_metrics")
 
     # Count correlations (clean whitespace to avoid arithmetic errors)
-    event_count=$(echo "$correlated_events" | grep -c . 2>/dev/null | tr -d ' \n\r' || echo "0")
-    metric_count=$(echo "$correlated_metrics" | grep -c . 2>/dev/null | tr -d ' \n\r' || echo "0")
+    event_count=$(echo "$correlated_events" | grep -c . 2>/dev/null | tr -d ' 
+' || echo "0")
+    metric_count=$(echo "$correlated_metrics" | grep -c . 2>/dev/null | tr -d ' 
+' || echo "0")
 
     # Check for failovers (clean whitespace)
-    failover_count=$(echo "$correlated_events" | grep -c "Performing soft failover" 2>/dev/null | tr -d ' \n\r' || echo "0")
+    failover_count=$(echo "$correlated_events" | grep -c "Performing soft failover" 2>/dev/null | tr -d ' 
+' || echo "0")
 
     log_debug "Found $event_count events, $metric_count metrics, $failover_count failovers in window"
 
@@ -299,9 +323,14 @@ analyze_outage_correlation_optimized() {
 
     # Initialize report
     {
-        printf "\n=== OPTIMIZED OUTAGE CORRELATION ANALYSIS ===\n"
-        printf "Analysis Date: %s\n" "$ANALYSIS_DATE"
-        printf "Generated: %s\n\n" "$(date)"
+        printf "
+=== OPTIMIZED OUTAGE CORRELATION ANALYSIS ===
+"
+        printf "Analysis Date: %s
+" "$ANALYSIS_DATE"
+        printf "Generated: %s
+
+" "$(date)"
     } >>"$REPORT_FILE"
 
     total_outages=0
@@ -329,8 +358,10 @@ analyze_outage_correlation_optimized() {
         results=$(find_correlations_optimized "$outage_time" "$outage_duration" "$temp_sorted_events" "$temp_sorted_metrics")
 
         # Parse results (now just counts)
-        event_count=$(echo "$results" | cut -d'~' -f1 | tr -d ' \n\r')
-        failover_count=$(echo "$results" | cut -d'~' -f2 | tr -d ' \n\r')
+        event_count=$(echo "$results" | cut -d'~' -f1 | tr -d ' 
+')
+        failover_count=$(echo "$results" | cut -d'~' -f2 | tr -d ' 
+')
 
         log_debug "Parsed event_count: '$event_count'"
         log_debug "Parsed failover_count: '$failover_count'"
@@ -359,20 +390,31 @@ analyze_outage_correlation_optimized() {
 
         # Write results to report
         {
-            printf "\n--- OUTAGE #%d: %s (%s) ---\n" "$total_outages" "$outage_time" "$outage_type"
-            printf "Duration: %ds, Type: %s, Description: %s\n" "$outage_duration" "$outage_type" "$outage_desc"
+            printf "
+--- OUTAGE #%d: %s (%s) ---
+" "$total_outages" "$outage_time" "$outage_type"
+            printf "Duration: %ds, Type: %s, Description: %s
+" "$outage_duration" "$outage_type" "$outage_desc"
 
             if [ "$event_count" -gt 0 ]; then
-                printf "\n✓ FOUND %d CORRELATED EVENTS:\n" "$event_count"
+                printf "
+✓ FOUND %d CORRELATED EVENTS:
+" "$event_count"
                 echo "$correlated_events"
             else
-                printf "\n✗ NO CORRELATED EVENTS FOUND\n"
+                printf "
+✗ NO CORRELATED EVENTS FOUND
+"
             fi
 
             if echo "$correlated_metrics" | grep -q .; then
-                printf "\n📊 CORRELATED METRICS FOUND\n"
+                printf "
+📊 CORRELATED METRICS FOUND
+"
             else
-                printf "\n📊 NO METRIC DATA AVAILABLE\n"
+                printf "
+📊 NO METRIC DATA AVAILABLE
+"
             fi
         } >>"$REPORT_FILE"
 
@@ -380,11 +422,18 @@ analyze_outage_correlation_optimized() {
 
     # Generate summary
     {
-        printf "\n\n=== ANALYSIS SUMMARY ===\n"
-        printf "Total Known Outages: %d\n" "$total_outages"
-        printf "Total Correlated Events: %d\n" "$total_correlated"
-        printf "Total Failover Events: %d\n" "$total_failovers"
-        printf "Correlation Rate: %.1f%%\n" "$((total_outages > 0 ? (total_correlated * 100) / total_outages : 0))"
+        printf "
+
+=== ANALYSIS SUMMARY ===
+"
+        printf "Total Known Outages: %d
+" "$total_outages"
+        printf "Total Correlated Events: %d
+" "$total_correlated"
+        printf "Total Failover Events: %d
+" "$total_failovers"
+        printf "Correlation Rate: %.1f%%
+" "$((total_outages > 0 ? (total_correlated * 100) / total_outages : 0))"
     } >>"$REPORT_FILE"
 
     # Cleanup
@@ -409,9 +458,12 @@ main() {
     fi
 
     # Initialize report file
-    printf "OPTIMIZED STARLINK OUTAGE CORRELATION ANALYSIS REPORT\n" >"$REPORT_FILE"
-    printf "Generated by: %s v%s\n" "$(basename "$0")" "$SCRIPT_VERSION" >>"$REPORT_FILE"
-    printf "=====================================================\n" >>"$REPORT_FILE"
+    printf "OPTIMIZED STARLINK OUTAGE CORRELATION ANALYSIS REPORT
+" >"$REPORT_FILE"
+    printf "Generated by: %s v%s
+" "$(basename "$0")" "$SCRIPT_VERSION" >>"$REPORT_FILE"
+    printf "=====================================================
+" >>"$REPORT_FILE"
 
     # Validate environment
     if ! validate_environment; then
@@ -428,3 +480,6 @@ main() {
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

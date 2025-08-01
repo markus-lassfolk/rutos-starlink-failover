@@ -10,17 +10,14 @@ set -e
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Colors for output (busybox compatible)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     RED=""
     GREEN=""
@@ -32,20 +29,24 @@ fi
 
 # Logging functions
 log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
@@ -66,16 +67,19 @@ safe_execute() {
 
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
         log_info "[DRY-RUN] Would execute: $description"
-        printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
+        printf "[DRY-RUN] Command: %s
+" "$cmd" >&2
         return 0
     else
-        printf "[EXECUTE] %s\n" "$description" >&2
+        printf "[EXECUTE] %s
+" "$description" >&2
         eval "$cmd"
     fi
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Debug mode support
@@ -259,3 +263,6 @@ main() {
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

@@ -9,19 +9,16 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Standard colors for consistent output (compatible with busybox)
 # CRITICAL: Use RUTOS-compatible color detection
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     # Colors disabled
     RED=""
@@ -34,29 +31,35 @@ fi
 
 # Standard logging functions with consistent colors
 log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_success() {
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Debug mode support
@@ -131,7 +134,8 @@ show_result() {
             ;;
     esac
 
-    printf "${status_color}%-8s${NC} | %-20s | %s\n" "$status_text" "$component" "$message"
+    printf "${status_color}%-8s${NC} | %-20s | %s
+" "$status_text" "$component" "$message"
 }
 
 # Function to verify cron service
@@ -256,7 +260,8 @@ check_entry_quality() {
     if [ -f "$CRON_FILE" ]; then
         duplicate_count=$(grep -E "(starlink_monitor-rutos\.sh|starlink_logger-rutos\.sh|check_starlink_api|system-maintenance-rutos\.sh)" "$CRON_FILE" 2>/dev/null | sort | uniq -d | wc -l 2>/dev/null || echo "0")
         # Clean any whitespace/newlines from the count
-        duplicate_count=$(echo "$duplicate_count" | tr -d '\n\r' | sed 's/[^0-9]//g')
+        duplicate_count=$(echo "$duplicate_count" | tr -d '
+' | sed 's/[^0-9]//g')
         duplicate_count=${duplicate_count:-0}
     fi
 
@@ -349,58 +354,86 @@ check_script_files() {
 # Function to show verification summary
 show_summary() {
     echo ""
-    printf "${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${BLUE}║${NC}                           ${CYAN}VERIFICATION SUMMARY${NC}                            ${BLUE}║${NC}\n"
-    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
+    printf "${BLUE}║${NC}                           ${CYAN}VERIFICATION SUMMARY${NC}                            ${BLUE}║${NC}
+"
+    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
     echo ""
 
     total_checks=$((OK_COUNT + WARNING_COUNT + ERROR_COUNT))
 
-    printf "${GREEN}✓ OK:${NC}       %2d checks passed\n" "$OK_COUNT"
-    printf "${YELLOW}⚠ WARNINGS:${NC} %2d issues found\n" "$WARNING_COUNT"
-    printf "${RED}✗ ERRORS:${NC}   %2d critical issues\n" "$ERROR_COUNT"
-    printf "────────────────────────────\n"
-    printf "Total:     %2d checks performed\n" "$total_checks"
+    printf "${GREEN}✓ OK:${NC}       %2d checks passed
+" "$OK_COUNT"
+    printf "${YELLOW}⚠ WARNINGS:${NC} %2d issues found
+" "$WARNING_COUNT"
+    printf "${RED}✗ ERRORS:${NC}   %2d critical issues
+" "$ERROR_COUNT"
+    printf "────────────────────────────
+"
+    printf "Total:     %2d checks performed
+" "$total_checks"
 
     echo ""
 
     if [ "$ERROR_COUNT" -gt 0 ]; then
         log_error "Critical issues found! Automated monitoring may not work properly"
         echo ""
-        printf "${YELLOW}Recommended actions:${NC}\n"
-        printf "${CYAN}• Fix critical errors before relying on automated monitoring${NC}\n"
-        printf "${CYAN}• Re-run install-rutos.sh to restore proper configuration${NC}\n"
-        printf "${CYAN}• Check cron service: /etc/init.d/cron status${NC}\n"
+        printf "${YELLOW}Recommended actions:${NC}
+"
+        printf "${CYAN}• Fix critical errors before relying on automated monitoring${NC}
+"
+        printf "${CYAN}• Re-run install-rutos.sh to restore proper configuration${NC}
+"
+        printf "${CYAN}• Check cron service: /etc/init.d/cron status${NC}
+"
     elif [ "$WARNING_COUNT" -gt 0 ]; then
         log_warning "Some issues found, but monitoring should still work"
         echo ""
-        printf "${YELLOW}Optional improvements:${NC}\n"
-        printf "${CYAN}• Clean up commented entries for tidier crontab${NC}\n"
-        printf "${CYAN}• Remove duplicate entries to avoid conflicts${NC}\n"
+        printf "${YELLOW}Optional improvements:${NC}
+"
+        printf "${CYAN}• Clean up commented entries for tidier crontab${NC}
+"
+        printf "${CYAN}• Remove duplicate entries to avoid conflicts${NC}
+"
     else
         log_success "All checks passed! Cron configuration is healthy"
         echo ""
-        printf "${GREEN}Your automated monitoring is properly configured!${NC}\n"
+        printf "${GREEN}Your automated monitoring is properly configured!${NC}
+"
     fi
 }
 
 # Show usage information
 show_usage() {
-    printf "${YELLOW}Usage:${NC} %s [OPTIONS]\n" "$0"
+    printf "${YELLOW}Usage:${NC} %s [OPTIONS]
+" "$0"
     echo ""
-    printf "${YELLOW}Options:${NC}\n"
-    printf "  -v, --verbose    Enable verbose output\n"
-    printf "  -d, --debug      Enable debug mode\n"
-    printf "  -h, --help       Show this help message\n"
+    printf "${YELLOW}Options:${NC}
+"
+    printf "  -v, --verbose    Enable verbose output
+"
+    printf "  -d, --debug      Enable debug mode
+"
+    printf "  -h, --help       Show this help message
+"
     echo ""
-    printf "${YELLOW}Description:${NC}\n"
-    printf "  Verifies that Starlink monitoring cron jobs are properly configured\n"
-    printf "  and will run automatically. Checks for common configuration issues.\n"
+    printf "${YELLOW}Description:${NC}
+"
+    printf "  Verifies that Starlink monitoring cron jobs are properly configured
+"
+    printf "  and will run automatically. Checks for common configuration issues.
+"
     echo ""
-    printf "${YELLOW}Examples:${NC}\n"
-    printf "  %s                     # Basic verification\n" "$0"
-    printf "  DEBUG=1 %s            # With debug output\n" "$0"
-    printf "  %s --verbose          # With verbose output\n" "$0"
+    printf "${YELLOW}Examples:${NC}
+"
+    printf "  %s                     # Basic verification
+" "$0"
+    printf "  DEBUG=1 %s            # With debug output
+" "$0"
+    printf "  %s --verbose          # With verbose output
+" "$0"
 }
 
 # Main function
@@ -408,9 +441,12 @@ main() {
     log_info "Starting cron verification v$SCRIPT_VERSION"
     echo ""
 
-    printf "${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${BLUE}║${NC}                    ${CYAN}STARLINK MONITORING CRON VERIFICATION${NC}                   ${BLUE}║${NC}\n"
-    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
+    printf "${BLUE}║${NC}                    ${CYAN}STARLINK MONITORING CRON VERIFICATION${NC}                   ${BLUE}║${NC}
+"
+    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
     echo ""
 
     # Check if running on RUTOS/OpenWrt
@@ -468,3 +504,6 @@ done
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

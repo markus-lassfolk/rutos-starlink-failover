@@ -17,8 +17,6 @@ set -eu
 # shellcheck disable=SC2034  # SCRIPT_NAME may be used by external functions
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 SCRIPT_NAME="unified-azure-setup"
 
 # Use script name for logging
@@ -45,12 +43,12 @@ AZURE_FUNCTION_URL=""
 # Check if terminal supports colors
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m' # No Color
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m' # No Color
 else
     # Fallback to no colors if terminal doesn't support them
     RED=""
@@ -69,7 +67,8 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "${CYAN}[DEBUG]${NC} DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$ORIGINAL_DRY_RUN" "$ORIGINAL_RUTOS_TEST_MODE" >&2
+    printf "${CYAN}[DEBUG]${NC} DRY_RUN=%s, RUTOS_TEST_MODE=%s
+" "$ORIGINAL_DRY_RUN" "$ORIGINAL_RUTOS_TEST_MODE" >&2
 fi
 
 # Early exit in test mode to prevent execution errors
@@ -95,22 +94,26 @@ safe_execute() {
 
 # --- HELPER FUNCTIONS ---
 log() {
-    printf "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] %s${NC}\n" "$1"
+    printf "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] %s${NC}
+" "$1"
     logger -t "$LOG_TAG" "$1"
 }
 
 log_success() {
-    printf "${GREEN}✓ %s${NC}\n" "$1"
+    printf "${GREEN}✓ %s${NC}
+" "$1"
     logger -t "$LOG_TAG" "SUCCESS: $1"
 }
 
 log_warn() {
-    printf "${YELLOW}⚠ %s${NC}\n" "$1"
+    printf "${YELLOW}⚠ %s${NC}
+" "$1"
     logger -t "$LOG_TAG" "WARNING: $1"
 }
 
 log_error() {
-    printf "${RED}✗ %s${NC}\n" "$1"
+    printf "${RED}✗ %s${NC}
+" "$1"
     logger -t "$LOG_TAG" "ERROR: $1"
 }
 
@@ -429,16 +432,20 @@ setup_network_routes() {
 main() {
     # Display script version for troubleshooting
     if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
-        printf "[DEBUG] %s v%s\n" "unified-azure-setup-rutos.sh" "$SCRIPT_VERSION" >&2
+        printf "[DEBUG] %s v%s
+" "unified-azure-setup-rutos.sh" "$SCRIPT_VERSION" >&2
     fi
     log_debug "==================== SCRIPT START ==================="
     log_debug "Script: unified-azure-setup-rutos.sh v$SCRIPT_VERSION"
     log_debug "Working directory: $(pwd)"
     log_debug "Arguments: $*"
     log_debug "======================================================"
-    printf "${BLUE}========================================\n"
-    printf "${BLUE}  Unified Azure Logging Setup Script\n"
-    printf "${BLUE}========================================${NC}\n"
+    printf "${BLUE}========================================
+"
+    printf "${BLUE}  Unified Azure Logging Setup Script
+"
+    printf "${BLUE}========================================${NC}
+"
 
     # Check if running as root
     if [ "$(id -u)" -ne 0 ]; then
@@ -537,3 +544,6 @@ main() {
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

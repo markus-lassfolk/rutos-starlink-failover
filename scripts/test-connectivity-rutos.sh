@@ -5,16 +5,14 @@
 
 # Early exit in test mode to prevent any execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Version information (auto-updated by update-version.sh)
 
 # Get the installation directory
@@ -49,21 +47,21 @@ NC=""
 
 # Match install script logic exactly (this approach worked!)
 if [ "${FORCE_COLOR:-}" = "1" ]; then
-    RED="\033[0;31m"
-    GREEN="\033[0;32m"
-    YELLOW="\033[1;33m"
-    BLUE="\033[1;35m"
-    CYAN="\033[0;36m"
-    NC="\033[0m"
+    RED="[0;31m"
+    GREEN="[0;32m"
+    YELLOW="[1;33m"
+    BLUE="[1;35m"
+    CYAN="[0;36m"
+    NC="[0m"
 elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     case "${TERM:-}" in
         xterm* | screen* | tmux* | linux*)
-            RED="\033[0;31m"
-            GREEN="\033[0;32m"
-            YELLOW="\033[1;33m"
-            BLUE="\033[1;35m"
-            CYAN="\033[0;36m"
-            NC="\033[0m"
+            RED="[0;31m"
+            GREEN="[0;32m"
+            YELLOW="[1;33m"
+            BLUE="[1;35m"
+            CYAN="[0;36m"
+            NC="[0m"
             ;;
         *)
             # Unknown or limited terminal - stay safe with no colors
@@ -77,12 +75,14 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
+    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s
+" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
 fi
 
 # Configure test mode behavior - allow basic logic but skip network operations
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - will simulate network operations\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - will simulate network operations
+" >&2
     SKIP_NETWORK_TESTS=1
 else
     SKIP_NETWORK_TESTS=0
@@ -94,7 +94,8 @@ safe_execute() {
     description="$2"
 
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ] || [ "$SKIP_NETWORK_TESTS" = "1" ]; then
-        printf "${BLUE}[DRY-RUN]${NC} Would execute: %s\n" "$description"
+        printf "${BLUE}[DRY-RUN]${NC} Would execute: %s
+" "$description"
         return 0
     else
         eval "$cmd"
@@ -103,21 +104,31 @@ safe_execute() {
 
 # Debug color support
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] RUTOS Color Detection:\n"
-    printf "[DEBUG]   TERM: %s\n" "${TERM:-unset}"
-    printf "[DEBUG]   NO_COLOR: %s\n" "${NO_COLOR:-unset}"
-    printf "[DEBUG]   FORCE_COLOR: %s\n" "${FORCE_COLOR:-unset}"
-    printf "[DEBUG]   Terminal check [-t 1]: %s\n" "$([ -t 1 ] && echo "yes" || echo "no")"
-    printf "[DEBUG]   Color decision: %s\n" "$([ -n "$RED" ] && echo "ENABLED" || echo "DISABLED")"
+    printf "[DEBUG] RUTOS Color Detection:
+"
+    printf "[DEBUG]   TERM: %s
+" "${TERM:-unset}"
+    printf "[DEBUG]   NO_COLOR: %s
+" "${NO_COLOR:-unset}"
+    printf "[DEBUG]   FORCE_COLOR: %s
+" "${FORCE_COLOR:-unset}"
+    printf "[DEBUG]   Terminal check [-t 1]: %s
+" "$([ -t 1 ] && echo "yes" || echo "no")"
+    printf "[DEBUG]   Color decision: %s
+" "$([ -n "$RED" ] && echo "ENABLED" || echo "DISABLED")"
     if [ -n "$RED" ]; then
         printf "[DEBUG] Color validation test: "
         # Use Method 5 format (embed variables - this works in RUTOS!)
         # shellcheck disable=SC2059  # Method 5 format is required for RUTOS compatibility
-        printf "${GREEN}OK${NC}\n"
-        printf "[DEBUG] Note: If you see escape codes above, colors aren't working properly\n"
+        printf "${GREEN}OK${NC}
+"
+        printf "[DEBUG] Note: If you see escape codes above, colors aren't working properly
+"
     else
-        printf "[DEBUG] Colors disabled - using plain text for maximum RUTOS compatibility\n"
-        printf "[DEBUG] To force colors: export FORCE_COLOR=1\n"
+        printf "[DEBUG] Colors disabled - using plain text for maximum RUTOS compatibility
+"
+        printf "[DEBUG] To force colors: export FORCE_COLOR=1
+"
     fi
 fi
 
@@ -125,38 +136,44 @@ fi
 log_info() {
     timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
     # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$timestamp" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$timestamp" "$1"
 }
 
 log_warning() {
     timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
     # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$timestamp" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$timestamp" "$1"
 }
 
 log_error() {
     timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
     # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$timestamp" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$timestamp" "$1" >&2
 }
 
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
         timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
         # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$timestamp" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$timestamp" "$1" >&2
     fi
 }
 
 log_success() {
     timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
     # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$timestamp" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$timestamp" "$1"
 }
 
 log_step() {
     # Use Method 5 format (embed variables in format string - this works in RUTOS!)
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Test runner function
@@ -733,3 +750,6 @@ esac
 
 # Run main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

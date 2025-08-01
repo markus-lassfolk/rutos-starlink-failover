@@ -7,9 +7,6 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Version information (used for logging and debugging)
 # shellcheck disable=SC2034  # SCRIPT_VERSION used for version tracking
 # Version information (auto-updated by update-version.sh)
@@ -17,16 +14,16 @@ readonly SCRIPT_VERSION
 # Version information (auto-updated by update-version.sh)
 
 # Standard colors for consistent output (compatible with busybox)
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
+RED='[0;31m'
+GREEN='[0;32m'
+YELLOW='[1;33m'
+BLUE='[1;35m'
 # shellcheck disable=SC2034  # Used in some conditional contexts
-PURPLE='\033[0;35m'
+PURPLE='[0;35m'
 # shellcheck disable=SC2034  # CYAN may be used in future enhancements
 # shellcheck disable=SC2034  # CYAN is available for future use if needed
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+CYAN='[0;36m'
+NC='[0m' # No Color
 
 # Check if we're in a terminal that supports colors
 if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
@@ -43,33 +40,39 @@ fi
 # Standard logging functions
 log_info() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_success() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_debug() {
     if [ "${DEBUG:-0}" = "1" ]; then
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
@@ -95,10 +98,12 @@ safe_execute() {
 
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
         log_info "[DRY-RUN] Would execute: $description"
-        printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
+        printf "[DRY-RUN] Command: %s
+" "$cmd" >&2
         return 0
     else
-        printf "[EXECUTE] %s\n" "$description" >&2
+        printf "[EXECUTE] %s
+" "$description" >&2
         eval "$cmd"
     fi
 }
@@ -111,28 +116,48 @@ CRON_FILE="/etc/crontabs/root"
 # Print header
 print_header() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+    printf "
+${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}
+"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}                    STARLINK SYSTEM REPAIR${NC}\n"
+    printf "${PURPLE}                    STARLINK SYSTEM REPAIR${NC}
+"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n\n"
+    printf "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}
+
+"
 }
 
 # Show usage
 show_usage() {
-    printf "Usage: %s [OPTION]\n\n" "$(basename "$0")"
-    printf "Options:\n"
-    printf "  --cron          Repair cron job issues\n"
-    printf "  --config        Repair configuration issues\n"
-    printf "  --permissions   Fix file permissions\n"
-    printf "  --logs          Clean and rotate logs\n"
-    printf "  --database      Fix database issues\n"
-    printf "  --all           Run all repair operations\n"
-    printf "  --help          Show this help message\n\n"
-    printf "Examples:\n"
-    printf "  %s --all          # Run all repairs\n" "$(basename "$0")"
-    printf "  %s --cron         # Fix cron issues only\n" "$(basename "$0")"
-    printf "  %s --config       # Fix config issues only\n" "$(basename "$0")"
+    printf "Usage: %s [OPTION]
+
+" "$(basename "$0")"
+    printf "Options:
+"
+    printf "  --cron          Repair cron job issues
+"
+    printf "  --config        Repair configuration issues
+"
+    printf "  --permissions   Fix file permissions
+"
+    printf "  --logs          Clean and rotate logs
+"
+    printf "  --database      Fix database issues
+"
+    printf "  --all           Run all repair operations
+"
+    printf "  --help          Show this help message
+
+"
+    printf "Examples:
+"
+    printf "  %s --all          # Run all repairs
+" "$(basename "$0")"
+    printf "  %s --cron         # Fix cron issues only
+" "$(basename "$0")"
+    printf "  %s --config       # Fix config issues only
+" "$(basename "$0")"
 }
 
 # Repair cron jobs
@@ -321,7 +346,8 @@ repair_all() {
 main() {
     # Display script version for troubleshooting
     if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
-        printf "[DEBUG] %s v%s\n" "repair-system-rutos.sh" "$SCRIPT_VERSION" >&2
+        printf "[DEBUG] %s v%s
+" "repair-system-rutos.sh" "$SCRIPT_VERSION" >&2
     fi
     log_debug "==================== SCRIPT START ==================="
     log_debug "Script: repair-system-rutos.sh v$SCRIPT_VERSION"
@@ -366,3 +392,6 @@ main() {
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

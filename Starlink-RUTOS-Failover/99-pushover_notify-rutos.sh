@@ -20,9 +20,6 @@ set -eu
 PS4='+ '
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
-readonly SCRIPT_VERSION
-
 # Load RUTOS library system for standardized logging and utilities
 # Try multiple paths for library loading (development, installation, hotplug)
 if [ -f "$(dirname "$0")/lib/rutos-lib.sh" ]; then
@@ -33,31 +30,42 @@ elif [ -f "./lib/rutos-lib.sh" ]; then
     . "./lib/rutos-lib.sh"
 else
     # Fallback logging if library not available
-    printf "[WARNING] RUTOS library not found, using fallback logging\n"
+    printf "[WARNING] RUTOS library not found, using fallback logging
+"
 fi
 
 # Initialize script with RUTOS library features if available
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+
 if command -v rutos_init >/dev/null 2>&1; then
     rutos_init "99-pushover_notify-rutos.sh" "$SCRIPT_VERSION"
 else
     # Fallback logging if library not available
-    printf "[WARNING] RUTOS library not found, using fallback logging\n"
+    printf "[WARNING] RUTOS library not found, using fallback logging
+"
 
     # Minimal fallback functions
-    log_info() { printf "[INFO] %s\n" "$1"; }
-    log_error() { printf "[ERROR] %s\n" "$1" >&2; }
+    log_info() { printf "[INFO] %s
+" "$1"; }
+    log_error() { printf "[ERROR] %s
+" "$1" >&2; }
     log_debug() {
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "[DEBUG] %s\n" "$1" >&2
+            printf "[DEBUG] %s
+" "$1" >&2
         fi
     }
     safe_execute() {
         cmd="$1"
         if [ "${DRY_RUN:-0}" = "1" ]; then
-            printf "[DRY_RUN] Would execute: %s\n" "$cmd" >&2
+            printf "[DRY_RUN] Would execute: %s
+" "$cmd" >&2
         else
             if [ "${DEBUG:-0}" = "1" ]; then
-                printf "[DEBUG] Executing: %s\n" "$cmd" >&2
+                printf "[DEBUG] Executing: %s
+" "$cmd" >&2
             fi
             eval "$cmd"
         fi
@@ -79,7 +87,8 @@ if [ -f "$CONFIG_FILE" ]; then
 else
     if [ "$DRY_RUN" = "1" ]; then
         # In dry-run mode, provide fallback values for testing
-        printf "[INFO] DRY_RUN mode: Using fallback configuration (config file not found: %s)\n" "$CONFIG_FILE" >&2
+        printf "[INFO] DRY_RUN mode: Using fallback configuration (config file not found: %s)
+" "$CONFIG_FILE" >&2
         STATE_DIR="${STATE_DIR:-/tmp/starlink-test}"
         LOG_DIR="${LOG_DIR:-/tmp/starlink-test}"
         PUSHOVER_API_TOKEN="${PUSHOVER_API_TOKEN:-test-token}"
@@ -99,7 +108,8 @@ NOTIFICATION_LOG="${LOG_DIR}/notifications.log"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
+    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s
+" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
 fi
 
 # Function to safely execute commands
@@ -108,12 +118,15 @@ safe_execute() {
     description="$2"
 
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-        printf "[DRY-RUN] Would execute: %s\n" "$description" >&2
-        printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
+        printf "[DRY-RUN] Would execute: %s
+" "$description" >&2
+        printf "[DRY-RUN] Command: %s
+" "$cmd" >&2
         return 0
     else
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "[DEBUG] Executing: %s\n" "$cmd" >&2
+            printf "[DEBUG] Executing: %s
+" "$cmd" >&2
         fi
         eval "$cmd"
     fi
@@ -225,14 +238,18 @@ get_system_info() {
     system_hostname=$(uname -n)
     system_uptime=$(uptime | cut -d, -f1)
     system_timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    printf "Host: %s\nTime: %s\nUptime: %s\n" "$system_hostname" "$system_timestamp" "$system_uptime"
+    printf "Host: %s
+Time: %s
+Uptime: %s
+" "$system_hostname" "$system_timestamp" "$system_uptime"
 }
 
 # Main notification logic
 main() {
     # Display script version for troubleshooting
     if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
-        printf "[DEBUG] %s v%s\n" "99-pushover_notify-rutos.sh" "$SCRIPT_VERSION" >&2
+        printf "[DEBUG] %s v%s
+" "99-pushover_notify-rutos.sh" "$SCRIPT_VERSION" >&2
     fi
     log_debug "==================== SCRIPT START ==================="
     log_debug "Script: 99-pushover_notify-rutos.sh v$SCRIPT_VERSION"
@@ -249,7 +266,11 @@ main() {
             if [ "${NOTIFY_ON_SOFT_FAIL:-1}" = "1" ]; then
                 if check_rate_limit "soft_failover"; then
                     main_title="🔄 Starlink Quality Failover"
-                    main_message="Starlink quality degraded.\nReason: $main_detail\nPerforming soft failover to mobile backup.\n\n$(get_system_info)"
+                    main_message="Starlink quality degraded.
+Reason: $main_detail
+Performing soft failover to mobile backup.
+
+$(get_system_info)"
                     send_notification "$main_title" "$main_message" 1
                 fi
             fi
@@ -258,7 +279,10 @@ main() {
             if [ "${NOTIFY_ON_RECOVERY:-1}" = "1" ]; then
                 if check_rate_limit "soft_recovery"; then
                     main_title="✅ Starlink Recovered"
-                    main_message="Starlink connection is stable.\nPerforming soft failback to primary.\n\n$(get_system_info)"
+                    main_message="Starlink connection is stable.
+Performing soft failback to primary.
+
+$(get_system_info)"
                     send_notification "$main_title" "$main_message" 0
                 fi
             fi
@@ -266,14 +290,21 @@ main() {
         api_version_change)
             if [ "${NOTIFY_ON_CRITICAL:-1}" = "1" ]; then
                 main_title="⚠️ Starlink API Changed"
-                main_message="Starlink API version changed.\nPrevious: $main_detail\nPlease check monitoring scripts.\n\n$(get_system_info)"
+                main_message="Starlink API version changed.
+Previous: $main_detail
+Please check monitoring scripts.
+
+$(get_system_info)"
                 send_notification "$main_title" "$main_message" 1
             fi
             ;;
         system_error)
             if [ "${NOTIFY_ON_CRITICAL:-1}" = "1" ]; then
                 main_title="❌ Starlink Monitor Error"
-                main_message="System error occurred.\nDetails: $main_detail\n\n$(get_system_info)"
+                main_message="System error occurred.
+Details: $main_detail
+
+$(get_system_info)"
                 send_notification "$main_title" "$main_message" 2
             fi
             ;;
@@ -285,7 +316,10 @@ main() {
                         if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
                             if check_rate_limit "ifdown_$INTERFACE"; then
                                 main_title="🔴 Starlink Offline (Hard)"
-                                main_message="Starlink ($INTERFACE) link is down or failed ping test.\nThis is a hard failure event.\n\n$(get_system_info)"
+                                main_message="Starlink ($INTERFACE) link is down or failed ping test.
+This is a hard failure event.
+
+$(get_system_info)"
                                 send_notification "$main_title" "$main_message" 2
                             fi
                         fi
@@ -296,7 +330,10 @@ main() {
                         if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
                             if check_rate_limit "connected_$INTERFACE"; then
                                 main_title="🟢 Starlink Recovered (Hard)"
-                                main_message="Starlink ($INTERFACE) is back online.\nFailback complete via mwan3.\n\n$(get_system_info)"
+                                main_message="Starlink ($INTERFACE) is back online.
+Failback complete via mwan3.
+
+$(get_system_info)"
                                 send_notification "$main_title" "$main_message" 0
                             fi
                         fi
@@ -304,7 +341,10 @@ main() {
                         if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
                             if check_rate_limit "connected_$INTERFACE"; then
                                 main_title="📱 Mobile Failover Active"
-                                main_message="Failover complete.\nTraffic is now flowing over mobile interface ($INTERFACE).\n\n$(get_system_info)"
+                                main_message="Failover complete.
+Traffic is now flowing over mobile interface ($INTERFACE).
+
+$(get_system_info)"
                                 send_notification "$main_title" "$main_message" 1
                             fi
                         fi
@@ -315,19 +355,24 @@ main() {
         test)
             # Test all notification types
             if [ "${NOTIFY_ON_CRITICAL:-1}" = "1" ]; then
-                send_notification "[TEST] Critical Error" "This is a test critical error notification.\n$(get_system_info)" 2
+                send_notification "[TEST] Critical Error" "This is a test critical error notification.
+$(get_system_info)" 2
             fi
             if [ "${NOTIFY_ON_SOFT_FAIL:-1}" = "1" ]; then
-                send_notification "[TEST] Soft Failover" "This is a test soft failover notification.\n$(get_system_info)" 1
+                send_notification "[TEST] Soft Failover" "This is a test soft failover notification.
+$(get_system_info)" 1
             fi
             if [ "${NOTIFY_ON_HARD_FAIL:-1}" = "1" ]; then
-                send_notification "[TEST] Hard Failover" "This is a test hard failover notification.\n$(get_system_info)" 2
+                send_notification "[TEST] Hard Failover" "This is a test hard failover notification.
+$(get_system_info)" 2
             fi
             if [ "${NOTIFY_ON_RECOVERY:-1}" = "1" ]; then
-                send_notification "[TEST] Recovery" "This is a test recovery notification.\n$(get_system_info)" 0
+                send_notification "[TEST] Recovery" "This is a test recovery notification.
+$(get_system_info)" 0
             fi
             if [ "${NOTIFY_ON_INFO:-0}" = "1" ]; then
-                send_notification "[TEST] Info/Status" "This is a test info/status notification.\n$(get_system_info)" -1
+                send_notification "[TEST] Info/Status" "This is a test info/status notification.
+$(get_system_info)" -1
             fi
             ;;
         *)

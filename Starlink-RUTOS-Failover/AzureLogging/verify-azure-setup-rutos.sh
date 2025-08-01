@@ -24,8 +24,6 @@ set -eu
 # shellcheck disable=SC2155  # Declare and assign separately - acceptable for simple cases
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 SCRIPT_NAME="verify-azure-setup"
 
 # Use script name for logging
@@ -34,12 +32,12 @@ echo "Starting $SCRIPT_NAME" >/dev/null 2>&1 || true
 LOG_TAG="AzureVerification"
 
 # --- COLORS FOR OUTPUT ---
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+RED='[0;31m'
+GREEN='[0;32m'
+YELLOW='[1;33m'
+BLUE='[0;34m'
+CYAN='[0;36m'
+NC='[0m' # No Color
 
 # --- TEST RESULTS ---
 TOTAL_TESTS=0
@@ -54,27 +52,32 @@ SUGGESTIONS=""
 
 # --- HELPER FUNCTIONS ---
 log() {
-    printf "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')] %s${NC}\n" "$1"
+    printf "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')] %s${NC}
+" "$1"
 }
 
 log_test() {
-    printf "${BLUE}[TEST] %s${NC}\n" "$1"
+    printf "${BLUE}[TEST] %s${NC}
+" "$1"
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
 }
 
 log_pass() {
-    printf "${GREEN}  ✓ %s${NC}\n" "$1"
+    printf "${GREEN}  ✓ %s${NC}
+" "$1"
     PASSED_TESTS=$((PASSED_TESTS + 1))
 }
 
 log_fail() {
-    printf "${RED}  ✗ %s${NC}\n" "$1"
+    printf "${RED}  ✗ %s${NC}
+" "$1"
     FAILED_TESTS=$((FAILED_TESTS + 1))
     FAILURES="$FAILURES $1"
 }
 
 log_warn() {
-    printf "${YELLOW}  ⚠ %s${NC}\n" "$1"
+    printf "${YELLOW}  ⚠ %s${NC}
+" "$1"
     WARNING_TESTS=$((WARNING_TESTS + 1))
     WARNINGS="$WARNINGS $1"
 }
@@ -85,7 +88,8 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
+    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s
+" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
 fi
 
 # Function to safely execute commands
@@ -94,19 +98,23 @@ safe_execute() {
     description="$2"
 
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-        printf "[DRY-RUN] Would execute: %s\n" "$description" >&2
-        printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
+        printf "[DRY-RUN] Would execute: %s
+" "$description" >&2
+        printf "[DRY-RUN] Command: %s
+" "$cmd" >&2
         return 0
     else
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "[DEBUG] Executing: %s\n" "$cmd" >&2
+            printf "[DEBUG] Executing: %s
+" "$cmd" >&2
         fi
         eval "$cmd"
     fi
 }
 
 log_info() {
-    printf "${CYAN}  ℹ %s${NC}\n" "$1"
+    printf "${CYAN}  ℹ %s${NC}
+" "$1"
 }
 
 add_suggestion() {
@@ -476,7 +484,7 @@ test_azure_connectivity() {
         log_pass "Azure endpoint is configured"
 
         # Extract host from URL for connectivity test
-        host=$(echo "$azure_endpoint" | sed -n 's|https\?://\([^/]*\).*|\1|p')
+        host=$(echo "$azure_endpoint" | sed -n 's|https\?://\([^/]*\).*||p')
 
         if [ -n "$host" ]; then
             # Test DNS resolution
@@ -554,15 +562,22 @@ test_data_collection() {
 
 # --- MAIN FUNCTION ---
 run_verification() {
-    printf "%s\n" "$BLUE"
-    printf "==========================================\n"
-    printf "    Azure Logging Verification Script\n"
-    printf "==========================================\n"
-    printf "%s\n" "$NC"
-    printf "\n"
+    printf "%s
+" "$BLUE"
+    printf "==========================================
+"
+    printf "    Azure Logging Verification Script
+"
+    printf "==========================================
+"
+    printf "%s
+" "$NC"
+    printf "
+"
 
     log "Starting comprehensive verification of Azure logging setup..."
-    printf "\n"
+    printf "
+"
 
     # Run all tests
     test_dependencies
@@ -580,81 +595,114 @@ run_verification() {
     test_starlink_api
     echo
     test_rutos_gps
-    printf "\n"
+    printf "
+"
     test_azure_connectivity
-    printf "\n"
+    printf "
+"
     test_data_collection
-    printf "\n"
+    printf "
+"
 
     # Print summary
-    printf "%s\n" "${BLUE}"
-    printf "==========================================\n"
-    printf "           VERIFICATION SUMMARY\n"
-    printf "==========================================\n"
-    printf "%s\n" "${NC}"
+    printf "%s
+" "${BLUE}"
+    printf "==========================================
+"
+    printf "           VERIFICATION SUMMARY
+"
+    printf "==========================================
+"
+    printf "%s
+" "${NC}"
 
-    printf "Total Tests: %s\n" "$TOTAL_TESTS"
-    printf "${GREEN}Passed: %s${NC}\n" "$PASSED_TESTS"
-    printf "${YELLOW}Warnings: %s${NC}\n" "$WARNING_TESTS"
-    printf "${RED}Failed: %s${NC}\n" "$FAILED_TESTS"
-    printf "\n"
+    printf "Total Tests: %s
+" "$TOTAL_TESTS"
+    printf "${GREEN}Passed: %s${NC}
+" "$PASSED_TESTS"
+    printf "${YELLOW}Warnings: %s${NC}
+" "$WARNING_TESTS"
+    printf "${RED}Failed: %s${NC}
+" "$FAILED_TESTS"
+    printf "
+"
 
     # Calculate success rate
     success_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))
 
     if [ "$FAILED_TESTS" -eq 0 ]; then
-        printf "%s✓ All critical tests passed!%s\n" "${GREEN}" "${NC}"
+        printf "%s✓ All critical tests passed!%s
+" "${GREEN}" "${NC}"
         if [ "$WARNING_TESTS" -gt 0 ]; then
-            printf "%s⚠ Some optional features have warnings%s\n" "${YELLOW}" "${NC}"
+            printf "%s⚠ Some optional features have warnings%s
+" "${YELLOW}" "${NC}"
         fi
     elif [ "$success_rate" -ge 80 ]; then
-        printf "%s⚠ Setup is mostly working but has some issues%s\n" "${YELLOW}" "${NC}"
+        printf "%s⚠ Setup is mostly working but has some issues%s
+" "${YELLOW}" "${NC}"
     else
-        printf "%s✗ Setup has significant problems that need to be addressed%s\n" "${RED}" "${NC}"
+        printf "%s✗ Setup has significant problems that need to be addressed%s
+" "${RED}" "${NC}"
     fi
 
-    printf "Overall Success Rate: %s%%\n" "$success_rate"
-    printf "\n"
+    printf "Overall Success Rate: %s%%
+" "$success_rate"
+    printf "
+"
 
     # Print failures
     if [ -n "$FAILURES" ]; then
-        printf "%sCRITICAL ISSUES:%s\n" "${RED}" "${NC}"
+        printf "%sCRITICAL ISSUES:%s
+" "${RED}" "${NC}"
         for failure in $FAILURES; do
-            printf "%s  ✗ %s%s\n" "${RED}" "$failure" "${NC}"
+            printf "%s  ✗ %s%s
+" "${RED}" "$failure" "${NC}"
         done
-        printf "\n"
+        printf "
+"
     fi
 
     # Print warnings
     if [ -n "$WARNINGS" ]; then
-        printf "%sWARNINGS:%s\n" "${YELLOW}" "${NC}"
+        printf "%sWARNINGS:%s
+" "${YELLOW}" "${NC}"
         for warning in $WARNINGS; do
-            printf "%s  ⚠ %s%s\n" "${YELLOW}" "$warning" "${NC}"
+            printf "%s  ⚠ %s%s
+" "${YELLOW}" "$warning" "${NC}"
         done
-        printf "\n"
+        printf "
+"
     fi
 
     # Print suggestions
     if [ -n "$SUGGESTIONS" ]; then
-        printf "%sSUGGESTED FIXES:%s\n" "${CYAN}" "${NC}"
+        printf "%sSUGGESTED FIXES:%s
+" "${CYAN}" "${NC}"
         i=1
         for suggestion in $SUGGESTIONS; do
-            printf "%s%s. %s%s\n" "${CYAN}" "$i" "$suggestion" "${NC}"
+            printf "%s%s. %s%s
+" "${CYAN}" "$i" "$suggestion" "${NC}"
             i=$((i + 1))
         done
-        printf "\n"
+        printf "
+"
     fi
 
     # Final recommendation
     if [ "$FAILED_TESTS" -eq 0 ]; then
-        printf "%s🎉 Your Azure logging setup is working correctly!%s\n" "${GREEN}" "${NC}"
-        printf "You can now monitor your logs in Azure storage.\n"
+        printf "%s🎉 Your Azure logging setup is working correctly!%s
+" "${GREEN}" "${NC}"
+        printf "You can now monitor your logs in Azure storage.
+"
     else
-        printf "%s📋 Please address the issues above and run this script again.%s\n" "${YELLOW}" "${NC}"
-        printf "If you need help, check the documentation or run the setup script again.\n"
+        printf "%s📋 Please address the issues above and run this script again.%s
+" "${YELLOW}" "${NC}"
+        printf "If you need help, check the documentation or run the setup script again.
+"
     fi
 
-    printf "\n"
+    printf "
+"
     log "Verification completed."
 }
 
@@ -663,3 +711,6 @@ run_verification() {
 if [ "${0##*/}" = "verify-azure-setup.sh" ]; then
     run_verification "$@"
 fi
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

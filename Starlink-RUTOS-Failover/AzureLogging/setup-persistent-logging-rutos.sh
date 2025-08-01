@@ -7,9 +7,6 @@
 set -e # Exit on any error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Dry-run and test mode support
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
@@ -194,7 +191,8 @@ show_final_status() {
 main() {
     # Display script version for troubleshooting
     if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
-        printf "[DEBUG] %s v%s\n" "setup-persistent-logging-rutos.sh" "$SCRIPT_VERSION" >&2
+        printf "[DEBUG] %s v%s
+" "setup-persistent-logging-rutos.sh" "$SCRIPT_VERSION" >&2
     fi
     log_debug "==================== SCRIPT START ==================="
     log_debug "Script: setup-persistent-logging-rutos.sh v$SCRIPT_VERSION"
@@ -246,3 +244,6 @@ main() {
 
 # Run main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

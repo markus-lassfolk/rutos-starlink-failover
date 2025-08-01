@@ -9,20 +9,17 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Standard colors for consistent output (compatible with busybox)
 # CRITICAL: Use RUTOS-compatible color detection
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
     # shellcheck disable=SC2034  # Used in some conditional contexts
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     # Colors disabled
     RED=""
@@ -66,17 +63,20 @@ safe_execute() {
 
 log_info() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${GREEN}[INFO]${NC} %s\n" "$1"
+    printf "${GREEN}[INFO]${NC} %s
+" "$1"
 }
 
 log_error() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${RED}[ERROR]${NC} %s\n" "$1" >&2
+    printf "${RED}[ERROR]${NC} %s
+" "$1" >&2
 }
 
 log_step() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}[STEP]${NC} %s\n" "$1"
+    printf "${BLUE}[STEP]${NC} %s
+" "$1"
 }
 
 # Quick test function
@@ -101,24 +101,30 @@ quick_test() {
         . "$CONFIG_FILE"
     else
         log_error "No config file found. Please provide PUSHOVER_TOKEN and PUSHOVER_USER"
-        printf "Usage examples:\n"
-        printf "  PUSHOVER_TOKEN=your_token PUSHOVER_USER=your_user %s\n" "$0"
-        printf "  Or create config at: %s\n" "$CONFIG_FILE"
+        printf "Usage examples:
+"
+        printf "  PUSHOVER_TOKEN=your_token PUSHOVER_USER=your_user %s
+" "$0"
+        printf "  Or create config at: %s
+" "$CONFIG_FILE"
         exit 1
     fi
 
     # Check credentials
     if [ -z "${PUSHOVER_TOKEN:-}" ] || [ -z "${PUSHOVER_USER:-}" ]; then
         log_error "Pushover credentials not configured"
-        printf "PUSHOVER_TOKEN: %s\n" "${PUSHOVER_TOKEN:-NOT_SET}"
-        printf "PUSHOVER_USER: %s\n" "${PUSHOVER_USER:-NOT_SET}"
+        printf "PUSHOVER_TOKEN: %s
+" "${PUSHOVER_TOKEN:-NOT_SET}"
+        printf "PUSHOVER_USER: %s
+" "${PUSHOVER_USER:-NOT_SET}"
         exit 1
     fi
 
     # Check for placeholders
     if [ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ] || [ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ]; then
         log_error "Pushover credentials still have placeholder values"
-        printf "Please update your config file with real credentials\n"
+        printf "Please update your config file with real credentials
+"
         exit 1
     fi
 
@@ -136,28 +142,44 @@ quick_test() {
             https://api.pushover.net/1/messages.json 2>&1)
 
         if echo "$response" | grep -q '"status":1'; then
-            printf "${GREEN}✅ SUCCESS!${NC} Test notification sent successfully\n"
-            printf "Check your Pushover app/device for the test message\n"
+            printf "${GREEN}✅ SUCCESS!${NC} Test notification sent successfully
+"
+            printf "Check your Pushover app/device for the test message
+"
 
             # Show response details if debug
             if [ "${DEBUG:-0}" = "1" ]; then
-                printf "\nAPI Response: %s\n" "$response"
+                printf "
+API Response: %s
+" "$response"
             fi
 
-            printf "\n${BLUE}Next steps:${NC}\n"
-            printf "1. Check your Pushover app for the test message\n"
-            printf "2. If received, your notifications are working\n"
-            printf "3. If no message, check your Pushover app settings\n"
-            printf "4. Monitor your system logs for actual failover events\n"
+            printf "
+${BLUE}Next steps:${NC}
+"
+            printf "1. Check your Pushover app for the test message
+"
+            printf "2. If received, your notifications are working
+"
+            printf "3. If no message, check your Pushover app settings
+"
+            printf "4. Monitor your system logs for actual failover events
+"
 
         else
-            printf "${RED}❌ FAILED${NC} - API call unsuccessful\n"
-            printf "Response: %s\n" "$response"
+            printf "${RED}❌ FAILED${NC} - API call unsuccessful
+"
+            printf "Response: %s
+" "$response"
 
             if echo "$response" | grep -q "invalid"; then
-                printf "\n${YELLOW}Possible issues:${NC}\n"
-                printf "%s\n" "- Invalid token or user key"
-                printf "%s\n" "- Check your Pushover credentials"
+                printf "
+${YELLOW}Possible issues:${NC}
+"
+                printf "%s
+" "- Invalid token or user key"
+                printf "%s
+" "- Check your Pushover credentials"
             fi
             exit 1
         fi
@@ -169,3 +191,6 @@ quick_test() {
 
 # Execute
 quick_test "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

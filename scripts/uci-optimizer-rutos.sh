@@ -12,20 +12,18 @@ set -eu
 # CONFIG_FILE="$SCRIPT_DIR/../config/config.sh"  # Currently unused
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 BACKUP_DIR="/tmp/uci_backup_$(date +%Y%m%d_%H%M%S)"
 
 # Colors for output
 # Check if terminal supports colors (simplified for RUTOS compatibility)
 # shellcheck disable=SC2034
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m' # Bright magenta instead of dark blue for better readability
-    CYAN='\033[0;36m'
-    NC='\033[0m' # No Color
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m' # Bright magenta instead of dark blue for better readability
+    CYAN='[0;36m'
+    NC='[0m' # No Color
 else
     # Fallback to no colors if terminal doesn't support them
     RED=""
@@ -45,7 +43,8 @@ DEBUG="${DEBUG:-0}"
 
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
@@ -64,24 +63,29 @@ safe_execute() {
 
 # Logging
 log_info() {
-    printf "${BLUE}[INFO]${NC} %s\n" "$1"
+    printf "${BLUE}[INFO]${NC} %s
+" "$1"
 }
 
 log_warn() {
-    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
+    printf "${YELLOW}[WARN]${NC} %s
+" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} %s\n" "$1"
+    printf "${RED}[ERROR]${NC} %s
+" "$1"
 }
 
 log_success() {
-    printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"
+    printf "${GREEN}[SUCCESS]${NC} %s
+" "$1"
 }
 
 log_debug() {
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} %s\n" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} %s
+" "$1" >&2
     fi
 }
 
@@ -124,7 +128,7 @@ analyze_mwan3() {
         if [ "$enabled" = "1" ]; then
             metric=""
             metric=$(uci show mwan3 | grep -E "member.*interface='?${iface}'?" | head -1 |
-                sed -n 's/.*metric=.\([0-9]*\).*/\1/p')
+                sed -n 's/.*metric=.\([0-9]*\).*//p')
             echo "  - $iface (enabled, metric: ${metric:-unknown})"
         else
             echo "  - $iface (disabled)"
@@ -439,7 +443,8 @@ restore_backup() {
 main() {
     # Display script version for troubleshooting
     if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
-        printf "[DEBUG] %s v%s\n" "uci-optimizer-rutos.sh" "$SCRIPT_VERSION" >&2
+        printf "[DEBUG] %s v%s
+" "uci-optimizer-rutos.sh" "$SCRIPT_VERSION" >&2
     fi
     log_debug "==================== SCRIPT START ==================="
     log_debug "Script: uci-optimizer-rutos.sh v$SCRIPT_VERSION"
@@ -511,3 +516,6 @@ main() {
 
 # Run main function with all arguments
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

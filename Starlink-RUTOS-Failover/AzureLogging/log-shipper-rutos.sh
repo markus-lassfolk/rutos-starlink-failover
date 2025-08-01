@@ -13,16 +13,14 @@
 # Read configuration from UCI if available, otherwise use defaults
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Dry-run and test mode support
 DRY_RUN="${DRY_RUN:-0}"
 RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
@@ -32,8 +30,10 @@ safe_execute() {
     description="$2"
 
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-        printf "[DRY-RUN] Would execute: %s\n" "$description" >&2
-        printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
+        printf "[DRY-RUN] Would execute: %s
+" "$description" >&2
+        printf "[DRY-RUN] Command: %s
+" "$cmd" >&2
         return 0
     else
         eval "$cmd"
@@ -84,7 +84,8 @@ fi
 # --max-time 30: Timeout after 30 seconds
 
 if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-    printf "[DRY-RUN] Would send log file to Azure Function: %s\n" "$AZURE_FUNCTION_URL" >&2
+    printf "[DRY-RUN] Would send log file to Azure Function: %s
+" "$AZURE_FUNCTION_URL" >&2
     HTTP_STATUS="200" # Simulate success in dry-run
     CURL_EXIT_CODE="0"
 else
@@ -103,7 +104,8 @@ if [ "$HTTP_STATUS" -eq 200 ]; then
     # Success! Clear the local log file by truncating it to zero size.
     # This is safer than 'rm' as it preserves file permissions.
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
-        printf "[DRY-RUN] Would clear log file: %s\n" "$LOG_FILE" >&2
+        printf "[DRY-RUN] Would clear log file: %s
+" "$LOG_FILE" >&2
     else
         true >"$LOG_FILE"
     fi
@@ -116,7 +118,11 @@ fi
 
 # Version information for troubleshooting
 if [ "$DEBUG" = "1" ]; then
-    printf "Script version: %s\n" "$SCRIPT_VERSION"
+    printf "Script version: %s
+" "$SCRIPT_VERSION"
 fi
 
 exit 0
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

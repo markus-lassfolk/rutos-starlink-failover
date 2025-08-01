@@ -10,19 +10,16 @@ set -eu
 # shellcheck disable=SC2034  # CYAN may not be used but should be defined for consistency
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Use version for logging
 echo "cleanup-rutos.sh v$SCRIPT_VERSION started" >/dev/null 2>&1 || true
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # shellcheck disable=SC2034  # Color variables may not all be used in every script
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     # shellcheck disable=SC2034  # Color variables may not all be used in every script
     RED=""
@@ -38,11 +35,16 @@ print_status() {
     message="$2"
     # Use Method 5 format that works in RUTOS (embed variables in format string)
     case "$color" in
-        "$RED") printf "${RED}%s${NC}\n" "$message" ;;
-        "$GREEN") printf "${GREEN}%s${NC}\n" "$message" ;;
-        "$YELLOW") printf "${YELLOW}%s${NC}\n" "$message" ;;
-        "$BLUE") printf "${BLUE}%s${NC}\n" "$message" ;;
-        *) printf "%s\n" "$message" ;;
+        "$RED") printf "${RED}%s${NC}
+" "$message" ;;
+        "$GREEN") printf "${GREEN}%s${NC}
+" "$message" ;;
+        "$YELLOW") printf "${YELLOW}%s${NC}
+" "$message" ;;
+        "$BLUE") printf "${BLUE}%s${NC}
+" "$message" ;;
+        *) printf "%s
+" "$message" ;;
     esac
 }
 
@@ -171,7 +173,7 @@ if [ -f "$CRON_FILE" ]; then
 
     # Comment out ALL starlink entries and clean up blank lines
     temp_cron="/tmp/crontab_cleanup.tmp"
-    safe_execute "sed 's|^\([^#].*\(starlink_monitor-rutos\.sh\|starlink_logger-rutos\.sh\|check_starlink_api\|system-maintenance-rutos\.sh\|self-update-rutos\.sh\).*\)|# CLEANUP COMMENTED: \1|g' '$CRON_FILE' >'$temp_cron'" "Process crontab entries"
+    safe_execute "sed 's|^\([^#].*\(starlink_monitor-rutos\.sh\|starlink_logger-rutos\.sh\|check_starlink_api\|system-maintenance-rutos\.sh\|self-update-rutos\.sh\).*\)|# CLEANUP COMMENTED: |g' '$CRON_FILE' >'$temp_cron'" "Process crontab entries"
 
     # Remove excessive blank lines (more than 1 consecutive blank line)
     safe_execute "awk 'BEGIN { blank_count = 0 } /^$/ { blank_count++; if (blank_count <= 1) print } /^./ { blank_count = 0; print }' '$temp_cron' >'${temp_cron}.clean' && mv '${temp_cron}.clean' '$temp_cron'" "Clean up blank lines"
@@ -283,3 +285,6 @@ if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
 else
     print_status "$GREEN" "🧹 System is now clean - ready for fresh installation or testing"
 fi
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

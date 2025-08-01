@@ -9,19 +9,16 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Standard colors for consistent output (compatible with busybox)
 # CRITICAL: Use RUTOS-compatible color detection
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     # Colors disabled
     RED=""
@@ -64,12 +61,14 @@ safe_execute() {
 
 log_info() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${GREEN}[INFO]${NC} %s\n" "$1"
+    printf "${GREEN}[INFO]${NC} %s
+" "$1"
 }
 
 log_step() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}[STEP]${NC} %s\n" "$1"
+    printf "${BLUE}[STEP]${NC} %s
+" "$1"
 }
 
 main() {
@@ -82,7 +81,8 @@ main() {
         echo "Looking for PUSHOVER entries in last 100 log lines:"
         logread | tail -100 | grep -i "pushover\|PushoverNotifier\|SafeNotify\|StarLinkMonitor.*PUSHOVER" || {
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-            printf "${YELLOW}No PUSHOVER entries found in recent syslog${NC}\n"
+            printf "${YELLOW}No PUSHOVER entries found in recent syslog${NC}
+"
         }
     else
         echo "logread not available"
@@ -102,7 +102,8 @@ main() {
             tail -20 "$NOTIFICATION_LOG" || echo "Failed to read notification log"
         else
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-            printf "${YELLOW}Notification log not found: %s${NC}\n" "$NOTIFICATION_LOG"
+            printf "${YELLOW}Notification log not found: %s${NC}
+" "$NOTIFICATION_LOG"
         fi
     else
         echo "Config file not found: $CONFIG_FILE"
@@ -123,14 +124,17 @@ main() {
         if [ -n "${NOTIFIER_SCRIPT:-}" ] && [ -f "$NOTIFIER_SCRIPT" ]; then
             if [ -x "$NOTIFIER_SCRIPT" ]; then
                 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-                printf "  Notifier script: ${GREEN}EXECUTABLE${NC}\n"
+                printf "  Notifier script: ${GREEN}EXECUTABLE${NC}
+"
             else
                 # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-                printf "  Notifier script: ${RED}NOT EXECUTABLE${NC}\n"
+                printf "  Notifier script: ${RED}NOT EXECUTABLE${NC}
+"
             fi
         else
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-            printf "  Notifier script: ${RED}NOT FOUND${NC}\n"
+            printf "  Notifier script: ${RED}NOT FOUND${NC}
+"
         fi
     fi
     echo ""
@@ -146,7 +150,8 @@ main() {
             }
         else
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-            printf "${YELLOW}Today's monitor log not found: %s${NC}\n" "$MONITOR_LOG"
+            printf "${YELLOW}Today's monitor log not found: %s${NC}
+" "$MONITOR_LOG"
         fi
     fi
     echo ""
@@ -160,11 +165,13 @@ main() {
 
         if [ "$current_state" = "down" ]; then
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-            printf "${RED}System is currently in failover mode${NC}\n"
+            printf "${RED}System is currently in failover mode${NC}
+"
             echo "This should have triggered a notification when it failed over"
         else
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-            printf "${GREEN}System is currently up${NC}\n"
+            printf "${GREEN}System is currently up${NC}
+"
         fi
     else
         echo "State file not found: $STATE_FILE"
@@ -174,11 +181,16 @@ main() {
     log_step "Manual test recommendation"
     echo "To manually test notifications:"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${CYAN}  %s test${NC}\n" "${NOTIFIER_SCRIPT:-/usr/local/starlink-monitor/Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh}"
+    printf "${CYAN}  %s test${NC}
+" "${NOTIFIER_SCRIPT:-/usr/local/starlink-monitor/Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh}"
     echo ""
     echo "To monitor notifications in real-time:"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${CYAN}  logread -f | grep -i pushover${NC}\n"
+    printf "${CYAN}  logread -f | grep -i pushover${NC}
+"
 }
 
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

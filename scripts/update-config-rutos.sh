@@ -13,8 +13,6 @@ set -eu
 
 # Script version information
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 SCRIPT_NAME="update-config.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"
 
@@ -22,12 +20,12 @@ COMPATIBLE_INSTALL_VERSION="1.0.0"
 # Check if terminal supports colors (simplified for RUTOS compatibility)
 # shellcheck disable=SC2034
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m' # Bright magenta instead of dark blue for better readability
-    CYAN='\033[0;36m'
-    NC='\033[0m' # No Color
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m' # Bright magenta instead of dark blue for better readability
+    CYAN='[0;36m'
+    NC='[0m' # No Color
 else
     # Fallback to no colors if terminal doesn't support them
     RED=""
@@ -85,12 +83,18 @@ print_status() {
     message="$2"
     # Use Method 5 format that works in RUTOS (embed variables in format string)
     case "$color" in
-        "$RED") printf "${RED}%s${NC}\n" "$message" ;;
-        "$GREEN") printf "${GREEN}%s${NC}\n" "$message" ;;
-        "$YELLOW") printf "${YELLOW}%s${NC}\n" "$message" ;;
-        "$BLUE") printf "${BLUE}%s${NC}\n" "$message" ;;
-        "$CYAN") printf "${CYAN}%s${NC}\n" "$message" ;;
-        *) printf "%s\n" "$message" ;;
+        "$RED") printf "${RED}%s${NC}
+" "$message" ;;
+        "$GREEN") printf "${GREEN}%s${NC}
+" "$message" ;;
+        "$YELLOW") printf "${YELLOW}%s${NC}
+" "$message" ;;
+        "$BLUE") printf "${BLUE}%s${NC}
+" "$message" ;;
+        "$CYAN") printf "${CYAN}%s${NC}
+" "$message" ;;
+        *) printf "%s
+" "$message" ;;
     esac
 }
 
@@ -251,17 +255,20 @@ merge_configs() {
             if grep -q "^${var}=" "$temp_file"; then
                 # Update existing variable with user's value (properly escape special characters)
                 # Escape backslashes and quotes in the value for sed
-                escaped_value=$(printf '%s' "$current_value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/|/\\|/g')
+                escaped_value=$(printf '%s' "$current_value" | sed 's/\/\\/g; s/"/\"/g; s/|/\|/g')
                 sed -i "s|^${var}=.*|${var}=\"${escaped_value}\"|" "$temp_file"
                 print_success "Preserved $var: $current_value"
             else
                 # Variable no longer exists in template, comment it out at the end
                 # Properly escape the value for printf
-                escaped_value=$(printf '%s' "$current_value" | sed 's/\\/\\\\/g; s/"/\\"/g')
+                escaped_value=$(printf '%s' "$current_value" | sed 's/\/\\/g; s/"/\"/g')
                 {
-                    printf "\n"
-                    printf "# Obsolete setting (kept for reference):\n"
-                    printf "# %s=\"%s\"\n" "$var" "$escaped_value"
+                    printf "
+"
+                    printf "# Obsolete setting (kept for reference):
+"
+                    printf "# %s=\"%s\"
+" "$var" "$escaped_value"
                 } >>"$temp_file"
                 print_warning "Obsolete setting commented out: $var"
             fi
@@ -270,7 +277,7 @@ merge_configs() {
 
     # Add header comment about the merge
     header="# Configuration merged on $(date) by update-config.sh"
-    sed -i "2i\\$header" "$temp_file"
+    sed -i "2i\$header" "$temp_file"
 
     # Move temp file to output
     mv "$temp_file" "$output_file"
@@ -351,3 +358,6 @@ main() {
 
 # Run main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

@@ -7,8 +7,6 @@
 # Source the main config if it exists
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 if [ -f "/etc/starlink-config/config.sh" ]; then
     # Load configuration from persistent location
     # shellcheck disable=SC1091  # Don't follow dynamic config file
@@ -478,7 +476,8 @@ ship_csv_to_azure() {
 main() {
     # Display script version for troubleshooting
     if [ "${DEBUG:-0}" = "1" ] || [ "${VERBOSE:-0}" = "1" ]; then
-        printf "[DEBUG] %s v%s\n" "starlink-azure-monitor-rutos.sh" "$SCRIPT_VERSION" >&2
+        printf "[DEBUG] %s v%s
+" "starlink-azure-monitor-rutos.sh" "$SCRIPT_VERSION" >&2
     fi
     log_debug "==================== SCRIPT START ==================="
     log_debug "Script: starlink-azure-monitor-rutos.sh v$SCRIPT_VERSION"
@@ -511,3 +510,6 @@ main() {
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

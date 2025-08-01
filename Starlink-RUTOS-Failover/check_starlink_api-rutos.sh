@@ -4,21 +4,29 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.0"
-readonly SCRIPT_VERSION
-
 # VALIDATION_SKIP_COLOR_CHECK: Uses RUTOS library for colors
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.0"
+
 # CRITICAL: Load RUTOS library system (REQUIRED)
 if ! . "$(dirname "$0")/../scripts/lib/rutos-lib.sh" 2>/dev/null &&
     ! . "/usr/local/starlink-monitor/scripts/lib/rutos-lib.sh" 2>/dev/null &&
     ! . "$(dirname "$0")/lib/rutos-lib.sh" 2>/dev/null; then
     # CRITICAL ERROR: RUTOS library not found - this script requires the library system
-    printf "CRITICAL ERROR: RUTOS library system not found!\n" >&2
-    printf "Expected locations:\n" >&2
-    printf "  - $(dirname "$0")/../scripts/lib/rutos-lib.sh\n" >&2
-    printf "  - /usr/local/starlink-monitor/scripts/lib/rutos-lib.sh\n" >&2
-    printf "  - $(dirname "$0")/lib/rutos-lib.sh\n" >&2
-    printf "\nThis script requires the RUTOS library for proper operation.\n" >&2
+    printf "CRITICAL ERROR: RUTOS library system not found!
+" >&2
+    printf "Expected locations:
+" >&2
+    printf "  - $(dirname "$0")/../scripts/lib/rutos-lib.sh
+" >&2
+    printf "  - /usr/local/starlink-monitor/scripts/lib/rutos-lib.sh
+" >&2
+    printf "  - $(dirname "$0")/lib/rutos-lib.sh
+" >&2
+    printf "
+This script requires the RUTOS library for proper operation.
+" >&2
     exit 1
 fi
 
@@ -27,12 +35,16 @@ if command -v rutos_init >/dev/null 2>&1; then
     rutos_init "check_starlink_api-rutos.sh" "$SCRIPT_VERSION"
 else
     # Fallback: Initialize minimal logging if library not available
-    printf "[WARNING] RUTOS library not available, using minimal fallback\n" >&2
+    printf "[WARNING] RUTOS library not available, using minimal fallback
+" >&2
     # VALIDATION_SKIP_PRINTF_CHECK: Fallback logging when RUTOS library unavailable
     # Define minimal fallback functions
-    log_info() { printf "[INFO] %s\n" "$1" >&2; }
-    log_error() { printf "[ERROR] %s\n" "$1" >&2; }
-    log_debug() { [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] %s\n" "$1" >&2; }
+    log_info() { printf "[INFO] %s
+" "$1" >&2; }
+    log_error() { printf "[ERROR] %s
+" "$1" >&2; }
+    log_debug() { [ "${DEBUG:-0}" = "1" ] && printf "[DEBUG] %s
+" "$1" >&2; }
 fi
 
 # RUTOS_TEST_MODE enables trace logging (does NOT cause early exit)

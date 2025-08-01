@@ -7,8 +7,6 @@
 # shellcheck disable=SC2034
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 RED=""
 # shellcheck disable=SC2034
 GREEN=""
@@ -61,31 +59,36 @@ CYAN1=""
 NC1=""
 
 if [ "${FORCE_COLOR:-}" = "1" ]; then
-    RED1='\033[0;31m'
-    GREEN1='\033[0;32m'
-    YELLOW1='\033[1;33m'
-    BLUE1='\033[1;35m'
-    CYAN1='\033[0;36m'
-    NC1='\033[0m'
+    RED1='[0;31m'
+    GREEN1='[0;32m'
+    YELLOW1='[1;33m'
+    BLUE1='[1;35m'
+    CYAN1='[0;36m'
+    NC1='[0m'
 elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     case "${TERM:-}" in
         xterm* | screen* | tmux* | linux*)
-            RED1='\033[0;31m'
-            GREEN1='\033[0;32m'
-            YELLOW1='\033[1;33m'
-            BLUE1='\033[1;35m'
-            CYAN1='\033[0;36m'
-            NC1='\033[0m'
+            RED1='[0;31m'
+            GREEN1='[0;32m'
+            YELLOW1='[1;33m'
+            BLUE1='[1;35m'
+            CYAN1='[0;36m'
+            NC1='[0m'
             ;;
     esac
 fi
 
 echo "Colors: $([ -n "$RED1" ] && echo "ENABLED" || echo "DISABLED")"
-printf "  %s[INFO]%s Test info message\n" "$GREEN1" "$NC1"
-printf "  %s[WARNING]%s Test warning message\n" "$YELLOW1" "$NC1"
-printf "  %s[ERROR]%s Test error message\n" "$RED1" "$NC1"
-printf "  %s[DEBUG]%s Test debug message\n" "$CYAN1" "$NC1"
-printf "  %s[STEP]%s Test step message with BLUE1\n" "$BLUE1" "$NC1"
+printf "  %s[INFO]%s Test info message
+" "$GREEN1" "$NC1"
+printf "  %s[WARNING]%s Test warning message
+" "$YELLOW1" "$NC1"
+printf "  %s[ERROR]%s Test error message
+" "$RED1" "$NC1"
+printf "  %s[DEBUG]%s Test debug message
+" "$CYAN1" "$NC1"
+printf "  %s[STEP]%s Test step message with BLUE1
+" "$BLUE1" "$NC1"
 echo ""
 
 # Method 2: Install script approach (the one that WORKED in your screenshot!)
@@ -99,24 +102,24 @@ NC2=""
 
 # EXACT logic from install-rutos.sh that showed colors in your screenshot
 if [ "${FORCE_COLOR:-}" = "1" ]; then
-    RED2="\033[0;31m"
-    GREEN2="\033[0;32m"
-    YELLOW2="\033[1;33m"
-    BLUE2="\033[1;35m" # Bright magenta instead of dark blue for better readability
-    CYAN2="\033[0;36m"
-    NC2="\033[0m" # No Color
+    RED2="[0;31m"
+    GREEN2="[0;32m"
+    YELLOW2="[1;33m"
+    BLUE2="[1;35m" # Bright magenta instead of dark blue for better readability
+    CYAN2="[0;36m"
+    NC2="[0m" # No Color
 elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     # Additional conservative check: only if stdout is a terminal and TERM is set properly
     # But still be very conservative about RUTOS
     case "${TERM:-}" in
         xterm* | screen* | tmux* | linux*)
             # Known terminal types that support colors
-            RED2="\033[0;31m"
-            GREEN2="\033[0;32m"
-            YELLOW2="\033[1;33m"
-            BLUE2="\033[1;35m" # Bright magenta instead of dark blue for better readability
-            CYAN2="\033[0;36m"
-            NC2="\033[0m" # No Color
+            RED2="[0;31m"
+            GREEN2="[0;32m"
+            YELLOW2="[1;33m"
+            BLUE2="[1;35m" # Bright magenta instead of dark blue for better readability
+            CYAN2="[0;36m"
+            NC2="[0m" # No Color
             ;;
         *)
             # Unknown or limited terminal - stay safe with no colors
@@ -125,11 +128,16 @@ elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
 fi
 
 echo "Colors: $([ -n "$RED2" ] && echo "ENABLED" || echo "DISABLED")"
-printf "%s[INFO]%s Test info message\n" "$GREEN2" "$NC2"
-printf "%s[WARNING]%s Test warning message\n" "$YELLOW2" "$NC2"
-printf "%s[ERROR]%s Test error message\n" "$RED2" "$NC2"
-printf "%s[DEBUG]%s Test debug message\n" "$CYAN2" "$NC2"
-printf "%s[STEP]%s Test step message with BLUE2\n" "$BLUE2" "$NC2"
+printf "%s[INFO]%s Test info message
+" "$GREEN2" "$NC2"
+printf "%s[WARNING]%s Test warning message
+" "$YELLOW2" "$NC2"
+printf "%s[ERROR]%s Test error message
+" "$RED2" "$NC2"
+printf "%s[DEBUG]%s Test debug message
+" "$CYAN2" "$NC2"
+printf "%s[STEP]%s Test step message with BLUE2
+" "$BLUE2" "$NC2"
 echo ""
 
 # Method 3: Double quotes vs single quotes test
@@ -144,22 +152,27 @@ NC3=""
 if [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     case "${TERM:-}" in
         xterm* | screen* | tmux* | linux*)
-            RED3="\033[0;31m" # Double quotes like install script
-            GREEN3="\033[0;32m"
-            YELLOW3="\033[1;33m"
-            BLUE3="\033[1;35m"
-            CYAN3="\033[0;36m"
-            NC3="\033[0m"
+            RED3="[0;31m" # Double quotes like install script
+            GREEN3="[0;32m"
+            YELLOW3="[1;33m"
+            BLUE3="[1;35m"
+            CYAN3="[0;36m"
+            NC3="[0m"
             ;;
     esac
 fi
 
 echo "Colors: $([ -n "$RED3" ] && echo "ENABLED" || echo "DISABLED")"
-printf "%s[INFO]%s Test info message\n" "$GREEN3" "$NC3"
-printf "%s[WARNING]%s Test warning message\n" "$YELLOW3" "$NC3"
-printf "%s[ERROR]%s Test error message\n" "$RED3" "$NC3"
-printf "%s[DEBUG]%s Test debug message\n" "$CYAN3" "$NC3"
-printf "%s[STEP]%s Test step message with BLUE3\n" "$BLUE3" "$NC3"
+printf "%s[INFO]%s Test info message
+" "$GREEN3" "$NC3"
+printf "%s[WARNING]%s Test warning message
+" "$YELLOW3" "$NC3"
+printf "%s[ERROR]%s Test error message
+" "$RED3" "$NC3"
+printf "%s[DEBUG]%s Test debug message
+" "$CYAN3" "$NC3"
+printf "%s[STEP]%s Test step message with BLUE3
+" "$BLUE3" "$NC3"
 echo ""
 
 # Method 4: Single quotes test
@@ -174,22 +187,27 @@ NC4=""
 if [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     case "${TERM:-}" in
         xterm* | screen* | tmux* | linux*)
-            RED4='\033[0;31m' # Single quotes
-            GREEN4='\033[0;32m'
-            YELLOW4='\033[1;33m'
-            BLUE4='\033[1;35m'
-            CYAN4='\033[0;36m'
-            NC4='\033[0m'
+            RED4='[0;31m' # Single quotes
+            GREEN4='[0;32m'
+            YELLOW4='[1;33m'
+            BLUE4='[1;35m'
+            CYAN4='[0;36m'
+            NC4='[0m'
             ;;
     esac
 fi
 
 echo "Colors: $([ -n "$RED4" ] && echo "ENABLED" || echo "DISABLED")"
-printf "%s[INFO]%s Test info message\n" "$GREEN4" "$NC4"
-printf "%s[WARNING]%s Test warning message\n" "$YELLOW4" "$NC4"
-printf "%s[ERROR]%s Test error message\n" "$RED4" "$NC4"
-printf "%s[DEBUG]%s Test debug message\n" "$CYAN4" "$NC4"
-printf "%s[STEP]%s Test step message with BLUE4\n" "$BLUE4" "$NC4"
+printf "%s[INFO]%s Test info message
+" "$GREEN4" "$NC4"
+printf "%s[WARNING]%s Test warning message
+" "$YELLOW4" "$NC4"
+printf "%s[ERROR]%s Test error message
+" "$RED4" "$NC4"
+printf "%s[DEBUG]%s Test debug message
+" "$CYAN4" "$NC4"
+printf "%s[STEP]%s Test step message with BLUE4
+" "$BLUE4" "$NC4"
 echo ""
 
 # Method 5: printf vs echo test
@@ -204,12 +222,12 @@ NC5=""
 if [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     case "${TERM:-}" in
         xterm* | screen* | tmux* | linux*)
-            RED5="\033[0;31m"
-            GREEN5="\033[0;32m"
-            YELLOW5="\033[1;33m"
-            BLUE5="\033[1;35m"
-            CYAN5="\033[0;36m"
-            NC5="\033[0m"
+            RED5="[0;31m"
+            GREEN5="[0;32m"
+            YELLOW5="[1;33m"
+            BLUE5="[1;35m"
+            CYAN5="[0;36m"
+            NC5="[0m"
             ;;
     esac
 fi
@@ -218,15 +236,20 @@ echo "Colors: $([ -n "$RED5" ] && echo "ENABLED" || echo "DISABLED")"
 # Test different printf formats like install script uses
 # Method 5 format is the ONLY one that works correctly in RUTOS (per project documentation)
 # shellcheck disable=SC2059
-printf "${GREEN5}[INFO]${NC5} Test info message\n"
+printf "${GREEN5}[INFO]${NC5} Test info message
+"
 # shellcheck disable=SC2059
-printf "${YELLOW5}[WARNING]${NC5} Test warning message\n"
+printf "${YELLOW5}[WARNING]${NC5} Test warning message
+"
 # shellcheck disable=SC2059
-printf "${RED5}[ERROR]${NC5} Test error message\n"
+printf "${RED5}[ERROR]${NC5} Test error message
+"
 # shellcheck disable=SC2059
-printf "${CYAN5}[DEBUG]${NC5} Test debug message\n"
+printf "${CYAN5}[DEBUG]${NC5} Test debug message
+"
 # shellcheck disable=SC2059
-printf "${BLUE5}[STEP]${NC5} Test step message with BLUE5\n"
+printf "${BLUE5}[STEP]${NC5} Test step message with BLUE5
+"
 echo ""
 
 echo "=== RESULTS SUMMARY ==="
@@ -253,7 +276,11 @@ echo "ONLY format that works correctly in RUTOS busybox environment."
 echo ""
 # Debug version display
 if [ "$DEBUG" = "1" ]; then
-    printf "Script version: %s\n" "$SCRIPT_VERSION"
+    printf "Script version: %s
+" "$SCRIPT_VERSION"
 fi
 
 echo "=== Test Complete ==="
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

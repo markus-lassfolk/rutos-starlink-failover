@@ -9,17 +9,14 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Standard colors for output
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     RED=""
     GREEN=""
@@ -31,23 +28,28 @@ fi
 
 # Logging functions
 log_info() {
-    printf "${GREEN}[INFO]${NC} %s\n" "$1"
+    printf "${GREEN}[INFO]${NC} %s
+" "$1"
 }
 
 log_warn() {
-    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
+    printf "${YELLOW}[WARN]${NC} %s
+" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} %s\n" "$1" >&2
+    printf "${RED}[ERROR]${NC} %s
+" "$1" >&2
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} %s\n" "$1"
+    printf "${BLUE}[STEP]${NC} %s
+" "$1"
 }
 
 log_debug() {
-    printf "${CYAN}[DEBUG]${NC} %s\n" "$1"
+    printf "${CYAN}[DEBUG]${NC} %s
+" "$1"
 }
 
 # Dry-run and test mode support
@@ -254,3 +256,6 @@ main() {
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

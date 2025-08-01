@@ -8,8 +8,6 @@ set -eu
 # Configuration - Use UCI if available, otherwise use command line parameter
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 TEST_LOG_FILE="/tmp/test-azure-logging.log"
 if [ -n "${1:-}" ]; then
     AZURE_FUNCTION_URL="$1"
@@ -21,12 +19,12 @@ fi
 # Check if terminal supports colors
 # shellcheck disable=SC2034  # Color variables may not all be used in every script
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m' # No Color
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m' # No Color
 else
     # Fallback to no colors if terminal doesn't support them
     RED=""
@@ -68,15 +66,18 @@ safe_execute() {
 }
 
 log_info() {
-    printf "%b[INFO]%b %s\n" "${GREEN}" "${NC}" "$1"
+    printf "%b[INFO]%b %s
+" "${GREEN}" "${NC}" "$1"
 }
 
 log_warn() {
-    printf "%b[WARN]%b %s\n" "${YELLOW}" "${NC}" "$1"
+    printf "%b[WARN]%b %s
+" "${YELLOW}" "${NC}" "$1"
 }
 
 log_error() {
-    printf "%b[ERROR]%b %s\n" "${RED}" "${NC}" "$1"
+    printf "%b[ERROR]%b %s
+" "${RED}" "${NC}" "$1"
 }
 
 # Validate input
@@ -128,7 +129,11 @@ rm -f "$TEST_LOG_FILE"
 
 # Debug version display
 if [ "$DEBUG" = "1" ]; then
-    printf "Script version: %s\n" "$SCRIPT_VERSION"
+    printf "Script version: %s
+" "$SCRIPT_VERSION"
 fi
 
 log_info "🎉 All tests passed! Azure logging solution is working correctly."
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

@@ -28,9 +28,6 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.8.0"
-readonly SCRIPT_VERSION
-
 # Configuration
 GITHUB_REPO="${GITHUB_REPO:-markus-lassfolk/rutos-starlink-failover}"
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
@@ -48,22 +45,26 @@ ORIGINAL_RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
 
 # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap logging functions (replaced by full library after download)
 log_info() {                                                      # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
-    printf "[INFO] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" # VALIDATION_SKIP_PRINTF: Bootstrap logging (library unavailable)
+    printf "[INFO] [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" # VALIDATION_SKIP_PRINTF: Bootstrap logging (library unavailable)
 }
 
 log_debug() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
     if [ "$DEBUG" = "1" ]; then
-        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "[DEBUG] [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_error() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
-    printf "[ERROR] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "[ERROR] [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_trace() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
     if [ "$RUTOS_TEST_MODE" = "1" ]; then
-        printf "[TRACE] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "[TRACE] [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
@@ -307,3 +308,6 @@ main() {
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.8.0"

@@ -8,9 +8,6 @@ set -e
 # Colors for output (busybox compatible)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Display version if requested
 if [ "${1:-}" = "--version" ]; then
     echo "restore-config-rutos.sh v$SCRIPT_VERSION"
@@ -18,13 +15,13 @@ if [ "${1:-}" = "--version" ]; then
 fi
 # Used for troubleshooting: echo "Configuration version: $SCRIPT_VERSION"
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
     # shellcheck disable=SC2034  # CYAN is not used but may be needed for consistency
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     RED=""
     GREEN=""
@@ -62,11 +59,16 @@ print_status() {
     timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
     # Use Method 5 format that works in RUTOS (embed variables in format string)
     case "$color" in
-        "$RED") printf "${RED}[%s] %s${NC}\n" "$timestamp" "$message" ;;
-        "$GREEN") printf "${GREEN}[%s] %s${NC}\n" "$timestamp" "$message" ;;
-        "$YELLOW") printf "${YELLOW}[%s] %s${NC}\n" "$timestamp" "$message" ;;
-        "$BLUE") printf "${BLUE}[%s] %s${NC}\n" "$timestamp" "$message" ;;
-        *) printf "[%s] %s\n" "$timestamp" "$message" ;;
+        "$RED") printf "${RED}[%s] %s${NC}
+" "$timestamp" "$message" ;;
+        "$GREEN") printf "${GREEN}[%s] %s${NC}
+" "$timestamp" "$message" ;;
+        "$YELLOW") printf "${YELLOW}[%s] %s${NC}
+" "$timestamp" "$message" ;;
+        "$BLUE") printf "${BLUE}[%s] %s${NC}
+" "$timestamp" "$message" ;;
+        *) printf "[%s] %s
+" "$timestamp" "$message" ;;
     esac
 }
 
@@ -138,8 +140,8 @@ for setting in PUSHOVER_TOKEN PUSHOVER_USER MWAN_IFACE MWAN_MEMBER RUTOS_USERNAM
             # Mask sensitive values for display
             case "$setting" in
                 *TOKEN* | *PASSWORD*)
-                    display_current=$(echo "$current_value" | sed 's/\(.\{3\}\).*/\1***/')
-                    display_backup=$(echo "$backup_value" | sed 's/\(.\{3\}\).*/\1***/')
+                    display_current=$(echo "$current_value" | sed 's/\(.\{3\}\).*/***/')
+                    display_backup=$(echo "$backup_value" | sed 's/\(.\{3\}\).*/***/')
                     print_status "$YELLOW" "  $setting: DIFFERENT (current: $display_current, backup: $display_backup)"
                     ;;
                 *)
@@ -150,7 +152,8 @@ for setting in PUSHOVER_TOKEN PUSHOVER_USER MWAN_IFACE MWAN_MEMBER RUTOS_USERNAM
     fi
 done
 
-printf "\nRestore settings from backup? (y/N): "
+printf "
+Restore settings from backup? (y/N): "
 read -r answer
 if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
     print_status "$BLUE" "Restoration cancelled"
@@ -223,3 +226,6 @@ else
     cp "$current_backup" "$INSTALL_DIR/config/config.sh"
     exit 1
 fi
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

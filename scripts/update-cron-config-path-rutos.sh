@@ -13,20 +13,17 @@ set -e
 
 # Script version
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Color definitions for output formatting (compatible with busybox)
 # CRITICAL: Use RUTOS-compatible color detection
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
     # shellcheck disable=SC2034
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     # Colors disabled
     RED=""
@@ -41,7 +38,8 @@ fi
 print_status() {
     color="$1"
     message="$2"
-    printf "${color}%s${NC}\n" "$message"
+    printf "${color}%s${NC}
+" "$message"
 }
 
 print_status "$BLUE" "╔══════════════════════════════════════════════════════════════════════════╗"
@@ -152,3 +150,6 @@ esac
 
 rm -f "$temp_cron" "$temp_new_cron"
 print_status "$GREEN" "✅ Cron configuration update complete"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

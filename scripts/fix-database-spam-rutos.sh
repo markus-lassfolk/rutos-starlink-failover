@@ -9,16 +9,13 @@ set -e # Exit on error
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Standard colors for consistent output (compatible with busybox)
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+RED='[0;31m'
+GREEN='[0;32m'
+YELLOW='[1;33m'
+BLUE='[1;35m'
+CYAN='[0;36m'
+NC='[0m' # No Color
 
 # Check if we're in a terminal that supports colors
 if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
@@ -32,29 +29,35 @@ fi
 
 # Standard logging functions with consistent colors
 log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_success() {
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Debug mode support
@@ -410,13 +413,16 @@ show_log_status() {
         echo "$log_output" | while IFS= read -r line; do
             case "$line" in
                 *"Unable to optimize database"* | *"Failed to restore database"* | *"Unable to reduce max rows"*)
-                    printf "${RED}OPTIMIZATION LOOP: %s${NC}\n" "$line"
+                    printf "${RED}OPTIMIZATION LOOP: %s${NC}
+" "$line"
                     ;;
                 *"user.err"*"Can't open database"*)
-                    printf "${RED}CAN'T OPEN DB: %s${NC}\n" "$line"
+                    printf "${RED}CAN'T OPEN DB: %s${NC}
+" "$line"
                     ;;
                 *)
-                    printf "%s\n" "$line"
+                    printf "%s
+" "$line"
                     ;;
             esac
         done
@@ -480,9 +486,12 @@ main() {
     case "$command" in
         "fix")
             log_info "Starting RUTOS Database Spam Fix v$SCRIPT_VERSION"
-            printf "%b===============================================%b\n" "$BLUE" "$NC"
-            printf "%b🔧 RUTOS Database Spam Fix - %s%b\n" "$BLUE" "$(date)" "$NC"
-            printf "%b===============================================%b\n" "$BLUE" "$NC"
+            printf "%b===============================================%b
+" "$BLUE" "$NC"
+            printf "%b🔧 RUTOS Database Spam Fix - %s%b
+" "$BLUE" "$(date)" "$NC"
+            printf "%b===============================================%b
+" "$BLUE" "$NC"
 
             # Check system
             check_system
@@ -501,17 +510,25 @@ main() {
 
             # Verify and report
             if verify_fix; then
-                printf "%b===============================================%b\n" "$BLUE" "$NC"
-                printf "%b🏁 Database spam fix completed successfully!%b\n" "$GREEN" "$NC"
+                printf "%b===============================================%b
+" "$BLUE" "$NC"
+                printf "%b🏁 Database spam fix completed successfully!%b
+" "$GREEN" "$NC"
                 if [ -n "$backup_dir" ]; then
-                    printf "${CYAN}📦 Backups saved to: %s${NC}\n" "$backup_dir"
+                    printf "${CYAN}📦 Backups saved to: %s${NC}
+" "$backup_dir"
                 fi
-                printf "%b===============================================%b\n" "$BLUE" "$NC"
+                printf "%b===============================================%b
+" "$BLUE" "$NC"
             else
-                printf "%b===============================================%b\n" "$BLUE" "$NC"
-                printf "%b⚠️  Fix applied but verification inconclusive%b\n" "$YELLOW" "$NC"
-                printf "%b📦 Monitor system logs and check manually if needed%b\n" "$CYAN" "$NC"
-                printf "%b===============================================%b\n" "$BLUE" "$NC"
+                printf "%b===============================================%b
+" "$BLUE" "$NC"
+                printf "%b⚠️  Fix applied but verification inconclusive%b
+" "$YELLOW" "$NC"
+                printf "%b📦 Monitor system logs and check manually if needed%b
+" "$CYAN" "$NC"
+                printf "%b===============================================%b
+" "$BLUE" "$NC"
             fi
             ;;
         "check")
@@ -541,3 +558,6 @@ main() {
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

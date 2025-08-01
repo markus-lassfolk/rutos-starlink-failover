@@ -12,12 +12,10 @@ set -e # Exit on error
 
 # Script version - automatically updated by update-version.sh
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # RUTOS test mode support (for testing framework)
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
@@ -25,12 +23,12 @@ fi
 # Check if terminal supports colors (simplified for RUTOS compatibility)
 # shellcheck disable=SC2034
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m' # Bright magenta instead of dark blue for better readability
-    CYAN='\033[0;36m'
-    NC='\033[0m' # No Color
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m' # Bright magenta instead of dark blue for better readability
+    CYAN='[0;36m'
+    NC='[0m' # No Color
 else
     # Fallback to no colors if terminal doesn't support them
     RED=""
@@ -43,19 +41,23 @@ fi
 
 # Standard logging functions
 log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_success() {
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Dry-run and test mode support
@@ -64,7 +66,8 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
+    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s
+" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
 fi
 
 # Function to safely execute commands
@@ -74,11 +77,13 @@ safe_execute() {
 
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
         log_info "[DRY-RUN] Would execute: $description"
-        printf "[DRY-RUN] Command: %s\n" "$cmd" >&2
+        printf "[DRY-RUN] Command: %s
+" "$cmd" >&2
         return 0
     else
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "[DEBUG] Executing: %s\n" "$cmd" >&2
+            printf "[DEBUG] Executing: %s
+" "$cmd" >&2
         fi
         eval "$cmd"
     fi
@@ -264,3 +269,6 @@ case "${1:-}" in
         main "" "$1"
         ;;
 esac
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

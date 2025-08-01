@@ -9,22 +9,19 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Version information (auto-updated by update-version.sh)
 
 # Version information (auto-updated by update-version.sh)
 
 # Standard colors for consistent output (compatible with busybox)
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
+RED='[0;31m'
+GREEN='[0;32m'
+YELLOW='[1;33m'
+BLUE='[1;35m'
 # shellcheck disable=SC2034  # Used in some conditional contexts
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+PURPLE='[0;35m'
+CYAN='[0;36m'
+NC='[0m' # No Color
 
 # Check if we're in a terminal that supports colors
 if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
@@ -43,12 +40,14 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
+    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s
+" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
 fi
 
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
@@ -68,35 +67,41 @@ safe_execute() {
 # Standard logging functions with consistent colors
 log_info() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     # shellcheck disable=SC2317  # Function is called conditionally based on DEBUG environment variable
     if [ "$DEBUG" = "1" ]; then
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_success() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Status display functions
@@ -107,22 +112,27 @@ show_status() {
     case "$status" in
         "ok")
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-            printf "${GREEN}✅ %s${NC}\n" "$message"
+            printf "${GREEN}✅ %s${NC}
+" "$message"
             ;;
         "warn")
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-            printf "${YELLOW}⚠️  %s${NC}\n" "$message"
+            printf "${YELLOW}⚠️  %s${NC}
+" "$message"
             ;;
         "error")
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-            printf "${RED}❌ %s${NC}\n" "$message"
+            printf "${RED}❌ %s${NC}
+" "$message"
             ;;
         "info")
             # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-            printf "${BLUE}ℹ️  %s${NC}\n" "$message"
+            printf "${BLUE}ℹ️  %s${NC}
+" "$message"
             ;;
         *)
-            printf "%s\n" "$message"
+            printf "%s
+" "$message"
             ;;
     esac
 }
@@ -179,16 +189,24 @@ check_cron_status() {
     fi
 
     # Count monitoring entries - check ALL expected scripts dynamically (cleaned for busybox)
-    monitor_entries=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
-    logger_entries=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
-    api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
-    maintenance_entries=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
+    monitor_entries=$(grep -c "starlink_monitor_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' 
+')
+    logger_entries=$(grep -c "starlink_logger_unified-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' 
+')
+    api_check_entries=$(grep -c "check_starlink_api" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' 
+')
+    maintenance_entries=$(grep -c "system-maintenance-rutos.sh" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' 
+')
 
     # Clean counts (handle RUTOS busybox grep -c malformed output)
-    monitor_entries=$(echo "$monitor_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
-    logger_entries=$(echo "$logger_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
-    api_check_entries=$(echo "$api_check_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
-    maintenance_entries=$(echo "$maintenance_entries" | tr -d '\n\r' | sed 's/[^0-9]//g')
+    monitor_entries=$(echo "$monitor_entries" | tr -d '
+' | sed 's/[^0-9]//g')
+    logger_entries=$(echo "$logger_entries" | tr -d '
+' | sed 's/[^0-9]//g')
+    api_check_entries=$(echo "$api_check_entries" | tr -d '
+' | sed 's/[^0-9]//g')
+    maintenance_entries=$(echo "$maintenance_entries" | tr -d '
+' | sed 's/[^0-9]//g')
 
     # Ensure valid numbers
     monitor_entries=${monitor_entries:-0}
@@ -243,15 +261,18 @@ check_cron_status() {
     else
         show_status "error" "System maintenance not scheduled in cron - MISSING REQUIRED JOB!"
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-        printf "${YELLOW}  → Add maintenance job: 0 */6 * * * CONFIG_FILE=/etc/starlink-config/config.sh %s/scripts/system-maintenance-rutos.sh auto${NC}\n" "${INSTALL_DIR:-/usr/local/starlink-monitor}"
+        printf "${YELLOW}  → Add maintenance job: 0 */6 * * * CONFIG_FILE=/etc/starlink-config/config.sh %s/scripts/system-maintenance-rutos.sh auto${NC}
+" "${INSTALL_DIR:-/usr/local/starlink-monitor}"
     fi
 
     # Check for commented entries (cleaned for busybox compatibility)
-    commented_entries=$(grep -c "# COMMENTED BY.*starlink" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' \n\r')
+    commented_entries=$(grep -c "# COMMENTED BY.*starlink" "$CRON_FILE" 2>/dev/null || echo "0" | tr -d ' 
+')
     if [ "$commented_entries" -gt 0 ]; then
         show_status "warn" "Found $commented_entries commented monitoring entries (cleanup recommended)"
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-        printf "${CYAN}  → Run: sed -i '/# COMMENTED BY.*starlink/d' %s${NC}\n" "$CRON_FILE"
+        printf "${CYAN}  → Run: sed -i '/# COMMENTED BY.*starlink/d' %s${NC}
+" "$CRON_FILE"
     fi
 
     # Show total entries summary
@@ -259,7 +280,8 @@ check_cron_status() {
     if [ "$total_entries" -eq 0 ]; then
         show_status "error" "No monitoring entries found in cron - system will not monitor automatically"
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-        printf "${CYAN}  → Fix by re-running: install-rutos.sh${NC}\n"
+        printf "${CYAN}  → Fix by re-running: install-rutos.sh${NC}
+"
     elif [ "$total_entries" -gt 3 ]; then
         show_status "warn" "Found $total_entries total entries - duplicates may exist"
     else
@@ -281,7 +303,8 @@ check_cron_status() {
     if [ "$config_missing" -gt 0 ]; then
         show_status "warn" "$config_missing entries missing CONFIG_FILE environment variable"
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-        printf "${CYAN}  → This may cause configuration loading issues${NC}\n"
+        printf "${CYAN}  → This may cause configuration loading issues${NC}
+"
     fi
 }
 
@@ -289,9 +312,12 @@ check_cron_status() {
 check_system_status() {
     log_step "Checking system status"
 
-    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${PURPLE}║${NC}                         ${BLUE}STARLINK MONITOR SYSTEM STATUS${NC}                         ${PURPLE}║${NC}\n"
-    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
+    printf "${PURPLE}║${NC}                         ${BLUE}STARLINK MONITOR SYSTEM STATUS${NC}                         ${PURPLE}║${NC}
+"
+    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
     echo ""
 
     # Check if installation exists
@@ -329,9 +355,12 @@ check_system_status() {
     . "$CONFIG_FILE"
 
     echo ""
-    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${PURPLE}║${NC}                              ${BLUE}FEATURE STATUS${NC}                               ${PURPLE}║${NC}\n"
-    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
+    printf "${PURPLE}║${NC}                              ${BLUE}FEATURE STATUS${NC}                               ${PURPLE}║${NC}
+"
+    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
     echo ""
 
     # Check core monitoring features
@@ -353,14 +382,19 @@ check_system_status() {
     show_status "info" "Quality Thresholds:"
     # Prefer LATENCY_THRESHOLD_MS, fallback to LATENCY_THRESHOLD, else N/A
     if [ -n "${LATENCY_THRESHOLD_MS:-}" ]; then
-        printf "  • Latency: %s ms\n" "$LATENCY_THRESHOLD_MS"
+        printf "  • Latency: %s ms
+" "$LATENCY_THRESHOLD_MS"
     elif [ -n "${LATENCY_THRESHOLD:-}" ]; then
-        printf "  • Latency: %s ms\n" "$LATENCY_THRESHOLD"
+        printf "  • Latency: %s ms
+" "$LATENCY_THRESHOLD"
     else
-        printf "  • Latency: N/A\n"
+        printf "  • Latency: N/A
+"
     fi
-    printf "  • Packet Loss: %s%%\n" "${PACKET_LOSS_THRESHOLD:-N/A}"
-    printf "  • Obstruction: %s%%\n" "${OBSTRUCTION_THRESHOLD:-N/A}"
+    printf "  • Packet Loss: %s%%
+" "${PACKET_LOSS_THRESHOLD:-N/A}"
+    printf "  • Obstruction: %s%%
+" "${OBSTRUCTION_THRESHOLD:-N/A}"
 
     echo ""
     show_status "info" "Optional Features:"
@@ -370,8 +404,10 @@ check_system_status() {
         show_status "ok" "Pushover notifications: Enabled and configured"
     else
         show_status "warn" "Pushover notifications: Disabled (placeholder tokens)"
-        printf "${CYAN}  → This is normal for basic installations${NC}\n"
-        printf "${CYAN}  → Monitoring will work without notifications${NC}\n"
+        printf "${CYAN}  → This is normal for basic installations${NC}
+"
+        printf "${CYAN}  → Monitoring will work without notifications${NC}
+"
     fi
 
     # Check logging configuration
@@ -389,47 +425,68 @@ check_system_status() {
     fi
 
     echo ""
-    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${PURPLE}║${NC}                            ${BLUE}GRACEFUL DEGRADATION${NC}                            ${PURPLE}║${NC}\n"
-    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
+    printf "${PURPLE}║${NC}                            ${BLUE}GRACEFUL DEGRADATION${NC}                            ${PURPLE}║${NC}
+"
+    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
     echo ""
 
     show_status "info" "Graceful Degradation Status:"
-    printf "${CYAN}  → Monitoring will continue even if optional features are not configured${NC}\n"
-    printf "${CYAN}  → Features with placeholder values will be automatically disabled${NC}\n"
-    printf "${CYAN}  → Core functionality works with minimal configuration${NC}\n"
+    printf "${CYAN}  → Monitoring will continue even if optional features are not configured${NC}
+"
+    printf "${CYAN}  → Features with placeholder values will be automatically disabled${NC}
+"
+    printf "${CYAN}  → Core functionality works with minimal configuration${NC}
+"
 
     if ! is_pushover_configured; then
         echo ""
         show_status "info" "To enable Pushover notifications:"
-        printf "${BLUE}  1. Get API token: https://pushover.net/apps/build${NC}\n"
-        printf "${BLUE}  2. Get user key: https://pushover.net/${NC}\n"
+        printf "${BLUE}  1. Get API token: https://pushover.net/apps/build${NC}
+"
+        printf "${BLUE}  2. Get user key: https://pushover.net/${NC}
+"
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-        printf "${BLUE}  3. Edit config: vi %s${NC}\n" "$CONFIG_FILE"
-        printf "${BLUE}  4. Replace placeholder values with real tokens${NC}\n"
-        printf "${BLUE}  5. Test with: ./scripts/test-pushover-rutos.sh${NC}\n"
+        printf "${BLUE}  3. Edit config: vi %s${NC}
+" "$CONFIG_FILE"
+        printf "${BLUE}  4. Replace placeholder values with real tokens${NC}
+"
+        printf "${BLUE}  5. Test with: ./scripts/test-pushover-rutos.sh${NC}
+"
     fi
 
     echo ""
-    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${PURPLE}║${NC}                             ${BLUE}CRON SCHEDULE STATUS${NC}                            ${PURPLE}║${NC}\n"
-    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
+    printf "${PURPLE}║${NC}                             ${BLUE}CRON SCHEDULE STATUS${NC}                            ${PURPLE}║${NC}
+"
+    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
     echo ""
 
     # Check cron configuration
     check_cron_status
 
     echo ""
-    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${PURPLE}║${NC}                               ${BLUE}NEXT STEPS${NC}                                  ${PURPLE}║${NC}\n"
-    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
+    printf "${PURPLE}║${NC}                               ${BLUE}NEXT STEPS${NC}                                  ${PURPLE}║${NC}
+"
+    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
     echo ""
 
     show_status "info" "Recommended actions:"
-    printf "${BLUE}  • Test monitoring: ./scripts/test-monitoring-rutos.sh${NC}\n"
-    printf "${BLUE}  • Test Pushover: ./scripts/test-pushover-rutos.sh${NC}\n"
-    printf "${BLUE}  • Validate config: ./scripts/validate-config-rutos.sh${NC}\n"
-    printf "${BLUE}  • Upgrade to advanced: ./scripts/upgrade-to-advanced-rutos.sh${NC}\n"
+    printf "${BLUE}  • Test monitoring: ./scripts/test-monitoring-rutos.sh${NC}
+"
+    printf "${BLUE}  • Test Pushover: ./scripts/test-pushover-rutos.sh${NC}
+"
+    printf "${BLUE}  • Validate config: ./scripts/validate-config-rutos.sh${NC}
+"
+    printf "${BLUE}  • Upgrade to advanced: ./scripts/upgrade-to-advanced-rutos.sh${NC}
+"
 
     echo ""
     log_success "System status check completed"
@@ -489,3 +546,6 @@ case "${1:-}" in
         main "$@"
         ;;
 esac
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

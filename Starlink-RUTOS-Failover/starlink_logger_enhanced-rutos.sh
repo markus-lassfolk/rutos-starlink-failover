@@ -17,23 +17,21 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # RUTOS test mode support (for testing framework)
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
 # Standard colors for consistent output (busybox compatible) - Only used colors defined
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'    # Errors, critical issues
-    GREEN='\033[0;32m'  # Success, info, completed actions
-    YELLOW='\033[1;33m' # Warnings, important notices
-    BLUE='\033[1;35m'   # Steps, progress indicators
-    CYAN='\033[0;36m'   # Debug messages, technical info
-    NC='\033[0m'        # No Color (reset)
+    RED='[0;31m'    # Errors, critical issues
+    GREEN='[0;32m'  # Success, info, completed actions
+    YELLOW='[1;33m' # Warnings, important notices
+    BLUE='[1;35m'   # Steps, progress indicators
+    CYAN='[0;36m'   # Debug messages, technical info
+    NC='[0m'        # No Color (reset)
 else
     RED=""
     GREEN=""
@@ -49,7 +47,8 @@ if [ -f "$CONFIG_FILE" ]; then
     # shellcheck source=/dev/null
     . "$CONFIG_FILE"
 else
-    printf "${RED}[ERROR]${NC} Configuration file not found: %s\n" "$CONFIG_FILE" >&2
+    printf "${RED}[ERROR]${NC} Configuration file not found: %s
+" "$CONFIG_FILE" >&2
     exit 1
 fi
 
@@ -67,7 +66,8 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Early exit in test mode
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DRY_RUN:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE or DRY_RUN enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
@@ -86,19 +86,23 @@ perform_statistical_aggregation() {
     line_count=0
 
     if [ ! -f "$source_file" ]; then
-        printf "${YELLOW}[WARNING]${NC} Source file not found: %s\n" "$source_file" >&2
+        printf "${YELLOW}[WARNING]${NC} Source file not found: %s
+" "$source_file" >&2
         return 1
     fi
 
     # Count lines (excluding header)
-    line_count=$(tail -n +2 "$source_file" | wc -l | tr -d ' \n\r')
+    line_count=$(tail -n +2 "$source_file" | wc -l | tr -d ' 
+')
 
     if [ "$line_count" -lt "$batch_size" ]; then
-        printf "${CYAN}[DEBUG]${NC} Insufficient data for aggregation (%s lines, need %s)\n" "$line_count" "$batch_size" >&2
+        printf "${CYAN}[DEBUG]${NC} Insufficient data for aggregation (%s lines, need %s)
+" "$line_count" "$batch_size" >&2
         return 0
     fi
 
-    printf "${BLUE}[STEP]${NC} Processing %s lines for statistical aggregation\n" "$line_count"
+    printf "${BLUE}[STEP]${NC} Processing %s lines for statistical aggregation
+" "$line_count"
 
     # Create aggregated file header if needed
     if [ ! -f "$AGGREGATED_LOG_FILE" ]; then
@@ -108,7 +112,8 @@ perform_statistical_aggregation() {
     # Process data in batches
     tail -n +2 "$source_file" | while IFS= read -r line; do
         echo "$line" >>"$temp_batch"
-        batch_line_count=$(wc -l <"$temp_batch" 2>/dev/null | tr -d ' \n\r')
+        batch_line_count=$(wc -l <"$temp_batch" 2>/dev/null | tr -d ' 
+')
 
         if [ "$batch_line_count" -ge "$batch_size" ]; then
             process_batch "$temp_batch"
@@ -119,7 +124,8 @@ perform_statistical_aggregation() {
     # Clean up
     rm -f "$temp_batch"
 
-    printf "${GREEN}[SUCCESS]${NC} Statistical aggregation completed\n"
+    printf "${GREEN}[SUCCESS]${NC} Statistical aggregation completed
+"
 }
 
 create_aggregated_header() {
@@ -134,7 +140,8 @@ process_batch() {
     stats_result=""
 
     # Get batch metadata
-    sample_count=$(wc -l <"$batch_file" | tr -d ' \n\r')
+    sample_count=$(wc -l <"$batch_file" | tr -d ' 
+')
     batch_start=$(head -1 "$batch_file" | cut -d',' -f1)
     batch_end=$(tail -1 "$batch_file" | cut -d',' -f1)
 
@@ -145,7 +152,8 @@ process_batch() {
     echo "$batch_start,$batch_end,$sample_count,$stats_result" >>"$AGGREGATED_LOG_FILE"
 
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} Processed batch: %s samples from %s to %s\n" "$sample_count" "$batch_start" "$batch_end" >&2
+        printf "${CYAN}[DEBUG]${NC} Processed batch: %s samples from %s to %s
+" "$sample_count" "$batch_start" "$batch_end" >&2
     fi
 }
 
@@ -354,7 +362,8 @@ calculate_batch_statistics() {
 generate_analytics_report() {
     report_file="${LOG_DIR}/analytics_report_$(date '+%Y%m%d_%H%M%S').md"
 
-    printf "${BLUE}[STEP]${NC} Generating comprehensive analytics report\n"
+    printf "${BLUE}[STEP]${NC} Generating comprehensive analytics report
+"
 
     {
         echo "# Enhanced Starlink Analytics Report"
@@ -365,12 +374,14 @@ generate_analytics_report() {
 
         # Check file existence and sizes
         if [ -f "$ENHANCED_LOG_FILE" ]; then
-            enhanced_lines=$(wc -l <"$ENHANCED_LOG_FILE" | tr -d ' \n\r')
+            enhanced_lines=$(wc -l <"$ENHANCED_LOG_FILE" | tr -d ' 
+')
             echo "- **Enhanced Log**: $enhanced_lines entries"
         fi
 
         if [ -f "$AGGREGATED_LOG_FILE" ]; then
-            aggregated_lines=$(wc -l <"$AGGREGATED_LOG_FILE" | tr -d ' \n\r')
+            aggregated_lines=$(wc -l <"$AGGREGATED_LOG_FILE" | tr -d ' 
+')
             echo "- **Aggregated Log**: $aggregated_lines batches"
 
             # Calculate data reduction efficiency
@@ -398,7 +409,8 @@ generate_analytics_report() {
 
     } >"$report_file"
 
-    printf "${GREEN}[SUCCESS]${NC} Analytics report generated: %s\n" "$report_file"
+    printf "${GREEN}[SUCCESS]${NC} Analytics report generated: %s
+" "$report_file"
 }
 
 analyze_gps_patterns() {
@@ -421,7 +433,8 @@ analyze_gps_patterns() {
     }
     END {
         if (total > 0) {
-            printf "- **Primary GPS Sources**: RUTOS %.1f%%, Starlink %.1f%%, Cellular %.1f%%\n", 
+            printf "- **Primary GPS Sources**: RUTOS %.1f%%, Starlink %.1f%%, Cellular %.1f%%
+", 
                    rutos*100/total, starlink*100/total, cellular*100/total
         }
     }'
@@ -438,7 +451,8 @@ analyze_gps_patterns() {
     }
     END {
         if (count > 0) {
-            printf "- **Location Stability**: Average %.1f%% (Range: %.1f%% - %.1f%%)\n", 
+            printf "- **Location Stability**: Average %.1f%% (Range: %.1f%% - %.1f%%)
+", 
                    sum/count, min, max
         }
     }'
@@ -465,12 +479,17 @@ analyze_cellular_patterns() {
     }
     END {
         if (count > 0) {
-            printf "- **Signal Strength**: Average %.1f dBm (Range: %.1f to %.1f dBm)\n", 
+            printf "- **Signal Strength**: Average %.1f dBm (Range: %.1f to %.1f dBm)
+", 
                    sum/count, min, max
-            if (sum/count > -70) printf "  - **Quality**: Excellent signal\n"
-            else if (sum/count > -85) printf "  - **Quality**: Good signal\n"
-            else if (sum/count > -100) printf "  - **Quality**: Fair signal\n"
-            else printf "  - **Quality**: Poor signal\n"
+            if (sum/count > -70) printf "  - **Quality**: Excellent signal
+"
+            else if (sum/count > -85) printf "  - **Quality**: Good signal
+"
+            else if (sum/count > -100) printf "  - **Quality**: Fair signal
+"
+            else printf "  - **Quality**: Poor signal
+"
         }
     }'
 
@@ -485,7 +504,8 @@ analyze_cellular_patterns() {
     }
     END {
         if (total > 0) {
-            printf "- **Network Types**: 5G %.1f%%, LTE %.1f%%, 3G %.1f%%\n", 
+            printf "- **Network Types**: 5G %.1f%%, LTE %.1f%%, 3G %.1f%%
+", 
                    fiveg*100/total, lte*100/total, threeg*100/total
         }
     }'
@@ -512,11 +532,16 @@ analyze_starlink_patterns() {
     }
     END {
         if (count > 0) {
-            printf "- **Average Ping Drop Rate**: %.3f%%\n", ping_sum/count
-            printf "- **Average Latency**: %.1f ms\n", latency_sum/count
-            printf "- **Average Download**: %.1f Mbps\n", down_sum/count
-            printf "- **Average Upload**: %.1f Mbps\n", up_sum/count
-            printf "- **Average Obstruction**: %.3f%%\n", obst_sum/count
+            printf "- **Average Ping Drop Rate**: %.3f%%
+", ping_sum/count
+            printf "- **Average Latency**: %.1f ms
+", latency_sum/count
+            printf "- **Average Download**: %.1f Mbps
+", down_sum/count
+            printf "- **Average Upload**: %.1f Mbps
+", up_sum/count
+            printf "- **Average Obstruction**: %.3f%%
+", obst_sum/count
         }
     }'
 }
@@ -539,38 +564,54 @@ main() {
     command="${1:-aggregate}"
 
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} Enhanced Logger v%s starting\n" "$SCRIPT_VERSION" >&2
-        printf "${CYAN}[DEBUG]${NC} Command: %s\n" "$command" >&2
-        printf "${CYAN}[DEBUG]${NC} Enhanced Log: %s\n" "$ENHANCED_LOG_FILE" >&2
-        printf "${CYAN}[DEBUG]${NC} Aggregated Log: %s\n" "$AGGREGATED_LOG_FILE" >&2
+        printf "${CYAN}[DEBUG]${NC} Enhanced Logger v%s starting
+" "$SCRIPT_VERSION" >&2
+        printf "${CYAN}[DEBUG]${NC} Command: %s
+" "$command" >&2
+        printf "${CYAN}[DEBUG]${NC} Enhanced Log: %s
+" "$ENHANCED_LOG_FILE" >&2
+        printf "${CYAN}[DEBUG]${NC} Aggregated Log: %s
+" "$AGGREGATED_LOG_FILE" >&2
     fi
 
     case "$command" in
         aggregate | agg)
-            printf "${GREEN}[INFO]${NC} Starting statistical aggregation process\n"
+            printf "${GREEN}[INFO]${NC} Starting statistical aggregation process
+"
             perform_statistical_aggregation "$ENHANCED_LOG_FILE" 60
             ;;
         analytics | analyze)
-            printf "${GREEN}[INFO]${NC} Generating analytics report\n"
+            printf "${GREEN}[INFO]${NC} Generating analytics report
+"
             generate_analytics_report
             ;;
         both | all)
-            printf "${GREEN}[INFO]${NC} Running aggregation and analytics\n"
+            printf "${GREEN}[INFO]${NC} Running aggregation and analytics
+"
             perform_statistical_aggregation "$ENHANCED_LOG_FILE" 60
             generate_analytics_report
             ;;
         *)
-            printf "${YELLOW}[INFO]${NC} Enhanced Starlink Logger v%s\n" "$SCRIPT_VERSION"
-            printf "${CYAN}[USAGE]${NC} %s [aggregate|analytics|both]\n" "$0"
-            printf "  aggregate  - Perform 60:1 statistical data aggregation\n"
-            printf "  analytics  - Generate comprehensive analytics report\n"
-            printf "  both       - Run both aggregation and analytics\n"
+            printf "${YELLOW}[INFO]${NC} Enhanced Starlink Logger v%s
+" "$SCRIPT_VERSION"
+            printf "${CYAN}[USAGE]${NC} %s [aggregate|analytics|both]
+" "$0"
+            printf "  aggregate  - Perform 60:1 statistical data aggregation
+"
+            printf "  analytics  - Generate comprehensive analytics report
+"
+            printf "  both       - Run both aggregation and analytics
+"
             exit 0
             ;;
     esac
 
-    printf "${GREEN}[SUCCESS]${NC} Enhanced logging operation completed\n"
+    printf "${GREEN}[SUCCESS]${NC} Enhanced logging operation completed
+"
 }
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

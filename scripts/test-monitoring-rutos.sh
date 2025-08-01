@@ -10,20 +10,17 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Standard colors for consistent output (compatible with busybox)
 # CRITICAL: Use RUTOS-compatible color detection
 # shellcheck disable=SC2034
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
     # Colors enabled
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     # Colors disabled
     RED=""
@@ -36,19 +33,23 @@ fi
 
 # Standard logging functions
 log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_success() {
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Dry-run and test mode support
@@ -57,7 +58,8 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "${CYAN}[DEBUG]${NC} [%s] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$DRY_RUN" "$RUTOS_TEST_MODE"
+    printf "${CYAN}[DEBUG]${NC} [%s] DRY_RUN=%s, RUTOS_TEST_MODE=%s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$DRY_RUN" "$RUTOS_TEST_MODE"
 fi
 
 # Function to safely execute commands
@@ -68,12 +70,14 @@ safe_execute() {
     if [ "$DRY_RUN" = "1" ] || [ "$RUTOS_TEST_MODE" = "1" ]; then
         log_info "[DRY-RUN] Would execute: $description"
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "${CYAN}[DEBUG]${NC} [%s] [DRY-RUN] Command: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$cmd"
+            printf "${CYAN}[DEBUG]${NC} [%s] [DRY-RUN] Command: %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$cmd"
         fi
         return 0
     else
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "${CYAN}[DEBUG]${NC} [%s] Executing: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$cmd"
+            printf "${CYAN}[DEBUG]${NC} [%s] Executing: %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$cmd"
         fi
         eval "$cmd"
     fi
@@ -282,3 +286,6 @@ case "${1:-}" in
         main "$@"
         ;;
 esac
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

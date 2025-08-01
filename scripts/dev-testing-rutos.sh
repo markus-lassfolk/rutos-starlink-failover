@@ -8,9 +8,6 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Load RUTOS library system for standardized logging and utilities
 # Try to load library if available, fallback to built-in functions if not
 # Note: Skip library for dev-testing since it's a development tool that needs to run on non-RUTOS systems
@@ -18,6 +15,10 @@ LIBRARY_LOADED=0
 if [ "${FORCE_LIBRARY_LOAD:-0}" = "1" ] && [ -f "$(dirname "$0")/lib/rutos-lib.sh" ]; then
     . "$(dirname "$0")/lib/rutos-lib.sh"
     # Initialize script with full RUTOS library features
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"
+
     rutos_init "dev-testing-rutos.sh" "$SCRIPT_VERSION"
     LIBRARY_LOADED=1
     log_trace "RUTOS library loaded successfully"
@@ -34,12 +35,12 @@ GITHUB_RAW_BASE="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}
 
 # Standard colors for consistent output (compatible with busybox) - only if library not loaded
 if [ "${LIBRARY_LOADED:-0}" = "0" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m' # No Color
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m' # No Color
 
     # Check if we're in a terminal that supports colors
     if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" != "" ]; then
@@ -55,35 +56,42 @@ fi
 # Standard logging functions with RUTOS-compatible printf format - only if library not loaded
 if [ "${LIBRARY_LOADED:-0}" = "0" ]; then
     log_info() {
-        printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+        printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
 
     log_warning() {
-        printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+        printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
 
     log_error() {
-        printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     }
 
     log_debug() {
         if [ "$DEBUG" = "1" ]; then
-            printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+            printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
         fi
     }
 
     log_success() {
-        printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+        printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
 
     log_step() {
-        printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+        printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
     }
 
     # Add missing TRACE function for fallback mode
     log_trace() {
         if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${DEBUG:-0}" = "1" ]; then
-            printf "${CYAN}[TRACE]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+            printf "${CYAN}[TRACE]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
         fi
     }
 fi
@@ -300,14 +308,16 @@ find_rutos_scripts() {
         # shellcheck source=/dev/null
         . /etc/starlink-config/config.sh 2>/dev/null
         if [ "$DEBUG" = "1" ]; then
-            printf "[DEBUG] [%s] Config found - INSTALL_DIR: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$INSTALL_DIR" >&2
+            printf "[DEBUG] [%s] Config found - INSTALL_DIR: %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$INSTALL_DIR" >&2
         fi
     fi
 
     # Default: Search installation directory and subdirectories
     if [ -n "$INSTALL_DIR" ] && [ -d "$INSTALL_DIR" ]; then
         if [ "$DEBUG" = "1" ]; then
-            printf "[DEBUG] [%s] Searching installation directory: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$INSTALL_DIR" >&2
+            printf "[DEBUG] [%s] Searching installation directory: %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$INSTALL_DIR" >&2
         fi
 
         # Search for all RUTOS scripts in installation directory and subdirectories
@@ -317,13 +327,15 @@ find_rutos_scripts() {
                 script_basename=$(basename "$script")
                 if [ "$script_basename" = "dev-testing-rutos.sh" ]; then
                     if [ "$DEBUG" = "1" ]; then
-                        printf "[DEBUG] [%s] Skipping self-test: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+                        printf "[DEBUG] [%s] Skipping self-test: %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
                     fi
                     continue
                 fi
 
                 if [ "$DEBUG" = "1" ]; then
-                    printf "[DEBUG] [%s] Found installed script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+                    printf "[DEBUG] [%s] Found installed script: %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
                 fi
                 echo "$script" >>"$temp_script_list"
             fi
@@ -333,7 +345,8 @@ find_rutos_scripts() {
     # Fallback: If no installation directory or no scripts found there, search current directory
     if [ ! -s "$temp_script_list" ]; then
         if [ "$DEBUG" = "1" ]; then
-            printf "[DEBUG] [%s] No scripts in installation dir, searching current directory\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
+            printf "[DEBUG] [%s] No scripts in installation dir, searching current directory
+" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
         fi
 
         find . -name "*-rutos.sh" -o -name "starlink_monitor.sh" -o -name "install-rutos.sh" 2>/dev/null | sort | while read -r script; do
@@ -342,13 +355,15 @@ find_rutos_scripts() {
                 script_basename=$(basename "$script")
                 if [ "$script_basename" = "dev-testing-rutos.sh" ]; then
                     if [ "$DEBUG" = "1" ]; then
-                        printf "[DEBUG] [%s] Skipping self-test: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+                        printf "[DEBUG] [%s] Skipping self-test: %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
                     fi
                     continue
                 fi
 
                 if [ "$DEBUG" = "1" ]; then
-                    printf "[DEBUG] [%s] Found local script: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+                    printf "[DEBUG] [%s] Found local script: %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
                 fi
                 echo "$script" >>"$temp_script_list"
             fi
@@ -480,8 +495,10 @@ test_script() {
 
     # Add TRACE-level logging for script execution
     if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-        printf "${CYAN}[TRACE]${NC} [%s] Executing script test: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script_name" >&2
-        printf "${CYAN}[TRACE]${NC} [%s] Command: timeout %s sh -x \"%s\"\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$timeout_seconds" "$script_path" >&2
+        printf "${CYAN}[TRACE]${NC} [%s] Executing script test: %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$script_name" >&2
+        printf "${CYAN}[TRACE]${NC} [%s] Command: timeout %s sh -x \"%s\"
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$timeout_seconds" "$script_path" >&2
     fi
 
     if ! timeout $timeout_seconds sh -x "$script_path" >/tmp/test_output_$$ 2>&1; then
@@ -534,7 +551,8 @@ test_script() {
     if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
         test_end_time=$(date '+%s')
         test_duration=$((test_end_time - test_start_time))
-        printf "${CYAN}[TRACE]${NC} [%s] Script test completed successfully in %ss: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$test_duration" "$script_name" >&2
+        printf "${CYAN}[TRACE]${NC} [%s] Script test completed successfully in %ss: %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$test_duration" "$script_name" >&2
     fi
 
     rm -f /tmp/test_output_$$
@@ -600,9 +618,13 @@ EOF
 5:BACKWARD_COMPAT:DRY_RUN=1 TEST_MODE=1 DEBUG=1:Backward compatibility test with TEST_MODE
 "
 
-    printf "\n${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${BLUE}║                DEBUG INTEGRATION TEST: %-35s ║${NC}\n" "$script_name"
-    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "
+${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
+    printf "${BLUE}║                DEBUG INTEGRATION TEST: %-35s ║${NC}
+" "$script_name"
+    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
 
     # Initialize JSON result structure
     json_output_file="/tmp/debug_integration_${script_name}_$$.json"
@@ -631,9 +653,13 @@ EOF
 
         total_tests=$((total_tests + 1))
 
-        printf "\n${CYAN}── Test %s: %s ──${NC}\n" "$test_num" "$test_name"
-        printf "${YELLOW}Environment: %s${NC}\n" "$env_vars"
-        printf "${YELLOW}Description: %s${NC}\n" "$test_description"
+        printf "
+${CYAN}── Test %s: %s ──${NC}
+" "$test_num" "$test_name"
+        printf "${YELLOW}Environment: %s${NC}
+" "$env_vars"
+        printf "${YELLOW}Description: %s${NC}
+" "$test_description"
 
         # Prepare output capture
         output_file="/tmp/debug_test_${script_name}_${test_num}_$$"
@@ -649,7 +675,8 @@ EOF
         test_start_time=$(date '+%s')
         test_exit_code=0
 
-        printf "${BLUE}Running test...${NC}\n"
+        printf "${BLUE}Running test...${NC}
+"
 
         # Create test execution command with absolute paths
         script_abs_path="$(cd "$(dirname "$script_path")" && pwd)/$(basename "$script_path")"
@@ -669,9 +696,12 @@ EOF
         output_size=$(wc -c <"$output_file" 2>/dev/null || echo 0)
 
         # Strip whitespace from metrics
-        output_lines=$(echo "$output_lines" | tr -d ' \n\r')
-        error_lines=$(echo "$error_lines" | tr -d ' \n\r')
-        output_size=$(echo "$output_size" | tr -d ' \n\r')
+        output_lines=$(echo "$output_lines" | tr -d ' 
+')
+        error_lines=$(echo "$error_lines" | tr -d ' 
+')
+        output_size=$(echo "$output_size" | tr -d ' 
+')
 
         # Analyze debug patterns in output
         debug_messages=$(grep -c "\[DEBUG\]" "$output_file" 2>/dev/null || echo 0)
@@ -681,11 +711,16 @@ EOF
         step_messages=$(grep -c "\[STEP\]" "$output_file" 2>/dev/null || echo 0)
 
         # Strip whitespace from message counts
-        debug_messages=$(echo "$debug_messages" | tr -d ' \n\r')
-        info_messages=$(echo "$info_messages" | tr -d ' \n\r')
-        warning_messages=$(echo "$warning_messages" | tr -d ' \n\r')
-        error_messages=$(echo "$error_messages" | tr -d ' \n\r')
-        step_messages=$(echo "$step_messages" | tr -d ' \n\r')
+        debug_messages=$(echo "$debug_messages" | tr -d ' 
+')
+        info_messages=$(echo "$info_messages" | tr -d ' 
+')
+        warning_messages=$(echo "$warning_messages" | tr -d ' 
+')
+        error_messages=$(echo "$error_messages" | tr -d ' 
+')
+        step_messages=$(echo "$step_messages" | tr -d ' 
+')
 
         # Extract exceptions and errors with line numbers
         exceptions_found=""
@@ -695,7 +730,8 @@ EOF
 
         # Analyze shell trace for execution flow
         shell_trace_lines=$(grep -c "^+ " "$error_file" 2>/dev/null || echo 0)
-        shell_trace_lines=$(echo "$shell_trace_lines" | tr -d ' \n\r')
+        shell_trace_lines=$(echo "$shell_trace_lines" | tr -d ' 
+')
 
         # Determine test status
         test_status="passed"
@@ -788,16 +824,24 @@ EOF
 EOF
 
         # Display results
-        printf "${GREEN}Results:${NC}\n"
-        printf "  Status: %s\n" "$test_status"
-        printf "  Output lines: %d\n" "$output_lines"
-        printf "  Debug messages: %d\n" "$debug_messages"
-        printf "  Shell trace lines: %d\n" "$shell_trace_lines"
-        printf "  Duration: %ds\n" "$test_duration"
+        printf "${GREEN}Results:${NC}
+"
+        printf "  Status: %s
+" "$test_status"
+        printf "  Output lines: %d
+" "$output_lines"
+        printf "  Debug messages: %d
+" "$debug_messages"
+        printf "  Shell trace lines: %d
+" "$shell_trace_lines"
+        printf "  Duration: %ds
+" "$test_duration"
 
         if [ -n "$status_reasons" ]; then
-            printf "${YELLOW}  Issues:${NC}\n"
-            printf "    - %s\n" "$status_reasons"
+            printf "${YELLOW}  Issues:${NC}
+"
+            printf "    - %s
+" "$status_reasons"
         fi
 
         # Clean up temporary files
@@ -840,11 +884,17 @@ EOF
 EOF
 
     # Display summary
-    printf "\n${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${BLUE}║                        TEST SUMMARY                                      ║${NC}\n"
-    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
-    printf "Tests: %d/%d passed (%d%% success rate)\n" "$passed_tests" "$total_tests" "$((passed_tests * 100 / total_tests))"
-    printf "Errors: %d, Warnings: %d\n" "$total_errors" "$total_warnings"
+    printf "
+${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
+    printf "${BLUE}║                        TEST SUMMARY                                      ║${NC}
+"
+    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
+    printf "Tests: %d/%d passed (%d%% success rate)
+" "$passed_tests" "$total_tests" "$((passed_tests * 100 / total_tests))"
+    printf "Errors: %d, Warnings: %d
+" "$total_errors" "$total_warnings"
 
     # Clean up temp files
     rm -f "/tmp/total_tests_$$" "/tmp/passed_tests_$$" "/tmp/failed_tests_$$" "/tmp/total_errors_$$" "/tmp/total_warnings_$$"
@@ -889,9 +939,13 @@ test_script_comprehensive() {
 4:Full_verbose:DEBUG=1 DRY_RUN=1 RUTOS_TEST_MODE=1
 "
 
-    printf "\n${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${BLUE}║                    COMPREHENSIVE TEST: %-32s ║${NC}\n" "$script_name"
-    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n"
+    printf "
+${BLUE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
+    printf "${BLUE}║                    COMPREHENSIVE TEST: %-32s ║${NC}
+" "$script_name"
+    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+"
 
     # Track comprehensive test results using file to avoid subshell variable issues
     comp_results_file="/tmp/comp_results_${script_name}_$$"
@@ -907,7 +961,9 @@ test_script_comprehensive() {
     while IFS=: read -r test_num test_desc env_vars; do
         [ -z "$test_num" ] && continue
 
-        printf "\n${CYAN}── Test %s: %s ──${NC}\n" "$test_num" "$test_desc"
+        printf "
+${CYAN}── Test %s: %s ──${NC}
+" "$test_num" "$test_desc"
 
         # Parse environment variables
         test_env=""
@@ -918,14 +974,17 @@ test_script_comprehensive() {
         # Run the test
         output_file="/tmp/comp_test_${script_name}_${test_num}_$$"
 
-        printf "${YELLOW}Environment: %s${NC}\n" "$env_vars"
-        printf "${YELLOW}Running...${NC}\n"
+        printf "${YELLOW}Environment: %s${NC}
+" "$env_vars"
+        printf "${YELLOW}Running...${NC}
+"
 
         # Determine timeout based on script type
         timeout_seconds=30
         if echo "$script_name" | grep -qE "(health-check|post-install-check|system-maintenance|comprehensive)" 2>/dev/null; then
             timeout_seconds=60
-            printf "${CYAN}(Using extended timeout for comprehensive script)${NC}\n"
+            printf "${CYAN}(Using extended timeout for comprehensive script)${NC}
+"
         fi
 
         # Execute with timeout and capture both stdout and stderr
@@ -995,45 +1054,57 @@ $(grep "^+ Line [0-9]*:" "$output_file" 2>/dev/null | tail -10 || echo "No shell
 EOF
 
         if [ $test_exit_code -eq 0 ]; then
-            printf "${GREEN}✅ SUCCESS${NC}\n"
+            printf "${GREEN}✅ SUCCESS${NC}
+"
             echo "PASS:Test_${test_num}" >>"$comp_results_file"
 
             # Show first few lines of output to verify it looks good
             if [ -s "$output_file" ]; then
-                printf "${CYAN}Output preview:${NC}\n"
+                printf "${CYAN}Output preview:${NC}
+"
                 head -10 "$output_file" | sed 's/^/  /'
                 if [ "$(wc -l <"$output_file")" -gt 10 ]; then
-                    printf "  ${CYAN}... (truncated, %d total lines)${NC}\n" "$(wc -l <"$output_file")"
+                    printf "  ${CYAN}... (truncated, %d total lines)${NC}
+" "$(wc -l <"$output_file")"
                 fi
             else
-                printf "${YELLOW}  (No output produced)${NC}\n"
+                printf "${YELLOW}  (No output produced)${NC}
+"
             fi
         else
-            printf "${RED}❌ FAILED${NC}\n"
+            printf "${RED}❌ FAILED${NC}
+"
             echo "FAIL:Test_${test_num}" >>"$comp_results_file"
 
             # Enhanced error reporting with debugging details
-            printf "${RED}Error Details:${NC}\n"
+            printf "${RED}Error Details:${NC}
+"
             if [ -f "$debug_info_file" ]; then
-                printf "${CYAN}Debug Information:${NC}\n"
+                printf "${CYAN}Debug Information:${NC}
+"
                 head -30 "$debug_info_file" | sed 's/^/  /'
-                printf "\n"
+                printf "
+"
             fi
 
             # Show script output
             if [ -s "$output_file" ]; then
-                printf "${RED}Script Output:${NC}\n"
+                printf "${RED}Script Output:${NC}
+"
                 head -15 "$output_file" | sed 's/^/  /'
                 if [ "$(wc -l <"$output_file")" -gt 15 ]; then
-                    printf "  ${CYAN}... (truncated, %d total lines)${NC}\n" "$(wc -l <"$output_file")"
+                    printf "  ${CYAN}... (truncated, %d total lines)${NC}
+" "$(wc -l <"$output_file")"
                 fi
             else
-                printf "${RED}No output captured (silent failure)${NC}\n"
+                printf "${RED}No output captured (silent failure)${NC}
+"
             fi
 
             # Prepare enhanced error content for report
             if [ -f "$debug_info_file" ]; then
-                error_content="Exit Code: $test_exit_code | Duration: ${test_duration}s | $(head -5 "$output_file" 2>/dev/null | tr '\n' ' ' || echo "No output")"
+                error_content="Exit Code: $test_exit_code | Duration: ${test_duration}s | $(head -5 "$output_file" 2>/dev/null | tr '
+' ' ' || echo "No output")"
                 debug_details=$(cat "$debug_info_file" 2>/dev/null)
             else
                 error_content="Script execution failed with exit code $test_exit_code"
@@ -1079,10 +1150,13 @@ EOF
 
         # Clean up debug files
         rm -f "$output_file" "$debug_info_file"
-        printf "\n"
+        printf "
+"
     done <"$test_modes_file"
 
-    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n\n"
+    printf "${BLUE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+
+"
 
     # Read error details from file and add to global ERROR_DETAILS
     if [ -f "$comp_errors_file" ] && [ -s "$comp_errors_file" ]; then
@@ -1368,10 +1442,15 @@ EOF
     log_info "Found and processed $json_files_found individual test results"
 
     # Display key metrics
-    printf "\n${BLUE}=== JSON REPORT SUMMARY ===${NC}\n"
-    printf "Report file: %s\n" "$JSON_REPORT_FILE"
-    printf "Individual tests processed: %d\n" "$json_files_found"
-    printf "Overall success rate: %d%%\n" "$((PASSED_SCRIPTS * 100 / TOTAL_SCRIPTS))"
+    printf "
+${BLUE}=== JSON REPORT SUMMARY ===${NC}
+"
+    printf "Report file: %s
+" "$JSON_REPORT_FILE"
+    printf "Individual tests processed: %d
+" "$json_files_found"
+    printf "Overall success rate: %d%%
+" "$((PASSED_SCRIPTS * 100 / TOTAL_SCRIPTS))"
 
     if [ "$COMPREHENSIVE_TEST" = "1" ]; then
         log_info "Use this JSON file for automated analysis of debug integration patterns"
@@ -1463,9 +1542,14 @@ EOF
 
 # Main execution function
 main() {
-    printf "\n${BLUE}========================================${NC}\n"
-    printf "${BLUE}RUTOS Script Testing Tool v$SCRIPT_VERSION${NC}\n"
-    printf "${BLUE}========================================${NC}\n\n"
+    printf "
+${BLUE}========================================${NC}
+"
+    printf "${BLUE}RUTOS Script Testing Tool v$SCRIPT_VERSION${NC}
+"
+    printf "${BLUE}========================================${NC}
+
+"
 
     # Parse arguments
     parse_arguments "$@"
@@ -1480,20 +1564,28 @@ main() {
     if [ "${RUTOS_LIBRARY_TEST:-0}" = "1" ]; then
         # Add TRACE-level logging for library testing mode
         if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-            printf "${CYAN}[TRACE]${NC} [%s] Entering RUTOS Library Testing Mode\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
-            printf "${CYAN}[TRACE]${NC} [%s] Library test parameters: RUTOS_LIBRARY_TEST=1, RUTOS_TEST_MODE=1, DEBUG=%s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "${DEBUG:-0}" >&2
+            printf "${CYAN}[TRACE]${NC} [%s] Entering RUTOS Library Testing Mode
+" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
+            printf "${CYAN}[TRACE]${NC} [%s] Library test parameters: RUTOS_LIBRARY_TEST=1, RUTOS_TEST_MODE=1, DEBUG=%s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "${DEBUG:-0}" >&2
         fi
 
         log_info "🔬 RUTOS Library Implementation Testing Mode"
-        printf "\n${CYAN}========================================${NC}\n"
-        printf "${CYAN}Testing RUTOS Library Implementation${NC}\n"
-        printf "${CYAN}========================================${NC}\n\n"
+        printf "
+${CYAN}========================================${NC}
+"
+        printf "${CYAN}Testing RUTOS Library Implementation${NC}
+"
+        printf "${CYAN}========================================${NC}
+
+"
 
         # Run the dedicated library testing script
         if [ -f "./scripts/test-rutos-library-implementation.sh" ]; then
             log_step "Running dedicated library implementation test"
             if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-                printf "${CYAN}[TRACE]${NC} [%s] Executing: bash ./scripts/test-rutos-library-implementation.sh\n" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
+                printf "${CYAN}[TRACE]${NC} [%s] Executing: bash ./scripts/test-rutos-library-implementation.sh
+" "$(date '+%Y-%m-%d %H:%M:%S')" >&2
             fi
             bash ./scripts/test-rutos-library-implementation.sh
             exit $?
@@ -1507,7 +1599,8 @@ main() {
                 if [ -f "$script" ]; then
                     log_step "Testing library implementation in $(basename "$script")"
                     if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-                        printf "${CYAN}[TRACE]${NC} [%s] Executing: DRY_RUN=1 RUTOS_TEST_MODE=1 bash \"%s\"\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
+                        printf "${CYAN}[TRACE]${NC} [%s] Executing: DRY_RUN=1 RUTOS_TEST_MODE=1 bash \"%s\"
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$script" >&2
                     fi
                     if DRY_RUN=1 RUTOS_TEST_MODE=1 bash "$script" 2>&1 | grep -q "TRACE\|DEBUG"; then
                         log_success "✅ $(basename "$script") - Library logging detected"
@@ -1522,18 +1615,28 @@ main() {
                 fi
             done
 
-            printf "\n${BLUE}========================================${NC}\n"
-            printf "${BLUE}Library Testing Summary${NC}\n"
-            printf "${BLUE}========================================${NC}\n"
-            printf "📊 Library-enabled scripts: %d\n" "$LIBRARY_LOADED_SCRIPTS"
-            printf "📊 Fallback mode scripts: %d\n" "$FALLBACK_MODE_SCRIPTS"
+            printf "
+${BLUE}========================================${NC}
+"
+            printf "${BLUE}Library Testing Summary${NC}
+"
+            printf "${BLUE}========================================${NC}
+"
+            printf "📊 Library-enabled scripts: %d
+" "$LIBRARY_LOADED_SCRIPTS"
+            printf "📊 Fallback mode scripts: %d
+" "$FALLBACK_MODE_SCRIPTS"
 
             if [ $all_passed -eq 0 ]; then
                 log_success "🎉 All tested scripts show library implementation!"
-                printf "\n${GREEN}✅ Library implementation validation PASSED${NC}\n"
+                printf "
+${GREEN}✅ Library implementation validation PASSED${NC}
+"
             else
                 log_warning "⚠️  Some scripts may need library implementation review"
-                printf "\n${YELLOW}⚠️  Library implementation validation completed with warnings${NC}\n"
+                printf "
+${YELLOW}⚠️  Library implementation validation completed with warnings${NC}
+"
             fi
 
             exit $all_passed
@@ -1616,7 +1719,8 @@ main() {
         temp_script_file="/tmp/scripts_to_test_$$"
         temp_results="/tmp/test_results_$$"
 
-        printf "%s\n" "$script_list" >"$temp_script_file"
+        printf "%s
+" "$script_list" >"$temp_script_file"
         : >"$temp_results"
 
         # Process each script
@@ -1645,13 +1749,16 @@ main() {
                     echo "PASS:$script_name" >>"$temp_results"
                     # Check if script has dry-run support for display
                     if check_dry_run_support "$script"; then
-                        printf "${GREEN}✅ PASS${NC} - %s ${CYAN}(dry-run ready)${NC}\n" "$script_name"
+                        printf "${GREEN}✅ PASS${NC} - %s ${CYAN}(dry-run ready)${NC}
+" "$script_name"
                     else
-                        printf "${GREEN}✅ PASS${NC} - %s ${YELLOW}(needs dry-run)${NC}\n" "$script_name"
+                        printf "${GREEN}✅ PASS${NC} - %s ${YELLOW}(needs dry-run)${NC}
+" "$script_name"
                     fi
                 else
                     echo "FAIL:$script_name" >>"$temp_results"
-                    printf "${RED}❌ FAIL${NC} - %s\n" "$script_name"
+                    printf "${RED}❌ FAIL${NC} - %s
+" "$script_name"
                 fi
             fi
         done <"$temp_script_file"
@@ -1659,14 +1766,17 @@ main() {
         # Calculate final results
         if [ -f "$temp_results" ] && [ -s "$temp_results" ]; then
             # Use more robust counting to avoid whitespace issues - fix command order
-            TOTAL_SCRIPTS=$(wc -l <"$temp_results" | tr -d ' \n\r')
+            TOTAL_SCRIPTS=$(wc -l <"$temp_results" | tr -d ' 
+')
 
             # Fix grep fallback - tr should happen on grep output, not on fallback
             PASSED_COUNT=$(grep -c "^PASS:" "$temp_results" 2>/dev/null || echo "0")
-            PASSED_SCRIPTS=$(printf "%s" "$PASSED_COUNT" | tr -d ' \n\r')
+            PASSED_SCRIPTS=$(printf "%s" "$PASSED_COUNT" | tr -d ' 
+')
 
             FAILED_COUNT=$(grep -c "^FAIL:" "$temp_results" 2>/dev/null || echo "0")
-            FAILED_SCRIPTS=$(printf "%s" "$FAILED_COUNT" | tr -d ' \n\r')
+            FAILED_SCRIPTS=$(printf "%s" "$FAILED_COUNT" | tr -d ' 
+')
 
             # Debug the calculated values
             log_debug "Result counts: TOTAL=$TOTAL_SCRIPTS, PASSED=$PASSED_SCRIPTS, FAILED=$FAILED_SCRIPTS"
@@ -1689,9 +1799,13 @@ main() {
         fi
 
         # Step 5: Summary
-        printf "\n${BLUE}========================================${NC}\n"
-        printf "${BLUE}TESTING COMPLETE${NC}\n"
-        printf "${BLUE}========================================${NC}\n"
+        printf "
+${BLUE}========================================${NC}
+"
+        printf "${BLUE}TESTING COMPLETE${NC}
+"
+        printf "${BLUE}========================================${NC}
+"
 
         if [ "$FAILED_SCRIPTS" -eq 0 ]; then
             if [ "$SCRIPTS_MISSING_DRYRUN" -eq 0 ]; then

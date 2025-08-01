@@ -10,17 +10,14 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Standard colors for consistent output (compatible with busybox)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     RED=""
     GREEN=""
@@ -105,39 +102,47 @@ EOF
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
+    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s
+" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
 fi
 
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
 # Logging functions
 log_info() {
-    printf "${GREEN}[INFO]${NC} %s\n" "$1"
+    printf "${GREEN}[INFO]${NC} %s
+" "$1"
 }
 
 log_warn() {
-    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
+    printf "${YELLOW}[WARN]${NC} %s
+" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} %s\n" "$1" >&2
+    printf "${RED}[ERROR]${NC} %s
+" "$1" >&2
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} %s\n" "$1"
+    printf "${BLUE}[STEP]${NC} %s
+" "$1"
 }
 
 log_success() {
-    printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"
+    printf "${GREEN}[SUCCESS]${NC} %s
+" "$1"
 }
 
 log_debug() {
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
@@ -147,12 +152,15 @@ safe_execute() {
     description="$2"
 
     if [ "$DRY_RUN" = "1" ]; then
-        printf "${YELLOW}[DRY-RUN]${NC} Would execute: %s\n" "$description" >&2
-        printf "${YELLOW}[DRY-RUN]${NC} Command: %s\n" "$cmd" >&2
+        printf "${YELLOW}[DRY-RUN]${NC} Would execute: %s
+" "$description" >&2
+        printf "${YELLOW}[DRY-RUN]${NC} Command: %s
+" "$cmd" >&2
         return 0
     else
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "${CYAN}[DEBUG]${NC} Executing: %s\n" "$cmd" >&2
+            printf "${CYAN}[DEBUG]${NC} Executing: %s
+" "$cmd" >&2
         fi
         eval "$cmd"
     fi
@@ -165,12 +173,15 @@ safe_write() {
     description="$3"
 
     if [ "$DRY_RUN" = "1" ]; then
-        printf "${YELLOW}[DRY-RUN]${NC} Would write to: %s\n" "$file_path" >&2
-        printf "${YELLOW}[DRY-RUN]${NC} Content: %s\n" "$description" >&2
+        printf "${YELLOW}[DRY-RUN]${NC} Would write to: %s
+" "$file_path" >&2
+        printf "${YELLOW}[DRY-RUN]${NC} Content: %s
+" "$description" >&2
         return 0
     else
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "${CYAN}[DEBUG]${NC} Writing to: %s\n" "$file_path" >&2
+            printf "${CYAN}[DEBUG]${NC} Writing to: %s
+" "$file_path" >&2
         fi
         printf "%s" "$content" >"$file_path"
     fi
@@ -260,7 +271,8 @@ export STABILITY_CHECKS_REQUIRED=\"5\""
 
         if [ "$DRY_RUN" = "1" ]; then
             log_warn "DRY-RUN: Would append to $config_file:"
-            printf "${YELLOW}%s${NC}\n" "$config_addition"
+            printf "${YELLOW}%s${NC}
+" "$config_addition"
         else
             printf "%s" "$config_addition" >>"$config_file"
             log_success "Added STABILITY_CHECKS_REQUIRED=5 to configuration"
@@ -375,3 +387,6 @@ export STABILITY_CHECKS_REQUIRED=\"5\""
 # Execute main function
 parse_arguments "$@"
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

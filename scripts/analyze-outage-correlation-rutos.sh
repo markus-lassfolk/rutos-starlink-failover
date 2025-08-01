@@ -21,17 +21,14 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Check if terminal supports colors (RUTOS busybox compatible)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
+    NC='[0m'
 else
     RED=""
     GREEN=""
@@ -43,25 +40,30 @@ fi
 
 # Standard logging functions
 log_info() {
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "${DEBUG:-0}" = "1" ]; then
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_step() {
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Default configuration
@@ -126,19 +128,36 @@ parse_arguments() {
 
 # Show help message
 show_help() {
-    printf "${GREEN}Starlink Outage Correlation Analysis v%s${NC}\n\n" "$SCRIPT_VERSION"
-    printf "Analyzes RUTOS monitoring logs and correlates with known outages.\n\n"
-    printf "Usage: %s [options]\n\n" "$(basename "$0")"
-    printf "Options:\n"
-    printf "  --date YYYY-MM-DD     Analyze specific date (default: today)\n"
-    printf "  --log-dir PATH        Custom log directory (default: /etc/starlink-logs)\n"
-    printf "  --report-file PATH    Output report file\n"
-    printf "  --debug               Enable debug output\n"
-    printf "  --help                Show this help\n\n"
-    printf "Examples:\n"
-    printf "  %s --date 2025-07-24\n" "$(basename "$0")"
-    printf "  %s --debug --report-file /tmp/analysis.txt\n" "$(basename "$0")"
-    printf "  DEBUG=1 %s\n" "$(basename "$0")"
+    printf "${GREEN}Starlink Outage Correlation Analysis v%s${NC}
+
+" "$SCRIPT_VERSION"
+    printf "Analyzes RUTOS monitoring logs and correlates with known outages.
+
+"
+    printf "Usage: %s [options]
+
+" "$(basename "$0")"
+    printf "Options:
+"
+    printf "  --date YYYY-MM-DD     Analyze specific date (default: today)
+"
+    printf "  --log-dir PATH        Custom log directory (default: /etc/starlink-logs)
+"
+    printf "  --report-file PATH    Output report file
+"
+    printf "  --debug               Enable debug output
+"
+    printf "  --help                Show this help
+
+"
+    printf "Examples:
+"
+    printf "  %s --date 2025-07-24
+" "$(basename "$0")"
+    printf "  %s --debug --report-file /tmp/analysis.txt
+" "$(basename "$0")"
+    printf "  DEBUG=1 %s
+" "$(basename "$0")"
 }
 
 # Convert time to seconds since midnight
@@ -230,11 +249,11 @@ extract_log_timestamp() {
     timestamp=""
 
     # Try standard format first: YYYY-MM-DD HH:MM:SS
-    timestamp=$(echo "$log_line" | sed -n 's/^\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*/\1/p' 2>/dev/null)
+    timestamp=$(echo "$log_line" | sed -n 's/^\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\} [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}\).*//p' 2>/dev/null)
 
     # If that didn't work, try more permissive pattern
     if [ -z "$timestamp" ]; then
-        timestamp=$(echo "$log_line" | sed -n 's/^\([0-9-]* [0-9:]*\).*/\1/p' 2>/dev/null)
+        timestamp=$(echo "$log_line" | sed -n 's/^\([0-9-]* [0-9:]*\).*//p' 2>/dev/null)
     fi
 
     # Final validation
@@ -333,10 +352,16 @@ analyze_log_correlation() {
 
     # Initialize report section using grouped commands to fix SC2129
     {
-        printf "\n=== OUTAGE CORRELATION ANALYSIS ===\n"
-        printf "Analysis Date: %s\n" "$ANALYSIS_DATE"
-        printf "Log File: %s\n" "$log_file"
-        printf "Generated: %s\n\n" "$(date)"
+        printf "
+=== OUTAGE CORRELATION ANALYSIS ===
+"
+        printf "Analysis Date: %s
+" "$ANALYSIS_DATE"
+        printf "Log File: %s
+" "$log_file"
+        printf "Generated: %s
+
+" "$(date)"
     } >>"$REPORT_FILE"
 
     outage_count=0
@@ -370,9 +395,13 @@ analyze_log_correlation() {
         end_window=$((outage_seconds + outage_duration + 60))
 
         {
-            printf "\n--- OUTAGE #%d: %s (%s) ---\n" "$outage_count" "$outage_time" "$outage_type"
-            printf "Duration: %ds, Type: %s, Description: %s\n" "$outage_duration" "$outage_type" "$outage_desc"
-            printf "Analysis window: %s - %s\n" "$(seconds_to_time $start_window)" "$(seconds_to_time $end_window)"
+            printf "
+--- OUTAGE #%d: %s (%s) ---
+" "$outage_count" "$outage_time" "$outage_type"
+            printf "Duration: %ds, Type: %s, Description: %s
+" "$outage_duration" "$outage_type" "$outage_desc"
+            printf "Analysis window: %s - %s
+" "$(seconds_to_time $start_window)" "$(seconds_to_time $end_window)"
         } >>"$REPORT_FILE"
 
         # Find correlated events
@@ -388,7 +417,8 @@ analyze_log_correlation() {
             event_seconds=$(log_timestamp_to_seconds "$event_timestamp")
 
             if [ "$event_seconds" -ge "$start_window" ] && [ "$event_seconds" -le "$end_window" ]; then
-                correlated_events="${correlated_events}${event_line}\n"
+                correlated_events="${correlated_events}${event_line}
+"
                 correlated_count=$((correlated_count + 1))
 
                 # Check if this is a failover event
@@ -408,24 +438,33 @@ analyze_log_correlation() {
             metric_seconds=$(log_timestamp_to_seconds "$metric_timestamp")
 
             if [ "$metric_seconds" -ge "$start_window" ] && [ "$metric_seconds" -le "$end_window" ]; then
-                correlated_metrics="${correlated_metrics}${metric_line}\n"
+                correlated_metrics="${correlated_metrics}${metric_line}
+"
             fi
         done <"$temp_metrics"
 
         # Report findings using grouped commands to fix SC2129
         {
             if [ -n "$correlated_events" ]; then
-                printf "\n✓ CORRELATED EVENTS FOUND:\n"
+                printf "
+✓ CORRELATED EVENTS FOUND:
+"
                 printf "%b" "$correlated_events"
             else
-                printf "\n✗ NO CORRELATED EVENTS FOUND\n"
+                printf "
+✗ NO CORRELATED EVENTS FOUND
+"
             fi
 
             if [ -n "$correlated_metrics" ]; then
-                printf "\n📊 CORRELATED METRICS:\n"
+                printf "
+📊 CORRELATED METRICS:
+"
                 printf "%b" "$correlated_metrics"
             else
-                printf "\n📊 NO METRIC DATA AVAILABLE\n"
+                printf "
+📊 NO METRIC DATA AVAILABLE
+"
             fi
         } >>"$REPORT_FILE"
     done <"$temp_outages"
@@ -459,15 +498,23 @@ analyze_failover_behavior() {
         touch "$temp_failovers"
     }
 
-    printf "\n\n=== FAILOVER BEHAVIOR ANALYSIS ===\n" >>"$REPORT_FILE"
+    printf "
+
+=== FAILOVER BEHAVIOR ANALYSIS ===
+" >>"$REPORT_FILE"
 
     if [ ! -s "$temp_failovers" ]; then
         {
-            printf "No failover events detected in logs.\n"
-            printf "This could indicate:\n"
-            printf "  - Monitoring was not active during outage periods\n"
-            printf "  - Thresholds are too relaxed (not triggering failovers)\n"
-            printf "  - Short outages resolved before failover threshold was met\n"
+            printf "No failover events detected in logs.
+"
+            printf "This could indicate:
+"
+            printf "  - Monitoring was not active during outage periods
+"
+            printf "  - Thresholds are too relaxed (not triggering failovers)
+"
+            printf "  - Short outages resolved before failover threshold was met
+"
         } >>"$REPORT_FILE"
         rm -f "$temp_failovers"
         return
@@ -493,9 +540,13 @@ analyze_failover_behavior() {
             reason=$(echo "$event_line" | sed 's/.*Quality degraded below threshold: //' | sed 's/.*failover due to signal degradation: //')
 
             {
-                printf "\n--- FAILOVER SEQUENCE #%d ---\n" "$failover_sequences"
-                printf "Failover started: %s\n" "$event_timestamp"
-                printf "Reason: %s\n" "$reason"
+                printf "
+--- FAILOVER SEQUENCE #%d ---
+" "$failover_sequences"
+                printf "Failover started: %s
+" "$event_timestamp"
+                printf "Reason: %s
+" "$reason"
             } >>"$REPORT_FILE"
 
         elif echo "$event_line" | grep -q "Soft failback completed" && [ -n "$current_failover_start" ]; then
@@ -516,14 +567,19 @@ analyze_failover_behavior() {
             if [ "$duration" -lt 120 ]; then
                 rapid_failbacks=$((rapid_failbacks + 1))
                 {
-                    printf "Failback completed: %s\n" "$failback_time"
-                    printf "Failover duration: %d seconds (%d minutes)\n" "$duration" "$((duration / 60))"
-                    printf "⚠️  RAPID FAILBACK detected (< 2 minutes)\n"
+                    printf "Failback completed: %s
+" "$failback_time"
+                    printf "Failover duration: %d seconds (%d minutes)
+" "$duration" "$((duration / 60))"
+                    printf "⚠️  RAPID FAILBACK detected (< 2 minutes)
+"
                 } >>"$REPORT_FILE"
             else
                 {
-                    printf "Failback completed: %s\n" "$failback_time"
-                    printf "Failover duration: %d seconds (%d minutes)\n" "$duration" "$((duration / 60))"
+                    printf "Failback completed: %s
+" "$failback_time"
+                    printf "Failover duration: %d seconds (%d minutes)
+" "$duration" "$((duration / 60))"
                 } >>"$REPORT_FILE"
             fi
 
@@ -533,36 +589,49 @@ analyze_failover_behavior() {
 
     # Generate behavior analysis
     {
-        printf "\n=== FAILOVER BEHAVIOR SUMMARY ===\n"
-        printf "Total failover sequences: %d\n" "$failover_sequences"
-        printf "Rapid failbacks (< 2 min): %d\n" "$rapid_failbacks"
+        printf "
+=== FAILOVER BEHAVIOR SUMMARY ===
+"
+        printf "Total failover sequences: %d
+" "$failover_sequences"
+        printf "Rapid failbacks (< 2 min): %d
+" "$rapid_failbacks"
     } >>"$REPORT_FILE"
 
     if [ "$failover_sequences" -gt 0 ]; then
         avg_duration=$((total_failover_time / failover_sequences))
         {
-            printf "Average failover duration: %d seconds (%d minutes)\n" "$avg_duration" "$((avg_duration / 60))"
-            printf "\n=== RECOMMENDATIONS ===\n"
+            printf "Average failover duration: %d seconds (%d minutes)
+" "$avg_duration" "$((avg_duration / 60))"
+            printf "
+=== RECOMMENDATIONS ===
+"
         } >>"$REPORT_FILE"
 
         if [ "$rapid_failbacks" -gt $((failover_sequences / 2)) ]; then
             {
-                printf "⚠️  HIGH RAPID FAILBACK RATE: Consider increasing STABILITY_CHECKS_REQUIRED\n"
-                printf "   Current quick failbacks suggest thresholds may be too sensitive\n"
+                printf "⚠️  HIGH RAPID FAILBACK RATE: Consider increasing STABILITY_CHECKS_REQUIRED
+"
+                printf "   Current quick failbacks suggest thresholds may be too sensitive
+"
             } >>"$REPORT_FILE"
         fi
 
         if [ "$failover_sequences" -gt 10 ]; then
             {
-                printf "⚠️  HIGH FAILOVER FREQUENCY: Consider relaxing quality thresholds\n"
-                printf "   Multiple failovers may indicate overly aggressive monitoring\n"
+                printf "⚠️  HIGH FAILOVER FREQUENCY: Consider relaxing quality thresholds
+"
+                printf "   Multiple failovers may indicate overly aggressive monitoring
+"
             } >>"$REPORT_FILE"
         fi
 
         if [ "$avg_duration" -gt 600 ]; then
             {
-                printf "⚠️  LONG FAILOVER DURATIONS: Consider decreasing STABILITY_CHECKS_REQUIRED\n"
-                printf "   Long failovers may indicate overly conservative failback logic\n"
+                printf "⚠️  LONG FAILOVER DURATIONS: Consider decreasing STABILITY_CHECKS_REQUIRED
+"
+                printf "   Long failovers may indicate overly conservative failback logic
+"
             } >>"$REPORT_FILE"
         fi
     fi
@@ -576,7 +645,10 @@ analyze_threshold_effectiveness() {
 
     log_step "Analyzing threshold effectiveness"
 
-    printf "\n\n=== THRESHOLD EFFECTIVENESS ANALYSIS ===\n" >>"$REPORT_FILE"
+    printf "
+
+=== THRESHOLD EFFECTIVENESS ANALYSIS ===
+" >>"$REPORT_FILE"
 
     # Analyze missed outages (outages without failovers)
     outage_count=$(cat "/tmp/outage_count_$$" 2>/dev/null || echo "0")
@@ -593,50 +665,77 @@ analyze_threshold_effectiveness() {
     fi
 
     {
-        printf "Monitoring Coverage Analysis:\n"
-        printf "  Known outages: %d\n" "$outage_count"
-        printf "  Detected events: %d (%d%% coverage)\n" "$correlated_count" "$coverage_percentage"
-        printf "  Triggered failovers: %d (%d%% of outages)\n" "$failover_count" "$failover_percentage"
-        printf "\n=== THRESHOLD TUNING RECOMMENDATIONS ===\n"
+        printf "Monitoring Coverage Analysis:
+"
+        printf "  Known outages: %d
+" "$outage_count"
+        printf "  Detected events: %d (%d%% coverage)
+" "$correlated_count" "$coverage_percentage"
+        printf "  Triggered failovers: %d (%d%% of outages)
+" "$failover_count" "$failover_percentage"
+        printf "
+=== THRESHOLD TUNING RECOMMENDATIONS ===
+"
     } >>"$REPORT_FILE"
 
     if [ "$coverage_percentage" -lt 50 ]; then
         {
-            printf "🔴 LOW COVERAGE (%d%%): Monitoring may be missing outages\n" "$coverage_percentage"
-            printf "   Recommendations:\n"
-            printf "   - Check if monitoring service is running continuously\n"
-            printf "   - Verify Starlink API connectivity\n"
-            printf "   - Consider more frequent monitoring checks\n"
+            printf "🔴 LOW COVERAGE (%d%%): Monitoring may be missing outages
+" "$coverage_percentage"
+            printf "   Recommendations:
+"
+            printf "   - Check if monitoring service is running continuously
+"
+            printf "   - Verify Starlink API connectivity
+"
+            printf "   - Consider more frequent monitoring checks
+"
         } >>"$REPORT_FILE"
     elif [ "$coverage_percentage" -lt 80 ]; then
         {
-            printf "🟡 MODERATE COVERAGE (%d%%): Some outages may be missed\n" "$coverage_percentage"
-            printf "   Recommendations:\n"
-            printf "   - Review short outage detection capability\n"
-            printf "   - Consider adjusting monitoring frequency\n"
+            printf "🟡 MODERATE COVERAGE (%d%%): Some outages may be missed
+" "$coverage_percentage"
+            printf "   Recommendations:
+"
+            printf "   - Review short outage detection capability
+"
+            printf "   - Consider adjusting monitoring frequency
+"
         } >>"$REPORT_FILE"
     else
-        printf "🟢 GOOD COVERAGE (%d%%): Most outages are being detected\n" "$coverage_percentage" >>"$REPORT_FILE"
+        printf "🟢 GOOD COVERAGE (%d%%): Most outages are being detected
+" "$coverage_percentage" >>"$REPORT_FILE"
     fi
 
     if [ "$failover_percentage" -lt 30 ]; then
         {
-            printf "🔴 LOW FAILOVER RATE (%d%%): Thresholds may be too relaxed\n" "$failover_percentage"
-            printf "   Recommendations:\n"
-            printf "   - Lower OBSTRUCTION_THRESHOLD (currently should be < 0.05)\n"
-            printf "   - Lower PACKET_LOSS_THRESHOLD (currently should be < 0.02)\n"
-            printf "   - Lower LATENCY_THRESHOLD_MS (currently should be < 100ms)\n"
+            printf "🔴 LOW FAILOVER RATE (%d%%): Thresholds may be too relaxed
+" "$failover_percentage"
+            printf "   Recommendations:
+"
+            printf "   - Lower OBSTRUCTION_THRESHOLD (currently should be < 0.05)
+"
+            printf "   - Lower PACKET_LOSS_THRESHOLD (currently should be < 0.02)
+"
+            printf "   - Lower LATENCY_THRESHOLD_MS (currently should be < 100ms)
+"
         } >>"$REPORT_FILE"
     elif [ "$failover_percentage" -gt 80 ]; then
         {
-            printf "🟡 HIGH FAILOVER RATE (%d%%): Thresholds may be too aggressive\n" "$failover_percentage"
-            printf "   Recommendations:\n"
-            printf "   - Increase threshold values slightly\n"
-            printf "   - Consider longer averaging periods\n"
-            printf "   - Review enhanced metrics for false positives\n"
+            printf "🟡 HIGH FAILOVER RATE (%d%%): Thresholds may be too aggressive
+" "$failover_percentage"
+            printf "   Recommendations:
+"
+            printf "   - Increase threshold values slightly
+"
+            printf "   - Consider longer averaging periods
+"
+            printf "   - Review enhanced metrics for false positives
+"
         } >>"$REPORT_FILE"
     else
-        printf "🟢 BALANCED FAILOVER RATE (%d%%): Thresholds appear well-tuned\n" "$failover_percentage" >>"$REPORT_FILE"
+        printf "🟢 BALANCED FAILOVER RATE (%d%%): Thresholds appear well-tuned
+" "$failover_percentage" >>"$REPORT_FILE"
     fi
 
     # Clean up temp files
@@ -648,16 +747,29 @@ generate_report_summary() {
     log_step "Generating analysis report"
 
     {
-        printf "\n\n=== ANALYSIS SUMMARY ===\n"
-        printf "Script Version: %s\n" "$SCRIPT_VERSION"
-        printf "Analysis completed: %s\n" "$(date)"
-        printf "Report file: %s\n" "$REPORT_FILE"
-        printf "\nNext Steps:\n"
-        printf "1. Review correlation analysis for missed outages\n"
-        printf "2. Adjust monitoring thresholds based on recommendations\n"
-        printf "3. Test threshold changes in controlled environment\n"
-        printf "4. Monitor failover behavior after tuning\n"
-        printf "5. Re-run analysis after configuration changes\n"
+        printf "
+
+=== ANALYSIS SUMMARY ===
+"
+        printf "Script Version: %s
+" "$SCRIPT_VERSION"
+        printf "Analysis completed: %s
+" "$(date)"
+        printf "Report file: %s
+" "$REPORT_FILE"
+        printf "
+Next Steps:
+"
+        printf "1. Review correlation analysis for missed outages
+"
+        printf "2. Adjust monitoring thresholds based on recommendations
+"
+        printf "3. Test threshold changes in controlled environment
+"
+        printf "4. Monitor failover behavior after tuning
+"
+        printf "5. Re-run analysis after configuration changes
+"
     } >>"$REPORT_FILE"
 
     log_info "Analysis complete! Report saved to: $REPORT_FILE"
@@ -666,7 +778,8 @@ generate_report_summary() {
 
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
@@ -692,9 +805,12 @@ main() {
 
     # Initialize report file
     log_debug "Initializing report file: $REPORT_FILE"
-    printf "STARLINK OUTAGE CORRELATION ANALYSIS REPORT\n" >"$REPORT_FILE"
-    printf "Generated by: %s v%s\n" "$(basename "$0")" "$SCRIPT_VERSION" >>"$REPORT_FILE"
-    printf "=====================================================\n" >>"$REPORT_FILE"
+    printf "STARLINK OUTAGE CORRELATION ANALYSIS REPORT
+" >"$REPORT_FILE"
+    printf "Generated by: %s v%s
+" "$(basename "$0")" "$SCRIPT_VERSION" >>"$REPORT_FILE"
+    printf "=====================================================
+" >>"$REPORT_FILE"
 
     # Validate environment
     log_debug "Starting environment validation"
@@ -728,3 +844,6 @@ main() {
 
 # Execute main function with all arguments
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

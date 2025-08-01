@@ -12,8 +12,6 @@ set -eu
 
 # Script version information
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
 # Build: 1.0.2+198.38fb60b-dirty
 SCRIPT_NAME="validate-config-rutos.sh"
 COMPATIBLE_INSTALL_VERSION="1.0.0"
@@ -36,22 +34,22 @@ NC=""
 
 # Match install script logic exactly (this approach worked!)
 if [ "${FORCE_COLOR:-}" = "1" ]; then
-    RED="\033[0;31m"
-    GREEN="\033[0;32m"
-    YELLOW="\033[1;33m"
-    BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
-    CYAN="\033[0;36m"
-    NC="\033[0m" # No Color
+    RED="[0;31m"
+    GREEN="[0;32m"
+    YELLOW="[1;33m"
+    BLUE="[1;35m" # Bright magenta instead of dark blue for better readability
+    CYAN="[0;36m"
+    NC="[0m" # No Color
 elif [ "${NO_COLOR:-}" != "1" ] && [ -t 1 ] && [ "${TERM:-}" != "dumb" ]; then
     case "${TERM:-}" in
         xterm* | screen* | tmux* | linux*)
             # Known terminal types that support colors
-            RED="\033[0;31m"
-            GREEN="\033[0;32m"
-            YELLOW="\033[1;33m"
-            BLUE="\033[1;35m" # Bright magenta instead of dark blue for better readability
-            CYAN="\033[0;36m"
-            NC="\033[0m" # No Color
+            RED="[0;31m"
+            GREEN="[0;32m"
+            YELLOW="[1;33m"
+            BLUE="[1;35m" # Bright magenta instead of dark blue for better readability
+            CYAN="[0;36m"
+            NC="[0m" # No Color
             ;;
         *)
             # Unknown terminal - disable colors
@@ -87,12 +85,18 @@ print_status() {
     message="$2"
     # Use Method 5 format that works in RUTOS (embed variables in format string)
     case "$color" in
-        "$RED") printf "${RED}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
-        "$GREEN") printf "${GREEN}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
-        "$YELLOW") printf "${YELLOW}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
-        "$BLUE") printf "${BLUE}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
-        "$CYAN") printf "${CYAN}[%s] %s${NC}\n" "$(get_timestamp)" "$message" ;;
-        *) printf "[%s] %s\n" "$(get_timestamp)" "$message" ;;
+        "$RED") printf "${RED}[%s] %s${NC}
+" "$(get_timestamp)" "$message" ;;
+        "$GREEN") printf "${GREEN}[%s] %s${NC}
+" "$(get_timestamp)" "$message" ;;
+        "$YELLOW") printf "${YELLOW}[%s] %s${NC}
+" "$(get_timestamp)" "$message" ;;
+        "$BLUE") printf "${BLUE}[%s] %s${NC}
+" "$(get_timestamp)" "$message" ;;
+        "$CYAN") printf "${CYAN}[%s] %s${NC}
+" "$(get_timestamp)" "$message" ;;
+        *) printf "[%s] %s
+" "$(get_timestamp)" "$message" ;;
     esac
 }
 
@@ -114,18 +118,30 @@ show_usage() {
     print_status "$BLUE" "  -m, --migrate   Force migration of outdated config template"
     print_status "$BLUE" "  -q, --quiet     Suppress output except errors"
     print_status "$BLUE" "  --repair        Repair common configuration format issues"
-    printf "%b\n" "${BLUE}Arguments:${NC}"
-    printf "%b\n" "${BLUE}  config_file     Path to configuration file (default: /etc/starlink-config/config.sh)${NC}"
-    printf "%b\n" ""
-    printf "%b\n" "${BLUE}Environment Variables:${NC}"
-    printf "%b\n" "${BLUE}  DEBUG=1         Enable debug output for troubleshooting${NC}"
-    printf "%b\n" ""
-    printf "%b\n" "${BLUE}Examples:${NC}"
-    printf "%b\n" "${BLUE}  $SCRIPT_NAME                    # Validate default config in /etc/starlink-config/config.sh${NC}"
-    printf "%b\n" "${BLUE}  $SCRIPT_NAME /path/to/config.sh # Validate specific config${NC}"
-    printf "%b\n" "${BLUE}  $SCRIPT_NAME --migrate          # Force migration of outdated template${NC}"
-    printf "%b\n" "${BLUE}  $SCRIPT_NAME --repair           # Fix common configuration format issues${NC}"
-    printf "%b\n" "${BLUE}  DEBUG=1 $SCRIPT_NAME            # Run with debug output${NC}"
+    printf "%b
+" "${BLUE}Arguments:${NC}"
+    printf "%b
+" "${BLUE}  config_file     Path to configuration file (default: /etc/starlink-config/config.sh)${NC}"
+    printf "%b
+" ""
+    printf "%b
+" "${BLUE}Environment Variables:${NC}"
+    printf "%b
+" "${BLUE}  DEBUG=1         Enable debug output for troubleshooting${NC}"
+    printf "%b
+" ""
+    printf "%b
+" "${BLUE}Examples:${NC}"
+    printf "%b
+" "${BLUE}  $SCRIPT_NAME                    # Validate default config in /etc/starlink-config/config.sh${NC}"
+    printf "%b
+" "${BLUE}  $SCRIPT_NAME /path/to/config.sh # Validate specific config${NC}"
+    printf "%b
+" "${BLUE}  $SCRIPT_NAME --migrate          # Force migration of outdated template${NC}"
+    printf "%b
+" "${BLUE}  $SCRIPT_NAME --repair           # Fix common configuration format issues${NC}"
+    printf "%b
+" "${BLUE}  DEBUG=1 $SCRIPT_NAME            # Run with debug output${NC}"
 }
 
 # Parse command line arguments
@@ -136,7 +152,8 @@ CONFIG_FILE="/etc/starlink-config/config.sh"
 # Check if running as root
 check_root() {
     if [ "$(id -u)" -ne 0 ]; then
-        printf "%b\n" "${RED}Error: This script must be run as root${NC}"
+        printf "%b
+" "${RED}Error: This script must be run as root${NC}"
         exit 1
     fi
 }
@@ -144,33 +161,47 @@ check_root() {
 # Check if config file exists
 check_config_file() {
     if [ ! -f "$CONFIG_FILE" ]; then
-        printf "%b\n" "${RED}Error: Configuration file not found: $CONFIG_FILE${NC}"
-        printf "%b\n" "${YELLOW}Please copy config.template.sh to config.sh and customize it${NC}"
+        printf "%b
+" "${RED}Error: Configuration file not found: $CONFIG_FILE${NC}"
+        printf "%b
+" "${YELLOW}Please copy config.template.sh to config.sh and customize it${NC}"
         exit 1
     fi
 }
 
 # Load configuration
 load_config() {
-    printf "%b\n" "${GREEN}Loading configuration from: $CONFIG_FILE${NC}"
+    printf "%b
+" "${GREEN}Loading configuration from: $CONFIG_FILE${NC}"
 
     # First validate the shell syntax before attempting to load
-    printf "%b\n" "${BLUE}Validating shell syntax...${NC}"
+    printf "%b
+" "${BLUE}Validating shell syntax...${NC}"
     if ! sh -n "$CONFIG_FILE" 2>/dev/null; then
-        printf "%b\n" "${RED}❌ CRITICAL: Configuration file has shell syntax errors!${NC}"
-        printf "%b\n" "${RED}   Please check for:${NC}"
-        printf "%b\n" "${RED}   - Missing quotes around values${NC}"
-        printf "%b\n" "${RED}   - Unescaped special characters${NC}"
-        printf "%b\n" "${RED}   - Malformed export statements${NC}"
-        printf "%b\n" ""
-        printf "%b\n" "${YELLOW}Syntax check output:${NC}"
+        printf "%b
+" "${RED}❌ CRITICAL: Configuration file has shell syntax errors!${NC}"
+        printf "%b
+" "${RED}   Please check for:${NC}"
+        printf "%b
+" "${RED}   - Missing quotes around values${NC}"
+        printf "%b
+" "${RED}   - Unescaped special characters${NC}"
+        printf "%b
+" "${RED}   - Malformed export statements${NC}"
+        printf "%b
+" ""
+        printf "%b
+" "${YELLOW}Syntax check output:${NC}"
         sh -n "$CONFIG_FILE" 2>&1 | head -10 | while IFS= read -r line; do
-            printf "%b\n" "${RED}   $line${NC}"
+            printf "%b
+" "${RED}   $line${NC}"
         done
-        printf "%b\n" ""
+        printf "%b
+" ""
         return 1
     fi
-    printf "%b\n" "${GREEN}✅ Shell syntax validation passed${NC}"
+    printf "%b
+" "${GREEN}✅ Shell syntax validation passed${NC}"
 
     # Now safely load the configuration
     # shellcheck source=/dev/null
@@ -184,7 +215,8 @@ load_config() {
 
 # Check required binaries
 check_binaries() {
-    printf "%b\n" "${GREEN}Checking required binaries...${NC}"
+    printf "%b
+" "${GREEN}Checking required binaries...${NC}"
 
     missing_binaries=""
 
@@ -207,17 +239,21 @@ check_binaries() {
     done
 
     if [ -n "$missing_binaries" ]; then
-        printf "%b\n" "${RED}Error: Missing required binaries:$missing_binaries${NC}"
-        printf "%b\n" "${YELLOW}Please install the missing binaries before continuing${NC}"
+        printf "%b
+" "${RED}Error: Missing required binaries:$missing_binaries${NC}"
+        printf "%b
+" "${YELLOW}Please install the missing binaries before continuing${NC}"
         exit 1
     fi
 
-    printf "%b\n" "${GREEN}✓ All required binaries found${NC}"
+    printf "%b
+" "${GREEN}✓ All required binaries found${NC}"
 }
 
 # Check configuration variable consistency across scripts
 check_config_variable_consistency() {
-    printf "%b\n" "${GREEN}Checking configuration variable consistency...${NC}"
+    printf "%b
+" "${GREEN}Checking configuration variable consistency...${NC}"
 
     # Check for GRPCURL variable consistency - all scripts should use GRPCURL_CMD
     unified_scripts_with_old_grpcurl=0
@@ -240,113 +276,142 @@ check_config_variable_consistency() {
     fi
 
     if [ "$unified_scripts_with_old_grpcurl" -gt 0 ]; then
-        printf "%b\n" "${RED}Error: Found unified scripts not using GRPCURL_CMD consistently${NC}"
-        printf "%b\n" "${YELLOW}Configuration exports GRPCURL_CMD but some scripts use different patterns${NC}"
-        printf "%b\n" "${YELLOW}This will cause 'parameter not set' errors during execution${NC}"
+        printf "%b
+" "${RED}Error: Found unified scripts not using GRPCURL_CMD consistently${NC}"
+        printf "%b
+" "${YELLOW}Configuration exports GRPCURL_CMD but some scripts use different patterns${NC}"
+        printf "%b
+" "${YELLOW}This will cause 'parameter not set' errors during execution${NC}"
         exit 1
     fi
 
     # Check if GRPCURL_CMD is properly defined in config
     if [ -z "${GRPCURL_CMD:-}" ]; then
-        printf "%b\n" "${RED}Error: GRPCURL_CMD is not defined in configuration${NC}"
+        printf "%b
+" "${RED}Error: GRPCURL_CMD is not defined in configuration${NC}"
         exit 1
     fi
 
-    printf "%b\n" "${GREEN}✓ Configuration variable consistency verified${NC}"
+    printf "%b
+" "${GREEN}✓ Configuration variable consistency verified${NC}"
 }
 
 # Check network connectivity - basic system connectivity only
 check_network() {
-    printf "%b\n" "${GREEN}Checking basic network connectivity...${NC}"
+    printf "%b
+" "${GREEN}Checking basic network connectivity...${NC}"
 
     # Check if we have basic network connectivity (ping gateway or common DNS)
     if ping -c 1 -W 5 8.8.8.8 >/dev/null 2>&1 || ping -c 1 -W 5 1.1.1.1 >/dev/null 2>&1; then
-        printf "%b\n" "${GREEN}✓ Basic network connectivity available${NC}"
+        printf "%b
+" "${GREEN}✓ Basic network connectivity available${NC}"
     else
-        printf "%b\n" "${YELLOW}Warning: Basic network connectivity test failed${NC}"
-        printf "%b\n" "${YELLOW}This may affect script downloads and updates${NC}"
+        printf "%b
+" "${YELLOW}Warning: Basic network connectivity test failed${NC}"
+        printf "%b
+" "${YELLOW}This may affect script downloads and updates${NC}"
     fi
 
     # Note: Starlink API and service connectivity testing moved to test-connectivity-rutos.sh
-    printf "%b\n" "${BLUE}ℹ For detailed connectivity testing, run: test-connectivity-rutos.sh${NC}"
+    printf "%b
+" "${BLUE}ℹ For detailed connectivity testing, run: test-connectivity-rutos.sh${NC}"
 
     # Check RUTOS API if configured
     if [ -n "${RUTOS_IP:-}" ]; then
         if ! timeout 5 nc -z "$RUTOS_IP" 80 2>/dev/null; then
-            printf "%b\n" "${YELLOW}Warning: Cannot reach RUTOS API at $RUTOS_IP${NC}"
+            printf "%b
+" "${YELLOW}Warning: Cannot reach RUTOS API at $RUTOS_IP${NC}"
         else
-            printf "%b\n" "${GREEN}✓ RUTOS API reachable${NC}"
+            printf "%b
+" "${GREEN}✓ RUTOS API reachable${NC}"
         fi
     fi
 }
 
 # Check UCI configuration
 check_uci() {
-    printf "%b\n" "${GREEN}Checking UCI configuration...${NC}"
+    printf "%b
+" "${GREEN}Checking UCI configuration...${NC}"
 
     # Check mwan3 interface
     if ! uci -q get mwan3."$MWAN_MEMBER" >/dev/null 2>&1; then
-        printf "%b\n" "${YELLOW}Warning: mwan3 member '$MWAN_MEMBER' not found${NC}"
-        printf "%b\n" "${YELLOW}Please configure mwan3 according to the documentation${NC}"
+        printf "%b
+" "${YELLOW}Warning: mwan3 member '$MWAN_MEMBER' not found${NC}"
+        printf "%b
+" "${YELLOW}Please configure mwan3 according to the documentation${NC}"
     else
-        printf "%b\n" "${GREEN}✓ mwan3 member '$MWAN_MEMBER' found${NC}"
+        printf "%b
+" "${GREEN}✓ mwan3 member '$MWAN_MEMBER' found${NC}"
     fi
 
     # Check interface
     if ! uci -q get network."$MWAN_IFACE" >/dev/null 2>&1; then
-        printf "%b\n" "${YELLOW}Warning: Network interface '$MWAN_IFACE' not found${NC}"
+        printf "%b
+" "${YELLOW}Warning: Network interface '$MWAN_IFACE' not found${NC}"
     else
-        printf "%b\n" "${GREEN}✓ Network interface '$MWAN_IFACE' found${NC}"
+        printf "%b
+" "${GREEN}✓ Network interface '$MWAN_IFACE' found${NC}"
     fi
 }
 
 # Check directories
 check_directories() {
-    printf "%b\n" "${GREEN}Checking directories...${NC}"
+    printf "%b
+" "${GREEN}Checking directories...${NC}"
 
     # Create directories if they don't exist
     for dir in "$STATE_DIR" "$LOG_DIR" "$DATA_DIR"; do
         if [ ! -d "$dir" ]; then
-            printf "%b\n" "${YELLOW}Creating directory: $dir${NC}"
+            printf "%b
+" "${YELLOW}Creating directory: $dir${NC}"
             mkdir -p "$dir"
         fi
 
         if [ ! -w "$dir" ]; then
-            printf "%b\n" "${RED}Error: Directory not writable: $dir${NC}"
+            printf "%b
+" "${RED}Error: Directory not writable: $dir${NC}"
             exit 1
         fi
     done
 
-    printf "%b\n" "${GREEN}✓ All directories accessible${NC}"
+    printf "%b
+" "${GREEN}✓ All directories accessible${NC}"
 }
 
 # Check configuration values
 check_config_values() {
-    printf "%b\n" "${GREEN}Checking configuration values...${NC}"
+    printf "%b
+" "${GREEN}Checking configuration values...${NC}"
 
     # Check for placeholder values
     if [ "$PUSHOVER_TOKEN" = "YOUR_PUSHOVER_API_TOKEN" ]; then
-        printf "%b\n" "${YELLOW}Warning: Pushover token not configured${NC}"
+        printf "%b
+" "${YELLOW}Warning: Pushover token not configured${NC}"
     fi
 
     if [ "$PUSHOVER_USER" = "YOUR_PUSHOVER_USER_KEY" ]; then
-        printf "%b\n" "${YELLOW}Warning: Pushover user key not configured${NC}"
+        printf "%b
+" "${YELLOW}Warning: Pushover user key not configured${NC}"
     fi
 
     # Check threshold values
     if [ "$PACKET_LOSS_THRESHOLD" = "0" ] || [ "$OBSTRUCTION_THRESHOLD" = "0" ]; then
-        printf "%b\n" "${YELLOW}Warning: Zero thresholds may cause issues${NC}"
+        printf "%b
+" "${YELLOW}Warning: Zero thresholds may cause issues${NC}"
     fi
 
-    printf "%b\n" "${GREEN}✓ Configuration values checked${NC}"
+    printf "%b
+" "${GREEN}✓ Configuration values checked${NC}"
 }
 
 # Test Starlink API - MOVED TO test-connectivity-rutos.sh
 # This function has been moved to test-connectivity-rutos.sh for proper separation of concerns
 # Configuration validation should focus on config completeness, not service connectivity
 test_starlink_api() {
-    printf "%b\n" "${BLUE}ℹ Starlink API testing moved to test-connectivity-rutos.sh${NC}"
-    printf "%b\n" "${BLUE}  Run 'test-connectivity-rutos.sh' for comprehensive connectivity testing${NC}"
+    printf "%b
+" "${BLUE}ℹ Starlink API testing moved to test-connectivity-rutos.sh${NC}"
+    printf "%b
+" "${BLUE}  Run 'test-connectivity-rutos.sh' for comprehensive connectivity testing${NC}"
 }
 
 # Extract variable names from template
@@ -379,7 +444,8 @@ extract_config_variables() {
 
 # Compare configuration completeness
 check_config_completeness() {
-    printf "%b\n" "${GREEN}Checking configuration completeness...${NC}"
+    printf "%b
+" "${GREEN}Checking configuration completeness...${NC}"
 
     # Try to find template file
 
@@ -399,7 +465,8 @@ check_config_completeness() {
     fi
 
     # Determine configuration characteristics
-    printf "%b\n" "${BLUE}Analyzing configuration...${NC}"
+    printf "%b
+" "${BLUE}Analyzing configuration...${NC}"
 
     # Count variables in config (handle both export and non-export formats)
     config_var_count=$(grep -c "^export [A-Z_]*=" "$CONFIG_FILE" 2>/dev/null || printf "0")
@@ -427,26 +494,34 @@ check_config_completeness() {
     if [ -n "$unified_template" ]; then
         template_file="$unified_template"
         if [ "$has_enhanced_features" -eq 1 ]; then
-            printf "%b\n" "${GREEN}Detected configuration with enhanced features (${config_var_count} variables)${NC}"
+            printf "%b
+" "${GREEN}Detected configuration with enhanced features (${config_var_count} variables)${NC}"
         else
-            printf "%b\n" "${GREEN}Detected basic configuration (${config_var_count} variables)${NC}"
+            printf "%b
+" "${GREEN}Detected basic configuration (${config_var_count} variables)${NC}"
         fi
     else
-        printf "%b\n" "${YELLOW}Warning: Could not find config.template.sh for comparison${NC}"
-        printf "%b\n" "${YELLOW}Searched in: $config_dir/, $config_dir/../config/, /root/starlink-monitor/config/, /usr/local/starlink-monitor/config/${NC}"
+        printf "%b
+" "${YELLOW}Warning: Could not find config.template.sh for comparison${NC}"
+        printf "%b
+" "${YELLOW}Searched in: $config_dir/, $config_dir/../config/, /root/starlink-monitor/config/, /usr/local/starlink-monitor/config/${NC}"
         return 0
     fi
 
-    printf "%b\n" "${GREEN}Comparing against template: $template_file${NC}"
+    printf "%b
+" "${GREEN}Comparing against template: $template_file${NC}"
 
     # Check if config uses outdated template format
     debug_msg "Starting template format check"
     if check_outdated_template; then
         debug_msg "Template check result: OUTDATED"
-        printf "%b\n" "${YELLOW}⚠ Configuration appears to use outdated template format${NC}"
+        printf "%b
+" "${YELLOW}⚠ Configuration appears to use outdated template format${NC}"
         if offer_template_migration "$template_file"; then
-            printf "%b\n" "${GREEN}✓ Configuration migrated to current template${NC}"
-            printf "%b\n" "${BLUE}Re-run validation to verify the updated configuration${NC}"
+            printf "%b
+" "${GREEN}✓ Configuration migrated to current template${NC}"
+            printf "%b
+" "${BLUE}Re-run validation to verify the updated configuration${NC}"
             return 0
         fi
     fi
@@ -457,12 +532,14 @@ check_config_completeness() {
     temp_config="/tmp/config_vars.$$"
 
     if ! extract_template_variables "$template_file" >"$temp_template"; then
-        printf "%b\n" "${RED}Error: Could not extract template variables${NC}"
+        printf "%b
+" "${RED}Error: Could not extract template variables${NC}"
         return 1
     fi
 
     if ! extract_config_variables "$CONFIG_FILE" >"$temp_config"; then
-        printf "%b\n" "${RED}Error: Could not extract config variables${NC}"
+        printf "%b
+" "${RED}Error: Could not extract config variables${NC}"
         return 1
     fi
 
@@ -618,23 +695,28 @@ check_placeholder_values() {
 
 # Validate configuration file format and common issues
 validate_config_format() {
-    printf "%b\n" "${GREEN}Validating configuration file format...${NC}"
+    printf "%b
+" "${GREEN}Validating configuration file format...${NC}"
 
     format_errors=0
 
     # Check for common syntax issues in the configuration file
-    printf "%b\n" "${BLUE}Checking for common configuration format issues...${NC}"
+    printf "%b
+" "${BLUE}Checking for common configuration format issues...${NC}"
 
     # Check for missing quotes on export lines
     unquoted_exports=$(grep -n '^[[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*=[^"'"'"'].*[[:space:]]' "$CONFIG_FILE" 2>/dev/null || true)
     if [ -n "$unquoted_exports" ]; then
-        printf "%b\n" "${RED}⚠️  Found potentially unquoted values (may cause issues):${NC}"
+        printf "%b
+" "${RED}⚠️  Found potentially unquoted values (may cause issues):${NC}"
         echo "$unquoted_exports" | while IFS= read -r line; do
             line_num=$(echo "$line" | cut -d: -f1)
             content=$(echo "$line" | cut -d: -f2-)
-            printf "%b\n" "${RED}   Line $line_num: $content${NC}"
+            printf "%b
+" "${RED}   Line $line_num: $content${NC}"
         done
-        printf "%b\n" "${YELLOW}   Recommendation: Enclose values in double quotes${NC}"
+        printf "%b
+" "${YELLOW}   Recommendation: Enclose values in double quotes${NC}"
         format_errors=$((format_errors + 1))
     fi
 
@@ -649,48 +731,60 @@ validate_config_format() {
     # Current issue: patterns match valid lines like export VAR="value"
 
     if [ -n "$unmatched_quotes" ] || [ -n "$quotes_in_comments" ] || [ -n "$trailing_spaces" ] || [ -n "$stray_quote_comments" ]; then
-        printf "%b\n" "${RED}❌ Found lines with quote formatting issues:${NC}"
+        printf "%b
+" "${RED}❌ Found lines with quote formatting issues:${NC}"
 
         if [ -n "$unmatched_quotes" ]; then
-            printf "%b\n" "${RED}   Missing closing quotes:${NC}"
+            printf "%b
+" "${RED}   Missing closing quotes:${NC}"
             echo "$unmatched_quotes" | while IFS= read -r line; do
                 line_num=$(echo "$line" | cut -d: -f1)
                 content=$(echo "$line" | cut -d: -f2-)
-                printf "%b\n" "${RED}     Line $line_num: $content${NC}"
+                printf "%b
+" "${RED}     Line $line_num: $content${NC}"
             done
         fi
 
         if [ -n "$quotes_in_comments" ]; then
-            printf "%b\n" "${RED}   Quotes incorrectly positioned in comments:${NC}"
+            printf "%b
+" "${RED}   Quotes incorrectly positioned in comments:${NC}"
             echo "$quotes_in_comments" | while IFS= read -r line; do
                 line_num=$(echo "$line" | cut -d: -f1)
                 content=$(echo "$line" | cut -d: -f2-)
-                printf "%b\n" "${RED}     Line $line_num: $content${NC}"
-                printf "%b\n" "${YELLOW}     Should be: $(echo "$content" | sed 's/="\([^#]*\)#\(.*\)"/="\1" #\2/')"
+                printf "%b
+" "${RED}     Line $line_num: $content${NC}"
+                printf "%b
+" "${YELLOW}     Should be: $(echo "$content" | sed 's/="\([^#]*\)#\(.*\)"/="" #/')"
             done
         fi
 
         if [ -n "$trailing_spaces" ]; then
-            printf "%b\n" "${RED}   Trailing spaces within quoted values:${NC}"
+            printf "%b
+" "${RED}   Trailing spaces within quoted values:${NC}"
             echo "$trailing_spaces" | while IFS= read -r line; do
                 line_num=$(echo "$line" | cut -d: -f1)
                 content=$(echo "$line" | cut -d: -f2-)
-                printf "%b\n" "${RED}     Line $line_num: $content${NC}"
+                printf "%b
+" "${RED}     Line $line_num: $content${NC}"
                 # Show what it should look like by removing trailing spaces
-                fixed_content=$(echo "$content" | sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*[^[:space:]]\)[[:space:]]*"/\1\2"/')
-                printf "%b\n" "${YELLOW}     Should be: $fixed_content${NC}"
+                fixed_content=$(echo "$content" | sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*[^[:space:]]\)[[:space:]]*"/"/')
+                printf "%b
+" "${YELLOW}     Should be: $fixed_content${NC}"
             done
         fi
 
         if [ -n "$stray_quote_comments" ]; then
-            printf "%b\n" "${RED}   Stray quotes at end of comments:${NC}"
+            printf "%b
+" "${RED}   Stray quotes at end of comments:${NC}"
             echo "$stray_quote_comments" | while IFS= read -r line; do
                 line_num=$(echo "$line" | cut -d: -f1)
                 content=$(echo "$line" | cut -d: -f2-)
-                printf "%b\n" "${RED}     Line $line_num: $content${NC}"
+                printf "%b
+" "${RED}     Line $line_num: $content${NC}"
                 # Show what it should look like by removing the trailing quote from comment
                 fixed_content=$(echo "$content" | sed 's/"[[:space:]]*$//')
-                printf "%b\n" "${YELLOW}     Should be: $fixed_content${NC}"
+                printf "%b
+" "${YELLOW}     Should be: $fixed_content${NC}"
             done
         fi
 
@@ -706,11 +800,13 @@ validate_config_format() {
     # export STARLINK_IP="192.168.100.1" (this is VALID, not malformed)
     # export STARLINK_PORT="9200" (this is VALID, not malformed)
     if [ -n "$malformed_exports" ]; then
-        printf "%b\n" "${RED}❌ Found malformed export statements:${NC}"
+        printf "%b
+" "${RED}❌ Found malformed export statements:${NC}"
         echo "$malformed_exports" | while IFS= read -r line; do
             line_num=$(echo "$line" | cut -d: -f1)
             content=$(echo "$line" | cut -d: -f2-)
-            printf "%b\n" "${RED}   Line $line_num: $content${NC}"
+            printf "%b
+" "${RED}   Line $line_num: $content${NC}"
         done
         format_errors=$((format_errors + 1))
     fi
@@ -718,20 +814,26 @@ validate_config_format() {
     # Check for lines that look like exports but are missing the export keyword
     missing_export=$(grep -n '^[[:space:]]*[A-Z_][A-Z0-9_]*=' "$CONFIG_FILE" | grep -v '^[[:space:]]*export' 2>/dev/null || true)
     if [ -n "$missing_export" ]; then
-        printf "%b\n" "${YELLOW}⚠️  Found variable assignments without 'export' keyword:${NC}"
+        printf "%b
+" "${YELLOW}⚠️  Found variable assignments without 'export' keyword:${NC}"
         echo "$missing_export" | while IFS= read -r line; do
             line_num=$(echo "$line" | cut -d: -f1)
             content=$(echo "$line" | cut -d: -f2-)
-            printf "%b\n" "${YELLOW}   Line $line_num: $content${NC}"
+            printf "%b
+" "${YELLOW}   Line $line_num: $content${NC}"
         done
-        printf "%b\n" "${YELLOW}   These variables may not be available to other scripts${NC}"
+        printf "%b
+" "${YELLOW}   These variables may not be available to other scripts${NC}"
     fi
 
     if [ "$format_errors" -eq 0 ]; then
-        printf "%b\n" "${GREEN}✅ Configuration format validation passed${NC}"
+        printf "%b
+" "${GREEN}✅ Configuration format validation passed${NC}"
     else
-        printf "%b\n" "${RED}❌ Found $format_errors configuration format issues${NC}"
-        printf "%b\n" "${RED}   These issues may prevent proper script operation${NC}"
+        printf "%b
+" "${RED}❌ Found $format_errors configuration format issues${NC}"
+        printf "%b
+" "${RED}   These issues may prevent proper script operation${NC}"
     fi
 
     return "$format_errors"
@@ -739,7 +841,8 @@ validate_config_format() {
 
 # Validate configuration value ranges and formats
 validate_config_values() {
-    printf "%b\n" "${GREEN}Validating configuration values...${NC}"
+    printf "%b
+" "${GREEN}Validating configuration values...${NC}"
 
     validation_errors=0
 
@@ -750,7 +853,8 @@ validate_config_values() {
         value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
         # Accept decimal, integer, and scientific notation
         if [ -n "$value" ] && ! printf "%s" "$value" | grep -Eq '^[0-9]+([.][0-9]+)?([eE][-+]?[0-9]+)?$'; then
-            printf "%b\n" "${RED}✗ Invalid numeric value for $var: $value${NC}"
+            printf "%b
+" "${RED}✗ Invalid numeric value for $var: $value${NC}"
             validation_errors=$((validation_errors + 1))
         fi
     done
@@ -762,7 +866,8 @@ validate_config_values() {
         value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
         # Only accept 0 or 1
         if [ -n "$value" ] && [ "$value" != "0" ] && [ "$value" != "1" ]; then
-            printf "%b\n" "${RED}✗ Invalid boolean value for $var: $value (should be 0 or 1)${NC}"
+            printf "%b
+" "${RED}✗ Invalid boolean value for $var: $value (should be 0 or 1)${NC}"
             validation_errors=$((validation_errors + 1))
         fi
     done
@@ -776,7 +881,8 @@ validate_config_values() {
             # Extract IP part (remove port if present)
             ip_part=$(printf "%s" "$value" | cut -d':' -f1)
             if ! printf "%s" "$ip_part" | grep -Eq '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
-                printf "%b\n" "${RED}✗ Invalid IP address format for $var: $value${NC}"
+                printf "%b
+" "${RED}✗ Invalid IP address format for $var: $value${NC}"
                 validation_errors=$((validation_errors + 1))
             fi
         fi
@@ -788,15 +894,19 @@ validate_config_values() {
     for var in $path_vars; do
         value=$(grep "^$var=" "$CONFIG_FILE" 2>/dev/null | cut -d'=' -f2- | sed 's/[[:space:]]*#.*$//' | tr -d '"' | tr -d "'" | tr -d ' ')
         if [ -n "$value" ] && [ ! -d "$value" ]; then
-            printf "%b\n" "${YELLOW}⚠ Directory does not exist for $var: $value${NC}"
-            printf "%b\n" "${YELLOW}  (Will be created automatically)${NC}"
+            printf "%b
+" "${YELLOW}⚠ Directory does not exist for $var: $value${NC}"
+            printf "%b
+" "${YELLOW}  (Will be created automatically)${NC}"
         fi
     done
 
     if [ "$validation_errors" -eq 0 ]; then
-        printf "%b\n" "${GREEN}✓ Configuration values are valid${NC}"
+        printf "%b
+" "${GREEN}✓ Configuration values are valid${NC}"
     else
-        printf "%b\n" "${RED}Found $validation_errors validation errors${NC}"
+        printf "%b
+" "${RED}Found $validation_errors validation errors${NC}"
     fi
     return "$validation_errors"
 }
@@ -808,22 +918,28 @@ migrate_config_to_template() {
     config_backup="${CONFIG_FILE}.${backup_suffix}"
 
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${YELLOW}[MIGRATE] Migrating configuration to updated template...${NC}\n"
+    printf "${YELLOW}[MIGRATE] Migrating configuration to updated template...${NC}
+"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}Template: %s${NC}\n" "$template_file"
+    printf "${BLUE}Template: %s${NC}
+" "$template_file"
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}Config: %s${NC}\n" "$CONFIG_FILE"
+    printf "${BLUE}Config: %s${NC}
+" "$CONFIG_FILE"
 
     # Create backup of current config
     if ! cp "$CONFIG_FILE" "$config_backup"; then
-        printf "%b\n" "${RED}Error: Failed to create backup${NC}"
+        printf "%b
+" "${RED}Error: Failed to create backup${NC}"
         return 1
     fi
-    printf "%b\n" "${GREEN}✓ Backup created: $config_backup${NC}"
+    printf "%b
+" "${GREEN}✓ Backup created: $config_backup${NC}"
 
     # Extract current values from existing config
     temp_values="/tmp/config_values_$$"
-    printf "%b\n" "${BLUE}Extracting current configuration values...${NC}"
+    printf "%b
+" "${BLUE}Extracting current configuration values...${NC}"
 
     # Extract variable assignments, strip comments and quotes
     grep -E '^[A-Z_]+=.*' "$CONFIG_FILE" | while IFS='=' read -r var rest; do
@@ -833,7 +949,8 @@ migrate_config_to_template() {
     done >"$temp_values"
 
     # Start with fresh template
-    printf "%b\n" "${BLUE}Creating new configuration from template...${NC}"
+    printf "%b
+" "${BLUE}Creating new configuration from template...${NC}"
     cp "$template_file" "$CONFIG_FILE"
 
     # Apply user values to template
@@ -843,9 +960,11 @@ migrate_config_to_template() {
             # Update the variable in the template, preserving structure
             if sed -i "s|^${var}=.*|${var}=\"${value}\"|" "$CONFIG_FILE" 2>/dev/null; then
                 updated_count=$((updated_count + 1))
-                printf "%b\n" "${GREEN}  ✓ Updated: $var${NC}"
+                printf "%b
+" "${GREEN}  ✓ Updated: $var${NC}"
             else
-                printf "%b\n" "${YELLOW}  ⚠ Could not update: $var${NC}"
+                printf "%b
+" "${YELLOW}  ⚠ Could not update: $var${NC}"
             fi
         fi
     done <"$temp_values"
@@ -853,11 +972,16 @@ migrate_config_to_template() {
     # Cleanup
     rm -f "$temp_values"
 
-    printf "%b\n" "${GREEN}✓ Migration completed!${NC}"
-    printf "%b\n" "${GREEN}  Updated $updated_count configuration values${NC}"
-    printf "%b\n" "${GREEN}  New config has latest template structure and descriptions${NC}"
-    printf "%b\n" "${YELLOW}  Review: $CONFIG_FILE${NC}"
-    printf "%b\n" "${YELLOW}  Backup: $config_backup${NC}"
+    printf "%b
+" "${GREEN}✓ Migration completed!${NC}"
+    printf "%b
+" "${GREEN}  Updated $updated_count configuration values${NC}"
+    printf "%b
+" "${GREEN}  New config has latest template structure and descriptions${NC}"
+    printf "%b
+" "${YELLOW}  Review: $CONFIG_FILE${NC}"
+    printf "%b
+" "${YELLOW}  Backup: $config_backup${NC}"
 
     return 0
 }
@@ -866,15 +990,24 @@ migrate_config_to_template() {
 offer_template_migration() {
     template_file="$1"
 
-    printf "%b\n" "${YELLOW}⚠ Configuration appears to be using an older template format${NC}"
-    printf "%b\n" "${YELLOW}  Issues found: ShellCheck comments, missing descriptions${NC}"
-    printf "%b\n" "${BLUE}Available solution: Migrate to current template${NC}"
-    printf "%b\n" "${BLUE}  • Preserves all your current settings${NC}"
-    printf "%b\n" "${BLUE}  • Updates to latest template structure${NC}"
-    printf "%b\n" "${BLUE}  • Adds proper descriptions and help text${NC}"
-    printf "%b\n" "${BLUE}  • Removes technical ShellCheck comments${NC}"
-    printf "%b\n" "${BLUE}  • Creates backup of current config${NC}"
-    printf "%b\n" ""
+    printf "%b
+" "${YELLOW}⚠ Configuration appears to be using an older template format${NC}"
+    printf "%b
+" "${YELLOW}  Issues found: ShellCheck comments, missing descriptions${NC}"
+    printf "%b
+" "${BLUE}Available solution: Migrate to current template${NC}"
+    printf "%b
+" "${BLUE}  • Preserves all your current settings${NC}"
+    printf "%b
+" "${BLUE}  • Updates to latest template structure${NC}"
+    printf "%b
+" "${BLUE}  • Adds proper descriptions and help text${NC}"
+    printf "%b
+" "${BLUE}  • Removes technical ShellCheck comments${NC}"
+    printf "%b
+" "${BLUE}  • Creates backup of current config${NC}"
+    printf "%b
+" ""
     printf "%b" "${YELLOW}Migrate configuration to current template? (y/N): ${NC}"
     read -r answer
 
@@ -882,7 +1015,8 @@ offer_template_migration() {
         migrate_config_to_template "$template_file"
         return 0
     else
-        printf "%b\n" "${YELLOW}Skipping migration. Consider running update-config.sh later.${NC}"
+        printf "%b
+" "${YELLOW}Skipping migration. Consider running update-config.sh later.${NC}"
         return 1
     fi
 }
@@ -1015,20 +1149,24 @@ show_overall_status() {
 repair_config_quotes() {
     config_file="$1"
 
-    printf "%b\n" "${BLUE}Attempting to repair quote formatting issues...${NC}"
+    printf "%b
+" "${BLUE}Attempting to repair quote formatting issues...${NC}"
 
     # Create backup only if not skipped (when called from install script that already created backup)
     backup_file=""
     if [ "${SKIP_BACKUP:-0}" != "1" ]; then
         backup_file="${config_file}.backup-$(date +%Y%m%d-%H%M%S)"
         if cp "$config_file" "$backup_file"; then
-            printf "%b\n" "${GREEN}✅ Created backup: $backup_file${NC}"
+            printf "%b
+" "${GREEN}✅ Created backup: $backup_file${NC}"
         else
-            printf "%b\n" "${RED}❌ Failed to create backup. Aborting repair.${NC}"
+            printf "%b
+" "${RED}❌ Failed to create backup. Aborting repair.${NC}"
             return 1
         fi
     else
-        printf "%b\n" "${CYAN}ℹ  Skipping backup creation (already handled by caller)${NC}"
+        printf "%b
+" "${CYAN}ℹ  Skipping backup creation (already handled by caller)${NC}"
     fi
 
     # Fix quotes incorrectly positioned in comments, trailing spaces in quoted values, and stray quotes at end of comments
@@ -1040,13 +1178,13 @@ repair_config_quotes() {
     temp_file3=$(mktemp)
 
     # First pass: Fix quote positioning
-    if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*\)\(#.*\)"/\1\2" \3/' "$config_file" >"$temp_file"; then
+    if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*\)\(#.*\)"/" /' "$config_file" >"$temp_file"; then
 
         # Second pass: Remove trailing spaces within quotes - Fixed pattern
-        if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*\)[[:space:]]*"/\1\2"/' "$temp_file" >"$temp_file2"; then
+        if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="\)\([^"]*\)[[:space:]]*"/"/' "$temp_file" >"$temp_file2"; then
 
             # Third pass: Remove stray quotes at end of comments
-            if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="[^"]*"[[:space:]]*#.*\)"[[:space:]]*$/\1/' "$temp_file2" >"$temp_file3"; then
+            if sed 's/^\([[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*="[^"]*"[[:space:]]*#.*\)"[[:space:]]*$//' "$temp_file2" >"$temp_file3"; then
 
                 # Check if any changes were made in any pass
                 if ! cmp -s "$config_file" "$temp_file3"; then
@@ -1071,46 +1209,56 @@ repair_config_quotes() {
                         fi
                     fi
 
-                    printf "%b\n" "${GREEN}✅ Fixed $changes_made${NC}"
+                    printf "%b
+" "${GREEN}✅ Fixed $changes_made${NC}"
 
                     # Count and show what was changed
-                    printf "%b\n" "${CYAN}Changes made:${NC}"
+                    printf "%b
+" "${CYAN}Changes made:${NC}"
                     if command -v diff >/dev/null 2>&1; then
                         diff -u "$config_file" "$temp_file3" | grep -E "^[\+\-]export" | head -10 || true
                     else
                         # Alternative: count the fixes made
                         fix_count=$(grep -c "^export.*=" "$temp_file3" 2>/dev/null || echo "unknown")
-                        printf "%b\n" "${YELLOW}Quote formatting fixes applied to configuration${NC}"
-                        printf "%b\n" "${CYAN}Total export statements processed: $fix_count${NC}"
+                        printf "%b
+" "${YELLOW}Quote formatting fixes applied to configuration${NC}"
+                        printf "%b
+" "${CYAN}Total export statements processed: $fix_count${NC}"
                     fi
 
                     # Apply the changes
                     mv "$temp_file3" "$config_file"
                     rm -f "$temp_file" "$temp_file2" 2>/dev/null || true
 
-                    printf "%b\n" "${GREEN}✅ Configuration file repaired successfully${NC}"
+                    printf "%b
+" "${GREEN}✅ Configuration file repaired successfully${NC}"
                     if [ -n "$backup_file" ]; then
-                        printf "%b\n" "${YELLOW}💡 Backup saved as: $backup_file${NC}"
+                        printf "%b
+" "${YELLOW}💡 Backup saved as: $backup_file${NC}"
                     fi
 
                     return 0
                 else
-                    printf "%b\n" "${BLUE}ℹ️  No quote formatting issues found to repair${NC}"
+                    printf "%b
+" "${BLUE}ℹ️  No quote formatting issues found to repair${NC}"
                     rm -f "$temp_file" "$temp_file2" "$temp_file3" 2>/dev/null || true
                     return 0
                 fi
             else
-                printf "%b\n" "${RED}❌ Failed to process configuration file (third pass)${NC}"
+                printf "%b
+" "${RED}❌ Failed to process configuration file (third pass)${NC}"
                 rm -f "$temp_file" "$temp_file2" "$temp_file3" 2>/dev/null || true
                 return 1
             fi
         else
-            printf "%b\n" "${RED}❌ Failed to process configuration file (second pass)${NC}"
+            printf "%b
+" "${RED}❌ Failed to process configuration file (second pass)${NC}"
             rm -f "$temp_file" "$temp_file2" "$temp_file3" 2>/dev/null || true
             return 1
         fi
     else
-        printf "%b\n" "${RED}❌ Failed to process configuration file (first pass)${NC}"
+        printf "%b
+" "${RED}❌ Failed to process configuration file (first pass)${NC}"
         rm -f "$temp_file" "$temp_file2" "$temp_file3" 2>/dev/null || true
         return 1
     fi
@@ -1143,22 +1291,27 @@ main() {
 
     # Handle repair mode option
     if [ "$REPAIR_MODE" = "true" ]; then
-        printf "%b\n" "${YELLOW}Repair mode enabled - attempting to fix configuration format issues${NC}"
+        printf "%b
+" "${YELLOW}Repair mode enabled - attempting to fix configuration format issues${NC}"
         echo ""
 
         if repair_config_quotes "$CONFIG_FILE"; then
-            printf "%b\n" "${GREEN}✅ Configuration repair completed successfully${NC}"
-            printf "%b\n" "${BLUE}💡 Please re-run validation to verify the fixes${NC}"
+            printf "%b
+" "${GREEN}✅ Configuration repair completed successfully${NC}"
+            printf "%b
+" "${BLUE}💡 Please re-run validation to verify the fixes${NC}"
             exit 0
         else
-            printf "%b\n" "${RED}❌ Configuration repair failed${NC}"
+            printf "%b
+" "${RED}❌ Configuration repair failed${NC}"
             exit 1
         fi
     fi
 
     # Handle force migration option
     if [ "$FORCE_MIGRATION" = "true" ]; then
-        printf "%b\n" "${YELLOW}Force migration mode enabled${NC}"
+        printf "%b
+" "${YELLOW}Force migration mode enabled${NC}"
         if check_outdated_template; then
             # Find template file
             template_file="$(dirname "$CONFIG_FILE")/../config/config.template.sh"
@@ -1166,14 +1319,17 @@ main() {
                 template_file="./config/config.template.sh"
             fi
             if [ ! -f "$template_file" ]; then
-                printf "%b\n" "${RED}Error: Cannot find template file${NC}"
+                printf "%b
+" "${RED}Error: Cannot find template file${NC}"
                 exit 1
             fi
             migrate_config_to_template "$template_file"
-            printf "%b\n" "${GREEN}Migration completed. Please re-run validation.${NC}"
+            printf "%b
+" "${GREEN}Migration completed. Please re-run validation.${NC}"
             exit 0
         else
-            printf "%b\n" "${GREEN}Configuration template is already current.${NC}"
+            printf "%b
+" "${GREEN}Configuration template is already current.${NC}"
             exit 0
         fi
     fi
@@ -1290,7 +1446,8 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         -*)
-            printf "%b\n" "${RED}Unknown option: $1${NC}" >&2
+            printf "%b
+" "${RED}Unknown option: $1${NC}" >&2
             show_usage >&2
             exit 1
             ;;
@@ -1307,16 +1464,21 @@ if [ "$QUIET_MODE" = "1" ]; then
     print_status() {
         # In quiet mode, only output errors to stderr
         if [ "$1" = "$RED" ]; then
-            printf "%b\n" "$2" >&2
+            printf "%b
+" "$2" >&2
         fi
     }
     debug_msg() {
         # Suppress debug messages in quiet mode unless DEBUG=1
         if [ "${DEBUG:-0}" = "1" ]; then
-            printf "[DEBUG] %s\n" "$1" >&2
+            printf "[DEBUG] %s
+" "$1" >&2
         fi
     }
 fi
 
 # Run main function
 main
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

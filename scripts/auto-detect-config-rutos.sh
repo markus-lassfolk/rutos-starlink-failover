@@ -10,16 +10,13 @@
 set -e # Exit on error
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Standard colors for consistent output (compatible with busybox)
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[1;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+RED='[0;31m'
+GREEN='[0;32m'
+YELLOW='[1;33m'
+BLUE='[1;35m'
+CYAN='[0;36m'
+NC='[0m' # No Color
 
 # Check if we're in a terminal that supports colors
 if [ ! -t 1 ] || [ "${TERM:-}" = "dumb" ] || [ "${NO_COLOR:-}" = "1" ]; then
@@ -34,34 +31,40 @@ fi
 # Standard logging functions with consistent colors
 log_info() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${GREEN}[INFO]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[INFO]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_warning() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_error() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
 }
 
 log_debug() {
     if [ "$DEBUG" = "1" ]; then
         # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-        printf "${CYAN}[DEBUG]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        printf "${CYAN}[DEBUG]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
     fi
 }
 
 log_success() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${GREEN}[SUCCESS]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${GREEN}[SUCCESS]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 log_step() {
     # shellcheck disable=SC2059  # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
 }
 
 # Dry-run and test mode support
@@ -155,9 +158,12 @@ detect_starlink_config() {
 
     # Export results
     if [ -n "$starlink_member" ] && [ -n "$starlink_interface" ]; then
-        printf "DETECTED_MWAN_MEMBER=\"%s\"\n" "$starlink_member"
-        printf "DETECTED_MWAN_INTERFACE=\"%s\"\n" "$starlink_interface"
-        printf "DETECTED_STARLINK_METRIC=\"%s\"\n" "$starlink_metric"
+        printf "DETECTED_MWAN_MEMBER=\"%s\"
+" "$starlink_member"
+        printf "DETECTED_MWAN_INTERFACE=\"%s\"
+" "$starlink_interface"
+        printf "DETECTED_STARLINK_METRIC=\"%s\"
+" "$starlink_metric"
 
         # Also detect the specific metric values for failover
         good_metric="$starlink_metric"
@@ -180,8 +186,10 @@ detect_starlink_config() {
             log_debug "Calculated bad metric: $bad_metric (highest backup: $highest_backup_metric)"
         fi
 
-        printf "DETECTED_METRIC_GOOD=\"%s\"\n" "$good_metric"
-        printf "DETECTED_METRIC_BAD=\"%s\"\n" "$bad_metric"
+        printf "DETECTED_METRIC_GOOD=\"%s\"
+" "$good_metric"
+        printf "DETECTED_METRIC_BAD=\"%s\"
+" "$bad_metric"
 
         return 0
     else
@@ -197,7 +205,8 @@ detect_and_configure_mwan3() {
     # Check if MWAN3 is installed
     if ! uci show mwan3 >/dev/null 2>&1; then
         log_warning "⚠ MWAN3 not found or not installed"
-        printf "MWAN3_NEEDS_INSTALL=\"true\"\n"
+        printf "MWAN3_NEEDS_INSTALL=\"true\"
+"
         return 1
     fi
 
@@ -217,16 +226,19 @@ detect_and_configure_mwan3() {
         log_info "✓ MWAN3 is already configured (interfaces: $configured_interfaces, members: $configured_members, policies: $configured_policies)"
     fi
 
-    printf "MWAN3_CONFIGURED=\"%s\"\n" "$needs_basic_config"
+    printf "MWAN3_CONFIGURED=\"%s\"
+" "$needs_basic_config"
 
     # If MWAN3 needs configuration, offer to set it up
     if [ "$needs_basic_config" = "true" ]; then
-        printf "MWAN3_NEEDS_SETUP=\"true\"\n"
+        printf "MWAN3_NEEDS_SETUP=\"true\"
+"
 
         # Detect available network interfaces for MWAN3 setup
         detect_available_interfaces_for_mwan3
     else
-        printf "MWAN3_NEEDS_SETUP=\"false\"\n"
+        printf "MWAN3_NEEDS_SETUP=\"false\"
+"
     fi
 
     return 0
@@ -281,9 +293,12 @@ detect_available_interfaces_for_mwan3() {
 
     # Export results
     if [ -n "$primary_interface" ]; then
-        printf "DETECTED_PRIMARY_INTERFACE=\"%s\"\n" "$primary_interface"
-        printf "DETECTED_BACKUP_INTERFACES=\"%s\"\n" "$backup_interfaces"
-        printf "DETECTED_INTERFACE_COUNT=\"%s\"\n" "$interface_count"
+        printf "DETECTED_PRIMARY_INTERFACE=\"%s\"
+" "$primary_interface"
+        printf "DETECTED_BACKUP_INTERFACES=\"%s\"
+" "$backup_interfaces"
+        printf "DETECTED_INTERFACE_COUNT=\"%s\"
+" "$interface_count"
 
         # Generate MWAN3 configuration suggestions
         generate_mwan3_config_suggestions
@@ -388,7 +403,8 @@ uci commit mwan3
 "
 
     # Export complete configuration script
-    printf "MWAN3_CONFIG_SCRIPT=\"%s%s%s\"\n" "$mwan3_interfaces" "$mwan3_members" "$mwan3_policy"
+    printf "MWAN3_CONFIG_SCRIPT=\"%s%s%s\"
+" "$mwan3_interfaces" "$mwan3_members" "$mwan3_policy"
 
     log_success "✓ Generated MWAN3 configuration for $interface_count interfaces"
     log_info "  Primary: $primary_interface (member1, metric=1)"
@@ -431,8 +447,10 @@ detect_backup_interfaces() {
     done
 
     if [ "$backup_count" -gt 0 ]; then
-        printf "DETECTED_BACKUP_MEMBERS=\"%s\"\n" "$backup_members"
-        printf "DETECTED_BACKUP_COUNT=\"%s\"\n" "$backup_count"
+        printf "DETECTED_BACKUP_MEMBERS=\"%s\"
+" "$backup_members"
+        printf "DETECTED_BACKUP_COUNT=\"%s\"
+" "$backup_count"
         return 0
     else
         log_warning "⚠ No cellular backup interfaces detected"
@@ -475,13 +493,17 @@ detect_starlink_endpoint() {
         # Split endpoint into IP and port
         ip=$(echo "$detected_endpoint" | cut -d':' -f1)
         port=$(echo "$detected_endpoint" | cut -d':' -f2)
-        printf "DETECTED_STARLINK_IP=\"%s\"\n" "$ip"
-        printf "DETECTED_STARLINK_PORT=\"%s\"\n" "$port"
+        printf "DETECTED_STARLINK_IP=\"%s\"
+" "$ip"
+        printf "DETECTED_STARLINK_PORT=\"%s\"
+" "$port"
         return 0
     else
         log_warning "⚠ Could not detect Starlink gRPC endpoint, using defaults: IP=192.168.100.1, PORT=9200"
-        printf "DETECTED_STARLINK_IP=\"192.168.100.1\"\n"
-        printf "DETECTED_STARLINK_PORT=\"9200\"\n"
+        printf "DETECTED_STARLINK_IP=\"192.168.100.1\"
+"
+        printf "DETECTED_STARLINK_PORT=\"9200\"
+"
         return 1
     fi
 }
@@ -520,9 +542,12 @@ detect_optimal_intervals() {
         log_info "✓ Resource-constrained system detected - using conservative monitoring (120s intervals)"
     fi
 
-    printf "DETECTED_CHECK_INTERVAL=\"%s\"\n" "$check_interval"
-    printf "DETECTED_FAILURE_THRESHOLD=\"%s\"\n" "$failure_threshold"
-    printf "DETECTED_RECOVERY_THRESHOLD=\"%s\"\n" "$recovery_threshold"
+    printf "DETECTED_CHECK_INTERVAL=\"%s\"
+" "$check_interval"
+    printf "DETECTED_FAILURE_THRESHOLD=\"%s\"
+" "$failure_threshold"
+    printf "DETECTED_RECOVERY_THRESHOLD=\"%s\"
+" "$recovery_threshold"
 
     return 0
 }
@@ -552,9 +577,12 @@ detect_notification_capabilities() {
     internet_notifications="true"
     log_info "✓ Internet-based notifications available (Pushover, Slack, Discord)"
 
-    printf "DETECTED_SMS_CAPABLE=\"%s\"\n" "$sms_capable"
-    printf "DETECTED_EMAIL_CAPABLE=\"%s\"\n" "$email_capable"
-    printf "DETECTED_INTERNET_NOTIFICATIONS=\"%s\"\n" "$internet_notifications"
+    printf "DETECTED_SMS_CAPABLE=\"%s\"
+" "$sms_capable"
+    printf "DETECTED_EMAIL_CAPABLE=\"%s\"
+" "$email_capable"
+    printf "DETECTED_INTERNET_NOTIFICATIONS=\"%s\"
+" "$internet_notifications"
 
     return 0
 }
@@ -602,22 +630,41 @@ main() {
 
     # Show MWAN3 configuration notice if needed
     if [ "${MWAN3_NEEDS_SETUP:-false}" = "true" ]; then
-        printf "\n${YELLOW}${BLUE}=========================================${NC}\n"
-        printf "${YELLOW}🔧 MWAN3 AUTO-CONFIGURATION AVAILABLE${NC}\n"
-        printf "${YELLOW}${BLUE}=========================================${NC}\n"
-        printf "MWAN3 needs configuration. To auto-configure:\n"
-        printf "1. Review the generated MWAN3_CONFIG_SCRIPT above\n"
-        printf "2. Run the commands to set up automatic failover\n"
-        printf "3. Restart network services: ${CYAN}/etc/init.d/network restart${NC}\n"
-        printf "4. Restart MWAN3 service: ${CYAN}/etc/init.d/mwan3 restart${NC}\n"
-        printf "${YELLOW}${BLUE}=========================================${NC}\n"
+        printf "
+${YELLOW}${BLUE}=========================================${NC}
+"
+        printf "${YELLOW}🔧 MWAN3 AUTO-CONFIGURATION AVAILABLE${NC}
+"
+        printf "${YELLOW}${BLUE}=========================================${NC}
+"
+        printf "MWAN3 needs configuration. To auto-configure:
+"
+        printf "1. Review the generated MWAN3_CONFIG_SCRIPT above
+"
+        printf "2. Run the commands to set up automatic failover
+"
+        printf "3. Restart network services: ${CYAN}/etc/init.d/network restart${NC}
+"
+        printf "4. Restart MWAN3 service: ${CYAN}/etc/init.d/mwan3 restart${NC}
+"
+        printf "${YELLOW}${BLUE}=========================================${NC}
+"
     fi
 
-    printf "\n# =============================================================================\n"
-    printf "# AUTONOMOUS CONFIGURATION DETECTION RESULTS\n"
-    printf "# Generated: %s\n" "$(date)"
-    printf "# =============================================================================\n\n"
+    printf "
+# =============================================================================
+"
+    printf "# AUTONOMOUS CONFIGURATION DETECTION RESULTS
+"
+    printf "# Generated: %s
+" "$(date)"
+    printf "# =============================================================================
+
+"
 }
 
 # Execute main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"

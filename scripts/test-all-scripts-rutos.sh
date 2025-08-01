@@ -9,19 +9,16 @@
 set -e
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
-readonly SCRIPT_VERSION
-
 # Colors (Method 5 format for RUTOS compatibility)
 if [ -t 1 ] && [ "${TERM:-}" != "dumb" ] && [ "${NO_COLOR:-}" != "1" ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[1;35m'
-    CYAN='\033[0;36m'
+    RED='[0;31m'
+    GREEN='[0;32m'
+    YELLOW='[1;33m'
+    BLUE='[1;35m'
+    CYAN='[0;36m'
     # shellcheck disable=SC2034  # Used in some conditional contexts
-    PURPLE='\033[0;35m'
-    NC='\033[0m'
+    PURPLE='[0;35m'
+    NC='[0m'
 else
     RED=""
     GREEN=""
@@ -44,12 +41,14 @@ RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
 
 # Debug dry-run status
 if [ "${DEBUG:-0}" = "1" ]; then
-    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s\n" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
+    printf "[DEBUG] DRY_RUN=%s, RUTOS_TEST_MODE=%s
+" "$DRY_RUN" "$RUTOS_TEST_MODE" >&2
 fi
 
 # Early exit in test mode to prevent execution errors
 if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution\n" >&2
+    printf "[INFO] RUTOS_TEST_MODE enabled - script syntax OK, exiting without execution
+" >&2
     exit 0
 fi
 
@@ -66,16 +65,22 @@ while [ $# -gt 0 ]; do
             ;;
         --help)
             # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-            printf "${GREEN}Usage: %s [options]${NC}\n" "$0"
-            printf "Options:\n"
-            printf "  --detailed              Run detailed tests with full output capture\n"
-            printf "  --specific-script NAME  Test only the specified script\n"
-            printf "  --help                  Show this help\n"
+            printf "${GREEN}Usage: %s [options]${NC}
+" "$0"
+            printf "Options:
+"
+            printf "  --detailed              Run detailed tests with full output capture
+"
+            printf "  --specific-script NAME  Test only the specified script
+"
+            printf "  --help                  Show this help
+"
             exit 0
             ;;
         *)
             # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-            printf "${RED}Unknown option: %s${NC}\n" "$1"
+            printf "${RED}Unknown option: %s${NC}
+" "$1"
             exit 1
             ;;
     esac
@@ -87,26 +92,34 @@ mkdir -p "$RESULTS_DIR"
 # Logging functions
 test_log() {
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${GREEN}[TEST]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    printf "[TEST] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
+    printf "${GREEN}[TEST]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "[TEST] [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
 }
 
 test_error() {
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${RED}[ERROR]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    printf "[ERROR] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
+    printf "${RED}[ERROR]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "[ERROR] [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
 }
 
 test_warning() {
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${YELLOW}[WARNING]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    printf "[WARNING] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
+    printf "${YELLOW}[WARNING]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "[WARNING] [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
 }
 
 test_step() {
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}[STEP]${NC} [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
-    printf "[STEP] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
+    printf "${BLUE}[STEP]${NC} [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1"
+    printf "[STEP] [%s] %s
+" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$TEST_LOG"
 }
 
 test_result() {
@@ -118,18 +131,24 @@ test_result() {
     case "$status" in
         "PASS")
             # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-            printf "${GREEN}✅ PASS${NC}   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details"
-            printf "PASS   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details" >>"$TEST_LOG"
+            printf "${GREEN}✅ PASS${NC}   | %-30s | %-20s | %s
+" "$script" "$test_type" "$details"
+            printf "PASS   | %-30s | %-20s | %s
+" "$script" "$test_type" "$details" >>"$TEST_LOG"
             ;;
         "FAIL")
             # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-            printf "${RED}❌ FAIL${NC}   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details"
-            printf "FAIL   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details" >>"$TEST_LOG"
+            printf "${RED}❌ FAIL${NC}   | %-30s | %-20s | %s
+" "$script" "$test_type" "$details"
+            printf "FAIL   | %-30s | %-20s | %s
+" "$script" "$test_type" "$details" >>"$TEST_LOG"
             ;;
         "WARN")
             # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-            printf "${YELLOW}⚠️  WARN${NC}   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details"
-            printf "WARN   | %-30s | %-20s | %s\n" "$script" "$test_type" "$details" >>"$TEST_LOG"
+            printf "${YELLOW}⚠️  WARN${NC}   | %-30s | %-20s | %s
+" "$script" "$test_type" "$details"
+            printf "WARN   | %-30s | %-20s | %s
+" "$script" "$test_type" "$details" >>"$TEST_LOG"
             ;;
     esac
 }
@@ -185,15 +204,19 @@ run_test() {
     # Show detailed output if requested
     if [ "$TEST_MODE_DETAILED" = true ]; then
         # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-        printf "${CYAN}--- Output for %s (%s) ---${NC}\n" "$script_name" "$test_type"
+        printf "${CYAN}--- Output for %s (%s) ---${NC}
+" "$script_name" "$test_type"
         head -20 "$output_file" 2>/dev/null || echo "No output captured"
         if [ "$line_count" -gt 20 ]; then
             # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-            printf "${CYAN}... (%d more lines, see %s)${NC}\n" $((line_count - 20)) "$output_file"
+            printf "${CYAN}... (%d more lines, see %s)${NC}
+" $((line_count - 20)) "$output_file"
         fi
         # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
         # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
-        printf "${CYAN}--- End Output ---${NC}\n\n"
+        printf "${CYAN}--- End Output ---${NC}
+
+"
     fi
 }
 
@@ -242,13 +265,18 @@ test_script() {
 # Main execution
 main() {
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}\n"
+    printf "${PURPLE}╔══════════════════════════════════════════════════════════════════════════╗${NC}
+"
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}║                    RUTOS SCRIPT COMPREHENSIVE TESTING                   ║${NC}\n"
+    printf "${PURPLE}║                    RUTOS SCRIPT COMPREHENSIVE TESTING                   ║${NC}
+"
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}║                         Version %s                                ║${NC}\n" "$SCRIPT_VERSION"
+    printf "${PURPLE}║                         Version %s                                ║${NC}
+" "$SCRIPT_VERSION"
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}\n\n"
+    printf "${PURPLE}╚══════════════════════════════════════════════════════════════════════════╝${NC}
+
+"
 
     test_log "Starting comprehensive RUTOS script testing"
     test_log "Test results directory: $RESULTS_DIR"
@@ -286,17 +314,25 @@ main() {
 
     # Generate summary
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "\n${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}\n"
+    printf "
+${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}
+"
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${BLUE}                              TEST SUMMARY                               ${NC}\n"
+    printf "${BLUE}                              TEST SUMMARY                               ${NC}
+"
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "\n"
+    printf "
+"
     # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
-    printf "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}\n"
+    printf "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}
+"
     # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
-    printf "${BLUE}                              TEST SUMMARY                               ${NC}\n"
+    printf "${BLUE}                              TEST SUMMARY                               ${NC}
+"
     # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
-    printf "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}\n\n"
+    printf "${BLUE}═══════════════════════════════════════════════════════════════════════════${NC}
+
+"
 
     # Count results
     total_tests=$(grep -c "PASS\|FAIL\|WARN" "$TEST_LOG" 2>/dev/null || echo "0")
@@ -305,37 +341,51 @@ main() {
     warned_tests=$(grep -c "WARN" "$TEST_LOG" 2>/dev/null || echo "0")
 
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${GREEN}✅ Passed: %d${NC}\n" "$passed_tests"
+    printf "${GREEN}✅ Passed: %d${NC}
+" "$passed_tests"
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${RED}❌ Failed: %d${NC}\n" "$failed_tests"
+    printf "${RED}❌ Failed: %d${NC}
+" "$failed_tests"
     # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-    printf "${YELLOW}⚠️  Warnings: %d${NC}\n" "$warned_tests"
-    printf "📊 Total Tests: %d\n\n" "$total_tests"
+    printf "${YELLOW}⚠️  Warnings: %d${NC}
+" "$warned_tests"
+    printf "📊 Total Tests: %d
+
+" "$total_tests"
 
     if [ "$failed_tests" -gt 0 ]; then
         # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
         # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
-        printf "${RED}FAILED TESTS:${NC}\n"
+        printf "${RED}FAILED TESTS:${NC}
+"
         grep "FAIL" "$TEST_LOG" | while IFS= read -r line; do
             # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-            printf "${RED}  %s${NC}\n" "$line"
+            printf "${RED}  %s${NC}
+" "$line"
         done
-        printf "\n"
+        printf "
+"
     fi
 
     if [ "$warned_tests" -gt 0 ]; then
         # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
         # shellcheck disable=SC2059 # Using Method 5 format for RUTOS compatibility
-        printf "${YELLOW}WARNINGS:${NC}\n"
+        printf "${YELLOW}WARNINGS:${NC}
+"
         grep "WARN" "$TEST_LOG" | while IFS= read -r line; do
             # shellcheck disable=SC2059 # Method 5 format required for RUTOS compatibility
-            printf "${YELLOW}  %s${NC}\n" "$line"
+            printf "${YELLOW}  %s${NC}
+" "$line"
         done
-        printf "\n"
+        printf "
+"
     fi
 
-    printf "📁 Detailed results: %s\n" "$RESULTS_DIR"
-    printf "📋 Test log: %s\n\n" "$TEST_LOG"
+    printf "📁 Detailed results: %s
+" "$RESULTS_DIR"
+    printf "📋 Test log: %s
+
+" "$TEST_LOG"
 
     # Exit with appropriate code
     if [ "$failed_tests" -gt 0 ]; then
@@ -352,3 +402,6 @@ main() {
 
 # Run main function
 main "$@"
+
+# Version information (auto-updated by update-version.sh)
+SCRIPT_VERSION="2.7.1"
