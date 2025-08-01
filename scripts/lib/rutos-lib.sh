@@ -101,6 +101,50 @@ fi
 # Load optional modules with graceful handling
 printf "[LIB_DEBUG] Loading optional modules...\n" >&2
 
+# Load centralized error logging module (conditional - bootstrap mode or config-enabled)
+printf "[LIB_DEBUG] Checking if centralized error logging should be enabled...\n" >&2
+
+# Check if we should load error logging (bootstrap mode or config setting)
+_should_load_error_logging=0
+
+# Check for explicit override
+if [ -n "${ENABLE_CENTRALIZED_ERROR_LOGGING:-}" ]; then
+    if [ "$ENABLE_CENTRALIZED_ERROR_LOGGING" = "true" ]; then
+        _should_load_error_logging=1
+        printf "[LIB_DEBUG] Centralized error logging: ENABLED (explicit override)\n" >&2
+    else
+        printf "[LIB_DEBUG] Centralized error logging: DISABLED (explicit override)\n" >&2
+    fi
+# Check for bootstrap mode (no config exists)
+elif [ ! -f "${CONFIG_DIR:-/etc/starlink-failover}/config.sh" ]; then
+    _should_load_error_logging=1
+    printf "[LIB_DEBUG] Centralized error logging: ENABLED (bootstrap mode - no config found)\n" >&2
+# Check config setting
+elif [ -f "${CONFIG_DIR:-/etc/starlink-failover}/config.sh" ] && grep -q "ENABLE_AUTONOMOUS_ERROR_LOGGING=.*true" "${CONFIG_DIR:-/etc/starlink-failover}/config.sh" 2>/dev/null; then
+    _should_load_error_logging=1
+    printf "[LIB_DEBUG] Centralized error logging: ENABLED (config setting)\n" >&2
+else
+    printf "[LIB_DEBUG] Centralized error logging: DISABLED (not enabled in config)\n" >&2
+fi
+
+# Load error logging if should be enabled
+if [ "$_should_load_error_logging" = "1" ] && [ -f "$_rutos_lib_dir/rutos-error-logging.sh" ]; then
+    printf "[LIB_DEBUG] Loading rutos-error-logging.sh...\n" >&2
+    if . "$_rutos_lib_dir/rutos-error-logging.sh"; then
+        printf "[LIB_DEBUG] ✓ rutos-error-logging.sh loaded successfully\n" >&2
+        _RUTOS_ERROR_LOGGING_LOADED=1
+    else
+        printf "[LIB_DEBUG] ✗ FAILED to load rutos-error-logging.sh\n" >&2
+        _RUTOS_ERROR_LOGGING_LOADED=0
+    fi
+elif [ "$_should_load_error_logging" = "1" ]; then
+    printf "[LIB_DEBUG] rutos-error-logging.sh not found (will use basic error logging)\n" >&2
+    _RUTOS_ERROR_LOGGING_LOADED=0
+else
+    printf "[LIB_DEBUG] Centralized error logging disabled, using basic logging only\n" >&2
+    _RUTOS_ERROR_LOGGING_LOADED=0
+fi
+
 # Load optional compatibility module (for legacy script support)
 if [ -f "$_rutos_lib_dir/rutos-compatibility.sh" ]; then
     printf "[LIB_DEBUG] Loading rutos-compatibility.sh...\n" >&2

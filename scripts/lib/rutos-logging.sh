@@ -3,7 +3,32 @@
 # RUTOS Logging Framework
 #
 # Provides 4-level standardized logging system for all RUTOS scripts:
-# - NORMAL: Standard operation info
+# # Error logging with enhanced context and autonomous system integration
+log_error_with_context() {
+    error_message="$1"
+    script_name="${2:-$(basename "$0")}"
+    line_number="${3:-unknown}"
+    function_name="${4:-main}"
+
+    # Always log the error message to stderr (basic error logging)
+    log_error "$error_message"
+
+    # Use centralized error logging if available (for autonomous monitoring)
+    if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
+        # Capture comprehensive error with centralized system
+        capture_error "ERROR" "$error_message" "$script_name" "$line_number" "$function_name"
+    fi
+
+    # Enhanced debug context (original functionality)
+    if [ "$DEBUG" = "1" ]; then
+        log_debug "ERROR CONTEXT:"
+        log_debug "  Script: $script_name"
+        log_debug "  Line: $line_number"
+        log_debug "  Function: $function_name"
+        log_debug "  Working Directory: $(pwd)"
+        log_debug "  Environment: DRY_RUN=$DRY_RUN DEBUG=$DEBUG RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+    fi
+} operation info
 # - DRY_RUN: Shows what would be done without executing
 # - DEBUG: Detailed debugging information with context
 # - RUTOS_TEST_MODE: Full execution trace with command tracking
@@ -228,7 +253,62 @@ log_script_init() {
 }
 
 # ============================================================================
-# DRY-RUN SAFE EXECUTION FRAMEWORK
+# AUTONOMOUS ERROR CAPTURE SYSTEM INTEGRATION
+# ============================================================================
+
+# Capture critical errors for autonomous monitoring (always logs, even in normal mode)
+capture_critical_error() {
+    error_message="$1"
+    script_name="${2:-$(basename "$0")}"
+    line_number="${3:-unknown}"
+    function_name="${4:-main}"
+    
+    # Always capture critical errors regardless of DEBUG mode
+    if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
+        capture_error "CRITICAL" "$error_message" "$script_name" "$line_number" "$function_name"
+    fi
+    
+    # Also use traditional error logging
+    log_error_with_context "$error_message" "$script_name" "$line_number" "$function_name"
+}
+
+# Capture high priority errors for autonomous monitoring
+capture_high_error() {
+    error_message="$1"
+    script_name="${2:-$(basename "$0")}"
+    line_number="${3:-unknown}"
+    function_name="${4:-main}"
+    
+    if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
+        capture_error "HIGH" "$error_message" "$script_name" "$line_number" "$function_name"
+    fi
+    
+    log_error_with_context "$error_message" "$script_name" "$line_number" "$function_name"
+}
+
+# Capture warnings for autonomous monitoring
+capture_warning() {
+    warning_message="$1"
+    script_name="${2:-$(basename "$0")}"
+    line_number="${3:-unknown}"
+    function_name="${4:-main}"
+    
+    if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
+        capture_error "MEDIUM" "$warning_message" "$script_name" "$line_number" "$function_name"
+    fi
+    
+    log_warning "$warning_message"
+    
+    if [ "$DEBUG" = "1" ]; then
+        log_debug "WARNING CONTEXT:"
+        log_debug "  Script: $script_name"
+        log_debug "  Line: $line_number"
+        log_debug "  Function: $function_name"
+    fi
+}
+
+# ============================================================================
+# EXISTING DRY-RUN SAFE EXECUTION FRAMEWORK
 # ============================================================================
 
 # Safe command execution function
@@ -281,7 +361,16 @@ safe_execute() {
             return 0
         else
             exit_code=$?
-            log_error "Command failed: $description (exit code: $exit_code)"
+            error_msg="Command failed: $description (exit code: $exit_code)"
+            
+            # Use centralized error logging for autonomous monitoring
+            if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
+                capture_error "HIGH" "$error_msg" "$(basename "$0")" "unknown" "safe_execute"
+            else
+                # Fallback to traditional error logging
+                log_error "$error_msg"
+            fi
+            
             if [ "$RUTOS_TEST_MODE" = "1" ]; then
                 log_trace "EXECUTION RESULT: Failed (exit code: $exit_code)"
                 log_trace "Error context: Command '$command' failed"
@@ -302,6 +391,68 @@ check_test_mode_exit() {
         else
             log_info "RUTOS_TEST_MODE enabled - script syntax validated, exiting safely"
             exit 0
+        fi
+    fi
+}
+
+# ============================================================================
+# AUTONOMOUS ERROR CAPTURE UTILITIES
+# ============================================================================
+
+# Simple error capture for scripts that want autonomous monitoring
+# Usage: autonomous_error "CRITICAL|HIGH|MEDIUM|LOW" "Error message" [script_name] [line_number] [function_name]
+autonomous_error() {
+    severity="$1"
+    error_message="$2"
+    script_name="${3:-$(basename "$0")}"
+    line_number="${4:-unknown}"
+    function_name="${5:-main}"
+    
+    if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
+        capture_error "$severity" "$error_message" "$script_name" "$line_number" "$function_name"
+    fi
+    
+    # Always log to stderr as well
+    case "$severity" in
+        "CRITICAL"|"HIGH")
+            log_error "$error_message"
+            ;;
+        "MEDIUM")
+            log_warning "$error_message"
+            ;;
+        "LOW")
+            log_info "$error_message"
+            ;;
+        *)
+            log_error "$error_message"
+            ;;
+    esac
+}
+
+# Check if autonomous error logging is available
+autonomous_logging_available() {
+    [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1
+}
+
+# Get status of autonomous logging system
+autonomous_logging_status() {
+    if autonomous_logging_available; then
+        log_info "Autonomous error logging: ENABLED"
+        if [ "$DEBUG" = "1" ]; then
+            log_debug "Error log location: ${RUTOS_ERROR_LOG:-/tmp/rutos-errors.log}"
+            if [ "$_CENTRALIZED_LOGGING_ACTIVE" = "1" ]; then
+                log_debug "Centralized logging: ACTIVE"
+                log_debug "Centralized log: ${CENTRALIZED_ERROR_LOG:-/tmp/rutos-autonomous-errors.log}"
+            fi
+        fi
+    else
+        log_info "Autonomous error logging: DISABLED (using basic logging only)"
+        if [ "$DEBUG" = "1" ]; then
+            if [ ! -f "${CONFIG_DIR:-/etc/starlink-failover}/config.sh" ]; then
+                log_debug "Bootstrap mode should enable centralized logging - check library loading"
+            else
+                log_debug "Check config setting: ENABLE_AUTONOMOUS_ERROR_LOGGING in ${CONFIG_DIR:-/etc/starlink-failover}/config.sh"
+            fi
         fi
     fi
 }

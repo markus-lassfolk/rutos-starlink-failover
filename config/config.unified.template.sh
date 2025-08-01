@@ -338,7 +338,16 @@ export FALLBEHIND_THRESHOLD="100"
 
 # Enhanced logging features for better data analysis and troubleshooting
 
-# Enable enhanced metrics collection (SNR, reboot detection, GPS stats)
+# Enable autonomous error logging for centralized error capture and GitHub issue creation
+# What it does: Captures ALL errors with full context for autonomous monitoring system
+# When enabled: Errors are logged to centralized log for automated issue creation
+# Benefits: Automatic error detection, GitHub issue creation, self-healing system
+# Note: During installation (bootstrap mode), this is always enabled regardless of setting
+# After installation: Only enabled if set to true in config
+# Recommended: true for autonomous deployment systems, false for manual management
+export ENABLE_AUTONOMOUS_ERROR_LOGGING="false"
+
+# Enhanced metrics collection (SNR, reboot detection, GPS stats)
 # What it adds: Signal-to-noise ratio, system reboot tracking, GPS quality metrics
 # Benefits: Better troubleshooting data, trend analysis capabilities
 # Impact: Slightly more processing overhead for significantly better data

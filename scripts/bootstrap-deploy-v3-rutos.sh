@@ -44,7 +44,7 @@ ORIGINAL_RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
 
 # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap logging functions (replaced by full library after download)
 log_info() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
-    printf "[INFO] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" # VALIDATION_SKIP_PRINTF: Bootstrap logging (library unavailable)
+    printf "[INFO] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2 # VALIDATION_SKIP_PRINTF: Bootstrap logging (library unavailable)
 }
 
 log_debug() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
@@ -304,5 +304,3 @@ main() {
 # Execute main function
 main "$@"
 
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="3.0.0"

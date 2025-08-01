@@ -1,0 +1,214 @@
+name: Autonomous Issue Management
+on:
+  issues:
+    types: [opened, labeled]
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  auto-assign-copilot:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'autonomous') || contains(github.event.pull_request.labels.*.name, 'autonomous')
+    
+    steps:
+    - name: Auto-assign to GitHub Copilot
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Auto-assign autonomous issues to GitHub Copilot
+          if (context.eventName === 'issues') {
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              assignees: ['github-copilot']
+            });
+            
+            // Add additional labels for categorization
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['auto-assigned', 'needs-copilot-review']
+            });
+            
+            // Add comment with autonomous context
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🤖 **Autonomous System Alert**
+              
+              This issue was automatically created by the autonomous monitoring system.
+              
+              **Next Steps:**
+              1. 🔍 GitHub Copilot will analyze the error
+              2. 🛠️ Copilot will suggest or implement a fix
+              3. 🧪 Fix will be tested automatically
+              4. 🚀 Next deployment cycle will use the fixed code
+              
+              **Autonomous Workflow:** This issue is part of the self-healing deployment pipeline.`
+            });
+          }
+
+  monitor-copilot-progress:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'autonomous')
+    
+    steps:
+    - name: Check for Copilot interaction
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Monitor for Copilot responses and progress
+          const issue = context.payload.issue;
+          
+          // Check if Copilot has responded
+          const comments = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: issue.number
+          });
+          
+          const copilotComments = comments.data.filter(comment => 
+            comment.user.login === 'github-copilot[bot]' || 
+            comment.body.includes('GitHub Copilot')
+          );
+          
+          if (copilotComments.length > 0) {
+            // Copilot has responded, update labels
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['copilot-responded']
+            });
+            
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              name: 'needs-copilot-review'
+            });
+          }
+
+  auto-test-pr:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'autonomous-fix')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Test autonomous fix
+      run: |
+        echo "🧪 Testing autonomous fix..."
+        
+        # Run shell script validation
+        for script in scripts/*.sh autonomous-system/*.sh; do
+          if [ -f "$script" ]; then
+            echo "Validating $script..."
+            shellcheck "$script" || echo "⚠️ ShellCheck issues in $script"
+          fi
+        done
+        
+        # Test deployment script syntax
+        if [ -f "scripts/bootstrap-deploy-v3-rutos.sh" ]; then
+          bash -n scripts/bootstrap-deploy-v3-rutos.sh
+          echo "✅ bootstrap-deploy-v3-rutos.sh syntax OK"
+        fi
+        
+        # Test autonomous system scripts
+        for script in autonomous-system/*.sh; do
+          if [ -f "$script" ]; then
+            bash -n "$script"
+            echo "✅ $script syntax OK"
+          fi
+        done
+    
+    - name: Auto-approve if tests pass
+      uses: actions/github-script@v7
+      if: success()
+      with:
+        script: |
+          // Auto-approve PR if tests pass and it's from Copilot
+          const pr = context.payload.pull_request;
+          
+          if (pr.user.login === 'github-copilot[bot]' || 
+              pr.body.includes('Autonomous Fix')) {
+            
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              event: 'APPROVE',
+              body: '🤖 Auto-approved by autonomous system - tests passed!'
+            });
+            
+            // Auto-merge if configured
+            const autoMerge = true; // Set to false if you want manual merge
+            if (autoMerge) {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                commit_title: `🤖 Autonomous fix: ${pr.title}`,
+                merge_method: 'squash'
+              });
+            }
+          }
+
+  close-resolved-issues:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed' && github.event.pull_request.merged == true
+    
+    steps:
+    - name: Close related autonomous issues
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Close autonomous issues that are fixed by this PR
+          const pr = context.payload.pull_request;
+          
+          // Look for issue references in PR body or title
+          const issuePattern = /#(\d+)/g;
+          const matches = [...(pr.body || '').matchAll(issuePattern), 
+                          ...(pr.title || '').matchAll(issuePattern)];
+          
+          for (const match of matches) {
+            const issueNumber = parseInt(match[1]);
+            
+            try {
+              const issue = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber
+              });
+              
+              // Close if it's an autonomous issue
+              if (issue.data.labels.some(label => label.name === 'autonomous')) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  state: 'closed'
+                });
+                
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  body: `🤖 **Autonomous Resolution**
+                  
+                  This issue has been automatically resolved by PR #${pr.number}.
+                  
+                  **Fix Applied:** ${pr.title}
+                  **Next Deployment:** Will use the fixed code automatically.
+                  
+                  The autonomous system will continue monitoring for any new issues.`
+                });
+              }
+            } catch (error) {
+              console.log(`Could not process issue #${issueNumber}: ${error.message}`);
+            }
+          }
