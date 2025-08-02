@@ -113,32 +113,10 @@ else
     log_success "Library functions verified - full logging system active"
 fi
 
-# === CONFIGURATION DEFAULTS ===
-DEFAULT_AZURE_ENDPOINT=""
-DEFAULT_ENABLE_AZURE="false"
-DEFAULT_ENABLE_STARLINK_MONITORING="true"
-DEFAULT_ENABLE_GPS="true"
-DEFAULT_ENABLE_PUSHOVER="false"
-DEFAULT_RUTOS_IP="192.168.80.1"
-DEFAULT_STARLINK_IP="192.168.100.1"
-
-# Debug: Log default values for troubleshooting (use smart logging for library compatibility)
-smart_debug "Configuration defaults loaded:"
-smart_debug "  DEFAULT_ENABLE_STARLINK_MONITORING='$DEFAULT_ENABLE_STARLINK_MONITORING'"
-smart_debug "  DEFAULT_ENABLE_GPS='$DEFAULT_ENABLE_GPS'"
-smart_debug "  DEFAULT_ENABLE_AZURE='$DEFAULT_ENABLE_AZURE'"
-smart_debug "  DEFAULT_ENABLE_PUSHOVER='$DEFAULT_ENABLE_PUSHOVER'"
-
-# === INTERACTIVE MODE DETECTION ===
-# Check if script is running in interactive mode
-is_interactive() {
-    # Check if stdin is a terminal and not running in non-interactive mode
-    [ -t 0 ] && [ "${BATCH_MODE:-0}" != "1" ]
-}
-
 # === SMART LOGGING WRAPPER SYSTEM ===
 # Automatically use pre-debug or library logging depending on library state
 # This ensures consistent logging throughout the script lifecycle
+# CRITICAL: Must be defined immediately after library loading verification
 
 smart_debug() {
     if [ "$_LIBRARY_LOADED" = "1" ]; then
@@ -186,6 +164,29 @@ smart_step() {
     else
         pre_step "$@"
     fi
+}
+
+# === CONFIGURATION DEFAULTS ===
+DEFAULT_AZURE_ENDPOINT=""
+DEFAULT_ENABLE_AZURE="false"
+DEFAULT_ENABLE_STARLINK_MONITORING="true"
+DEFAULT_ENABLE_GPS="true"
+DEFAULT_ENABLE_PUSHOVER="false"
+DEFAULT_RUTOS_IP="192.168.80.1"
+DEFAULT_STARLINK_IP="192.168.100.1"
+
+# Debug: Log default values for troubleshooting (use smart logging for library compatibility)
+smart_debug "Configuration defaults loaded:"
+smart_debug "  DEFAULT_ENABLE_STARLINK_MONITORING='$DEFAULT_ENABLE_STARLINK_MONITORING'"
+smart_debug "  DEFAULT_ENABLE_GPS='$DEFAULT_ENABLE_GPS'"
+smart_debug "  DEFAULT_ENABLE_AZURE='$DEFAULT_ENABLE_AZURE'"
+smart_debug "  DEFAULT_ENABLE_PUSHOVER='$DEFAULT_ENABLE_PUSHOVER'"
+
+# === INTERACTIVE MODE DETECTION ===
+# Check if script is running in interactive mode
+is_interactive() {
+    # Check if stdin is a terminal and not running in non-interactive mode
+    [ -t 0 ] && [ "${BATCH_MODE:-0}" != "1" ]
 }
 
 # === DEBUG ENVIRONMENT INHERITANCE ===
@@ -265,29 +266,29 @@ INIT_D_DIR="/etc/init.d"           # System init.d directory
 
 # === RUTOS PERSISTENT STORAGE VERIFICATION ===
 # Check for available persistent storage locations (in order of preference)
-# NOTE: This happens BEFORE library loading, so we use pre-debug functions
-pre_step "Detecting RUTOS Persistent Storage"
-pre_debug "Checking available persistent storage locations..."
+# NOTE: This happens AFTER library loading, so we use smart logging functions
+smart_step "Detecting RUTOS Persistent Storage"
+smart_debug "Checking available persistent storage locations..."
 
 PERSISTENT_STORAGE=""
 for storage_path in "/usr/local" "/opt" "/mnt" "/root"; do
-    pre_debug "Testing storage path: $storage_path"
+    smart_debug "Testing storage path: $storage_path"
     if [ -d "$storage_path" ] && [ -w "$storage_path" ]; then
         PERSISTENT_STORAGE="$storage_path"
-        pre_success "Found writable persistent storage: $storage_path"
+        smart_success "Found writable persistent storage: $storage_path"
         break
     else
-        pre_debug "Storage path not available or not writable: $storage_path"
+        smart_debug "Storage path not available or not writable: $storage_path"
     fi
 done
 
 if [ -z "$PERSISTENT_STORAGE" ]; then
-    pre_error "No writable persistent storage directory found. Checked: /usr/local /opt /mnt /root"
-    pre_error "RUTOS system may have read-only filesystem issues"
+    smart_error "No writable persistent storage directory found. Checked: /usr/local /opt /mnt /root"
+    smart_error "RUTOS system may have read-only filesystem issues"
     exit 1
 fi
 
-pre_info "Using persistent storage: $PERSISTENT_STORAGE"
+smart_info "Using persistent storage: $PERSISTENT_STORAGE"
 
 # === SET DIRECTORY PATHS BASED ON DETECTED STORAGE ===
 INSTALL_BASE_DIR="$PERSISTENT_STORAGE/starlink"                         # Main installation directory (persistent)
