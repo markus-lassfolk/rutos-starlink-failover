@@ -1582,6 +1582,344 @@ validate_library_usage() {
     return 0
 }
 
+# === ENHANCED SYNTAX VALIDATION FUNCTIONS ===
+# Added comprehensive syntax checking capabilities to catch structural issues early
+
+# Function to validate basic shell syntax using multiple parsers
+validate_shell_syntax() {
+    local file="$1"
+    local syntax_errors=0
+    
+    log_debug "🔍 Validating shell syntax: $file"
+    
+    # Test 1: POSIX shell syntax check
+    log_trace "  Testing POSIX shell syntax..."
+    if ! sh -n "$file" 2>/dev/null; then
+        local error_output
+        error_output=$(sh -n "$file" 2>&1)
+        report_issue "CRITICAL" "$file" "1" "POSIX shell syntax error: $error_output"
+        syntax_errors=$((syntax_errors + 1))
+        log_debug "  ❌ POSIX shell syntax error found"
+    else
+        log_trace "  ✓ POSIX shell syntax valid"
+    fi
+    
+    # Test 2: Bash syntax check (if available) - for compatibility verification
+    if command -v bash >/dev/null 2>&1; then
+        log_trace "  Testing bash syntax compatibility..."
+        if ! bash -n "$file" 2>/dev/null; then
+            local error_output
+            error_output=$(bash -n "$file" 2>&1)
+            # Only report as warning since we target POSIX
+            log_warning "⚠️ Bash syntax issue (may still be POSIX compatible): $error_output"
+        else
+            log_trace "  ✓ Bash syntax compatible"
+        fi
+    fi
+    
+    # Test 3: Busybox ash syntax check (if available) - RUTOS target environment
+    if command -v busybox >/dev/null 2>&1 && busybox ash --help >/dev/null 2>&1; then
+        log_trace "  Testing busybox ash syntax (RUTOS target)..."
+        if ! busybox ash -n "$file" 2>/dev/null; then
+            local error_output
+            error_output=$(busybox ash -n "$file" 2>&1)
+            report_issue "MAJOR" "$file" "1" "Busybox ash syntax issue (RUTOS compatibility): $error_output"
+            syntax_errors=$((syntax_errors + 1))
+            log_debug "  ❌ Busybox ash syntax issue found"
+        else
+            log_trace "  ✓ Busybox ash syntax valid"
+        fi
+    fi
+    
+    return $syntax_errors
+}
+
+# Function to validate function structure and brace matching
+validate_function_structure() {
+    local file="$1"
+    local structure_errors=0
+    local line_num=0
+    
+    log_debug "🔍 Validating function structure: $file"
+    
+    # Check for unmatched braces in functions
+    local brace_stack=""
+    local in_function=0
+    local function_name=""
+    local paren_stack=""
+    
+    while IFS= read -r line || [ -n "$line" ]; do
+        line_num=$((line_num + 1))
+        
+        # Detect function definitions
+        case "$line" in
+            *"() {"*)
+                function_name=$(echo "$line" | sed 's/()[[:space:]]*{.*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                in_function=1
+                brace_stack="${brace_stack}{"
+                log_trace "  Found function: $function_name at line $line_num"
+                ;;
+            *"{"*)
+                if [ "$in_function" = "1" ]; then
+                    # Count opening braces
+                    brace_count=$(echo "$line" | tr -cd '{' | wc -c)
+                    i=0
+                    while [ $i -lt "$brace_count" ]; do
+                        brace_stack="${brace_stack}{"
+                        i=$((i + 1))
+                    done
+                fi
+                ;;
+            *"}"*)
+                if [ "$in_function" = "1" ]; then
+                    # Count closing braces
+                    brace_count=$(echo "$line" | tr -cd '}' | wc -c)
+                    i=0
+                    while [ $i -lt "$brace_count" ] && [ -n "$brace_stack" ]; do
+                        brace_stack="${brace_stack%?}"  # Remove last character
+                        i=$((i + 1))
+                    done
+                    
+                    # Check for extra closing braces
+                    if [ $i -lt "$brace_count" ]; then
+                        report_issue "MAJOR" "$file" "$line_num" "Unmatched closing brace - more '}' than '{'"
+                        structure_errors=$((structure_errors + 1))
+                    fi
+                    
+                    # Check if function is complete
+                    if [ -z "$brace_stack" ]; then
+                        in_function=0
+                        log_trace "  ✓ Function $function_name properly closed at line $line_num"
+                    fi
+                fi
+                ;;
+        esac
+    done < "$file"
+    
+    # Check for unclosed functions
+    if [ -n "$brace_stack" ]; then
+        report_issue "CRITICAL" "$file" "$line_num" "Unclosed function detected: $function_name (missing $(echo "$brace_stack" | wc -c) closing brace(s))"
+        structure_errors=$((structure_errors + 1))
+    fi
+    
+    log_trace "  Function structure validation: $structure_errors errors found"
+    return $structure_errors
+}
+
+# Function to validate conditional block structure
+validate_conditional_structure() {
+    local file="$1"
+    local conditional_errors=0
+    local line_num=0
+    
+    log_debug "🔍 Validating conditional structure: $file"
+    
+    local if_stack=""
+    local case_stack=""
+    
+    while IFS= read -r line || [ -n "$line" ]; do
+        line_num=$((line_num + 1))
+        
+        # Skip comments and empty lines
+        case "$line" in
+            "#"*|"")
+                continue
+                ;;
+        esac
+        
+        # Check conditional statements
+        case "$line" in
+            *"if "*|*"if["*)
+                # Make sure it's actually an if statement, not part of a string
+                if echo "$line" | grep -q "^[[:space:]]*if[[:space:]]"; then
+                    if_stack="${if_stack}if"
+                    log_trace "  Found 'if' at line $line_num"
+                fi
+                ;;
+            *"then"*)
+                if echo "$line" | grep -q "^[[:space:]]*then[[:space:]]*$\|;[[:space:]]*then[[:space:]]*$"; then
+                    # Should have corresponding 'if'
+                    if [ -z "$if_stack" ]; then
+                        report_issue "MAJOR" "$file" "$line_num" "'then' without corresponding 'if'"
+                        conditional_errors=$((conditional_errors + 1))
+                    fi
+                fi
+                ;;
+            *"elif "*)
+                if echo "$line" | grep -q "^[[:space:]]*elif[[:space:]]"; then
+                    # Should be inside an if block
+                    if [ -z "$if_stack" ]; then
+                        report_issue "MAJOR" "$file" "$line_num" "'elif' without corresponding 'if'"
+                        conditional_errors=$((conditional_errors + 1))
+                    fi
+                fi
+                ;;
+            *"else"*)
+                if echo "$line" | grep -q "^[[:space:]]*else[[:space:]]*$"; then
+                    # Should be inside an if block or case statement
+                    if [ -z "$if_stack" ] && [ -z "$case_stack" ]; then
+                        report_issue "MAJOR" "$file" "$line_num" "'else' without corresponding 'if' or within case statement"
+                        conditional_errors=$((conditional_errors + 1))
+                    fi
+                fi
+                ;;
+            *"fi"*)
+                if echo "$line" | grep -q "^[[:space:]]*fi[[:space:]]*$"; then
+                    if [ -n "$if_stack" ]; then
+                        if_stack="${if_stack%if}"  # Remove last 'if'
+                        log_trace "  ✓ 'fi' closes 'if' at line $line_num"
+                    else
+                        report_issue "MAJOR" "$file" "$line_num" "'fi' without corresponding 'if'"
+                        conditional_errors=$((conditional_errors + 1))
+                    fi
+                fi
+                ;;
+            *"case "*)
+                if echo "$line" | grep -q "^[[:space:]]*case[[:space:]]"; then
+                    case_stack="${case_stack}case"
+                    log_trace "  Found 'case' at line $line_num"
+                fi
+                ;;
+            *"esac"*)
+                if echo "$line" | grep -q "^[[:space:]]*esac[[:space:]]*$"; then
+                    if [ -n "$case_stack" ]; then
+                        case_stack="${case_stack%case}"  # Remove last 'case'
+                        log_trace "  ✓ 'esac' closes 'case' at line $line_num"
+                    else
+                        report_issue "MAJOR" "$file" "$line_num" "'esac' without corresponding 'case'"
+                        conditional_errors=$((conditional_errors + 1))
+                    fi
+                fi
+                ;;
+        esac
+    done < "$file"
+    
+    # Check for unclosed blocks
+    if [ -n "$if_stack" ]; then
+        local unclosed_count
+        unclosed_count=$(echo "$if_stack" | sed 's/if/1/g' | sed 's/./&+/g' | sed 's/+$//' | bc 2>/dev/null || echo "1")
+        report_issue "CRITICAL" "$file" "$line_num" "Unclosed 'if' statement(s) detected (missing $unclosed_count 'fi')"
+        conditional_errors=$((conditional_errors + 1))
+    fi
+    
+    if [ -n "$case_stack" ]; then
+        local unclosed_count
+        unclosed_count=$(echo "$case_stack" | sed 's/case/1/g' | sed 's/./&+/g' | sed 's/+$//' | bc 2>/dev/null || echo "1")
+        report_issue "CRITICAL" "$file" "$line_num" "Unclosed 'case' statement(s) detected (missing $unclosed_count 'esac')"
+        conditional_errors=$((conditional_errors + 1))
+    fi
+    
+    log_trace "  Conditional structure validation: $conditional_errors errors found"
+    return $conditional_errors
+}
+
+# Function to validate variable usage patterns
+validate_variable_usage() {
+    local file="$1"
+    local variable_issues=0
+    local line_num=0
+    
+    log_debug "🔍 Validating variable usage patterns: $file"
+    
+    # Check for potentially problematic variable usage
+    while IFS= read -r line || [ -n "$line" ]; do
+        line_num=$((line_num + 1))
+        
+        # Skip comments
+        case "$line" in
+            "#"*)
+                continue
+                ;;
+        esac
+        
+        # Check for unquoted variables in problematic contexts
+        if echo "$line" | grep -q '\$[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[=<>]' && ! echo "$line" | grep -q '"\$[A-Za-z_][A-Za-z0-9_]*"'; then
+            # Skip variable assignments themselves
+            if ! echo "$line" | grep -q '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*='; then
+                log_warning "⚠️ $file:$line_num: Consider quoting variable to prevent word splitting"
+                variable_issues=$((variable_issues + 1))
+            fi
+        fi
+        
+        # Check for potentially undefined variables (basic check)
+        # Look for ${VAR} usage without defaults where VAR might not be defined
+        if echo "$line" | grep -q '\${[A-Za-z_][A-Za-z0-9_]*}' && ! echo "$line" | grep -q '\${[A-Za-z_][A-Za-z0-9_]*:-'; then
+            var_name=$(echo "$line" | sed 's/.*\${//; s/}.*//' | cut -d: -f1)
+            
+            # Skip common variables that are usually defined
+            case "$var_name" in
+                ""|PATH|HOME|USER|PWD|OLDPWD|SHELL|"#"|"?"|"$"|"!"|"*"|"@"|[0-9]*)
+                    ;;
+                *)
+                    # Check if variable is defined earlier in the file
+                    if ! grep -q "^[[:space:]]*$var_name=" "$file" && 
+                       ! grep -q "export.*$var_name" "$file" &&
+                       ! grep -q "read.*$var_name" "$file" &&
+                       ! echo "$var_name" | grep -q "^DEFAULT_"; then
+                        log_warning "⚠️ $file:$line_num: Variable \${$var_name} may be undefined - consider using \${$var_name:-default}"
+                    fi
+                    ;;
+            esac
+        fi
+    done < "$file"
+    
+    log_trace "  Variable usage validation: $variable_issues warnings issued"
+    return 0  # Don't fail on variable warnings
+}
+
+# Function to detect common shell anti-patterns
+validate_shell_antipatterns() {
+    local file="$1"
+    local antipattern_issues=0
+    local line_num=0
+    
+    log_debug "🔍 Checking for shell anti-patterns: $file"
+    
+    while IFS= read -r line || [ -n "$line" ]; do
+        line_num=$((line_num + 1))
+        
+        # Skip comments
+        case "$line" in
+            "#"*)
+                continue
+                ;;
+        esac
+        
+        # Check for dangerous patterns
+        case "$line" in
+            *"rm -rf \$"*|*"rm -rf/"*)
+                if ! echo "$line" | grep -q '".*rm -rf.*"'; then
+                    report_issue "CRITICAL" "$file" "$line_num" "Dangerous rm -rf pattern detected - ensure variable is properly quoted and validated"
+                    antipattern_issues=$((antipattern_issues + 1))
+                fi
+                ;;
+            *"eval \$"*)
+                report_issue "MAJOR" "$file" "$line_num" "eval with variable expansion can be dangerous - validate input carefully"
+                antipattern_issues=$((antipattern_issues + 1))
+                ;;
+            *"\`"*"\`"*)
+                report_issue "MINOR" "$file" "$line_num" "Consider using \$(command) instead of backticks for command substitution"
+                antipattern_issues=$((antipattern_issues + 1))
+                ;;
+            *"cd \$"*"&&"*|*"cd \$"*";"*)
+                if ! echo "$line" | grep -q 'cd.*||.*exit\|cd.*||.*return'; then
+                    report_issue "MAJOR" "$file" "$line_num" "cd command should check for success - use 'cd \"\$dir\" || exit 1'"
+                    antipattern_issues=$((antipattern_issues + 1))
+                fi
+                ;;
+        esac
+        
+        # Check for unquoted command substitution in dangerous contexts
+        if echo "$line" | grep -q '\$([^)]*)[[:space:]]*[=<>|&]' && ! echo "$line" | grep -q '"\$([^)]*))"'; then
+            log_warning "⚠️ $file:$line_num: Consider quoting command substitution to prevent word splitting"
+        fi
+        
+    done < "$file"
+    
+    log_trace "  Anti-pattern validation: $antipattern_issues issues found"
+    return $antipattern_issues
+}
+
 # Function to validate a single shell script file
 validate_file() {
     file="$1"
@@ -1610,6 +1948,45 @@ validate_file() {
 
     # Validate RUTOS library usage (CRITICAL - must be first after basic checks)
     validate_library_usage "$file"
+
+    # === ENHANCED SYNTAX VALIDATION (Added comprehensive checks) ===
+    # Basic shell syntax validation - catches parse errors early
+    validate_shell_syntax "$file"
+    syntax_result=$?
+    if [ $syntax_result -gt 0 ]; then
+        log_error "❌ Basic syntax validation failed with $syntax_result errors"
+    fi
+    
+    # Function structure validation - ensures proper brace matching
+    validate_function_structure "$file"
+    structure_result=$?
+    if [ $structure_result -gt 0 ]; then
+        log_error "❌ Function structure validation failed with $structure_result errors"
+    fi
+    
+    # Conditional block validation - ensures proper if/fi, case/esac matching
+    validate_conditional_structure "$file"
+    conditional_result=$?
+    if [ $conditional_result -gt 0 ]; then
+        log_error "❌ Conditional structure validation failed with $conditional_result errors"
+    fi
+    
+    # Variable usage validation - warns about potential issues
+    validate_variable_usage "$file"
+    
+    # Shell anti-pattern detection - catches dangerous patterns
+    validate_shell_antipatterns "$file"
+    antipattern_result=$?
+    if [ $antipattern_result -gt 0 ]; then
+        log_error "❌ Anti-pattern validation found $antipattern_result issues"
+    fi
+    
+    # Critical validation: Stop processing if basic syntax fails
+    if [ $syntax_result -gt 0 ] || [ $structure_result -gt 0 ] || [ $conditional_result -gt 0 ]; then
+        log_error "⚠️ Critical syntax errors detected - some validations may be unreliable"
+        # Continue with remaining checks but mark as degraded mode
+        log_warning "Continuing validation in degraded mode due to syntax errors"
+    fi
 
     # Check bash-specific syntax
     check_bash_syntax "$file"
