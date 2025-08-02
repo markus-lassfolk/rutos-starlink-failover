@@ -47,6 +47,13 @@ DEFAULT_ENABLE_PUSHOVER="false"
 DEFAULT_RUTOS_IP="192.168.80.1"
 DEFAULT_STARLINK_IP="192.168.100.1"
 
+# === INTERACTIVE MODE DETECTION ===
+# Check if script is running in interactive mode
+is_interactive() {
+    # Check if stdin is a terminal and not running in non-interactive mode
+    [ -t 0 ] && [ "${BATCH_MODE:-0}" != "1" ]
+}
+
 # === NEW: INTELLIGENT MONITORING DEFAULTS ===
 DEFAULT_MONITORING_MODE="daemon" # daemon, cron, or hybrid
 DEFAULT_DAEMON_AUTOSTART="true"
@@ -64,7 +71,7 @@ INIT_D_DIR="/etc/init.d"                                 # System init.d directo
 # === RUTOS PERSISTENT STORAGE VERIFICATION ===
 # Check for available persistent storage locations (in order of preference)
 PERSISTENT_STORAGE=""
-for storage_path in "/opt" "/mnt" "/usr/local" "/root"; do
+for storage_path in "/usr/local" "/opt" "/mnt" "/root"; do
     if [ -d "$storage_path" ] && [ -w "$storage_path" ]; then
         PERSISTENT_STORAGE="$storage_path"
         log_debug "Found writable persistent storage: $storage_path"
@@ -466,39 +473,61 @@ collect_enhanced_configuration() {
     # New: Intelligent monitoring configuration
     log_info "Intelligent Monitoring Configuration"
 
-    printf "Choose monitoring mode:\n"
-    printf "  1) Daemon (recommended) - Intelligent continuous monitoring\n"
-    printf "  2) Hybrid - Daemon + essential cron jobs\n"
-    printf "  3) Cron - Traditional cron-based (legacy)\n"
-    printf "Enter choice [1-3] (default: 1): "
-    read -r MONITORING_CHOICE
+    if is_interactive; then
+        printf "Choose monitoring mode:\n"
+        printf "  1) Daemon (recommended) - Intelligent continuous monitoring\n"
+        printf "  2) Hybrid - Daemon + essential cron jobs\n"
+        printf "  3) Cron - Traditional cron-based (legacy)\n"
+        printf "Enter choice [1-3] (default: 1): "
+        read -r MONITORING_CHOICE
 
-    case "${MONITORING_CHOICE:-1}" in
-        1) MONITORING_MODE="daemon" ;;
-        2) MONITORING_MODE="hybrid" ;;
-        3) MONITORING_MODE="cron" ;;
-        *) MONITORING_MODE="daemon" ;;
-    esac
-
-    if [ "$MONITORING_MODE" = "daemon" ] || [ "$MONITORING_MODE" = "hybrid" ]; then
-        printf "Enable daemon autostart at boot? [y/N]: "
-        read -r AUTOSTART_CHOICE
-        case "${AUTOSTART_CHOICE:-n}" in
-            [Yy]*) DAEMON_AUTOSTART="true" ;;
-            *) DAEMON_AUTOSTART="false" ;;
+        case "${MONITORING_CHOICE:-1}" in
+            1) MONITORING_MODE="daemon" ;;
+            2) MONITORING_MODE="hybrid" ;;
+            3) MONITORING_MODE="cron" ;;
+            *) MONITORING_MODE="daemon" ;;
         esac
 
-        printf "Monitoring interval in seconds (default: 60): "
-        read -r MONITORING_INTERVAL_INPUT
-        MONITORING_INTERVAL="${MONITORING_INTERVAL_INPUT:-60}"
+        if [ "$MONITORING_MODE" = "daemon" ] || [ "$MONITORING_MODE" = "hybrid" ]; then
+            printf "Enable daemon autostart at boot? [y/N]: "
+            read -r AUTOSTART_CHOICE
+            case "${AUTOSTART_CHOICE:-n}" in
+                [Yy]*) DAEMON_AUTOSTART="true" ;;
+                *) DAEMON_AUTOSTART="false" ;;
+            esac
 
-        printf "Quick check interval in seconds (default: 30): "
-        read -r QUICK_INTERVAL_INPUT
-        QUICK_CHECK_INTERVAL="${QUICK_INTERVAL_INPUT:-30}"
+            printf "Monitoring interval in seconds (default: 60): "
+            read -r MONITORING_INTERVAL_INPUT
+            MONITORING_INTERVAL="${MONITORING_INTERVAL_INPUT:-60}"
 
-        printf "Deep analysis interval in seconds (default: 300): "
-        read -r DEEP_INTERVAL_INPUT
-        DEEP_ANALYSIS_INTERVAL="${DEEP_INTERVAL_INPUT:-300}"
+            printf "Quick check interval in seconds (default: 30): "
+            read -r QUICK_INTERVAL_INPUT
+            QUICK_CHECK_INTERVAL="${QUICK_INTERVAL_INPUT:-30}"
+
+            printf "Deep analysis interval in seconds (default: 300): "
+            read -r DEEP_INTERVAL_INPUT
+            DEEP_ANALYSIS_INTERVAL="${DEEP_INTERVAL_INPUT:-300}"
+        fi
+    else
+        log_info "Non-interactive mode - using recommended monitoring configuration"
+        
+        # Use environment variables if set, otherwise recommended defaults
+        MONITORING_MODE="${MONITORING_MODE:-daemon}"
+        DAEMON_AUTOSTART="${DAEMON_AUTOSTART:-true}"
+        MONITORING_INTERVAL="${MONITORING_INTERVAL:-60}"
+        QUICK_CHECK_INTERVAL="${QUICK_CHECK_INTERVAL:-30}"
+        DEEP_ANALYSIS_INTERVAL="${DEEP_ANALYSIS_INTERVAL:-300}"
+        
+        log_info "Selected: $MONITORING_MODE monitoring mode with autostart $DAEMON_AUTOSTART"
+        log_info "Intervals: Monitoring=${MONITORING_INTERVAL}s, Quick=${QUICK_CHECK_INTERVAL}s, Deep=${DEEP_ANALYSIS_INTERVAL}s"
+        
+        # Log if any environment variables were used for monitoring config
+        if [ "${MONITORING_MODE}" != "daemon" ]; then
+            log_info "Environment: Using custom MONITORING_MODE=$MONITORING_MODE"
+        fi
+        if [ "${DAEMON_AUTOSTART}" != "true" ]; then
+            log_info "Environment: Daemon autostart disabled"
+        fi
     fi
 
     log_success "Enhanced configuration collected"
@@ -838,80 +867,119 @@ EOF
 collect_basic_configuration() {
     log_step "Basic Configuration Collection"
 
-    # Collect basic network settings
-    printf "Starlink IP address [%s]: " "$DEFAULT_STARLINK_IP"
-    read -r STARLINK_IP_INPUT
-    STARLINK_IP="${STARLINK_IP_INPUT:-$DEFAULT_STARLINK_IP}"
+    if is_interactive; then
+        log_info "Interactive mode detected - collecting configuration"
+        
+        # Collect basic network settings
+        printf "Starlink IP address [%s]: " "$DEFAULT_STARLINK_IP"
+        read -r STARLINK_IP_INPUT
+        STARLINK_IP="${STARLINK_IP_INPUT:-$DEFAULT_STARLINK_IP}"
 
-    printf "Starlink port [9200]: "
-    read -r STARLINK_PORT_INPUT
-    STARLINK_PORT="${STARLINK_PORT_INPUT:-9200}"
+        printf "Starlink port [9200]: "
+        read -r STARLINK_PORT_INPUT
+        STARLINK_PORT="${STARLINK_PORT_INPUT:-9200}"
 
-    printf "RUTOS IP address [%s]: " "$DEFAULT_RUTOS_IP"
-    read -r RUTOS_IP_INPUT
-    RUTOS_IP="${RUTOS_IP_INPUT:-$DEFAULT_RUTOS_IP}"
+        printf "RUTOS IP address [%s]: " "$DEFAULT_RUTOS_IP"
+        read -r RUTOS_IP_INPUT
+        RUTOS_IP="${RUTOS_IP_INPUT:-$DEFAULT_RUTOS_IP}"
 
-    # Network configuration
-    printf "MWAN interface name [starlink]: "
-    read -r MWAN_IFACE_INPUT
-    MWAN_IFACE="${MWAN_IFACE_INPUT:-starlink}"
+        # Network configuration
+        printf "MWAN interface name [starlink]: "
+        read -r MWAN_IFACE_INPUT
+        MWAN_IFACE="${MWAN_IFACE_INPUT:-starlink}"
 
-    printf "MWAN member name [starlink_m1_w1]: "
-    read -r MWAN_MEMBER_INPUT
-    MWAN_MEMBER="${MWAN_MEMBER_INPUT:-starlink_m1_w1}"
+        printf "MWAN member name [starlink_m1_w1]: "
+        read -r MWAN_MEMBER_INPUT
+        MWAN_MEMBER="${MWAN_MEMBER_INPUT:-starlink_m1_w1}"
 
-    printf "Good connection metric [10]: "
-    read -r METRIC_GOOD_INPUT
-    METRIC_GOOD="${METRIC_GOOD_INPUT:-10}"
+        printf "Good connection metric [10]: "
+        read -r METRIC_GOOD_INPUT
+        METRIC_GOOD="${METRIC_GOOD_INPUT:-10}"
 
-    printf "Bad connection metric [100]: "
-    read -r METRIC_BAD_INPUT
-    METRIC_BAD="${METRIC_BAD_INPUT:-100}"
+        printf "Bad connection metric [100]: "
+        read -r METRIC_BAD_INPUT
+        METRIC_BAD="${METRIC_BAD_INPUT:-100}"
 
-    # Thresholds
-    printf "Latency threshold in ms [1000]: "
-    read -r LATENCY_THRESHOLD_INPUT
-    LATENCY_THRESHOLD="${LATENCY_THRESHOLD_INPUT:-1000}"
+        # Thresholds
+        printf "Latency threshold in ms [1000]: "
+        read -r LATENCY_THRESHOLD_INPUT
+        LATENCY_THRESHOLD="${LATENCY_THRESHOLD_INPUT:-1000}"
 
-    printf "Packet loss threshold %% [10]: "
-    read -r PACKET_LOSS_THRESHOLD_INPUT
-    PACKET_LOSS_THRESHOLD="${PACKET_LOSS_THRESHOLD_INPUT:-10}"
+        printf "Packet loss threshold %% [10]: "
+        read -r PACKET_LOSS_THRESHOLD_INPUT
+        PACKET_LOSS_THRESHOLD="${PACKET_LOSS_THRESHOLD_INPUT:-10}"
 
-    printf "Obstruction threshold %% [5]: "
-    read -r OBSTRUCTION_THRESHOLD_INPUT
-    OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD_INPUT:-5}"
+        printf "Obstruction threshold %% [5]: "
+        read -r OBSTRUCTION_THRESHOLD_INPUT
+        OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD_INPUT:-5}"
 
-    # Feature toggles
-    printf "Enable Azure integration? [y/N]: "
-    read -r AZURE_CHOICE
-    case "${AZURE_CHOICE:-n}" in
-        [Yy]*)
-            ENABLE_AZURE="true"
-            printf "Azure endpoint URL: "
-            read -r AZURE_ENDPOINT
-            ;;
-        *)
-            ENABLE_AZURE="false"
-            AZURE_ENDPOINT=""
-            ;;
-    esac
+        # Feature toggles
+        printf "Enable Azure integration? [y/N]: "
+        read -r AZURE_CHOICE
+        case "${AZURE_CHOICE:-n}" in
+            [Yy]*)
+                ENABLE_AZURE="true"
+                printf "Azure endpoint URL: "
+                read -r AZURE_ENDPOINT
+                ;;
+            *)
+                ENABLE_AZURE="false"
+                AZURE_ENDPOINT=""
+                ;;
+        esac
 
-    printf "Enable Pushover notifications? [y/N]: "
-    read -r PUSHOVER_CHOICE
-    case "${PUSHOVER_CHOICE:-n}" in
-        [Yy]*)
-            ENABLE_PUSHOVER="true"
-            printf "Pushover user key: "
-            read -r PUSHOVER_USER_KEY
-            printf "Pushover API token: "
-            read -r PUSHOVER_API_TOKEN
-            ;;
-        *)
-            ENABLE_PUSHOVER="false"
-            PUSHOVER_USER_KEY=""
-            PUSHOVER_API_TOKEN=""
-            ;;
-    esac
+        printf "Enable Pushover notifications? [y/N]: "
+        read -r PUSHOVER_CHOICE
+        case "${PUSHOVER_CHOICE:-n}" in
+            [Yy]*)
+                ENABLE_PUSHOVER="true"
+                printf "Pushover user key: "
+                read -r PUSHOVER_USER_KEY
+                printf "Pushover API token: "
+                read -r PUSHOVER_API_TOKEN
+                ;;
+            *)
+                ENABLE_PUSHOVER="false"
+                PUSHOVER_USER_KEY=""
+                PUSHOVER_API_TOKEN=""
+                ;;
+        esac
+    else
+        log_info "Non-interactive mode detected - using default configuration"
+        
+        # Use environment variables if set, otherwise defaults
+        STARLINK_IP="${STARLINK_IP:-$DEFAULT_STARLINK_IP}"
+        STARLINK_PORT="${STARLINK_PORT:-9200}"
+        RUTOS_IP="${RUTOS_IP:-$DEFAULT_RUTOS_IP}"
+        MWAN_IFACE="${MWAN_IFACE:-starlink}"
+        MWAN_MEMBER="${MWAN_MEMBER:-starlink_m1_w1}"
+        METRIC_GOOD="${METRIC_GOOD:-10}"
+        METRIC_BAD="${METRIC_BAD:-100}"
+        LATENCY_THRESHOLD="${LATENCY_THRESHOLD:-1000}"
+        PACKET_LOSS_THRESHOLD="${PACKET_LOSS_THRESHOLD:-10}"
+        OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD:-5}"
+        ENABLE_AZURE="${ENABLE_AZURE:-false}"
+        AZURE_ENDPOINT="${AZURE_ENDPOINT:-}"
+        ENABLE_PUSHOVER="${ENABLE_PUSHOVER:-false}"
+        PUSHOVER_USER_KEY="${PUSHOVER_USER_KEY:-}"
+        PUSHOVER_API_TOKEN="${PUSHOVER_API_TOKEN:-}"
+        
+        log_info "Using configuration: Starlink IP=$STARLINK_IP, RUTOS IP=$RUTOS_IP"
+        log_info "Network: Interface=$MWAN_IFACE, Member=$MWAN_MEMBER"
+        log_info "Thresholds: Latency=${LATENCY_THRESHOLD}ms, Loss=${PACKET_LOSS_THRESHOLD}%, Obstruction=${OBSTRUCTION_THRESHOLD}%"
+        log_info "Integrations: Azure=$ENABLE_AZURE, Pushover=$ENABLE_PUSHOVER"
+        
+        # Log if any environment variables were used
+        if [ "$STARLINK_IP" != "$DEFAULT_STARLINK_IP" ]; then
+            log_info "Environment: Using custom STARLINK_IP=$STARLINK_IP"
+        fi
+        if [ "${ENABLE_AZURE}" = "true" ]; then
+            log_info "Environment: Azure integration enabled"
+        fi
+        if [ "${ENABLE_PUSHOVER}" = "true" ]; then
+            log_info "Environment: Pushover notifications enabled"
+        fi
+    fi
 
     log_success "Basic configuration collected"
 }
