@@ -65,8 +65,8 @@ DEFAULT_DEEP_ANALYSIS_INTERVAL="300"
 # CRITICAL: Use persistent storage that survives firmware upgrades on RUTOS
 # /root is wiped during firmware upgrades - use /opt or /mnt for persistence
 # Note: Actual paths will be set after detecting available persistent storage
-HOTPLUG_DIR="/etc/hotplug.d/iface"                       # System hotplug directory
-INIT_D_DIR="/etc/init.d"                                 # System init.d directory
+HOTPLUG_DIR="/etc/hotplug.d/iface" # System hotplug directory
+INIT_D_DIR="/etc/init.d"           # System init.d directory
 
 # === RUTOS PERSISTENT STORAGE VERIFICATION ===
 # Check for available persistent storage locations (in order of preference)
@@ -510,17 +510,17 @@ collect_enhanced_configuration() {
         fi
     else
         log_info "Non-interactive mode - using recommended monitoring configuration"
-        
+
         # Use environment variables if set, otherwise recommended defaults
         MONITORING_MODE="${MONITORING_MODE:-daemon}"
         DAEMON_AUTOSTART="${DAEMON_AUTOSTART:-true}"
         MONITORING_INTERVAL="${MONITORING_INTERVAL:-60}"
         QUICK_CHECK_INTERVAL="${QUICK_CHECK_INTERVAL:-30}"
         DEEP_ANALYSIS_INTERVAL="${DEEP_ANALYSIS_INTERVAL:-300}"
-        
+
         log_info "Selected: $MONITORING_MODE monitoring mode with autostart $DAEMON_AUTOSTART"
         log_info "Intervals: Monitoring=${MONITORING_INTERVAL}s, Quick=${QUICK_CHECK_INTERVAL}s, Deep=${DEEP_ANALYSIS_INTERVAL}s"
-        
+
         # Log if any environment variables were used for monitoring config
         if [ "${MONITORING_MODE}" != "daemon" ]; then
             log_info "Environment: Using custom MONITORING_MODE=$MONITORING_MODE"
@@ -869,7 +869,7 @@ collect_basic_configuration() {
 
     if is_interactive; then
         log_info "Interactive mode detected - collecting configuration"
-        
+
         # Collect basic network settings
         printf "Starlink IP address [%s]: " "$DEFAULT_STARLINK_IP"
         read -r STARLINK_IP_INPUT
@@ -914,6 +914,20 @@ collect_basic_configuration() {
         OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD_INPUT:-5}"
 
         # Feature toggles
+        printf "Enable Starlink monitoring? [Y/n]: "
+        read -r STARLINK_MONITORING_CHOICE
+        case "${STARLINK_MONITORING_CHOICE:-y}" in
+            [Nn]*) ENABLE_STARLINK_MONITORING="false" ;;
+            *) ENABLE_STARLINK_MONITORING="true" ;;
+        esac
+
+        printf "Enable GPS collection? [Y/n]: "
+        read -r GPS_CHOICE
+        case "${GPS_CHOICE:-y}" in
+            [Nn]*) ENABLE_GPS="false" ;;
+            *) ENABLE_GPS="true" ;;
+        esac
+
         printf "Enable Azure integration? [y/N]: "
         read -r AZURE_CHOICE
         case "${AZURE_CHOICE:-n}" in
@@ -946,7 +960,7 @@ collect_basic_configuration() {
         esac
     else
         log_info "Non-interactive mode detected - using default configuration"
-        
+
         # Use environment variables if set, otherwise defaults
         STARLINK_IP="${STARLINK_IP:-$DEFAULT_STARLINK_IP}"
         STARLINK_PORT="${STARLINK_PORT:-9200}"
@@ -958,20 +972,29 @@ collect_basic_configuration() {
         LATENCY_THRESHOLD="${LATENCY_THRESHOLD:-1000}"
         PACKET_LOSS_THRESHOLD="${PACKET_LOSS_THRESHOLD:-10}"
         OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD:-5}"
+        ENABLE_STARLINK_MONITORING="${ENABLE_STARLINK_MONITORING:-$DEFAULT_ENABLE_STARLINK_MONITORING}"
+        ENABLE_GPS="${ENABLE_GPS:-$DEFAULT_ENABLE_GPS}"
         ENABLE_AZURE="${ENABLE_AZURE:-false}"
         AZURE_ENDPOINT="${AZURE_ENDPOINT:-}"
         ENABLE_PUSHOVER="${ENABLE_PUSHOVER:-false}"
         PUSHOVER_USER_KEY="${PUSHOVER_USER_KEY:-}"
         PUSHOVER_API_TOKEN="${PUSHOVER_API_TOKEN:-}"
-        
+
         log_info "Using configuration: Starlink IP=$STARLINK_IP, RUTOS IP=$RUTOS_IP"
         log_info "Network: Interface=$MWAN_IFACE, Member=$MWAN_MEMBER"
         log_info "Thresholds: Latency=${LATENCY_THRESHOLD}ms, Loss=${PACKET_LOSS_THRESHOLD}%, Obstruction=${OBSTRUCTION_THRESHOLD}%"
+        log_info "Features: Starlink=$ENABLE_STARLINK_MONITORING, GPS=$ENABLE_GPS"
         log_info "Integrations: Azure=$ENABLE_AZURE, Pushover=$ENABLE_PUSHOVER"
-        
+
         # Log if any environment variables were used
         if [ "$STARLINK_IP" != "$DEFAULT_STARLINK_IP" ]; then
             log_info "Environment: Using custom STARLINK_IP=$STARLINK_IP"
+        fi
+        if [ "${ENABLE_STARLINK_MONITORING}" != "$DEFAULT_ENABLE_STARLINK_MONITORING" ]; then
+            log_info "Environment: Starlink monitoring=$ENABLE_STARLINK_MONITORING"
+        fi
+        if [ "${ENABLE_GPS}" != "$DEFAULT_ENABLE_GPS" ]; then
+            log_info "Environment: GPS collection=$ENABLE_GPS"
         fi
         if [ "${ENABLE_AZURE}" = "true" ]; then
             log_info "Environment: Azure integration enabled"
