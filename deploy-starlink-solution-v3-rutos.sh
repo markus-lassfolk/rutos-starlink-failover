@@ -25,18 +25,93 @@ set -eu
 # Version information (auto-updated by update-version.sh)
 SCRIPT_VERSION="3.0.0"
 
+# === PRE-LIBRARY DEBUG SYSTEM ===
+# Basic logging functions used BEFORE the RUTOS library is loaded
+# These are prefixed with [PRE-DEBUG] to distinguish from library logging
+
+# Global flag to track if library is loaded
+_LIBRARY_LOADED=0
+
+# Get current timestamp in library format
+_get_timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+# Pre-library debug logging function
+pre_debug() {
+    if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+        printf "[PRE-DEBUG] [%s] %s\n" "$(_get_timestamp)" "$*" >&2
+    fi
+}
+
+# Pre-library info logging function
+pre_info() {
+    printf "[PRE-INFO] [%s] %s\n" "$(_get_timestamp)" "$*"
+}
+
+# Pre-library error logging function
+pre_error() {
+    printf "[PRE-ERROR] [%s] %s\n" "$(_get_timestamp)" "$*" >&2
+}
+
+# Pre-library success logging function
+pre_success() {
+    printf "[PRE-SUCCESS] [%s] %s\n" "$(_get_timestamp)" "$*"
+}
+
+# Pre-library warning logging function
+pre_warning() {
+    printf "[PRE-WARNING] [%s] %s\n" "$(_get_timestamp)" "$*" >&2
+}
+
+# Pre-library step logging function
+pre_step() {
+    printf "[PRE-STEP] [%s] === %s ===\n" "$(_get_timestamp)" "$*"
+}
+
+# Log script initialization with pre-library system
+pre_info "Starting deploy-starlink-solution-v3-rutos.sh v$SCRIPT_VERSION"
+pre_debug "Pre-library logging system initialized"
+pre_debug "Environment: DEBUG=${DEBUG:-0}, RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0}, DRY_RUN=${DRY_RUN:-0}"
+
 # CRITICAL: Load RUTOS library system (REQUIRED)
 # Check if running from bootstrap (library in different location)
+pre_step "Loading RUTOS Library System"
+pre_debug "Checking library loading mode..."
+
 if [ "${USE_LIBRARY:-0}" = "1" ] && [ -n "${LIBRARY_PATH:-}" ]; then
     # Bootstrap mode - library is in LIBRARY_PATH
+    pre_debug "Bootstrap mode detected - loading library from: $LIBRARY_PATH"
     . "$LIBRARY_PATH/rutos-lib.sh"
 else
     # Normal mode - library is relative to script
-    . "$(dirname "$0")/lib/rutos-lib.sh"
+    lib_path="$(dirname "$0")/lib/rutos-lib.sh"
+    pre_debug "Normal mode detected - loading library from: $lib_path"
+    . "$lib_path"
 fi
 
+pre_success "RUTOS library system loaded successfully"
+
 # CRITICAL: Initialize script with library features (REQUIRED)
+pre_debug "Initializing script with library features..."
 rutos_init "deploy-starlink-solution-v3-rutos.sh" "$SCRIPT_VERSION"
+
+# Mark library as loaded and transition to library logging
+_LIBRARY_LOADED=1
+log_info "=== TRANSITION: Now using RUTOS library logging system ==="
+log_debug "Pre-library phase completed - all subsequent logging uses library functions"
+log_debug "Library loading verification:"
+log_debug "  _LIBRARY_LOADED=$_LIBRARY_LOADED"
+log_debug "  Available library functions: $(type log_info log_debug log_error 2>/dev/null | wc -l) of 3 expected"
+
+# Verify critical library functions are available
+if ! command -v log_info >/dev/null 2>&1 || ! command -v log_debug >/dev/null 2>&1 || ! command -v log_error >/dev/null 2>&1; then
+    pre_error "CRITICAL: Library functions not properly loaded!"
+    pre_error "This indicates a library loading failure - using fallback logging"
+    _LIBRARY_LOADED=0
+else
+    log_success "Library functions verified - full logging system active"
+fi
 
 # === CONFIGURATION DEFAULTS ===
 DEFAULT_AZURE_ENDPOINT=""
@@ -47,11 +122,131 @@ DEFAULT_ENABLE_PUSHOVER="false"
 DEFAULT_RUTOS_IP="192.168.80.1"
 DEFAULT_STARLINK_IP="192.168.100.1"
 
+# Debug: Log default values for troubleshooting (use smart logging for library compatibility)
+smart_debug "Configuration defaults loaded:"
+smart_debug "  DEFAULT_ENABLE_STARLINK_MONITORING='$DEFAULT_ENABLE_STARLINK_MONITORING'"
+smart_debug "  DEFAULT_ENABLE_GPS='$DEFAULT_ENABLE_GPS'"
+smart_debug "  DEFAULT_ENABLE_AZURE='$DEFAULT_ENABLE_AZURE'"
+smart_debug "  DEFAULT_ENABLE_PUSHOVER='$DEFAULT_ENABLE_PUSHOVER'"
+
 # === INTERACTIVE MODE DETECTION ===
 # Check if script is running in interactive mode
 is_interactive() {
     # Check if stdin is a terminal and not running in non-interactive mode
     [ -t 0 ] && [ "${BATCH_MODE:-0}" != "1" ]
+}
+
+# === SMART LOGGING WRAPPER SYSTEM ===
+# Automatically use pre-debug or library logging depending on library state
+# This ensures consistent logging throughout the script lifecycle
+
+smart_debug() {
+    if [ "$_LIBRARY_LOADED" = "1" ]; then
+        log_debug "$@"
+    else
+        pre_debug "$@"
+    fi
+}
+
+smart_info() {
+    if [ "$_LIBRARY_LOADED" = "1" ]; then
+        log_info "$@"
+    else
+        pre_info "$@"
+    fi
+}
+
+smart_error() {
+    if [ "$_LIBRARY_LOADED" = "1" ]; then
+        log_error "$@"
+    else
+        pre_error "$@"
+    fi
+}
+
+smart_success() {
+    if [ "$_LIBRARY_LOADED" = "1" ]; then
+        log_success "$@"
+    else
+        pre_success "$@"
+    fi
+}
+
+smart_warning() {
+    if [ "$_LIBRARY_LOADED" = "1" ]; then
+        log_warning "$@"
+    else
+        pre_warning "$@"
+    fi
+}
+
+smart_step() {
+    if [ "$_LIBRARY_LOADED" = "1" ]; then
+        log_step "$@"
+    else
+        pre_step "$@"
+    fi
+}
+
+# === DEBUG ENVIRONMENT INHERITANCE ===
+# Export debug settings for child scripts
+export_debug_environment() {
+    smart_debug "Exporting debug environment for child scripts:"
+    
+    # Export core debugging variables
+    export DEBUG="${DEBUG:-0}"
+    export RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+    export DRY_RUN="${DRY_RUN:-0}"
+    export VERBOSE="${VERBOSE:-0}"
+    
+    # Export additional debugging flags
+    export ALLOW_TEST_EXECUTION="${ALLOW_TEST_EXECUTION:-0}"
+    
+    # Log what we're exporting
+    smart_debug "  DEBUG=$DEBUG"
+    smart_debug "  RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+    smart_debug "  DRY_RUN=$DRY_RUN"
+    smart_debug "  VERBOSE=$VERBOSE"
+    smart_debug "  ALLOW_TEST_EXECUTION=$ALLOW_TEST_EXECUTION"
+    
+    smart_debug "Debug environment exported - child scripts will inherit these settings"
+}
+
+# === CHILD SCRIPT EXECUTION WRAPPER ===
+# Execute child scripts with proper environment and library inheritance
+execute_child_script() {
+    local script_path="$1"
+    local script_args="${2:-}"
+    local description="${3:-Execute child script}"
+    
+    smart_debug "Executing child script: $script_path $script_args"
+    smart_debug "Description: $description"
+    
+    # Ensure debug environment is exported
+    export_debug_environment
+    
+    # Additional environment variables for child scripts
+    export USE_LIBRARY="${USE_LIBRARY:-0}"
+    export LIBRARY_PATH="${LIBRARY_PATH:-}"
+    export SCRIPT_SOURCE="deploy-starlink-solution-v3-rutos.sh"
+    
+    smart_debug "Child script environment:"
+    smart_debug "  USE_LIBRARY=$USE_LIBRARY"
+    smart_debug "  LIBRARY_PATH=$LIBRARY_PATH"
+    smart_debug "  SCRIPT_SOURCE=$SCRIPT_SOURCE"
+    
+    # Execute the script with proper environment
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        smart_info "DRY-RUN: Would execute: $script_path $script_args"
+        return 0
+    else
+        smart_debug "Executing: $script_path $script_args"
+        if [ -n "$script_args" ]; then
+            "$script_path" $script_args
+        else
+            "$script_path"
+        fi
+    fi
 }
 
 # === NEW: INTELLIGENT MONITORING DEFAULTS ===
@@ -70,22 +265,29 @@ INIT_D_DIR="/etc/init.d"           # System init.d directory
 
 # === RUTOS PERSISTENT STORAGE VERIFICATION ===
 # Check for available persistent storage locations (in order of preference)
+# NOTE: This happens BEFORE library loading, so we use pre-debug functions
+pre_step "Detecting RUTOS Persistent Storage"
+pre_debug "Checking available persistent storage locations..."
+
 PERSISTENT_STORAGE=""
 for storage_path in "/usr/local" "/opt" "/mnt" "/root"; do
+    pre_debug "Testing storage path: $storage_path"
     if [ -d "$storage_path" ] && [ -w "$storage_path" ]; then
         PERSISTENT_STORAGE="$storage_path"
-        log_debug "Found writable persistent storage: $storage_path"
+        pre_success "Found writable persistent storage: $storage_path"
         break
+    else
+        pre_debug "Storage path not available or not writable: $storage_path"
     fi
 done
 
 if [ -z "$PERSISTENT_STORAGE" ]; then
-    log_error "No writable persistent storage directory found. Checked: /opt /mnt /usr/local /root"
-    log_error "RUTOS system may have read-only filesystem issues"
+    pre_error "No writable persistent storage directory found. Checked: /usr/local /opt /mnt /root"
+    pre_error "RUTOS system may have read-only filesystem issues"
     exit 1
 fi
 
-log_info "Using persistent storage: $PERSISTENT_STORAGE"
+pre_info "Using persistent storage: $PERSISTENT_STORAGE"
 
 # === SET DIRECTORY PATHS BASED ON DETECTED STORAGE ===
 INSTALL_BASE_DIR="$PERSISTENT_STORAGE/starlink"                         # Main installation directory (persistent)
@@ -536,6 +738,28 @@ collect_enhanced_configuration() {
 # === ENHANCED CONFIGURATION FILE GENERATION ===
 generate_enhanced_config() {
     log_info "Generating enhanced configuration file..."
+    
+    # Debug: Verify all required variables are set before generating config
+    log_debug "Pre-generation variable verification:"
+    log_debug "  ENABLE_STARLINK_MONITORING='${ENABLE_STARLINK_MONITORING:-UNSET}'"
+    log_debug "  ENABLE_GPS='${ENABLE_GPS:-UNSET}'"
+    log_debug "  ENABLE_AZURE='${ENABLE_AZURE:-UNSET}'"
+    log_debug "  ENABLE_PUSHOVER='${ENABLE_PUSHOVER:-UNSET}'"
+    
+    # Validate required variables exist (safety check with set -eu)
+    if [ -z "${ENABLE_STARLINK_MONITORING:-}" ]; then
+        log_error "ENABLE_STARLINK_MONITORING is not set - this should have been set in collect_basic_configuration"
+        log_error "Available defaults: DEFAULT_ENABLE_STARLINK_MONITORING='$DEFAULT_ENABLE_STARLINK_MONITORING'"
+        return 1
+    fi
+    
+    if [ -z "${ENABLE_GPS:-}" ]; then
+        log_error "ENABLE_GPS is not set - this should have been set in collect_basic_configuration"
+        log_error "Available defaults: DEFAULT_ENABLE_GPS='$DEFAULT_ENABLE_GPS'"
+        return 1
+    fi
+    
+    log_debug "All required variables validated successfully"
 
     cat >"$CONFIG_DIR/config.sh" <<EOF
 #!/bin/sh
@@ -961,6 +1185,9 @@ collect_basic_configuration() {
     else
         log_info "Non-interactive mode detected - using default configuration"
 
+        # CRITICAL: Set all required variables to prevent 'parameter not set' errors
+        log_debug "Setting configuration variables with default fallbacks..."
+        
         # Use environment variables if set, otherwise defaults
         STARLINK_IP="${STARLINK_IP:-$DEFAULT_STARLINK_IP}"
         STARLINK_PORT="${STARLINK_PORT:-9200}"
@@ -972,13 +1199,24 @@ collect_basic_configuration() {
         LATENCY_THRESHOLD="${LATENCY_THRESHOLD:-1000}"
         PACKET_LOSS_THRESHOLD="${PACKET_LOSS_THRESHOLD:-10}"
         OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD:-5}"
+        
+        # CRITICAL: Feature toggles - must be set to prevent set -eu failures
         ENABLE_STARLINK_MONITORING="${ENABLE_STARLINK_MONITORING:-$DEFAULT_ENABLE_STARLINK_MONITORING}"
         ENABLE_GPS="${ENABLE_GPS:-$DEFAULT_ENABLE_GPS}"
-        ENABLE_AZURE="${ENABLE_AZURE:-false}"
-        AZURE_ENDPOINT="${AZURE_ENDPOINT:-}"
-        ENABLE_PUSHOVER="${ENABLE_PUSHOVER:-false}"
+        ENABLE_AZURE="${ENABLE_AZURE:-$DEFAULT_ENABLE_AZURE}"
+        ENABLE_PUSHOVER="${ENABLE_PUSHOVER:-$DEFAULT_ENABLE_PUSHOVER}"
+        
+        # Integration settings
+        AZURE_ENDPOINT="${AZURE_ENDPOINT:-$DEFAULT_AZURE_ENDPOINT}"
         PUSHOVER_USER_KEY="${PUSHOVER_USER_KEY:-}"
         PUSHOVER_API_TOKEN="${PUSHOVER_API_TOKEN:-}"
+        
+        # Debug: Log all set variables to verify they're properly initialized
+        log_debug "Configuration variables set:"
+        log_debug "  ENABLE_STARLINK_MONITORING='$ENABLE_STARLINK_MONITORING' (default: $DEFAULT_ENABLE_STARLINK_MONITORING)"
+        log_debug "  ENABLE_GPS='$ENABLE_GPS' (default: $DEFAULT_ENABLE_GPS)"
+        log_debug "  ENABLE_AZURE='$ENABLE_AZURE' (default: $DEFAULT_ENABLE_AZURE)"
+        log_debug "  ENABLE_PUSHOVER='$ENABLE_PUSHOVER' (default: $DEFAULT_ENABLE_PUSHOVER)"
 
         log_info "Using configuration: Starlink IP=$STARLINK_IP, RUTOS IP=$RUTOS_IP"
         log_info "Network: Interface=$MWAN_IFACE, Member=$MWAN_MEMBER"
@@ -1127,20 +1365,53 @@ check_system_compatibility() {
 # Deploy monitoring scripts (placeholder for full implementation)
 deploy_monitoring_scripts() {
     log_step "Deploying Monitoring Scripts"
+    
+    # Debug: Log current environment inheritance status
+    log_debug "Environment inheritance check for child scripts:"
+    log_debug "  DEBUG environment variable: ${DEBUG:-unset}"
+    log_debug "  RUTOS_TEST_MODE environment variable: ${RUTOS_TEST_MODE:-unset}"
+    log_debug "  DRY_RUN environment variable: ${DRY_RUN:-unset}"
+    
+    # Re-export to ensure inheritance (some shells need this)
+    export DEBUG RUTOS_TEST_MODE DRY_RUN VERBOSE
 
     # Download main monitoring script
     monitor_url="https://github.com/markus-lassfolk/rutos-starlink-failover/raw/main/Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh"
     monitor_dest="$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh"
 
     log_info "Downloading main monitoring script..."
+    log_debug "Download details: $monitor_url -> $monitor_dest"
     if [ "${DRY_RUN:-0}" = "1" ]; then
         log_info "DRY-RUN: Would download $monitor_url to $monitor_dest"
     else
+        log_debug "Executing: curl -fsSL '$monitor_url' -o '$monitor_dest'"
         if curl -fsSL "$monitor_url" -o "$monitor_dest"; then
             chmod +x "$monitor_dest"
-            log_success "Main monitoring script installed: $monitor_dest"
+            # Verify download
+            if [ -f "$monitor_dest" ] && [ -s "$monitor_dest" ]; then
+                file_size=$(wc -c < "$monitor_dest" 2>/dev/null || echo "unknown")
+                log_success "Main monitoring script installed: $monitor_dest ($file_size bytes)"
+                log_debug "Script permissions: $(ls -la "$monitor_dest" 2>/dev/null || echo 'cannot check')"
+            else
+                log_error "Download succeeded but file is missing or empty: $monitor_dest"
+                return 1
+            fi
         else
-            log_error "Failed to download main monitoring script"
+            log_error "Failed to download main monitoring script from $monitor_url"
+            log_error "Check network connectivity and URL availability"
+            return 1
+        fi
+    fi
+                file_size=$(wc -c < "$monitor_dest" 2>/dev/null || echo "unknown")
+                log_success "Main monitoring script installed: $monitor_dest ($file_size bytes)"
+                log_debug "Script permissions: $(ls -la "$monitor_dest" 2>/dev/null || echo 'cannot check')"
+            else
+                log_error "Download succeeded but file is missing or empty: $monitor_dest"
+                return 1
+            fi
+        else
+            log_error "Failed to download main monitoring script from $monitor_url"
+            log_error "Check network connectivity and URL availability"
             return 1
         fi
     fi
@@ -1150,22 +1421,71 @@ deploy_monitoring_scripts() {
     lib_dest="$LIB_DIR/rutos-lib.sh"
 
     log_info "Downloading RUTOS library..."
+    log_debug "Download details: $lib_url -> $lib_dest"
     if [ "${DRY_RUN:-0}" = "1" ]; then
         log_info "DRY-RUN: Would download $lib_url to $lib_dest"
     else
+        log_debug "Executing: curl -fsSL '$lib_url' -o '$lib_dest'"
         if curl -fsSL "$lib_url" -o "$lib_dest"; then
             chmod +x "$lib_dest"
-            log_success "RUTOS library installed: $lib_dest"
+            # Verify download
+            if [ -f "$lib_dest" ] && [ -s "$lib_dest" ]; then
+                file_size=$(wc -c < "$lib_dest" 2>/dev/null || echo "unknown")
+                log_success "RUTOS library installed: $lib_dest ($file_size bytes)"
+                log_debug "Library permissions: $(ls -la "$lib_dest" 2>/dev/null || echo 'cannot check')"
+            else
+                log_error "Download succeeded but library file is missing or empty: $lib_dest"
+                return 1
+            fi
         else
-            log_error "Failed to download RUTOS library"
+            log_error "Failed to download RUTOS library from $lib_url"
+            log_error "Check network connectivity and URL availability"
             return 1
         fi
     fi
 
     # Deploy intelligent logging system
     deploy_intelligent_logging_system
+    
+    # Test script functionality with debug environment inheritance
+    test_deployed_scripts
 
     log_success "Monitoring scripts deployment completed"
+}
+
+# Test deployed scripts with proper environment inheritance
+test_deployed_scripts() {
+    log_debug "Testing deployed scripts with environment inheritance..."
+    
+    # Test main monitoring script if it exists
+    if [ -f "$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh" ] && [ -x "$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh" ]; then
+        log_debug "Testing main monitoring script with debug environment:"
+        log_debug "  Command: '$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh' validate"
+        log_debug "  Environment: DEBUG=$DEBUG RUTOS_TEST_MODE=$RUTOS_TEST_MODE DRY_RUN=$DRY_RUN"
+        
+        # Use the child script execution wrapper for proper environment inheritance
+        if execute_child_script "$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh" "validate" "Test monitoring script validation"; then
+            log_debug "✓ Main monitoring script basic validation passed"
+        else
+            log_debug "ℹ Main monitoring script validation failed (may need configuration)"
+        fi
+    else
+        log_warning "Main monitoring script not found or not executable for testing"
+    fi
+    
+    # Test intelligent logger if it exists
+    if [ -f "$SCRIPTS_DIR/starlink_intelligent_logger-rutos.sh" ] && [ -x "$SCRIPTS_DIR/starlink_intelligent_logger-rutos.sh" ]; then
+        log_debug "Testing intelligent logger script..."
+        
+        # Test logger with proper environment inheritance
+        if execute_child_script "$SCRIPTS_DIR/starlink_intelligent_logger-rutos.sh" "status" "Test logger script status"; then
+            log_debug "✓ Intelligent logger script accessible"
+        else
+            log_debug "ℹ Intelligent logger script test failed (normal if not configured)"
+        fi
+    else
+        log_debug "Intelligent logger script not found (will be downloaded during deployment)"
+    fi
 }
 
 # Azure integration setup (placeholder for full implementation)
@@ -1197,8 +1517,17 @@ setup_pushover_notifications() {
 # === MAIN EXECUTION ===
 main() {
     log_step "Starlink Solution Deployment v$SCRIPT_VERSION - Intelligent Monitoring"
+    
+    # CRITICAL: Export debug environment for child scripts early
+    export_debug_environment
+    
+    log_debug "Main deployment function started with enhanced debugging"
+    log_debug "Current working directory: $(pwd)"
+    log_debug "Script path: $0"
+    log_debug "Script arguments: $*"
 
     # Pre-flight checks
+    log_debug "Starting pre-flight checks..."
     check_root_privileges
     check_system_compatibility
 
@@ -1303,9 +1632,33 @@ main() {
 
     log_success "Intelligent Starlink Monitoring System v3.0 deployment completed!"
     log_success "All files stored in persistent storage: $INSTALL_BASE_DIR"
+    
+    # Final diagnostics - verify library usage throughout deployment
+    log_debug "=== FINAL DEPLOYMENT DIAGNOSTICS ==="
+    log_debug "Library status: $_LIBRARY_LOADED (1=loaded, 0=fallback)"
+    log_debug "Debug inheritance: DEBUG=$DEBUG, RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
+    log_debug "Child scripts will inherit: USE_LIBRARY=$USE_LIBRARY, LIBRARY_PATH=$LIBRARY_PATH"
+    log_debug "Deployment completed with $(if [ "$_LIBRARY_LOADED" = "1" ]; then echo "full library"; else echo "fallback"; fi) logging system"
 }
 
+# === SCRIPT EXECUTION WRAPPER ===
 # Execute main function if script is run directly
 if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
+    # Final pre-execution diagnostics
+    pre_debug "Script execution starting..."
+    pre_debug "Command line: $0 $*"
+    pre_debug "Environment: USER=${USER:-unknown}, PWD=$PWD"
+    
+    # Execute main deployment
     main "$@"
+    
+    # Post-execution status
+    exit_code=$?
+    if [ $exit_code -eq 0 ]; then
+        smart_success "Deployment script completed successfully (exit code: $exit_code)"
+    else
+        smart_error "Deployment script failed (exit code: $exit_code)"
+    fi
+    
+    exit $exit_code
 fi
