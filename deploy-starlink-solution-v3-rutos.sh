@@ -1634,10 +1634,85 @@ EOF
 
 # === MAIN DEPLOYMENT FUNCTIONS ===
 
+# Auto-discover MWAN3 configuration
+auto_discover_mwan3_config() {
+    log_function_entry "auto_discover_mwan3_config"
+    log_info "Auto-discovering MWAN3 configuration..."
+
+    # Initialize discovery variables
+    DISCOVERED_INTERFACES=""
+    DISCOVERED_MEMBERS=""
+    SUGGESTED_MWAN_IFACE=""
+    SUGGESTED_MWAN_MEMBER=""
+
+    # Check if MWAN3 is available
+    if ! command -v mwan3 >/dev/null 2>&1 || ! uci show mwan3 >/dev/null 2>&1; then
+        log_warning "MWAN3 not available or not configured - using defaults"
+        return 0
+    fi
+
+    # Discover MWAN3 interfaces
+    log_debug "Discovering MWAN3 interfaces..."
+    if DISCOVERED_INTERFACES=$(uci show mwan3 | grep '\.interface=' | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null); then
+        log_debug "Found interfaces: $DISCOVERED_INTERFACES"
+
+        # Try to find a starlink-like interface
+        for iface in $DISCOVERED_INTERFACES; do
+            case "$iface" in
+                *starlink* | *sat* | *dish*)
+                    SUGGESTED_MWAN_IFACE="$iface"
+                    log_info "Found potential Starlink interface: $iface"
+                    break
+                    ;;
+            esac
+        done
+
+        # If no starlink-like interface, suggest the first one
+        if [ -z "$SUGGESTED_MWAN_IFACE" ] && [ -n "$DISCOVERED_INTERFACES" ]; then
+            SUGGESTED_MWAN_IFACE=$(echo "$DISCOVERED_INTERFACES" | awk '{print $1}')
+            log_info "No Starlink-specific interface found, suggesting: $SUGGESTED_MWAN_IFACE"
+        fi
+    fi
+
+    # Discover MWAN3 members
+    log_debug "Discovering MWAN3 members..."
+    if DISCOVERED_MEMBERS=$(uci show mwan3 | grep '@member\[' | grep '\.interface=' | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null); then
+        log_debug "Found member interfaces: $DISCOVERED_MEMBERS"
+
+        # Try to find a member for our suggested interface
+        if [ -n "$SUGGESTED_MWAN_IFACE" ]; then
+            # Look for members with matching interface
+            member_name=$(uci show mwan3 | grep "interface='$SUGGESTED_MWAN_IFACE'" | head -1 | cut -d'.' -f2 | cut -d'[' -f1)
+            if [ -n "$member_name" ]; then
+                member_index=$(uci show mwan3 | grep "interface='$SUGGESTED_MWAN_IFACE'" | head -1 | sed 's/.*\[\([0-9]*\)\].*/\1/')
+                if [ -n "$member_index" ]; then
+                    SUGGESTED_MWAN_MEMBER="${member_name}_m${member_index}_w1"
+                    log_info "Suggested member for interface $SUGGESTED_MWAN_IFACE: $SUGGESTED_MWAN_MEMBER"
+                fi
+            fi
+        fi
+    fi
+
+    # Set defaults if nothing discovered
+    SUGGESTED_MWAN_IFACE="${SUGGESTED_MWAN_IFACE:-starlink}"
+    SUGGESTED_MWAN_MEMBER="${SUGGESTED_MWAN_MEMBER:-starlink_m1_w1}"
+
+    log_info "Auto-discovery results:"
+    log_info "  Available interfaces: ${DISCOVERED_INTERFACES:-none}"
+    log_info "  Available members: ${DISCOVERED_MEMBERS:-none}"
+    log_info "  Suggested interface: $SUGGESTED_MWAN_IFACE"
+    log_info "  Suggested member: $SUGGESTED_MWAN_MEMBER"
+
+    log_function_exit "auto_discover_mwan3_config"
+}
+
 # Basic configuration collection (placeholder for full implementation)
 collect_basic_configuration() {
     log_function_entry "collect_basic_configuration"
     log_step "Basic Configuration Collection"
+
+    # Auto-discover MWAN3 configuration first
+    auto_discover_mwan3_config
 
     if is_interactive; then
         log_info "Interactive mode detected - collecting configuration"
@@ -1655,14 +1730,14 @@ collect_basic_configuration() {
         read -r RUTOS_IP_INPUT
         RUTOS_IP="${RUTOS_IP_INPUT:-$DEFAULT_RUTOS_IP}"
 
-        # Network configuration
-        printf "MWAN interface name [starlink]: "
+        # Network configuration (using auto-discovered values)
+        printf "MWAN interface name [%s]: " "$SUGGESTED_MWAN_IFACE"
         read -r MWAN_IFACE_INPUT
-        MWAN_IFACE="${MWAN_IFACE_INPUT:-starlink}"
+        MWAN_IFACE="${MWAN_IFACE_INPUT:-$SUGGESTED_MWAN_IFACE}"
 
-        printf "MWAN member name [starlink_m1_w1]: "
+        printf "MWAN member name [%s]: " "$SUGGESTED_MWAN_MEMBER"
         read -r MWAN_MEMBER_INPUT
-        MWAN_MEMBER="${MWAN_MEMBER_INPUT:-starlink_m1_w1}"
+        MWAN_MEMBER="${MWAN_MEMBER_INPUT:-$SUGGESTED_MWAN_MEMBER}"
 
         printf "Good connection metric [10]: "
         read -r METRIC_GOOD_INPUT
@@ -1736,12 +1811,12 @@ collect_basic_configuration() {
         # CRITICAL: Set all required variables to prevent 'parameter not set' errors
         log_debug "Setting configuration variables with default fallbacks..."
 
-        # Use environment variables if set, otherwise defaults
+        # Use environment variables if set, otherwise use auto-discovered defaults
         STARLINK_IP="${STARLINK_IP:-$DEFAULT_STARLINK_IP}"
         STARLINK_PORT="${STARLINK_PORT:-9200}"
         RUTOS_IP="${RUTOS_IP:-$DEFAULT_RUTOS_IP}"
-        MWAN_IFACE="${MWAN_IFACE:-starlink}"
-        MWAN_MEMBER="${MWAN_MEMBER:-starlink_m1_w1}"
+        MWAN_IFACE="${MWAN_IFACE:-$SUGGESTED_MWAN_IFACE}"
+        MWAN_MEMBER="${MWAN_MEMBER:-$SUGGESTED_MWAN_MEMBER}"
         METRIC_GOOD="${METRIC_GOOD:-10}"
         METRIC_BAD="${METRIC_BAD:-100}"
         LATENCY_THRESHOLD="${LATENCY_THRESHOLD:-1000}"
@@ -1943,28 +2018,57 @@ deploy_monitoring_scripts() {
         return 1
     fi
 
-    # Download RUTOS library
-    lib_url="https://github.com/markus-lassfolk/rutos-starlink-failover/raw/main/scripts/lib/rutos-lib.sh"
-    lib_dest="$LIB_DIR/rutos-lib.sh"
+    # Download all RUTOS library files
+    log_info "Downloading RUTOS library system..."
 
-    log_info "Downloading RUTOS library..."
-    log_debug "Download details: $lib_url -> $lib_dest"
-    if smart_safe_execute "curl -fsSL '$lib_url' -o '$lib_dest'" "Download RUTOS library"; then
-        smart_safe_execute "chmod +x '$lib_dest'" "Make library executable"
-        # Verify download
-        if [ -f "$lib_dest" ] && [ -s "$lib_dest" ]; then
-            file_size=$(wc -c <"$lib_dest" 2>/dev/null || echo "unknown")
-            log_success "RUTOS library installed: $lib_dest ($file_size bytes)"
-            log_debug "Library permissions: $(ls -la "$lib_dest" 2>/dev/null || echo 'cannot check')"
+    # List of all required library files
+    library_files="rutos-lib.sh rutos-common.sh rutos-logging.sh rutos-error-logging.sh rutos-data-collection.sh rutos-compatibility.sh rutos-colors.sh"
+
+    for lib_file in $library_files; do
+        lib_url="https://github.com/markus-lassfolk/rutos-starlink-failover/raw/main/scripts/lib/$lib_file"
+        lib_dest="$LIB_DIR/$lib_file"
+
+        log_debug "Downloading library: $lib_file"
+        if smart_safe_execute "curl -fsSL '$lib_url' -o '$lib_dest'" "Download $lib_file"; then
+            smart_safe_execute "chmod +x '$lib_dest'" "Make $lib_file executable"
+            # Verify download
+            if [ -f "$lib_dest" ] && [ -s "$lib_dest" ]; then
+                file_size=$(wc -c <"$lib_dest" 2>/dev/null || echo "unknown")
+                log_debug "Library installed: $lib_file ($file_size bytes)"
+            else
+                log_error "Download succeeded but library file is missing or empty: $lib_dest"
+                return 1
+            fi
         else
-            log_error "Download succeeded but library file is missing or empty: $lib_dest"
+            log_error "Failed to download library file: $lib_file"
             return 1
         fi
-    else
-        log_error "Failed to download RUTOS library from $lib_url"
-        log_error "Check network connectivity and URL availability"
-        return 1
-    fi
+    done
+
+    log_success "Complete RUTOS library system installed ($(echo "$library_files" | wc -w) files)"
+
+    # Create expected library path structure for script compatibility
+    log_info "Creating expected library path structure..."
+
+    # Create scripts/lib directory structure (for relative path: ../scripts/lib/rutos-lib.sh)
+    script_lib_dir="$(dirname "$SCRIPTS_DIR")/scripts/lib"
+    smart_safe_execute "mkdir -p '$script_lib_dir'" "Create scripts/lib directory"
+    for lib_file in $library_files; do
+        smart_safe_execute "ln -sf '$LIB_DIR/$lib_file' '$script_lib_dir/$lib_file'" "Link $lib_file to scripts/lib"
+    done
+
+    # Create bin/lib directory structure (for relative path: ./lib/rutos-lib.sh from bin directory)
+    bin_lib_dir="$SCRIPTS_DIR/lib"
+    smart_safe_execute "mkdir -p '$bin_lib_dir'" "Create bin/lib directory"
+    for lib_file in $library_files; do
+        smart_safe_execute "ln -sf '$LIB_DIR/$lib_file' '$bin_lib_dir/$lib_file'" "Link $lib_file to bin/lib"
+    done
+
+    # Create expected config path structure (/etc/starlink-config/config.sh)
+    smart_safe_execute "mkdir -p '/etc/starlink-config'" "Create expected config directory"
+    smart_safe_execute "ln -sf '$CONFIG_DIR/config.sh' '/etc/starlink-config/config.sh'" "Link config to expected path"
+
+    log_success "Library path structure created for maximum script compatibility"
 
     # Deploy intelligent logging system
     deploy_intelligent_logging_system
