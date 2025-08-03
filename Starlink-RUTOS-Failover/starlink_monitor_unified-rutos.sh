@@ -526,6 +526,87 @@ log_maintenance_action() {
 }
 
 # =============================================================================
+# CONNECTION HEALTH LOGGING SYSTEM
+# Dedicated logging for each connection type with relevant metrics and calculated scores
+# =============================================================================
+
+# Log Starlink connection health with all relevant metrics and calculated score
+log_starlink_health() {
+    latency="${1:-unknown}"
+    packet_loss="${2:-unknown}"
+    obstruction="${3:-unknown}"
+    snr="${4:-unknown}"
+    calculated_score="${5:-unknown}"
+    
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Create Starlink-specific log entry
+    starlink_entry="$timestamp,starlink_health,connection_analysis,starlink,$latency,$packet_loss,$obstruction,$snr,unknown,unknown,health_analysis,completed,none,none,score:$calculated_score"
+    
+    # Write to decision log (protect with DRY_RUN)
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        log_debug "DRY-RUN: Would log Starlink health: score=$calculated_score, latency=${latency}ms, loss=${packet_loss}%, obstruction=$obstruction, snr=$snr"
+    else
+        echo "$starlink_entry" >>"$DECISION_LOG_FILE"
+    fi
+    
+    log_debug "📡 STARLINK HEALTH: Score=$calculated_score (lat:${latency}ms, loss:${packet_loss}%, obs:$obstruction, snr:$snr)"
+}
+
+# Log cellular connection health with all relevant metrics and calculated score  
+log_cellular_health() {
+    interface="${1:-unknown}"
+    signal_dbm="${2:-unknown}"
+    signal_quality="${3:-unknown}"
+    network_type="${4:-unknown}"
+    operator="${5:-unknown}"
+    calculated_score="${6:-unknown}"
+    
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Create cellular-specific log entry
+    cellular_entry="$timestamp,cellular_health,connection_analysis,$interface,$signal_dbm,$signal_quality,$network_type,$operator,unknown,unknown,health_analysis,completed,none,none,score:$calculated_score"
+    
+    # Write to decision log (protect with DRY_RUN)
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        log_debug "DRY-RUN: Would log cellular health: score=$calculated_score, signal=${signal_dbm}dBm, quality=${signal_quality}%, network=$network_type, operator=$operator"
+    else
+        echo "$cellular_entry" >>"$DECISION_LOG_FILE"
+    fi
+    
+    log_debug "📱 CELLULAR HEALTH [$interface]: Score=$calculated_score (signal:${signal_dbm}dBm, quality:${signal_quality}%, network:$network_type, operator:$operator)"
+}
+
+# Log generic connection health (WiFi, Ethernet, VPN) with relevant metrics and calculated score
+log_generic_connection_health() {
+    interface="${1:-unknown}"
+    connection_type="${2:-unknown}"
+    latency="${3:-unknown}" 
+    packet_loss="${4:-unknown}"
+    link_quality="${5:-unknown}"
+    calculated_score="${6:-unknown}"
+    
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Create generic connection log entry
+    generic_entry="$timestamp,${connection_type}_health,connection_analysis,$interface,$latency,$packet_loss,$link_quality,unknown,unknown,unknown,health_analysis,completed,none,none,score:$calculated_score"
+    
+    # Write to decision log (protect with DRY_RUN)
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        log_debug "DRY-RUN: Would log $connection_type health: score=$calculated_score, latency=${latency}ms, loss=${packet_loss}%, quality=$link_quality"
+    else
+        echo "$generic_entry" >>"$DECISION_LOG_FILE" 
+    fi
+    
+    case "$connection_type" in
+        "wifi") log_debug "📶 WIFI HEALTH [$interface]: Score=$calculated_score (lat:${latency}ms, loss:${packet_loss}%, quality:$link_quality)" ;;
+        "ethernet") log_debug "🔌 ETHERNET HEALTH [$interface]: Score=$calculated_score (lat:${latency}ms, loss:${packet_loss}%, quality:$link_quality)" ;;
+        "vpn") log_debug "🔒 VPN HEALTH [$interface]: Score=$calculated_score (lat:${latency}ms, loss:${packet_loss}%, quality:$link_quality)" ;;
+        *) log_debug "🔗 CONNECTION HEALTH [$interface/$connection_type]: Score=$calculated_score (lat:${latency}ms, loss:${packet_loss}%, quality:$link_quality)" ;;
+    esac
+}
+
+# =============================================================================
 # GPS DATA COLLECTION (Enhanced Feature)
 # Intelligent GPS data collection from multiple sources
 # shellcheck disable=SC1091  # False positive: "sources" in comment, not shell command
@@ -3689,6 +3770,64 @@ main() {
 
         if analyze_starlink_metrics "$status_data"; then
             log_maintenance_action "data_analysis" "metrics_parsing" "success" "All metrics extracted"
+
+            # Calculate and log Starlink connection health
+            if starlink_score=$(calculate_connection_health_score "${CURRENT_LATENCY:-0}" "${CURRENT_PACKET_LOSS:-0}" "0" "0" "starlink" 2>/dev/null); then
+                log_starlink_health "${CURRENT_LATENCY:-unknown}" "${CURRENT_PACKET_LOSS:-unknown}" "${CURRENT_OBSTRUCTION:-unknown}" "${CURRENT_SNR:-unknown}" "$starlink_score"
+            else
+                log_starlink_health "${CURRENT_LATENCY:-unknown}" "${CURRENT_PACKET_LOSS:-unknown}" "${CURRENT_OBSTRUCTION:-unknown}" "${CURRENT_SNR:-unknown}" "unknown"
+            fi
+
+            # Log cellular connection health if enabled and available
+            if [ "$ENABLE_CELLULAR_TRACKING" = "true" ] || [ "$ENABLE_MULTI_CELLULAR" = "true" ]; then
+                discovered_cellular=$(discover_cellular_modems)
+                if [ -n "$discovered_cellular" ]; then
+                    for cellular_interface in $discovered_cellular; do
+                        if cellular_data=$(get_enhanced_cellular_diagnostics "$cellular_interface" 2>/dev/null); then
+                            # Parse cellular diagnostics: signal_dbm,signal_quality,network_type,operator,roaming_status,connection_status,data_usage_rx,data_usage_tx,frequency_band,cell_id,timestamp
+                            signal_dbm=$(echo "$cellular_data" | cut -d',' -f1)
+                            signal_quality=$(echo "$cellular_data" | cut -d',' -f2)
+                            network_type=$(echo "$cellular_data" | cut -d',' -f3)
+                            operator=$(echo "$cellular_data" | cut -d',' -f4)
+                            
+                            if cellular_score=$(calculate_connection_health_score "0" "0" "0" "$signal_dbm" "cellular" 2>/dev/null); then
+                                log_cellular_health "$cellular_interface" "$signal_dbm" "$signal_quality" "$network_type" "$operator" "$cellular_score"
+                            else
+                                log_cellular_health "$cellular_interface" "$signal_dbm" "$signal_quality" "$network_type" "$operator" "unknown"
+                            fi
+                        fi
+                    done
+                fi
+            fi
+
+            # Log generic connection health if enabled
+            if [ "$ENABLE_GENERIC_CONNECTIONS" = "true" ] || [ "$ENABLE_MULTI_CONNECTION_MONITORING" = "true" ]; then
+                discovered_generic=$(discover_generic_connections)
+                if [ -n "$discovered_generic" ]; then
+                    for generic_interface in $discovered_generic; do
+                        # Classify the interface type
+                        interface_classification=$(classify_interface_type "$generic_interface")
+                        interface_type=$(echo "$interface_classification" | cut -d',' -f1)
+                        
+                        # Test connection performance (simple ping test)
+                        if ping -c 1 -W 2 -I "$generic_interface" "${CONNECTION_TEST_HOST:-8.8.8.8}" >/dev/null 2>&1; then
+                            latency=$(ping -c 3 -W 2 -I "$generic_interface" "${CONNECTION_TEST_HOST:-8.8.8.8}" 2>/dev/null | tail -1 | awk -F'/' '{print $5}' | cut -d'.' -f1 || echo "unknown")
+                            packet_loss="0"
+                            link_quality="good"
+                        else
+                            latency="timeout"
+                            packet_loss="100"
+                            link_quality="poor"
+                        fi
+                        
+                        if generic_score=$(calculate_connection_health_score "${latency:-999}" "${packet_loss:-100}" "0" "0" "$interface_type" 2>/dev/null); then
+                            log_generic_connection_health "$generic_interface" "$interface_type" "$latency" "$packet_loss" "$link_quality" "$generic_score"
+                        else
+                            log_generic_connection_health "$generic_interface" "$interface_type" "$latency" "$packet_loss" "$link_quality" "unknown"
+                        fi
+                    done
+                fi
+            fi
 
             # Use intelligent dual-connection analysis if enabled
             analyze_dual_connection_performance
