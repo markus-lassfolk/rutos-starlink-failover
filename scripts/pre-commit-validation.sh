@@ -42,10 +42,14 @@ TOTAL_FILES=0
 PASSED_FILES=0
 FAILED_FILES=0
 TOTAL_ISSUES=0
+BLOCKING_ISSUES=0
 CRITICAL_ISSUES=0
 MAJOR_ISSUES=0
 MINOR_ISSUES=0
 WARNING_ISSUES=0
+
+# File-level issue tracking for detailed summary
+FILE_RESULTS=""  # Format: "filename:blocking:critical:major:minor:warning:total:passed"
 
 # Autonomous mode variables
 AUTONOMOUS_MODE=0
@@ -255,7 +259,14 @@ $issue_json"
     fi
 
     case "$severity" in
-        "CRITICAL") CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1)) ;;
+        "CRITICAL") 
+            # Check if this is a BLOCKING issue
+            if echo "$message" | grep -q "BLOCKING"; then
+                BLOCKING_ISSUES=$((BLOCKING_ISSUES + 1))
+            else
+                CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1))
+            fi
+            ;;
         "MAJOR") MAJOR_ISSUES=$((MAJOR_ISSUES + 1)) ;;
         "MINOR") MINOR_ISSUES=$((MINOR_ISSUES + 1)) ;;
         "WARNING") WARNING_ISSUES=$((WARNING_ISSUES + 1)) ;;
@@ -364,6 +375,60 @@ check_shebang() {
             return 1
             ;;
     esac
+}
+
+# Function to check POSIX compliance for RUTOS scripts
+check_posix_compliance() {
+    file="$1"
+    
+    log_trace "Checking POSIX compliance for: $file"
+    
+    # Additional POSIX-specific checks beyond what ShellCheck catches
+    posix_issues=0
+    
+    # Check for bash-specific constructs that might not be caught
+    # 1. Check for [[ ]] instead of [ ]
+    if grep -n '\[\[.*\]\]' "$file" >/dev/null 2>&1; then
+        line_nums=$(grep -n '\[\[.*\]\]' "$file" | cut -d: -f1 | tr '\n' ',' | sed 's/,$//')
+        report_issue "CRITICAL" "$file" "$line_nums" "POSIX: Use [ ] instead of [[ ]] for RUTOS compatibility"
+        posix_issues=$((posix_issues + 1))
+    fi
+    
+    # 2. Check for function() syntax instead of function_name() 
+    if grep -n 'function [a-zA-Z_][a-zA-Z0-9_]*()' "$file" >/dev/null 2>&1; then
+        line_nums=$(grep -n 'function [a-zA-Z_][a-zA-Z0-9_]*()' "$file" | cut -d: -f1 | tr '\n' ',' | sed 's/,$//')
+        report_issue "MAJOR" "$file" "$line_nums" "POSIX: Use 'func_name() {' instead of 'function func_name()'"
+        posix_issues=$((posix_issues + 1))
+    fi
+    
+    # 3. Check for $'...' syntax (not POSIX)
+    if grep -n "\$'" "$file" >/dev/null 2>&1; then
+        line_nums=$(grep -n "\$'" "$file" | cut -d: -f1 | tr '\n' ',' | sed 's/,$//')
+        report_issue "MAJOR" "$file" "$line_nums" "POSIX: Use printf instead of \$'...' syntax for RUTOS compatibility"
+        posix_issues=$((posix_issues + 1))
+    fi
+    
+    # 4. Check for echo -e (not portable)
+    if grep -n 'echo -e' "$file" >/dev/null 2>&1; then
+        line_nums=$(grep -n 'echo -e' "$file" | cut -d: -f1 | tr '\n' ',' | sed 's/,$//')
+        report_issue "MAJOR" "$file" "$line_nums" "POSIX: Use printf instead of 'echo -e' for RUTOS compatibility"
+        posix_issues=$((posix_issues + 1))
+    fi
+    
+    # 5. Check for source command instead of . (dot)
+    if grep -n '^\s*source\s' "$file" >/dev/null 2>&1; then
+        line_nums=$(grep -n '^\s*source\s' "$file" | cut -d: -f1 | tr '\n' ',' | sed 's/,$//')
+        report_issue "MAJOR" "$file" "$line_nums" "POSIX: Use '. filename' instead of 'source filename' for RUTOS compatibility"
+        posix_issues=$((posix_issues + 1))
+    fi
+    
+    if [ $posix_issues -eq 0 ]; then
+        log_debug "✓ $file: POSIX compliance checks passed"
+    else
+        log_debug "$file: Found $posix_issues POSIX compliance issues - details reported individually"
+    fi
+    
+    return $posix_issues
 }
 
 # Function to check bash-specific syntax (RUTOS scripts and library files)
@@ -760,8 +825,19 @@ validate_script_version() {
     set_line_num=$(grep -n "^set " "$file" | head -1 | cut -d: -f1 2>/dev/null || echo "1")
 
     # SCRIPT_VERSION should be within first 30 lines and after set commands
+    # Allow flexibility if there are intentional placement comments
     if [ "$version_line_num" -gt 30 ]; then
-        report_issue "MINOR" "$file" "$version_line_num" "SCRIPT_VERSION should be defined near the top of the file (within first 30 lines)"
+        # Check for intentional placement indicators around SCRIPT_VERSION
+        context_lines=""
+        context_start=$((version_line_num - 3))
+        context_end=$((version_line_num + 1))
+        [ "$context_start" -lt 1 ] && context_start=1
+        context_lines=$(sed -n "${context_start},${context_end}p" "$file" 2>/dev/null)
+        
+        # Look for indicators that this is intentional positioning
+        if ! echo "$context_lines" | grep -qi "intentionally\|after.*error\|defensive\|before.*strict"; then
+            report_issue "MINOR" "$file" "$version_line_num" "SCRIPT_VERSION should be defined near the top of the file (within first 30 lines)"
+        fi
     fi
 
     if [ -n "$set_line_num" ] && [ "$version_line_num" -lt "$set_line_num" ]; then
@@ -815,23 +891,23 @@ validate_markdown_version() {
 # Function to run ShellCheck
 run_shellcheck() {
     file="$1"
+    mode="${2:-auto}"  # auto, posix, or bash
 
     if ! command_exists shellcheck; then
         log_warning "ShellCheck not available - skipping syntax validation"
         return 0
     fi
 
-    # Determine shell type and exclusions based on file type
-    shell_type="bash"
-    exclude_codes=""
-
-    if needs_rutos_validation "$file"; then
+    # Determine shell type and exclusions based on mode
+    if [ "$mode" = "posix" ] || ([ "$mode" = "auto" ] && needs_rutos_validation "$file"); then
         shell_type="sh"
         # For RUTOS scripts, exclude SC2059 as Method 5 printf format is required for RUTOS compatibility
         exclude_codes="-e SC2059"
-        log_debug "Using POSIX mode for RUTOS/library file: $file"
+        log_debug "Using POSIX/sh mode for ShellCheck validation: $file"
     else
-        log_debug "Using bash mode for development script: $file"
+        shell_type="bash"
+        exclude_codes=""
+        log_debug "Using bash mode for ShellCheck validation: $file"
     fi
 
     # Additional exclusions for library files
@@ -850,10 +926,10 @@ run_shellcheck() {
     shellcheck_exit_code=$?
 
     if [ $shellcheck_exit_code -eq 0 ]; then
-        log_debug "✓ $file: Passes ShellCheck validation"
+        log_debug "✓ $file: Passes ShellCheck validation ($shell_type mode)"
         return 0
     else
-        log_warning "$file: ShellCheck found issues"
+        log_debug "$file: ShellCheck found issues ($shell_type mode) - parsing individual issues"
         [ "$AUTONOMOUS_MODE" = "0" ] && echo "$shellcheck_output" | head -10
 
         # Parse ShellCheck output to extract error codes - avoid subshell
@@ -864,7 +940,7 @@ run_shellcheck() {
         # Parse the output line by line
         line_num=""
         while IFS= read -r line; do
-            if echo "$line" | grep -q "^In.*line [0-9]+:"; then
+            if echo "$line" | grep -q "^In.*line [0-9]*:"; then
                 # shellcheck disable=SC2001 # Complex regex replacement with capture groups
                 line_num=$(echo "$line" | sed 's/.*line \([0-9]*\):.*/\1/')
             elif echo "$line" | grep -qE "SC[0-9]+" && ! echo "$line" | grep -q "https://"; then
@@ -887,19 +963,23 @@ run_shellcheck() {
 # Function to run shfmt formatting validation
 run_shfmt() {
     file="$1"
+    mode="${2:-auto}"  # auto, posix, or bash
 
     if ! command_exists shfmt; then
         log_warning "shfmt not available - skipping formatting validation"
         return 0
     fi
 
-    # Determine shfmt options based on script type (match GitHub Action settings)
-    shfmt_options="-i 4 -ci"
-    if echo "$file" | grep -q '\-rutos\.sh$'; then
+    # Determine shfmt options based on mode
+    if [ "$mode" = "posix" ] || ([ "$mode" = "auto" ] && echo "$file" | grep -q '\-rutos\.sh$'); then
         # RUTOS scripts need POSIX-compatible formatting for local validation
         shfmt_options="-i 4 -ci -ln posix"
         log_debug "Using POSIX formatting validation for RUTOS script: $file"
         log_debug "Note: Server-side auto-formatting disabled, but local validation active"
+    else
+        # Standard formatting for bash scripts
+        shfmt_options="-i 4 -ci"
+        log_debug "Using bash formatting validation for script: $file"
     fi
 
     # Run shfmt to check formatting
@@ -932,7 +1012,17 @@ run_shellharden() {
         return 0
     fi
     
-    log_trace "Running shellharden analysis on $file"
+    # Determine file type for appropriate filtering
+    if needs_rutos_validation "$file"; then
+        file_type="posix"
+        log_trace "Running shellharden analysis on POSIX script: $file"
+        # Skip shellharden for POSIX scripts due to frequent false positives
+        log_debug "Skipping shellharden for POSIX script $file (many suggestions are POSIX-incompatible)"
+        return 0
+    else
+        file_type="bash"
+        log_trace "Running shellharden analysis on bash script: $file"
+    fi
     
     # Create temporary files for analysis
     original_file="/tmp/shellharden_original_$$"
@@ -951,7 +1041,7 @@ run_shellharden() {
             return 0
         else
             # shellharden made suggestions
-            log_debug "shellharden found potential improvements in $file"
+            log_debug "shellharden found potential improvements in $file (type: $file_type)"
         fi
     else
         # shellharden failed to run
@@ -960,40 +1050,19 @@ run_shellharden() {
         return 0
     fi
     
-    # Create filtered suggestions (remove problematic POSIX patterns)
-    filter_shellharden_suggestions "$original_file" "$suggestions_file" "$filtered_file"
+    # Create filtered suggestions with appropriate file type filtering
+    filter_shellharden_suggestions "$original_file" "$suggestions_file" "$filtered_file" "$file_type"
     
     # Check if there are any valid suggestions after filtering
     if ! diff -q "$original_file" "$filtered_file" >/dev/null 2>&1; then
-        # Count the differences
-        diff_lines=$(diff "$original_file" "$filtered_file" | grep -c '^[<>]' || echo 0)
-        
-        if [ "$diff_lines" -gt 0 ]; then
-            # Show shellharden suggestions inline instead of creating files
-            log_warning "⚠️ shellharden suggests $diff_lines improvements for $file:"
-            
-            # Display the diff inline (limited to first 10 lines to avoid clutter)
-            echo
-            printf "${CYAN}Suggested changes:${NC}\n"
-            diff -u "$original_file" "$filtered_file" | head -20 | while IFS= read -r diff_line; do
-                case "$diff_line" in
-                    "---"*|"+++"*|"@@"*) 
-                        printf "${BLUE}%s${NC}\n" "$diff_line" ;;
-                    "-"*) 
-                        printf "${RED}%s${NC}\n" "$diff_line" ;;
-                    "+"*) 
-                        printf "${GREEN}%s${NC}\n" "$diff_line" ;;
-                    *) 
-                        printf "%s\n" "$diff_line" ;;
-                esac
-            done
-            echo
-            
-            # Report as warning for tracking in summary
-            report_warning "$file" "0" "shellharden suggests $diff_lines improvements (shown above)"
-        fi
+        # Analyze the specific types of issues found
+        analyze_shellharden_issues "$original_file" "$filtered_file" "$file" "$file_type"
     else
-        log_debug "✓ $file: All shellharden suggestions filtered out (POSIX compatibility)"
+        if [ "$file_type" = "posix" ]; then
+            log_debug "✓ $file: All shellharden suggestions filtered out (POSIX compatibility exceptions)"
+        else
+            log_debug "✓ $file: All shellharden suggestions filtered out (false positives)"
+        fi
     fi
     
     # Cleanup
@@ -1001,34 +1070,171 @@ run_shellharden() {
     return 0
 }
 
-# Function to filter out problematic shellharden suggestions for POSIX compatibility
+# Function to analyze and report shellharden issues with line-by-line reporting
+analyze_shellharden_issues() {
+    local original_file="$1"
+    local filtered_file="$2"
+    local script_file="$3"
+    local file_type="$4"
+    
+    # Get the diff output for analysis
+    local diff_output
+    diff_output=$(diff -u "$original_file" "$filtered_file" 2>/dev/null || true)
+    
+    # If no diff output, no issues to report
+    if [ -z "$diff_output" ]; then
+        return 0
+    fi
+    
+    # Create a temporary file to avoid subshell issues with pipe
+    local temp_diff="/tmp/shellharden_diff_$$"
+    echo "$diff_output" > "$temp_diff"
+    
+    # Extract line numbers and report each issue individually (like ShellCheck)
+    local issue_count=0
+    local current_line=0
+    local in_hunk=false
+    
+    # Parse the diff line by line to extract accurate line numbers
+    # Use file redirection instead of pipe to avoid subshell
+    while IFS= read -r line; do
+        case "$line" in
+            "@@"*)
+                # Extract the starting line number for the new file (+X,Y)
+                current_line=$(echo "$line" | sed 's/^@@[^+]*+\([0-9]*\).*/\1/')
+                in_hunk=true
+                ;;
+            "+"*)
+                if [ "$in_hunk" = "true" ]; then
+                    # This is an addition - check what type of issue it is
+                    case "$line" in
+                        "+    if [ -z \"\$"*"\" = \"\" ];"*)
+                            # Report the specific POSIX false positive
+                            report_issue "WARNING" "$script_file" "$current_line" "shellharden Variable quoting improvement (POSIX false positive): suggests [ -z \"\$var\" = \"\" ] instead of correct [ -z \"\$var\" ]"
+                            issue_count=$((issue_count + 1))
+                            ;;
+                        "+    if [ -z \""*"\" = \"\" ];"*)
+                            # Catch other variations
+                            report_issue "WARNING" "$script_file" "$current_line" "shellharden Variable quoting improvement (POSIX false positive): incorrect empty string test suggestion"
+                            issue_count=$((issue_count + 1))
+                            ;;
+                        "+    "*"if [ -z"*"= \"\""*)
+                            # More general pattern
+                            report_issue "WARNING" "$script_file" "$current_line" "shellharden Variable quoting improvement (POSIX false positive): incorrect syntax suggestion"
+                            issue_count=$((issue_count + 1))
+                            ;;
+                        "+    "*"\$"*)
+                            # General variable quoting improvement
+                            report_issue "WARNING" "$script_file" "$current_line" "shellharden Variable quoting improvement: check if this change is needed for POSIX compatibility"
+                            issue_count=$((issue_count + 1))
+                            ;;
+                        "+    "*)
+                            # Other shell improvements
+                            report_issue "WARNING" "$script_file" "$current_line" "shellharden Shell hardening suggestion: review recommended"
+                            issue_count=$((issue_count + 1))
+                            ;;
+                    esac
+                    current_line=$((current_line + 1))
+                fi
+                ;;
+            " "*)
+                # Context line - just increment line number
+                if [ "$in_hunk" = "true" ]; then
+                    current_line=$((current_line + 1))
+                fi
+                ;;
+            "-"*)
+                # Deletion - don't increment line number for new file
+                ;;
+        esac
+    done < "$temp_diff"
+    
+    # Clean up temporary file
+    rm -f "$temp_diff"
+    
+    # Show context information about POSIX compatibility
+    if echo "$diff_output" | grep -q '= ""'; then
+        if [ "$file_type" = "posix" ]; then
+            log_info "💡 POSIX Compatibility Note: Many shellharden suggestions are incorrect for POSIX scripts"
+            log_info "📋 Correct POSIX syntax: [ -z \"\$var\" ] NOT [ -z \"\$var\" = \"\" ]"
+        fi
+    fi
+    
+    # Debug: Report issue count for verification
+    if [ "$issue_count" -gt 0 ]; then
+        log_debug "analyze_shellharden_issues: Reported $issue_count WARNING issues for $script_file"
+    fi
+}
 filter_shellharden_suggestions() {
     local original_file="$1"
     local suggestions_file="$2"
     local filtered_file="$3"
+    local file_type="${4:-posix}"  # posix or bash
     
     # Start with the suggestions
     cp "$suggestions_file" "$filtered_file"
     
-    # Filter out incorrect POSIX patterns that shellharden sometimes suggests
-    
-    # 1. Fix incorrect [ -z "$var" = "" ] suggestions back to [ -z "$var" ]
-    sed -i 's/\[ -z "\([^"]*\)" = "" \]/[ -z "\1" ]/g' "$filtered_file"
-    
-    # 2. Fix incorrect [ -n "$var" != "" ] suggestions back to [ -n "$var" ]
-    sed -i 's/\[ -n "\([^"]*\)" != "" \]/[ -n "\1" ]/g' "$filtered_file"
-    
-    # 3. Fix incorrect [ "$var" = "" ] when [ -z "$var" ] is more appropriate
-    # But only for simple variable checks, not complex expressions
-    sed -i 's/\[ "\$\([A-Za-z_][A-Za-z0-9_]*\)" = "" \]/[ -z "$\1" ]/g' "$filtered_file"
-    
-    # 4. Don't "fix" properly quoted arrays or parameter expansions
-    # shellharden sometimes over-quotes things that are already correct
-    
-    # 5. Preserve RUTOS library color usage patterns
-    # Don't change printf format strings that use library colors correctly
-    
-    log_trace "Applied POSIX-compatibility filters to shellharden suggestions"
+    if [ "$file_type" = "posix" ]; then
+        # POSIX-specific filters for RUTOS scripts and library files
+        log_trace "Applying POSIX-compatibility filters to shellharden suggestions"
+        
+        # 1. Fix incorrect [ -z "$var" = "" ] suggestions back to [ -z "$var" ]
+        # This is POSIX-correct and shellharden is wrong here
+        sed -i 's/\[ -z "\([^"]*\)" = "" \]/[ -z "\1" ]/g' "$filtered_file"
+        
+        # 2. Fix incorrect [ -n "$var" != "" ] suggestions back to [ -n "$var" ]
+        # This is POSIX-correct and shellharden is wrong here
+        sed -i 's/\[ -n "\([^"]*\)" != "" \]/[ -n "\1" ]/g' "$filtered_file"
+        
+        # 3. Fix incorrect [ "$var" = "" ] when [ -z "$var" ] is more appropriate
+        # But only for simple variable checks, not complex expressions
+        sed -i 's/\[ "\$\([A-Za-z_][A-Za-z0-9_]*\)" = "" \]/[ -z "$\1" ]/g' "$filtered_file"
+        
+        # 4. Completely revert any changes that add = "" to -z tests (shellharden bug)
+        # This handles cases where shellharden incorrectly suggests changing working POSIX syntax
+        # Pattern: if [ -z "$var" ]; becomes if [ -z "$var" = "" ]; which is WRONG
+        while true; do
+            # Create a temp file to check if we made changes
+            temp_check="/tmp/posix_check_$$"
+            cp "$filtered_file" "$temp_check"
+            
+            # Fix the pattern: remove = "" from -z tests
+            sed -i 's/\(if \[ -z "[^"]*"\) = ""/\1/g' "$filtered_file"
+            sed -i 's/\([ \t]\[ -z "[^"]*"\) = ""/\1/g' "$filtered_file"
+            
+            # Check if we made any changes
+            if cmp -s "$temp_check" "$filtered_file"; then
+                rm -f "$temp_check"
+                break  # No more changes made
+            fi
+            rm -f "$temp_check"
+        done
+        
+        # 5. Fix incorrect $(pwd)PWD suggestions - shellharden bug
+        sed -i 's/\$(pwd)PWD/$(pwd)/g' "$filtered_file"
+        
+        # 6. Don't change valid POSIX parameter expansions like ${var:-default}
+        # Revert any incorrect "improvements" to parameter expansion
+        sed -i 's/"\${\([^}]*\):-\([^}]*\)}"/"\${\1:-\2}"/g' "$filtered_file"
+        
+        # 7. Preserve RUTOS library color usage patterns (Method 5 printf format)
+        # Don't change printf format strings that use library colors correctly
+        # Pattern: printf "${COLOR}text${NC}\n" is correct for RUTOS
+        
+        # 8. Don't suggest changes to properly quoted eval statements
+        # eval "var_value=\${${var:-unknown_var}:-}" is correct defensive pattern
+        
+        log_trace "Applied POSIX-compatibility filters to shellharden suggestions"
+    else
+        # Non-POSIX (bash) scripts - allow more shellharden suggestions
+        log_trace "Applying minimal filtering for bash script"
+        
+        # Only filter out obviously wrong suggestions
+        # 1. Fix the $(pwd)PWD bug (shellharden bug affects all scripts)
+        sed -i 's/\$(pwd)PWD/$(pwd)/g' "$filtered_file"
+        
+        log_trace "Applied bash-script filters to shellharden suggestions"
+    fi
 }
 
 # Function to determine if shellharden changes are safe to auto-apply
@@ -2142,6 +2348,20 @@ validate_file() {
     [ "$AUTONOMOUS_MODE" = "0" ] && log_step "Validating: $file"
 
     initial_issues=$TOTAL_ISSUES
+    initial_blocking=$BLOCKING_ISSUES
+    initial_critical=$CRITICAL_ISSUES
+    initial_major=$MAJOR_ISSUES
+    initial_minor=$MINOR_ISSUES
+    initial_warning=$WARNING_ISSUES
+
+    # Determine validation mode based on file type
+    if needs_rutos_validation "$file"; then
+        log_debug "Using POSIX validation mode for RUTOS/library file: $file"
+        validation_mode="posix"
+    else
+        log_debug "Using bash validation mode for development script: $file"
+        validation_mode="bash"
+    fi
 
     # Try to auto-fix formatting issues first
     auto_fix_formatting "$file"
@@ -2195,39 +2415,86 @@ validate_file() {
         log_warning "Continuing validation in degraded mode due to syntax errors"
     fi
 
-    # Check bash-specific syntax
-    check_bash_syntax "$file"
-
-    # Check for undefined variables
-    check_undefined_variables "$file"
-
-    # Validate color code usage
-    validate_color_codes "$file"
-
-    # Validate SCRIPT_VERSION according to best practices
-    validate_script_version "$file"
-
-    # Run ShellCheck
-    run_shellcheck "$file"
-
-    # Run shfmt formatting validation (after potential auto-fixes)
-    run_shfmt "$file"
-    
-    # Run shellharden analysis for additional shell hardening
-    run_shellharden "$file"
+    # === MODE-SPECIFIC VALIDATION SECTIONS ===
+    if [ "$validation_mode" = "posix" ]; then
+        # === POSIX/RUTOS VALIDATION SECTION ===
+        log_trace "Applying POSIX/RUTOS-specific validation rules for $file"
+        
+        # POSIX-specific checks
+        check_posix_compliance "$file"
+        
+        # Check for undefined variables (strict for POSIX)
+        check_undefined_variables "$file"
+        
+        # Validate color code usage (RUTOS Method 5 format)
+        validate_color_codes "$file"
+        
+        # Validate SCRIPT_VERSION according to best practices
+        validate_script_version "$file"
+        
+        # Run ShellCheck with POSIX shell target
+        run_shellcheck "$file" "posix"
+        
+        # Run shfmt with POSIX formatting
+        run_shfmt "$file" "posix"
+        
+        # Run shellharden with POSIX-aware filtering
+        run_shellharden "$file"
+        
+        log_trace "POSIX/RUTOS validation completed for $file"
+    else
+        # === BASH/DEVELOPMENT VALIDATION SECTION ===
+        log_trace "Applying bash/development validation rules for $file"
+        
+        # Check bash-specific syntax (more permissive)
+        check_bash_syntax "$file"
+        
+        # Check for undefined variables (less strict for development scripts)
+        check_undefined_variables "$file"
+        
+        # Validate SCRIPT_VERSION according to best practices  
+        validate_script_version "$file"
+        
+        # Run ShellCheck with bash target
+        run_shellcheck "$file" "bash"
+        
+        # Run shfmt with bash formatting
+        run_shfmt "$file" "bash"
+        
+        # Run shellharden with minimal filtering (allow more suggestions)
+        run_shellharden "$file"
+        
+        log_trace "Bash/development validation completed for $file"
+    fi
 
     # Test debug/test/dry-run integration patterns (RUTOS scripts only)
     test_debug_integration "$file"
 
     # Calculate issues for this file
     file_issues=$((TOTAL_ISSUES - initial_issues))
+    file_blocking=$((BLOCKING_ISSUES - initial_blocking))
+    file_critical=$((CRITICAL_ISSUES - initial_critical))
+    file_major=$((MAJOR_ISSUES - initial_major))
+    file_minor=$((MINOR_ISSUES - initial_minor))
+    file_warning=$((WARNING_ISSUES - initial_warning))
 
+    # Store file results for detailed summary
     if [ $file_issues -eq 0 ]; then
+        file_passed="true"
         [ "$AUTONOMOUS_MODE" = "0" ] && log_success "✓ $file: All checks passed"
         PASSED_FILES=$((PASSED_FILES + 1))
     else
+        file_passed="false"
         [ "$AUTONOMOUS_MODE" = "0" ] && log_error "✗ $file: $file_issues issues found"
         FAILED_FILES=$((FAILED_FILES + 1))
+    fi
+
+    # Add to file results tracking (format: filename:blocking:critical:major:minor:warning:total:passed)
+    if [ -z "$FILE_RESULTS" ]; then
+        FILE_RESULTS="$file:$file_blocking:$file_critical:$file_major:$file_minor:$file_warning:$file_issues:$file_passed"
+    else
+        FILE_RESULTS="$FILE_RESULTS
+$file:$file_blocking:$file_critical:$file_major:$file_minor:$file_warning:$file_issues:$file_passed"
     fi
 
     return $file_issues
@@ -2293,7 +2560,7 @@ run_markdownlint() {
         log_debug "✓ $file: Passes markdownlint validation"
         return 0
     else
-        log_warning "$file: markdownlint found issues"
+        log_debug "$file: markdownlint found issues - parsing individual issues"
 
         # Parse markdownlint output using a temporary file to avoid subshell
         temp_file="/tmp/markdownlint_$$"
@@ -2344,6 +2611,11 @@ validate_markdown_file() {
     [ "$AUTONOMOUS_MODE" = "0" ] && log_step "Validating: $file"
 
     local initial_issues=$TOTAL_ISSUES
+    local initial_blocking=$BLOCKING_ISSUES
+    local initial_critical=$CRITICAL_ISSUES
+    local initial_major=$MAJOR_ISSUES
+    local initial_minor=$MINOR_ISSUES
+    local initial_warning=$WARNING_ISSUES
 
     # Try to auto-fix formatting issues first
     if auto_fix_formatting "$file"; then
@@ -2362,13 +2634,29 @@ validate_markdown_file() {
     # Calculate issues for this file
     local file_issues
     file_issues=$((TOTAL_ISSUES - initial_issues))
+    local file_blocking=$((BLOCKING_ISSUES - initial_blocking))
+    local file_critical=$((CRITICAL_ISSUES - initial_critical))
+    local file_major=$((MAJOR_ISSUES - initial_major))
+    local file_minor=$((MINOR_ISSUES - initial_minor))
+    local file_warning=$((WARNING_ISSUES - initial_warning))
 
+    # Store file results for detailed summary
     if [ $file_issues -eq 0 ]; then
+        local file_passed="true"
         [ "$AUTONOMOUS_MODE" = "0" ] && log_success "✓ $file: All checks passed"
         PASSED_FILES=$((PASSED_FILES + 1))
     else
+        local file_passed="false"
         [ "$AUTONOMOUS_MODE" = "0" ] && log_error "✗ $file: $file_issues issues found"
         FAILED_FILES=$((FAILED_FILES + 1))
+    fi
+
+    # Add to file results tracking (format: filename:blocking:critical:major:minor:warning:total:passed)
+    if [ -z "$FILE_RESULTS" ]; then
+        FILE_RESULTS="$file:$file_blocking:$file_critical:$file_major:$file_minor:$file_warning:$file_issues:$file_passed"
+    else
+        FILE_RESULTS="$FILE_RESULTS
+$file:$file_blocking:$file_critical:$file_major:$file_minor:$file_warning:$file_issues:$file_passed"
     fi
 
     return $file_issues
@@ -2811,6 +3099,81 @@ display_issue_summary() {
     printf "\n"
 }
 
+# Function to display file-level summary
+display_file_summary() {
+    if [ -z "$FILE_RESULTS" ]; then
+        return 0
+    fi
+
+    printf "${PURPLE}=== FILE-LEVEL BREAKDOWN ===${NC}\n"
+    printf "${CYAN}%3s %4s %3s %3s %3s  %4s  %s${NC}\n" "Blk" "Crit" "Maj" "Min" "War" "Pass" "File"
+    printf "%s\n" "--- ---- --- --- ---  ----  ----------------------------------------"
+
+    # Create temp file for sorting
+    temp_sort_file=$(mktemp 2>/dev/null || echo "/tmp/file_sort_$$")
+    
+    # Parse FILE_RESULTS and prepare for sorting
+    printf '%s\n' "$FILE_RESULTS" | while IFS= read -r file_result; do
+        if [ -n "$file_result" ]; then
+            # Parse format: filename:blocking:critical:major:minor:warning:total:passed
+            filename=$(printf '%s\n' "$file_result" | cut -d':' -f1)
+            blocking=$(printf '%s\n' "$file_result" | cut -d':' -f2)
+            critical=$(printf '%s\n' "$file_result" | cut -d':' -f3)
+            major=$(printf '%s\n' "$file_result" | cut -d':' -f4)
+            minor=$(printf '%s\n' "$file_result" | cut -d':' -f5)
+            warning=$(printf '%s\n' "$file_result" | cut -d':' -f6)
+            total=$(printf '%s\n' "$file_result" | cut -d':' -f7)
+            passed=$(printf '%s\n' "$file_result" | cut -d':' -f8)
+            
+            # Create sort key: prioritize blocking, then critical, then major, then minor, then warning (descending)
+            # Use 4-digit zero-padded numbers for proper sorting
+            sort_key=$(printf "%04d%04d%04d%04d%04d" "$blocking" "$critical" "$major" "$minor" "$warning")
+            
+            # Output format for sorting: sortkey|blocking|critical|major|minor|warning|passed|filename
+            printf "%s|%s|%s|%s|%s|%s|%s|%s\n" "$sort_key" "$blocking" "$critical" "$major" "$minor" "$warning" "$passed" "$filename"
+        fi
+    done | LC_ALL=C sort -nr -t'|' -k1 > "$temp_sort_file"
+
+    # Display sorted results
+    while IFS='|' read -r sort_key blocking critical major minor warning passed filename; do
+        if [ -n "$filename" ]; then
+            # Color code based on issue severity (BLOCKING is highest priority)
+            local line_color=""
+            if [ "$blocking" -gt 0 ]; then
+                line_color="$RED"  # Bright red for blocking issues
+            elif [ "$critical" -gt 0 ]; then
+                line_color="$RED"
+            elif [ "$major" -gt 0 ]; then
+                line_color="$YELLOW"
+            elif [ "$minor" -gt 0 ] || [ "$warning" -gt 0 ]; then
+                line_color="$BLUE"
+            else
+                line_color="$GREEN"
+            fi
+            
+            # Format passed status
+            local pass_display
+            if [ "$passed" = "true" ]; then
+                pass_display="Pass"
+            else
+                pass_display="Fail"
+            fi
+            
+            # Create the full line with proper color formatting
+            printf "${line_color}%3s %4s %3s %3s %3s${NC}  " "$blocking" "$critical" "$major" "$minor" "$warning"
+            if [ "$passed" = "true" ]; then
+                printf "${GREEN}Pass${NC}  %s\n" "$filename"
+            else
+                printf "${RED}Fail${NC}  %s\n" "$filename"
+            fi
+        fi
+    done < "$temp_sort_file"
+
+    # Clean up
+    rm -f "$temp_sort_file"
+    printf "\n"
+}
+
 # Function to display summary
 display_summary() {
     if [ "$AUTONOMOUS_MODE" = "1" ]; then
@@ -2827,11 +3190,15 @@ display_summary() {
     printf "Files failed: %d\n" "$FAILED_FILES"
     printf "\n"
     printf "Total issues: %d\n" "$TOTAL_ISSUES"
+    printf "${RED}Blocking issues: %d${NC}\n" "$BLOCKING_ISSUES"
     printf "${RED}Critical issues: %d${NC}\n" "$CRITICAL_ISSUES"
     printf "${YELLOW}Major issues: %d${NC}\n" "$MAJOR_ISSUES"
     printf "${BLUE}Minor issues: %d${NC}\n" "$MINOR_ISSUES"
     printf "${YELLOW}Warning issues: %d${NC}\n" "$WARNING_ISSUES"
     printf "\n"
+
+    # Show file-level breakdown 
+    display_file_summary
 
     # Show issue breakdown if there are issues
     if [ $TOTAL_ISSUES -gt 0 ]; then

@@ -87,13 +87,19 @@ get_timestamp() {
     date '+%Y-%m-%d %H:%M:%S'
 }
 
-# Core logging function - all others use this
+# Core logging function - all others use this - with defensive parameter handling
 _log_message() {
-    level="$1"
-    color="$2"
-    message="$3"
+    # DEFENSIVE: Use safe parameter expansion with meaningful defaults
+    level="${1:-INFO}"
+    color="${2:-$NC}"
+    message="${3:-[no message provided]}"
     destination="${4:-stdout}"
     syslog_priority="${5:-daemon.info}"
+
+    # DEFENSIVE: Ensure message is not empty
+    if [ -z "${message:-}" ]; then
+        message="[empty log message]"
+    fi
 
     timestamp=$(get_timestamp)
 
@@ -112,38 +118,52 @@ _log_message() {
     fi
 }
 
-# Standard logging functions
+# Standard logging functions with defensive parameter handling
 log_info() {
-    _log_message "INFO" "$GREEN" "$1" "stdout" "daemon.info"
+    # DEFENSIVE: Ensure we have a message
+    message="${1:-[no info message]}"
+    _log_message "INFO" "$GREEN" "$message" "stdout" "daemon.info"
 }
 
 log_success() {
-    _log_message "SUCCESS" "$GREEN" "$1" "stdout" "daemon.info"
+    # DEFENSIVE: Ensure we have a message
+    message="${1:-[no success message]}"
+    _log_message "SUCCESS" "$GREEN" "$message" "stdout" "daemon.info"
 }
 
 log_warning() {
-    _log_message "WARNING" "$YELLOW" "$1" "stderr" "daemon.warn"
+    # DEFENSIVE: Ensure we have a message
+    message="${1:-[no warning message]}"
+    _log_message "WARNING" "$YELLOW" "$message" "stderr" "daemon.warn"
 }
 
 log_error() {
-    _log_message "ERROR" "$RED" "$1" "stderr" "daemon.err"
+    # DEFENSIVE: Ensure we have a message
+    message="${1:-[no error message]}"
+    _log_message "ERROR" "$RED" "$message" "stderr" "daemon.err"
 }
 
 log_step() {
-    _log_message "STEP" "$BLUE" "$1" "stdout" "daemon.info"
+    # DEFENSIVE: Ensure we have a message
+    message="${1:-[no step message]}"
+    _log_message "STEP" "$BLUE" "$message" "stdout" "daemon.info"
 }
 
-# Debug logging (only shown when DEBUG=1)
+# Debug logging (only shown when DEBUG=1) with defensive parameter handling
 log_debug() {
-    if [ "$DEBUG" = "1" ]; then
-        _log_message "DEBUG" "$CYAN" "$1" "stderr" "daemon.debug"
+    if [ "${DEBUG:-0}" = "1" ]; then
+        # DEFENSIVE: Ensure we have a message
+        message="${1:-[no debug message]}"
+        _log_message "DEBUG" "$CYAN" "$message" "stderr" "daemon.debug"
     fi
 }
 
-# Trace logging (only shown when RUTOS_TEST_MODE=1)
+# Trace logging (only shown when RUTOS_TEST_MODE=1) with defensive parameter handling
 log_trace() {
-    if [ "$RUTOS_TEST_MODE" = "1" ] || [ "$LOG_LEVEL" = "TRACE" ]; then
-        _log_message "TRACE" "$PURPLE" "$1" "stderr" "daemon.debug"
+    if [ "${RUTOS_TEST_MODE:-0}" = "1" ] || [ "${LOG_LEVEL:-}" = "TRACE" ]; then
+        # DEFENSIVE: Ensure we have a message
+        message="${1:-[no trace message]}"
+        _log_message "TRACE" "$PURPLE" "$message" "stderr" "daemon.debug"
     fi
 }
 
@@ -151,42 +171,47 @@ log_trace() {
 # ADVANCED LOGGING FUNCTIONS
 # ============================================================================
 
-# Log variable changes (for RUTOS_TEST_MODE)
+# Log variable changes (for RUTOS_TEST_MODE) with defensive parameter handling
 log_variable_change() {
-    var_name="$1"
-    old_value="$2"
-    new_value="$3"
+    # DEFENSIVE: Use safe parameter expansion
+    var_name="${1:-unknown_variable}"
+    old_value="${2:-}"
+    new_value="${3:-}"
 
-    if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
         log_trace "VARIABLE: $var_name changed from '$old_value' to '$new_value'"
     fi
 }
 
-# Log function entry (for DEBUG mode)
+# Log function entry (for DEBUG mode) with defensive parameter handling
 log_function_entry() {
-    func_name="$1"
-    func_args="$2"
+    # DEFENSIVE: Use safe parameter expansion
+    func_name="${1:-unknown_function}"
+    func_args="${2:-}"
 
-    if [ "$DEBUG" = "1" ]; then
+    if [ "${DEBUG:-0}" = "1" ]; then
         log_debug "FUNCTION: Entering $func_name($func_args)"
     fi
 }
 
-# Log function exit (for DEBUG mode)
+# Log function exit (for DEBUG mode) with defensive parameter handling
 log_function_exit() {
-    func_name="$1"
-    exit_code="$2"
+    # DEFENSIVE: Use safe parameter expansion
+    func_name="${1:-unknown_function}"
+    exit_code="${2:-0}"
 
-    if [ "$DEBUG" = "1" ]; then
+    if [ "${DEBUG:-0}" = "1" ]; then
         log_debug "FUNCTION: Exiting $func_name with code $exit_code"
     fi
 }
 
-# Log command execution (for TRACE mode)
+# Log command execution (for TRACE mode) with defensive parameter handling
 log_command_execution() {
-    command="$1"
+    # DEFENSIVE: Use safe parameter expansion
+    command="${1:-}"
 
-    if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    # Only log if command is not empty
+    if [ -n "${command:-}" ] && [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
         log_trace "EXECUTING: $command"
     fi
 }
@@ -292,30 +317,38 @@ capture_warning() {
 # EXISTING DRY-RUN SAFE EXECUTION FRAMEWORK
 # ============================================================================
 
-# Safe command execution function
+# Safe command execution function with defensive parameter handling
 safe_execute() {
-    command="$1"
-    description="$2"
+    # DEFENSIVE: Validate required parameters with safe defaults
+    command="${1:-}"
+    description="${2:-unknown_command}"
+
+    # DEFENSIVE: Validate command is not empty
+    if [ -z "$command" ]; then
+        log_error "safe_execute called with empty command"
+        log_error "Description: $description"
+        return 1
+    fi
 
     # Enhanced tracing for RUTOS_TEST_MODE
-    if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
         log_trace "=== COMMAND EXECUTION START ==="
         log_trace "Description: $description"
         log_trace "Command: $command"
         log_trace "Current Directory: $(pwd)"
-        log_trace "Environment: DRY_RUN=$DRY_RUN DEBUG=$DEBUG"
+        log_trace "Environment: DRY_RUN=${DRY_RUN:-0} DEBUG=${DEBUG:-0}"
         log_trace "Timestamp: $(date '+%Y-%m-%d %H:%M:%S.%3N' 2>/dev/null || date)"
     fi
 
     # Log the command in trace mode
     log_command_execution "$command"
 
-    if [ "$DRY_RUN" = "1" ]; then
+    if [ "${DRY_RUN:-0}" = "1" ]; then
         log_info "[DRY-RUN] Would execute: $description"
-        if [ "$DEBUG" = "1" ]; then
+        if [ "${DEBUG:-0}" = "1" ]; then
             log_debug "Command: $command"
         fi
-        if [ "$RUTOS_TEST_MODE" = "1" ]; then
+        if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
             log_trace "DRY-RUN: Command would be executed but is being simulated"
             log_trace "Expected output: [simulated - actual command not run]"
             log_trace "=== COMMAND EXECUTION END (DRY-RUN) ==="
@@ -323,11 +356,11 @@ safe_execute() {
         return 0
     else
         log_step "Executing: $description"
-        if [ "$DEBUG" = "1" ]; then
+        if [ "${DEBUG:-0}" = "1" ]; then
             log_debug "Command: $command"
         fi
 
-        if [ "$RUTOS_TEST_MODE" = "1" ]; then
+        if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
             log_trace "REAL EXECUTION: About to run actual command"
         fi
 
@@ -335,7 +368,7 @@ safe_execute() {
         if eval "$command"; then
             exit_code=0
             log_debug "Command succeeded: $description"
-            if [ "$RUTOS_TEST_MODE" = "1" ]; then
+            if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
                 log_trace "EXECUTION RESULT: Success (exit code: 0)"
                 log_trace "=== COMMAND EXECUTION END (SUCCESS) ==="
             fi
@@ -345,7 +378,7 @@ safe_execute() {
             error_msg="Command failed: $description (exit code: $exit_code)"
 
             # Use centralized error logging for autonomous monitoring
-            if [ "$_RUTOS_ERROR_LOGGING_LOADED" = "1" ] && command -v capture_error >/dev/null 2>&1; then
+            if [ "${_RUTOS_ERROR_LOGGING_LOADED:-0}" = "1" ] && command -v capture_error >/dev/null 2>&1; then
                 capture_error "HIGH" "$error_msg" "$(basename "$0")" "unknown" "safe_execute"
             else
                 # Fallback to traditional error logging

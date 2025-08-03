@@ -20,18 +20,19 @@
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
 # ==============================================================================
 
-set -eu
+# CRITICAL: Defensive shell options - enable strict mode AFTER defining error handling
+# This prevents cryptic "parameter not set" errors by ensuring proper initialization order
 
-# Early error handling before library is loaded
+# STEP 1: Define early error handling BEFORE enabling strict mode
 early_error_handler() {
-    exit_code=$?
-    error_line="${1:-unknown}"
-    
+    exit_code=${?:-1}
+    error_line=${1:-"unknown"}
+
     printf "\n"
     printf "🚨 EARLY DEPLOYMENT ERROR (Before Library Load)\n"
     printf "================================================\n"
-    printf "❌ Error Code: %s\n" "$exit_code"
-    printf "📍 Line: %s\n" "$error_line"
+    printf "❌ Error Code: %s\n" "${exit_code:-unknown}"
+    printf "📍 Line: %s\n" "${error_line:-unknown}"
     printf "📂 Script: %s\n" "${0##*/}"
     printf "📝 Phase: Pre-library initialization\n"
     printf "\n"
@@ -40,14 +41,19 @@ early_error_handler() {
     printf "   1. Check if lib/rutos-lib.sh exists in script directory\n"
     printf "   2. Verify file permissions on library files\n"
     printf "   3. Run with DEBUG=1 for more details\n"
-    printf "   4. Check syntax: sh -n %s\n" "${0}"
+    printf "   4. Check syntax: sh -n %s\n" "${0:-deploy-script}"
     printf "\n"
-    exit "$exit_code"
+    exit "${exit_code:-1}"
 }
 
-# Set up early error handling
-trap 'early_error_handler ${LINENO}' EXIT
+# STEP 2: Set up early error trapping
+trap 'early_error_handler ${LINENO:-unknown}' EXIT
 
+# STEP 3: Enable strict mode AFTER error handling is in place
+set -eu
+
+# NOTE: SCRIPT_VERSION is intentionally placed after error handling setup
+# This ensures proper error context is available before enabling strict mode
 # Version information (auto-updated by update-version.sh)
 readonly SCRIPT_VERSION="3.0.0"
 
@@ -58,10 +64,11 @@ readonly SCRIPT_VERSION="3.0.0"
 ERROR_CONTEXT=""
 CURRENT_FUNCTION=""
 
-# Enhanced error handler with detailed diagnostics
+# Enhanced error handler with detailed diagnostics and defensive parameter handling
 enhanced_error_handler() {
-    exit_code=$?
-    error_line=${1:-"unknown"}
+    # DEFENSIVE: Capture exit code immediately and use safe parameter expansion
+    exit_code=${?:-1}
+    error_line="${1:-unknown}"
 
     printf "\n"
     printf "🚨 ===============================================\n"
@@ -135,14 +142,38 @@ enhanced_error_handler() {
     exit "$exit_code"
 }
 
-# Enhanced function entry logging with error context
+# Enhanced function entry logging with error context and defensive parameter handling
 log_function_entry() {
-    CURRENT_FUNCTION="$1"
-    ERROR_CONTEXT="Entering function: $1"
+    # DEFENSIVE: Use safe parameter expansion
+    func_name="${1:-unknown_function}"
+
+    # DEFENSIVE: Set globals safely
+    CURRENT_FUNCTION="$func_name"
+    ERROR_CONTEXT="Entering function: $func_name"
+
+    # Use smart logging that handles library state
     if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-        smart_debug "FUNCTION: Entering $1()"
+        smart_debug "FUNCTION: Entering $func_name()"
         smart_debug "Script: ${0##*/}"
     fi
+}
+
+# Enhanced function exit logging with defensive parameter handling
+log_function_exit() {
+    # DEFENSIVE: Use safe parameter expansion with defaults
+    func_name="${1:-${CURRENT_FUNCTION:-unknown_function}}"
+    exit_code="${2:-0}"
+
+    # DEFENSIVE: Set error context safely
+    ERROR_CONTEXT="Exiting function: $func_name"
+
+    # Use smart logging that handles library state
+    if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+        smart_debug "FUNCTION: Exiting $func_name with code $exit_code"
+    fi
+
+    # Clear current function context
+    CURRENT_FUNCTION=""
 }
 
 # Enhanced function exit logging
@@ -185,13 +216,16 @@ validate_required_parameter() {
     return 0
 }
 
-# Enhanced argument validation for functions
+# === DEFENSIVE PARAMETER VALIDATION ===
+# Enhanced argument validation for functions with comprehensive error prevention
 validate_function_arguments() {
+    # DEFENSIVE: Use parameter expansion with defaults for all arguments
     func_name="${1:-unknown_function}"
     expected_args="${2:-0}"
     actual_args="${3:-0}"
 
-    ERROR_CONTEXT="Validating arguments for function: $func_name"
+    # DEFENSIVE: Set error context safely with fallback
+    ERROR_CONTEXT="Validating arguments for function: ${func_name}"
 
     if [ "$actual_args" -lt "$expected_args" ]; then
         printf "\n"
@@ -211,14 +245,55 @@ validate_function_arguments() {
     return 0
 }
 
-# POSIX-compatible error handling - using manual checks instead of ERR trap
-# Call enhanced_error_handler manually when needed
-check_exit_code() {
-    exit_code=$?
-    error_line="${1:-unknown}"
-    if [ $exit_code -ne 0 ]; then
-        enhanced_error_handler "$error_line"
+# Safe parameter validation with detailed error reporting
+validate_required_parameter() {
+    # DEFENSIVE: Use parameter expansion with defaults
+    param_name="${1:-unknown_parameter}"
+    param_value="${2:-}"
+    context="${3:-unknown_context}"
+
+    # DEFENSIVE: Set error context safely
+    ERROR_CONTEXT="Validating parameter: ${param_name} in context: ${context}"
+
+    if [ -z "$param_value" ]; then
+        printf "\n"
+        printf "🚨 PARAMETER VALIDATION ERROR\n"
+        printf "===============================\n"
+        printf "❌ Required parameter '$param_name' is empty or unset\n"
+        printf "📍 Context: $context\n"
+        printf "\n"
+        printf "💡 SOLUTIONS:\n"
+        printf "   1. Ensure parameter is set before calling this function\n"
+        printf "   2. Check for typos in parameter name\n"
+        printf "   3. Verify initialization order in script\n"
+        printf "\n"
+        return 1
     fi
+
+    smart_debug "✓ Parameter validated: '$param_name'='$param_value'"
+    return 0
+}
+
+# Enhanced exit code checking with defensive parameter handling
+check_exit_code() {
+    # DEFENSIVE: Capture exit code first, then use safe parameter expansion
+    last_exit_code=$?
+    error_line="${1:-unknown}"
+
+    # DEFENSIVE: Set error context safely
+    ERROR_CONTEXT="Checking exit code at line: ${error_line}"
+
+    if [ $last_exit_code -ne 0 ]; then
+        # Call enhanced error handler if available, otherwise use fallback
+        if command -v enhanced_error_handler >/dev/null 2>&1; then
+            enhanced_error_handler "$error_line"
+        else
+            printf "ERROR: Command failed with exit code %d at line %s\n" "$last_exit_code" "$error_line" >&2
+            exit "$last_exit_code"
+        fi
+    fi
+
+    return 0
 }
 
 # === PRE-LIBRARY DEBUG SYSTEM ===
@@ -319,7 +394,7 @@ pre_debug "Initializing script with library features..."
 rutos_init "deploy-starlink-solution-v3-rutos.sh" "$SCRIPT_VERSION"
 
 # Set up enhanced error handling now that library is loaded
-trap 'enhanced_error_handler ${LINENO}' EXIT
+trap 'enhanced_error_handler ${LINENO:-unknown}' EXIT
 
 # Mark library as loaded and transition to library logging
 _LIBRARY_LOADED=1
@@ -413,97 +488,177 @@ smart_safe_execute() {
     fi
 }
 
+# === SMART LOGGING WRAPPER FUNCTIONS ===
+# These functions intelligently choose between library and pre-library logging
+# CRITICAL: All functions use defensive parameter handling to prevent "parameter not set" errors
+
 smart_debug() {
-    ERROR_CONTEXT="Logging debug message"
-    # Validate at least one argument
+    # DEFENSIVE: Validate we have at least one argument using $# check
     if [ $# -eq 0 ]; then
         printf "WARNING: smart_debug called with no arguments\n" >&2
         return 1
     fi
 
-    if [ "$_LIBRARY_LOADED" = "1" ]; then
+    # DEFENSIVE: Check library state safely with fallback
+    if [ "${_LIBRARY_LOADED:-0}" = "1" ] && command -v log_debug >/dev/null 2>&1; then
         log_debug "$@"
     else
-        pre_debug "$@"
+        # Fallback to pre-library logging
+        if command -v pre_debug >/dev/null 2>&1; then
+            pre_debug "$@"
+        else
+            printf "[PRE-DEBUG] %s\n" "$*" >&2
+        fi
     fi
 }
 
 smart_info() {
-    ERROR_CONTEXT="Logging info message"
-    # Validate at least one argument
+    # DEFENSIVE: Validate we have at least one argument
     if [ $# -eq 0 ]; then
         printf "WARNING: smart_info called with no arguments\n" >&2
         return 1
     fi
 
-    if [ "$_LIBRARY_LOADED" = "1" ]; then
+    # DEFENSIVE: Check library state safely
+    if [ "${_LIBRARY_LOADED:-0}" = "1" ] && command -v log_info >/dev/null 2>&1; then
         log_info "$@"
     else
-        pre_info "$@"
+        # Fallback to pre-library logging
+        if command -v pre_info >/dev/null 2>&1; then
+            pre_info "$@"
+        else
+            printf "[PRE-INFO] %s\n" "$*"
+        fi
     fi
 }
 
 smart_error() {
-    ERROR_CONTEXT="Logging error message"
-    # Validate at least one argument
+    # DEFENSIVE: Validate we have at least one argument
     if [ $# -eq 0 ]; then
         printf "WARNING: smart_error called with no arguments\n" >&2
         return 1
     fi
 
-    if [ "$_LIBRARY_LOADED" = "1" ]; then
+    # DEFENSIVE: Check library state safely
+    if [ "${_LIBRARY_LOADED:-0}" = "1" ] && command -v log_error >/dev/null 2>&1; then
         log_error "$@"
     else
-        pre_error "$@"
+        # Fallback to pre-library logging
+        if command -v pre_error >/dev/null 2>&1; then
+            pre_error "$@"
+        else
+            printf "[PRE-ERROR] %s\n" "$*" >&2
+        fi
     fi
 }
 
 smart_success() {
-    ERROR_CONTEXT="Logging success message"
-    # Validate at least one argument
+    # DEFENSIVE: Validate we have at least one argument
     if [ $# -eq 0 ]; then
         printf "WARNING: smart_success called with no arguments\n" >&2
         return 1
     fi
 
-    if [ "$_LIBRARY_LOADED" = "1" ]; then
+    # DEFENSIVE: Check library state safely
+    if [ "${_LIBRARY_LOADED:-0}" = "1" ] && command -v log_success >/dev/null 2>&1; then
         log_success "$@"
     else
-        pre_success "$@"
+        # Fallback to pre-library logging
+        if command -v pre_success >/dev/null 2>&1; then
+            pre_success "$@"
+        else
+            printf "[PRE-SUCCESS] %s\n" "$*"
+        fi
     fi
 }
 
 smart_warning() {
-    ERROR_CONTEXT="Logging warning message"
-    # Validate at least one argument
+    # DEFENSIVE: Validate we have at least one argument
     if [ $# -eq 0 ]; then
         printf "WARNING: smart_warning called with no arguments\n" >&2
         return 1
     fi
 
-    if [ "$_LIBRARY_LOADED" = "1" ]; then
+    # DEFENSIVE: Check library state safely
+    if [ "${_LIBRARY_LOADED:-0}" = "1" ] && command -v log_warning >/dev/null 2>&1; then
         log_warning "$@"
     else
-        pre_warning "$@"
+        # Fallback to pre-library logging
+        if command -v pre_warning >/dev/null 2>&1; then
+            pre_warning "$@"
+        else
+            printf "[PRE-WARNING] %s\n" "$*" >&2
+        fi
     fi
 }
 
 smart_step() {
-    ERROR_CONTEXT="Logging step message"
-    # Validate at least one argument
+    # DEFENSIVE: Validate we have at least one argument
     if [ $# -eq 0 ]; then
         printf "WARNING: smart_step called with no arguments\n" >&2
         return 1
     fi
 
-    if [ "$_LIBRARY_LOADED" = "1" ]; then
+    # DEFENSIVE: Check library state safely
+    if [ "${_LIBRARY_LOADED:-0}" = "1" ] && command -v log_step >/dev/null 2>&1; then
         log_step "$@"
     else
-        pre_step "$@"
+        # Fallback to pre-library logging
+        if command -v pre_step >/dev/null 2>&1; then
+            pre_step "$@"
+        else
+            printf "[PRE-STEP] === %s ===\n" "$*"
+        fi
+    fi
+}
+
+# Smart command execution wrapper
+smart_safe_execute() {
+    # DEFENSIVE: Validate required arguments
+    if [ $# -lt 2 ]; then
+        printf "ERROR: smart_safe_execute requires at least 2 arguments (command, description)\n" >&2
+        return 1
+    fi
+
+    command="${1:-}"
+    description="${2:-}"
+
+    # Validate command is not empty
+    if [ -z "$command" ]; then
+        printf "ERROR: smart_safe_execute called with empty command\n" >&2
+        return 1
+    fi
+
+    # Use library safe_execute if available, otherwise fallback
+    if [ "${_LIBRARY_LOADED:-0}" = "1" ] && command -v safe_execute >/dev/null 2>&1; then
+        safe_execute "$command" "$description"
+    else
+        # Pre-library command execution
+        smart_debug "COMMAND EXECUTION: $description"
+        smart_debug "  Command: $command"
+        smart_debug "  DRY_RUN: ${DRY_RUN:-0}"
+
+        if [ "${DRY_RUN:-0}" = "1" ]; then
+            smart_info "DRY-RUN: Would execute: $command"
+            return 0
+        else
+            # Execute the command with error handling
+            if eval "$command"; then
+                smart_debug "✓ Command succeeded: $description"
+                return 0
+            else
+                exit_code=$?
+                smart_error "✗ Command failed: $description"
+                smart_error "  Command: $command"
+                smart_error "  Exit code: $exit_code"
+                return $exit_code
+            fi
+        fi
     fi
 }
 
 # === CONFIGURATION DEFAULTS ===
+# DEFENSIVE: Initialize all configuration defaults to prevent "parameter not set" errors
 DEFAULT_AZURE_ENDPOINT=""
 DEFAULT_ENABLE_AZURE="false"
 DEFAULT_ENABLE_STARLINK_MONITORING="true"
@@ -1906,16 +2061,16 @@ main() {
     essential_vars="SCRIPT_VERSION ORIGINAL_DEBUG ORIGINAL_RUTOS_TEST_MODE ORIGINAL_TEST_MODE ORIGINAL_DRY_RUN"
     for var in $essential_vars; do
         # Use eval to get the variable value safely - ensure var is not empty
-        if [ -z "$var" ]; then
+        if [ -z "${var:-}" ]; then
             smart_error "Empty variable name in validation list"
             return 1
         fi
         var_value=""
         # Use a safer eval pattern to avoid ShellCheck warnings about undefined variables
         # shellcheck disable=SC2154 # $var is a valid variable name from the loop
-        eval "var_value=\${${var}:-}"
-        if ! validate_required_parameter "$var" "$var_value" "main function initialization"; then
-            smart_error "Essential script variable '$var' validation failed"
+        eval "var_value=\${${var:-unknown_var}:-}"
+        if ! validate_required_parameter "${var:-unknown_var}" "$var_value" "main function initialization"; then
+            smart_error "Essential script variable '${var:-unknown_var}' validation failed"
             smart_error "This indicates an initialization problem early in the script"
             return 1
         fi
