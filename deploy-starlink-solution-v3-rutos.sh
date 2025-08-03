@@ -23,7 +23,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="3.0.0"
+readonly SCRIPT_VERSION="3.0.0"
 
 # === PRE-LIBRARY DEBUG SYSTEM ===
 # Basic logging functions used BEFORE the RUTOS library is loaded
@@ -74,11 +74,24 @@ pre_info "Starting deploy-starlink-solution-v3-rutos.sh v$SCRIPT_VERSION"
 pre_debug "Pre-library logging system initialized"
 pre_debug "Environment: DEBUG=${DEBUG:-0}, RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0}, DRY_RUN=${DRY_RUN:-0}"
 
+# Capture original values for debug display
+ORIGINAL_DEBUG="${DEBUG:-0}"
+ORIGINAL_RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+ORIGINAL_TEST_MODE="${TEST_MODE:-0}"
+ORIGINAL_DRY_RUN="${DRY_RUN:-0}"
+
+pre_debug "Original environment values captured:"
+pre_debug "  ORIGINAL_DEBUG=$ORIGINAL_DEBUG"
+pre_debug "  ORIGINAL_RUTOS_TEST_MODE=$ORIGINAL_RUTOS_TEST_MODE"
+pre_debug "  ORIGINAL_TEST_MODE=$ORIGINAL_TEST_MODE"
+pre_debug "  ORIGINAL_DRY_RUN=$ORIGINAL_DRY_RUN"
+
 # CRITICAL: Load RUTOS library system (REQUIRED)
 # Check if running from bootstrap (library in different location)
 pre_step "Loading RUTOS Library System"
 pre_debug "Checking library loading mode..."
 
+# shellcheck disable=SC1091,SC1090
 if [ "${USE_LIBRARY:-0}" = "1" ] && [ -n "${LIBRARY_PATH:-}" ]; then
     # Bootstrap mode - library is in LIBRARY_PATH
     pre_debug "Bootstrap mode detected - loading library from: $LIBRARY_PATH"
@@ -100,6 +113,24 @@ rutos_init "deploy-starlink-solution-v3-rutos.sh" "$SCRIPT_VERSION"
 _LIBRARY_LOADED=1
 log_info "=== TRANSITION: Now using RUTOS library logging system ==="
 log_debug "Pre-library phase completed - all subsequent logging uses library functions"
+
+# Backward compatibility: Support both TEST_MODE and RUTOS_TEST_MODE
+if [ "${TEST_MODE:-0}" = "1" ] && [ "${RUTOS_TEST_MODE:-0}" = "0" ]; then
+    export RUTOS_TEST_MODE=1
+    log_debug "Backward compatibility: Enabled RUTOS_TEST_MODE from TEST_MODE"
+fi
+
+log_debug "Debug environment status:"
+log_debug "  DEBUG=${DEBUG:-0} (original: $ORIGINAL_DEBUG)"
+log_debug "  RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0} (original: $ORIGINAL_RUTOS_TEST_MODE)"
+log_debug "  TEST_MODE=${TEST_MODE:-0} (original: $ORIGINAL_TEST_MODE)"
+log_debug "  DRY_RUN=${DRY_RUN:-0} (original: $ORIGINAL_DRY_RUN)"
+
+# Comprehensive debug state output for troubleshooting
+log_debug "=== COMPREHENSIVE DEBUG STATE FOR TROUBLESHOOTING ==="
+log_debug "Current state: DRY_RUN=${DRY_RUN:-0}, TEST_MODE=${TEST_MODE:-0}, RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0}"
+log_debug "Original state: DRY_RUN=$ORIGINAL_DRY_RUN, TEST_MODE=$ORIGINAL_TEST_MODE, RUTOS_TEST_MODE=$ORIGINAL_RUTOS_TEST_MODE"
+
 log_debug "Library loading verification:"
 log_debug "  _LIBRARY_LOADED=$_LIBRARY_LOADED"
 log_debug "  Available library functions: $(type log_info log_debug log_error 2>/dev/null | wc -l) of 3 expected"
@@ -117,6 +148,29 @@ fi
 # Automatically use pre-debug or library logging depending on library state
 # This ensures consistent logging throughout the script lifecycle
 # CRITICAL: Must be defined immediately after library loading verification
+
+# Enhanced safe_execute wrapper with command execution logging
+smart_safe_execute() {
+    command="$1"
+    description="${2:-Execute command}"
+
+    if [ "$_LIBRARY_LOADED" = "1" ]; then
+        log_debug "COMMAND EXECUTION: $description"
+        log_debug "  Command: $command"
+        log_debug "  DRY_RUN: ${DRY_RUN:-0}"
+        smart_safe_execute "$command" "$description"
+    else
+        pre_debug "COMMAND EXECUTION: $description"
+        pre_debug "  Command: $command"
+        pre_debug "  DRY_RUN: ${DRY_RUN:-0}"
+        if [ "${DRY_RUN:-0}" = "1" ]; then
+            pre_info "DRY-RUN: Would execute: $command"
+            return 0
+        else
+            eval "$command"
+        fi
+    fi
+}
 
 smart_debug() {
     if [ "$_LIBRARY_LOADED" = "1" ]; then
@@ -185,57 +239,65 @@ smart_debug "  DEFAULT_ENABLE_PUSHOVER='$DEFAULT_ENABLE_PUSHOVER'"
 # === INTERACTIVE MODE DETECTION ===
 # Check if script is running in interactive mode
 is_interactive() {
+    # Debug output for troubleshooting before any early returns
+    smart_debug "is_interactive() called - checking interactive mode"
+    smart_debug "  Environment state: DRY_RUN=${DRY_RUN:-0}, TEST_MODE=${TEST_MODE:-0}, RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0}"
+    smart_debug "  Terminal check: stdin is terminal = $([ -t 0 ] && echo 'yes' || echo 'no')"
+    smart_debug "  Batch mode check: BATCH_MODE=${BATCH_MODE:-0}"
+
     # Check if stdin is a terminal and not running in non-interactive mode
-    [ -t 0 ] && [ "${BATCH_MODE:-0}" != "1" ]
+    result=$([ -t 0 ] && [ "${BATCH_MODE:-0}" != "1" ] && echo 'true' || echo 'false')
+    smart_debug "  Interactive mode result: $result"
+    [ "$result" = "true" ]
 }
 
 # === DEBUG ENVIRONMENT INHERITANCE ===
 # Export debug settings for child scripts
 export_debug_environment() {
     smart_debug "Exporting debug environment for child scripts:"
-    
+
     # Export core debugging variables
     export DEBUG="${DEBUG:-0}"
     export RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
     export DRY_RUN="${DRY_RUN:-0}"
     export VERBOSE="${VERBOSE:-0}"
-    
+
     # Export additional debugging flags
     export ALLOW_TEST_EXECUTION="${ALLOW_TEST_EXECUTION:-0}"
-    
+
     # Log what we're exporting
     smart_debug "  DEBUG=$DEBUG"
     smart_debug "  RUTOS_TEST_MODE=$RUTOS_TEST_MODE"
     smart_debug "  DRY_RUN=$DRY_RUN"
     smart_debug "  VERBOSE=$VERBOSE"
     smart_debug "  ALLOW_TEST_EXECUTION=$ALLOW_TEST_EXECUTION"
-    
+
     smart_debug "Debug environment exported - child scripts will inherit these settings"
 }
 
 # === CHILD SCRIPT EXECUTION WRAPPER ===
 # Execute child scripts with proper environment and library inheritance
 execute_child_script() {
-    local script_path="$1"
-    local script_args="${2:-}"
-    local description="${3:-Execute child script}"
-    
+    script_path="$1"
+    script_args="${2:-}"
+    description="${3:-Execute child script}"
+
     smart_debug "Executing child script: $script_path $script_args"
     smart_debug "Description: $description"
-    
+
     # Ensure debug environment is exported
     export_debug_environment
-    
+
     # Additional environment variables for child scripts
     export USE_LIBRARY="${USE_LIBRARY:-0}"
     export LIBRARY_PATH="${LIBRARY_PATH:-}"
     export SCRIPT_SOURCE="deploy-starlink-solution-v3-rutos.sh"
-    
+
     smart_debug "Child script environment:"
     smart_debug "  USE_LIBRARY=$USE_LIBRARY"
     smart_debug "  LIBRARY_PATH=$LIBRARY_PATH"
     smart_debug "  SCRIPT_SOURCE=$SCRIPT_SOURCE"
-    
+
     # Execute the script with proper environment
     if [ "${DRY_RUN:-0}" = "1" ]; then
         smart_info "DRY-RUN: Would execute: $script_path $script_args"
@@ -243,7 +305,7 @@ execute_child_script() {
     else
         smart_debug "Executing: $script_path $script_args"
         if [ -n "$script_args" ]; then
-            "$script_path" $script_args
+            "$script_path" "$script_args"
         else
             "$script_path"
         fi
@@ -251,18 +313,20 @@ execute_child_script() {
 }
 
 # === NEW: INTELLIGENT MONITORING DEFAULTS ===
-DEFAULT_MONITORING_MODE="daemon" # daemon, cron, or hybrid
-DEFAULT_DAEMON_AUTOSTART="true"
-DEFAULT_MONITORING_INTERVAL="60"
-DEFAULT_QUICK_CHECK_INTERVAL="30"
-DEFAULT_DEEP_ANALYSIS_INTERVAL="300"
+# Note: These defaults are available for reference but may not be directly used in this script
+# They are used by other scripts in the system for consistency
+export DEFAULT_MONITORING_MODE="daemon" # daemon, cron, or hybrid
+export DEFAULT_DAEMON_AUTOSTART="true"
+export DEFAULT_MONITORING_INTERVAL="60"
+export DEFAULT_QUICK_CHECK_INTERVAL="30"
+export DEFAULT_DEEP_ANALYSIS_INTERVAL="300"
 
 # === PATHS AND DIRECTORIES (RUTOS PERSISTENT STORAGE) ===
 # CRITICAL: Use persistent storage that survives firmware upgrades on RUTOS
 # /root is wiped during firmware upgrades - use /opt or /mnt for persistence
 # Note: Actual paths will be set after detecting available persistent storage
-HOTPLUG_DIR="/etc/hotplug.d/iface" # System hotplug directory
-INIT_D_DIR="/etc/init.d"           # System init.d directory
+export HOTPLUG_DIR="/etc/hotplug.d/iface" # System hotplug directory (exported for child scripts)
+INIT_D_DIR="/etc/init.d"                  # System init.d directory
 
 # === RUTOS PERSISTENT STORAGE VERIFICATION ===
 # Check for available persistent storage locations (in order of preference)
@@ -339,12 +403,12 @@ setup_persistent_storage() {
     log_info "Creating convenience symlinks for backward compatibility..."
 
     # Remove any existing symlinks/files first
-    rm -f /root/starlink_monitor_unified-rutos.sh 2>/dev/null || true
-    rm -f /root/config.sh 2>/dev/null || true
+    smart_safe_execute "rm -f /root/starlink_monitor_unified-rutos.sh" "Remove existing monitor symlink"
+    smart_safe_execute "rm -f /root/config.sh" "Remove existing config symlink"
 
     # Create symlinks (these will be recreated after firmware upgrades by the recovery script)
-    ln -sf "$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh" /root/starlink_monitor_unified-rutos.sh
-    ln -sf "$CONFIG_DIR/config.sh" /root/config.sh
+    smart_safe_execute "ln -sf '$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh' /root/starlink_monitor_unified-rutos.sh" "Create monitor symlink"
+    smart_safe_execute "ln -sf '$CONFIG_DIR/config.sh' /root/config.sh" "Create config symlink"
 
     log_success "Persistent storage setup completed"
     log_info "Main installation: $INSTALL_BASE_DIR"
@@ -355,6 +419,7 @@ setup_persistent_storage() {
 
 # Create firmware upgrade recovery script
 create_recovery_script() {
+    log_function_entry "create_recovery_script"
     log_info "Creating firmware upgrade recovery script..."
 
     cat >"$SCRIPTS_DIR/recover-after-firmware-upgrade.sh" <<EOF
@@ -457,10 +522,12 @@ EOF
 
     chmod +x "$SCRIPTS_DIR/recover-after-firmware-upgrade.sh"
     log_success "Recovery script created: $SCRIPTS_DIR/recover-after-firmware-upgrade.sh"
+    log_function_exit "create_recovery_script"
 }
 
 # === INTELLIGENT MONITORING DAEMON SETUP ===
 setup_intelligent_monitoring_daemon() {
+    log_function_entry "setup_intelligent_monitoring_daemon"
     log_step "Setting up Intelligent Monitoring Daemon v3.0"
 
     # Create init.d service script for the intelligent monitoring daemon
@@ -552,8 +619,8 @@ status() {
 EOF
 
     # Copy the template to the active init.d location
-    cp "$INSTALL_BASE_DIR/templates/starlink-monitor.init" "$INIT_D_DIR/starlink-monitor"
-    chmod +x "$INIT_D_DIR/starlink-monitor"
+    smart_safe_execute "cp '$INSTALL_BASE_DIR/templates/starlink-monitor.init' '$INIT_D_DIR/starlink-monitor'" "Copy monitor service template to init.d"
+    smart_safe_execute "chmod +x '$INIT_D_DIR/starlink-monitor'" "Make monitor service executable"
 
     log_success "Created init.d service script (persistent template stored)"
     log_info "Service template: $INSTALL_BASE_DIR/templates/starlink-monitor.init"
@@ -562,7 +629,7 @@ EOF
     # Enable the service to start at boot
     if [ "$DAEMON_AUTOSTART" = "true" ]; then
         log_info "Enabling daemon autostart at boot..."
-        "$INIT_D_DIR/starlink-monitor" enable
+        smart_safe_execute "'$INIT_D_DIR/starlink-monitor' enable" "Enable monitor daemon autostart"
         log_success "Daemon autostart enabled"
     fi
 
@@ -570,78 +637,100 @@ EOF
     cleanup_legacy_cron_monitoring
 
     log_success "Intelligent monitoring daemon setup completed"
+    log_function_exit "setup_intelligent_monitoring_daemon"
 }
 
 # Remove legacy cron-based monitoring
 cleanup_legacy_cron_monitoring() {
+    log_function_entry "cleanup_legacy_cron_monitoring"
     log_info "Cleaning up legacy cron-based monitoring..."
 
     # Remove existing starlink-related cron jobs
     if crontab -l 2>/dev/null | grep -q "starlink"; then
         log_info "Found legacy cron jobs, removing..."
-        (crontab -l 2>/dev/null | grep -v "starlink" || true) | crontab -
+        smart_safe_execute "bash -c '(crontab -l 2>/dev/null | grep -v \"starlink\" || true) | crontab -'" "Remove legacy cron jobs"
         log_success "Legacy cron monitoring removed"
     else
         log_info "No legacy cron jobs found"
     fi
+
+    log_function_exit "cleanup_legacy_cron_monitoring"
 }
 
 # Setup hybrid monitoring (daemon + essential cron jobs)
 setup_hybrid_monitoring() {
+    log_function_entry "setup_hybrid_monitoring"
     log_step "Setting up Hybrid Monitoring (Daemon + Essential Cron Jobs)"
 
     # Setup the main intelligent daemon
     setup_intelligent_monitoring_daemon
 
     # Keep essential cron jobs that complement the daemon
-    (
-        crontab -l 2>/dev/null | grep -v "starlink" || true
-        echo "# Essential Starlink maintenance tasks"
-        echo "# API change detection (daily)"
-        echo "30 5 * * * $SCRIPTS_DIR/check_starlink_api-rutos.sh"
+    log_info "Setting up essential cron jobs to complement the daemon..."
+    cron_content=$(
+        cat <<EOF
+# Essential Starlink maintenance tasks
+# API change detection (daily)
+30 5 * * * $SCRIPTS_DIR/check_starlink_api-rutos.sh
 
-        if [ "$ENABLE_AZURE" = "true" ]; then
+$(if [ "$ENABLE_AZURE" = "true" ]; then
             echo "# Azure log shipping (every 10 minutes - daemon handles main monitoring)"
             echo "*/10 * * * * $SCRIPTS_DIR/log-shipper.sh"
-        fi
+        fi)
 
-        echo "# Weekly system health check"
-        echo "0 6 * * 0 $SCRIPTS_DIR/starlink_monitor_unified-rutos.sh validate"
-    ) | crontab -
+# Weekly system health check
+0 6 * * 0 $SCRIPTS_DIR/starlink_monitor_unified-rutos.sh validate
+EOF
+    )
+
+    combined_cron="$(crontab -l 2>/dev/null | grep -v 'starlink' || true)
+$cron_content"
+
+    smart_safe_execute "bash -c 'echo \"$combined_cron\" | crontab -'" "Install hybrid monitoring cron jobs"
 
     # Restart cron service
-    /etc/init.d/cron restart >/dev/null 2>&1
+    smart_safe_execute "/etc/init.d/cron restart >/dev/null 2>&1" "Restart cron service"
     log_success "Hybrid monitoring setup completed"
+    log_function_exit "setup_hybrid_monitoring"
 }
 
 # Setup traditional cron-based monitoring (fallback)
 setup_traditional_cron_monitoring() {
+    log_function_entry "setup_traditional_cron_monitoring"
     log_step "Setting up Traditional Cron-Based Monitoring (Legacy Mode)"
     log_warning "Using legacy mode - intelligent features will be limited"
 
     # Remove any existing daemon setup
     if [ -f "$INIT_D_DIR/starlink-monitor" ]; then
-        "$INIT_D_DIR/starlink-monitor" stop 2>/dev/null || true
-        "$INIT_D_DIR/starlink-monitor" disable 2>/dev/null || true
+        smart_safe_execute "$INIT_D_DIR/starlink-monitor stop 2>/dev/null || true" "Stop monitoring daemon"
+        smart_safe_execute "$INIT_D_DIR/starlink-monitor disable 2>/dev/null || true" "Disable monitoring daemon"
         rm -f "$INIT_D_DIR/starlink-monitor"
         log_info "Removed daemon service"
     fi
 
     # Setup traditional cron jobs
-    (
-        crontab -l 2>/dev/null | grep -v "starlink" || true
-        echo "# Traditional Starlink monitoring (legacy mode)"
-        echo "*/5 * * * * $SCRIPTS_DIR/starlink_monitor_unified-rutos.sh test"
-        echo "30 5 * * * $SCRIPTS_DIR/check_starlink_api-rutos.sh"
+    log_info "Setting up traditional cron jobs..."
+    cron_content=$(
+        cat <<EOF
+# Traditional Starlink monitoring (legacy mode)
+*/5 * * * * $SCRIPTS_DIR/starlink_monitor_unified-rutos.sh test
+30 5 * * * $SCRIPTS_DIR/check_starlink_api-rutos.sh
 
-        if [ "$ENABLE_AZURE" = "true" ]; then
+$(if [ "$ENABLE_AZURE" = "true" ]; then
             echo "*/5 * * * * $SCRIPTS_DIR/log-shipper.sh"
-        fi
-    ) | crontab -
+        fi)
+EOF
+    )
+
+    combined_cron="$(crontab -l 2>/dev/null | grep -v 'starlink' || true)
+$cron_content"
+
+    smart_safe_execute "bash -c 'echo \"$combined_cron\" | crontab -'" "Install traditional monitoring cron jobs"
 
     # Restart cron service
-    /etc/init.d/cron restart >/dev/null 2>&1
+    smart_safe_execute "/etc/init.d/cron restart >/dev/null 2>&1" "Restart cron service"
     log_success "Traditional cron monitoring setup completed"
+    log_function_exit "setup_traditional_cron_monitoring"
 }
 
 # Main monitoring setup function
@@ -668,6 +757,7 @@ setup_monitoring_system() {
 
 # === ENHANCED CONFIGURATION COLLECTION ===
 collect_enhanced_configuration() {
+    log_function_entry "collect_enhanced_configuration"
     log_step "Enhanced Configuration for Intelligent Monitoring v3.0"
 
     # Basic configuration (existing)
@@ -734,32 +824,34 @@ collect_enhanced_configuration() {
     fi
 
     log_success "Enhanced configuration collected"
+    log_function_exit "collect_enhanced_configuration"
 }
 
 # === ENHANCED CONFIGURATION FILE GENERATION ===
 generate_enhanced_config() {
+    log_function_entry "generate_enhanced_config"
     log_info "Generating enhanced configuration file..."
-    
+
     # Debug: Verify all required variables are set before generating config
     log_debug "Pre-generation variable verification:"
     log_debug "  ENABLE_STARLINK_MONITORING='${ENABLE_STARLINK_MONITORING:-UNSET}'"
     log_debug "  ENABLE_GPS='${ENABLE_GPS:-UNSET}'"
     log_debug "  ENABLE_AZURE='${ENABLE_AZURE:-UNSET}'"
     log_debug "  ENABLE_PUSHOVER='${ENABLE_PUSHOVER:-UNSET}'"
-    
+
     # Validate required variables exist (safety check with set -eu)
     if [ -z "${ENABLE_STARLINK_MONITORING:-}" ]; then
         log_error "ENABLE_STARLINK_MONITORING is not set - this should have been set in collect_basic_configuration"
         log_error "Available defaults: DEFAULT_ENABLE_STARLINK_MONITORING='$DEFAULT_ENABLE_STARLINK_MONITORING'"
         return 1
     fi
-    
+
     if [ -z "${ENABLE_GPS:-}" ]; then
         log_error "ENABLE_GPS is not set - this should have been set in collect_basic_configuration"
         log_error "Available defaults: DEFAULT_ENABLE_GPS='$DEFAULT_ENABLE_GPS'"
         return 1
     fi
-    
+
     log_debug "All required variables validated successfully"
 
     cat >"$CONFIG_DIR/config.sh" <<EOF
@@ -857,10 +949,12 @@ EOF
     chmod 644 "$CONFIG_DIR/config.sh"
     log_success "Enhanced configuration file created at $CONFIG_DIR/config.sh"
     log_info "Configuration is stored in persistent storage and survives firmware upgrades"
+    log_function_exit "generate_enhanced_config"
 }
 
 # === SYSTEM VERIFICATION WITH DAEMON SUPPORT ===
 verify_intelligent_monitoring_system() {
+    log_function_entry "verify_intelligent_monitoring_system"
     log_step "Verifying Intelligent Monitoring System v3.0"
 
     verification_failed=0
@@ -940,15 +1034,18 @@ verify_intelligent_monitoring_system() {
 
     if [ $verification_failed -eq 0 ]; then
         log_success "All intelligent monitoring system checks passed"
+        log_function_exit "verify_intelligent_monitoring_system"
         return 0
     else
         log_error "Some intelligent monitoring system checks failed"
+        log_function_exit "verify_intelligent_monitoring_system"
         return 1
     fi
 }
 
 # === INTELLIGENT LOGGING SYSTEM DEPLOYMENT ===
 deploy_intelligent_logging_system() {
+    log_function_entry "deploy_intelligent_logging_system"
     log_step "Deploying Intelligent Logging System v3.0"
 
     # Download the intelligent logger script
@@ -960,11 +1057,12 @@ deploy_intelligent_logging_system() {
     if [ "${DRY_RUN:-0}" = "1" ]; then
         log_info "DRY-RUN: Would download $logger_url to $logger_dest"
     else
-        if curl -fsSL "$logger_url" -o "$logger_dest"; then
-            chmod +x "$logger_dest"
+        if smart_safe_execute "curl -fsSL '$logger_url' -o '$logger_dest'" "Download intelligent logger script"; then
+            smart_safe_execute "chmod +x '$logger_dest'" "Make logger script executable"
             log_success "Intelligent logger installed: $logger_dest"
         else
             log_error "Failed to download intelligent logger"
+            log_function_exit "deploy_intelligent_logging_system" 1
             return 1
         fi
     fi
@@ -1006,13 +1104,19 @@ EOF
     log_success "Logging configuration created: $CONFIG_DIR/logging.conf"
 
     # Create convenience symlink for backward compatibility
-    ln -sf "$logger_dest" /root/starlink_intelligent_logger-rutos.sh 2>/dev/null || true
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        log_info "DRY-RUN: Would create symlink: ln -sf '$logger_dest' /root/starlink_intelligent_logger-rutos.sh"
+    else
+        ln -sf "$logger_dest" /root/starlink_intelligent_logger-rutos.sh 2>/dev/null || true
+    fi
 
     log_success "Intelligent logging system deployment completed"
+    log_function_exit "deploy_intelligent_logging_system"
 }
 
 # === INTELLIGENT LOGGING SERVICE SETUP ===
 setup_intelligent_logging_service() {
+    log_function_entry "setup_intelligent_logging_service"
     log_step "Setting up Intelligent Logging Service"
 
     # Create init.d service script for the intelligent logger
@@ -1069,8 +1173,8 @@ status() {
 EOF
 
     # Copy the template to the active init.d location
-    cp "$INSTALL_BASE_DIR/templates/starlink-logger.init" "$INIT_D_DIR/starlink-logger"
-    chmod +x "$INIT_D_DIR/starlink-logger"
+    smart_safe_execute "cp '$INSTALL_BASE_DIR/templates/starlink-logger.init' '$INIT_D_DIR/starlink-logger'" "Copy service template to init.d"
+    smart_safe_execute "chmod +x '$INIT_D_DIR/starlink-logger'" "Make service script executable"
 
     log_success "Created logging daemon service script"
     log_info "Service template: $INSTALL_BASE_DIR/templates/starlink-logger.init"
@@ -1079,17 +1183,19 @@ EOF
     # Enable the service to start at boot if monitoring is enabled
     if [ "${ENABLE_STARLINK_MONITORING:-true}" = "true" ]; then
         log_info "Enabling logging daemon autostart at boot..."
-        "$INIT_D_DIR/starlink-logger" enable 2>/dev/null || true
+        smart_safe_execute "'$INIT_D_DIR/starlink-logger' enable" "Enable logging daemon autostart"
         log_success "Logging daemon autostart enabled"
     fi
 
     log_success "Intelligent logging service setup completed"
+    log_function_exit "setup_intelligent_logging_service"
 }
 
 # === MAIN DEPLOYMENT FUNCTIONS ===
 
 # Basic configuration collection (placeholder for full implementation)
 collect_basic_configuration() {
+    log_function_entry "collect_basic_configuration"
     log_step "Basic Configuration Collection"
 
     if is_interactive; then
@@ -1188,7 +1294,7 @@ collect_basic_configuration() {
 
         # CRITICAL: Set all required variables to prevent 'parameter not set' errors
         log_debug "Setting configuration variables with default fallbacks..."
-        
+
         # Use environment variables if set, otherwise defaults
         STARLINK_IP="${STARLINK_IP:-$DEFAULT_STARLINK_IP}"
         STARLINK_PORT="${STARLINK_PORT:-9200}"
@@ -1200,18 +1306,18 @@ collect_basic_configuration() {
         LATENCY_THRESHOLD="${LATENCY_THRESHOLD:-1000}"
         PACKET_LOSS_THRESHOLD="${PACKET_LOSS_THRESHOLD:-10}"
         OBSTRUCTION_THRESHOLD="${OBSTRUCTION_THRESHOLD:-5}"
-        
+
         # CRITICAL: Feature toggles - must be set to prevent set -eu failures
         ENABLE_STARLINK_MONITORING="${ENABLE_STARLINK_MONITORING:-$DEFAULT_ENABLE_STARLINK_MONITORING}"
         ENABLE_GPS="${ENABLE_GPS:-$DEFAULT_ENABLE_GPS}"
         ENABLE_AZURE="${ENABLE_AZURE:-$DEFAULT_ENABLE_AZURE}"
         ENABLE_PUSHOVER="${ENABLE_PUSHOVER:-$DEFAULT_ENABLE_PUSHOVER}"
-        
+
         # Integration settings
         AZURE_ENDPOINT="${AZURE_ENDPOINT:-$DEFAULT_AZURE_ENDPOINT}"
         PUSHOVER_USER_KEY="${PUSHOVER_USER_KEY:-}"
         PUSHOVER_API_TOKEN="${PUSHOVER_API_TOKEN:-}"
-        
+
         # Debug: Log all set variables to verify they're properly initialized
         log_debug "Configuration variables set:"
         log_debug "  ENABLE_STARLINK_MONITORING='$ENABLE_STARLINK_MONITORING' (default: $DEFAULT_ENABLE_STARLINK_MONITORING)"
@@ -1244,10 +1350,12 @@ collect_basic_configuration() {
     fi
 
     log_success "Basic configuration collected"
+    log_function_exit "collect_basic_configuration"
 }
 
 # System requirements setup (placeholder for full implementation)
 setup_system_requirements() {
+    log_function_entry "setup_system_requirements"
     log_step "Setting up System Requirements"
 
     # Check for essential tools
@@ -1262,57 +1370,49 @@ setup_system_requirements() {
     fi
 
     log_success "System requirements verified"
+    log_function_exit "setup_system_requirements"
 }
 
 # Package installation (placeholder for full implementation)
 install_required_packages() {
+    log_function_entry "install_required_packages"
     log_step "Installing Required Packages"
 
     # Update package lists
     log_info "Updating package lists..."
-    if [ "${DRY_RUN:-0}" = "1" ]; then
-        log_info "DRY-RUN: Would run opkg update"
-    else
-        opkg update >/dev/null 2>&1 || log_warninging "Package update failed (may be offline)"
-    fi
+    smart_safe_execute "opkg update" "Update package lists" || log_warning "Package update failed (may be offline)"
 
     # Install MWAN3 if not present
     if ! command -v mwan3 >/dev/null 2>&1; then
         log_info "Installing MWAN3..."
-        if [ "${DRY_RUN:-0}" = "1" ]; then
-            log_info "DRY-RUN: Would install mwan3 package"
-        else
-            opkg install mwan3 || log_warninging "MWAN3 installation failed"
-        fi
+        smart_safe_execute "opkg install mwan3" "Install MWAN3 package" || log_warning "MWAN3 installation failed"
     else
         log_success "MWAN3 already available"
     fi
 
     log_success "Package installation completed"
+    log_function_exit "install_required_packages"
 }
 
 # Binary downloads (placeholder for full implementation)
 download_binaries() {
+    log_function_entry "download_binaries"
     log_step "Downloading Required Binaries"
 
     # Download grpcurl
     if [ ! -f "$SCRIPTS_DIR/grpcurl" ]; then
         log_info "Downloading grpcurl..."
-        if [ "${DRY_RUN:-0}" = "1" ]; then
-            log_info "DRY-RUN: Would download grpcurl from $GRPCURL_URL"
+        temp_dir="/tmp/grpcurl_$$"
+        smart_safe_execute "mkdir -p '$temp_dir'" "Create temporary directory"
+        if smart_safe_execute "bash -c 'curl -fsSL \"$GRPCURL_URL\" | tar -xz -C \"$temp_dir\"'" "Download and extract grpcurl"; then
+            smart_safe_execute "cp '$temp_dir/grpcurl' '$SCRIPTS_DIR/grpcurl'" "Install grpcurl binary"
+            smart_safe_execute "chmod +x '$SCRIPTS_DIR/grpcurl'" "Make grpcurl executable"
+            smart_safe_execute "rm -rf '$temp_dir'" "Clean up temporary directory"
+            log_success "grpcurl installed"
         else
-            temp_dir="/tmp/grpcurl_$$"
-            mkdir -p "$temp_dir"
-            if curl -fsSL "$GRPCURL_URL" | tar -xz -C "$temp_dir"; then
-                cp "$temp_dir/grpcurl" "$SCRIPTS_DIR/grpcurl"
-                chmod +x "$SCRIPTS_DIR/grpcurl"
-                rm -rf "$temp_dir"
-                log_success "grpcurl installed"
-            else
-                log_error "Failed to download grpcurl"
-                rm -rf "$temp_dir"
-                return 1
-            fi
+            log_error "Failed to download grpcurl"
+            smart_safe_execute "rm -rf '$temp_dir'" "Clean up temporary directory"
+            return 1
         fi
     else
         log_success "grpcurl already available"
@@ -1321,38 +1421,38 @@ download_binaries() {
     # Download jq
     if [ ! -f "$SCRIPTS_DIR/jq" ]; then
         log_info "Downloading jq..."
-        if [ "${DRY_RUN:-0}" = "1" ]; then
-            log_info "DRY-RUN: Would download jq from $JQ_URL"
+        if smart_safe_execute "curl -fsSL '$JQ_URL' -o '$SCRIPTS_DIR/jq'" "Download jq binary"; then
+            smart_safe_execute "chmod +x '$SCRIPTS_DIR/jq'" "Make jq executable"
+            log_success "jq installed"
         else
-            if curl -fsSL "$JQ_URL" -o "$SCRIPTS_DIR/jq"; then
-                chmod +x "$SCRIPTS_DIR/jq"
-                log_success "jq installed"
-            else
-                log_error "Failed to download jq"
-                return 1
-            fi
+            log_error "Failed to download jq"
+            return 1
         fi
     else
         log_success "jq already available"
     fi
 
     log_success "Binary downloads completed"
+    log_function_exit "download_binaries"
 }
 
 # Check root privileges
 check_root_privileges() {
+    log_function_entry "check_root_privileges"
     if [ "$(id -u)" -ne 0 ]; then
         log_error "This script must be run as root"
         exit 1
     fi
+    log_function_exit "check_root_privileges"
 }
 
 # Check system compatibility
 check_system_compatibility() {
+    log_function_entry "check_system_compatibility"
     log_info "Checking RUTOS compatibility..."
 
     if [ ! -f "/etc/openwrt_release" ]; then
-        log_warninging "Not detected as OpenWrt/RUTOS system"
+        log_warning "Not detected as OpenWrt/RUTOS system"
     fi
 
     # Check for RUTOS-specific features
@@ -1361,18 +1461,20 @@ check_system_compatibility() {
     else
         log_info "No RUTOS cellular capabilities (basic monitoring only)"
     fi
+    log_function_exit "check_system_compatibility"
 }
 
 # Deploy monitoring scripts (placeholder for full implementation)
 deploy_monitoring_scripts() {
+    log_function_entry "deploy_monitoring_scripts"
     log_step "Deploying Monitoring Scripts"
-    
+
     # Debug: Log current environment inheritance status
     log_debug "Environment inheritance check for child scripts:"
     log_debug "  DEBUG environment variable: ${DEBUG:-unset}"
     log_debug "  RUTOS_TEST_MODE environment variable: ${RUTOS_TEST_MODE:-unset}"
     log_debug "  DRY_RUN environment variable: ${DRY_RUN:-unset}"
-    
+
     # Re-export to ensure inheritance (some shells need this)
     export DEBUG RUTOS_TEST_MODE DRY_RUN VERBOSE
 
@@ -1382,39 +1484,21 @@ deploy_monitoring_scripts() {
 
     log_info "Downloading main monitoring script..."
     log_debug "Download details: $monitor_url -> $monitor_dest"
-    if [ "${DRY_RUN:-0}" = "1" ]; then
-        log_info "DRY-RUN: Would download $monitor_url to $monitor_dest"
+    if smart_safe_execute "curl -fsSL '$monitor_url' -o '$monitor_dest'" "Download main monitoring script"; then
+        smart_safe_execute "chmod +x '$monitor_dest'" "Make monitoring script executable"
+        # Verify download
+        if [ -f "$monitor_dest" ] && [ -s "$monitor_dest" ]; then
+            file_size=$(wc -c <"$monitor_dest" 2>/dev/null || echo "unknown")
+            log_success "Main monitoring script installed: $monitor_dest ($file_size bytes)"
+            log_debug "Script permissions: $(ls -la "$monitor_dest" 2>/dev/null || echo 'cannot check')"
+        else
+            log_error "Download succeeded but file is missing or empty: $monitor_dest"
+            return 1
+        fi
     else
-        log_debug "Executing: curl -fsSL '$monitor_url' -o '$monitor_dest'"
-        if curl -fsSL "$monitor_url" -o "$monitor_dest"; then
-            chmod +x "$monitor_dest"
-            # Verify download
-            if [ -f "$monitor_dest" ] && [ -s "$monitor_dest" ]; then
-                file_size=$(wc -c < "$monitor_dest" 2>/dev/null || echo "unknown")
-                log_success "Main monitoring script installed: $monitor_dest ($file_size bytes)"
-                log_debug "Script permissions: $(ls -la "$monitor_dest" 2>/dev/null || echo 'cannot check')"
-            else
-                log_error "Download succeeded but file is missing or empty: $monitor_dest"
-                return 1
-            fi
-        else
-            log_error "Failed to download main monitoring script from $monitor_url"
-            log_error "Check network connectivity and URL availability"
-            return 1
-        fi
-    fi
-                file_size=$(wc -c < "$monitor_dest" 2>/dev/null || echo "unknown")
-                log_success "Main monitoring script installed: $monitor_dest ($file_size bytes)"
-                log_debug "Script permissions: $(ls -la "$monitor_dest" 2>/dev/null || echo 'cannot check')"
-            else
-                log_error "Download succeeded but file is missing or empty: $monitor_dest"
-                return 1
-            fi
-        else
-            log_error "Failed to download main monitoring script from $monitor_url"
-            log_error "Check network connectivity and URL availability"
-            return 1
-        fi
+        log_error "Failed to download main monitoring script from $monitor_url"
+        log_error "Check network connectivity and URL availability"
+        return 1
     fi
 
     # Download RUTOS library
@@ -1423,47 +1507,44 @@ deploy_monitoring_scripts() {
 
     log_info "Downloading RUTOS library..."
     log_debug "Download details: $lib_url -> $lib_dest"
-    if [ "${DRY_RUN:-0}" = "1" ]; then
-        log_info "DRY-RUN: Would download $lib_url to $lib_dest"
-    else
-        log_debug "Executing: curl -fsSL '$lib_url' -o '$lib_dest'"
-        if curl -fsSL "$lib_url" -o "$lib_dest"; then
-            chmod +x "$lib_dest"
-            # Verify download
-            if [ -f "$lib_dest" ] && [ -s "$lib_dest" ]; then
-                file_size=$(wc -c < "$lib_dest" 2>/dev/null || echo "unknown")
-                log_success "RUTOS library installed: $lib_dest ($file_size bytes)"
-                log_debug "Library permissions: $(ls -la "$lib_dest" 2>/dev/null || echo 'cannot check')"
-            else
-                log_error "Download succeeded but library file is missing or empty: $lib_dest"
-                return 1
-            fi
+    if smart_safe_execute "curl -fsSL '$lib_url' -o '$lib_dest'" "Download RUTOS library"; then
+        smart_safe_execute "chmod +x '$lib_dest'" "Make library executable"
+        # Verify download
+        if [ -f "$lib_dest" ] && [ -s "$lib_dest" ]; then
+            file_size=$(wc -c <"$lib_dest" 2>/dev/null || echo "unknown")
+            log_success "RUTOS library installed: $lib_dest ($file_size bytes)"
+            log_debug "Library permissions: $(ls -la "$lib_dest" 2>/dev/null || echo 'cannot check')"
         else
-            log_error "Failed to download RUTOS library from $lib_url"
-            log_error "Check network connectivity and URL availability"
+            log_error "Download succeeded but library file is missing or empty: $lib_dest"
             return 1
         fi
+    else
+        log_error "Failed to download RUTOS library from $lib_url"
+        log_error "Check network connectivity and URL availability"
+        return 1
     fi
 
     # Deploy intelligent logging system
     deploy_intelligent_logging_system
-    
+
     # Test script functionality with debug environment inheritance
     test_deployed_scripts
 
     log_success "Monitoring scripts deployment completed"
+    log_function_exit "deploy_monitoring_scripts"
 }
 
 # Test deployed scripts with proper environment inheritance
 test_deployed_scripts() {
+    log_function_entry "test_deployed_scripts"
     log_debug "Testing deployed scripts with environment inheritance..."
-    
+
     # Test main monitoring script if it exists
     if [ -f "$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh" ] && [ -x "$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh" ]; then
         log_debug "Testing main monitoring script with debug environment:"
         log_debug "  Command: '$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh' validate"
         log_debug "  Environment: DEBUG=$DEBUG RUTOS_TEST_MODE=$RUTOS_TEST_MODE DRY_RUN=$DRY_RUN"
-        
+
         # Use the child script execution wrapper for proper environment inheritance
         if execute_child_script "$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh" "validate" "Test monitoring script validation"; then
             log_debug "✓ Main monitoring script basic validation passed"
@@ -1473,11 +1554,11 @@ test_deployed_scripts() {
     else
         log_warning "Main monitoring script not found or not executable for testing"
     fi
-    
+
     # Test intelligent logger if it exists
     if [ -f "$SCRIPTS_DIR/starlink_intelligent_logger-rutos.sh" ] && [ -x "$SCRIPTS_DIR/starlink_intelligent_logger-rutos.sh" ]; then
         log_debug "Testing intelligent logger script..."
-        
+
         # Test logger with proper environment inheritance
         if execute_child_script "$SCRIPTS_DIR/starlink_intelligent_logger-rutos.sh" "status" "Test logger script status"; then
             log_debug "✓ Intelligent logger script accessible"
@@ -1487,10 +1568,12 @@ test_deployed_scripts() {
     else
         log_debug "Intelligent logger script not found (will be downloaded during deployment)"
     fi
+    log_function_exit "test_deployed_scripts"
 }
 
 # Azure integration setup (placeholder for full implementation)
 setup_azure_integration() {
+    log_function_entry "setup_azure_integration"
     log_step "Setting up Azure Integration"
 
     if [ "$ENABLE_AZURE" = "true" ] && [ -n "$AZURE_ENDPOINT" ]; then
@@ -1500,10 +1583,12 @@ setup_azure_integration() {
     else
         log_info "Azure integration disabled"
     fi
+    log_function_exit "setup_azure_integration"
 }
 
 # Pushover notifications setup (placeholder for full implementation)
 setup_pushover_notifications() {
+    log_function_entry "setup_pushover_notifications"
     log_step "Setting up Pushover Notifications"
 
     if [ "$ENABLE_PUSHOVER" = "true" ] && [ -n "$PUSHOVER_USER_KEY" ] && [ -n "$PUSHOVER_API_TOKEN" ]; then
@@ -1513,19 +1598,31 @@ setup_pushover_notifications() {
     else
         log_info "Pushover notifications disabled"
     fi
+    log_function_exit "setup_pushover_notifications"
 }
 
 # === MAIN EXECUTION ===
 main() {
     log_step "Starlink Solution Deployment v$SCRIPT_VERSION - Intelligent Monitoring"
-    
+
     # CRITICAL: Export debug environment for child scripts early
     export_debug_environment
-    
+
+    # Comprehensive debug state output for troubleshooting
+    log_debug "=== DEPLOYMENT START DIAGNOSTICS ==="
     log_debug "Main deployment function started with enhanced debugging"
     log_debug "Current working directory: $(pwd)"
     log_debug "Script path: $0"
     log_debug "Script arguments: $*"
+    log_debug "Deployment mode analysis:"
+    log_debug "  DRY_RUN=${DRY_RUN:-0} (original: ${ORIGINAL_DRY_RUN:-unset})"
+    log_debug "  TEST_MODE=${TEST_MODE:-0} (original: ${ORIGINAL_TEST_MODE:-unset})"
+    log_debug "  RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0} (original: ${ORIGINAL_RUTOS_TEST_MODE:-unset})"
+    log_debug "  DEBUG=${DEBUG:-0} (original: ${ORIGINAL_DEBUG:-unset})"
+    log_debug "Backward compatibility: $(if [ "${TEST_MODE:-0}" = "1" ] && [ "${RUTOS_TEST_MODE:-0}" = "0" ]; then echo "TEST_MODE->RUTOS_TEST_MODE enabled"; else echo "none needed"; fi)"
+    log_debug "Library status: $_LIBRARY_LOADED (1=loaded, 0=fallback)"
+    log_debug "System detection: USER=${USER:-unknown}, TERM=${TERM:-unknown}"
+    log_debug "Interactive mode: $(if is_interactive; then echo "yes"; else echo "no"; fi)"
 
     # Pre-flight checks
     log_debug "Starting pre-flight checks..."
@@ -1570,20 +1667,20 @@ main() {
     case "$MONITORING_MODE" in
         daemon)
             log_info "Starting intelligent monitoring daemon..."
-            "$INIT_D_DIR/starlink-monitor" start
+            smart_safe_execute "'$INIT_D_DIR/starlink-monitor' start" "Start monitoring daemon"
             log_success "Intelligent monitoring daemon started"
 
             log_info "Starting intelligent logging daemon..."
-            "$INIT_D_DIR/starlink-logger" start
+            smart_safe_execute "'$INIT_D_DIR/starlink-logger' start" "Start logging daemon"
             log_success "Intelligent logging daemon started"
             ;;
         hybrid)
             log_info "Starting intelligent monitoring daemon with cron support..."
-            "$INIT_D_DIR/starlink-monitor" start
+            smart_safe_execute "'$INIT_D_DIR/starlink-monitor' start" "Start monitoring daemon"
             log_success "Hybrid monitoring system active"
 
             log_info "Starting intelligent logging daemon..."
-            "$INIT_D_DIR/starlink-logger" start
+            smart_safe_execute "'$INIT_D_DIR/starlink-logger' start" "Start logging daemon"
             log_success "Intelligent logging daemon started"
             ;;
         cron)
@@ -1591,7 +1688,7 @@ main() {
             log_success "Legacy monitoring system active"
 
             log_info "Starting intelligent logging daemon..."
-            "$INIT_D_DIR/starlink-logger" start
+            smart_safe_execute "'$INIT_D_DIR/starlink-logger' start" "Start logging daemon"
             log_success "Intelligent logging daemon started"
             ;;
     esac
@@ -1633,7 +1730,7 @@ main() {
 
     log_success "Intelligent Starlink Monitoring System v3.0 deployment completed!"
     log_success "All files stored in persistent storage: $INSTALL_BASE_DIR"
-    
+
     # Final diagnostics - verify library usage throughout deployment
     log_debug "=== FINAL DEPLOYMENT DIAGNOSTICS ==="
     log_debug "Library status: $_LIBRARY_LOADED (1=loaded, 0=fallback)"
@@ -1649,10 +1746,10 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
     pre_debug "Script execution starting..."
     pre_debug "Command line: $0 $*"
     pre_debug "Environment: USER=${USER:-unknown}, PWD=$PWD"
-    
+
     # Execute main deployment
     main "$@"
-    
+
     # Post-execution status
     exit_code=$?
     if [ $exit_code -eq 0 ]; then
@@ -1660,6 +1757,6 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
     else
         smart_error "Deployment script failed (exit code: $exit_code)"
     fi
-    
+
     exit $exit_code
 fi

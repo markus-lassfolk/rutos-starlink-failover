@@ -1095,7 +1095,7 @@ test_debug_integration() {
     if [ "$has_debug_support" = "1" ] && [ "$has_dry_run" = "1" ]; then
         # Look for commands that should be logged in debug mode
         has_command_logging=0
-        if grep -q "log_debug.*EXECUTING\|printf.*DEBUG.*EXECUTING" "$file"; then
+        if grep -q "log_debug.*EXECUTING\|printf.*DEBUG.*EXECUTING\|log_debug.*COMMAND EXECUTION\|pre_debug.*COMMAND EXECUTION" "$file"; then
             has_command_logging=1
         fi
 
@@ -1149,7 +1149,7 @@ test_debug_integration() {
 
         # Check Issue 2: Debug output completeness
         if [ "$has_debug_support" = "1" ] && [ "$has_test_mode" = "1" ] && [ "$has_dry_run" = "1" ]; then
-            if ! grep -q "printf.*DEBUG.*DRY_RUN.*TEST_MODE\|printf.*DEBUG.*RUTOS_TEST_MODE.*DRY_RUN" "$file"; then
+            if ! grep -q "printf.*DEBUG.*DRY_RUN.*TEST_MODE\|printf.*DEBUG.*RUTOS_TEST_MODE.*DRY_RUN\|log_debug.*DRY_RUN.*TEST_MODE\|log_debug.*DRY_RUN.*RUTOS_TEST_MODE\|pre_debug.*DRY_RUN.*TEST_MODE\|pre_debug.*DRY_RUN.*RUTOS_TEST_MODE" "$file"; then
                 report_issue "MAJOR" "$file" "0" "Debug output should display DRY_RUN, TEST_MODE, and RUTOS_TEST_MODE states for troubleshooting"
             fi
         fi
@@ -1177,7 +1177,7 @@ test_debug_integration() {
         # Check Issue 5: Command logging
         if [ "$has_debug_support" = "1" ] && [ "$has_dry_run" = "1" ]; then
             has_command_logging=0
-            if grep -q "log_debug.*EXECUTING\|printf.*DEBUG.*EXECUTING" "$file"; then
+            if grep -q "log_debug.*EXECUTING\|printf.*DEBUG.*EXECUTING\|log_debug.*COMMAND EXECUTION\|pre_debug.*COMMAND EXECUTION" "$file"; then
                 has_command_logging=1
             fi
 
@@ -1322,7 +1322,7 @@ validate_library_usage() {
     local is_install_script=0
     
     case "$file" in
-        *bootstrap-install-rutos.sh|*install-rutos.sh)
+        *bootstrap-install-rutos.sh|*install-rutos.sh|*deploy-starlink-solution*-rutos.sh)
             log_debug "Detected bootstrap/install script: $file - applying special validation rules"
             case "$file" in
                 *bootstrap-install-rutos.sh)
@@ -1330,6 +1330,10 @@ validate_library_usage() {
                     ;;
                 *install-rutos.sh)
                     is_install_script=1
+                    ;;
+                *deploy-starlink-solution*-rutos.sh)
+                    is_bootstrap_script=1
+                    log_debug "Deployment script detected as bootstrap script - has library installation logic"
                     ;;
             esac
             ;;
@@ -1363,8 +1367,37 @@ validate_library_usage() {
         log_debug "Script uses RUTOS library: $file"
 
         # CRITICAL BLOCKING: Library scripts must load library properly (unless exempted)
-        if [ "$has_library_skip" = "0" ] && ! grep -q "\. \"\$(dirname \"\$0\")/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \$0)/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \"\$0\")/../scripts/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \$0)/../scripts/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \"\$0\")/scripts/lib/rutos-lib\.sh\"" "$file" && ! grep -q "\. \"\$(dirname \$0)/scripts/lib/rutos-lib\.sh\"" "$file"; then
-            report_issue "CRITICAL" "$file" "1" "BLOCKING: RUTOS script must load library using one of the accepted patterns"
+        if [ "$has_library_skip" = "0" ]; then
+            # Standard library loading patterns
+            standard_patterns_found=0
+            if grep -q "\. \"\$(dirname \"\$0\")/lib/rutos-lib\.sh\"" "$file" || 
+               grep -q "\. \"\$(dirname \$0)/lib/rutos-lib\.sh\"" "$file" || 
+               grep -q "\. \"\$(dirname \"\$0\")/../scripts/lib/rutos-lib\.sh\"" "$file" || 
+               grep -q "\. \"\$(dirname \$0)/../scripts/lib/rutos-lib\.sh\"" "$file" || 
+               grep -q "\. \"\$(dirname \"\$0\")/scripts/lib/rutos-lib\.sh\"" "$file" || 
+               grep -q "\. \"\$(dirname \$0)/scripts/lib/rutos-lib\.sh\"" "$file"; then
+                standard_patterns_found=1
+            fi
+            
+            # Bootstrap script specific patterns (more flexible)
+            bootstrap_patterns_found=0
+            if [ "$is_bootstrap_script" = "1" ]; then
+                if grep -q "\. \"\$LIBRARY_PATH/rutos-lib\.sh\"" "$file" || 
+                   grep -q "\. \"\$lib_path\"" "$file" ||
+                   grep -q "rutos-lib\.sh" "$file"; then
+                    bootstrap_patterns_found=1
+                    log_debug "✓ $file: Bootstrap script uses valid library loading pattern"
+                fi
+            fi
+            
+            # Report error only if no valid patterns found
+            if [ "$standard_patterns_found" = "0" ] && [ "$bootstrap_patterns_found" = "0" ]; then
+                if [ "$is_bootstrap_script" = "1" ]; then
+                    report_issue "CRITICAL" "$file" "1" "BLOCKING: Bootstrap script must load library (found RUTOS library usage but no loading pattern)"
+                else
+                    report_issue "CRITICAL" "$file" "1" "BLOCKING: RUTOS script must load library using one of the accepted patterns"
+                fi
+            fi
         fi
 
         # CRITICAL BLOCKING: Library scripts must call rutos_init (unless exempted)
@@ -1414,10 +1447,10 @@ validate_library_usage() {
     if uses_rutos_library "$file"; then
         local risky_commands="curl wget systemctl service crontab"
         for cmd in $risky_commands; do
-            # Look for direct usage not wrapped in safe_execute
+            # Look for direct usage not wrapped in safe_execute or smart_safe_execute
             # Use word boundaries to avoid false positives (e.g., grpcurl vs curl)
             # Exclude lines that are comments (start with #)
-            if grep -q "\b$cmd\b" "$file" && ! grep -q "safe_execute.*$cmd" "$file"; then
+            if grep -q "\b$cmd\b" "$file" && ! grep -q "safe_execute.*$cmd\|smart_safe_execute.*$cmd" "$file"; then
                 local cmd_line
                 # Get the first non-comment line containing the command
                 cmd_line=$(grep -n "\b$cmd\b" "$file" | grep -v "^[0-9]*:[[:space:]]*#" | head -1 | cut -d: -f1)
@@ -1433,7 +1466,7 @@ validate_library_usage() {
                     fi
 
                     if [ $skip_found -eq 0 ]; then
-                        report_issue "MAJOR" "$file" "$cmd_line" "Consider using safe_execute() for system command: $cmd"
+                        report_issue "MAJOR" "$file" "$cmd_line" "Consider using safe_execute() or smart_safe_execute() for system command: $cmd"
                     fi
                 fi
             fi
@@ -1646,42 +1679,54 @@ validate_function_structure() {
     local brace_stack=""
     local in_function=0
     local function_name=""
-    local paren_stack=""
     
     while IFS= read -r line || [ -n "$line" ]; do
         line_num=$((line_num + 1))
         
-        # Detect function definitions
+        # Detect function definitions (handle cases with and without space before {)
         case "$line" in
-            *"() {"*)
+            *"() {"*|*"(){"*)
                 function_name=$(echo "$line" | sed 's/()[[:space:]]*{.*//' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
                 in_function=1
-                brace_stack="${brace_stack}{"
+                # Count all braces in the function definition line
+                open_braces=$(echo "$line" | tr -cd '{' | wc -c)
+                close_braces=$(echo "$line" | tr -cd '}' | wc -c)
+                # Add opening braces to stack
+                i=0
+                while [ $i -lt "$open_braces" ]; do
+                    brace_stack="${brace_stack}{"
+                    i=$((i + 1))
+                done
+                # Remove closing braces from stack
+                i=0
+                while [ $i -lt "$close_braces" ] && [ -n "$brace_stack" ]; do
+                    brace_stack="${brace_stack%?}"
+                    i=$((i + 1))
+                done
                 log_trace "  Found function: $function_name at line $line_num"
                 ;;
-            *"{"*)
+            *)
                 if [ "$in_function" = "1" ]; then
-                    # Count opening braces
-                    brace_count=$(echo "$line" | tr -cd '{' | wc -c)
+                    # Count opening braces in this line
+                    open_braces=$(echo "$line" | tr -cd '{' | wc -c)
+                    close_braces=$(echo "$line" | tr -cd '}' | wc -c)
+                    
+                    # Add opening braces to stack
                     i=0
-                    while [ $i -lt "$brace_count" ]; do
+                    while [ $i -lt "$open_braces" ]; do
                         brace_stack="${brace_stack}{"
                         i=$((i + 1))
                     done
-                fi
-                ;;
-            *"}"*)
-                if [ "$in_function" = "1" ]; then
-                    # Count closing braces
-                    brace_count=$(echo "$line" | tr -cd '}' | wc -c)
+                    
+                    # Remove closing braces from stack
                     i=0
-                    while [ $i -lt "$brace_count" ] && [ -n "$brace_stack" ]; do
+                    while [ $i -lt "$close_braces" ] && [ -n "$brace_stack" ]; do
                         brace_stack="${brace_stack%?}"  # Remove last character
                         i=$((i + 1))
                     done
                     
                     # Check for extra closing braces
-                    if [ $i -lt "$brace_count" ]; then
+                    if [ $i -lt "$close_braces" ]; then
                         report_issue "MAJOR" "$file" "$line_num" "Unmatched closing brace - more '}' than '{'"
                         structure_errors=$((structure_errors + 1))
                     fi
@@ -1698,7 +1743,9 @@ validate_function_structure() {
     
     # Check for unclosed functions
     if [ -n "$brace_stack" ]; then
-        report_issue "CRITICAL" "$file" "$line_num" "Unclosed function detected: $function_name (missing $(echo "$brace_stack" | wc -c) closing brace(s))"
+        missing_braces=$(echo "$brace_stack" | wc -c)
+        missing_braces=$((missing_braces - 1))  # Subtract 1 for newline
+        report_issue "CRITICAL" "$file" "$line_num" "Unclosed function detected: $function_name (missing $missing_braces closing brace(s))"
         structure_errors=$((structure_errors + 1))
     fi
     
@@ -2291,7 +2338,7 @@ display_debug_integration_summary() {
 
         [ "$missing_debug" -gt 0 ] && printf "• Add DEBUG support to %d more scripts: DEBUG=\"\${DEBUG:-0}\" and conditional debug logging\n" "$missing_debug"
         [ "$missing_test" -gt 0 ] && printf "• Add TEST_MODE support to %d more scripts: RUTOS_TEST_MODE=\"\${RUTOS_TEST_MODE:-0}\" with early exit\n" "$missing_test"
-        [ "$missing_dry" -gt 0 ] && printf "• Add DRY_RUN support to %d more scripts: DRY_RUN=\"\${DRY_RUN:-0}\" with safe_execute pattern\n" "$missing_dry"
+        [ "$missing_dry" -gt 0 ] && printf "• Add DRY_RUN support to %d more scripts: DRY_RUN=\"\${DRY_RUN:-0}\" with safe_execute or smart_safe_execute pattern\n" "$missing_dry"
 
         if [ "$scripts_with_integration_issues" -gt 0 ]; then
             printf "• Fix %d scripts with advanced integration issues:\n" "$scripts_with_integration_issues"
