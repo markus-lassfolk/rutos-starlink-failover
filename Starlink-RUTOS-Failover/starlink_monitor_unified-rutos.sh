@@ -731,6 +731,248 @@ collect_cellular_data() {
 }
 
 # =============================================================================
+# MULTI-CONNECTION DISCOVERY FUNCTIONS
+# Discover cellular modems, WiFi connections, and other interfaces for monitoring
+# =============================================================================
+
+# Discover all available cellular modems based on MWAN3 and network configuration
+discover_cellular_modems() {
+    log_debug "📱 CELLULAR DISCOVERY: Scanning for available cellular modems"
+    
+    cellular_interfaces=""
+    
+    # Method 1: Check MWAN3 configuration for cellular interfaces
+    if command -v uci >/dev/null 2>&1; then
+        # Look for mobile interfaces in MWAN3 configuration
+        mwan3_cellular=$(uci show mwan3 2>/dev/null | grep '\.interface=' | grep 'mob[0-9]' | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ')
+        log_debug "📱 CELLULAR DISCOVERY: MWAN3 cellular interfaces: $mwan3_cellular"
+        
+        # Also check network configuration for cellular protocols
+        network_cellular=$(uci show network 2>/dev/null | grep "\.proto='wwan'" | cut -d'.' -f2 | grep '^mob[0-9]' | sort -u | tr '\n' ' ')
+        log_debug "📱 CELLULAR DISCOVERY: Network cellular interfaces: $network_cellular"
+        
+        # Combine and deduplicate
+        for interface in $mwan3_cellular $network_cellular; do
+            if [ -n "$interface" ] && ! echo "$cellular_interfaces" | grep -q "$interface"; then
+                cellular_interfaces="$cellular_interfaces $interface"
+            fi
+        done
+    fi
+    
+    # Method 2: Check for physical cellular interfaces in system
+    if [ -d /sys/class/net ]; then
+        for interface in /sys/class/net/mob*; do
+            if [ -d "$interface" ]; then
+                interface_name=$(basename "$interface")
+                if ! echo "$cellular_interfaces" | grep -q "$interface_name"; then
+                    cellular_interfaces="$cellular_interfaces $interface_name"
+                fi
+            fi
+        done
+    fi
+    
+    # Method 3: Check for gsmctl modem availability
+    if command -v gsmctl >/dev/null 2>&1; then
+        # Test common cellular interface patterns
+        for i in 1 2 3 4; do
+            for sim in 1 2; do
+                test_interface="mob${i}s${sim}a1"
+                # Quick test if interface exists and is usable
+                if ip link show "$test_interface" >/dev/null 2>&1; then
+                    if ! echo "$cellular_interfaces" | grep -q "$test_interface"; then
+                        cellular_interfaces="$cellular_interfaces $test_interface"
+                    fi
+                fi
+            done
+        done
+    fi
+    
+    # Clean up the list and log results
+    cellular_interfaces=$(echo "$cellular_interfaces" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+    log_debug "📱 CELLULAR DISCOVERY: Discovered cellular interfaces: $cellular_interfaces"
+    
+    printf "%s" "$cellular_interfaces"
+}
+
+# Discover generic internet connections (WiFi, Ethernet, etc.)
+discover_generic_connections() {
+    log_debug "🔍 DISCOVERY: Scanning for available generic internet connections"
+    
+    generic_connections=""
+    
+    # Method 1: Check MWAN3 for non-cellular, non-satellite interfaces
+    if command -v uci >/dev/null 2>&1; then
+        mwan3_interfaces=$(uci show mwan3 2>/dev/null | grep '\.interface=' | cut -d'=' -f2 | tr -d "'" | sort -u)
+        
+        for interface in $mwan3_interfaces; do
+            # Skip cellular and satellite interfaces
+            case "$interface" in
+                mob*|wwan*|starlink*|sat*) continue ;;
+                wlan*|eth*|br-*|lan*) 
+                    log_debug "🔍 DISCOVERY: Found generic interface: $interface"
+                    generic_connections="$generic_connections $interface"
+                    ;;
+            esac
+        done
+    fi
+    
+    # Method 2: Check physical network interfaces
+    if [ -d /sys/class/net ]; then
+        for interface_path in /sys/class/net/*; do
+            if [ -d "$interface_path" ]; then
+                interface=$(basename "$interface_path")
+                case "$interface" in
+                    # Skip loopback, cellular, and already discovered
+                    lo|mob*|wwan*) continue ;;
+                    wlan*|eth*|br-*|wan*)
+                        if ip link show "$interface" 2>/dev/null | grep -q "state UP"; then
+                            if ! echo "$generic_connections" | grep -q "$interface"; then
+                                log_debug "🔍 DISCOVERY: Found active generic interface: $interface"
+                                generic_connections="$generic_connections $interface"
+                            fi
+                        fi
+                        ;;
+                esac
+            fi
+        done
+    fi
+    
+    # Clean up and return
+    generic_connections=$(echo "$generic_connections" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+    log_debug "🔍 DISCOVERY: Discovered generic connections: $generic_connections"
+    
+    printf "%s" "$generic_connections"
+}
+
+# Enhanced cellular diagnostics with comprehensive modem information
+get_enhanced_cellular_diagnostics() {
+    interface="$1"
+    
+    log_debug "📱 ENHANCED CELLULAR: Getting comprehensive diagnostics for $interface"
+    
+    # Initialize with defaults
+    signal_dbm="-113"
+    signal_quality="0"
+    network_type="Unknown"
+    operator="Unknown"
+    roaming_status="home"
+    connection_status="disconnected"
+    data_usage_rx="0"
+    data_usage_tx="0"
+    frequency_band="Unknown"
+    cell_id="0"
+    
+    # Extract modem and SIM information from interface name
+    modem_id=""
+    sim_id=""
+    case "$interface" in
+        mob1s1a1) modem_id="1"; sim_id="1" ;;
+        mob1s2a1) modem_id="1"; sim_id="2" ;;
+        mob2s1a1) modem_id="2"; sim_id="1" ;;
+        mob2s2a1) modem_id="2"; sim_id="2" ;;
+        mob3s1a1) modem_id="3"; sim_id="1" ;;
+        mob3s2a1) modem_id="3"; sim_id="2" ;;
+        mob4s1a1) modem_id="4"; sim_id="1" ;;
+        mob4s2a1) modem_id="4"; sim_id="2" ;;
+        *) modem_id="1"; sim_id="1" ;; # Default fallback
+    esac
+    
+    log_debug "📱 ENHANCED CELLULAR: Interface $interface -> Modem $modem_id, SIM $sim_id"
+    
+    # Use gsmctl for comprehensive modem information
+    if command -v gsmctl >/dev/null 2>&1; then
+        # Signal strength and quality (AT+CSQ)
+        signal_info=$(gsmctl -A 'AT+CSQ' -M "$modem_id" 2>/dev/null | grep "+CSQ:" | head -1 || echo "+CSQ: 99,99")
+        if [ -n "$signal_info" ]; then
+            rssi=$(echo "$signal_info" | sed 's/.*+CSQ: \([0-9]*\),.*/\1/' 2>/dev/null || echo "99")
+            ber=$(echo "$signal_info" | sed 's/.*+CSQ: [0-9]*,\([0-9]*\).*/\1/' 2>/dev/null || echo "99")
+            
+            if [ "$rssi" != "99" ] && [ "$rssi" -ge 0 ] 2>/dev/null; then
+                signal_dbm=$((2 * rssi - 113))
+                
+                # Convert BER to signal quality percentage
+                if [ "$ber" != "99" ] && [ "$ber" -ge 0 ] 2>/dev/null; then
+                    signal_quality=$((100 - (ber * 12)))
+                    [ "$signal_quality" -lt 0 ] && signal_quality="0"
+                fi
+            fi
+        fi
+        
+        # Network technology (AT+QNWINFO or AT+COPS)
+        network_info=$(gsmctl -A 'AT+QNWINFO' -M "$modem_id" 2>/dev/null | grep "+QNWINFO:" | head -1 || echo "")
+        if [ -n "$network_info" ]; then
+            if echo "$network_info" | grep -q "LTE"; then
+                network_type="LTE"
+            elif echo "$network_info" | grep -q "NR5G\|5G"; then
+                network_type="5G"
+            elif echo "$network_info" | grep -q "WCDMA\|UMTS"; then
+                network_type="3G"
+            elif echo "$network_info" | grep -q "GSM"; then
+                network_type="2G"
+            fi
+            
+            # Extract frequency band if available
+            band_info=$(echo "$network_info" | sed 's/.*"\([^"]*\)".*/\1/' 2>/dev/null || echo "")
+            [ -n "$band_info" ] && frequency_band="$band_info"
+        fi
+        
+        # Operator information (AT+COPS?)
+        operator_info=$(gsmctl -A 'AT+COPS?' -M "$modem_id" 2>/dev/null | grep "+COPS:" | head -1 || echo "")
+        if [ -n "$operator_info" ]; then
+            operator=$(echo "$operator_info" | sed 's/.*"\([^"]*\)".*/\1/' | tr -d '\n\r,' | head -c 20)
+            [ -z "$operator" ] && operator="Unknown"
+        fi
+        
+        # Roaming status (AT+CGREG?)
+        roaming_info=$(gsmctl -A 'AT+CGREG?' -M "$modem_id" 2>/dev/null | grep "+CGREG:" | head -1 || echo "")
+        if [ -n "$roaming_info" ]; then
+            roaming_stat=$(echo "$roaming_info" | sed 's/.*+CGREG: [0-9]*,\([0-9]*\).*/\1/' 2>/dev/null || echo "1")
+            case "$roaming_stat" in
+                "1") roaming_status="home" ;;
+                "5") roaming_status="roaming" ;;
+                "0"|"2"|"3") roaming_status="searching" ;;
+                *) roaming_status="unknown" ;;
+            esac
+        fi
+        
+        # Cell information (AT+QENG for advanced modems)
+        cell_info=$(gsmctl -A 'AT+QENG?' -M "$modem_id" 2>/dev/null | grep "servingcell" | head -1 || echo "")
+        if [ -n "$cell_info" ]; then
+            cell_id=$(echo "$cell_info" | awk -F',' '{print $4}' 2>/dev/null | tr -d ' "' || echo "0")
+        fi
+    fi
+    
+    # Check connection status via network interface
+    if ip link show "$interface" >/dev/null 2>&1; then
+        if ip link show "$interface" | grep -q "state UP"; then
+            if ip addr show "$interface" | grep -q "inet "; then
+                connection_status="connected"
+            else
+                connection_status="up_no_ip"
+            fi
+        else
+            connection_status="interface_down"
+        fi
+    fi
+    
+    # Get data usage if available
+    if [ -f "/sys/class/net/$interface/statistics/rx_bytes" ]; then
+        rx_bytes=$(cat "/sys/class/net/$interface/statistics/rx_bytes" 2>/dev/null || echo "0")
+        tx_bytes=$(cat "/sys/class/net/$interface/statistics/tx_bytes" 2>/dev/null || echo "0")
+        data_usage_rx=$((rx_bytes / 1048576)) # Convert to MB
+        data_usage_tx=$((tx_bytes / 1048576)) # Convert to MB
+    fi
+    
+    log_debug "📱 ENHANCED CELLULAR: $interface diagnostics complete - Signal: ${signal_dbm}dBm, Network: $network_type, Operator: $operator, Status: $connection_status"
+    
+    # Return comprehensive diagnostics in CSV format
+    printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" \
+        "$signal_dbm" "$signal_quality" "$network_type" "$operator" \
+        "$roaming_status" "$connection_status" "$data_usage_rx" "$data_usage_tx" \
+        "$frequency_band" "$cell_id" "$(date '+%Y-%m-%d %H:%M:%S')"
+}
+
+# =============================================================================
 # INTELLIGENT MWAN3-INTEGRATED CONNECTION MONITORING SYSTEM
 # Discovery-based monitoring with dynamic metric adjustment and predictive failover
 # =============================================================================
