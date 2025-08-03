@@ -2498,30 +2498,34 @@ calculate_connection_health_score() {
     weight_type=10
 
     # Calculate individual scores (0-100, higher is better)
+    
+    # Convert latency to integer for POSIX sh compatibility (handle floating point)
+    latency_int=$(echo "$latency" | cut -d'.' -f1 2>/dev/null || echo "999")
+    packet_loss_int=$(echo "$packet_loss" | cut -d'.' -f1 2>/dev/null || echo "100")
 
-    # Latency score (0ms=100, 200ms=0)
-    if [ "$latency" -le 50 ]; then
+    # Latency score (0ms=100, 200ms=0) - FIXED: Lower latency = higher score
+    if [ "$latency_int" -le 50 ] 2>/dev/null; then
         latency_score=100
-    elif [ "$latency" -le 100 ]; then
+    elif [ "$latency_int" -le 100 ] 2>/dev/null; then
         latency_score=75
-    elif [ "$latency" -le 150 ]; then
+    elif [ "$latency_int" -le 150 ] 2>/dev/null; then
         latency_score=50
-    elif [ "$latency" -le 200 ]; then
+    elif [ "$latency_int" -le 200 ] 2>/dev/null; then
         latency_score=25
     else
         latency_score=0
     fi
 
     # Packet loss score (0%=100, 10%=0)
-    if [ "$packet_loss" -eq 0 ]; then
+    if [ "$packet_loss_int" -eq 0 ] 2>/dev/null; then
         loss_score=100
-    elif [ "$packet_loss" -le 1 ]; then
+    elif [ "$packet_loss_int" -le 1 ] 2>/dev/null; then
         loss_score=80
-    elif [ "$packet_loss" -le 3 ]; then
+    elif [ "$packet_loss_int" -le 3 ] 2>/dev/null; then
         loss_score=60
-    elif [ "$packet_loss" -le 5 ]; then
+    elif [ "$packet_loss_int" -le 5 ] 2>/dev/null; then
         loss_score=40
-    elif [ "$packet_loss" -le 10 ]; then
+    elif [ "$packet_loss_int" -le 10 ] 2>/dev/null; then
         loss_score=20
     else
         loss_score=0
@@ -2530,15 +2534,16 @@ calculate_connection_health_score() {
     # Signal score (for cellular: -70dBm=100, -110dBm=0; for others: fixed 100)
     case "$connection_type" in
         cellular)
-            if [ "$signal_dbm" -ge -70 ]; then
+            signal_int=$(echo "$signal_dbm" | cut -d'.' -f1 2>/dev/null || echo "-113")
+            if [ "$signal_int" -ge -70 ] 2>/dev/null; then
                 signal_score=100
-            elif [ "$signal_dbm" -ge -80 ]; then
+            elif [ "$signal_int" -ge -80 ] 2>/dev/null; then
                 signal_score=80
-            elif [ "$signal_dbm" -ge -90 ]; then
+            elif [ "$signal_int" -ge -90 ] 2>/dev/null; then
                 signal_score=60
-            elif [ "$signal_dbm" -ge -100 ]; then
+            elif [ "$signal_int" -ge -100 ] 2>/dev/null; then
                 signal_score=40
-            elif [ "$signal_dbm" -ge -110 ]; then
+            elif [ "$signal_int" -ge -110 ] 2>/dev/null; then
                 signal_score=20
             else
                 signal_score=0
@@ -2550,6 +2555,9 @@ calculate_connection_health_score() {
         wifi)
             signal_score=85 # WiFi generally good but not perfect
             ;;
+        starlink)
+            signal_score=95 # Starlink satellite connection - excellent when working
+            ;;
         *)
             signal_score=90 # Default for other connection types
             ;;
@@ -2558,6 +2566,7 @@ calculate_connection_health_score() {
     # Connection type preference score
     case "$connection_type" in
         ethernet) type_score=100 ;;
+        starlink) type_score=90 ;;  # Premium satellite internet
         wifi) type_score=80 ;;
         cellular) type_score=60 ;;
         *) type_score=70 ;;
@@ -2657,15 +2666,61 @@ analyze_multi_connection_performance() {
     primary_issues=0
     primary_score=0
 
-    # Calculate primary connection score
-    if [ "$CURRENT_LATENCY" -gt "$LATENCY_THRESHOLD" ] 2>/dev/null; then
-        primary_issues=$((primary_issues + 1))
+    # Calculate primary connection score with proper floating-point handling
+    # FIXED: Convert floating-point latency to integer for POSIX sh compatibility
+    current_latency_int=$(echo "$CURRENT_LATENCY" | cut -d'.' -f1 2>/dev/null || echo "999")
+    current_packet_loss_int=$(echo "$CURRENT_PACKET_LOSS" | cut -d'.' -f1 2>/dev/null || echo "100")
+    
+    # Validate that we got valid integers
+    if ! printf "%d" "$current_latency_int" >/dev/null 2>&1; then
+        log_error "🚨 CRITICAL ERROR: Invalid latency value '$CURRENT_LATENCY' - cannot convert to integer"
+        log_error "🚨 DETAILS: Expected numeric value, got: '$CURRENT_LATENCY'"
+        log_error "🚨 FALLBACK: Using default latency value 999ms for safety"
+        current_latency_int=999
     fi
-    if [ "$(echo "$CURRENT_PACKET_LOSS > $PACKET_LOSS_THRESHOLD" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
+    
+    if ! printf "%d" "$current_packet_loss_int" >/dev/null 2>&1; then
+        log_error "🚨 CRITICAL ERROR: Invalid packet loss value '$CURRENT_PACKET_LOSS' - cannot convert to integer"
+        log_error "🚨 DETAILS: Expected numeric value, got: '$CURRENT_PACKET_LOSS'"
+        log_error "🚨 FALLBACK: Using default packet loss value 100% for safety"
+        current_packet_loss_int=100
+    fi
+    
+    # Now use integer comparisons safely
+    if [ "$current_latency_int" -gt "$LATENCY_THRESHOLD" ] 2>/dev/null; then
         primary_issues=$((primary_issues + 1))
+        log_debug "🔍 ISSUE DETECTED: High latency - ${current_latency_int}ms > ${LATENCY_THRESHOLD}ms"
+    fi
+    
+    # Use awk for floating-point packet loss comparison if available
+    if command -v awk >/dev/null 2>&1; then
+        packet_loss_high=$(awk "BEGIN {print ($CURRENT_PACKET_LOSS > $PACKET_LOSS_THRESHOLD) ? 1 : 0}" 2>/dev/null || echo 0)
+        if [ "$packet_loss_high" = "1" ]; then
+            primary_issues=$((primary_issues + 1))
+            log_debug "🔍 ISSUE DETECTED: High packet loss - ${CURRENT_PACKET_LOSS}% > ${PACKET_LOSS_THRESHOLD}%"
+        fi
+    else
+        # Fallback to integer comparison for systems without awk
+        if [ "$current_packet_loss_int" -gt "$PACKET_LOSS_THRESHOLD" ] 2>/dev/null; then
+            primary_issues=$((primary_issues + 1))
+            log_debug "🔍 ISSUE DETECTED: High packet loss (integer) - ${current_packet_loss_int}% > ${PACKET_LOSS_THRESHOLD}%"
+        fi
     fi
 
-    primary_score=$(calculate_connection_health_score "$CURRENT_LATENCY" "$CURRENT_PACKET_LOSS" "0" "0" "starlink")
+    # Calculate health score with error handling
+    if ! primary_score=$(calculate_connection_health_score "$CURRENT_LATENCY" "$CURRENT_PACKET_LOSS" "0" "0" "starlink" 2>/dev/null); then
+        log_error "🚨 CRITICAL ERROR: Health score calculation failed for Starlink connection"
+        log_error "🚨 DETAILS: Latency='$CURRENT_LATENCY', Loss='$CURRENT_PACKET_LOSS'"
+        log_error "🚨 FALLBACK: Using default score of 50 for Starlink"
+        primary_score=50
+    fi
+    
+    # Validate health score is numeric
+    if ! printf "%d" "$primary_score" >/dev/null 2>&1; then
+        log_error "🚨 CRITICAL ERROR: Health score calculation returned non-numeric value: '$primary_score'"
+        log_error "🚨 FALLBACK: Using default score of 50 for Starlink"
+        primary_score=50
+    fi
 
     log_debug "🌐 MULTI-CONNECTION: Primary (Starlink) - Score: $primary_score, Issues: $primary_issues"
     log_debug "🌐 MULTI-CONNECTION: Best alternative - $best_connection ($best_type) - Score: $best_score"
@@ -2963,7 +3018,16 @@ analyze_dual_connection_performance() {
     # Prefer multi-connection analysis if enabled
     if [ "$ENABLE_MULTI_CONNECTION_MONITORING" = "true" ]; then
         log_debug "🔄 DUAL CONNECTION: Redirecting to multi-connection analysis system"
-        return $(analyze_multi_connection_performance)
+        # FIXED: Proper error handling for function return value
+        analyze_multi_connection_performance
+        multi_connection_result=$?
+        if [ $multi_connection_result -ne 0 ] && [ $multi_connection_result -ne 1 ] && [ $multi_connection_result -ne 2 ] && [ $multi_connection_result -ne 3 ] && [ $multi_connection_result -ne 4 ]; then
+            log_error "🚨 CRITICAL ERROR: Multi-connection analysis failed with invalid return code: $multi_connection_result"
+            log_error "🚨 DETAILS: This indicates a serious issue in the monitoring system"
+            log_error "🚨 FALLBACK: Switching to traditional single-connection analysis"
+            return 2 # Force fallback to traditional logic
+        fi
+        return $multi_connection_result
     fi
 
     if [ "$ENABLE_DUAL_CONNECTION_MONITORING" != "true" ]; then
@@ -3006,23 +3070,83 @@ analyze_dual_connection_performance() {
     primary_score=0
     secondary_score=0
 
-    # Calculate primary connection score (lower is better)
-    if [ "$CURRENT_LATENCY" -gt "$LATENCY_THRESHOLD" ] 2>/dev/null; then
-        primary_issues=$((primary_issues + 1))
-        primary_score=$((primary_score + CURRENT_LATENCY))
-    else
-        primary_score=$((primary_score + CURRENT_LATENCY))
+    # FIXED: Convert floating-point values to integers for POSIX sh arithmetic
+    current_latency_int=$(echo "$CURRENT_LATENCY" | cut -d'.' -f1 2>/dev/null || echo "999")
+    current_packet_loss_int=$(echo "$CURRENT_PACKET_LOSS" | cut -d'.' -f1 2>/dev/null || echo "100")
+    
+    # Validate integers with comprehensive error handling
+    if ! printf "%d" "$current_latency_int" >/dev/null 2>&1; then
+        log_error "🚨 CRITICAL ERROR: Invalid latency value in dual-connection analysis: '$CURRENT_LATENCY'"
+        log_error "🚨 DETAILS: Cannot perform arithmetic comparison with non-integer value"
+        log_error "🚨 FALLBACK: Using safe default latency value 999ms"
+        current_latency_int=999
+    fi
+    
+    if ! printf "%d" "$current_packet_loss_int" >/dev/null 2>&1; then
+        log_error "🚨 CRITICAL ERROR: Invalid packet loss value in dual-connection analysis: '$CURRENT_PACKET_LOSS'"
+        log_error "🚨 DETAILS: Cannot perform arithmetic comparison with non-integer value"
+        log_error "🚨 FALLBACK: Using safe default packet loss value 100%"
+        current_packet_loss_int=100
     fi
 
-    if [ "$(echo "$CURRENT_PACKET_LOSS > $PACKET_LOSS_THRESHOLD" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
+    # Calculate primary connection score (lower is better) with safe integer arithmetic
+    if [ "$current_latency_int" -gt "$LATENCY_THRESHOLD" ] 2>/dev/null; then
         primary_issues=$((primary_issues + 1))
-        primary_score=$((primary_score + $(echo "$CURRENT_PACKET_LOSS * 50" | bc -l 2>/dev/null || echo 100)))
+        primary_score=$((primary_score + current_latency_int))
+        log_debug "🔍 DUAL CONNECTION: Primary latency issue detected - ${current_latency_int}ms > ${LATENCY_THRESHOLD}ms"
     else
-        primary_score=$((primary_score + $(echo "$CURRENT_PACKET_LOSS * 50" | bc -l 2>/dev/null || echo 0)))
+        primary_score=$((primary_score + current_latency_int))
     fi
 
-    # Calculate secondary connection score (lower is better)
-    secondary_score=$((secondary_latency + $(echo "$secondary_packet_loss * 50" | bc -l 2>/dev/null || echo 0)))
+    # FIXED: Replace bc operations with awk for floating-point arithmetic (RUTOS compatible)
+    if command -v awk >/dev/null 2>&1; then
+        # Use awk for floating-point comparisons
+        packet_loss_high=$(awk "BEGIN {print ($CURRENT_PACKET_LOSS > $PACKET_LOSS_THRESHOLD) ? 1 : 0}" 2>/dev/null || echo 0)
+        packet_loss_score=$(awk "BEGIN {printf \"%.0f\", $CURRENT_PACKET_LOSS * 50}" 2>/dev/null || echo "$((current_packet_loss_int * 50))")
+        
+        if [ "$packet_loss_high" = "1" ]; then
+            primary_issues=$((primary_issues + 1))
+            primary_score=$((primary_score + packet_loss_score))
+            log_debug "🔍 DUAL CONNECTION: Primary packet loss issue detected - ${CURRENT_PACKET_LOSS}% > ${PACKET_LOSS_THRESHOLD}%"
+        else
+            primary_score=$((primary_score + packet_loss_score))
+        fi
+    else
+        # Fallback to integer arithmetic for systems without awk
+        log_warning "🔧 DUAL CONNECTION: awk not available, using integer arithmetic fallback"
+        packet_loss_score=$((current_packet_loss_int * 50))
+        
+        if [ "$current_packet_loss_int" -gt "$PACKET_LOSS_THRESHOLD" ] 2>/dev/null; then
+            primary_issues=$((primary_issues + 1))
+            primary_score=$((primary_score + packet_loss_score))
+            log_debug "🔍 DUAL CONNECTION: Primary packet loss issue detected (integer) - ${current_packet_loss_int}% > ${PACKET_LOSS_THRESHOLD}%"
+        else
+            primary_score=$((primary_score + packet_loss_score))
+        fi
+    fi
+
+    # Calculate secondary connection score (lower is better) with safe arithmetic
+    secondary_latency_int=$(echo "$secondary_latency" | cut -d'.' -f1 2>/dev/null || echo "999")
+    secondary_packet_loss_int=$(echo "$secondary_packet_loss" | cut -d'.' -f1 2>/dev/null || echo "100")
+    
+    # Validate secondary connection values
+    if ! printf "%d" "$secondary_latency_int" >/dev/null 2>&1; then
+        log_warning "🔧 DUAL CONNECTION: Invalid secondary latency '$secondary_latency', using default 999ms"
+        secondary_latency_int=999
+    fi
+    
+    if ! printf "%d" "$secondary_packet_loss_int" >/dev/null 2>&1; then
+        log_warning "🔧 DUAL CONNECTION: Invalid secondary packet loss '$secondary_packet_loss', using default 100%"
+        secondary_packet_loss_int=100
+    fi
+    
+    # Calculate secondary score safely
+    if command -v awk >/dev/null 2>&1; then
+        secondary_loss_score=$(awk "BEGIN {printf \"%.0f\", $secondary_packet_loss * 50}" 2>/dev/null || echo "$((secondary_packet_loss_int * 50))")
+        secondary_score=$((secondary_latency_int + secondary_loss_score))
+    else
+        secondary_score=$((secondary_latency_int + secondary_packet_loss_int * 50))
+    fi
 
     # Add cellular signal penalty if applicable
     if [ "$SECONDARY_CONNECTION_TYPE" = "cellular" ]; then
