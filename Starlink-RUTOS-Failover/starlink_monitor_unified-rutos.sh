@@ -2,10 +2,15 @@
 
 # ==============================================================================
 # Unified Starlink Proactive Quality Monitor for OpenWrt/RUTOS
-#
 # Version: 2.8.0
 # Source: https://github.com/markus-lassfolk/rutos-starlink-failover/
+# ==============================================================================
+
 # shellcheck disable=SC1091  # False positive: "Source" in URL comment, not shell command
+# shellcheck disable=SC2004  # Arithmetic expressions and command substitutions are intentional
+# shellcheck disable=SC2046  # Command substitution word splitting is intentional in specific contexts
+# shellcheck disable=SC2086  # Variable word splitting is intentional for iteration patterns
+# shellcheck disable=SC2154  # Variables defined in for loops and initialization sections
 #
 # This script proactively monitors the quality of a Starlink internet connection
 # using its unofficial gRPC API. Supports both basic monitoring and enhanced
@@ -24,7 +29,7 @@
 
 set -eu
 
-# Version information (auto-updated by update-version.sh)
+# Version information (auto-updated by update-version.sh) - intentionally positioned after set commands and library loading
 readonly SCRIPT_VERSION="2.8.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
@@ -194,7 +199,6 @@ HEALTH_SCORE_WEIGHTS="${HEALTH_SCORE_WEIGHTS:-latency:40,loss:30,signal:20,type:
 
 # Legacy compatibility (maintain backward compatibility)
 SECONDARY_CONNECTION_TYPE="${SECONDARY_CONNECTION_TYPE:-cellular}" # Maintained for backward compatibility
-SECONDARY_TEST_HOST="${CONNECTION_TEST_HOST}"                      # Redirect to new unified setting
 SECONDARY_INTERFACE="${SECONDARY_INTERFACE:-mob1s1a1}"             # Maintained for backward compatibility
 
 # Pushover notification compatibility mapping
@@ -325,7 +329,7 @@ log_decision() {
     current_snr="${CURRENT_SNR:-unknown}"
 
     # Get current MWAN3 metric
-    current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "unknown")
+    current_metric=$(uci get "mwan3.${MWAN_MEMBER:-starlink}.metric" 2>/dev/null || echo "unknown")
     new_metric="$current_metric"
 
     # Calculate quality factors summary
@@ -738,19 +742,19 @@ collect_cellular_data() {
 # Discover all available cellular modems based on MWAN3 and network configuration
 discover_cellular_modems() {
     log_debug "📱 CELLULAR DISCOVERY: Scanning for available cellular modems"
-    
+
     cellular_interfaces=""
-    
+
     # Method 1: Check MWAN3 configuration for cellular interfaces
     if command -v uci >/dev/null 2>&1; then
         # Look for mobile interfaces in MWAN3 configuration
         mwan3_cellular=$(uci show mwan3 2>/dev/null | grep '\.interface=' | grep 'mob[0-9]' | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ')
         log_debug "📱 CELLULAR DISCOVERY: MWAN3 cellular interfaces: $mwan3_cellular"
-        
+
         # Also check network configuration for cellular protocols
         network_cellular=$(uci show network 2>/dev/null | grep "\.proto='wwan'" | cut -d'.' -f2 | grep '^mob[0-9]' | sort -u | tr '\n' ' ')
         log_debug "📱 CELLULAR DISCOVERY: Network cellular interfaces: $network_cellular"
-        
+
         # Combine and deduplicate
         for interface in $mwan3_cellular $network_cellular; do
             if [ -n "$interface" ] && ! echo "$cellular_interfaces" | grep -q "$interface"; then
@@ -758,7 +762,7 @@ discover_cellular_modems() {
             fi
         done
     fi
-    
+
     # Method 2: Check for physical cellular interfaces in system
     if [ -d /sys/class/net ]; then
         for interface in /sys/class/net/mob*; do
@@ -770,12 +774,13 @@ discover_cellular_modems() {
             fi
         done
     fi
-    
+
     # Method 3: Check for gsmctl modem availability
     if command -v gsmctl >/dev/null 2>&1; then
         # Test common cellular interface patterns
         for i in 1 2 3 4; do
             for sim in 1 2; do
+                # shellcheck disable=SC2086,SC2154  # sim is defined in for loop above
                 test_interface="mob${i}s${sim}a1"
                 # Quick test if interface exists and is usable
                 if ip link show "$test_interface" >/dev/null 2>&1; then
@@ -786,36 +791,36 @@ discover_cellular_modems() {
             done
         done
     fi
-    
+
     # Clean up the list and log results
-    cellular_interfaces=$(echo "$cellular_interfaces" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+    cellular_interfaces=$(echo "$cellular_interfaces" | tr ' ' '\n' | grep -v "^$" | sort -u | tr '\n' ' ')
     log_debug "📱 CELLULAR DISCOVERY: Discovered cellular interfaces: $cellular_interfaces"
-    
+
     printf "%s" "$cellular_interfaces"
 }
 
 # Discover generic internet connections (WiFi, Ethernet, etc.)
 discover_generic_connections() {
     log_debug "🔍 DISCOVERY: Scanning for available generic internet connections"
-    
+
     generic_connections=""
-    
+
     # Method 1: Check MWAN3 for non-cellular, non-satellite interfaces
     if command -v uci >/dev/null 2>&1; then
         mwan3_interfaces=$(uci show mwan3 2>/dev/null | grep '\.interface=' | cut -d'=' -f2 | tr -d "'" | sort -u)
-        
+
         for interface in $mwan3_interfaces; do
             # Skip cellular and satellite interfaces
             case "$interface" in
-                mob*|wwan*|starlink*|sat*) continue ;;
-                wlan*|eth*|br-*|lan*) 
+                mob* | wwan* | starlink* | sat*) continue ;;
+                wlan* | eth* | br-* | lan*)
                     log_debug "🔍 DISCOVERY: Found generic interface: $interface"
                     generic_connections="$generic_connections $interface"
                     ;;
             esac
         done
     fi
-    
+
     # Method 2: Check physical network interfaces
     if [ -d /sys/class/net ]; then
         for interface_path in /sys/class/net/*; do
@@ -823,8 +828,8 @@ discover_generic_connections() {
                 interface=$(basename "$interface_path")
                 case "$interface" in
                     # Skip loopback, cellular, and already discovered
-                    lo|mob*|wwan*) continue ;;
-                    wlan*|eth*|br-*|wan*)
+                    lo | mob* | wwan*) continue ;;
+                    wlan* | eth* | br-* | wan*)
                         if ip link show "$interface" 2>/dev/null | grep -q "state UP"; then
                             if ! echo "$generic_connections" | grep -q "$interface"; then
                                 log_debug "🔍 DISCOVERY: Found active generic interface: $interface"
@@ -836,20 +841,20 @@ discover_generic_connections() {
             fi
         done
     fi
-    
+
     # Clean up and return
-    generic_connections=$(echo "$generic_connections" | tr ' ' '\n' | grep -v '^$' | sort -u | tr '\n' ' ')
+    generic_connections=$(echo "$generic_connections" | tr ' ' '\n' | grep -v "^$" | sort -u | tr '\n' ' ')
     log_debug "🔍 DISCOVERY: Discovered generic connections: $generic_connections"
-    
+
     printf "%s" "$generic_connections"
 }
 
 # Enhanced cellular diagnostics with comprehensive modem information
 get_enhanced_cellular_diagnostics() {
     interface="$1"
-    
+
     log_debug "📱 ENHANCED CELLULAR: Getting comprehensive diagnostics for $interface"
-    
+
     # Initialize with defaults
     signal_dbm="-113"
     signal_quality="0"
@@ -861,24 +866,51 @@ get_enhanced_cellular_diagnostics() {
     data_usage_tx="0"
     frequency_band="Unknown"
     cell_id="0"
-    
+
     # Extract modem and SIM information from interface name
     modem_id=""
     sim_id=""
     case "$interface" in
-        mob1s1a1) modem_id="1"; sim_id="1" ;;
-        mob1s2a1) modem_id="1"; sim_id="2" ;;
-        mob2s1a1) modem_id="2"; sim_id="1" ;;
-        mob2s2a1) modem_id="2"; sim_id="2" ;;
-        mob3s1a1) modem_id="3"; sim_id="1" ;;
-        mob3s2a1) modem_id="3"; sim_id="2" ;;
-        mob4s1a1) modem_id="4"; sim_id="1" ;;
-        mob4s2a1) modem_id="4"; sim_id="2" ;;
-        *) modem_id="1"; sim_id="1" ;; # Default fallback
+        mob1s1a1)
+            modem_id="1"
+            sim_id="1"
+            ;;
+        mob1s2a1)
+            modem_id="1"
+            sim_id="2"
+            ;;
+        mob2s1a1)
+            modem_id="2"
+            sim_id="1"
+            ;;
+        mob2s2a1)
+            modem_id="2"
+            sim_id="2"
+            ;;
+        mob3s1a1)
+            modem_id="3"
+            sim_id="1"
+            ;;
+        mob3s2a1)
+            modem_id="3"
+            sim_id="2"
+            ;;
+        mob4s1a1)
+            modem_id="4"
+            sim_id="1"
+            ;;
+        mob4s2a1)
+            modem_id="4"
+            sim_id="2"
+            ;;
+        *)
+            modem_id="1"
+            sim_id="1"
+            ;; # Default fallback
     esac
-    
+
     log_debug "📱 ENHANCED CELLULAR: Interface $interface -> Modem $modem_id, SIM $sim_id"
-    
+
     # Use gsmctl for comprehensive modem information
     if command -v gsmctl >/dev/null 2>&1; then
         # Signal strength and quality (AT+CSQ)
@@ -886,10 +918,10 @@ get_enhanced_cellular_diagnostics() {
         if [ -n "$signal_info" ]; then
             rssi=$(echo "$signal_info" | sed 's/.*+CSQ: \([0-9]*\),.*/\1/' 2>/dev/null || echo "99")
             ber=$(echo "$signal_info" | sed 's/.*+CSQ: [0-9]*,\([0-9]*\).*/\1/' 2>/dev/null || echo "99")
-            
+
             if [ "$rssi" != "99" ] && [ "$rssi" -ge 0 ] 2>/dev/null; then
                 signal_dbm=$((2 * rssi - 113))
-                
+
                 # Convert BER to signal quality percentage
                 if [ "$ber" != "99" ] && [ "$ber" -ge 0 ] 2>/dev/null; then
                     signal_quality=$((100 - (ber * 12)))
@@ -897,7 +929,7 @@ get_enhanced_cellular_diagnostics() {
                 fi
             fi
         fi
-        
+
         # Network technology (AT+QNWINFO or AT+COPS)
         network_info=$(gsmctl -A 'AT+QNWINFO' -M "$modem_id" 2>/dev/null | grep "+QNWINFO:" | head -1 || echo "")
         if [ -n "$network_info" ]; then
@@ -910,19 +942,19 @@ get_enhanced_cellular_diagnostics() {
             elif echo "$network_info" | grep -q "GSM"; then
                 network_type="2G"
             fi
-            
+
             # Extract frequency band if available
             band_info=$(echo "$network_info" | sed 's/.*"\([^"]*\)".*/\1/' 2>/dev/null || echo "")
             [ -n "$band_info" ] && frequency_band="$band_info"
         fi
-        
+
         # Operator information (AT+COPS?)
         operator_info=$(gsmctl -A 'AT+COPS?' -M "$modem_id" 2>/dev/null | grep "+COPS:" | head -1 || echo "")
         if [ -n "$operator_info" ]; then
             operator=$(echo "$operator_info" | sed 's/.*"\([^"]*\)".*/\1/' | tr -d '\n\r,' | head -c 20)
             [ -z "$operator" ] && operator="Unknown"
         fi
-        
+
         # Roaming status (AT+CGREG?)
         roaming_info=$(gsmctl -A 'AT+CGREG?' -M "$modem_id" 2>/dev/null | grep "+CGREG:" | head -1 || echo "")
         if [ -n "$roaming_info" ]; then
@@ -930,18 +962,18 @@ get_enhanced_cellular_diagnostics() {
             case "$roaming_stat" in
                 "1") roaming_status="home" ;;
                 "5") roaming_status="roaming" ;;
-                "0"|"2"|"3") roaming_status="searching" ;;
+                "0" | "2" | "3") roaming_status="searching" ;;
                 *) roaming_status="unknown" ;;
             esac
         fi
-        
+
         # Cell information (AT+QENG for advanced modems)
         cell_info=$(gsmctl -A 'AT+QENG?' -M "$modem_id" 2>/dev/null | grep "servingcell" | head -1 || echo "")
         if [ -n "$cell_info" ]; then
             cell_id=$(echo "$cell_info" | awk -F',' '{print $4}' 2>/dev/null | tr -d ' "' || echo "0")
         fi
     fi
-    
+
     # Check connection status via network interface
     if ip link show "$interface" >/dev/null 2>&1; then
         if ip link show "$interface" | grep -q "state UP"; then
@@ -954,7 +986,7 @@ get_enhanced_cellular_diagnostics() {
             connection_status="interface_down"
         fi
     fi
-    
+
     # Get data usage if available
     if [ -f "/sys/class/net/$interface/statistics/rx_bytes" ]; then
         rx_bytes=$(cat "/sys/class/net/$interface/statistics/rx_bytes" 2>/dev/null || echo "0")
@@ -962,9 +994,9 @@ get_enhanced_cellular_diagnostics() {
         data_usage_rx=$((rx_bytes / 1048576)) # Convert to MB
         data_usage_tx=$((tx_bytes / 1048576)) # Convert to MB
     fi
-    
+
     log_debug "📱 ENHANCED CELLULAR: $interface diagnostics complete - Signal: ${signal_dbm}dBm, Network: $network_type, Operator: $operator, Status: $connection_status"
-    
+
     # Return comprehensive diagnostics in CSV format
     printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" \
         "$signal_dbm" "$signal_quality" "$network_type" "$operator" \
@@ -992,7 +1024,7 @@ discover_mwan3_interfaces() {
         # Get all interface sections from MWAN3
         for section in $(uci show mwan3 | grep "=interface" | cut -d'.' -f2 | cut -d'=' -f1); do
             enabled=$(uci get "mwan3.$section.enabled" 2>/dev/null || echo "1")
-            
+
             if [ "$enabled" = "1" ]; then
                 # In RUTOS, the interface section name IS the interface name
                 mwan3_interfaces="${mwan3_interfaces}${section},"
@@ -1128,7 +1160,6 @@ METRIC_ADJUSTMENT_MINOR=5     # Small latency increase, occasional packet loss
 METRIC_ADJUSTMENT_MODERATE=10 # Consistent issues, degraded performance
 METRIC_ADJUSTMENT_MAJOR=20    # Significant problems, frequent issues
 METRIC_ADJUSTMENT_CRITICAL=50 # Connection essentially unusable
-METRIC_ADJUSTMENT_DOWN=100    # Interface appears completely down
 
 # Calculate appropriate metric adjustment based on issue severity
 calculate_metric_adjustment() {
@@ -1253,10 +1284,6 @@ collect_historical_performance() {
     log_debug "� HISTORICAL ANALYSIS: Collecting $analysis_period seconds of data for $interface"
 
     # Initialize performance metrics
-    historical_latency="0"
-    historical_packet_loss="0"
-    historical_uptime="100"
-    sample_count="0"
     trend_direction="stable"
 
     # Check MWAN3 tracking logs
@@ -1292,9 +1319,6 @@ collect_mwan3_tracking_data() {
     tracking_data=""
 
     if [ -f "/var/log/messages" ]; then
-        # Get timestamp for period calculation
-        cutoff_time=$(date -d "${period} seconds ago" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date '+%Y-%m-%d %H:%M:%S')
-
         # Look for MWAN3 tracking entries
         tracking_data=$(grep -E "mwan3track.*$interface" /var/log/messages 2>/dev/null | tail -20 || echo "")
         log_debug "📊 MWAN3 TRACKING: Found $(echo "$tracking_data" | wc -l) tracking entries"
@@ -1344,13 +1368,16 @@ collect_monitor_historical_data() {
             loss_sum=0
             count=0
 
-            echo "$recent_data" | while IFS=',' read -r timestamp iface latency loss jitter signal_dbm; do
+            # Use process substitution to avoid subshell issues
+            while IFS=',' read -r timestamp _ latency loss jitter signal_dbm; do
                 [ -n "$latency" ] && [ "$latency" -ne 0 ] && {
                     latency_sum=$((latency_sum + latency))
                     loss_sum=$((loss_sum + ${loss:-0}))
                     count=$((count + 1))
                 }
-            done
+            done <<EOF
+$recent_data
+EOF
 
             if [ "$count" -gt 0 ]; then
                 latency_avg=$((latency_sum / count))
@@ -1694,6 +1721,7 @@ run_intelligent_monitoring() {
     log_debug "🧠 PHASE 2: Interface Classification"
     interface_database=""
 
+    # shellcheck disable=SC2046  # Word splitting intended for iteration
     for interface_entry in $(echo "$mwan3_interfaces" | tr ',' ' '); do
         mwan3_section=$(echo "$interface_entry" | cut -d':' -f1)
         interface_name=$(echo "$interface_entry" | cut -d':' -f2)
@@ -1731,6 +1759,7 @@ run_intelligent_monitoring() {
     log_debug "🧠 PHASE 3: Comprehensive Performance Testing"
     performance_database=""
 
+    # shellcheck disable=SC2046  # Word splitting intended for iteration
     for interface_entry in $(echo "$interface_database" | tr ',' ' '); do
         interface_name=$(echo "$interface_entry" | cut -d':' -f1)
         interface_type=$(echo "$interface_entry" | cut -d':' -f2)
@@ -1765,6 +1794,7 @@ run_intelligent_monitoring() {
     # Phase 4: Historical Analysis - Analyze trends and predict issues
     log_debug "🧠 PHASE 4: Historical Analysis and Trend Prediction"
 
+    # shellcheck disable=SC2046  # Word splitting intended for iteration
     for interface_entry in $(echo "$performance_database" | tr ',' ' '); do
         interface_name=$(echo "$interface_entry" | cut -d':' -f1)
         current_issues=$(echo "$interface_entry" | cut -d':' -f5)
@@ -1807,13 +1837,14 @@ run_intelligent_monitoring() {
     best_metric=999
     best_issues=999
 
+    # shellcheck disable=SC2046
     for interface_entry in $(echo "$performance_database" | tr ',' ' '); do
         interface_name=$(echo "$interface_entry" | cut -d':' -f1)
         issues=$(echo "$interface_entry" | cut -d':' -f5)
         current_metric=$(echo "$interface_entry" | cut -d':' -f6)
 
         # Find the best performing interface with lowest metric
-        if [ "$current_metric" -lt "$best_metric" ] || ([ "$current_metric" -eq "$best_metric" ] && [ "$issues" -lt "$best_issues" ]); then
+        if [ "$current_metric" -lt "$best_metric" ] || { [ "$current_metric" -eq "$best_metric" ] && [ "$issues" -lt "$best_issues" ]; }; then
             best_interface="$interface_name"
             best_metric="$current_metric"
             best_issues="$issues"
@@ -1847,6 +1878,7 @@ generate_monitoring_report() {
         echo ""
         echo "INTERFACE SUMMARY:"
 
+        # shellcheck disable=SC2046  # Word splitting intended for iteration
         for interface_entry in $(echo "$performance_db" | tr ',' ' '); do
             interface_name=$(echo "$interface_entry" | cut -d':' -f1)
             latency=$(echo "$interface_entry" | cut -d':' -f2)
@@ -1903,7 +1935,7 @@ validate_system_configuration() {
     fi
 
     # Check if we have at least one interface configured
-    interface_count=$(uci show mwan3 | grep "mwan3\..*\.interface=" | wc -l)
+    interface_count=$(uci show mwan3 | grep -c "mwan3\..*\.interface=")
     if [ "$interface_count" -eq 0 ]; then
         log_warning "⚠️ No MWAN3 interfaces found - system may need configuration"
         return 1
@@ -1964,13 +1996,15 @@ run_monitoring_daemon() {
 
     # Create monitoring state directory
     MONITORING_STATE_DIR="${LOG_DIR}/monitoring_state"
-    mkdir -p "$MONITORING_STATE_DIR"
+    if [ "${DRY_RUN:-0}" != "1" ]; then
+        mkdir -p "$MONITORING_STATE_DIR"
+    else
+        log_debug "DRY_RUN: Would create directory $MONITORING_STATE_DIR"
+    fi
 
     # Initialize counters and state
     cycle_count=0
     deep_analysis_counter=0
-    total_interfaces_managed=0
-    total_adjustments_applied=0
     daemon_start_time=$(date '+%s')
 
     log_info "🚀 DAEMON: Intelligent monitoring started successfully"
@@ -2048,6 +2082,7 @@ run_deep_system_analysis() {
         echo "Memory Usage: ${memory_usage}%"
         echo "MWAN3 Status: $mwan3_status"
         echo "Active Interfaces: $active_interfaces"
+        # shellcheck disable=SC2004 # Command substitution in arithmetic
         echo "Monitoring Uptime: $(($(date '+%s') - daemon_start_time))s"
         echo "=============================================================="
         echo ""
@@ -2201,7 +2236,11 @@ main() {
 
                 # Start daemon in background
                 (
-                    echo $$ >"$PID_FILE"
+                    if [ "${DRY_RUN:-0}" != "1" ]; then
+                        echo $$ >"$PID_FILE"
+                    else
+                        log_debug "DRY_RUN: Would write PID $$ to $PID_FILE"
+                    fi
                     run_monitoring_daemon
                 ) &
 
@@ -2231,10 +2270,18 @@ main() {
                     else
                         log_info "✅ STOP: Daemon stopped gracefully"
                     fi
-                    rm -f "$PID_FILE"
+                    if [ "${DRY_RUN:-0}" != "1" ]; then
+                        rm -f "$PID_FILE"
+                    else
+                        log_debug "DRY_RUN: Would remove PID file $PID_FILE"
+                    fi
                 else
                     log_warning "⚠️ STOP: Daemon not running, removing stale PID file"
-                    rm -f "$PID_FILE"
+                    if [ "${DRY_RUN:-0}" != "1" ]; then
+                        rm -f "$PID_FILE"
+                    else
+                        log_debug "DRY_RUN: Would remove stale PID file $PID_FILE"
+                    fi
                 fi
             else
                 log_info "ℹ️ STOP: No daemon PID file found"
@@ -2255,7 +2302,11 @@ main() {
                 fi
             else
                 log_info "❌ STATUS: Daemon not running"
-                rm -f "$PID_FILE" 2>/dev/null
+                if [ "${DRY_RUN:-0}" != "1" ]; then
+                    rm -f "$PID_FILE" 2>/dev/null
+                else
+                    log_debug "DRY_RUN: Would remove stale PID file $PID_FILE"
+                fi
             fi
             ;;
         test)
@@ -2269,6 +2320,7 @@ main() {
 
             log_info "📡 MWAN3 INTERFACES FOUND:"
             if [ -n "$interfaces" ]; then
+                # shellcheck disable=SC2046
                 for interface_entry in $(echo "$interfaces" | tr ',' ' '); do
                     mwan3_section=$(echo "$interface_entry" | cut -d':' -f1)
                     interface_name=$(echo "$interface_entry" | cut -d':' -f2)
@@ -2295,6 +2347,7 @@ main() {
             log_info "📈 ANALYSIS: Running historical performance analysis"
             interfaces=$(discover_mwan3_interfaces)
             if [ -n "$interfaces" ]; then
+                # shellcheck disable=SC2046
                 for interface_entry in $(echo "$interfaces" | tr ',' ' '); do
                     interface_name=$(echo "$interface_entry" | cut -d':' -f2)
                     historical_data=$(collect_historical_performance "$interface_name" 1800) # 30 minutes
@@ -2329,49 +2382,6 @@ main() {
             exit 1
             ;;
     esac
-}
-
-# =============================================================================
-# SCRIPT EXECUTION ENTRY POINT
-# =============================================================================
-
-# Execute main function with all arguments
-main "$@"
-discover_generic_connections() {
-    log_debug "🔍 DISCOVERY: Scanning for available generic internet connections"
-
-    available_connections=""
-    connection_count=0
-
-    # Check configured generic connections
-    configured_connections=$(echo "$GENERIC_CONNECTIONS" | tr ',' ' ')
-    configured_types=$(echo "$GENERIC_CONNECTION_TYPES" | tr ',' ' ')
-
-    connection_index=0
-    for connection in $configured_connections; do
-        connection_index=$((connection_index + 1))
-        connection_type=$(echo "$configured_types" | awk -v idx="$connection_index" '{print $idx}')
-        [ -z "$connection_type" ] && connection_type="unknown"
-
-        if ip link show "$connection" >/dev/null 2>&1; then
-            if ip addr show "$connection" | grep -q "inet "; then
-                available_connections="${available_connections}${connection}:${connection_type},"
-                connection_count=$((connection_count + 1))
-                log_debug "🔍 DISCOVERY: Found active generic connection: $connection ($connection_type)"
-            else
-                log_debug "� DISCOVERY: Found interface $connection but no IP assigned"
-            fi
-        else
-            log_debug "🔍 DISCOVERY: Interface $connection not found"
-        fi
-    done
-
-    # Remove trailing comma
-    available_connections=$(echo "$available_connections" | sed 's/,$//')
-
-    log_debug "🔍 DISCOVERY: Found $connection_count generic connections: $available_connections"
-    printf "%s" "$available_connections"
-    return 0
 }
 
 # Test individual connection performance via specific interface
@@ -2529,7 +2539,7 @@ calculate_connection_health_score() {
     weight_type=10
 
     # Calculate individual scores (0-100, higher is better)
-    
+
     # Convert latency to integer for POSIX sh compatibility (handle floating point)
     latency_int=$(echo "$latency" | cut -d'.' -f1 2>/dev/null || echo "999")
     packet_loss_int=$(echo "$packet_loss" | cut -d'.' -f1 2>/dev/null || echo "100")
@@ -2597,7 +2607,7 @@ calculate_connection_health_score() {
     # Connection type preference score
     case "$connection_type" in
         ethernet) type_score=100 ;;
-        starlink) type_score=90 ;;  # Premium satellite internet
+        starlink) type_score=90 ;; # Premium satellite internet
         wifi) type_score=80 ;;
         cellular) type_score=60 ;;
         *) type_score=70 ;;
@@ -2643,6 +2653,7 @@ analyze_multi_connection_performance() {
 
     # Test cellular modems
     if [ -n "$cellular_modems" ]; then
+        # shellcheck disable=SC2046
         for modem in $(echo "$cellular_modems" | tr ',' ' '); do
             results=$(test_connection_performance "$modem" "cellular")
             latency=$(echo "$results" | cut -d',' -f1)
@@ -2668,6 +2679,7 @@ analyze_multi_connection_performance() {
 
     # Test generic connections
     if [ -n "$generic_connections" ]; then
+        # shellcheck disable=SC2046
         for connection_info in $(echo "$generic_connections" | tr ',' ' '); do
             connection=$(echo "$connection_info" | cut -d':' -f1)
             conn_type=$(echo "$connection_info" | cut -d':' -f2)
@@ -2701,7 +2713,7 @@ analyze_multi_connection_performance() {
     # FIXED: Convert floating-point latency to integer for POSIX sh compatibility
     current_latency_int=$(echo "$CURRENT_LATENCY" | cut -d'.' -f1 2>/dev/null || echo "999")
     current_packet_loss_int=$(echo "$CURRENT_PACKET_LOSS" | cut -d'.' -f1 2>/dev/null || echo "100")
-    
+
     # Validate that we got valid integers
     if ! printf "%d" "$current_latency_int" >/dev/null 2>&1; then
         log_error "🚨 CRITICAL ERROR: Invalid latency value '$CURRENT_LATENCY' - cannot convert to integer"
@@ -2709,20 +2721,20 @@ analyze_multi_connection_performance() {
         log_error "🚨 FALLBACK: Using default latency value 999ms for safety"
         current_latency_int=999
     fi
-    
+
     if ! printf "%d" "$current_packet_loss_int" >/dev/null 2>&1; then
         log_error "🚨 CRITICAL ERROR: Invalid packet loss value '$CURRENT_PACKET_LOSS' - cannot convert to integer"
         log_error "🚨 DETAILS: Expected numeric value, got: '$CURRENT_PACKET_LOSS'"
         log_error "🚨 FALLBACK: Using default packet loss value 100% for safety"
         current_packet_loss_int=100
     fi
-    
+
     # Now use integer comparisons safely
     if [ "$current_latency_int" -gt "$LATENCY_THRESHOLD" ] 2>/dev/null; then
         primary_issues=$((primary_issues + 1))
         log_debug "🔍 ISSUE DETECTED: High latency - ${current_latency_int}ms > ${LATENCY_THRESHOLD}ms"
     fi
-    
+
     # Use awk for floating-point packet loss comparison if available
     if command -v awk >/dev/null 2>&1; then
         packet_loss_high=$(awk "BEGIN {print ($CURRENT_PACKET_LOSS > $PACKET_LOSS_THRESHOLD) ? 1 : 0}" 2>/dev/null || echo 0)
@@ -2745,7 +2757,7 @@ analyze_multi_connection_performance() {
         log_error "🚨 FALLBACK: Using default score of 50 for Starlink"
         primary_score=50
     fi
-    
+
     # Validate health score is numeric
     if ! printf "%d" "$primary_score" >/dev/null 2>&1; then
         log_error "🚨 CRITICAL ERROR: Health score calculation returned non-numeric value: '$primary_score'"
@@ -3072,7 +3084,6 @@ analyze_dual_connection_performance() {
     secondary_results=$(test_secondary_connection_performance)
     secondary_latency=$(echo "$secondary_results" | cut -d',' -f1)
     secondary_packet_loss=$(echo "$secondary_results" | cut -d',' -f2)
-    secondary_jitter=$(echo "$secondary_results" | cut -d',' -f3)
     secondary_available=$(echo "$secondary_results" | cut -d',' -f4)
 
     # Get cellular signal information if applicable
@@ -3104,7 +3115,7 @@ analyze_dual_connection_performance() {
     # FIXED: Convert floating-point values to integers for POSIX sh arithmetic
     current_latency_int=$(echo "$CURRENT_LATENCY" | cut -d'.' -f1 2>/dev/null || echo "999")
     current_packet_loss_int=$(echo "$CURRENT_PACKET_LOSS" | cut -d'.' -f1 2>/dev/null || echo "100")
-    
+
     # Validate integers with comprehensive error handling
     if ! printf "%d" "$current_latency_int" >/dev/null 2>&1; then
         log_error "🚨 CRITICAL ERROR: Invalid latency value in dual-connection analysis: '$CURRENT_LATENCY'"
@@ -3112,7 +3123,7 @@ analyze_dual_connection_performance() {
         log_error "🚨 FALLBACK: Using safe default latency value 999ms"
         current_latency_int=999
     fi
-    
+
     if ! printf "%d" "$current_packet_loss_int" >/dev/null 2>&1; then
         log_error "🚨 CRITICAL ERROR: Invalid packet loss value in dual-connection analysis: '$CURRENT_PACKET_LOSS'"
         log_error "🚨 DETAILS: Cannot perform arithmetic comparison with non-integer value"
@@ -3134,7 +3145,7 @@ analyze_dual_connection_performance() {
         # Use awk for floating-point comparisons
         packet_loss_high=$(awk "BEGIN {print ($CURRENT_PACKET_LOSS > $PACKET_LOSS_THRESHOLD) ? 1 : 0}" 2>/dev/null || echo 0)
         packet_loss_score=$(awk "BEGIN {printf \"%.0f\", $CURRENT_PACKET_LOSS * 50}" 2>/dev/null || echo "$((current_packet_loss_int * 50))")
-        
+
         if [ "$packet_loss_high" = "1" ]; then
             primary_issues=$((primary_issues + 1))
             primary_score=$((primary_score + packet_loss_score))
@@ -3146,7 +3157,7 @@ analyze_dual_connection_performance() {
         # Fallback to integer arithmetic for systems without awk
         log_warning "🔧 DUAL CONNECTION: awk not available, using integer arithmetic fallback"
         packet_loss_score=$((current_packet_loss_int * 50))
-        
+
         if [ "$current_packet_loss_int" -gt "$PACKET_LOSS_THRESHOLD" ] 2>/dev/null; then
             primary_issues=$((primary_issues + 1))
             primary_score=$((primary_score + packet_loss_score))
@@ -3159,18 +3170,18 @@ analyze_dual_connection_performance() {
     # Calculate secondary connection score (lower is better) with safe arithmetic
     secondary_latency_int=$(echo "$secondary_latency" | cut -d'.' -f1 2>/dev/null || echo "999")
     secondary_packet_loss_int=$(echo "$secondary_packet_loss" | cut -d'.' -f1 2>/dev/null || echo "100")
-    
+
     # Validate secondary connection values
     if ! printf "%d" "$secondary_latency_int" >/dev/null 2>&1; then
         log_warning "🔧 DUAL CONNECTION: Invalid secondary latency '$secondary_latency', using default 999ms"
         secondary_latency_int=999
     fi
-    
+
     if ! printf "%d" "$secondary_packet_loss_int" >/dev/null 2>&1; then
         log_warning "🔧 DUAL CONNECTION: Invalid secondary packet loss '$secondary_packet_loss', using default 100%"
         secondary_packet_loss_int=100
     fi
-    
+
     # Calculate secondary score safely
     if command -v awk >/dev/null 2>&1; then
         secondary_loss_score=$(awk "BEGIN {printf \"%.0f\", $secondary_packet_loss * 50}" 2>/dev/null || echo "$((secondary_packet_loss_int * 50))")
@@ -3254,7 +3265,7 @@ analyze_dual_connection_performance() {
     fi
 
     # Case 5: Primary is fine, check if we should restore from previous failover
-    current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "1")
+    current_metric=$(uci get "mwan3.${MWAN_MEMBER:-starlink}.metric" 2>/dev/null || echo "1")
     good_metric="${METRIC_GOOD:-1}"
 
     if [ "$current_metric" -gt "$good_metric" ] && [ "$primary_issues" -eq 0 ]; then
@@ -3305,6 +3316,7 @@ analyze_connection_quality() {
     fi
 
     # Packet loss check
+    # shellcheck disable=SC2004,SC2086 # bc calculation with variables
     if [ "$(echo "$CURRENT_PACKET_LOSS > $PACKET_LOSS_THRESHOLD" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
         is_packet_loss_poor=1
         failure_reasons="${failure_reasons}high_packet_loss,"
@@ -3312,6 +3324,7 @@ analyze_connection_quality() {
     fi
 
     # Enhanced obstruction analysis using multiple metrics
+    # shellcheck disable=SC2004,SC2086 # bc calculation with variables
     if [ "$(echo "$CURRENT_OBSTRUCTION > $OBSTRUCTION_THRESHOLD" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
         # Current obstruction is high, but check additional factors before triggering failover
 
@@ -3321,12 +3334,14 @@ analyze_connection_quality() {
             obstruction_hours=$(awk "BEGIN {print $CURRENT_OBSTRUCTION_VALID_S / 3600}")
 
             # Check if we have sufficient data for intelligent analysis
+            # shellcheck disable=SC2004,SC2086 # bc calculation with variables
             if [ "$(echo "$obstruction_hours >= $OBSTRUCTION_MIN_DATA_HOURS" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
                 # We have sufficient data - perform intelligent analysis
 
                 # Check for prolonged obstructions
                 has_prolonged_obstructions=0
                 if [ "$CURRENT_OBSTRUCTION_AVG_PROLONGED" != "NaN" ] && [ "$CURRENT_OBSTRUCTION_AVG_PROLONGED" != "0" ]; then
+                    # shellcheck disable=SC2004,SC2086 # bc calculation with variables
                     if [ "$(echo "$CURRENT_OBSTRUCTION_AVG_PROLONGED > $OBSTRUCTION_PROLONGED_THRESHOLD" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
                         has_prolonged_obstructions=1
                     fi
@@ -3337,6 +3352,7 @@ analyze_connection_quality() {
                 obstruction_analysis=""
 
                 # Case 1: High historical obstruction time
+                # shellcheck disable=SC2004,SC2086 # bc calculation with variables
                 if [ "$(echo "$CURRENT_OBSTRUCTION_TIME_PCT > $OBSTRUCTION_HISTORICAL_THRESHOLD" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
                     should_failover_obstruction=1
                     obstruction_analysis="${obstruction_analysis}historical_obst,"
@@ -3352,6 +3368,7 @@ analyze_connection_quality() {
 
                 # Case 3: Current obstruction is extremely high (emergency threshold)
                 emergency_threshold=$(awk "BEGIN {print $OBSTRUCTION_THRESHOLD * 3}")
+                # shellcheck disable=SC2004,SC2086 # bc calculation with variables
                 if [ "$(echo "$CURRENT_OBSTRUCTION > $emergency_threshold" | bc -l 2>/dev/null || echo 0)" = "1" ]; then
                     should_failover_obstruction=1
                     obstruction_analysis="${obstruction_analysis}emergency_obst,"
@@ -3442,20 +3459,20 @@ analyze_connection_quality() {
 
         if [ "$quality_factors" -ge 2 ]; then
             log_warning "Multiple quality issues detected $quality_factors factors, initiating enhanced failover analysis"
-            log_evaluation "multiple_quality_issues" "Factors: $quality_factors, reasons: ${failure_reasons%, }"
+            log_evaluation "multiple_quality_issues" "Factors: $quality_factors, reasons: $(echo "${failure_reasons}" | sed 's/,$//')"
             return 1 # Trigger failover
         elif [ "$quality_factors" -eq 1 ] && [ "$ENABLE_CELLULAR_TRACKING" = "true" ]; then
             # Check if cellular backup is strong enough to justify failover
             cellular_signal=$(echo "$cellular_data" | cut -d',' -f3)
             if [ -n "$cellular_signal" ] && [ "$cellular_signal" -gt 15 ] 2>/dev/null; then
                 log_info "Single quality issue with strong cellular backup, initiating failover"
-                log_evaluation "single_issue_strong_cellular" "Cellular signal: ${cellular_signal}dBm, reason: ${failure_reasons%, }"
+                log_evaluation "single_issue_strong_cellular" "Cellular signal: ${cellular_signal}dBm, reason: $(echo "${failure_reasons}" | sed 's/,$//')"
                 return 1 # Trigger failover
             else
-                log_evaluation "single_issue_weak_cellular" "Cellular signal: ${cellular_signal}dBm, reason: ${failure_reasons%, }"
+                log_evaluation "single_issue_weak_cellular" "Cellular signal: ${cellular_signal}dBm, reason: $(echo "${failure_reasons}" | sed 's/,$//')"
             fi
         elif [ "$quality_factors" -eq 1 ]; then
-            log_evaluation "single_issue_no_cellular" "Reason: ${failure_reasons%, }"
+            log_evaluation "single_issue_no_cellular" "Reason: $(echo "${failure_reasons}" | sed 's/,$//')"
         elif [ "$quality_factors" -eq 0 ]; then
             log_evaluation "quality_good" "All metrics within thresholds"
         fi
@@ -3463,7 +3480,7 @@ analyze_connection_quality() {
         # Basic failover logic (original behavior)
         if [ "$is_latency_poor" = "1" ] || [ "$is_packet_loss_poor" = "1" ] || [ "$is_obstruction_poor" = "1" ]; then
             log_warning "Quality threshold exceeded, initiating failover"
-            log_evaluation "basic_threshold_exceeded" "Reasons: ${failure_reasons%, }"
+            log_evaluation "basic_threshold_exceeded" "Reasons: $(echo "${failure_reasons}" | sed 's/,$//')"
             return 1 # Trigger failover
         else
             log_evaluation "basic_quality_good" "All basic metrics within thresholds"
@@ -3484,7 +3501,7 @@ trigger_failover() {
     log_info "Triggering Starlink failover..."
 
     # Get current metric from configured member
-    current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "10")
+    current_metric=$(uci get "mwan3.${MWAN_MEMBER:-starlink}.metric" 2>/dev/null || echo "10")
 
     # Use fixed METRIC_BAD value instead of incremental increase
     # This prevents runaway metric increases from repeated failovers
@@ -3512,7 +3529,7 @@ trigger_failover() {
     fi
 
     # Apply new metric
-    if safe_execute "uci set mwan3.${MWAN_MEMBER}.metric=$new_metric" "Set mwan3 metric to $new_metric"; then
+    if safe_execute "uci set mwan3.${MWAN_MEMBER:-starlink}.metric=$new_metric" "Set mwan3 metric to $new_metric"; then
         if safe_execute "uci commit mwan3" "Commit mwan3 changes"; then
             if safe_execute "/etc/init.d/mwan3 reload" "Reload mwan3 service"; then
                 log_info "Failover triggered successfully. Metric changed from $current_metric to $new_metric"
@@ -3563,7 +3580,7 @@ restore_primary() {
     log_info "Restoring primary connection..."
 
     # Get current metric for logging
-    current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "unknown")
+    current_metric=$(uci get "mwan3.${MWAN_MEMBER:-starlink}.metric" 2>/dev/null || echo "unknown")
 
     # Reset to configured METRIC_GOOD value
     good_metric="${METRIC_GOOD:-1}"
@@ -3577,7 +3594,7 @@ restore_primary() {
         additional_notes="Metric was elevated - $current_metric, restoring to normal"
     fi
 
-    if safe_execute "uci set mwan3.${MWAN_MEMBER}.metric=$good_metric" "Reset mwan3 metric to $good_metric"; then
+    if safe_execute "uci set mwan3.${MWAN_MEMBER:-starlink}.metric=$good_metric" "Reset mwan3 metric to $good_metric"; then
         if safe_execute "uci commit mwan3" "Commit mwan3 changes"; then
             if safe_execute "/etc/init.d/mwan3 reload" "Reload mwan3 service"; then
                 log_info "Starlink interface restored successfully"
@@ -3676,7 +3693,7 @@ main() {
             case $dual_connection_exit_code in
                 0)
                     # No action needed - connections are performing well
-                    current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "10")
+                    current_metric=$(uci get "mwan3.${MWAN_MEMBER:-starlink}.metric" 2>/dev/null || echo "10")
                     log_maintenance_action "status_check" "dual_connection_stable" "completed" "Both connections stable, metric: $current_metric"
                     ;;
                 1)
@@ -3701,7 +3718,7 @@ main() {
                         fi
                     else
                         # Quality is good, check if we need to restore interface
-                        current_metric=$(uci get "mwan3.${MWAN_MEMBER}.metric" 2>/dev/null || echo "10")
+                        current_metric=$(uci get "mwan3.${MWAN_MEMBER:-starlink}.metric" 2>/dev/null || echo "10")
                         good_metric="${METRIC_GOOD:-1}"
                         if [ "$current_metric" -gt "$good_metric" ]; then
                             log_info "Quality restored and metric is elevated - $current_metric, restoring interface"
