@@ -1084,9 +1084,10 @@ cleanup_legacy_cron_monitoring() {
     log_info "Cleaning up legacy cron-based monitoring..."
 
     # Remove existing starlink-related cron jobs
-    if crontab -l 2>/dev/null | grep -q "starlink"; then
+    if smart_safe_execute "crontab -l 2>/dev/null | grep -q 'starlink'" "Check for legacy cron jobs"; then
         log_info "Found legacy cron jobs, removing..."
-        smart_safe_execute "bash -c '(crontab -l 2>/dev/null | grep -v \"starlink\" || true) | crontab -'" "Remove legacy cron jobs"
+        # POSIX-compatible cron cleanup
+        smart_safe_execute "crontab -l 2>/dev/null | grep -v 'starlink' | crontab - || true" "Remove legacy cron jobs"
         log_success "Legacy cron monitoring removed"
     else
         log_info "No legacy cron jobs found"
@@ -1124,7 +1125,8 @@ EOF
     combined_cron="$(crontab -l 2>/dev/null | grep -v 'starlink' || true)
 $cron_content"
 
-    smart_safe_execute "bash -c 'echo \"$combined_cron\" | crontab -'" "Install hybrid monitoring cron jobs"
+    # POSIX-compatible cron installation
+    printf "%s\n" "$combined_cron" | crontab -
 
     # Restart cron service
     smart_safe_execute "/etc/init.d/cron restart >/dev/null 2>&1" "Restart cron service"
@@ -1163,7 +1165,8 @@ EOF
     combined_cron="$(crontab -l 2>/dev/null | grep -v 'starlink' || true)
 $cron_content"
 
-    smart_safe_execute "bash -c 'echo \"$combined_cron\" | crontab -'" "Install traditional monitoring cron jobs"
+    # POSIX-compatible cron installation
+    printf "%s\n" "$combined_cron" | crontab -
 
     # Restart cron service
     smart_safe_execute "/etc/init.d/cron restart >/dev/null 2>&1" "Restart cron service"
@@ -1842,7 +1845,8 @@ download_binaries() {
         log_info "Downloading grpcurl..."
         temp_dir="/tmp/grpcurl_$$"
         smart_safe_execute "mkdir -p '$temp_dir'" "Create temporary directory"
-        if smart_safe_execute "bash -c 'curl -fsSL \"$GRPCURL_URL\" | tar -xz -C \"$temp_dir\"'" "Download and extract grpcurl"; then
+        # POSIX-compatible download and extract
+        if smart_safe_execute "curl -fsSL '$GRPCURL_URL' | tar -xz -C '$temp_dir'" "Download and extract grpcurl"; then
             smart_safe_execute "cp '$temp_dir/grpcurl' '$SCRIPTS_DIR/grpcurl'" "Install grpcurl binary"
             smart_safe_execute "chmod +x '$SCRIPTS_DIR/grpcurl'" "Make grpcurl executable"
             smart_safe_execute "rm -rf '$temp_dir'" "Clean up temporary directory"
