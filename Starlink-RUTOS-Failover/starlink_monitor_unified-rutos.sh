@@ -813,7 +813,7 @@ discover_generic_connections() {
             # Skip cellular and satellite interfaces
             case "$interface" in
                 mob* | wwan* | starlink* | sat*) continue ;;
-                wlan* | eth* | br-* | lan*)
+                wlan* | eth* | br-* | lan* | tun* | tap* | vpn* | wg*)
                     log_debug "🔍 DISCOVERY: Found generic interface: $interface"
                     generic_connections="$generic_connections $interface"
                     ;;
@@ -829,7 +829,7 @@ discover_generic_connections() {
                 case "$interface" in
                     # Skip loopback, cellular, and already discovered
                     lo | mob* | wwan*) continue ;;
-                    wlan* | eth* | br-* | wan*)
+                    wlan* | eth* | br-* | wan* | tun* | tap* | vpn* | wg*)
                         if ip link show "$interface" 2>/dev/null | grep -q "state UP"; then
                             if ! echo "$generic_connections" | grep -q "$interface"; then
                                 log_debug "🔍 DISCOVERY: Found active generic interface: $interface"
@@ -1123,9 +1123,13 @@ classify_interface_type() {
         fi
 
         # Check if it's a VPN interface
-        if echo "$interface_name" | grep -qE "^(tun|tap|vpn)"; then
+        if echo "$interface_name" | grep -qE "^(tun|tap|vpn|wg)"; then
             interface_type="vpn"
-            interface_subtype="tunnel"
+            if echo "$interface_name" | grep -q "^wg"; then
+                interface_subtype="wireguard"
+            else
+                interface_subtype="tunnel"
+            fi
         fi
     fi
 
@@ -1935,7 +1939,7 @@ validate_system_configuration() {
     fi
 
     # Check if we have at least one interface configured
-    interface_count=$(uci show mwan3 | grep -c "mwan3\..*\.interface=")
+    interface_count=$(uci show mwan3 | grep -c "=interface")
     if [ "$interface_count" -eq 0 ]; then
         log_warning "⚠️ No MWAN3 interfaces found - system may need configuration"
         return 1
