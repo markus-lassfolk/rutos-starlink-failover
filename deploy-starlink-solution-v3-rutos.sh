@@ -70,74 +70,77 @@ enhanced_error_handler() {
     exit_code=${?:-1}
     error_line="${1:-unknown}"
 
-    printf "\n"
-    printf "🚨 ===============================================\n"
-    printf "   DEPLOYMENT ERROR - DETAILED DIAGNOSTICS\n"
-    printf "===============================================\n"
-    printf "❌ Error Code: %s\n" "$exit_code"
-    printf "📍 Line: %s\n" "$error_line"
-    printf "📂 Script: %s\n" "${0##*/}"
-    printf "🎯 Function: %s\n" "${CURRENT_FUNCTION:-main}"
-    printf "📝 Context: %s\n" "${ERROR_CONTEXT:-No specific context available}"
-    printf "\n"
-
-    # Show environment state at time of error
-    printf "🔍 ENVIRONMENT STATE AT ERROR:\n"
-    printf "   DEBUG: %s\n" "${DEBUG:-unset}"
-    printf "   RUTOS_TEST_MODE: %s\n" "${RUTOS_TEST_MODE:-unset}"
-    printf "   DRY_RUN: %s\n" "${DRY_RUN:-unset}"
-    printf "   _LIBRARY_LOADED: %s\n" "${_LIBRARY_LOADED:-unset}"
-    printf "   USER: %s\n" "${USER:-unset}"
-    printf "   PWD: %s\n" "${PWD:-unset}"
-    printf "\n"
-
-    # Show recent command history if available
-    if command -v history >/dev/null 2>&1; then
-        printf "📜 RECENT COMMANDS:\n"
-        history | tail -5 2>/dev/null || printf "   Command history not available\n"
+    # CRITICAL: Only show error diagnostics for actual failures (exit code != 0)
+    if [ "$exit_code" -ne 0 ]; then
         printf "\n"
+        printf "🚨 ===============================================\n"
+        printf "   DEPLOYMENT ERROR - DETAILED DIAGNOSTICS\n"
+        printf "===============================================\n"
+        printf "❌ Error Code: %s\n" "$exit_code"
+        printf "📍 Line: %s\n" "$error_line"
+        printf "📂 Script: %s\n" "${0##*/}"
+        printf "🎯 Function: %s\n" "${CURRENT_FUNCTION:-main}"
+        printf "📝 Context: %s\n" "${ERROR_CONTEXT:-No specific context available}"
+        printf "\n"
+
+        # Show environment state at time of error
+        printf "🔍 ENVIRONMENT STATE AT ERROR:\n"
+        printf "   DEBUG: %s\n" "${DEBUG:-unset}"
+        printf "   RUTOS_TEST_MODE: %s\n" "${RUTOS_TEST_MODE:-unset}"
+        printf "   DRY_RUN: %s\n" "${DRY_RUN:-unset}"
+        printf "   _LIBRARY_LOADED: %s\n" "${_LIBRARY_LOADED:-unset}"
+        printf "   USER: %s\n" "${USER:-unset}"
+        printf "   PWD: %s\n" "${PWD:-unset}"
+        printf "\n"
+
+        # Show recent command history if available
+        if command -v history >/dev/null 2>&1; then
+            printf "📜 RECENT COMMANDS:\n"
+            history | tail -5 2>/dev/null || printf "   Command history not available\n"
+            printf "\n"
+        fi
+
+        # Provide specific help based on error patterns
+        case "$exit_code" in
+            2)
+                printf "💡 LIKELY CAUSE: Parameter not set (uninitialized variable)\n"
+                printf "🔧 TROUBLESHOOTING:\n"
+                printf "   1. Check if required environment variables are set\n"
+                printf "   2. Verify script arguments are provided correctly\n"
+                printf "   3. Run with DEBUG=1 for detailed variable tracking\n"
+                printf "   4. Check for typos in variable names\n"
+                ;;
+            126)
+                printf "💡 LIKELY CAUSE: Permission denied or command not executable\n"
+                printf "🔧 TROUBLESHOOTING:\n"
+                printf "   1. Check file permissions: ls -la \$script_path\n"
+                printf "   2. Ensure script has execute permission: chmod +x \$script_path\n"
+                printf "   3. Verify file system is not mounted read-only\n"
+                ;;
+            127)
+                printf "💡 LIKELY CAUSE: Command not found\n"
+                printf "🔧 TROUBLESHOOTING:\n"
+                printf "   1. Check if required commands are installed\n"
+                printf "   2. Verify PATH environment variable\n"
+                printf "   3. Install missing dependencies\n"
+                ;;
+            *)
+                printf "💡 GENERIC ERROR: Unexpected failure\n"
+                printf "🔧 TROUBLESHOOTING:\n"
+                printf "   1. Run with DEBUG=1 RUTOS_TEST_MODE=1 for detailed logging\n"
+                printf "   2. Check system logs: logread | grep starlink\n"
+                printf "   3. Verify RUTOS system health: df -h && free\n"
+                ;;
+        esac
+
+        printf "\n"
+        printf "🆘 FOR HELP:\n"
+        printf "   📖 Documentation: https://github.com/markus-lassfolk/rutos-starlink-failover\n"
+        printf "   🐛 Report issues: https://github.com/markus-lassfolk/rutos-starlink-failover/issues\n"
+        printf "   🔧 Include this error output when seeking help\n"
+        printf "\n"
+        printf "===============================================\n"
     fi
-
-    # Provide specific help based on error patterns
-    case "$exit_code" in
-        2)
-            printf "💡 LIKELY CAUSE: Parameter not set (uninitialized variable)\n"
-            printf "🔧 TROUBLESHOOTING:\n"
-            printf "   1. Check if required environment variables are set\n"
-            printf "   2. Verify script arguments are provided correctly\n"
-            printf "   3. Run with DEBUG=1 for detailed variable tracking\n"
-            printf "   4. Check for typos in variable names\n"
-            ;;
-        126)
-            printf "💡 LIKELY CAUSE: Permission denied or command not executable\n"
-            printf "🔧 TROUBLESHOOTING:\n"
-            printf "   1. Check file permissions: ls -la \$script_path\n"
-            printf "   2. Ensure script has execute permission: chmod +x \$script_path\n"
-            printf "   3. Verify file system is not mounted read-only\n"
-            ;;
-        127)
-            printf "💡 LIKELY CAUSE: Command not found\n"
-            printf "🔧 TROUBLESHOOTING:\n"
-            printf "   1. Check if required commands are installed\n"
-            printf "   2. Verify PATH environment variable\n"
-            printf "   3. Install missing dependencies\n"
-            ;;
-        *)
-            printf "💡 GENERIC ERROR: Unexpected failure\n"
-            printf "🔧 TROUBLESHOOTING:\n"
-            printf "   1. Run with DEBUG=1 RUTOS_TEST_MODE=1 for detailed logging\n"
-            printf "   2. Check system logs: logread | grep starlink\n"
-            printf "   3. Verify RUTOS system health: df -h && free\n"
-            ;;
-    esac
-
-    printf "\n"
-    printf "🆘 FOR HELP:\n"
-    printf "   📖 Documentation: https://github.com/markus-lassfolk/rutos-starlink-failover\n"
-    printf "   🐛 Report issues: https://github.com/markus-lassfolk/rutos-starlink-failover/issues\n"
-    printf "   🔧 Include this error output when seeking help\n"
-    printf "\n"
-    printf "===============================================\n"
 
     exit "$exit_code"
 }
