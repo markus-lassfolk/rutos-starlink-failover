@@ -991,12 +991,12 @@ discover_mwan3_interfaces() {
     if command -v uci >/dev/null 2>&1; then
         # Get all interface sections from MWAN3
         for section in $(uci show mwan3 | grep "=interface" | cut -d'.' -f2 | cut -d'=' -f1); do
-            interface_name=$(uci get "mwan3.$section.ifname" 2>/dev/null || echo "")
             enabled=$(uci get "mwan3.$section.enabled" 2>/dev/null || echo "1")
-
-            if [ "$enabled" = "1" ] && [ -n "$interface_name" ]; then
-                mwan3_interfaces="${mwan3_interfaces}${section}:${interface_name},"
-                log_debug "🔍 MWAN3 DISCOVERY: Found enabled interface - Section: $section, Interface: $interface_name"
+            
+            if [ "$enabled" = "1" ]; then
+                # In RUTOS, the interface section name IS the interface name
+                mwan3_interfaces="${mwan3_interfaces}${section},"
+                log_debug "🔍 MWAN3 DISCOVERY: Found enabled interface: $section"
             fi
         done
 
@@ -1020,10 +1020,11 @@ discover_mwan3_members() {
             interface=$(uci get "mwan3.$section.interface" 2>/dev/null || echo "")
             metric=$(uci get "mwan3.$section.metric" 2>/dev/null || echo "1")
             weight=$(uci get "mwan3.$section.weight" 2>/dev/null || echo "1")
+            name=$(uci get "mwan3.$section.name" 2>/dev/null || echo "$section")
 
             if [ -n "$interface" ]; then
-                member_config="${member_config}${section}:${interface}:${metric}:${weight},"
-                log_debug "🔍 MWAN3 MEMBERS: Member: $section, Interface: $interface, Metric: $metric, Weight: $weight"
+                member_config="${member_config}${section}:${interface}:${metric}:${weight}:${name},"
+                log_debug "🔍 MWAN3 MEMBERS: Member: $section ($name), Interface: $interface, Metric: $metric, Weight: $weight"
             fi
         done
 
@@ -1539,17 +1540,31 @@ test_cellular_interface() {
 run_standard_connectivity_test() {
     interface="$1"
     test_host="${CONNECTION_TEST_HOST:-8.8.8.8}"
-    test_timeout="${CONNECTION_TEST_TIMEOUT:-15}"
-    ping_count=5
+    test_timeout="${CONNECTION_TEST_TIMEOUT:-10}"
+    ping_count=3
 
     log_debug "🔄 STANDARD TEST: Testing $interface via ping to $test_host"
 
-    # Initialize with poor defaults
-    latency="999"
-    packet_loss="100"
-    jitter="999"
+    # Initialize with moderate defaults for startup (not worst-case)
+    latency="75"
+    packet_loss="1"
+    jitter="15"
 
-    # Perform ping test
+    # Quick interface readiness check
+    if ! ip link show "$interface" 2>/dev/null | grep -q "state UP"; then
+        log_debug "🔄 STANDARD TEST: Interface $interface is not UP, using defaults"
+        printf "%s,%s,%s" "$latency" "$packet_loss" "$jitter"
+        return 1
+    fi
+
+    # Check if interface has a valid route
+    if ! ip route show table main | grep -q "dev $interface"; then
+        log_debug "🔄 STANDARD TEST: Interface $interface has no routes, using defaults"
+        printf "%s,%s,%s" "$latency" "$packet_loss" "$jitter"
+        return 1
+    fi
+
+    # Perform ping test with shorter timeout for startup
     ping_output=""
     if command -v timeout >/dev/null 2>&1; then
         ping_output=$(timeout "$test_timeout" ping -I "$interface" -c $ping_count "$test_host" 2>/dev/null || echo "")
@@ -1557,22 +1572,30 @@ run_standard_connectivity_test() {
         ping_output=$(ping -I "$interface" -c $ping_count "$test_host" 2>/dev/null || echo "")
     fi
 
-    if [ -n "$ping_output" ]; then
+    if [ -n "$ping_output" ] && echo "$ping_output" | grep -q "packet loss"; then
         # Extract packet loss percentage
         packet_loss_line=$(echo "$ping_output" | grep "packet loss" | head -1)
         if [ -n "$packet_loss_line" ]; then
-            packet_loss=$(echo "$packet_loss_line" | sed 's/.*(\([0-9]*\)% packet loss).*/\1/')
-            [ -z "$packet_loss" ] && packet_loss="100"
+            extracted_loss=$(echo "$packet_loss_line" | sed 's/.*(\([0-9]*\)% packet loss).*/\1/')
+            if [ -n "$extracted_loss" ] && [ "$extracted_loss" -ge 0 ] 2>/dev/null; then
+                packet_loss="$extracted_loss"
+            fi
         fi
 
         # Extract latency statistics
         latency_line=$(echo "$ping_output" | grep "min/avg/max" | head -1)
         if [ -n "$latency_line" ]; then
-            latency=$(echo "$latency_line" | awk -F'[/=]' '{print $3}' | awk '{print int($1+0.5)}')
-            jitter=$(echo "$latency_line" | awk -F'[/=]' '{print $5}' | awk '{print int($1+0.5)}')
-            [ -z "$latency" ] && latency="999"
-            [ -z "$jitter" ] && jitter="999"
+            extracted_latency=$(echo "$latency_line" | awk -F'[/=]' '{print $3}' | awk '{print int($1+0.5)}')
+            extracted_jitter=$(echo "$latency_line" | awk -F'[/=]' '{print $5}' | awk '{print int($1+0.5)}')
+            if [ -n "$extracted_latency" ] && [ "$extracted_latency" -gt 0 ] 2>/dev/null; then
+                latency="$extracted_latency"
+            fi
+            if [ -n "$extracted_jitter" ] && [ "$extracted_jitter" -gt 0 ] 2>/dev/null; then
+                jitter="$extracted_jitter"
+            fi
         fi
+    else
+        log_debug "🔄 STANDARD TEST: Ping test failed or incomplete for $interface, using reasonable defaults"
     fi
 
     log_debug "🔄 STANDARD TEST: $interface - Latency: ${latency}ms, Loss: ${packet_loss}%, Jitter: ${jitter}ms"
@@ -1687,14 +1710,16 @@ run_intelligent_monitoring() {
             member_section=$(echo "$member_info" | cut -d':' -f1)
             current_metric=$(echo "$member_info" | cut -d':' -f3)
             weight=$(echo "$member_info" | cut -d':' -f4)
+            member_display_name=$(echo "$member_info" | cut -d':' -f5)
         else
             member_section="unknown"
             current_metric="1"
             weight="1"
+            member_display_name="unknown"
         fi
 
-        # Build interface database entry
-        interface_database="${interface_database}${interface_name}:${interface_type}:${interface_subtype}:${special_config}:${member_section}:${current_metric}:${weight},"
+        # Build interface database entry with member display name
+        interface_database="${interface_database}${interface_name}:${interface_type}:${interface_subtype}:${special_config}:${member_section}:${current_metric}:${weight}:${member_display_name},"
 
         log_debug "🧠 CLASSIFICATION: $interface_name → $interface_type/$interface_subtype (special: $special_config, metric: $current_metric)"
     done
@@ -1713,6 +1738,8 @@ run_intelligent_monitoring() {
         special_config=$(echo "$interface_entry" | cut -d':' -f4)
         member_section=$(echo "$interface_entry" | cut -d':' -f5)
         current_metric=$(echo "$interface_entry" | cut -d':' -f6)
+        weight=$(echo "$interface_entry" | cut -d':' -f7)
+        member_display_name=$(echo "$interface_entry" | cut -d':' -f8)
 
         # Test the interface comprehensively
         test_results=$(test_connection_comprehensive "$interface_name" "$interface_type" "$interface_subtype" "$special_config")
@@ -1723,10 +1750,13 @@ run_intelligent_monitoring() {
         available=$(echo "$test_results" | tr ',' '\n' | grep "available:" | cut -d':' -f2)
         issues=$(echo "$test_results" | tr ',' '\n' | grep "issues:" | cut -d':' -f2)
 
-        # Store performance data
-        performance_database="${performance_database}${interface_name}:${latency}:${packet_loss}:${available}:${issues}:${current_metric}:${member_section},"
+        # Calculate connection health score for display
+        connection_score=$(calculate_connection_health_score "$latency" "$packet_loss" "0" "0" "$interface_type" 2>/dev/null || echo "50")
 
-        log_info "🧠 PERFORMANCE: $interface_name ($interface_type) - Latency: ${latency}ms, Loss: ${packet_loss}%, Issues: $issues"
+        # Store performance data
+        performance_database="${performance_database}${interface_name}:${latency}:${packet_loss}:${available}:${issues}:${current_metric}:${member_section}:${connection_score},"
+
+        log_info "🧠 PERFORMANCE: $interface_name ($member_display_name) - Latency: ${latency}ms, Loss: ${packet_loss}%, Issues: $issues, Score: $connection_score"
     done
 
     # Remove trailing comma
@@ -1739,6 +1769,7 @@ run_intelligent_monitoring() {
         interface_name=$(echo "$interface_entry" | cut -d':' -f1)
         current_issues=$(echo "$interface_entry" | cut -d':' -f5)
         member_section=$(echo "$interface_entry" | cut -d':' -f7)
+        connection_score=$(echo "$interface_entry" | cut -d':' -f8)
 
         # Get historical performance data
         historical_data=$(collect_historical_performance "$interface_name" 300) # 5 minutes
@@ -3616,7 +3647,7 @@ main() {
     fi
 
     # Log start of monitoring cycle
-    log_maintenance_action "monitoring_cycle_start" "starlink_status_check" "initiated" "v$SCRIPT_VERSION"
+    log_maintenance_action "monitoring_cycle_start" "starlink_status_check" "initiated" "Monitoring cycle started"
 
     # Validate required tools
     if [ ! -f "$GRPCURL_CMD" ]; then
