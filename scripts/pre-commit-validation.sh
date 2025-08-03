@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2059 # RUTOS Method 5 color format uses variables in printf strings intentionally
 # Pre-commit validation script for RUTOS Starlink Failover Project
-# Version: 2.7.1
+# Version: 2.8.0
 # Description: Comprehensive validation of shell scripts for RUTOS/busybox compatibility
 #              and markdown files for documentation quality
 #
@@ -19,7 +19,7 @@
 # and collect all validation issues before exiting
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="2.7.1"
+SCRIPT_VERSION="2.8.0"
 
 # CRITICAL: Allow test execution for validation scripts
 # This prevents RUTOS_TEST_MODE from causing early exit in validation tools
@@ -45,6 +45,7 @@ TOTAL_ISSUES=0
 CRITICAL_ISSUES=0
 MAJOR_ISSUES=0
 MINOR_ISSUES=0
+WARNING_ISSUES=0
 
 # Autonomous mode variables
 AUTONOMOUS_MODE=0
@@ -164,6 +165,10 @@ check_dev_tools() {
     if ! command_exists shfmt; then
         missing_tools="$missing_tools shfmt"
     fi
+    
+    if ! command_exists shellharden; then
+        missing_tools="$missing_tools shellharden"
+    fi
 
     # If tools are missing, provide helpful suggestions
     if [ -n "$missing_tools" ]; then
@@ -178,6 +183,7 @@ check_dev_tools() {
         log_info "  • Run setup script: ./scripts/setup-dev-tools.sh"
         log_info "  • Manual Node.js tools: npm install -g markdownlint-cli prettier"
         log_info "  • Manual shell tools: sudo apt install shellcheck && go install mvdan.cc/sh/v3/cmd/shfmt@latest"
+        log_info "  • Manual shellharden: cargo install shellharden"
         printf "\n"
         log_info "🚀 Full setup with configurations:"
         if [ -f "./scripts/setup-dev-tools.sh" ]; then
@@ -240,6 +246,10 @@ $issue_json"
                     # shellcheck disable=SC2059 # Method 5 format with color variables is valid for RUTOS
                     printf "${BLUE}[MINOR]${NC} %s:%s %s\n" "$file" "$line" "$message"
                     ;;
+                "WARNING")
+                    # shellcheck disable=SC2059 # Method 5 format with color variables is valid for RUTOS
+                    printf "${YELLOW}[WARNING]${NC} %s:%s %s\n" "$file" "$line" "$message"
+                    ;;
             esac
         fi
     fi
@@ -248,9 +258,20 @@ $issue_json"
         "CRITICAL") CRITICAL_ISSUES=$((CRITICAL_ISSUES + 1)) ;;
         "MAJOR") MAJOR_ISSUES=$((MAJOR_ISSUES + 1)) ;;
         "MINOR") MINOR_ISSUES=$((MINOR_ISSUES + 1)) ;;
+        "WARNING") WARNING_ISSUES=$((WARNING_ISSUES + 1)) ;;
     esac
 
     TOTAL_ISSUES=$((TOTAL_ISSUES + 1))
+}
+
+# Convenience function to report a warning that gets tracked in the summary
+report_warning() {
+    file="$1"
+    line="$2"
+    message="$3"
+    
+    # Use the main report_issue function with WARNING severity
+    report_issue "WARNING" "$file" "$line" "$message"
 }
 
 # Function to categorize issues for autonomous fixing
@@ -846,7 +867,8 @@ run_shellcheck() {
             if echo "$line" | grep -q "^In.*line [0-9]+:"; then
                 # shellcheck disable=SC2001 # Complex regex replacement with capture groups
                 line_num=$(echo "$line" | sed 's/.*line \([0-9]*\):.*/\1/')
-            elif echo "$line" | grep -qE "SC[0-9]+"; then
+            elif echo "$line" | grep -qE "SC[0-9]+" && ! echo "$line" | grep -q "https://"; then
+                # Only process SC codes that aren't URLs to avoid duplicate counting
                 # shellcheck disable=SC2001 # Complex regex replacement with capture groups
                 sc_code=$(echo "$line" | sed 's/.*\(SC[0-9]*\).*/\1/')
                 # shellcheck disable=SC2001 # Complex regex replacement with capture groups
@@ -899,6 +921,138 @@ run_shfmt() {
     fi
 
     return 0
+}
+
+# Function to run shellharden analysis with POSIX-aware filtering
+run_shellharden() {
+    file="$1"
+    
+    if ! command_exists shellharden; then
+        log_debug "shellharden not available - skipping shell hardening analysis"
+        return 0
+    fi
+    
+    log_trace "Running shellharden analysis on $file"
+    
+    # Create temporary files for analysis
+    original_file="/tmp/shellharden_original_$$"
+    suggestions_file="/tmp/shellharden_suggestions_$$"
+    filtered_file="/tmp/shellharden_filtered_$$"
+    
+    # Copy original for comparison
+    cp "$file" "$original_file"
+    
+    # Get shellharden suggestions
+    if shellharden --suggest "$file" > "$suggestions_file" 2>/dev/null; then
+        # shellharden always exits 0, so we need to check if it made changes
+        if diff -q "$original_file" "$suggestions_file" >/dev/null 2>&1; then
+            log_debug "✓ $file: shellharden found no issues"
+            rm -f "$original_file" "$suggestions_file" "$filtered_file"
+            return 0
+        else
+            # shellharden made suggestions
+            log_debug "shellharden found potential improvements in $file"
+        fi
+    else
+        # shellharden failed to run
+        log_debug "shellharden failed to analyze $file"
+        rm -f "$original_file" "$suggestions_file" "$filtered_file"
+        return 0
+    fi
+    
+    # Create filtered suggestions (remove problematic POSIX patterns)
+    filter_shellharden_suggestions "$original_file" "$suggestions_file" "$filtered_file"
+    
+    # Check if there are any valid suggestions after filtering
+    if ! diff -q "$original_file" "$filtered_file" >/dev/null 2>&1; then
+        # Count the differences
+        diff_lines=$(diff "$original_file" "$filtered_file" | grep -c '^[<>]' || echo 0)
+        
+        if [ "$diff_lines" -gt 0 ]; then
+            # Show shellharden suggestions inline instead of creating files
+            log_warning "⚠️ shellharden suggests $diff_lines improvements for $file:"
+            
+            # Display the diff inline (limited to first 10 lines to avoid clutter)
+            echo
+            printf "${CYAN}Suggested changes:${NC}\n"
+            diff -u "$original_file" "$filtered_file" | head -20 | while IFS= read -r diff_line; do
+                case "$diff_line" in
+                    "---"*|"+++"*|"@@"*) 
+                        printf "${BLUE}%s${NC}\n" "$diff_line" ;;
+                    "-"*) 
+                        printf "${RED}%s${NC}\n" "$diff_line" ;;
+                    "+"*) 
+                        printf "${GREEN}%s${NC}\n" "$diff_line" ;;
+                    *) 
+                        printf "%s\n" "$diff_line" ;;
+                esac
+            done
+            echo
+            
+            # Report as warning for tracking in summary
+            report_warning "$file" "0" "shellharden suggests $diff_lines improvements (shown above)"
+        fi
+    else
+        log_debug "✓ $file: All shellharden suggestions filtered out (POSIX compatibility)"
+    fi
+    
+    # Cleanup
+    rm -f "$original_file" "$suggestions_file" "$filtered_file"
+    return 0
+}
+
+# Function to filter out problematic shellharden suggestions for POSIX compatibility
+filter_shellharden_suggestions() {
+    local original_file="$1"
+    local suggestions_file="$2"
+    local filtered_file="$3"
+    
+    # Start with the suggestions
+    cp "$suggestions_file" "$filtered_file"
+    
+    # Filter out incorrect POSIX patterns that shellharden sometimes suggests
+    
+    # 1. Fix incorrect [ -z "$var" = "" ] suggestions back to [ -z "$var" ]
+    sed -i 's/\[ -z "\([^"]*\)" = "" \]/[ -z "\1" ]/g' "$filtered_file"
+    
+    # 2. Fix incorrect [ -n "$var" != "" ] suggestions back to [ -n "$var" ]
+    sed -i 's/\[ -n "\([^"]*\)" != "" \]/[ -n "\1" ]/g' "$filtered_file"
+    
+    # 3. Fix incorrect [ "$var" = "" ] when [ -z "$var" ] is more appropriate
+    # But only for simple variable checks, not complex expressions
+    sed -i 's/\[ "\$\([A-Za-z_][A-Za-z0-9_]*\)" = "" \]/[ -z "$\1" ]/g' "$filtered_file"
+    
+    # 4. Don't "fix" properly quoted arrays or parameter expansions
+    # shellharden sometimes over-quotes things that are already correct
+    
+    # 5. Preserve RUTOS library color usage patterns
+    # Don't change printf format strings that use library colors correctly
+    
+    log_trace "Applied POSIX-compatibility filters to shellharden suggestions"
+}
+
+# Function to determine if shellharden changes are safe to auto-apply
+are_shellharden_changes_safe() {
+    local original_file="$1"
+    local filtered_file="$2"
+    
+    # Get the actual changes
+    diff_output=$(diff "$original_file" "$filtered_file" 2>/dev/null || true)
+    
+    # Count different types of changes
+    quoting_changes=$(echo "$diff_output" | grep -c '^\(<\|>\).*\$[A-Za-z_]' || echo 0)
+    test_changes=$(echo "$diff_output" | grep -c '^\(<\|>\).*\[\|if\|while' || echo 0)
+    arithmetic_changes=$(echo "$diff_output" | grep -c '^\(<\|>\).*-eq\|-ne\|-lt\|-gt' || echo 0)
+    
+    log_trace "shellharden change analysis: quoting=$quoting_changes, tests=$test_changes, arithmetic=$arithmetic_changes"
+    
+    # Conservative approach: only consider pure quoting changes as safe
+    # Arithmetic and test changes need manual review
+    if [ "$test_changes" -eq 0 ] && [ "$arithmetic_changes" -eq 0 ] && [ "$quoting_changes" -gt 0 ]; then
+        return 0  # Safe - only quoting improvements
+    else
+        return 1  # Requires manual review
+    fi
 }
 
 # Function to check for undefined variables (especially color variables)
@@ -1884,6 +2038,8 @@ validate_variable_usage() {
             # Skip variable assignments themselves
             if ! echo "$line" | grep -q '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*='; then
                 log_warning "⚠️ $file:$line_num: Consider quoting variable to prevent word splitting"
+                # Also track this warning in the summary
+                report_warning "$file" "$line_num" "Consider quoting variable to prevent word splitting"
                 variable_issues=$((variable_issues + 1))
             fi
         fi
@@ -1904,6 +2060,8 @@ validate_variable_usage() {
                        ! grep -q "read.*$var_name" "$file" &&
                        ! echo "$var_name" | grep -q "^DEFAULT_"; then
                         log_warning "⚠️ $file:$line_num: Variable \${$var_name} may be undefined - consider using \${$var_name:-default}"
+                        # Also track this warning in the summary
+                        report_warning "$file" "$line_num" "Variable \${$var_name} may be undefined - consider using \${$var_name:-default}"
                     fi
                     ;;
             esac
@@ -1959,6 +2117,8 @@ validate_shell_antipatterns() {
         # Check for unquoted command substitution in dangerous contexts
         if echo "$line" | grep -q '\$([^)]*)[[:space:]]*[=<>|&]' && ! echo "$line" | grep -q '"\$([^)]*))"'; then
             log_warning "⚠️ $file:$line_num: Consider quoting command substitution to prevent word splitting"
+            # Also track this warning in the summary
+            report_warning "$file" "$line_num" "Consider quoting command substitution to prevent word splitting"
         fi
         
     done < "$file"
@@ -2052,6 +2212,9 @@ validate_file() {
 
     # Run shfmt formatting validation (after potential auto-fixes)
     run_shfmt "$file"
+    
+    # Run shellharden analysis for additional shell hardening
+    run_shellharden "$file"
 
     # Test debug/test/dry-run integration patterns (RUTOS scripts only)
     test_debug_integration "$file"
@@ -2374,14 +2537,16 @@ display_issue_summary() {
     critical_file="/tmp/critical_issues_$$"
     major_file="/tmp/major_issues_$$"
     minor_file="/tmp/minor_issues_$$"
+    warning_file="/tmp/warning_issues_$$"
 
     # Write issues to temp file for processing
     printf "%s\n" "$ISSUE_LIST" >"$temp_file"
 
-    # Split issues by severity (look for [CRITICAL], [MAJOR], [MINOR] in the report_issue calls)
+    # Split issues by severity (look for [CRITICAL], [MAJOR], [MINOR], [WARNING] in the report_issue calls)
     grep "\\[CRITICAL\\]" "$temp_file" | sort | uniq -c | sort -nr >"$critical_file" 2>/dev/null || touch "$critical_file"
     grep "\\[MAJOR\\]" "$temp_file" | sort | uniq -c | sort -nr >"$major_file" 2>/dev/null || touch "$major_file"
-    grep "\\[MINOR\\]\\|\\[WARNING\\]" "$temp_file" | sort | uniq -c | sort -nr >"$minor_file" 2>/dev/null || touch "$minor_file"
+    grep "\\[MINOR\\]" "$temp_file" | sort | uniq -c | sort -nr >"$minor_file" 2>/dev/null || touch "$minor_file"
+    grep "\\[WARNING\\]" "$temp_file" | sort | uniq -c | sort -nr >"$warning_file" 2>/dev/null || touch "$warning_file"
 
     # Display Critical Issues
     if [ -s "$critical_file" ]; then
@@ -2408,8 +2573,18 @@ display_issue_summary() {
     if [ -s "$minor_file" ]; then
         printf "${BLUE}💡 MINOR ISSUES:${NC}\n"
         head -10 "$minor_file" | while read -r count rest; do
-            clean_msg=$(echo "$rest" | sed 's/\[MINOR\][^:]*://g' | sed 's/\[WARNING\][^:]*://g' | sed 's/^[[:space:]]*//')
+            clean_msg=$(echo "$rest" | sed 's/\[MINOR\][^:]*://g' | sed 's/^[[:space:]]*//')
             printf "${BLUE}%3dx${NC} %s\n" "$count" "$clean_msg"
+        done
+        printf "\n"
+    fi
+
+    # Display Warning Issues
+    if [ -s "$warning_file" ]; then
+        printf "${YELLOW}⚠️  WARNING ISSUES:${NC}\n"
+        head -10 "$warning_file" | while read -r count rest; do
+            clean_msg=$(echo "$rest" | sed 's/\[WARNING\][^:]*://g' | sed 's/^[[:space:]]*//')
+            printf "${YELLOW}%3dx${NC} %s\n" "$count" "$clean_msg"
         done
         printf "\n"
     fi # Original detailed breakdown (keeping for comprehensive view)
@@ -2631,7 +2806,7 @@ display_issue_summary() {
     done <"${temp_file}.counts"
 
     # Clean up temp files
-    rm -f "$temp_file" "${temp_file}.counts"
+    rm -f "$temp_file" "${temp_file}.counts" "$critical_file" "$major_file" "$minor_file" "$warning_file"
 
     printf "\n"
 }
@@ -2655,6 +2830,7 @@ display_summary() {
     printf "${RED}Critical issues: %d${NC}\n" "$CRITICAL_ISSUES"
     printf "${YELLOW}Major issues: %d${NC}\n" "$MAJOR_ISSUES"
     printf "${BLUE}Minor issues: %d${NC}\n" "$MINOR_ISSUES"
+    printf "${YELLOW}Warning issues: %d${NC}\n" "$WARNING_ISSUES"
     printf "\n"
 
     # Show issue breakdown if there are issues

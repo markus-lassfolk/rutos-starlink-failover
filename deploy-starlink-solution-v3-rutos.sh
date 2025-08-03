@@ -25,6 +25,175 @@ set -eu
 # Version information (auto-updated by update-version.sh)
 readonly SCRIPT_VERSION="3.0.0"
 
+# === ENHANCED ERROR HANDLING SYSTEM ===
+# Custom error handler that provides detailed context about failures
+
+# Global variables for error context
+ERROR_CONTEXT=""
+CURRENT_FUNCTION=""
+
+# Enhanced error handler with detailed diagnostics
+enhanced_error_handler() {
+    exit_code=$?
+    error_line=${1:-"unknown"}
+
+    printf "\n"
+    printf "🚨 ===============================================\n"
+    printf "   DEPLOYMENT ERROR - DETAILED DIAGNOSTICS\n"
+    printf "===============================================\n"
+    printf "❌ Error Code: %s\n" "$exit_code"
+    printf "📍 Line: %s\n" "$error_line"
+    printf "📂 Script: %s\n" "${0##*/}"
+    printf "🎯 Function: %s\n" "${CURRENT_FUNCTION:-main}"
+    printf "📝 Context: %s\n" "${ERROR_CONTEXT:-No specific context available}"
+    printf "\n"
+
+    # Show environment state at time of error
+    printf "🔍 ENVIRONMENT STATE AT ERROR:\n"
+    printf "   DEBUG: %s\n" "${DEBUG:-unset}"
+    printf "   RUTOS_TEST_MODE: %s\n" "${RUTOS_TEST_MODE:-unset}"
+    printf "   DRY_RUN: %s\n" "${DRY_RUN:-unset}"
+    printf "   _LIBRARY_LOADED: %s\n" "${_LIBRARY_LOADED:-unset}"
+    printf "   USER: %s\n" "${USER:-unset}"
+    printf "   PWD: %s\n" "${PWD:-unset}"
+    printf "\n"
+
+    # Show recent command history if available
+    if command -v history >/dev/null 2>&1; then
+        printf "📜 RECENT COMMANDS:\n"
+        history | tail -5 2>/dev/null || printf "   Command history not available\n"
+        printf "\n"
+    fi
+
+    # Provide specific help based on error patterns
+    case "$exit_code" in
+        2)
+            printf "💡 LIKELY CAUSE: Parameter not set (uninitialized variable)\n"
+            printf "🔧 TROUBLESHOOTING:\n"
+            printf "   1. Check if required environment variables are set\n"
+            printf "   2. Verify script arguments are provided correctly\n"
+            printf "   3. Run with DEBUG=1 for detailed variable tracking\n"
+            printf "   4. Check for typos in variable names\n"
+            ;;
+        126)
+            printf "💡 LIKELY CAUSE: Permission denied or command not executable\n"
+            printf "🔧 TROUBLESHOOTING:\n"
+            printf "   1. Check file permissions: ls -la \$script_path\n"
+            printf "   2. Ensure script has execute permission: chmod +x \$script_path\n"
+            printf "   3. Verify file system is not mounted read-only\n"
+            ;;
+        127)
+            printf "💡 LIKELY CAUSE: Command not found\n"
+            printf "🔧 TROUBLESHOOTING:\n"
+            printf "   1. Check if required commands are installed\n"
+            printf "   2. Verify PATH environment variable\n"
+            printf "   3. Install missing dependencies\n"
+            ;;
+        *)
+            printf "💡 GENERIC ERROR: Unexpected failure\n"
+            printf "🔧 TROUBLESHOOTING:\n"
+            printf "   1. Run with DEBUG=1 RUTOS_TEST_MODE=1 for detailed logging\n"
+            printf "   2. Check system logs: logread | grep starlink\n"
+            printf "   3. Verify RUTOS system health: df -h && free\n"
+            ;;
+    esac
+
+    printf "\n"
+    printf "🆘 FOR HELP:\n"
+    printf "   📖 Documentation: https://github.com/markus-lassfolk/rutos-starlink-failover\n"
+    printf "   🐛 Report issues: https://github.com/markus-lassfolk/rutos-starlink-failover/issues\n"
+    printf "   🔧 Include this error output when seeking help\n"
+    printf "\n"
+    printf "===============================================\n"
+
+    exit "$exit_code"
+}
+
+# Enhanced function entry logging with error context
+log_function_entry() {
+    CURRENT_FUNCTION="$1"
+    ERROR_CONTEXT="Entering function: $1"
+    if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+        smart_debug "FUNCTION: Entering $1()"
+        smart_debug "Script: ${0##*/}"
+    fi
+}
+
+# Enhanced function exit logging
+log_function_exit() {
+    func_name="$1"
+    exit_code="${2:-0}"
+    ERROR_CONTEXT="Exiting function: $func_name"
+    if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+        smart_debug "FUNCTION: Exiting $func_name with code $exit_code"
+    fi
+    CURRENT_FUNCTION=""
+}
+
+# Enhanced parameter validation with detailed error messages
+validate_required_parameter() {
+    param_name="$1"
+    param_value="$2"
+    context="${3:-parameter validation}"
+
+    ERROR_CONTEXT="Validating required parameter: $param_name in $context"
+
+    if [ -z "$param_value" ]; then
+        printf "\n"
+        printf "🚨 PARAMETER VALIDATION ERROR\n"
+        printf "===============================\n"
+        printf "❌ Required parameter '%s' is empty or unset\n" "$param_name"
+        printf "📍 Context: %s\n" "$context"
+        printf "🔧 This parameter is required for the deployment to work correctly\n"
+        printf "\n"
+        printf "💡 SOLUTIONS:\n"
+        printf "   1. Set the parameter: export %s='your_value'\n" "$param_name"
+        printf "   2. Check if you missed a configuration step\n"
+        printf "   3. Run in interactive mode to set all parameters\n"
+        printf "   4. Check the documentation for required parameters\n"
+        printf "\n"
+        return 1
+    fi
+
+    smart_debug "✓ Parameter validated: '$param_name'='$param_value'"
+    return 0
+}
+
+# Enhanced argument validation for functions
+validate_function_arguments() {
+    func_name="$1"
+    expected_args="$2"
+    actual_args="$3"
+
+    ERROR_CONTEXT="Validating arguments for function: $func_name"
+
+    if [ "$actual_args" -lt "$expected_args" ]; then
+        printf "\n"
+        printf "🚨 FUNCTION ARGUMENT ERROR\n"
+        printf "============================\n"
+        printf "❌ Function '%s' requires %d arguments but got %d\n" "$func_name" "$expected_args" "$actual_args"
+        printf "📍 This indicates a programming error in the script\n"
+        printf "\n"
+        printf "💡 SOLUTIONS:\n"
+        printf "   1. This is likely a bug - please report it\n"
+        printf "   2. Check if you're calling the function correctly\n"
+        printf "   3. Verify all required parameters are passed\n"
+        printf "\n"
+        return 1
+    fi
+
+    return 0
+}
+
+# POSIX-compatible error handling - using manual checks instead of ERR trap
+# Call enhanced_error_handler manually when needed
+check_exit_code() {
+    exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        enhanced_error_handler "$1"
+    fi
+}
+
 # === PRE-LIBRARY DEBUG SYSTEM ===
 # Basic logging functions used BEFORE the RUTOS library is loaded
 # These are prefixed with [PRE-DEBUG] to distinguish from library logging
@@ -151,8 +320,37 @@ fi
 
 # Enhanced safe_execute wrapper with command execution logging
 smart_safe_execute() {
+    ERROR_CONTEXT="Executing command via smart_safe_execute"
+
+    # Validate arguments with detailed error messages
+    if [ $# -eq 0 ]; then
+        printf "\n"
+        printf "🚨 SMART_SAFE_EXECUTE ERROR\n"
+        printf "=============================\n"
+        printf "❌ No command provided to smart_safe_execute\n"
+        printf "📍 This function requires at least 1 argument (the command to execute)\n"
+        printf "\n"
+        printf "💡 CORRECT USAGE:\n"
+        printf "   smart_safe_execute \"command\" \"description\"\n"
+        printf "   smart_safe_execute \"ls -la\" \"List files\"\n"
+        printf "\n"
+        return 1
+    fi
+
     command="$1"
     description="${2:-Execute command}"
+
+    # Validate command is not empty
+    if ! validate_required_parameter "command" "$command" "smart_safe_execute"; then
+        printf "🔧 SMART_SAFE_EXECUTE CONTEXT:\n"
+        printf "   Function called from: %s\n" "${CURRENT_FUNCTION:-main}"
+        printf "   Expected: Non-empty command string\n"
+        printf "   Received: '%s'\n" "$command"
+        printf "\n"
+        return 1
+    fi
+
+    ERROR_CONTEXT="Executing command: $command"
 
     if [ "$_LIBRARY_LOADED" = "1" ]; then
         log_debug "COMMAND EXECUTION: $description"
@@ -173,6 +371,13 @@ smart_safe_execute() {
 }
 
 smart_debug() {
+    ERROR_CONTEXT="Logging debug message"
+    # Validate at least one argument
+    if [ $# -eq 0 ]; then
+        printf "WARNING: smart_debug called with no arguments\n" >&2
+        return 1
+    fi
+
     if [ "$_LIBRARY_LOADED" = "1" ]; then
         log_debug "$@"
     else
@@ -181,6 +386,13 @@ smart_debug() {
 }
 
 smart_info() {
+    ERROR_CONTEXT="Logging info message"
+    # Validate at least one argument
+    if [ $# -eq 0 ]; then
+        printf "WARNING: smart_info called with no arguments\n" >&2
+        return 1
+    fi
+
     if [ "$_LIBRARY_LOADED" = "1" ]; then
         log_info "$@"
     else
@@ -189,6 +401,13 @@ smart_info() {
 }
 
 smart_error() {
+    ERROR_CONTEXT="Logging error message"
+    # Validate at least one argument
+    if [ $# -eq 0 ]; then
+        printf "WARNING: smart_error called with no arguments\n" >&2
+        return 1
+    fi
+
     if [ "$_LIBRARY_LOADED" = "1" ]; then
         log_error "$@"
     else
@@ -197,6 +416,13 @@ smart_error() {
 }
 
 smart_success() {
+    ERROR_CONTEXT="Logging success message"
+    # Validate at least one argument
+    if [ $# -eq 0 ]; then
+        printf "WARNING: smart_success called with no arguments\n" >&2
+        return 1
+    fi
+
     if [ "$_LIBRARY_LOADED" = "1" ]; then
         log_success "$@"
     else
@@ -205,6 +431,13 @@ smart_success() {
 }
 
 smart_warning() {
+    ERROR_CONTEXT="Logging warning message"
+    # Validate at least one argument
+    if [ $# -eq 0 ]; then
+        printf "WARNING: smart_warning called with no arguments\n" >&2
+        return 1
+    fi
+
     if [ "$_LIBRARY_LOADED" = "1" ]; then
         log_warning "$@"
     else
@@ -213,6 +446,13 @@ smart_warning() {
 }
 
 smart_step() {
+    ERROR_CONTEXT="Logging step message"
+    # Validate at least one argument
+    if [ $# -eq 0 ]; then
+        printf "WARNING: smart_step called with no arguments\n" >&2
+        return 1
+    fi
+
     if [ "$_LIBRARY_LOADED" = "1" ]; then
         log_step "$@"
     else
@@ -1603,66 +1843,119 @@ setup_pushover_notifications() {
 
 # === MAIN EXECUTION ===
 main() {
-    log_step "Starlink Solution Deployment v$SCRIPT_VERSION - Intelligent Monitoring"
+    log_function_entry "main"
+    ERROR_CONTEXT="Main deployment function initialization"
+
+    # CRITICAL: Validate essential environment before proceeding
+    smart_step "Pre-flight Environment Validation"
+
+    # Validate library system state
+    if [ "$_LIBRARY_LOADED" != "1" ]; then
+        smart_error "CRITICAL: Library system not properly loaded"
+        smart_error "Expected: _LIBRARY_LOADED=1, Found: _LIBRARY_LOADED=${_LIBRARY_LOADED:-unset}"
+        smart_error "This indicates a library loading failure early in the script"
+        return 1
+    fi
+
+    smart_success "✓ Library system validated"
+
+    # Validate essential script variables exist
+    essential_vars="SCRIPT_VERSION ORIGINAL_DEBUG ORIGINAL_RUTOS_TEST_MODE ORIGINAL_TEST_MODE ORIGINAL_DRY_RUN"
+    for var in $essential_vars; do
+        # Use eval to get the variable value safely - ensure var is not empty
+        if [ -z "$var" ]; then
+            smart_error "Empty variable name in validation list"
+            return 1
+        fi
+        var_value=""
+        # Use a safer eval pattern to avoid ShellCheck warnings about undefined variables
+        # shellcheck disable=SC2154 # $var is a valid variable name from the loop
+        eval "var_value=\${${var}:-}"
+        if ! validate_required_parameter "$var" "$var_value" "main function initialization"; then
+            smart_error "Essential script variable '$var' validation failed"
+            smart_error "This indicates an initialization problem early in the script"
+            return 1
+        fi
+    done
+
+    smart_success "✓ Essential variables validated"
+
+    smart_step "Starlink Solution Deployment v$SCRIPT_VERSION - Intelligent Monitoring"
 
     # CRITICAL: Export debug environment for child scripts early
+    ERROR_CONTEXT="Exporting debug environment"
     export_debug_environment
 
     # Comprehensive debug state output for troubleshooting
-    log_debug "=== DEPLOYMENT START DIAGNOSTICS ==="
-    log_debug "Main deployment function started with enhanced debugging"
-    log_debug "Current working directory: $(pwd)"
-    log_debug "Script path: $0"
-    log_debug "Script arguments: $*"
-    log_debug "Deployment mode analysis:"
-    log_debug "  DRY_RUN=${DRY_RUN:-0} (original: ${ORIGINAL_DRY_RUN:-unset})"
-    log_debug "  TEST_MODE=${TEST_MODE:-0} (original: ${ORIGINAL_TEST_MODE:-unset})"
-    log_debug "  RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0} (original: ${ORIGINAL_RUTOS_TEST_MODE:-unset})"
-    log_debug "  DEBUG=${DEBUG:-0} (original: ${ORIGINAL_DEBUG:-unset})"
-    log_debug "Backward compatibility: $(if [ "${TEST_MODE:-0}" = "1" ] && [ "${RUTOS_TEST_MODE:-0}" = "0" ]; then echo "TEST_MODE->RUTOS_TEST_MODE enabled"; else echo "none needed"; fi)"
-    log_debug "Library status: $_LIBRARY_LOADED (1=loaded, 0=fallback)"
-    log_debug "System detection: USER=${USER:-unknown}, TERM=${TERM:-unknown}"
-    log_debug "Interactive mode: $(if is_interactive; then echo "yes"; else echo "no"; fi)"
+    smart_debug "=== DEPLOYMENT START DIAGNOSTICS ==="
+    smart_debug "Main deployment function started with enhanced debugging"
+    smart_debug "Current working directory: $(pwd)"
+    smart_debug "Script path: $0"
+    smart_debug "Script arguments: $*"
+    smart_debug "Deployment mode analysis:"
+    smart_debug "  DRY_RUN=${DRY_RUN:-0} (original: ${ORIGINAL_DRY_RUN:-unset})"
+    smart_debug "  TEST_MODE=${TEST_MODE:-0} (original: ${ORIGINAL_TEST_MODE:-unset})"
+    smart_debug "  RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0} (original: ${ORIGINAL_RUTOS_TEST_MODE:-unset})"
+    smart_debug "  DEBUG=${DEBUG:-0} (original: ${ORIGINAL_DEBUG:-unset})"
+    smart_debug "Backward compatibility: $(if [ "${TEST_MODE:-0}" = "1" ] && [ "${RUTOS_TEST_MODE:-0}" = "0" ]; then echo "TEST_MODE->RUTOS_TEST_MODE enabled"; else echo "none needed"; fi)"
+    smart_debug "Library status: $_LIBRARY_LOADED (1=loaded, 0=fallback)"
+    smart_debug "System detection: USER=${USER:-unknown}, TERM=${TERM:-unknown}"
+    smart_debug "Interactive mode: $(if is_interactive; then echo "yes"; else echo "no"; fi)"
 
     # Pre-flight checks
-    log_debug "Starting pre-flight checks..."
+    ERROR_CONTEXT="Pre-flight system checks"
+    smart_debug "Starting pre-flight checks..."
     check_root_privileges
     check_system_compatibility
 
     # CRITICAL: Setup persistent storage first (RUTOS firmware upgrade survival)
+    ERROR_CONTEXT="Setting up persistent storage"
     setup_persistent_storage
 
     # Configuration
+    ERROR_CONTEXT="Collecting configuration"
     collect_enhanced_configuration
 
     # System setup
+    ERROR_CONTEXT="Setting up system requirements"
     setup_system_requirements
+    ERROR_CONTEXT="Installing required packages"
     install_required_packages
+    ERROR_CONTEXT="Downloading binaries"
     download_binaries
 
     # Configuration and recovery setup
+    ERROR_CONTEXT="Generating configuration"
     generate_enhanced_config
+    ERROR_CONTEXT="Creating recovery script"
     create_recovery_script
 
     # Core deployment
+    ERROR_CONTEXT="Deploying monitoring scripts"
     deploy_monitoring_scripts
-    setup_monitoring_system           # Intelligent monitoring daemon setup
+    ERROR_CONTEXT="Setting up monitoring system"
+    setup_monitoring_system # Intelligent monitoring daemon setup
+    ERROR_CONTEXT="Setting up intelligent logging service"
     setup_intelligent_logging_service # NEW: Intelligent logging daemon setup
 
     # Additional features
     if [ "$ENABLE_AZURE" = "true" ]; then
+        ERROR_CONTEXT="Setting up Azure integration"
         setup_azure_integration
     fi
 
     if [ "$ENABLE_PUSHOVER" = "true" ]; then
+        ERROR_CONTEXT="Setting up Pushover notifications"
         setup_pushover_notifications
     fi
 
     # Verification
+    ERROR_CONTEXT="Verifying system"
     verify_intelligent_monitoring_system
 
     # Final setup
-    log_step "Deployment Completed Successfully!"
+    ERROR_CONTEXT="Finalizing deployment"
+    smart_step "Deployment Completed Successfully!"
 
     case "$MONITORING_MODE" in
         daemon)
@@ -1747,15 +2040,75 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
     pre_debug "Command line: $0 $*"
     pre_debug "Environment: USER=${USER:-unknown}, PWD=$PWD"
 
-    # Execute main deployment
+    # CRITICAL: Validate essential variables before main execution
+    ERROR_CONTEXT="Pre-execution validation"
+
+    # Check if the main function exists
+    if ! command -v main >/dev/null 2>&1; then
+        printf "\n"
+        printf "🚨 CRITICAL SCRIPT ERROR\n"
+        printf "==========================\n"
+        printf "❌ Main function not found or not defined\n"
+        printf "📍 This indicates a serious script parsing or definition error\n"
+        printf "\n"
+        printf "💡 TROUBLESHOOTING:\n"
+        printf "   1. Check if the script file is corrupted\n"
+        printf "   2. Verify the script downloaded completely\n"
+        printf "   3. Check for syntax errors: sh -n %s\n" "$0"
+        printf "   4. Re-download the script from GitHub\n"
+        printf "\n"
+        exit 1
+    fi
+
+    # Validate we have required base functionality
+    essential_functions="smart_debug smart_info smart_error smart_success"
+    for func in $essential_functions; do
+        if ! command -v "$func" >/dev/null 2>&1; then
+            printf "\n"
+            printf "🚨 CRITICAL SCRIPT ERROR\n"
+            printf "==========================\n"
+            printf "❌ Essential function '%s' not found\n" "$func"
+            printf "📍 This indicates the script was not loaded properly\n"
+            printf "\n"
+            printf "💡 TROUBLESHOOTING:\n"
+            printf "   1. Check if the script file is corrupted\n"
+            printf "   2. Verify all script components loaded correctly\n"
+            printf "   3. Re-run with DEBUG=1 to see loading details\n"
+            printf "\n"
+            exit 1
+        fi
+    done
+
+    # Execute main deployment with enhanced error context
+    ERROR_CONTEXT="Main deployment execution"
     main "$@"
 
-    # Post-execution status
+    # Post-execution status with detailed reporting
     exit_code=$?
+    ERROR_CONTEXT="Post-execution cleanup"
+
     if [ $exit_code -eq 0 ]; then
-        smart_success "Deployment script completed successfully (exit code: $exit_code)"
+        smart_success "🎉 Deployment script completed successfully (exit code: $exit_code)"
+        smart_info "✅ All deployment steps completed without errors"
     else
-        smart_error "Deployment script failed (exit code: $exit_code)"
+        smart_error "❌ Deployment script failed (exit code: $exit_code)"
+        smart_error "🔍 Check the error output above for specific failure details"
+
+        # Provide context-specific help based on exit code
+        case $exit_code in
+            1)
+                smart_error "💡 General error - check logs and error messages above"
+                ;;
+            2)
+                smart_error "💡 Parameter/variable error - check configuration and environment"
+                ;;
+            126)
+                smart_error "💡 Permission error - check file permissions and user privileges"
+                ;;
+            127)
+                smart_error "💡 Command not found - check required dependencies are installed"
+                ;;
+        esac
     fi
 
     exit $exit_code
