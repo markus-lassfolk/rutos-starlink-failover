@@ -1659,21 +1659,64 @@ auto_discover_mwan3_config() {
     if DISCOVERED_INTERFACES=$(uci show mwan3 | grep '\.interface=' | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null); then
         log_debug "Found interfaces: $DISCOVERED_INTERFACES"
 
-        # Try to find a starlink-like interface
+        # Try to find Starlink interface by checking member names and interface priorities
         for iface in $DISCOVERED_INTERFACES; do
+            # First priority: Check if interface name suggests Starlink
             case "$iface" in
                 *starlink* | *sat* | *dish*)
                     SUGGESTED_MWAN_IFACE="$iface"
-                    log_info "Found potential Starlink interface: $iface"
+                    log_info "Found Starlink-named interface: $iface"
                     break
                     ;;
             esac
         done
 
-        # If no starlink-like interface, suggest the first one
+        # Second priority: Look for 'wan' interface with Starlink member name
+        if [ -z "$SUGGESTED_MWAN_IFACE" ]; then
+            for iface in $DISCOVERED_INTERFACES; do
+                if [ "$iface" = "wan" ]; then
+                    # Check if this wan interface has a Starlink-related member name
+                    starlink_member=$(uci show mwan3 | grep "interface='$iface'" | grep -i starlink | head -1)
+                    if [ -n "$starlink_member" ]; then
+                        SUGGESTED_MWAN_IFACE="$iface"
+                        log_info "Found wan interface with Starlink member: $iface"
+                        break
+                    fi
+                fi
+            done
+        fi
+
+        # Third priority: Use interface with lowest metric (primary connection)
+        if [ -z "$SUGGESTED_MWAN_IFACE" ]; then
+            log_debug "Looking for primary interface by metric..."
+            lowest_metric=999
+            for iface in $DISCOVERED_INTERFACES; do
+                metric=$(uci show mwan3 | grep "interface='$iface'" | grep '\.metric=' | head -1 | cut -d'=' -f2 | tr -d "'")
+                if [ -n "$metric" ] && [ "$metric" -lt "$lowest_metric" ]; then
+                    lowest_metric="$metric"
+                    SUGGESTED_MWAN_IFACE="$iface"
+                fi
+            done
+            if [ -n "$SUGGESTED_MWAN_IFACE" ]; then
+                log_info "Found primary interface by metric $lowest_metric: $SUGGESTED_MWAN_IFACE"
+            fi
+        fi
+
+        # Fallback: suggest the first non-cellular interface
         if [ -z "$SUGGESTED_MWAN_IFACE" ] && [ -n "$DISCOVERED_INTERFACES" ]; then
-            SUGGESTED_MWAN_IFACE=$(echo "$DISCOVERED_INTERFACES" | awk '{print $1}')
-            log_info "No Starlink-specific interface found, suggesting: $SUGGESTED_MWAN_IFACE"
+            for iface in $DISCOVERED_INTERFACES; do
+                case "$iface" in
+                    *mob* | *cellular* | *lte* | *gsm*)
+                        # Skip cellular interfaces in fallback
+                        continue
+                        ;;
+                    *)
+                        SUGGESTED_MWAN_IFACE="$iface"
+                        log_info "Fallback suggestion (first non-cellular): $SUGGESTED_MWAN_IFACE"
+                        break
+                        ;;
+                esac
+            done
         fi
     fi
 
@@ -1684,21 +1727,21 @@ auto_discover_mwan3_config() {
 
         # Try to find a member for our suggested interface
         if [ -n "$SUGGESTED_MWAN_IFACE" ]; then
-            # Look for members with matching interface
-            member_name=$(uci show mwan3 | grep "interface='$SUGGESTED_MWAN_IFACE'" | head -1 | cut -d'.' -f2 | cut -d'[' -f1)
-            if [ -n "$member_name" ]; then
-                member_index=$(uci show mwan3 | grep "interface='$SUGGESTED_MWAN_IFACE'" | head -1 | sed 's/.*\[\([0-9]*\)\].*/\1/')
-                if [ -n "$member_index" ]; then
-                    SUGGESTED_MWAN_MEMBER="${member_name}_m${member_index}_w1"
-                    log_info "Suggested member for interface $SUGGESTED_MWAN_IFACE: $SUGGESTED_MWAN_MEMBER"
-                fi
+            # Look for the actual member name that matches our interface
+            member_line=$(uci show mwan3 | grep "interface='$SUGGESTED_MWAN_IFACE'" | head -1)
+            if [ -n "$member_line" ]; then
+                # Extract member name from line like: mwan3.member1.interface='wan'
+                SUGGESTED_MWAN_MEMBER=$(echo "$member_line" | cut -d'.' -f2)
+                log_info "Found member for interface $SUGGESTED_MWAN_IFACE: $SUGGESTED_MWAN_MEMBER"
+            else
+                log_warning "No member found for interface $SUGGESTED_MWAN_IFACE"
             fi
         fi
     fi
 
     # Set defaults if nothing discovered
-    SUGGESTED_MWAN_IFACE="${SUGGESTED_MWAN_IFACE:-starlink}"
-    SUGGESTED_MWAN_MEMBER="${SUGGESTED_MWAN_MEMBER:-starlink_m1_w1}"
+    SUGGESTED_MWAN_IFACE="${SUGGESTED_MWAN_IFACE:-wan}"
+    SUGGESTED_MWAN_MEMBER="${SUGGESTED_MWAN_MEMBER:-member1}"
 
     log_info "Auto-discovery results:"
     log_info "  Available interfaces: ${DISCOVERED_INTERFACES:-none}"
