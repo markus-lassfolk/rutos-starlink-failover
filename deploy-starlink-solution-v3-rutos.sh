@@ -158,7 +158,7 @@ smart_safe_execute() {
         log_debug "COMMAND EXECUTION: $description"
         log_debug "  Command: $command"
         log_debug "  DRY_RUN: ${DRY_RUN:-0}"
-        smart_safe_execute "$command" "$description"
+        safe_execute "$command" "$description"
     else
         pre_debug "COMMAND EXECUTION: $description"
         pre_debug "  Command: $command"
