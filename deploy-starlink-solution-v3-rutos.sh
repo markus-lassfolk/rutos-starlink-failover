@@ -1659,38 +1659,66 @@ auto_discover_mwan3_config() {
     if DISCOVERED_INTERFACES=$(uci show mwan3 | grep '\.interface=' | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null); then
         log_debug "Found interfaces: $DISCOVERED_INTERFACES"
 
-        # Try to find Starlink interface by checking member names and interface priorities
+        # Smart interface detection with capability probing
+        log_debug "Performing smart interface detection..."
+        
+        # Categorize interfaces by type
+        cellular_interfaces=""
+        wifi_interfaces=""
+        lan_wan_interfaces=""
+        
         for iface in $DISCOVERED_INTERFACES; do
-            # First priority: Check if interface name suggests Starlink
             case "$iface" in
+                *mob* | *cellular* | *lte* | *gsm*)
+                    cellular_interfaces="$cellular_interfaces $iface"
+                    ;;
+                *wlan* | *wifi* | *radio*)
+                    wifi_interfaces="$wifi_interfaces $iface"
+                    ;;
                 *starlink* | *sat* | *dish*)
+                    # Explicit Starlink naming - highest priority
                     SUGGESTED_MWAN_IFACE="$iface"
-                    log_info "Found Starlink-named interface: $iface"
+                    log_info "Found explicit Starlink interface: $iface"
                     break
+                    ;;
+                *)
+                    lan_wan_interfaces="$lan_wan_interfaces $iface"
                     ;;
             esac
         done
-
-        # Second priority: Look for 'wan' interface with Starlink member name
-        if [ -z "$SUGGESTED_MWAN_IFACE" ]; then
-            for iface in $DISCOVERED_INTERFACES; do
-                if [ "$iface" = "wan" ]; then
-                    # Check if this wan interface has a Starlink-related member name
-                    starlink_member=$(uci show mwan3 | grep "interface='$iface'" | grep -i starlink | head -1)
-                    if [ -n "$starlink_member" ]; then
+        
+        # If no explicit Starlink interface found, probe for Starlink API capability
+        if [ -z "$SUGGESTED_MWAN_IFACE" ] && [ -n "$lan_wan_interfaces" ]; then
+            log_debug "Probing LAN/WAN interfaces for Starlink API capability..."
+            
+            for iface in $lan_wan_interfaces; do
+                log_debug "Testing interface: $iface"
+                
+                # Check if we can reach Starlink API (192.168.100.1) through this interface
+                # Use a quick timeout to avoid delays
+                if ping -c 1 -W 2 192.168.100.1 >/dev/null 2>&1; then
+                    # Try to get Starlink status via API
+                    log_debug "Found connectivity to 192.168.100.1 via $iface, testing API..."
+                    
+                    # Simple curl test for Starlink API - just check if it responds
+                    if curl -s --max-time 3 --connect-timeout 2 "http://192.168.100.1/api/v1/status" >/dev/null 2>&1; then
                         SUGGESTED_MWAN_IFACE="$iface"
-                        log_info "Found wan interface with Starlink member: $iface"
+                        log_info "Found Starlink API capability on interface: $iface"
                         break
+                    else
+                        log_debug "Interface $iface can reach 192.168.100.1 but no Starlink API response"
                     fi
+                else
+                    log_debug "Interface $iface cannot reach 192.168.100.1"
                 fi
             done
         fi
-
-        # Third priority: Use interface with lowest metric (primary connection)
-        if [ -z "$SUGGESTED_MWAN_IFACE" ]; then
-            log_debug "Looking for primary interface by metric..."
+        
+        # Fallback: Use interface with lowest metric (primary connection)
+        if [ -z "$SUGGESTED_MWAN_IFACE" ] && [ -n "$lan_wan_interfaces" ]; then
+            log_debug "No Starlink API found, using lowest metric interface..."
             lowest_metric=999
-            for iface in $DISCOVERED_INTERFACES; do
+            for iface in $lan_wan_interfaces; do
                 metric=$(uci show mwan3 | grep "interface='$iface'" | grep '\.metric=' | head -1 | cut -d'=' -f2 | tr -d "'")
                 if [ -n "$metric" ] && [ "$metric" -lt "$lowest_metric" ]; then
                     lowest_metric="$metric"
@@ -1698,26 +1726,32 @@ auto_discover_mwan3_config() {
                 fi
             done
             if [ -n "$SUGGESTED_MWAN_IFACE" ]; then
-                log_info "Found primary interface by metric $lowest_metric: $SUGGESTED_MWAN_IFACE"
+                log_info "Using primary interface (metric $lowest_metric): $SUGGESTED_MWAN_IFACE"
             fi
         fi
-
-        # Fallback: suggest the first non-cellular interface
+        
+        # Final fallback: Use first available interface
         if [ -z "$SUGGESTED_MWAN_IFACE" ] && [ -n "$DISCOVERED_INTERFACES" ]; then
             for iface in $DISCOVERED_INTERFACES; do
                 case "$iface" in
                     *mob* | *cellular* | *lte* | *gsm*)
-                        # Skip cellular interfaces in fallback
+                        # Skip cellular in final fallback
                         continue
                         ;;
                     *)
                         SUGGESTED_MWAN_IFACE="$iface"
-                        log_info "Fallback suggestion (first non-cellular): $SUGGESTED_MWAN_IFACE"
+                        log_warning "Final fallback interface: $SUGGESTED_MWAN_IFACE"
                         break
                         ;;
                 esac
             done
         fi
+        
+        # Log discovered interface categories for debugging
+        log_debug "Interface categories:"
+        [ -n "$cellular_interfaces" ] && log_debug "  Cellular: $cellular_interfaces"
+        [ -n "$wifi_interfaces" ] && log_debug "  WiFi: $wifi_interfaces"
+        [ -n "$lan_wan_interfaces" ] && log_debug "  LAN/WAN: $lan_wan_interfaces"
     fi
 
     # Discover MWAN3 members
@@ -1743,11 +1777,43 @@ auto_discover_mwan3_config() {
     SUGGESTED_MWAN_IFACE="${SUGGESTED_MWAN_IFACE:-wan}"
     SUGGESTED_MWAN_MEMBER="${SUGGESTED_MWAN_MEMBER:-member1}"
 
+    # Determine connection type for logging
+    connection_type="Unknown"
+    if [ -n "$SUGGESTED_MWAN_IFACE" ]; then
+        case "$SUGGESTED_MWAN_IFACE" in
+            *starlink* | *sat* | *dish*)
+                connection_type="Starlink (explicit)"
+                ;;
+            *mob* | *cellular* | *lte* | *gsm*)
+                connection_type="Cellular"
+                ;;
+            *wlan* | *wifi* | *radio*)
+                connection_type="WiFi"
+                ;;
+            *)
+                # Test if this interface can reach Starlink API
+                if ping -c 1 -W 2 192.168.100.1 >/dev/null 2>&1 && curl -s --max-time 3 --connect-timeout 2 "http://192.168.100.1/api/v1/status" >/dev/null 2>&1; then
+                    connection_type="Starlink (detected)"
+                else
+                    connection_type="LAN/WAN (generic)"
+                fi
+                ;;
+        esac
+    fi
+
     log_info "Auto-discovery results:"
     log_info "  Available interfaces: ${DISCOVERED_INTERFACES:-none}"
     log_info "  Available members: ${DISCOVERED_MEMBERS:-none}"
-    log_info "  Suggested interface: $SUGGESTED_MWAN_IFACE"
+    log_info "  Suggested interface: $SUGGESTED_MWAN_IFACE ($connection_type)"
     log_info "  Suggested member: $SUGGESTED_MWAN_MEMBER"
+    
+    # Additional validation for Starlink connection
+    if [ "$connection_type" = "Starlink (detected)" ] || [ "$connection_type" = "Starlink (explicit)" ]; then
+        log_success "Starlink connection detected - monitoring will use Starlink API"
+    elif echo "$connection_type" | grep -q "Cellular\|WiFi\|LAN/WAN"; then
+        log_warning "Non-Starlink connection type: $connection_type"
+        log_warning "Starlink API monitoring may not work - consider manual configuration"
+    fi
 
     log_function_exit "auto_discover_mwan3_config"
 }
