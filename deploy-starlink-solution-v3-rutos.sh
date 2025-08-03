@@ -22,6 +22,32 @@
 
 set -eu
 
+# Early error handling before library is loaded
+early_error_handler() {
+    exit_code=$?
+    error_line="${1:-unknown}"
+    
+    printf "\n"
+    printf "🚨 EARLY DEPLOYMENT ERROR (Before Library Load)\n"
+    printf "================================================\n"
+    printf "❌ Error Code: %s\n" "$exit_code"
+    printf "📍 Line: %s\n" "$error_line"
+    printf "📂 Script: %s\n" "${0##*/}"
+    printf "📝 Phase: Pre-library initialization\n"
+    printf "\n"
+    printf "💡 LIKELY CAUSE: Library loading or early initialization failure\n"
+    printf "🔧 TROUBLESHOOTING:\n"
+    printf "   1. Check if lib/rutos-lib.sh exists in script directory\n"
+    printf "   2. Verify file permissions on library files\n"
+    printf "   3. Run with DEBUG=1 for more details\n"
+    printf "   4. Check syntax: sh -n %s\n" "${0}"
+    printf "\n"
+    exit "$exit_code"
+}
+
+# Set up early error handling
+trap 'early_error_handler ${LINENO}' EXIT
+
 # Version information (auto-updated by update-version.sh)
 readonly SCRIPT_VERSION="3.0.0"
 
@@ -161,9 +187,9 @@ validate_required_parameter() {
 
 # Enhanced argument validation for functions
 validate_function_arguments() {
-    func_name="$1"
-    expected_args="$2"
-    actual_args="$3"
+    func_name="${1:-unknown_function}"
+    expected_args="${2:-0}"
+    actual_args="${3:-0}"
 
     ERROR_CONTEXT="Validating arguments for function: $func_name"
 
@@ -189,8 +215,9 @@ validate_function_arguments() {
 # Call enhanced_error_handler manually when needed
 check_exit_code() {
     exit_code=$?
+    error_line="${1:-unknown}"
     if [ $exit_code -ne 0 ]; then
-        enhanced_error_handler "$1"
+        enhanced_error_handler "$error_line"
     fi
 }
 
@@ -264,19 +291,35 @@ pre_debug "Checking library loading mode..."
 if [ "${USE_LIBRARY:-0}" = "1" ] && [ -n "${LIBRARY_PATH:-}" ]; then
     # Bootstrap mode - library is in LIBRARY_PATH
     pre_debug "Bootstrap mode detected - loading library from: $LIBRARY_PATH"
+    if [ ! -f "$LIBRARY_PATH/rutos-lib.sh" ]; then
+        pre_error "Library file not found: $LIBRARY_PATH/rutos-lib.sh"
+        exit 1
+    fi
+    pre_debug "Library file exists, attempting to source..."
     . "$LIBRARY_PATH/rutos-lib.sh"
 else
     # Normal mode - library is relative to script
     lib_path="$(dirname "$0")/lib/rutos-lib.sh"
     pre_debug "Normal mode detected - loading library from: $lib_path"
+    if [ ! -f "$lib_path" ]; then
+        pre_error "Library file not found: $lib_path"
+        exit 1
+    fi
+    pre_debug "Library file exists, attempting to source..."
     . "$lib_path"
 fi
 
 pre_success "RUTOS library system loaded successfully"
 
+# Disable early error trap and set up enhanced error handling
+trap - EXIT
+
 # CRITICAL: Initialize script with library features (REQUIRED)
 pre_debug "Initializing script with library features..."
 rutos_init "deploy-starlink-solution-v3-rutos.sh" "$SCRIPT_VERSION"
+
+# Set up enhanced error handling now that library is loaded
+trap 'enhanced_error_handler ${LINENO}' EXIT
 
 # Mark library as loaded and transition to library logging
 _LIBRARY_LOADED=1
