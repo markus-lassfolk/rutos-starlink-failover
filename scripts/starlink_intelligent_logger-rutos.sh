@@ -24,7 +24,7 @@
 set -eu
 
 # Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="3.0.0"
+readonly SCRIPT_VERSION="3.0.0"
 
 # CRITICAL: Load RUTOS library system (REQUIRED)
 . "$(dirname "$0")/lib/rutos-lib.sh"
@@ -32,11 +32,29 @@ SCRIPT_VERSION="3.0.0"
 # CRITICAL: Initialize script with library features (REQUIRED)
 rutos_init "starlink_intelligent_logger-rutos.sh" "$SCRIPT_VERSION"
 
+# === DEBUG AND TESTING VARIABLES ===
+# Support DRY_RUN mode for testing
+DRY_RUN="${DRY_RUN:-0}"
+RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+
+# Capture original DRY_RUN value for debug display
+ORIGINAL_DRY_RUN="$DRY_RUN"
+
+# Debug variable states
+log_debug "DRY_RUN mode: $DRY_RUN (original: $ORIGINAL_DRY_RUN)"
+log_debug "TEST_MODE: $RUTOS_TEST_MODE"
+
+# Early exit for test mode
+if [ "$RUTOS_TEST_MODE" = "1" ]; then
+    log_info "TEST_MODE enabled - exiting early"
+    exit 0
+fi
+
 # === PERSISTENT STORAGE PATHS ===
 # Use persistent storage that survives firmware upgrades
-LOG_BASE_DIR="${LOG_BASE_DIR:-/opt/starlink/logs}"
-STATE_DIR="${STATE_DIR:-/opt/starlink/state}"
-CONFIG_DIR="${CONFIG_DIR:-/opt/starlink/config}"
+LOG_BASE_DIR="${LOG_BASE_DIR:-/usr/local/starlink/logs}"
+STATE_DIR="${STATE_DIR:-/usr/local/starlink/state}"
+CONFIG_DIR="${CONFIG_DIR:-/etc/starlink-config}"
 
 # Detailed logging directories
 METRICS_LOG_DIR="$LOG_BASE_DIR/metrics"
@@ -84,17 +102,25 @@ setup_logging_directories() {
 
     for dir in "$METRICS_LOG_DIR" "$GPS_LOG_DIR" "$AGGREGATED_LOG_DIR" "$ARCHIVE_LOG_DIR" "$STATE_DIR"; do
         if [ ! -d "$dir" ]; then
-            mkdir -p "$dir" || {
-                log_error "Failed to create directory: $dir"
-                return 1
-            }
+            if [ "${DRY_RUN:-0}" = "0" ]; then
+                mkdir -p "$dir" || {
+                    log_error "Failed to create directory: $dir"
+                    return 1
+                }
+            else
+                log_debug "DRY_RUN: Would create directory: $dir"
+            fi
             log_debug "Created directory: $dir"
         fi
     done
 
     # Set appropriate permissions
-    chmod 755 "$LOG_BASE_DIR" "$METRICS_LOG_DIR" "$GPS_LOG_DIR" "$AGGREGATED_LOG_DIR"
-    chmod 700 "$STATE_DIR" # State directory should be more restrictive
+    if [ "${DRY_RUN:-0}" = "0" ]; then
+        chmod 755 "$LOG_BASE_DIR" "$METRICS_LOG_DIR" "$GPS_LOG_DIR" "$AGGREGATED_LOG_DIR"
+        chmod 700 "$STATE_DIR" # State directory should be more restrictive
+    else
+        log_debug "DRY_RUN: Would set permissions on directories"
+    fi
 
     log_success "Logging directories setup completed"
 }
@@ -102,20 +128,20 @@ setup_logging_directories() {
 # === MWAN3 METRICS EXTRACTION ===
 # Efficiently extract performance data from MWAN3 without generating network traffic
 extract_mwan3_metrics() {
-    local interface_name="$1"
-    local timestamp="$2"
-    local output_file="$3"
+    interface_name="$1"
+    timestamp="$2"
+    output_file="$3"
 
     # Get MWAN3 status for the interface
-    local mwan3_status
-    local mwan3_tracking
-    local interface_state
-    local track_ip
-    local track_method
-    local ping_loss
-    local ping_latency
-    local last_online
-    local last_offline
+    mwan3_status=""
+    mwan3_tracking=""
+    interface_state=""
+    track_ip=""
+    track_method=""
+    ping_loss=""
+    ping_latency=""
+    last_online=""
+    last_offline=""
 
     # Extract MWAN3 interface status
     if mwan3_status=$(mwan3 status | grep -A 10 "interface $interface_name" 2>/dev/null); then
@@ -130,7 +156,7 @@ extract_mwan3_metrics() {
 
         # Extract real-time ping statistics from MWAN3 tracking
         if [ -f "/var/run/mwan3track/$interface_name/TRACK_${track_ip:-8.8.8.8}" ]; then
-            local track_log="/var/run/mwan3track/$interface_name/TRACK_${track_ip:-8.8.8.8}"
+            track_log="/var/run/mwan3track/$interface_name/TRACK_${track_ip:-8.8.8.8}"
 
             # Parse the most recent ping results
             if [ -f "$track_log" ]; then
@@ -148,12 +174,12 @@ extract_mwan3_metrics() {
     fi
 
     # Get interface statistics from system
-    local rx_bytes="0"
-    local tx_bytes="0"
-    local rx_packets="0"
-    local tx_packets="0"
-    local rx_errors="0"
-    local tx_errors="0"
+    rx_bytes="0"
+    tx_bytes="0"
+    rx_packets="0"
+    tx_packets="0"
+    rx_errors="0"
+    tx_errors="0"
 
     if [ -f "/sys/class/net/$interface_name/statistics/rx_bytes" ]; then
         rx_bytes=$(cat "/sys/class/net/$interface_name/statistics/rx_bytes" 2>/dev/null || echo "0")
@@ -165,11 +191,11 @@ extract_mwan3_metrics() {
     fi
 
     # Get current metric from MWAN3
-    local current_metric
+    current_metric=""
     current_metric=$(uci get "mwan3.${interface_name}.metric" 2>/dev/null || echo "0")
 
     # Determine connection quality based on MWAN3 data
-    local quality_score="100"
+    quality_score="100"
     if [ "$interface_state" = "offline" ]; then
         quality_score="0"
     elif [ "${ping_loss:-0}" -gt 5 ]; then
@@ -205,31 +231,31 @@ extract_mwan3_metrics() {
 # === GPS DATA COLLECTION ===
 # Collect GPS data from RUTOS (primary) and Starlink (secondary)
 collect_gps_data() {
-    local timestamp="$1"
-    local gps_file="$GPS_LOG_DIR/gps_$(date +%Y%m%d).csv"
+    timestamp="$1"
+    gps_file="$GPS_LOG_DIR/gps_$(date +%Y%m%d).csv"
 
     # Initialize GPS file with header if it doesn't exist
     if [ ! -f "$gps_file" ]; then
         printf "timestamp,source,latitude,longitude,altitude,accuracy,satellites,fix_type,speed,heading\n" >"$gps_file"
     fi
 
-    local gps_source="none"
-    local latitude="0"
-    local longitude="0"
-    local altitude="0"
-    local accuracy="0"
-    local satellites="0"
-    local fix_type="none"
-    local speed="0"
-    local heading="0"
+    gps_source="none"
+    latitude="0"
+    longitude="0"
+    altitude="0"
+    accuracy="0"
+    satellites="0"
+    fix_type="none"
+    speed="0"
+    heading="0"
 
     # Try RUTOS GPS first (primary source)
     if command -v gsmctl >/dev/null 2>&1; then
-        local rutos_gps_data
+        rutos_gps_data=""
         if rutos_gps_data=$(gsmctl -A 'AT+CGPSINFO' 2>/dev/null); then
             # Parse RUTOS GPS response
             if printf "%s" "$rutos_gps_data" | grep -q "+CGPSINFO:"; then
-                local gps_line
+                gps_line=""
                 gps_line=$(printf "%s" "$rutos_gps_data" | grep "+CGPSINFO:" | head -1)
 
                 # Extract GPS coordinates (simplified parsing)
@@ -248,7 +274,7 @@ collect_gps_data() {
     # Try Starlink GPS as secondary source (if RUTOS failed)
     if [ "$gps_source" = "none" ] && [ -n "${STARLINK_IP:-}" ]; then
         if command -v "$GRPCURL_CMD" >/dev/null 2>&1; then
-            local starlink_gps_data
+            starlink_gps_data=""
             if starlink_gps_data=$("$GRPCURL_CMD" -plaintext -d '{}' "$STARLINK_IP:$STARLINK_PORT" SpaceX.API.Device.Device/Handle 2>/dev/null); then
                 # Parse Starlink GPS data using jq
                 if command -v "$JQ_CMD" >/dev/null 2>&1 && printf "%s" "$starlink_gps_data" | "$JQ_CMD" -e '.dishGetStatus.deviceInfo.utcOffsetS' >/dev/null 2>&1; then
@@ -284,7 +310,7 @@ collect_gps_data() {
 # === CONNECTION TYPE DETECTION ===
 # Determine if connection has data limits to adjust collection frequency
 detect_connection_type() {
-    local interface_name="$1"
+    interface_name="$1"
 
     # Check interface name patterns
     if printf "%s" "$interface_name" | grep -qE "$CELLULAR_INTERFACES_PATTERN"; then
@@ -302,10 +328,10 @@ detect_connection_type() {
 # === STATISTICAL AGGREGATION ===
 # Aggregate metrics into 60-second windows with percentile calculations
 perform_statistical_aggregation() {
-    local metrics_file="$1"
-    local start_time="$2"
-    local end_time="$3"
-    local aggregated_file="$AGGREGATED_LOG_DIR/aggregated_$(date +%Y%m%d).csv"
+    metrics_file="$1"
+    start_time="$2"
+    end_time="$3"
+    aggregated_file="$AGGREGATED_LOG_DIR/aggregated_$(date +%Y%m%d).csv"
 
     # Initialize aggregated file with header if it doesn't exist
     if [ ! -f "$aggregated_file" ]; then
@@ -430,24 +456,30 @@ perform_statistical_aggregation() {
 # === LOG ROTATION AND CLEANUP ===
 # Rotate and compress old logs to manage disk space
 rotate_logs() {
-    local current_date
+    current_date=""
     current_date=$(date +%Y%m%d)
 
     log_info "Starting log rotation for date: $current_date"
 
     # Find logs older than retention period
-    local cutoff_time
+    cutoff_time=""
     cutoff_time=$(date -d "$LOG_RETENTION_HOURS hours ago" +%s)
 
     # Rotate detailed metrics logs
     for log_file in "$METRICS_LOG_DIR"/metrics_*.csv; do
         if [ -f "$log_file" ]; then
-            local file_time
+            file_time=""
             file_time=$(stat -c %Y "$log_file" 2>/dev/null || echo "0")
 
             if [ "$file_time" -lt "$cutoff_time" ]; then
-                log_debug "Archiving old metrics log: $log_file"
-                gzip "$log_file" && mv "${log_file}.gz" "$ARCHIVE_LOG_DIR/" 2>/dev/null || true
+                log_debug "Archiving old metrics log: ${log_file:-unknown}"
+                if [ "${DRY_RUN:-0}" = "0" ]; then
+                    if gzip "$log_file"; then
+                        mv "${log_file}.gz" "$ARCHIVE_LOG_DIR/" 2>/dev/null || true
+                    fi
+                else
+                    log_debug "DRY_RUN: Would gzip and archive $log_file"
+                fi
             fi
         fi
     done
@@ -455,28 +487,38 @@ rotate_logs() {
     # Rotate GPS logs
     for log_file in "$GPS_LOG_DIR"/gps_*.csv; do
         if [ -f "$log_file" ]; then
-            local file_time
+            file_time=""
             file_time=$(stat -c %Y "$log_file" 2>/dev/null || echo "0")
 
             if [ "$file_time" -lt "$cutoff_time" ]; then
-                log_debug "Archiving old GPS log: $log_file"
-                gzip "$log_file" && mv "${log_file}.gz" "$ARCHIVE_LOG_DIR/" 2>/dev/null || true
+                log_debug "Archiving old GPS log: ${log_file:-unknown}"
+                if [ "${DRY_RUN:-0}" = "0" ]; then
+                    if gzip "$log_file"; then
+                        mv "${log_file}.gz" "$ARCHIVE_LOG_DIR/" 2>/dev/null || true
+                    fi
+                else
+                    log_debug "DRY_RUN: Would gzip and archive $log_file"
+                fi
             fi
         fi
     done
 
     # Clean up very old archives
-    local archive_cutoff_time
+    archive_cutoff_time=""
     archive_cutoff_time=$(date -d "$ARCHIVE_RETENTION_DAYS days ago" +%s)
 
     for archive_file in "$ARCHIVE_LOG_DIR"/*.gz; do
         if [ -f "$archive_file" ]; then
-            local file_time
+            file_time=""
             file_time=$(stat -c %Y "$archive_file" 2>/dev/null || echo "0")
 
             if [ "$file_time" -lt "$archive_cutoff_time" ]; then
                 log_debug "Removing old archive: $archive_file"
-                rm -f "$archive_file"
+                if [ "${DRY_RUN:-0}" = "0" ]; then
+                    rm -f "$archive_file"
+                else
+                    log_debug "DRY_RUN: Would remove $archive_file"
+                fi
             fi
         fi
     done
@@ -493,18 +535,18 @@ run_collection_daemon() {
     printf "%s" "$$" >"$LOGGER_PID_FILE"
 
     # Initialize collection state
-    local last_gps_collection=0
-    local last_aggregation=0
-    local last_rotation=0
-    local collection_cycle=0
+    last_gps_collection=0
+    last_aggregation=0
+    last_rotation=0
+    collection_cycle=0
 
     # Main collection loop
     while true; do
-        local current_time
+        current_time=""
         current_time=$(date +%s)
-        local current_timestamp
+        current_timestamp=""
         current_timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-        local daily_file
+        daily_file=""
         daily_file="$METRICS_LOG_DIR/metrics_$(date +%Y%m%d).csv"
 
         # Initialize daily metrics file with header if needed
@@ -514,22 +556,22 @@ run_collection_daemon() {
         fi
 
         # Discover and collect metrics from all MWAN3 interfaces
-        local interfaces_collected=0
+        interfaces_collected=0
         if command -v mwan3 >/dev/null 2>&1; then
             # Get list of MWAN3 interfaces
-            local mwan3_interfaces
+            mwan3_interfaces=""
             if mwan3_interfaces=$(mwan3 interfaces 2>/dev/null | grep -v "^$" || true); then
                 while IFS= read -r interface_line; do
-                    local interface_name
+                    interface_name=""
                     interface_name=$(printf "%s" "$interface_line" | awk '{print $1}')
 
                     if [ -n "$interface_name" ]; then
                         # Detect connection type for smart frequency control
-                        local connection_type
+                        connection_type=""
                         connection_type=$(detect_connection_type "$interface_name")
 
                         # Determine if we should collect for this interface this cycle
-                        local should_collect=0
+                        should_collect=0
                         case "$connection_type" in
                             *unlimited*)
                                 # High frequency for unlimited connections
@@ -565,8 +607,8 @@ EOF
 
         # Statistical aggregation (every 60 seconds)
         if [ $((current_time - last_aggregation)) -ge "$AGGREGATION_WINDOW" ]; then
-            local window_start
-            local window_end
+            window_start=""
+            window_end=""
             window_start=$(date -d "$AGGREGATION_WINDOW seconds ago" '+%Y-%m-%d %H:%M:%S')
             window_end="$current_timestamp"
 
@@ -611,14 +653,18 @@ EOF
 # === DAEMON CONTROL FUNCTIONS ===
 start_daemon() {
     if [ -f "$LOGGER_PID_FILE" ] && [ -s "$LOGGER_PID_FILE" ]; then
-        local existing_pid
+        existing_pid=""
         existing_pid=$(cat "$LOGGER_PID_FILE")
         if kill -0 "$existing_pid" 2>/dev/null; then
             log_warning "Intelligent logger daemon already running (PID: $existing_pid)"
             return 1
         else
             log_info "Removing stale PID file"
-            rm -f "$LOGGER_PID_FILE"
+            if [ "${DRY_RUN:-0}" = "0" ]; then
+                rm -f "$LOGGER_PID_FILE"
+            else
+                log_debug "DRY_RUN: Would remove stale PID file: $LOGGER_PID_FILE"
+            fi
         fi
     fi
 
@@ -636,7 +682,7 @@ start_daemon() {
 
 stop_daemon() {
     if [ -f "$LOGGER_PID_FILE" ] && [ -s "$LOGGER_PID_FILE" ]; then
-        local pid
+        pid=""
         pid=$(cat "$LOGGER_PID_FILE")
 
         if kill -0 "$pid" 2>/dev/null; then
@@ -653,12 +699,20 @@ stop_daemon() {
                     kill -KILL "$pid"
                 fi
 
-                rm -f "$LOGGER_PID_FILE"
+                if [ "${DRY_RUN:-0}" = "0" ]; then
+                    rm -f "$LOGGER_PID_FILE"
+                else
+                    log_debug "DRY_RUN: Would remove PID file: $LOGGER_PID_FILE"
+                fi
                 log_success "Intelligent logger daemon stopped"
             fi
         else
             log_warning "PID file exists but process not running"
-            rm -f "$LOGGER_PID_FILE"
+            if [ "${DRY_RUN:-0}" = "0" ]; then
+                rm -f "$LOGGER_PID_FILE"
+            else
+                log_debug "DRY_RUN: Would remove stale PID file: $LOGGER_PID_FILE"
+            fi
         fi
     else
         log_info "No intelligent logger daemon running"
@@ -667,11 +721,11 @@ stop_daemon() {
 
 status_daemon() {
     if [ -f "$LOGGER_PID_FILE" ] && [ -s "$LOGGER_PID_FILE" ]; then
-        local pid
+        pid=""
         pid=$(cat "$LOGGER_PID_FILE")
 
         if kill -0 "$pid" 2>/dev/null; then
-            local uptime
+            uptime=""
             uptime=$(ps -o etime= -p "$pid" 2>/dev/null | tr -d ' ' || echo "unknown")
             log_success "Intelligent logger daemon is running (PID: $pid, Uptime: $uptime)"
 
@@ -679,9 +733,9 @@ status_daemon() {
             if [ -f "$LOGGER_STATE_FILE" ]; then
                 log_info "Collection statistics:"
                 if command -v "$JQ_CMD" >/dev/null 2>&1; then
-                    local last_collection
-                    local collection_cycle
-                    local interfaces_collected
+                    last_collection=""
+                    collection_cycle=""
+                    interfaces_collected=""
                     last_collection=$("$JQ_CMD" -r '.last_collection' "$LOGGER_STATE_FILE" 2>/dev/null || echo "unknown")
                     collection_cycle=$("$JQ_CMD" -r '.collection_cycle' "$LOGGER_STATE_FILE" 2>/dev/null || echo "0")
                     interfaces_collected=$("$JQ_CMD" -r '.interfaces_collected' "$LOGGER_STATE_FILE" 2>/dev/null || echo "0")
@@ -696,7 +750,11 @@ status_daemon() {
             return 0
         else
             log_error "PID file exists but process not running"
-            rm -f "$LOGGER_PID_FILE"
+            if [ "${DRY_RUN:-0}" = "0" ]; then
+                rm -f "$LOGGER_PID_FILE"
+            else
+                log_debug "DRY_RUN: Would remove invalid PID file: $LOGGER_PID_FILE"
+            fi
             return 1
         fi
     else
@@ -711,8 +769,8 @@ test_collection() {
 
     setup_logging_directories
 
-    local test_file="/tmp/test_metrics_$$.csv"
-    local current_timestamp
+    test_file="/tmp/test_metrics_$$.csv"
+    current_timestamp=""
     current_timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
     # Write test header
@@ -720,12 +778,12 @@ test_collection() {
 
     # Test MWAN3 interface discovery and metrics collection
     if command -v mwan3 >/dev/null 2>&1; then
-        local interfaces_tested=0
-        local mwan3_interfaces
+        interfaces_tested=0
+        mwan3_interfaces=""
 
         if mwan3_interfaces=$(mwan3 interfaces 2>/dev/null | grep -v "^$" || true); then
             while IFS= read -r interface_line; do
-                local interface_name
+                interface_name=""
                 interface_name=$(printf "%s" "$interface_line" | awk '{print $1}')
 
                 if [ -n "$interface_name" ]; then
@@ -734,7 +792,7 @@ test_collection() {
                     interfaces_tested=$((interfaces_tested + 1))
 
                     # Show connection type detection
-                    local connection_type
+                    connection_type=""
                     connection_type=$(detect_connection_type "$interface_name")
                     log_info "  Interface type: $connection_type"
                 fi
@@ -764,7 +822,11 @@ EOF
             done
         fi
 
-        rm -f "$test_file"
+        if [ "${DRY_RUN:-0}" = "0" ]; then
+            rm -f "$test_file"
+        else
+            log_debug "DRY_RUN: Would remove test file: $test_file"
+        fi
     fi
 
     log_success "Intelligent collection test completed"

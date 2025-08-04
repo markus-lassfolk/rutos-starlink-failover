@@ -1485,7 +1485,7 @@ check_starlink_script_health() {
             starlink_script_paths="$starlink_script_paths /usr/local/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh"
             # Legacy paths for backward compatibility
             starlink_script_paths="$starlink_script_paths /root/starlink-monitor/Starlink-RUTOS-Failover/starlink_monitor.sh"
-            starlink_script_paths="$starlink_script_paths /opt/starlink/starlink_monitor.sh"
+            starlink_script_paths="$starlink_script_paths /usr/local/starlink/bin/starlink_monitor_unified-rutos.sh"
             starlink_script_paths="$starlink_script_paths /usr/bin/starlink_monitor.sh"
 
             script_found=""

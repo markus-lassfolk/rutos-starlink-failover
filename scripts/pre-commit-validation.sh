@@ -2569,13 +2569,15 @@ auto_fix_formatting() {
             ;;
         "md")
             # Auto-fix markdown formatting with prettier
-            if command_exists prettier; then
+            if command_exists prettier && prettier --version >/dev/null 2>&1; then
                 # Check if prettier would make changes
                 if ! prettier --check "$file" >/dev/null 2>&1; then
                     [ "$AUTONOMOUS_MODE" = "0" ] && log_info "Auto-fixing markdown formatting: $file"
                     prettier --write "$file" >/dev/null 2>&1
                     fixes_applied=1
                 fi
+            elif command_exists prettier; then
+                [ "$AUTONOMOUS_MODE" = "0" ] && log_info "Auto-fixing markdown formatting: $file (prettier version issue - skipping)"
             fi
             ;;
     esac
@@ -2635,6 +2637,13 @@ run_prettier_markdown() {
     fi
 
     # Check if prettier would make changes
+    # First test if prettier is working properly
+    if ! prettier --version >/dev/null 2>&1; then
+        log_warning "prettier version incompatible or node.js too old - skipping formatting validation for $file"
+        log_warning "💡 This may happen in WSL with older Node.js versions"
+        return 0
+    fi
+    
     if prettier --check "$file" >/dev/null 2>&1; then
         log_debug "✓ $file: Passes prettier formatting validation"
         return 0

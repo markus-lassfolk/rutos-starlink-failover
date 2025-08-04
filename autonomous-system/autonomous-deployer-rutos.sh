@@ -26,6 +26,13 @@ readonly SCRIPT_VERSION="1.0.0"
 # CRITICAL: Initialize script with library features (REQUIRED)
 rutos_init "autonomous-deployer-rutos.sh" "$SCRIPT_VERSION"
 
+# === DEBUG AND TESTING VARIABLES ===
+# Support DRY_RUN mode for testing
+DRY_RUN="${DRY_RUN:-0}"
+
+# CRITICAL: Initialize script with library features (REQUIRED)
+rutos_init "autonomous-deployer-rutos.sh" "$SCRIPT_VERSION"
+
 CONFIG_FILE="${CONFIG_FILE:-./autonomous-config.conf}"
 LOG_DIR="${LOG_DIR:-./logs}"
 ERROR_LOG="$LOG_DIR/autonomous-errors.log"
@@ -110,7 +117,8 @@ deploy_to_rutos() {
     ssh_exit_code=0
 
     # Construct the full deployment command
-    full_cmd="curl -fsSL https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/scripts/${deployment_cmd} | DEBUG=1 RUTOS_TEST_MODE=1 VERBOSE=1 sh"
+    deployment_url="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/scripts/${deployment_cmd}"
+    full_cmd="smart_safe_execute 'curl -fsSL $deployment_url | DEBUG=1 RUTOS_TEST_MODE=1 VERBOSE=1 sh'"
 
     log_debug "🔗 SSH Command: ssh -i $SSH_KEY -o ConnectTimeout=30 -o StrictHostKeyChecking=no root@$host"
     log_debug "📜 Remote Command: $full_cmd"
@@ -131,13 +139,13 @@ deploy_to_rutos() {
 
     # Log full output for analysis
     {
-        echo "==== DEPLOYMENT OUTPUT FOR $host ===="
+        echo "==== DEPLOYMENT OUTPUT FOR \"$host\" ===="
         echo "$ssh_output"
         echo "==== END DEPLOYMENT OUTPUT ===="
     } >>"$DEPLOYMENT_LOG"
 
     # Parse errors from output
-    if [ "$ssh_exit_code" -ne 0 ] || echo "$ssh_output" | grep -qE "\[ERROR\]|\[CRITICAL\]|failed|error:"; then
+    if [ "$ssh_exit_code" -ne 0 ] || echo "$ssh_output" | grep -qE "\\[ERROR\\]|\\[CRITICAL\\]|failed|error:"; then
         log_error "🔍 Parsing errors from deployment output"
         parse_error_details "$ssh_output" "$host"
         return 1
@@ -153,7 +161,7 @@ verify_deployment() {
     log_info "🔍 Verifying deployment on $host"
 
     # Check if monitoring script exists and is executable
-    check_cmd="test -x /opt/starlink/bin/starlink_monitor_unified-rutos.sh && echo 'SCRIPT_OK' || echo 'SCRIPT_MISSING'"
+    check_cmd="test -x /usr/local/starlink/bin/starlink_monitor_unified-rutos.sh && echo 'SCRIPT_OK' || echo 'SCRIPT_MISSING'"
     script_check=$(ssh -i "$SSH_KEY" -o ConnectTimeout=10 "root@$host" "$check_cmd" 2>/dev/null || echo "SSH_FAILED")
 
     if [ "$script_check" = "SCRIPT_OK" ]; then
@@ -175,7 +183,7 @@ verify_deployment() {
     fi
 
     # Check crontab (if using hybrid mode)
-    cron_cmd="crontab -l 2>/dev/null | grep -c starlink || echo '0'"
+    cron_cmd="smart_safe_execute 'crontab -l 2>/dev/null | grep -c starlink || echo 0'"
     cron_count=$(ssh -i "$SSH_KEY" -o ConnectTimeout=10 "root@$host" "$cron_cmd" 2>/dev/null || echo "0")
 
     log_info "📅 Crontab entries for $host: $cron_count"

@@ -1086,14 +1086,14 @@ cleanup_legacy_cron_monitoring() {
     log_function_entry "cleanup_legacy_cron_monitoring"
     log_info "Cleaning up legacy cron-based monitoring..."
 
-    # Remove existing starlink-related cron jobs
-    if smart_safe_execute "crontab -l 2>/dev/null | grep -q 'starlink'" "Check for legacy cron jobs"; then
+    # Check for existing starlink-related cron jobs (suppress error if no crontab exists)
+    if crontab -l 2>/dev/null | grep -q 'starlink' 2>/dev/null; then
         log_info "Found legacy cron jobs, removing..."
         # POSIX-compatible cron cleanup
         smart_safe_execute "crontab -l 2>/dev/null | grep -v 'starlink' | crontab - || true" "Remove legacy cron jobs"
         log_success "Legacy cron monitoring removed"
     else
-        log_info "No legacy cron jobs found"
+        log_info "No legacy cron jobs found (this is normal for new installations)"
     fi
 
     log_function_exit "cleanup_legacy_cron_monitoring"
@@ -1661,12 +1661,12 @@ auto_discover_mwan3_config() {
 
         # Smart interface detection with capability probing
         log_debug "Performing smart interface detection..."
-        
+
         # Categorize interfaces by type
         cellular_interfaces=""
         wifi_interfaces=""
         lan_wan_interfaces=""
-        
+
         for iface in $DISCOVERED_INTERFACES; do
             case "$iface" in
                 *mob* | *cellular* | *lte* | *gsm*)
@@ -1686,20 +1686,20 @@ auto_discover_mwan3_config() {
                     ;;
             esac
         done
-        
+
         # If no explicit Starlink interface found, probe for Starlink API capability
         if [ -z "$SUGGESTED_MWAN_IFACE" ] && [ -n "$lan_wan_interfaces" ]; then
             log_debug "Probing LAN/WAN interfaces for Starlink API capability..."
-            
+
             for iface in $lan_wan_interfaces; do
                 log_debug "Testing interface: $iface"
-                
+
                 # Check if we can reach Starlink API (192.168.100.1) through this interface
                 # Use a quick timeout to avoid delays
                 if ping -c 1 -W 2 192.168.100.1 >/dev/null 2>&1; then
                     # Try to get Starlink status via API
                     log_debug "Found connectivity to 192.168.100.1 via $iface, testing API..."
-                    
+
                     # Simple curl test for Starlink API - just check if it responds
                     if curl -s --max-time 3 --connect-timeout 2 "http://192.168.100.1/api/v1/status" >/dev/null 2>&1; then
                         SUGGESTED_MWAN_IFACE="$iface"
@@ -1713,7 +1713,7 @@ auto_discover_mwan3_config() {
                 fi
             done
         fi
-        
+
         # Fallback: Use interface with lowest metric (primary connection)
         if [ -z "$SUGGESTED_MWAN_IFACE" ] && [ -n "$lan_wan_interfaces" ]; then
             log_debug "No Starlink API found, using lowest metric interface..."
@@ -1729,7 +1729,7 @@ auto_discover_mwan3_config() {
                 log_info "Using primary interface (metric $lowest_metric): $SUGGESTED_MWAN_IFACE"
             fi
         fi
-        
+
         # Final fallback: Use first available interface
         if [ -z "$SUGGESTED_MWAN_IFACE" ] && [ -n "$DISCOVERED_INTERFACES" ]; then
             for iface in $DISCOVERED_INTERFACES; do
@@ -1746,7 +1746,7 @@ auto_discover_mwan3_config() {
                 esac
             done
         fi
-        
+
         # Log discovered interface categories for debugging
         log_debug "Interface categories:"
         [ -n "$cellular_interfaces" ] && log_debug "  Cellular: $cellular_interfaces"
@@ -1806,7 +1806,7 @@ auto_discover_mwan3_config() {
     log_info "  Available members: ${DISCOVERED_MEMBERS:-none}"
     log_info "  Suggested interface: $SUGGESTED_MWAN_IFACE ($connection_type)"
     log_info "  Suggested member: $SUGGESTED_MWAN_MEMBER"
-    
+
     # Additional validation for Starlink connection
     if [ "$connection_type" = "Starlink (detected)" ] || [ "$connection_type" = "Starlink (explicit)" ]; then
         log_success "Starlink connection detected - monitoring will use Starlink API"

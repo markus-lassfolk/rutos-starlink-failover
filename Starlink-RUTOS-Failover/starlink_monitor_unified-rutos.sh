@@ -139,13 +139,20 @@ if [ "${DEBUG:-0}" = "1" ]; then
 fi
 
 # Load placeholder utilities for graceful degradation
-script_dir="$(dirname "$0")/../scripts"
-if [ -f "$script_dir/placeholder-utils.sh" ]; then
-    # shellcheck source=/dev/null
-    . "$script_dir/placeholder-utils.sh"
-    log_debug "Placeholder utilities loaded"
-else
-    log_warning "placeholder-utils.sh not found. Pushover notifications may not work gracefully."
+# Try multiple possible locations for placeholder utilities
+placeholder_found=0
+for script_dir in "$(dirname "$0")/../scripts" "/usr/local/starlink/scripts" "$(dirname "$0")" "/usr/local/starlink/lib"; do
+    if [ -f "$script_dir/placeholder-utils.sh" ]; then
+        # shellcheck source=/dev/null
+        . "$script_dir/placeholder-utils.sh"
+        log_debug "Placeholder utilities loaded from: $script_dir/placeholder-utils.sh"
+        placeholder_found=1
+        break
+    fi
+done
+
+if [ "$placeholder_found" = "0" ]; then
+    log_debug "placeholder-utils.sh not found in any location. Pushover notifications will use fallback behavior."
 fi
 
 # Set default values for variables that may not be in config
@@ -537,23 +544,23 @@ log_starlink_health() {
     obstruction="${3:-unknown}"
     snr="${4:-unknown}"
     calculated_score="${5:-unknown}"
-    
+
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     # Create Starlink-specific log entry
     starlink_entry="$timestamp,starlink_health,connection_analysis,starlink,$latency,$packet_loss,$obstruction,$snr,unknown,unknown,health_analysis,completed,none,none,score:$calculated_score"
-    
+
     # Write to decision log (protect with DRY_RUN)
     if [ "${DRY_RUN:-0}" = "1" ]; then
         log_debug "DRY-RUN: Would log Starlink health: score=$calculated_score, latency=${latency}ms, loss=${packet_loss}%, obstruction=$obstruction, snr=$snr"
     else
         echo "$starlink_entry" >>"$DECISION_LOG_FILE"
     fi
-    
+
     log_debug "📡 STARLINK HEALTH: Score=$calculated_score (lat:${latency}ms, loss:${packet_loss}%, obs:$obstruction, snr:$snr)"
 }
 
-# Log cellular connection health with all relevant metrics and calculated score  
+# Log cellular connection health with all relevant metrics and calculated score
 log_cellular_health() {
     interface="${1:-unknown}"
     signal_dbm="${2:-unknown}"
@@ -561,19 +568,19 @@ log_cellular_health() {
     network_type="${4:-unknown}"
     operator="${5:-unknown}"
     calculated_score="${6:-unknown}"
-    
+
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     # Create cellular-specific log entry
     cellular_entry="$timestamp,cellular_health,connection_analysis,$interface,$signal_dbm,$signal_quality,$network_type,$operator,unknown,unknown,health_analysis,completed,none,none,score:$calculated_score"
-    
+
     # Write to decision log (protect with DRY_RUN)
     if [ "${DRY_RUN:-0}" = "1" ]; then
         log_debug "DRY-RUN: Would log cellular health: score=$calculated_score, signal=${signal_dbm}dBm, quality=${signal_quality}%, network=$network_type, operator=$operator"
     else
         echo "$cellular_entry" >>"$DECISION_LOG_FILE"
     fi
-    
+
     log_debug "📱 CELLULAR HEALTH [$interface]: Score=$calculated_score (signal:${signal_dbm}dBm, quality:${signal_quality}%, network:$network_type, operator:$operator)"
 }
 
@@ -581,23 +588,23 @@ log_cellular_health() {
 log_generic_connection_health() {
     interface="${1:-unknown}"
     connection_type="${2:-unknown}"
-    latency="${3:-unknown}" 
+    latency="${3:-unknown}"
     packet_loss="${4:-unknown}"
     link_quality="${5:-unknown}"
     calculated_score="${6:-unknown}"
-    
+
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     # Create generic connection log entry
     generic_entry="$timestamp,${connection_type}_health,connection_analysis,$interface,$latency,$packet_loss,$link_quality,unknown,unknown,unknown,health_analysis,completed,none,none,score:$calculated_score"
-    
+
     # Write to decision log (protect with DRY_RUN)
     if [ "${DRY_RUN:-0}" = "1" ]; then
         log_debug "DRY-RUN: Would log $connection_type health: score=$calculated_score, latency=${latency}ms, loss=${packet_loss}%, quality=$link_quality"
     else
-        echo "$generic_entry" >>"$DECISION_LOG_FILE" 
+        echo "$generic_entry" >>"$DECISION_LOG_FILE"
     fi
-    
+
     case "$connection_type" in
         "wifi") log_debug "📶 WIFI HEALTH [$interface]: Score=$calculated_score (lat:${latency}ms, loss:${packet_loss}%, quality:$link_quality)" ;;
         "ethernet") log_debug "🔌 ETHERNET HEALTH [$interface]: Score=$calculated_score (lat:${latency}ms, loss:${packet_loss}%, quality:$link_quality)" ;;
@@ -2000,8 +2007,62 @@ generate_monitoring_report() {
 }
 
 # =============================================================================
-# CONFIGURATION MANAGEMENT AND VALIDATION
+# MWAN3 INTERFACE DISCOVERY AND MANAGEMENT
 # =============================================================================
+
+# Discover available MWAN3 interfaces that are enabled
+discover_mwan3_interfaces() {
+    log_debug "🔍 DISCOVERY: Discovering MWAN3 interfaces..."
+
+    # Get enabled MWAN3 interfaces using RUTOS-compatible UCI query
+    # This queries all interfaces where enabled=1
+    enabled_interfaces=""
+
+    # Method 1: Direct UCI query for enabled interfaces (most reliable for RUTOS)
+    if command -v uci >/dev/null 2>&1; then
+        enabled_interfaces=$(uci show mwan3.@interface 2>/dev/null | awk -F= '/enabled.*1/ {print $1}' | sed 's/.*\.\([^.]*\)\.enabled/\1/' | tr '\n' ',' | sed 's/,$//' || echo "")
+        log_debug "🔍 DISCOVERY: Method 1 - UCI @interface query result: '$enabled_interfaces'"
+    fi
+
+    # Method 2: Fallback - check individual interface configurations if Method 1 fails
+    if [ -z "$enabled_interfaces" ] && command -v uci >/dev/null 2>&1; then
+        log_debug "🔍 DISCOVERY: Method 1 failed, trying Method 2 - individual interface check"
+        all_interfaces=$(uci show mwan3 2>/dev/null | grep "=interface$" | cut -d'.' -f2 | cut -d'=' -f1 || echo "")
+        log_debug "🔍 DISCOVERY: Found all interfaces: '$all_interfaces'"
+
+        for interface in $all_interfaces; do
+            if [ -n "$interface" ]; then
+                # Check if this interface is enabled
+                enabled=$(uci get "mwan3.${interface}.enabled" 2>/dev/null || echo "0")
+                log_debug "🔍 DISCOVERY: Interface $interface enabled status: $enabled"
+                if [ "$enabled" = "1" ]; then
+                    if [ -z "$enabled_interfaces" ]; then
+                        enabled_interfaces="$interface"
+                    else
+                        enabled_interfaces="${enabled_interfaces},${interface}"
+                    fi
+                fi
+            fi
+        done
+        log_debug "🔍 DISCOVERY: Method 2 result: '$enabled_interfaces'"
+    fi
+
+    # Method 3: Emergency fallback - try to find any configured interfaces
+    if [ -z "$enabled_interfaces" ] && command -v uci >/dev/null 2>&1; then
+        log_debug "🔍 DISCOVERY: Methods 1&2 failed, trying Method 3 - any configured interfaces"
+        enabled_interfaces=$(uci show mwan3 2>/dev/null | grep "=interface$" | cut -d'.' -f2 | cut -d'=' -f1 | head -3 | tr '\n' ',' | sed 's/,$//' || echo "")
+        log_debug "🔍 DISCOVERY: Method 3 result: '$enabled_interfaces'"
+    fi
+
+    if [ -n "$enabled_interfaces" ]; then
+        log_debug "✅ DISCOVERY: Successfully discovered MWAN3 interfaces: $enabled_interfaces"
+        echo "$enabled_interfaces"
+        return 0
+    else
+        log_debug "❌ DISCOVERY: No MWAN3 interfaces discovered"
+        return 1
+    fi
+}
 
 # Validate MWAN3 configuration and system readiness
 validate_system_configuration() {
@@ -2024,6 +2085,30 @@ validate_system_configuration() {
     if [ "$interface_count" -eq 0 ]; then
         log_warning "⚠️ No MWAN3 interfaces found - system may need configuration"
         return 1
+    fi
+
+    # Ensure log directory exists (fallback if RUTOS library doesn't set it up)
+    LOG_DIR="${LOG_DIR:-/etc/starlink-logs}"
+    if [ ! -d "$LOG_DIR" ]; then
+        log_debug "📁 VALIDATION: Creating log directory: $LOG_DIR"
+        if [ "${DRY_RUN:-0}" != "1" ]; then
+            mkdir -p "$LOG_DIR" || {
+                log_error "❌ Failed to create log directory: $LOG_DIR"
+                return 1
+            }
+        else
+            log_debug "DRY_RUN: Would create directory $LOG_DIR"
+        fi
+    fi
+
+    # Test MWAN3 interface discovery capability
+    log_debug "🔍 VALIDATION: Testing MWAN3 interface discovery..."
+    discovered_interfaces=$(discover_mwan3_interfaces 2>/dev/null || echo "")
+    if [ -n "$discovered_interfaces" ]; then
+        log_debug "✅ VALIDATION: MWAN3 discovery working - found interfaces: $discovered_interfaces"
+    else
+        log_warning "⚠️ VALIDATION: MWAN3 interface discovery returned no results"
+        # This is a warning, not a failure, as interfaces might not be enabled yet
     fi
 
     log_info "✅ VALIDATION: System ready - MWAN3 active with $interface_count interfaces"
@@ -3772,61 +3857,94 @@ main() {
             log_maintenance_action "data_analysis" "metrics_parsing" "success" "All metrics extracted"
 
             # Calculate and log Starlink connection health
+            log_debug "🔧 HEALTH: Starting Starlink health calculation..."
             if starlink_score=$(calculate_connection_health_score "${CURRENT_LATENCY:-0}" "${CURRENT_PACKET_LOSS:-0}" "0" "0" "starlink" 2>/dev/null); then
+                log_debug "🔧 HEALTH: Starlink score calculated: $starlink_score"
                 log_starlink_health "${CURRENT_LATENCY:-unknown}" "${CURRENT_PACKET_LOSS:-unknown}" "${CURRENT_OBSTRUCTION:-unknown}" "${CURRENT_SNR:-unknown}" "$starlink_score"
             else
+                log_debug "🔧 HEALTH: Starlink score calculation failed, using fallback"
                 log_starlink_health "${CURRENT_LATENCY:-unknown}" "${CURRENT_PACKET_LOSS:-unknown}" "${CURRENT_OBSTRUCTION:-unknown}" "${CURRENT_SNR:-unknown}" "unknown"
             fi
 
             # Log cellular connection health if enabled and available
             if [ "$ENABLE_CELLULAR_TRACKING" = "true" ] || [ "$ENABLE_MULTI_CELLULAR" = "true" ]; then
+                log_debug "🔧 HEALTH: Starting cellular discovery and health logging..."
                 discovered_cellular=$(discover_cellular_modems)
+                log_debug "🔧 HEALTH: Discovered cellular interfaces: '$discovered_cellular'"
                 if [ -n "$discovered_cellular" ]; then
                     for cellular_interface in $discovered_cellular; do
+                        log_debug "🔧 HEALTH: Processing cellular interface: $cellular_interface"
                         if cellular_data=$(get_enhanced_cellular_diagnostics "$cellular_interface" 2>/dev/null); then
+                            log_debug "🔧 HEALTH: Got cellular data for $cellular_interface: $cellular_data"
                             # Parse cellular diagnostics: signal_dbm,signal_quality,network_type,operator,roaming_status,connection_status,data_usage_rx,data_usage_tx,frequency_band,cell_id,timestamp
                             signal_dbm=$(echo "$cellular_data" | cut -d',' -f1)
                             signal_quality=$(echo "$cellular_data" | cut -d',' -f2)
                             network_type=$(echo "$cellular_data" | cut -d',' -f3)
                             operator=$(echo "$cellular_data" | cut -d',' -f4)
-                            
+
                             if cellular_score=$(calculate_connection_health_score "0" "0" "0" "$signal_dbm" "cellular" 2>/dev/null); then
+                                log_debug "🔧 HEALTH: Cellular score calculated for $cellular_interface: $cellular_score"
                                 log_cellular_health "$cellular_interface" "$signal_dbm" "$signal_quality" "$network_type" "$operator" "$cellular_score"
                             else
+                                log_debug "🔧 HEALTH: Cellular score calculation failed for $cellular_interface, using fallback"
                                 log_cellular_health "$cellular_interface" "$signal_dbm" "$signal_quality" "$network_type" "$operator" "unknown"
                             fi
+                        else
+                            log_debug "🔧 HEALTH: Failed to get cellular diagnostics for $cellular_interface"
                         fi
                     done
+                else
+                    log_debug "🔧 HEALTH: No cellular interfaces discovered"
                 fi
+            else
+                log_debug "🔧 HEALTH: Cellular tracking disabled, skipping cellular health logging"
             fi
 
             # Log generic connection health if enabled
             if [ "$ENABLE_GENERIC_CONNECTIONS" = "true" ] || [ "$ENABLE_MULTI_CONNECTION_MONITORING" = "true" ]; then
+                log_debug "🔧 HEALTH: Starting generic connection discovery and health logging..."
                 discovered_generic=$(discover_generic_connections)
+                log_debug "🔧 HEALTH: Discovered generic interfaces: '$discovered_generic'"
                 if [ -n "$discovered_generic" ]; then
                     for generic_interface in $discovered_generic; do
+                        log_debug "🔧 HEALTH: Processing generic interface: $generic_interface"
                         # Classify the interface type
-                        interface_classification=$(classify_interface_type "$generic_interface")
-                        interface_type=$(echo "$interface_classification" | cut -d',' -f1)
-                        
+                        if interface_classification=$(classify_interface_type "$generic_interface" 2>/dev/null); then
+                            interface_type=$(echo "$interface_classification" | cut -d',' -f1)
+                            log_debug "🔧 HEALTH: Interface $generic_interface classified as: $interface_type"
+                        else
+                            interface_type="unknown"
+                            log_debug "🔧 HEALTH: Failed to classify interface $generic_interface, using unknown"
+                        fi
+
                         # Test connection performance (simple ping test)
+                        log_debug "🔧 HEALTH: Testing connectivity for $generic_interface..."
                         if ping -c 1 -W 2 -I "$generic_interface" "${CONNECTION_TEST_HOST:-8.8.8.8}" >/dev/null 2>&1; then
-                            latency=$(ping -c 3 -W 2 -I "$generic_interface" "${CONNECTION_TEST_HOST:-8.8.8.8}" 2>/dev/null | tail -1 | awk -F'/' '{print $5}' | cut -d'.' -f1 || echo "unknown")
+                            log_debug "🔧 HEALTH: Ping test successful for $generic_interface, getting latency..."
+                            latency=$(ping -c 3 -W 2 -I "$generic_interface" "${CONNECTION_TEST_HOST:-8.8.8.8}" 2>/dev/null | tail -1 | awk -F'/' '{print $5}' | cut -d'.' -f1 2>/dev/null || echo "unknown")
                             packet_loss="0"
                             link_quality="good"
+                            log_debug "🔧 HEALTH: Interface $generic_interface - latency: $latency, loss: $packet_loss"
                         else
+                            log_debug "🔧 HEALTH: Ping test failed for $generic_interface"
                             latency="timeout"
                             packet_loss="100"
                             link_quality="poor"
                         fi
-                        
+
                         if generic_score=$(calculate_connection_health_score "${latency:-999}" "${packet_loss:-100}" "0" "0" "$interface_type" 2>/dev/null); then
+                            log_debug "🔧 HEALTH: Generic score calculated for $generic_interface: $generic_score"
                             log_generic_connection_health "$generic_interface" "$interface_type" "$latency" "$packet_loss" "$link_quality" "$generic_score"
                         else
+                            log_debug "🔧 HEALTH: Generic score calculation failed for $generic_interface, using fallback"
                             log_generic_connection_health "$generic_interface" "$interface_type" "$latency" "$packet_loss" "$link_quality" "unknown"
                         fi
                     done
+                else
+                    log_debug "🔧 HEALTH: No generic interfaces discovered"
                 fi
+            else
+                log_debug "🔧 HEALTH: Generic connection monitoring disabled, skipping generic health logging"
             fi
 
             # Use intelligent dual-connection analysis if enabled
@@ -3930,6 +4048,114 @@ log_aggregated_performance() {
         log_warning "Logger script not found: $logger_script"
     fi
 }
+
+# =============================================================================
+# MAIN FUNCTION AND COMMAND LINE ARGUMENT HANDLING
+# =============================================================================
+
+# Main function to handle command line arguments
+main() {
+    case "${1:-run}" in
+        "validate")
+            log_info "🔍 VALIDATION: Running system validation check"
+            if validate_system_configuration; then
+                log_success "✅ VALIDATION: System configuration is valid"
+                exit 0
+            else
+                log_error "❌ VALIDATION: System configuration validation failed"
+                exit 1
+            fi
+            ;;
+        "discover")
+            log_info "🔍 DISCOVERY: Testing MWAN3 interface discovery"
+            discovered_interfaces=$(discover_mwan3_interfaces)
+            if [ -n "$discovered_interfaces" ]; then
+                log_success "✅ DISCOVERY: Found MWAN3 interfaces: $discovered_interfaces"
+                exit 0
+            else
+                log_error "❌ DISCOVERY: No MWAN3 interfaces discovered"
+                exit 1
+            fi
+            ;;
+        "test")
+            log_info "🧪 TEST: Running comprehensive system tests"
+
+            # Test validation
+            if ! validate_system_configuration; then
+                log_error "❌ TEST: System validation failed"
+                exit 1
+            fi
+
+            # Test MWAN3 discovery
+            discovered_interfaces=$(discover_mwan3_interfaces)
+            if [ -z "$discovered_interfaces" ]; then
+                log_error "❌ TEST: MWAN3 interface discovery failed"
+                exit 1
+            fi
+
+            # Test cellular discovery if enabled
+            if [ "$ENABLE_CELLULAR_TRACKING" = "true" ] || [ "$ENABLE_MULTI_CELLULAR" = "true" ]; then
+                discovered_cellular=$(discover_cellular_modems)
+                log_info "📱 TEST: Discovered cellular interfaces: ${discovered_cellular:-none}"
+            fi
+
+            # Test generic connection discovery if enabled
+            if [ "$ENABLE_GENERIC_CONNECTIONS" = "true" ] || [ "$ENABLE_MULTI_CONNECTION_MONITORING" = "true" ]; then
+                discovered_generic=$(discover_generic_connections)
+                log_info "🔗 TEST: Discovered generic connections: ${discovered_generic:-none}"
+            fi
+
+            log_success "✅ TEST: All system tests passed"
+            exit 0
+            ;;
+        "version" | "--version" | "-v")
+            echo "Starlink Monitor Unified for RUTOS v3.0"
+            echo "Enhanced with intelligent monitoring, VPN support, and comprehensive health logging"
+            exit 0
+            ;;
+        "help" | "--help" | "-h")
+            echo "Usage: $0 [COMMAND]"
+            echo ""
+            echo "Commands:"
+            echo "  run       Start the monitoring daemon (default)"
+            echo "  validate  Validate system configuration"
+            echo "  discover  Test MWAN3 interface discovery"
+            echo "  test      Run comprehensive system tests"
+            echo "  version   Show version information"
+            echo "  help      Show this help message"
+            echo ""
+            echo "Environment Variables:"
+            echo "  DRY_RUN=1                    Enable dry-run mode (no changes made)"
+            echo "  DEBUG=1                      Enable debug logging"
+            echo "  ENABLE_CELLULAR_TRACKING     Enable cellular modem monitoring"
+            echo "  ENABLE_GENERIC_CONNECTIONS   Enable generic connection monitoring"
+            echo "  MONITORING_INTERVAL          Main monitoring cycle interval (default: 60s)"
+            echo "  QUICK_CHECK_INTERVAL         Quick health check interval (default: 30s)"
+            exit 0
+            ;;
+        "run" | "")
+            log_info "🚀 MONITOR: Starting intelligent monitoring system"
+
+            # Validate system before starting
+            if ! validate_system_configuration; then
+                log_error "❌ MONITOR: System validation failed - cannot start monitoring"
+                exit 1
+            fi
+
+            # Start the monitoring daemon
+            run_monitoring_daemon
+            ;;
+        *)
+            log_error "❌ Unknown command: $1"
+            echo "Use '$0 help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# =============================================================================
+# SCRIPT EXECUTION AND LOGGING DELEGATION
+# =============================================================================
 
 # Call logging functions only if explicitly enabled
 # This prevents double logging when both monitor and logger have separate cron jobs
