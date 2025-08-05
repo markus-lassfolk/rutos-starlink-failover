@@ -144,11 +144,27 @@ fi
 
 # Load placeholder utilities for graceful degradation
 script_dir="$(dirname "$0")/../scripts"
-if [ -f "$script_dir/placeholder-utils.sh" ]; then
-    # shellcheck source=/dev/null
-    . "$script_dir/placeholder-utils.sh"
-    log_debug "Placeholder utilities loaded"
-else
+current_dir="$(dirname "$0")"
+
+# Try multiple possible locations for placeholder-utils.sh
+placeholder_utils_found=false
+for possible_path in \
+    "$script_dir/placeholder-utils.sh" \
+    "$current_dir/placeholder-utils.sh" \
+    "$(dirname "$0")/scripts/placeholder-utils.sh" \
+    "/usr/local/starlink/scripts/placeholder-utils.sh" \
+    "/usr/local/starlink-monitor/scripts/placeholder-utils.sh"; do
+    
+    if [ -f "$possible_path" ]; then
+        # shellcheck source=/dev/null
+        . "$possible_path"
+        log_debug "Placeholder utilities loaded from: $possible_path"
+        placeholder_utils_found=true
+        break
+    fi
+done
+
+if [ "$placeholder_utils_found" = "false" ]; then
     log_warning "placeholder-utils.sh not found. Pushover notifications may not work gracefully."
 fi
 

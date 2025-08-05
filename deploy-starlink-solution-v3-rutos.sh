@@ -1511,6 +1511,24 @@ deploy_intelligent_logging_system() {
         fi
     fi
 
+    # Download placeholder utilities for graceful degradation
+    log_info "Downloading placeholder utilities..."
+
+    placeholder_url="https://github.com/markus-lassfolk/rutos-starlink-failover/raw/main/scripts/placeholder-utils.sh"
+    placeholder_dest="$SCRIPTS_DIR/placeholder-utils.sh"
+
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        log_info "DRY-RUN: Would download $placeholder_url to $placeholder_dest"
+    else
+        if smart_safe_execute "curl -fsSL '$placeholder_url' -o '$placeholder_dest'" "Download placeholder utilities"; then
+            smart_safe_execute "chmod +x '$placeholder_dest'" "Make placeholder utilities executable"
+            log_success "Placeholder utilities installed: $placeholder_dest"
+        else
+            log_warning "Failed to download placeholder utilities - Pushover notifications may not work gracefully"
+            # This is not a critical failure, continue deployment
+        fi
+    fi
+
     # Create logging system configuration
     log_info "Configuring intelligent logging system..."
 
