@@ -68,7 +68,7 @@ for possible_path in \
     "$(dirname "$0")/scripts/placeholder-utils.sh" \
     "/usr/local/starlink/scripts/placeholder-utils.sh" \
     "/usr/local/starlink-monitor/scripts/placeholder-utils.sh"; do
-    
+
     if [ -f "$possible_path" ]; then
         # shellcheck source=/dev/null
         . "$possible_path"

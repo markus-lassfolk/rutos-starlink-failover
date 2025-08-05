@@ -1271,10 +1271,143 @@ collect_enhanced_configuration() {
     log_function_exit "collect_enhanced_configuration"
 }
 
+# === CONFIGURATION MERGING UTILITIES ===
+# Import functions from merge-config-rutos.sh
+
+# Function to extract variable value from config file
+extract_variable() {
+    file="$1"
+    var_name="$2"
+
+    if [ -f "$file" ]; then
+        grep "^[[:space:]]*export[[:space:]]*${var_name}=" "$file" |
+            sed "s/^[[:space:]]*export[[:space:]]*${var_name}=[\"']\?//" |
+            sed "s/[\"']\?[[:space:]]*$//" |
+            head -n 1
+    fi
+}
+
+# Function to check if variable exists in file
+variable_exists() {
+    file="$1"
+    var_name="$2"
+
+    if [ -f "$file" ]; then
+        grep -q "^[[:space:]]*export[[:space:]]*${var_name}=" "$file"
+    else
+        return 1
+    fi
+}
+
+# Function to get all variables from config file
+get_all_variables() {
+    file="$1"
+
+    if [ -f "$file" ]; then
+        grep "^[[:space:]]*export[[:space:]]*[A-Z_][A-Z0-9_]*=" "$file" |
+            sed "s/^[[:space:]]*export[[:space:]]*\([A-Z_][A-Z0-9_]*\)=.*/\1/" |
+            sort -u
+    fi
+}
+
+# Simplified intelligent config merge function
+intelligent_config_merge() {
+    template_config="$1"
+    current_config="$2"
+    output_config="$3"
+
+    log_debug "=== INTELLIGENT CONFIG MERGE ==="
+    log_debug "Template: $template_config"
+    log_debug "Current: $current_config"
+    log_debug "Output: $output_config"
+
+    # Step 1: Create backup of current config if it exists
+    if [ -f "$current_config" ]; then
+        backup_config="${current_config}.backup.$(date +%Y%m%d_%H%M%S)"
+        if smart_safe_execute "cp '$current_config' '$backup_config'" "Backup current config"; then
+            log_success "Current config backed up to: $backup_config"
+        else
+            log_error "Failed to backup current config"
+            return 1
+        fi
+    fi
+
+    # Step 2: Start with template as base
+    if smart_safe_execute "cp '$template_config' '$output_config'" "Copy template as base"; then
+        log_debug "Template copied as base"
+    else
+        log_error "Failed to copy template as base"
+        return 1
+    fi
+
+    # Step 3: Merge existing values from current config
+    if [ -f "$current_config" ]; then
+        log_info "Merging existing configuration values..."
+        
+        # Get list of variables from current config
+        current_vars=$(get_all_variables "$current_config")
+        preserved_count=0
+        
+        for var_name in $current_vars; do
+            # Skip system variables
+            case "$var_name" in
+                SCRIPT_VERSION|TEMPLATE_VERSION|CONFIG_VERSION|BUILD_INFO|SCRIPT_NAME)
+                    log_debug "Skipping system variable: $var_name"
+                    continue
+                    ;;
+                INSTALLED_VERSION|INSTALLED_TIMESTAMP|RECOVERY_INSTALL_URL|RECOVERY_FALLBACK_URL)
+                    log_debug "Skipping recovery variable: $var_name"
+                    continue
+                    ;;
+            esac
+            
+            # Extract current value
+            current_value=$(extract_variable "$current_config" "$var_name")
+            
+            # Skip placeholder values
+            if echo "$current_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)"; then
+                log_debug "Skipping placeholder value for: $var_name"
+                continue
+            fi
+            
+            # If variable exists in template, replace it; otherwise add to backward compatibility section
+            if variable_exists "$output_config" "$var_name"; then
+                # Replace in output config
+                if sed -i "s|^export ${var_name}=.*|export ${var_name}=\"${current_value}\"|" "$output_config"; then
+                    preserved_count=$((preserved_count + 1))
+                    case "$var_name" in
+                        *TOKEN*|*PASSWORD*|*USER*)
+                            log_debug "Preserved: $var_name = ***"
+                            ;;
+                        *)
+                            log_debug "Preserved: $var_name = $current_value"
+                            ;;
+                    esac
+                fi
+            else
+                # Add to backward compatibility section
+                log_debug "Adding custom variable to backward compatibility: $var_name"
+                cat >>"$output_config" <<EOF
+
+# === BACKWARD COMPATIBILITY SETTINGS ===
+# Custom settings preserved from previous configuration
+export ${var_name}="${current_value}"
+EOF
+            fi
+        done
+        
+        log_success "Preserved $preserved_count configuration values"
+    else
+        log_info "No existing configuration found - using template defaults"
+    fi
+
+    return 0
+}
+
 # === ENHANCED CONFIGURATION FILE GENERATION ===
 generate_enhanced_config() {
     log_function_entry "generate_enhanced_config"
-    log_info "Generating enhanced configuration file..."
+    log_info "Generating enhanced configuration with intelligent merge..."
 
     # Debug: Verify all required variables are set before generating config
     log_debug "Pre-generation variable verification:"
@@ -1298,99 +1431,125 @@ generate_enhanced_config() {
 
     log_debug "All required variables validated successfully"
 
-    cat >"$CONFIG_DIR/config.sh" <<EOF
+    # Create template config
+    template_config="$CONFIG_DIR/config.template.sh"
+    current_config="$CONFIG_DIR/config.sh"
+    
+    log_info "Creating unified configuration template..."
+    
+    cat >"$template_config" <<EOF
 #!/bin/sh
 # Enhanced Starlink Solution Configuration
 # Generated by deployment script v$SCRIPT_VERSION on $(date)
 # PERSISTENT STORAGE: This configuration survives firmware upgrades
 
 # === INSTALLATION PATHS (PERSISTENT) ===
-INSTALL_BASE_DIR="$INSTALL_BASE_DIR"
-CONFIG_DIR="$CONFIG_DIR"
-SCRIPTS_DIR="$SCRIPTS_DIR"
-LOG_DIR="$LOG_DIR"
-STATE_DIR="$STATE_DIR"
-LIB_DIR="$LIB_DIR"
+export INSTALL_BASE_DIR="$INSTALL_BASE_DIR"
+export CONFIG_DIR="$CONFIG_DIR"
+export SCRIPTS_DIR="$SCRIPTS_DIR"
+export LOG_DIR="$LOG_DIR"
+export STATE_DIR="$STATE_DIR"
+export LIB_DIR="$LIB_DIR"
 
 # === BASIC CONFIGURATION ===
-STARLINK_IP="$STARLINK_IP"
-STARLINK_PORT="$STARLINK_PORT"
-RUTOS_IP="$RUTOS_IP"
+export STARLINK_IP="$STARLINK_IP"
+export STARLINK_PORT="$STARLINK_PORT"
+export RUTOS_IP="$RUTOS_IP"
 
 # === NETWORK CONFIGURATION ===
-MWAN_IFACE="$MWAN_IFACE"
-MWAN_MEMBER="$MWAN_MEMBER"
-METRIC_GOOD="$METRIC_GOOD"
-METRIC_BAD="$METRIC_BAD"
+export MWAN_IFACE="$MWAN_IFACE"
+export MWAN_MEMBER="$MWAN_MEMBER"
+export METRIC_GOOD="$METRIC_GOOD"
+export METRIC_BAD="$METRIC_BAD"
 
 # === THRESHOLDS ===
-LATENCY_THRESHOLD="$LATENCY_THRESHOLD"
-PACKET_LOSS_THRESHOLD="$PACKET_LOSS_THRESHOLD"
-OBSTRUCTION_THRESHOLD="$OBSTRUCTION_THRESHOLD"
+export LATENCY_THRESHOLD="$LATENCY_THRESHOLD"
+export PACKET_LOSS_THRESHOLD="$PACKET_LOSS_THRESHOLD"
+export OBSTRUCTION_THRESHOLD="$OBSTRUCTION_THRESHOLD"
 
 # === FEATURE TOGGLES ===
-ENABLE_STARLINK_MONITORING="$ENABLE_STARLINK_MONITORING"
-ENABLE_GPS="$ENABLE_GPS"
-ENABLE_AZURE="$ENABLE_AZURE"
-ENABLE_PUSHOVER="$ENABLE_PUSHOVER"
+export ENABLE_STARLINK_MONITORING="$ENABLE_STARLINK_MONITORING"
+export ENABLE_GPS="$ENABLE_GPS"
+export ENABLE_AZURE="$ENABLE_AZURE"
+export ENABLE_PUSHOVER="$ENABLE_PUSHOVER"
 
 # === AZURE CONFIGURATION ===
-AZURE_ENDPOINT="$AZURE_ENDPOINT"
+export AZURE_ENDPOINT="$AZURE_ENDPOINT"
 
 # === PUSHOVER CONFIGURATION ===
-PUSHOVER_USER_KEY="$PUSHOVER_USER_KEY"
-PUSHOVER_API_TOKEN="$PUSHOVER_API_TOKEN"
+export PUSHOVER_USER_KEY="$PUSHOVER_USER_KEY"
+export PUSHOVER_API_TOKEN="$PUSHOVER_API_TOKEN"
 
 # === INTELLIGENT MONITORING CONFIGURATION ===
-MONITORING_MODE="$MONITORING_MODE"
-DAEMON_AUTOSTART="$DAEMON_AUTOSTART"
-MONITORING_INTERVAL="$MONITORING_INTERVAL"
-QUICK_CHECK_INTERVAL="$QUICK_CHECK_INTERVAL"
-DEEP_ANALYSIS_INTERVAL="$DEEP_ANALYSIS_INTERVAL"
+export MONITORING_MODE="$MONITORING_MODE"
+export DAEMON_AUTOSTART="$DAEMON_AUTOSTART"
+export MONITORING_INTERVAL="$MONITORING_INTERVAL"
+export QUICK_CHECK_INTERVAL="$QUICK_CHECK_INTERVAL"
+export DEEP_ANALYSIS_INTERVAL="$DEEP_ANALYSIS_INTERVAL"
 
 # === INTELLIGENT LOGGING CONFIGURATION ===
-HIGH_FREQ_INTERVAL="\${HIGH_FREQ_INTERVAL:-1}"           # 1 second for unlimited connections
-LOW_FREQ_INTERVAL="\${LOW_FREQ_INTERVAL:-60}"           # 60 seconds for limited data connections
-GPS_COLLECTION_INTERVAL="\${GPS_COLLECTION_INTERVAL:-60}"  # GPS every minute
-AGGREGATION_WINDOW="\${AGGREGATION_WINDOW:-60}"         # 60-second aggregation windows
-PERCENTILES="\${PERCENTILES:-50,90,95,99}"              # Percentiles to calculate
-LOG_RETENTION_HOURS="\${LOG_RETENTION_HOURS:-24}"       # 24 hours of detailed logs
-ARCHIVE_RETENTION_DAYS="\${ARCHIVE_RETENTION_DAYS:-7}"  # 7 days of compressed archives
+export HIGH_FREQ_INTERVAL="1"           # 1 second for unlimited connections
+export LOW_FREQ_INTERVAL="60"          # 60 seconds for limited data connections
+export GPS_COLLECTION_INTERVAL="60"    # GPS every minute
+export AGGREGATION_WINDOW="60"         # 60-second aggregation windows
+export PERCENTILES="50,90,95,99"       # Percentiles to calculate
+export LOG_RETENTION_HOURS="24"        # 24 hours of detailed logs
+export ARCHIVE_RETENTION_DAYS="7"      # 7 days of compressed archives
+
+# === LOGGING DIRECTORIES (PERSISTENT) ===
+export LOG_BASE_DIR="$LOG_DIR"
+export METRICS_LOG_DIR="$LOG_DIR/metrics"
+export GPS_LOG_DIR="$LOG_DIR/gps"
+export AGGREGATED_LOG_DIR="$LOG_DIR/aggregated"
+export ARCHIVE_LOG_DIR="$LOG_DIR/archive"
 
 # === CONNECTION TYPE PATTERNS ===
-CELLULAR_INTERFACES_PATTERN="\${CELLULAR_INTERFACES_PATTERN:-^mob[0-9]s[0-9]a[0-9]$}"
-SATELLITE_INTERFACES_PATTERN="\${SATELLITE_INTERFACES_PATTERN:-^wwan|^starlink}"
-UNLIMITED_INTERFACES_PATTERN="\${UNLIMITED_INTERFACES_PATTERN:-^eth|^wifi}"
+export CELLULAR_INTERFACES_PATTERN="^mob[0-9]s[0-9]a[0-9]$|^wwan[0-9]*$"
+export SATELLITE_INTERFACES_PATTERN="^starlink$"
+export UNLIMITED_INTERFACES_PATTERN="^eth[0-9]*$|^wifi[0-9]*$"
+export VPN_INTERFACES_PATTERN="^tun[0-9]*$|^tap[0-9]*$|^vpn[0-9]*$"
 
 # === INTELLIGENT MONITORING THRESHOLDS ===
-LATENCY_WARNING_THRESHOLD="\${LATENCY_WARNING_THRESHOLD:-200}"
-LATENCY_CRITICAL_THRESHOLD="\${LATENCY_CRITICAL_THRESHOLD:-500}"
-PACKET_LOSS_WARNING_THRESHOLD="\${PACKET_LOSS_WARNING_THRESHOLD:-2}"
-PACKET_LOSS_CRITICAL_THRESHOLD="\${PACKET_LOSS_CRITICAL_THRESHOLD:-5}"
+export LATENCY_WARNING_THRESHOLD="200"
+export LATENCY_CRITICAL_THRESHOLD="500"
+export PACKET_LOSS_WARNING_THRESHOLD="2"
+export PACKET_LOSS_CRITICAL_THRESHOLD="5"
 
 # === PERFORMANCE ANALYSIS SETTINGS ===
-HISTORICAL_ANALYSIS_WINDOW="\${HISTORICAL_ANALYSIS_WINDOW:-1800}"
-TREND_ANALYSIS_SAMPLES="\${TREND_ANALYSIS_SAMPLES:-10}"
-MAX_METRIC_ADJUSTMENT="\${MAX_METRIC_ADJUSTMENT:-50}"
-MAX_ADJUSTMENTS_PER_CYCLE="\${MAX_ADJUSTMENTS_PER_CYCLE:-3}"
-ADJUSTMENT_COOLDOWN="\${ADJUSTMENT_COOLDOWN:-120}"
+export HISTORICAL_ANALYSIS_WINDOW="1800"
+export TREND_ANALYSIS_SAMPLES="10"
+export MAX_METRIC_ADJUSTMENT="50"
+export MAX_ADJUSTMENTS_PER_CYCLE="3"
+export ADJUSTMENT_COOLDOWN="120"
 
 # === BINARY PATHS ===
-GRPCURL_CMD="$SCRIPTS_DIR/grpcurl"
-JQ_CMD="$SCRIPTS_DIR/jq"
+export GRPCURL_CMD="$SCRIPTS_DIR/grpcurl"
+export JQ_CMD="$SCRIPTS_DIR/jq"
 
 # === DEVELOPMENT/DEBUG ===
-DEBUG="\${DEBUG:-0}"
-DRY_RUN="\${DRY_RUN:-0}"
-RUTOS_TEST_MODE="\${RUTOS_TEST_MODE:-0}"
+export DEBUG="0"
+export DRY_RUN="0"
+export RUTOS_TEST_MODE="0"
 
 # === FIRMWARE UPGRADE RECOVERY ===
 # After firmware upgrades, run: $SCRIPTS_DIR/recover-after-firmware-upgrade.sh
-RECOVERY_SCRIPT="$SCRIPTS_DIR/recover-after-firmware-upgrade.sh"
+export RECOVERY_SCRIPT="$SCRIPTS_DIR/recover-after-firmware-upgrade.sh"
 
 EOF
 
-    chmod 644 "$CONFIG_DIR/config.sh"
+    chmod 644 "$template_config"
+    log_success "Configuration template created"
+
+    # Perform intelligent merge
+    if intelligent_config_merge "$template_config" "$current_config" "$current_config"; then
+        log_success "Configuration merged successfully"
+        # Clean up template
+        rm -f "$template_config"
+    else
+        log_error "Configuration merge failed"
+        return 1
+    fi
+
     log_success "Enhanced configuration file created at $CONFIG_DIR/config.sh"
     log_info "Configuration is stored in persistent storage and survives firmware upgrades"
     log_function_exit "generate_enhanced_config"
@@ -1528,42 +1687,6 @@ deploy_intelligent_logging_system() {
             # This is not a critical failure, continue deployment
         fi
     fi
-
-    # Create logging system configuration
-    log_info "Configuring intelligent logging system..."
-
-    cat >"$CONFIG_DIR/logging.conf" <<EOF
-# Intelligent Logging System Configuration
-# Generated by deployment script v$SCRIPT_VERSION
-
-# === COLLECTION FREQUENCY ===
-HIGH_FREQ_INTERVAL=1           # 1 second for unlimited connections
-LOW_FREQ_INTERVAL=60          # 60 seconds for limited data connections
-GPS_COLLECTION_INTERVAL=60    # GPS every minute
-
-# === STATISTICAL AGGREGATION ===
-AGGREGATION_WINDOW=60         # 60-second aggregation windows
-PERCENTILES="50,90,95,99"     # Percentiles to calculate
-
-# === LOG RETENTION ===
-LOG_RETENTION_HOURS=24        # 24 hours of detailed logs
-ARCHIVE_RETENTION_DAYS=7      # 7 days of compressed archives
-
-# === CONNECTION TYPE PATTERNS ===
-CELLULAR_INTERFACES_PATTERN="^mob[0-9]s[0-9]a[0-9]$"
-SATELLITE_INTERFACES_PATTERN="^wwan|^starlink"
-UNLIMITED_INTERFACES_PATTERN="^eth|^wifi"
-
-# === LOGGING DIRECTORIES (PERSISTENT) ===
-LOG_BASE_DIR="$LOG_DIR"
-METRICS_LOG_DIR="$LOG_DIR/metrics"
-GPS_LOG_DIR="$LOG_DIR/gps"
-AGGREGATED_LOG_DIR="$LOG_DIR/aggregated"
-ARCHIVE_LOG_DIR="$LOG_DIR/archive"
-EOF
-
-    chmod 644 "$CONFIG_DIR/logging.conf"
-    log_success "Logging configuration created: $CONFIG_DIR/logging.conf"
 
     # Create convenience symlink for backward compatibility
     if [ "${DRY_RUN:-0}" = "1" ]; then

@@ -154,7 +154,7 @@ for possible_path in \
     "$(dirname "$0")/scripts/placeholder-utils.sh" \
     "/usr/local/starlink/scripts/placeholder-utils.sh" \
     "/usr/local/starlink-monitor/scripts/placeholder-utils.sh"; do
-    
+
     if [ -f "$possible_path" ]; then
         # shellcheck source=/dev/null
         . "$possible_path"
@@ -177,12 +177,12 @@ unified_log() {
     local level="$1"
     local message="$2"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
+
     # Log to unified file if enabled
     if [ "${ENABLE_UNIFIED_LOGGING:-true}" = "true" ] && [ -n "${UNIFIED_LOG_FILE:-}" ]; then
-        printf "%s [%s] starlink_monitor: %s\n" "$timestamp" "$level" "$message" >> "$UNIFIED_LOG_FILE" 2>/dev/null || true
+        printf "%s [%s] starlink_monitor: %s\n" "$timestamp" "$level" "$message" >>"$UNIFIED_LOG_FILE" 2>/dev/null || true
     fi
-    
+
     # Also log to syslog if LOG_TAG is set
     if [ -n "${LOG_TAG:-}" ]; then
         logger -t "$LOG_TAG" "[$level] starlink_monitor: $message" 2>/dev/null || true
