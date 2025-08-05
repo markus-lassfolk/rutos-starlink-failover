@@ -1385,10 +1385,10 @@ export AGGREGATION_BATCH_SIZE="60"
 # Example 1: Basic Installation (DEFAULT - all enhanced features disabled)
 # Best for: Simple stationary installations, minimal resource usage
 # Uses original script behavior - no changes needed, all defaults work
-# ENABLE_GPS_TRACKING="false"
-# ENABLE_CELLULAR_TRACKING="false"
-# ENABLE_MULTI_SOURCE_GPS="false"
-# ENABLE_ENHANCED_FAILOVER="false"
+# GPS_TRACKING="false"
+# CELLULAR_TRACKING="false"
+# MULTI_SOURCE_GPS="false"
+# ENHANCED_FAILOVER="false"
 # ENABLE_GPS_LOGGING="false"
 # ENABLE_CELLULAR_LOGGING="false"
 # ENABLE_ENHANCED_METRICS="false"
@@ -1397,10 +1397,10 @@ export AGGREGATION_BATCH_SIZE="60"
 # Example 2: Enhanced Stationary Installation
 # Best for: Fixed installations wanting better metrics and some GPS tracking
 # Features: Better metrics and GPS tracking without cellular complexity
-# ENABLE_GPS_TRACKING="true"
-# ENABLE_CELLULAR_TRACKING="false"
-# ENABLE_MULTI_SOURCE_GPS="false"
-# ENABLE_ENHANCED_FAILOVER="false"
+# GPS_TRACKING="true"
+# CELLULAR_TRACKING="false"
+# MULTI_SOURCE_GPS="false"
+# ENHANCED_FAILOVER="false"
 # ENABLE_GPS_LOGGING="true"
 # ENABLE_CELLULAR_LOGGING="false"
 # ENABLE_ENHANCED_METRICS="true"
@@ -1409,10 +1409,10 @@ export AGGREGATION_BATCH_SIZE="60"
 # Example 3: Mobile/RV Installation (full features)
 # Best for: RVs, boats, vehicles - mobile installations needing all features
 # Features: All enhanced features for comprehensive mobile monitoring
-# ENABLE_GPS_TRACKING="true"
-# ENABLE_CELLULAR_TRACKING="true"
-# ENABLE_MULTI_SOURCE_GPS="true"
-# ENABLE_ENHANCED_FAILOVER="true"
+# GPS_TRACKING="true"
+# CELLULAR_TRACKING="true"
+# MULTI_SOURCE_GPS="true"
+# ENHANCED_FAILOVER="true"
 # ENABLE_GPS_LOGGING="true"
 # ENABLE_CELLULAR_LOGGING="true"
 # ENABLE_ENHANCED_METRICS="true"
@@ -1422,10 +1422,10 @@ export AGGREGATION_BATCH_SIZE="60"
 # Example 4: Analytics Focus Installation
 # Best for: Users prioritizing data collection and analysis over real-time features
 # Features: Emphasis on comprehensive data collection and aggregation
-# ENABLE_GPS_TRACKING="true"
-# ENABLE_CELLULAR_TRACKING="true"
-# ENABLE_MULTI_SOURCE_GPS="true"
-# ENABLE_ENHANCED_FAILOVER="false"  # Focus on data collection over smart failover
+# GPS_TRACKING="true"
+# CELLULAR_TRACKING="true"
+# MULTI_SOURCE_GPS="true"
+# ENHANCED_FAILOVER="false"  # Focus on data collection over smart failover
 # ENABLE_GPS_LOGGING="true"
 # ENABLE_CELLULAR_LOGGING="true"
 # ENABLE_ENHANCED_METRICS="true"

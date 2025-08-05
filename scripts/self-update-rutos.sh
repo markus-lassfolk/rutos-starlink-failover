@@ -90,7 +90,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "Notification settings:"
     log_debug "  PUSHOVER_TOKEN: ${PUSHOVER_TOKEN:-UNSET}"
     log_debug "  PUSHOVER_USER: ${PUSHOVER_USER:-UNSET}"
-    log_debug "  ENABLE_PUSHOVER: ${ENABLE_PUSHOVER:-UNSET}"
+    log_debug "  PUSHOVER_ENABLED: ${PUSHOVER_ENABLED:-UNSET}"
     
     log_debug "Command line options:"
     log_debug "  CHECK_ONLY: ${CHECK_ONLY}"
@@ -98,7 +98,7 @@ if [ "${DEBUG:-0}" = "1" ]; then
     log_debug "  AUTO_UPDATE_MODE: ${AUTO_UPDATE_MODE}"
     
     # Check for functionality-affecting issues
-    if [ "${PUSHOVER_TOKEN:-}" = "" ] && [ "${ENABLE_PUSHOVER:-}" = "true" ]; then
+    if [ "${PUSHOVER_TOKEN:-}" = "" ] && [ "${PUSHOVER_ENABLED:-}" = "1" ]; then
         log_debug "⚠️  WARNING: Pushover enabled but PUSHOVER_TOKEN not set"
     fi
     
