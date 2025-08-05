@@ -1343,40 +1343,40 @@ intelligent_config_merge() {
     # Step 3: Merge existing values from current config
     if [ -f "$current_config" ]; then
         log_info "Merging existing configuration values..."
-        
+
         # Get list of variables from current config
         current_vars=$(get_all_variables "$current_config")
         preserved_count=0
-        
+
         for var_name in $current_vars; do
             # Skip system variables
             case "$var_name" in
-                SCRIPT_VERSION|TEMPLATE_VERSION|CONFIG_VERSION|BUILD_INFO|SCRIPT_NAME)
+                SCRIPT_VERSION | TEMPLATE_VERSION | CONFIG_VERSION | BUILD_INFO | SCRIPT_NAME)
                     log_debug "Skipping system variable: $var_name"
                     continue
                     ;;
-                INSTALLED_VERSION|INSTALLED_TIMESTAMP|RECOVERY_INSTALL_URL|RECOVERY_FALLBACK_URL)
+                INSTALLED_VERSION | INSTALLED_TIMESTAMP | RECOVERY_INSTALL_URL | RECOVERY_FALLBACK_URL)
                     log_debug "Skipping recovery variable: $var_name"
                     continue
                     ;;
             esac
-            
+
             # Extract current value
             current_value=$(extract_variable "$current_config" "$var_name")
-            
+
             # Skip placeholder values
             if echo "$current_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)"; then
                 log_debug "Skipping placeholder value for: $var_name"
                 continue
             fi
-            
+
             # If variable exists in template, replace it; otherwise add to backward compatibility section
             if variable_exists "$output_config" "$var_name"; then
                 # Replace in output config
                 if sed -i "s|^export ${var_name}=.*|export ${var_name}=\"${current_value}\"|" "$output_config"; then
                     preserved_count=$((preserved_count + 1))
                     case "$var_name" in
-                        *TOKEN*|*PASSWORD*|*USER*)
+                        *TOKEN* | *PASSWORD* | *USER*)
                             log_debug "Preserved: $var_name = ***"
                             ;;
                         *)
@@ -1395,7 +1395,7 @@ export ${var_name}="${current_value}"
 EOF
             fi
         done
-        
+
         log_success "Preserved $preserved_count configuration values"
     else
         log_info "No existing configuration found - using template defaults"
@@ -1434,9 +1434,9 @@ generate_enhanced_config() {
     # Create template config
     template_config="$CONFIG_DIR/config.template.sh"
     current_config="$CONFIG_DIR/config.sh"
-    
+
     log_info "Creating unified configuration template..."
-    
+
     cat >"$template_config" <<EOF
 #!/bin/sh
 # Enhanced Starlink Solution Configuration
