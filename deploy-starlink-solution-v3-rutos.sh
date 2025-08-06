@@ -1704,7 +1704,8 @@ EOF
     sed -i "s/export DAEMON_AUTOSTART=\"true\"/export DAEMON_AUTOSTART=\"$DAEMON_AUTOSTART\"/" "$template_config"
     sed -i "s/export MONITORING_INTERVAL=\"60\"/export MONITORING_INTERVAL=\"$MONITORING_INTERVAL\"/" "$template_config"
     sed -i "s/export QUICK_CHECK_INTERVAL=\"30\"/export QUICK_CHECK_INTERVAL=\"$QUICK_CHECK_INTERVAL\"/" "$template_config"
-    sed -i "s/export DEEP_ANALYSIS_INTERVAL=\"300\"/export DEEP_ANALYSIS_INTERVAL=\"$DEEP_ANALYSIS_INTERVAL\"/" "$template_config" log_success "User configuration overrides applied to template"
+    sed -i "s/export DEEP_ANALYSIS_INTERVAL=\"300\"/export DEEP_ANALYSIS_INTERVAL=\"$DEEP_ANALYSIS_INTERVAL\"/" "$template_config"
+    log_success "User configuration overrides applied to template"
 
     # === PRE-MERGE ANALYSIS ===
     log_info "=== PRE-MERGE CONFIGURATION ANALYSIS ==="
@@ -2919,8 +2920,7 @@ debug_mwan3_system() {
         log_trace_command "Get MWAN3 binary path" "which mwan3"
         mwan3_path=$(which mwan3)
         log_success "  ✅ MWAN3 found at: $mwan3_path"
-        log_trace_command "Get MWAN3 version" "mwan3 --version"
-        log_info "  📊 MWAN3 version: $(mwan3 --version 2>/dev/null || echo 'Version info not available')"
+        log_info "  📊 MWAN3 available (no version info - command doesn't support --version)"
     else
         log_error "  ❌ MWAN3 command not found"
         log_info "  🔧 Install with: opkg update && opkg install mwan3"
