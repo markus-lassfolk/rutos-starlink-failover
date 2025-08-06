@@ -1310,31 +1310,68 @@ get_all_variables() {
     fi
 }
 
-# Simplified intelligent config merge function
+# Enhanced intelligent config merge function with comprehensive debugging
 intelligent_config_merge() {
     template_config="$1"
     current_config="$2"
     output_config="$3"
 
-    log_debug "=== INTELLIGENT CONFIG MERGE ==="
+    log_debug "=== INTELLIGENT CONFIG MERGE DEBUG ==="
     log_debug "Template: $template_config"
     log_debug "Current: $current_config"
     log_debug "Output: $output_config"
 
+    # Verify files exist
+    if [ -f "$template_config" ]; then
+        log_debug "Template file exists and is readable"
+        log_debug "Template size: $(wc -l <"$template_config") lines"
+    else
+        log_error "Template file does not exist: $template_config"
+        return 1
+    fi
+
+    if [ -f "$current_config" ]; then
+        log_debug "Current config file exists and is readable"
+        log_debug "Current config size: $(wc -l <"$current_config") lines"
+    else
+        log_debug "No current config file found (first installation)"
+    fi
+
     # Step 1: Create backup of current config if it exists
     if [ -f "$current_config" ]; then
         backup_config="${current_config}.backup.$(date +%Y%m%d_%H%M%S)"
-        if smart_safe_execute "cp '$current_config' '$backup_config'" "Backup current config"; then
+        log_debug "Creating backup: $backup_config"
+
+        if cp "$current_config" "$backup_config" 2>/dev/null; then
             log_success "Current config backed up to: $backup_config"
+            log_debug "Backup verification: $([ -f "$backup_config" ] && echo "SUCCESS" || echo "FAILED")"
         else
             log_error "Failed to backup current config"
             return 1
         fi
+
+        # Debug: Show what we're backing up
+        log_debug "=== CURRENT CONFIG ANALYSIS ==="
+        current_vars=$(get_all_variables "$current_config")
+        log_debug "Variables found in current config: $(echo "$current_vars" | wc -w)"
+        for var in $current_vars; do
+            value=$(extract_variable "$current_config" "$var")
+            case "$var" in
+                *TOKEN* | *PASSWORD* | *USER* | *KEY*)
+                    log_debug "  $var = [REDACTED]"
+                    ;;
+                *)
+                    log_debug "  $var = '$value'"
+                    ;;
+            esac
+        done
     fi
 
     # Step 2: Start with template as base
-    if smart_safe_execute "cp '$template_config' '$output_config'" "Copy template as base"; then
-        log_debug "Template copied as base"
+    log_debug "=== COPYING TEMPLATE AS BASE ==="
+    if cp "$template_config" "$output_config" 2>/dev/null; then
+        log_debug "Template copied as base successfully"
+        log_debug "Output file size after copy: $(wc -l <"$output_config") lines"
     else
         log_error "Failed to copy template as base"
         return 1
@@ -1342,61 +1379,127 @@ intelligent_config_merge() {
 
     # Step 3: Merge existing values from current config
     if [ -f "$current_config" ]; then
+        log_debug "=== MERGING EXISTING VALUES ==="
         log_info "Merging existing configuration values..."
 
         # Get list of variables from current config
         current_vars=$(get_all_variables "$current_config")
         preserved_count=0
+        skipped_count=0
+        added_count=0
+
+        log_debug "Processing $(echo "$current_vars" | wc -w) variables from current config"
 
         for var_name in $current_vars; do
+            log_debug "Processing variable: $var_name"
+
             # Skip system variables
             case "$var_name" in
                 SCRIPT_VERSION | TEMPLATE_VERSION | CONFIG_VERSION | BUILD_INFO | SCRIPT_NAME)
-                    log_debug "Skipping system variable: $var_name"
+                    log_debug "  -> Skipping system variable: $var_name"
+                    skipped_count=$((skipped_count + 1))
                     continue
                     ;;
                 INSTALLED_VERSION | INSTALLED_TIMESTAMP | RECOVERY_INSTALL_URL | RECOVERY_FALLBACK_URL)
-                    log_debug "Skipping recovery variable: $var_name"
+                    log_debug "  -> Skipping recovery variable: $var_name"
+                    skipped_count=$((skipped_count + 1))
                     continue
                     ;;
             esac
 
-            # Extract current value
+            # Extract current value with debug
             current_value=$(extract_variable "$current_config" "$var_name")
+            log_debug "  -> Extracted value: '$current_value'"
 
-            # Skip placeholder values
-            if echo "$current_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)"; then
-                log_debug "Skipping placeholder value for: $var_name"
+            # Skip empty values
+            if [ -z "$current_value" ]; then
+                log_debug "  -> Skipping empty value for: $var_name"
+                skipped_count=$((skipped_count + 1))
                 continue
             fi
 
-            # If variable exists in template, replace it; otherwise add to backward compatibility section
+            # Skip placeholder values with more detailed logging
+            if echo "$current_value" | grep -qE "(YOUR_|CHANGE_ME|PLACEHOLDER|EXAMPLE|TEST_)"; then
+                log_debug "  -> Skipping placeholder value for: $var_name (value: $current_value)"
+                skipped_count=$((skipped_count + 1))
+                continue
+            fi
+
+            # Skip default values that haven't been customized
+            case "$var_name" in
+                STARLINK_IP)
+                    if [ "$current_value" = "192.168.100.1" ]; then
+                        log_debug "  -> Skipping default Starlink IP: $current_value"
+                        skipped_count=$((skipped_count + 1))
+                        continue
+                    fi
+                    ;;
+                RUTOS_IP)
+                    if [ "$current_value" = "192.168.80.1" ]; then
+                        log_debug "  -> Skipping default RUTOS IP: $current_value"
+                        skipped_count=$((skipped_count + 1))
+                        continue
+                    fi
+                    ;;
+            esac
+
+            # Check if variable exists in template
             if variable_exists "$output_config" "$var_name"; then
-                # Replace in output config
-                if sed -i "s|^export ${var_name}=.*|export ${var_name}=\"${current_value}\"|" "$output_config"; then
+                log_debug "  -> Variable exists in template, replacing..."
+
+                # Create a safer replacement using a temporary file approach
+                temp_config="${output_config}.temp.$$"
+
+                # Use awk for safer replacement to avoid sed escaping issues
+                awk -v var="$var_name" -v val="$current_value" '
+                /^[[:space:]]*export[[:space:]]+'"$var_name"'=/ {
+                    print "export " var "=\"" val "\""
+                    next
+                }
+                { print }
+                ' "$output_config" >"$temp_config"
+
+                if [ -f "$temp_config" ] && [ -s "$temp_config" ]; then
+                    mv "$temp_config" "$output_config"
                     preserved_count=$((preserved_count + 1))
                     case "$var_name" in
-                        *TOKEN* | *PASSWORD* | *USER*)
-                            log_debug "Preserved: $var_name = ***"
+                        *TOKEN* | *PASSWORD* | *USER* | *KEY*)
+                            log_debug "  -> SUCCESS: Preserved $var_name = [REDACTED]"
                             ;;
                         *)
-                            log_debug "Preserved: $var_name = $current_value"
+                            log_debug "  -> SUCCESS: Preserved $var_name = '$current_value'"
                             ;;
                     esac
+                else
+                    log_error "  -> FAILED: Could not replace $var_name"
+                    rm -f "$temp_config"
                 fi
             else
+                log_debug "  -> Variable not in template, adding to backward compatibility section..."
+
                 # Add to backward compatibility section
-                log_debug "Adding custom variable to backward compatibility: $var_name"
                 cat >>"$output_config" <<EOF
 
 # === BACKWARD COMPATIBILITY SETTINGS ===
 # Custom settings preserved from previous configuration
 export ${var_name}="${current_value}"
 EOF
+                added_count=$((added_count + 1))
+                log_debug "  -> SUCCESS: Added custom variable $var_name to backward compatibility"
             fi
         done
 
-        log_success "Preserved $preserved_count configuration values"
+        log_success "Config merge completed:"
+        log_success "  Preserved: $preserved_count existing values"
+        log_success "  Added: $added_count custom values"
+        log_success "  Skipped: $skipped_count system/placeholder values"
+
+        # Final verification
+        log_debug "=== MERGE VERIFICATION ==="
+        final_vars=$(get_all_variables "$output_config")
+        log_debug "Final config contains $(echo "$final_vars" | wc -w) variables"
+        log_debug "Final config size: $(wc -l <"$output_config") lines"
+
     else
         log_info "No existing configuration found - using template defaults"
     fi
@@ -1586,18 +1689,86 @@ verify_intelligent_monitoring_system() {
     fi
 
     # Check MWAN3 availability (required for intelligent monitoring)
+    log_debug "=== MWAN3 AVAILABILITY CHECK ==="
+    log_debug "Checking if mwan3 command is available..."
+
     if command -v mwan3 >/dev/null 2>&1; then
         log_success "MWAN3 available for intelligent monitoring"
+        log_debug "MWAN3 binary location: $(which mwan3)"
 
-        # Test MWAN3 configuration access
-        if uci show mwan3 >/dev/null 2>&1; then
+        # Test MWAN3 configuration access with detailed debugging
+        log_debug "Testing MWAN3 UCI configuration access..."
+        log_debug "Running: uci show mwan3"
+
+        if uci_output=$(uci show mwan3 2>&1); then
             log_success "MWAN3 UCI configuration accessible"
+            log_debug "UCI configuration retrieved successfully"
+
+            # Show detailed MWAN3 configuration for debugging
+            log_debug "=== MWAN3 UCI CONFIGURATION ANALYSIS ==="
+
+            # Count and show interfaces
+            interface_count=$(echo "$uci_output" | grep '\.interface=' | wc -l)
+            log_debug "Found $interface_count interface configurations:"
+            echo "$uci_output" | grep '\.interface=' | while read -r line; do
+                log_debug "  $line"
+            done
+
+            # Count and show members
+            member_count=$(echo "$uci_output" | grep '@member\[' | wc -l)
+            log_debug "Found $member_count member configurations:"
+            echo "$uci_output" | grep '@member\[.*\]\.interface=' | while read -r line; do
+                log_debug "  $line"
+            done
+
+            # Count and show policies
+            policy_count=$(echo "$uci_output" | grep '@policy\[' | wc -l)
+            log_debug "Found $policy_count policy configurations:"
+            echo "$uci_output" | grep '@policy\[.*\]\.name=' | while read -r line; do
+                log_debug "  $line"
+            done
+
+            # Count and show rules
+            rule_count=$(echo "$uci_output" | grep '@rule\[' | wc -l)
+            log_debug "Found $rule_count rule configurations"
+
+            log_debug "MWAN3 configuration summary: $interface_count interfaces, $member_count members, $policy_count policies, $rule_count rules"
+
         else
             log_error "MWAN3 UCI configuration not accessible"
+            log_error "UCI show mwan3 output: $uci_output"
+            log_error "This indicates MWAN3 is installed but not configured or UCI system has issues"
             verification_failed=1
         fi
+
+        # Test MWAN3 status command
+        log_debug "Testing MWAN3 status command..."
+        if mwan3_status=$(mwan3 status 2>&1); then
+            log_debug "MWAN3 status command successful"
+            log_debug "MWAN3 status output (first 10 lines):"
+            echo "$mwan3_status" | head -10 | while read -r line; do
+                log_debug "  $line"
+            done
+        else
+            log_warning "MWAN3 status command failed: $mwan3_status"
+            log_warning "This may indicate MWAN3 configuration issues"
+        fi
+
     else
         log_error "MWAN3 not found - intelligent monitoring requires MWAN3"
+        log_error "MWAN3 binary not found in PATH"
+        log_debug "Current PATH: $PATH"
+        log_debug "Checking common MWAN3 locations:"
+
+        for mwan3_path in "/usr/sbin/mwan3" "/sbin/mwan3" "/bin/mwan3" "/usr/bin/mwan3"; do
+            if [ -f "$mwan3_path" ]; then
+                log_debug "  Found MWAN3 at: $mwan3_path"
+            else
+                log_debug "  Not found: $mwan3_path"
+            fi
+        done
+
+        log_error "SOLUTION: Install MWAN3 with: opkg update && opkg install mwan3"
         verification_failed=1
     fi
 
@@ -1628,11 +1799,59 @@ verify_intelligent_monitoring_system() {
     fi
 
     # Test discovery capabilities
+    log_debug "=== MWAN3 DISCOVERY TESTING ==="
     log_info "Testing MWAN3 discovery capabilities..."
-    if "$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh" discover >/dev/null 2>&1; then
+
+    if "$SCRIPTS_DIR/starlink_monitor_unified-rutos.sh" discover 2>/dev/null; then
         log_success "MWAN3 interface discovery working"
+        log_debug "Discovery command completed successfully"
     else
         log_warning "MWAN3 interface discovery needs configuration"
+        log_debug "Discovery command failed - this is expected for fresh installations"
+        log_debug "User will need to configure MWAN3 interfaces after installation"
+    fi
+
+    # Additional MWAN3 diagnostic information
+    log_debug "=== ADDITIONAL MWAN3 DIAGNOSTICS ==="
+
+    if command -v mwan3 >/dev/null 2>&1; then
+        # Test interface status
+        log_debug "Checking MWAN3 interface status..."
+        if mwan3_interfaces=$(mwan3 interfaces 2>&1); then
+            log_debug "MWAN3 interfaces output:"
+            echo "$mwan3_interfaces" | while read -r line; do
+                log_debug "  $line"
+            done
+        else
+            log_debug "MWAN3 interfaces command failed: $mwan3_interfaces"
+        fi
+
+        # Test policies
+        log_debug "Checking MWAN3 policies..."
+        if mwan3_policies=$(mwan3 policies 2>&1); then
+            log_debug "MWAN3 policies output:"
+            echo "$mwan3_policies" | while read -r line; do
+                log_debug "  $line"
+            done
+        else
+            log_debug "MWAN3 policies command failed: $mwan3_policies"
+        fi
+
+        # Show current routing table if possible
+        log_debug "Checking routing table for MWAN3 entries..."
+        if route_output=$(ip route show 2>&1); then
+            mwan3_routes=$(echo "$route_output" | grep -i "mwan\|table" | head -5)
+            if [ -n "$mwan3_routes" ]; then
+                log_debug "Found potential MWAN3 routing entries:"
+                echo "$mwan3_routes" | while read -r line; do
+                    log_debug "  $line"
+                done
+            else
+                log_debug "No obvious MWAN3 routing entries found"
+            fi
+        else
+            log_debug "Could not check routing table: $route_output"
+        fi
     fi
 
     if [ $verification_failed -eq 0 ]; then
@@ -1789,16 +2008,48 @@ auto_discover_mwan3_config() {
     SUGGESTED_MWAN_IFACE=""
     SUGGESTED_MWAN_MEMBER=""
 
-    # Check if MWAN3 is available
-    if ! command -v mwan3 >/dev/null 2>&1 || ! uci show mwan3 >/dev/null 2>&1; then
-        log_warning "MWAN3 not available or not configured - using defaults"
+    # Check if MWAN3 is available with detailed debugging
+    log_debug "=== MWAN3 AVAILABILITY CHECK FOR DISCOVERY ==="
+    log_debug "Checking MWAN3 command availability..."
+
+    if ! command -v mwan3 >/dev/null 2>&1; then
+        log_warning "MWAN3 command not available for discovery"
+        log_debug "mwan3 binary not found in PATH: $PATH"
         return 0
     fi
 
-    # Discover MWAN3 interfaces
+    log_debug "MWAN3 command found at: $(which mwan3)"
+
+    log_debug "Testing UCI access to mwan3 configuration..."
+    if ! uci_test_output=$(uci show mwan3 2>&1); then
+        log_warning "MWAN3 UCI configuration not accessible for discovery"
+        log_debug "UCI show mwan3 failed with: $uci_test_output"
+        log_debug "This usually means MWAN3 is not configured yet"
+        return 0
+    fi
+
+    log_debug "UCI mwan3 configuration accessible - proceeding with discovery"
+    log_debug "UCI output length: $(echo "$uci_test_output" | wc -l) lines"
+
+    # Discover MWAN3 interfaces with detailed debugging
+    log_debug "=== MWAN3 INTERFACE DISCOVERY ==="
     log_debug "Discovering MWAN3 interfaces..."
+    log_debug "Running: uci show mwan3 | grep '\\.interface=' | cut -d'=' -f2 | tr -d \"'\" | sort -u"
+
     if DISCOVERED_INTERFACES=$(uci show mwan3 | grep '\.interface=' | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null); then
+        log_debug "Interface discovery command succeeded"
+        log_debug "Raw discovery output: '$DISCOVERED_INTERFACES'"
         log_debug "Found interfaces: $DISCOVERED_INTERFACES"
+
+        # Validate we actually found interfaces
+        interface_count=$(echo "$DISCOVERED_INTERFACES" | wc -w)
+        log_debug "Interface count: $interface_count"
+
+        if [ "$interface_count" -eq 0 ]; then
+            log_warning "No interfaces found in MWAN3 configuration"
+            log_debug "This suggests MWAN3 is installed but not configured"
+            return 0
+        fi
 
         # Smart interface detection with capability probing
         log_debug "Performing smart interface detection..."
@@ -1895,23 +2146,48 @@ auto_discover_mwan3_config() {
         [ -n "$lan_wan_interfaces" ] && log_debug "  LAN/WAN: $lan_wan_interfaces"
     fi
 
-    # Discover MWAN3 members
+    # Discover MWAN3 members with detailed debugging
+    log_debug "=== MWAN3 MEMBER DISCOVERY ==="
     log_debug "Discovering MWAN3 members..."
+    log_debug "Running: uci show mwan3 | grep '@member\\[' | grep '\\.interface=' | cut -d'=' -f2 | tr -d \"'\" | sort -u"
+
     if DISCOVERED_MEMBERS=$(uci show mwan3 | grep '@member\[' | grep '\.interface=' | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null); then
+        log_debug "Member discovery command succeeded"
         log_debug "Found member interfaces: $DISCOVERED_MEMBERS"
+
+        member_count=$(echo "$DISCOVERED_MEMBERS" | wc -w)
+        log_debug "Member count: $member_count"
 
         # Try to find a member for our suggested interface
         if [ -n "$SUGGESTED_MWAN_IFACE" ]; then
+            log_debug "Looking for member matching interface: $SUGGESTED_MWAN_IFACE"
+            log_debug "Running: uci show mwan3 | grep \"interface='$SUGGESTED_MWAN_IFACE'\" | head -1"
+
             # Look for the actual member name that matches our interface
             member_line=$(uci show mwan3 | grep "interface='$SUGGESTED_MWAN_IFACE'" | head -1)
+            log_debug "Member search result: '$member_line'"
+
             if [ -n "$member_line" ]; then
                 # Extract member name from line like: mwan3.member1.interface='wan'
                 SUGGESTED_MWAN_MEMBER=$(echo "$member_line" | cut -d'.' -f2)
                 log_info "Found member for interface $SUGGESTED_MWAN_IFACE: $SUGGESTED_MWAN_MEMBER"
+                log_debug "Member extraction successful: $SUGGESTED_MWAN_MEMBER"
             else
                 log_warning "No member found for interface $SUGGESTED_MWAN_IFACE"
+                log_debug "No matching member line found in UCI configuration"
+
+                # Show all available member lines for debugging
+                log_debug "Available member lines:"
+                uci show mwan3 | grep '@member\[.*\]\.interface=' | while read -r line; do
+                    log_debug "  $line"
+                done
             fi
+        else
+            log_debug "No suggested interface available for member matching"
         fi
+    else
+        log_warning "Member discovery failed or no members configured"
+        log_debug "Member discovery command failed or returned empty result"
     fi
 
     # Set defaults if nothing discovered
@@ -1947,6 +2223,17 @@ auto_discover_mwan3_config() {
     log_info "  Available members: ${DISCOVERED_MEMBERS:-none}"
     log_info "  Suggested interface: $SUGGESTED_MWAN_IFACE ($connection_type)"
     log_info "  Suggested member: $SUGGESTED_MWAN_MEMBER"
+
+    # Export discovered values for use in configuration
+    export DISCOVERED_MWAN_IFACE="$SUGGESTED_MWAN_IFACE"
+    export DISCOVERED_MWAN_MEMBER="$SUGGESTED_MWAN_MEMBER"
+    export DISCOVERED_CONNECTION_TYPE="$connection_type"
+
+    log_debug "=== MWAN3 DISCOVERY COMPLETE ==="
+    log_debug "Exported variables:"
+    log_debug "  DISCOVERED_MWAN_IFACE=$DISCOVERED_MWAN_IFACE"
+    log_debug "  DISCOVERED_MWAN_MEMBER=$DISCOVERED_MWAN_MEMBER"
+    log_debug "  DISCOVERED_CONNECTION_TYPE=$DISCOVERED_CONNECTION_TYPE"
 
     # Additional validation for Starlink connection
     if [ "$connection_type" = "Starlink (detected)" ] || [ "$connection_type" = "Starlink (explicit)" ]; then
@@ -2400,6 +2687,148 @@ setup_pushover_notifications() {
     log_function_exit "setup_pushover_notifications"
 }
 
+# === COMPREHENSIVE MWAN3 DEBUG FUNCTION ===
+debug_mwan3_system() {
+    log_function_entry "debug_mwan3_system"
+    log_step "🔍 Comprehensive MWAN3 System Debug"
+
+    log_info "=== MWAN3 SYSTEM DIAGNOSTIC REPORT ==="
+
+    # 1. Basic MWAN3 availability
+    log_info "1. MWAN3 Command Availability:"
+    if command -v mwan3 >/dev/null 2>&1; then
+        mwan3_path=$(which mwan3)
+        log_success "  ✅ MWAN3 found at: $mwan3_path"
+        log_info "  📊 MWAN3 version: $(mwan3 --version 2>/dev/null || echo 'Version info not available')"
+    else
+        log_error "  ❌ MWAN3 command not found"
+        log_info "  🔧 Install with: opkg update && opkg install mwan3"
+        return 1
+    fi
+
+    # 2. UCI Configuration Access
+    log_info "2. UCI Configuration Access:"
+    if uci_output=$(uci show mwan3 2>&1); then
+        log_success "  ✅ UCI mwan3 configuration accessible"
+        config_lines=$(echo "$uci_output" | wc -l)
+        log_info "  📄 Configuration contains $config_lines lines"
+
+        # Analyze configuration
+        interfaces=$(echo "$uci_output" | grep '\.interface=' | wc -l)
+        members=$(echo "$uci_output" | grep '@member\[' | wc -l)
+        policies=$(echo "$uci_output" | grep '@policy\[' | wc -l)
+        rules=$(echo "$uci_output" | grep '@rule\[' | wc -l)
+
+        log_info "  📊 Configuration Summary:"
+        log_info "     - Interfaces: $interfaces"
+        log_info "     - Members: $members"
+        log_info "     - Policies: $policies"
+        log_info "     - Rules: $rules"
+
+        # Show actual interfaces
+        if [ "$interfaces" -gt 0 ]; then
+            log_info "  📋 Configured Interfaces:"
+            echo "$uci_output" | grep '\.interface=' | while read -r line; do
+                log_info "     $line"
+            done
+        fi
+
+    else
+        log_error "  ❌ UCI mwan3 configuration not accessible"
+        log_error "  📝 Error: $uci_output"
+        return 1
+    fi
+
+    # 3. MWAN3 Status
+    log_info "3. MWAN3 Service Status:"
+    if mwan3_status=$(mwan3 status 2>&1); then
+        log_success "  ✅ MWAN3 status command successful"
+        log_info "  📊 Status (first 5 lines):"
+        echo "$mwan3_status" | head -5 | while read -r line; do
+            log_info "     $line"
+        done
+    else
+        log_warning "  ⚠️ MWAN3 status command failed"
+        log_info "  📝 Output: $mwan3_status"
+    fi
+
+    # 4. Interface Status
+    log_info "4. MWAN3 Interface Status:"
+    if mwan3_interfaces=$(mwan3 interfaces 2>&1); then
+        log_success "  ✅ Interface status available"
+        echo "$mwan3_interfaces" | while read -r line; do
+            log_info "     $line"
+        done
+    else
+        log_warning "  ⚠️ Interface status unavailable"
+        log_info "  📝 Output: $mwan3_interfaces"
+    fi
+
+    # 5. Policy Status
+    log_info "5. MWAN3 Policy Status:"
+    if mwan3_policies=$(mwan3 policies 2>&1); then
+        log_success "  ✅ Policy status available"
+        echo "$mwan3_policies" | while read -r line; do
+            log_info "     $line"
+        done
+    else
+        log_warning "  ⚠️ Policy status unavailable"
+        log_info "  📝 Output: $mwan3_policies"
+    fi
+
+    # 6. Network Interface Analysis
+    log_info "6. System Network Interface Analysis:"
+    if ip_interfaces=$(ip link show 2>&1); then
+        log_info "  📋 Available Network Interfaces:"
+        echo "$ip_interfaces" | grep '^[0-9]' | while read -r line; do
+            log_info "     $line"
+        done
+    fi
+
+    # 7. Routing Table Analysis
+    log_info "7. Routing Table Analysis:"
+    if route_table=$(ip route show 2>&1); then
+        mwan3_routes=$(echo "$route_table" | grep -i "table\|mwan" | head -10)
+        if [ -n "$mwan3_routes" ]; then
+            log_info "  📊 MWAN3-related routing entries:"
+            echo "$mwan3_routes" | while read -r line; do
+                log_info "     $line"
+            done
+        else
+            log_info "  📄 No obvious MWAN3 routing entries found"
+        fi
+    fi
+
+    # 8. Test Discovery Function
+    log_info "8. Testing Auto-Discovery Function:"
+    log_info "  🔍 Running auto_discover_mwan3_config..."
+
+    # Save current debug level
+    original_debug="${DEBUG:-0}"
+    export DEBUG=1
+
+    # Run discovery with enhanced debugging
+    auto_discover_mwan3_config
+    discovery_result=$?
+
+    # Restore debug level
+    export DEBUG="$original_debug"
+
+    if [ $discovery_result -eq 0 ]; then
+        log_success "  ✅ Auto-discovery completed"
+        log_info "  📊 Discovery Results:"
+        log_info "     - Interface: ${DISCOVERED_MWAN_IFACE:-not set}"
+        log_info "     - Member: ${DISCOVERED_MWAN_MEMBER:-not set}"
+        log_info "     - Connection Type: ${DISCOVERED_CONNECTION_TYPE:-not set}"
+    else
+        log_error "  ❌ Auto-discovery failed"
+    fi
+
+    log_info "=== END MWAN3 DIAGNOSTIC REPORT ==="
+    log_function_exit "debug_mwan3_system"
+    return 0
+}
+
 # === MAIN EXECUTION ===
 main() {
     log_function_entry "main"
@@ -2466,6 +2895,16 @@ main() {
     smart_debug "Starting pre-flight checks..."
     check_root_privileges
     check_system_compatibility
+
+    # MWAN3 System Debugging (if requested)
+    if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+        smart_info "🔍 Debug mode detected - running comprehensive MWAN3 diagnostics"
+        ERROR_CONTEXT="MWAN3 system debugging"
+        debug_mwan3_system || {
+            smart_warning "MWAN3 diagnostics encountered issues - continuing with deployment"
+            smart_info "Check the diagnostic output above for details"
+        }
+    fi
 
     # CRITICAL: Setup persistent storage first (RUTOS firmware upgrade survival)
     ERROR_CONTEXT="Setting up persistent storage"
