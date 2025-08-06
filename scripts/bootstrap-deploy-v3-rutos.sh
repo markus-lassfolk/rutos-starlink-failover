@@ -256,34 +256,34 @@ execute_with_library() {
     # Capture both output and error code for better debugging
     # Use explicit variable passing to ensure environment is preserved
     log_info "Executing deployment with log file: $MAIN_INSTALL_LOG_FILE"
-    
-    # BusyBox compatible logging - use simple redirection
-    printf "⏳ Starting deployment with logging enabled...\n"
-    printf "📝 All output will be logged to: %s\n" "$MAIN_INSTALL_LOG_FILE"
-    
-    # Execute deployment and capture output
+
+    # BusyBox compatible logging with real-time output
+    printf "⏳ Starting deployment with real-time logging...\n"
+    printf "📝 Output will be shown on screen AND logged to: %s\n" "$MAIN_INSTALL_LOG_FILE"
+    printf "📋 You can also monitor the log file with: tail -f '%s'\n\n" "$MAIN_INSTALL_LOG_FILE"
+
+    # Execute deployment with both screen output and logging
+    # Use a more compatible approach that works with BusyBox
     if DRY_RUN="$DRY_RUN" DEBUG="$DEBUG" RUTOS_TEST_MODE="$RUTOS_TEST_MODE" \
         ALLOW_TEST_EXECUTION="$ALLOW_TEST_EXECUTION" USE_LIBRARY="$USE_LIBRARY" \
         LIBRARY_PATH="$LIBRARY_PATH" INSTALL_LOG_FILE="$MAIN_INSTALL_LOG_FILE" \
-        "$deployment_script" > "$MAIN_INSTALL_LOG_FILE" 2>&1; then
+        "$deployment_script" 2>&1 | while IFS= read -r line; do
+        # Show on screen
+        printf "%s\n" "$line"
+        # Log to file
+        printf "%s\n" "$line" >>"$MAIN_INSTALL_LOG_FILE"
+    done; then
         exit_code=0
         printf "\n✅ Deployment completed successfully!\n"
     else
+        # Handle pipe failure - check if deployment script actually failed
         exit_code=$?
-        printf "\n❌ Deployment failed with exit code: %d\n" $exit_code
+        if [ $exit_code -eq 0 ]; then
+            printf "\n✅ Deployment completed successfully!\n"
+        else
+            printf "\n❌ Deployment failed with exit code: %d\n" $exit_code
+        fi
     fi
-    
-    # Always show the final output
-    printf "\n📋 DEPLOYMENT OUTPUT:\n"
-    printf "=====================================\n"
-    # Show last part of log for immediate feedback
-    if command -v tail >/dev/null 2>&1; then
-        printf "[... showing last 50 lines of output ...]\n"
-        tail -n 50 "$MAIN_INSTALL_LOG_FILE" 2>/dev/null || cat "$MAIN_INSTALL_LOG_FILE"
-    else
-        cat "$MAIN_INSTALL_LOG_FILE" 2>/dev/null || printf "Error reading log file\n"
-    fi
-    printf "=====================================\n"
 
     if [ $exit_code -eq 0 ]; then
         log_info "Deployment completed successfully!"
@@ -371,4 +371,3 @@ main() {
 
 # Execute main function
 main "$@"
-
