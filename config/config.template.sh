@@ -21,8 +21,8 @@ export STARLINK_PORT="9200"                 # Starlink gRPC API port
 export RUTOS_IP="192.168.80.1"             # RUTOS router IP address
 
 # === NETWORK CONFIGURATION ===
-export MWAN_IFACE="starlink"                # MWAN3 interface name for Starlink
-export MWAN_MEMBER="starlink_member"        # MWAN3 member name
+export MWAN_IFACE="wan"                     # MWAN3 interface name for Starlink
+export MWAN_MEMBER="member1"                # MWAN3 member name
 export METRIC_GOOD="1"                      # Route metric when connection is good
 export METRIC_BAD="10"                      # Route metric when connection is poor
 

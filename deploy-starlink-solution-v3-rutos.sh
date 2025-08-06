@@ -1758,6 +1758,139 @@ EOF
     sed -i "s/export MONITORING_INTERVAL=\"60\"/export MONITORING_INTERVAL=\"$MONITORING_INTERVAL\"/" "$template_config"
     sed -i "s/export QUICK_CHECK_INTERVAL=\"30\"/export QUICK_CHECK_INTERVAL=\"$QUICK_CHECK_INTERVAL\"/" "$template_config"
     sed -i "s/export DEEP_ANALYSIS_INTERVAL=\"300\"/export DEEP_ANALYSIS_INTERVAL=\"$DEEP_ANALYSIS_INTERVAL\"/" "$template_config"
+
+    # CRITICAL: Update MWAN3 configuration with auto-discovered values
+    # IMPORTANT: The system monitors ALL MWAN3 interfaces, not just Starlink
+    # Update both legacy single-interface config AND comprehensive multi-interface config
+    
+    if [ -n "${MWAN_IFACE:-}" ]; then
+        # Handle both possible template variations for legacy single interface
+        if grep -q 'export MWAN_IFACE="starlink"' "$template_config"; then
+            sed -i "s/export MWAN_IFACE=\"starlink\"/export MWAN_IFACE=\"$MWAN_IFACE\"/" "$template_config"
+            log_debug "Updated MWAN_IFACE from 'starlink' to discovered value: $MWAN_IFACE"
+        elif grep -q 'export MWAN_IFACE="wan"' "$template_config" && [ "$MWAN_IFACE" != "wan" ]; then
+            sed -i "s/export MWAN_IFACE=\"wan\"/export MWAN_IFACE=\"$MWAN_IFACE\"/" "$template_config"
+            log_debug "Updated MWAN_IFACE from 'wan' to discovered value: $MWAN_IFACE"
+        else
+            log_debug "MWAN_IFACE already set correctly to: $MWAN_IFACE"
+        fi
+    fi
+    
+    if [ -n "${MWAN_MEMBER:-}" ]; then
+        # Handle both possible template variations for legacy single member
+        if grep -q 'export MWAN_MEMBER="starlink_member"' "$template_config"; then
+            sed -i "s/export MWAN_MEMBER=\"starlink_member\"/export MWAN_MEMBER=\"$MWAN_MEMBER\"/" "$template_config"
+            log_debug "Updated MWAN_MEMBER from 'starlink_member' to discovered value: $MWAN_MEMBER"
+        elif grep -q 'export MWAN_MEMBER="member1"' "$template_config" && [ "$MWAN_MEMBER" != "member1" ]; then
+            sed -i "s/export MWAN_MEMBER=\"member1\"/export MWAN_MEMBER=\"$MWAN_MEMBER\"/" "$template_config"
+            log_debug "Updated MWAN_MEMBER from 'member1' to discovered value: $MWAN_MEMBER"
+        else
+            log_debug "MWAN_MEMBER already set correctly to: $MWAN_MEMBER"
+        fi
+    fi
+    
+    # ENHANCED: Discover and configure ALL MWAN3 interfaces for comprehensive monitoring
+    log_info "Discovering all MWAN3 interfaces for comprehensive configuration..."
+    
+    if command -v mwan3 >/dev/null 2>&1 && uci show mwan3 >/dev/null 2>&1; then
+        # Discover all configured MWAN3 interfaces
+        ALL_MWAN_INTERFACES=""
+        ALL_MWAN_MEMBERS=""
+        ALL_INTERFACE_TYPES=""
+        INTERFACE_COUNT=0
+        
+        # Get all interfaces from mwan3 status
+        if mwan3_all_interfaces=$(mwan3 interfaces 2>/dev/null | grep -v "^$" || true); then
+            while IFS= read -r interface_line; do
+                interface_name=$(printf "%s" "$interface_line" | awk '{print $1}')
+                
+                if [ -n "$interface_name" ]; then
+                    # Find the member for this interface
+                    member_name=""
+                    if member_line=$(uci show mwan3 2>/dev/null | grep "interface='${interface_name}'" | head -1 2>/dev/null); then
+                        member_name=$(echo "$member_line" | cut -d'.' -f2)
+                    fi
+                    
+                    # Determine connection type for intelligent monitoring
+                    connection_type="unlimited"  # Default
+                    case "$interface_name" in
+                        *mob* | *cellular* | *lte* | *gsm* | *wwan*)
+                            connection_type="limited"
+                            ;;
+                        *wifi* | *wlan*)
+                            connection_type="unlimited"
+                            ;;
+                        *)
+                            # Check if it can reach Starlink API
+                            if ping -c 1 -W 2 192.168.100.1 >/dev/null 2>&1; then
+                                connection_type="unlimited"  # Likely satellite/fiber
+                            else
+                                connection_type="limited"    # Conservative default
+                            fi
+                            ;;
+                    esac
+                    
+                    # Build comprehensive interface lists
+                    if [ -z "$ALL_MWAN_INTERFACES" ]; then
+                        ALL_MWAN_INTERFACES="$interface_name"
+                        ALL_MWAN_MEMBERS="$member_name"
+                        ALL_INTERFACE_TYPES="$interface_name:$connection_type"
+                    else
+                        ALL_MWAN_INTERFACES="$ALL_MWAN_INTERFACES,$interface_name"
+                        ALL_MWAN_MEMBERS="$ALL_MWAN_MEMBERS,$member_name"
+                        ALL_INTERFACE_TYPES="$ALL_INTERFACE_TYPES,$interface_name:$connection_type"
+                    fi
+                    
+                    INTERFACE_COUNT=$((INTERFACE_COUNT + 1))
+                    log_debug "Discovered interface: $interface_name (member: $member_name, type: $connection_type)"
+                fi
+            done <<EOF
+$mwan3_all_interfaces
+EOF
+        fi
+        
+        # Add comprehensive multi-interface configuration to config file
+        if [ -n "$ALL_MWAN_INTERFACES" ] && [ "$INTERFACE_COUNT" -gt 0 ]; then
+            log_success "Discovered $INTERFACE_COUNT MWAN3 interfaces for comprehensive monitoring"
+            
+            # Add multi-interface configuration to template
+            cat >>"$template_config" <<EOF
+
+# === COMPREHENSIVE MWAN3 MULTI-INTERFACE CONFIGURATION ===
+# Auto-discovered from your MWAN3 setup - supports ALL interfaces
+# The intelligent monitoring system monitors all these interfaces automatically
+
+# All discovered MWAN3 interfaces (comma-separated)
+export MWAN_ALL_INTERFACES="$ALL_MWAN_INTERFACES"
+
+# All discovered MWAN3 members (comma-separated, matches interfaces above)
+export MWAN_ALL_MEMBERS="$ALL_MWAN_MEMBERS"
+
+# Interface connection types for intelligent frequency control
+# Format: interface:type,interface:type (unlimited=high freq, limited=low freq)
+export MWAN_INTERFACE_TYPES="$ALL_INTERFACE_TYPES"
+
+# Total number of monitored interfaces
+export MWAN_INTERFACE_COUNT="$INTERFACE_COUNT"
+
+# Primary interface (for legacy compatibility)
+export MWAN_PRIMARY_IFACE="$MWAN_IFACE"
+export MWAN_PRIMARY_MEMBER="$MWAN_MEMBER"
+
+EOF
+            
+            log_info "Added comprehensive multi-interface configuration:"
+            log_info "  Interfaces: $ALL_MWAN_INTERFACES"
+            log_info "  Members: $ALL_MWAN_MEMBERS"
+            log_info "  Types: $ALL_INTERFACE_TYPES"
+            log_info "  Total Count: $INTERFACE_COUNT"
+        else
+            log_warning "No MWAN3 interfaces discovered - falling back to single interface config"
+        fi
+    else
+        log_warning "MWAN3 not available for comprehensive interface discovery"
+    fi
+    
     log_success "User configuration overrides applied to template"
 
     # === PRE-MERGE ANALYSIS ===
@@ -1770,7 +1903,7 @@ EOF
 
         # Show critical user settings before merge
         log_info "=== CRITICAL USER SETTINGS BEFORE MERGE ==="
-        for critical_var in STARLINK_IP RUTOS_IP MONITORING_MODE CHECK_INTERVAL FAILOVER_THRESHOLD RECOVERY_THRESHOLD; do
+        for critical_var in STARLINK_IP RUTOS_IP MONITORING_MODE MWAN_IFACE MWAN_MEMBER MWAN_ALL_INTERFACES MWAN_ALL_MEMBERS CHECK_INTERVAL FAILOVER_THRESHOLD RECOVERY_THRESHOLD; do
             if current_val=$(extract_variable "$current_config" "$critical_var" 2>/dev/null); then
                 if [ -n "$current_val" ]; then
                     log_info "  BEFORE: $critical_var = '$current_val'"
@@ -1806,7 +1939,7 @@ EOF
 
             # Verify critical user settings after merge
             log_info "=== CRITICAL USER SETTINGS AFTER MERGE ==="
-            for critical_var in STARLINK_IP RUTOS_IP MONITORING_MODE CHECK_INTERVAL FAILOVER_THRESHOLD RECOVERY_THRESHOLD; do
+            for critical_var in STARLINK_IP RUTOS_IP MONITORING_MODE MWAN_IFACE MWAN_MEMBER MWAN_ALL_INTERFACES MWAN_ALL_MEMBERS CHECK_INTERVAL FAILOVER_THRESHOLD RECOVERY_THRESHOLD; do
                 if merged_val=$(extract_variable "$current_config" "$critical_var" 2>/dev/null); then
                     if [ -n "$merged_val" ]; then
                         log_info "  AFTER:  $critical_var = '$merged_val'"
