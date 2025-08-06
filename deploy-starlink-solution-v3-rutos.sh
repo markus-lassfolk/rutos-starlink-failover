@@ -3056,6 +3056,155 @@ debug_mwan3_system() {
     return 0
 }
 
+# === MWAN3 STARLINK API ROUTING CONFIGURATION ===
+configure_mwan3_starlink_api_routing() {
+    log_function_entry "configure_mwan3_starlink_api_routing"
+    log_step "🌐 Configuring MWAN3 Starlink API Routing"
+
+    log_info "Configuring direct routing to Starlink API (192.168.100.1) bypassing MWAN3 load balancing"
+    log_info "This ensures API access works even when Starlink is in standby mode"
+
+    # Check if MWAN3 is available
+    if ! command -v mwan3 >/dev/null 2>&1; then
+        log_warning "MWAN3 not available - skipping routing configuration"
+        log_function_exit "configure_mwan3_starlink_api_routing"
+        return 0
+    fi
+
+    # Get Starlink interface from auto-discovery or use default
+    starlink_interface="${DISCOVERED_MWAN_IFACE:-wan}"
+    starlink_ip="${STARLINK_IP:-192.168.100.1}"
+    rutos_ip="${RUTOS_IP:-192.168.80.1}"
+
+    log_info "Configuration parameters:"
+    log_info "  Starlink interface: $starlink_interface"
+    log_info "  Starlink API IP: $starlink_ip"
+    log_info "  RUTOS router IP: $rutos_ip"
+
+    # === MWAN3 RULE FOR STARLINK API ACCESS ===
+    log_info "Creating MWAN3 rule for Starlink API access..."
+    
+    # Create a dedicated rule to route Starlink API traffic directly through the Starlink interface
+    # This bypasses MWAN3 load balancing for API calls
+    rule_name="starlink_api_direct"
+    
+    log_trace_command "Check existing Starlink API rule" "uci show mwan3.${rule_name}"
+    if uci show "mwan3.${rule_name}" >/dev/null 2>&1; then
+        log_info "Starlink API rule already exists - updating..."
+        smart_safe_execute "uci delete mwan3.${rule_name}" "Remove existing Starlink API rule"
+    fi
+
+    # Create the rule for direct Starlink API access
+    log_trace_command "Create Starlink API rule" "uci set mwan3.${rule_name}=rule"
+    smart_safe_execute "uci set mwan3.${rule_name}=rule" "Create Starlink API rule section"
+    smart_safe_execute "uci set mwan3.${rule_name}.dest_ip='${starlink_ip}/32'" "Set destination IP for Starlink API"
+    smart_safe_execute "uci set mwan3.${rule_name}.use_policy='${starlink_interface}_only'" "Set policy to use Starlink interface only"
+    smart_safe_execute "uci set mwan3.${rule_name}.priority='10'" "Set high priority for API rule"
+
+    log_success "✅ Starlink API rule created: ${rule_name}"
+
+    # === MWAN3 POLICY FOR STARLINK-ONLY TRAFFIC ===
+    log_info "Creating MWAN3 policy for Starlink-only traffic..."
+    
+    policy_name="${starlink_interface}_only"
+    
+    log_trace_command "Check existing Starlink-only policy" "uci show mwan3.${policy_name}"
+    if uci show "mwan3.${policy_name}" >/dev/null 2>&1; then
+        log_info "Starlink-only policy already exists - updating..."
+        smart_safe_execute "uci delete mwan3.${policy_name}" "Remove existing Starlink-only policy"
+    fi
+
+    # Create policy that forces traffic through Starlink interface only
+    smart_safe_execute "uci set mwan3.${policy_name}=policy" "Create Starlink-only policy section"
+    
+    # Add the Starlink interface member to the policy
+    starlink_member="${DISCOVERED_MWAN_MEMBER:-member1}"
+    smart_safe_execute "uci add_list mwan3.${policy_name}.use_member='${starlink_member}'" "Add Starlink member to policy"
+
+    log_success "✅ Starlink-only policy created: ${policy_name}"
+
+    # === ADDITIONAL ROUTING TABLE ENTRY ===
+    log_info "Adding direct routing table entry for Starlink API..."
+    
+    # Find the Starlink interface device name (e.g., eth1, ppp0, etc.)
+    starlink_device=""
+    if starlink_device_output=$(uci get network.${starlink_interface}.device 2>/dev/null); then
+        starlink_device="$starlink_device_output"
+        log_debug "Found Starlink device: $starlink_device"
+    elif starlink_device_output=$(uci get network.${starlink_interface}.ifname 2>/dev/null); then
+        starlink_device="$starlink_device_output"
+        log_debug "Found Starlink interface name: $starlink_device"
+    else
+        log_warning "Could not determine Starlink device name - using interface name: $starlink_interface"
+        starlink_device="$starlink_interface"
+    fi
+
+    # === COMMIT UCI CHANGES ===
+    log_info "Committing MWAN3 configuration changes..."
+    log_trace_command "Commit MWAN3 changes" "uci commit mwan3"
+    if smart_safe_execute "uci commit mwan3" "Commit MWAN3 configuration"; then
+        log_success "✅ MWAN3 configuration committed"
+    else
+        log_error "Failed to commit MWAN3 configuration"
+        log_function_exit "configure_mwan3_starlink_api_routing"
+        return 1
+    fi
+
+    # === RESTART MWAN3 SERVICE ===
+    log_info "Restarting MWAN3 service to apply changes..."
+    log_trace_command "Restart MWAN3" "mwan3 restart"
+    if smart_safe_execute "mwan3 restart" "Restart MWAN3 service"; then
+        log_success "✅ MWAN3 service restarted"
+    else
+        log_warning "MWAN3 restart failed - changes may not be active until manual restart"
+    fi
+
+    # === VERIFICATION ===
+    log_info "Verifying Starlink API routing configuration..."
+    
+    # Show the created rule
+    if rule_config=$(uci show mwan3.${rule_name} 2>/dev/null); then
+        log_info "📋 Created rule configuration:"
+        echo "$rule_config" | while read -r line; do
+            log_info "   $line"
+        done
+    fi
+
+    # Show the created policy
+    if policy_config=$(uci show mwan3.${policy_name} 2>/dev/null); then
+        log_info "📋 Created policy configuration:"
+        echo "$policy_config" | while read -r line; do
+            log_info "   $line"
+        done
+    fi
+
+    # === MANUAL ROUTE BACKUP ===
+    log_info "Adding backup static route for Starlink API access..."
+    
+    # Add a static route as backup (in case MWAN3 rules don't work perfectly)
+    # This ensures there's always a route to the Starlink API
+    log_trace_command "Add static route to Starlink API" "ip route add ${starlink_ip}/32 dev ${starlink_device}"
+    if ip route add "${starlink_ip}/32" dev "${starlink_device}" 2>/dev/null; then
+        log_success "✅ Backup static route added for Starlink API"
+    else
+        log_debug "Static route may already exist or device not ready"
+    fi
+
+    log_success "🌐 Starlink API routing configuration completed!"
+    log_info "📡 Benefits of this configuration:"
+    log_info "   • Starlink API (${starlink_ip}) always accessible from RUTOS router"
+    log_info "   • API access works regardless of MWAN3 primary/standby status"
+    log_info "   • Monitoring and configuration remain functional during failover"
+    log_info "   • High-priority routing ensures reliable API communication"
+    
+    log_info "🧪 Test the configuration with:"
+    log_info "   ping ${starlink_ip}                    # Basic connectivity"
+    log_info "   curl -m 5 http://${starlink_ip}:9200   # API availability"
+    log_info "   mwan3 status                           # MWAN3 status"
+    
+    log_function_exit "configure_mwan3_starlink_api_routing"
+}
+
 # === MAIN EXECUTION ===
 main() {
     log_function_entry "main"
@@ -3177,6 +3326,10 @@ main() {
     # Verification
     ERROR_CONTEXT="Verifying system"
     verify_intelligent_monitoring_system
+
+    # MWAN3 Starlink API routing configuration
+    ERROR_CONTEXT="Configuring MWAN3 Starlink API routing"
+    configure_mwan3_starlink_api_routing
 
     # Final setup
     ERROR_CONTEXT="Finalizing deployment"
