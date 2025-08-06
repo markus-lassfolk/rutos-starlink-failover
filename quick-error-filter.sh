@@ -4,7 +4,7 @@ set -e
 # Quick error filter for RUTOS deployment logs
 # Usage: ./quick-error-filter.sh [log_file]
 
-DEFAULT_PATTERNS="ERROR|FAIL|CRITICAL|❌|⚠️|WARN|No such file|not found|command not found|Permission denied|uci: Entry not found|sed:"
+DEFAULT_PATTERNS="ERROR|FAIL|CRITICAL|❌|⚠️|WARN|No such file|not found|command not found|Permission denied|uci: Entry not found|sed:|Usage: basename|multi-call binary|BusyBox.*Usage:"
 
 if [ -n "$1" ] && [ -f "$1" ]; then
     echo "🔍 Filtering errors from: $1"

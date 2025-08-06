@@ -28,12 +28,12 @@ log_warning() { printf "${YELLOW}[WARNING]${NC} %s\n" "$*"; }
 log_debug() { [ "${DEBUG:-0}" = "1" ] && printf "${PURPLE}[DEBUG]${NC} %s\n" "$*"; }
 
 # Error patterns for different severity levels
-CRITICAL_PATTERNS="CRITICAL|FATAL|❌|Failed to|Cannot|Unable to|Permission denied|No such file|command not found"
-ERROR_PATTERNS="ERROR|FAIL|sed:|uci: Entry not found|curl.*failed|wget.*failed|tar.*failed"
+CRITICAL_PATTERNS="CRITICAL|FATAL|❌|Failed to|Cannot|Unable to|Permission denied|No such file|command not found|Usage: basename|multi-call binary"
+ERROR_PATTERNS="ERROR|FAIL|sed:|uci: Entry not found|curl.*failed|wget.*failed|tar.*failed|BusyBox.*Usage:"
 WARNING_PATTERNS="WARNING|WARN|⚠️|may not work|deprecated|falling back"
 
 # RUTOS-specific patterns
-RUTOS_PATTERNS="opkg.*failed|mwan3.*not found|gsmctl.*error|UCI.*error|busybox.*not found"
+RUTOS_PATTERNS="opkg.*failed|mwan3.*not found|gsmctl.*error|UCI.*error|busybox.*not found|BusyBox.*multi-call binary|Usage: basename"
 
 show_usage() {
     cat << EOF

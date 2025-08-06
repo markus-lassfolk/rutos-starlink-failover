@@ -2725,6 +2725,7 @@ deploy_log_analysis_tools() {
         quick-error-filter.sh
         analyze-deployment-issues-rutos.sh
         scripts/filter-errors-rutos.sh
+        scripts/fix-mwan3-basename-rutos.sh
     "
 
     # Create tools directory in scripts folder
@@ -2834,6 +2835,7 @@ else
     echo "  $SCRIPT_DIR/quick-error-filter.sh [log_file]"
     echo "  $SCRIPT_DIR/analyze-deployment-issues-rutos.sh [options] [log_file]"
     echo "  $SCRIPT_DIR/filter-errors-rutos.sh [options] [log_file]"
+    echo "  $SCRIPT_DIR/fix-mwan3-basename-rutos.sh [options]  # Fix MWAN3 basename errors"
 fi
 
 echo ""
@@ -3212,6 +3214,106 @@ debug_mwan3_system() {
     return 0
 }
 
+# === BUSYBOX COMPATIBILITY FIXES ===
+fix_busybox_basename_issues() {
+    log_function_entry "fix_busybox_basename_issues"
+    log_step "🔧 Fixing BusyBox basename compatibility issues"
+
+    log_info "Checking and fixing MWAN3 hotplug scripts for BusyBox basename compatibility..."
+
+    # Common hotplug script locations that may have basename issues
+    hotplug_scripts="
+        /etc/hotplug.d/iface/15-mwan3
+        /etc/hotplug.d/iface/16-mwan3-user
+        /usr/sbin/mwan3
+        /lib/mwan3/mwan3.sh
+    "
+
+    fixed_count=0
+    checked_count=0
+
+    for script_path in $hotplug_scripts; do
+        if [ -f "$script_path" ]; then
+            checked_count=$((checked_count + 1))
+            log_debug "Checking script: $script_path"
+
+            # Check if the script contains problematic basename usage
+            if grep -q "basename \$" "$script_path" 2>/dev/null; then
+                log_warning "Found potentially problematic basename usage in: $script_path"
+                
+                if [ "${DRY_RUN:-0}" = "1" ]; then
+                    log_info "DRY-RUN: Would fix basename issues in $script_path"
+                    fixed_count=$((fixed_count + 1))
+                else
+                    # Create a backup first
+                    if smart_safe_execute "cp '$script_path' '${script_path}.backup-$(date +%Y%m%d)'" "Backup original script"; then
+                        log_success "✅ Backup created for $script_path"
+                        
+                        # Fix common basename usage patterns
+                        # Pattern: basename $VARIABLE -> basename "$VARIABLE" 2>/dev/null || echo "unknown"
+                        if sed -i 's|basename \$\([A-Za-z_][A-Za-z0-9_]*\)|basename "$\1" 2>/dev/null \|\| echo "unknown"|g' "$script_path" 2>/dev/null; then
+                            log_success "✅ Fixed basename patterns in $script_path"
+                            fixed_count=$((fixed_count + 1))
+                        else
+                            log_warning "Could not automatically fix $script_path"
+                        fi
+                    else
+                        log_warning "Could not backup $script_path - skipping fix"
+                    fi
+                fi
+            else
+                log_debug "✓ No basename issues detected in $script_path"
+            fi
+        else
+            log_debug "Script not found: $script_path"
+        fi
+    done
+
+    # Alternative approach: Create a wrapper script for basename if issues persist
+    basename_wrapper="/usr/local/bin/basename"
+    if [ "$fixed_count" -eq 0 ] && [ "$checked_count" -gt 0 ]; then
+        log_info "Creating robust basename wrapper to prevent usage errors..."
+        
+        if [ "${DRY_RUN:-0}" = "1" ]; then
+            log_info "DRY-RUN: Would create basename wrapper at $basename_wrapper"
+        else
+            smart_safe_execute "mkdir -p '$(dirname "$basename_wrapper")'" "Create wrapper directory"
+            
+            cat > "$basename_wrapper" << 'EOF'
+#!/bin/sh
+# Robust basename wrapper for BusyBox compatibility
+# Prevents "Usage: basename" errors from malformed calls
+
+if [ $# -eq 0 ]; then
+    echo "unknown"
+    exit 0
+fi
+
+# Use the real basename with error handling
+/bin/basename "$@" 2>/dev/null || echo "unknown"
+EOF
+            
+            smart_safe_execute "chmod +x '$basename_wrapper'" "Make basename wrapper executable"
+            
+            # Update PATH to use our wrapper first
+            export PATH="/usr/local/bin:$PATH"
+            log_success "✅ Created robust basename wrapper"
+            log_info "Wrapper location: $basename_wrapper"
+        fi
+    fi
+
+    if [ "$fixed_count" -gt 0 ]; then
+        log_success "🔧 Fixed basename issues in $fixed_count scripts"
+        log_info "Original scripts backed up with .backup-$(date +%Y%m%d) extension"
+    elif [ "$checked_count" -eq 0 ]; then
+        log_info "ℹ️  No MWAN3 hotplug scripts found to check"
+    else
+        log_success "✅ No basename issues found in checked scripts"
+    fi
+
+    log_function_exit "fix_busybox_basename_issues"
+}
+
 # === MWAN3 STARLINK API ROUTING CONFIGURATION ===
 configure_mwan3_starlink_api_routing() {
     log_function_entry "configure_mwan3_starlink_api_routing"
@@ -3335,10 +3437,37 @@ configure_mwan3_starlink_api_routing() {
     # === RESTART MWAN3 SERVICE ===
     log_info "Restarting MWAN3 service to apply changes..."
     log_trace_command "Restart MWAN3" "mwan3 restart"
-    if smart_safe_execute "mwan3 restart" "Restart MWAN3 service"; then
+    
+    # Capture MWAN3 restart output to check for basename errors
+    mwan3_restart_output=""
+    mwan3_restart_log="/tmp/mwan3_restart_$$.log"
+    
+    if mwan3_restart_output=$(mwan3 restart 2>&1 | tee "$mwan3_restart_log"); then
         log_success "✅ MWAN3 service restarted"
+        
+        # Check for basename errors in the output
+        if echo "$mwan3_restart_output" | grep -q "Usage: basename\|multi-call binary"; then
+            log_warning "⚠️  Detected BusyBox basename errors during MWAN3 restart"
+            log_warning "These errors don't prevent operation but indicate script compatibility issues"
+            log_info "📋 Basename error details logged to: $mwan3_restart_log"
+            
+            # Show a sample of the errors for debugging
+            basename_errors=$(echo "$mwan3_restart_output" | grep -A2 -B1 "Usage: basename\|multi-call binary" | head -10)
+            if [ -n "$basename_errors" ]; then
+                log_debug "Sample basename errors:"
+                echo "$basename_errors" | while read -r error_line; do
+                    log_debug "  $error_line"
+                done
+            fi
+        else
+            log_success "✅ No basename compatibility issues detected"
+            rm -f "$mwan3_restart_log"
+        fi
     else
         log_warning "MWAN3 restart failed - changes may not be active until manual restart"
+        if [ -f "$mwan3_restart_log" ]; then
+            log_info "📋 MWAN3 restart errors logged to: $mwan3_restart_log"
+        fi
     fi
 
     # === VERIFICATION ===
@@ -3532,6 +3661,10 @@ main() {
     # Verification
     ERROR_CONTEXT="Verifying system"
     verify_intelligent_monitoring_system
+
+    # BusyBox compatibility fixes (before MWAN3 operations)
+    ERROR_CONTEXT="Fixing BusyBox compatibility issues"
+    fix_busybox_basename_issues
 
     # MWAN3 Starlink API routing configuration
     ERROR_CONTEXT="Configuring MWAN3 Starlink API routing"

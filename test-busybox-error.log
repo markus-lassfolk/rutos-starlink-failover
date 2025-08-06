@@ -1,0 +1,8 @@
+BusyBox v1.34.1 (2025-07-24 09:51:14 UTC) multi-call binary.
+
+Usage: basename FILE [SUFFIX]
+
+Strip directory path and .SUFFIX from FILE
+[15-mwan3] INFO Hotplug trigger: IFNAME=wan ACTION=disconnected
+[INFO] Normal log message
+ERROR: Something went wrong
