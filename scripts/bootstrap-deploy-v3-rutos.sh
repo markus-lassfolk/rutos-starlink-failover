@@ -42,24 +42,53 @@ ORIGINAL_DRY_RUN="$DRY_RUN"
 ORIGINAL_DEBUG="$DEBUG"
 ORIGINAL_RUTOS_TEST_MODE="$RUTOS_TEST_MODE"
 
+# === BOOTSTRAP LOG FILE SETUP ===
+# Set up installation log file location
+INSTALL_LOG_DIR="/tmp"
+# Try to find a better persistent location if available
+for log_dir in "/usr/local/starlink/logs" "/opt/starlink/logs" "/var/log"; do
+    if [ -d "$log_dir" ] && [ -w "$log_dir" ]; then
+        INSTALL_LOG_DIR="$log_dir"
+        break
+    fi
+done
+
+# Create installation log with unique timestamp
+INSTALL_LOG_FILE="$INSTALL_LOG_DIR/starlink-bootstrap-install-$(date +%Y%m%d_%H%M%S).log"
+MAIN_INSTALL_LOG_FILE="$INSTALL_LOG_DIR/starlink-deployment-install-$(date +%Y%m%d_%H%M%S).log"
+
+# Create log directory if it doesn't exist
+mkdir -p "$INSTALL_LOG_DIR" 2>/dev/null || true
+
+# Export log file path for main deployment script
+export INSTALL_LOG_FILE="$MAIN_INSTALL_LOG_FILE"
+
 # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap logging functions (replaced by full library after download)
 log_info() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
-    printf "[INFO] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2 # VALIDATION_SKIP_PRINTF: Bootstrap logging (library unavailable)
+    msg="[INFO] [$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    printf "%s\n" "$msg" >&2 # VALIDATION_SKIP_PRINTF: Bootstrap logging (library unavailable)
+    printf "%s\n" "$msg" >>"$INSTALL_LOG_FILE" 2>/dev/null || true
 }
 
 log_debug() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
     if [ "$DEBUG" = "1" ]; then
-        printf "[DEBUG] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        msg="[DEBUG] [$(date '+%Y-%m-%d %H:%M:%S')] $1"
+        printf "%s\n" "$msg" >&2
+        printf "%s\n" "$msg" >>"$INSTALL_LOG_FILE" 2>/dev/null || true
     fi
 }
 
 log_error() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
-    printf "[ERROR] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+    msg="[ERROR] [$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    printf "%s\n" "$msg" >&2
+    printf "%s\n" "$msg" >>"$INSTALL_LOG_FILE" 2>/dev/null || true
 }
 
 log_trace() { # VALIDATION_SKIP_LIBRARY_CHECK: Bootstrap-only logging
     if [ "$RUTOS_TEST_MODE" = "1" ]; then
-        printf "[TRACE] [%s] %s\n" "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >&2
+        msg="[TRACE] [$(date '+%Y-%m-%d %H:%M:%S')] $1"
+        printf "%s\n" "$msg" >&2
+        printf "%s\n" "$msg" >>"$INSTALL_LOG_FILE" 2>/dev/null || true
     fi
 }
 
@@ -226,17 +255,44 @@ execute_with_library() {
 
     # Capture both output and error code for better debugging
     # Use explicit variable passing to ensure environment is preserved
-    DRY_RUN="$DRY_RUN" DEBUG="$DEBUG" RUTOS_TEST_MODE="$RUTOS_TEST_MODE" \
+    log_info "Executing deployment with log file: $MAIN_INSTALL_LOG_FILE"
+    
+    # BusyBox compatible logging - use simple redirection
+    printf "⏳ Starting deployment with logging enabled...\n"
+    printf "📝 All output will be logged to: %s\n" "$MAIN_INSTALL_LOG_FILE"
+    
+    # Execute deployment and capture output
+    if DRY_RUN="$DRY_RUN" DEBUG="$DEBUG" RUTOS_TEST_MODE="$RUTOS_TEST_MODE" \
         ALLOW_TEST_EXECUTION="$ALLOW_TEST_EXECUTION" USE_LIBRARY="$USE_LIBRARY" \
-        LIBRARY_PATH="$LIBRARY_PATH" "$deployment_script" 2>&1
-    exit_code=$?
+        LIBRARY_PATH="$LIBRARY_PATH" INSTALL_LOG_FILE="$MAIN_INSTALL_LOG_FILE" \
+        "$deployment_script" > "$MAIN_INSTALL_LOG_FILE" 2>&1; then
+        exit_code=0
+        printf "\n✅ Deployment completed successfully!\n"
+    else
+        exit_code=$?
+        printf "\n❌ Deployment failed with exit code: %d\n" $exit_code
+    fi
+    
+    # Always show the final output
+    printf "\n📋 DEPLOYMENT OUTPUT:\n"
+    printf "=====================================\n"
+    # Show last part of log for immediate feedback
+    if command -v tail >/dev/null 2>&1; then
+        printf "[... showing last 50 lines of output ...]\n"
+        tail -n 50 "$MAIN_INSTALL_LOG_FILE" 2>/dev/null || cat "$MAIN_INSTALL_LOG_FILE"
+    else
+        cat "$MAIN_INSTALL_LOG_FILE" 2>/dev/null || printf "Error reading log file\n"
+    fi
+    printf "=====================================\n"
 
     if [ $exit_code -eq 0 ]; then
         log_info "Deployment completed successfully!"
+        log_info "Full deployment log available at: $MAIN_INSTALL_LOG_FILE"
         return 0
     else
         log_error "Deployment script failed with exit code: $exit_code"
         log_error "Check the deployment script output above for details"
+        log_error "Full deployment log available at: $MAIN_INSTALL_LOG_FILE"
         return $exit_code
     fi
 }
@@ -256,6 +312,8 @@ trap cleanup_bootstrap EXIT INT TERM
 # Main bootstrap process
 main() {
     log_info "Starting RUTOS Starlink Failover Bootstrap Deployment v$SCRIPT_VERSION"
+    log_info "Bootstrap log file: $INSTALL_LOG_FILE"
+    log_info "Main deployment will log to: $MAIN_INSTALL_LOG_FILE"
 
     # Show debug environment information
     if [ "$DEBUG" = "1" ]; then
@@ -299,6 +357,16 @@ main() {
     fi
 
     log_info "Bootstrap deployment completed successfully!"
+    log_info ""
+    log_info "📋 LOG FILE LOCATIONS:"
+    log_info "   Bootstrap Log: $INSTALL_LOG_FILE"
+    log_info "   Deployment Log: $MAIN_INSTALL_LOG_FILE"
+    log_info ""
+    log_info "🔍 QUICK LOG ANALYSIS COMMANDS:"
+    log_info "   View errors: grep -i error '$MAIN_INSTALL_LOG_FILE'"
+    log_info "   View warnings: grep -i warning '$MAIN_INSTALL_LOG_FILE'"
+    log_info "   View full log: less '$MAIN_INSTALL_LOG_FILE'"
+    log_info "   Use log analyzer: ./scripts/analyze-installation-log-rutos.sh '$MAIN_INSTALL_LOG_FILE'"
 }
 
 # Execute main function

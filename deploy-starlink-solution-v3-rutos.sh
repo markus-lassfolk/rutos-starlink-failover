@@ -327,37 +327,70 @@ _get_timestamp() {
 # Pre-library debug logging function
 pre_debug() {
     if [ "${DEBUG:-0}" = "1" ] || [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
-        printf "[PRE-DEBUG] [%s] %s\n" "$(_get_timestamp)" "$*" >&2
+        msg="[PRE-DEBUG] [$(date '+%Y-%m-%d %H:%M:%S')] $*"
+        printf "%s\n" "$msg" >&2
+        printf "%s\n" "$msg" >>"${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}" 2>/dev/null || true
     fi
 }
 
 # Pre-library info logging function
 pre_info() {
-    printf "[PRE-INFO] [%s] %s\n" "$(_get_timestamp)" "$*"
+    msg="[PRE-INFO] [$(date '+%Y-%m-%d %H:%M:%S')] $*"
+    printf "%s\n" "$msg"
+    printf "%s\n" "$msg" >>"${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}" 2>/dev/null || true
 }
 
 # Pre-library error logging function
 pre_error() {
-    printf "[PRE-ERROR] [%s] %s\n" "$(_get_timestamp)" "$*" >&2
+    msg="[PRE-ERROR] [$(date '+%Y-%m-%d %H:%M:%S')] $*"
+    printf "%s\n" "$msg" >&2
+    printf "%s\n" "$msg" >>"${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}" 2>/dev/null || true
 }
 
 # Pre-library success logging function
 pre_success() {
-    printf "[PRE-SUCCESS] [%s] %s\n" "$(_get_timestamp)" "$*"
+    msg="[PRE-SUCCESS] [$(date '+%Y-%m-%d %H:%M:%S')] $*"
+    printf "%s\n" "$msg"
+    printf "%s\n" "$msg" >>"${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}" 2>/dev/null || true
 }
 
 # Pre-library warning logging function
 pre_warning() {
-    printf "[PRE-WARNING] [%s] %s\n" "$(_get_timestamp)" "$*" >&2
+    msg="[PRE-WARNING] [$(date '+%Y-%m-%d %H:%M:%S')] $*"
+    printf "%s\n" "$msg" >&2
+    printf "%s\n" "$msg" >>"${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}" 2>/dev/null || true
 }
 
 # Pre-library step logging function
 pre_step() {
-    printf "[PRE-STEP] [%s] === %s ===\n" "$(_get_timestamp)" "$*"
+    msg="[PRE-STEP] [$(date '+%Y-%m-%d %H:%M:%S')] === $* ==="
+    printf "%s\n" "$msg"
+    printf "%s\n" "$msg" >>"${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}" 2>/dev/null || true
 }
 
 # Log script initialization with pre-library system
 pre_info "Starting deploy-starlink-solution-v3-rutos.sh v$SCRIPT_VERSION"
+
+# === INSTALLATION LOG FILE SETUP ===
+# Check if bootstrap provided a log file path
+if [ -n "${INSTALL_LOG_FILE:-}" ]; then
+    DEPLOYMENT_LOG_FILE="$INSTALL_LOG_FILE"
+    pre_info "Using bootstrap-provided log file: $DEPLOYMENT_LOG_FILE"
+else
+    # Create our own log file if not provided by bootstrap
+    LOG_BASE_DIR="/tmp"
+    # Try to find a better persistent location
+    for log_dir in "/usr/local/starlink/logs" "/opt/starlink/logs" "/var/log"; do
+        if [ -d "$log_dir" ] && [ -w "$log_dir" ]; then
+            LOG_BASE_DIR="$log_dir"
+            break
+        fi
+    done
+    DEPLOYMENT_LOG_FILE="$LOG_BASE_DIR/starlink-deploy-$(date +%Y%m%d_%H%M%S).log"
+    mkdir -p "$(dirname "$DEPLOYMENT_LOG_FILE")" 2>/dev/null || true
+    pre_info "Created deployment log file: $DEPLOYMENT_LOG_FILE"
+fi
+
 pre_debug "Pre-library logging system initialized"
 pre_debug "Environment: DEBUG=${DEBUG:-0}, RUTOS_TEST_MODE=${RUTOS_TEST_MODE:-0}, DRY_RUN=${DRY_RUN:-0}"
 
@@ -407,6 +440,11 @@ trap - EXIT
 
 # CRITICAL: Initialize script with library features (REQUIRED)
 pre_debug "Initializing script with library features..."
+
+# Export the log file path for the library system to use
+export RUTOS_LOG_FILE="${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}"
+pre_debug "Exported log file path for library: $RUTOS_LOG_FILE"
+
 rutos_init "deploy-starlink-solution-v3-rutos.sh" "$SCRIPT_VERSION"
 
 # Set up enhanced error handling now that library is loaded
@@ -2747,7 +2785,7 @@ deploy_log_analysis_tools() {
         else
             if smart_safe_execute "curl -fsSL '$tool_url' -o '$tool_dest'" "Download $tool_basename"; then
                 smart_safe_execute "chmod +x '$tool_dest'" "Make $tool_basename executable"
-                
+
                 # Verify the tool was downloaded successfully
                 if [ -f "$tool_dest" ] && [ -s "$tool_dest" ]; then
                     file_size=$(wc -c <"$tool_dest" 2>/dev/null || echo "unknown")
@@ -2775,7 +2813,7 @@ deploy_log_analysis_tools() {
         else
             # Remove existing symlink if it exists
             [ -L "$symlink_dest" ] && rm -f "$symlink_dest"
-            
+
             if smart_safe_execute "ln -sf '$tool_source' '$symlink_dest'" "Create symlink for $tool_basename"; then
                 log_debug "✅ Symlink created: $symlink_dest"
             fi
@@ -2784,12 +2822,12 @@ deploy_log_analysis_tools() {
 
     # Create a master log analysis script for easy access
     master_script="$SCRIPTS_DIR/analyze-logs.sh"
-    
+
     if [ "${DRY_RUN:-0}" = "1" ]; then
         log_info "DRY-RUN: Would create master analysis script: $master_script"
     else
         log_info "Creating master log analysis script..."
-        cat > "$master_script" << 'EOF'
+        cat >"$master_script" <<'EOF'
 #!/bin/sh
 # Master log analysis script for RUTOS Starlink deployment
 
@@ -2857,12 +2895,12 @@ EOF
         tool_basename=$(basename "$tool")
         log_info "   • $tool_basename → $SCRIPTS_DIR/$tool_basename"
     done
-    
+
     log_info "🎯 Quick access commands:"
     log_info "   $master_script                           # Master analysis script"
     log_info "   $SCRIPTS_DIR/quick-error-filter.sh [file]          # Quick error detection"
     log_info "   $SCRIPTS_DIR/analyze-deployment-issues-rutos.sh [file]  # Advanced analysis"
-    
+
     if [ -n "${DEPLOYMENT_LOG_FILE:-}" ]; then
         log_info "📝 Current deployment log: $DEPLOYMENT_LOG_FILE"
         log_info "💡 Analyze current deployment: $master_script"
@@ -3240,7 +3278,7 @@ fix_busybox_basename_issues() {
             # Check if the script contains problematic basename usage
             if grep -q "basename \$" "$script_path" 2>/dev/null; then
                 log_warning "Found potentially problematic basename usage in: $script_path"
-                
+
                 if [ "${DRY_RUN:-0}" = "1" ]; then
                     log_info "DRY-RUN: Would fix basename issues in $script_path"
                     fixed_count=$((fixed_count + 1))
@@ -3248,7 +3286,7 @@ fix_busybox_basename_issues() {
                     # Create a backup first
                     if smart_safe_execute "cp '$script_path' '${script_path}.backup-$(date +%Y%m%d)'" "Backup original script"; then
                         log_success "✅ Backup created for $script_path"
-                        
+
                         # Fix common basename usage patterns
                         # Pattern: basename $VARIABLE -> basename "$VARIABLE" 2>/dev/null || echo "unknown"
                         if sed -i 's|basename \$\([A-Za-z_][A-Za-z0-9_]*\)|basename "$\1" 2>/dev/null \|\| echo "unknown"|g' "$script_path" 2>/dev/null; then
@@ -3273,13 +3311,13 @@ fix_busybox_basename_issues() {
     basename_wrapper="/usr/local/bin/basename"
     if [ "$fixed_count" -eq 0 ] && [ "$checked_count" -gt 0 ]; then
         log_info "Creating robust basename wrapper to prevent usage errors..."
-        
+
         if [ "${DRY_RUN:-0}" = "1" ]; then
             log_info "DRY-RUN: Would create basename wrapper at $basename_wrapper"
         else
             smart_safe_execute "mkdir -p '$(dirname "$basename_wrapper")'" "Create wrapper directory"
-            
-            cat > "$basename_wrapper" << 'EOF'
+
+            cat >"$basename_wrapper" <<'EOF'
 #!/bin/sh
 # Robust basename wrapper for BusyBox compatibility
 # Prevents "Usage: basename" errors from malformed calls
@@ -3292,9 +3330,9 @@ fi
 # Use the real basename with error handling
 /bin/basename "$@" 2>/dev/null || echo "unknown"
 EOF
-            
+
             smart_safe_execute "chmod +x '$basename_wrapper'" "Make basename wrapper executable"
-            
+
             # Update PATH to use our wrapper first
             export PATH="/usr/local/bin:$PATH"
             log_success "✅ Created robust basename wrapper"
@@ -3345,12 +3383,12 @@ configure_mwan3_starlink_api_routing() {
 
     # === MWAN3 RULES FOR STARLINK API ACCESS FROM INTERNAL NETWORKS ===
     log_info "Creating MWAN3 rules for Starlink API access from internal networks..."
-    
+
     # Create rules for each internal network
     rule_counter=1
     for network in $internal_networks; do
         rule_name="starlink_api_${rule_counter}"
-        
+
         log_trace_command "Check existing Starlink API rule for $network" "uci show mwan3.${rule_name}"
         if uci show "mwan3.${rule_name}" >/dev/null 2>&1; then
             log_info "Starlink API rule for $network already exists - updating..."
@@ -3371,7 +3409,7 @@ configure_mwan3_starlink_api_routing() {
 
     # Also create a general rule for any source to Starlink API (as fallback)
     rule_name="starlink_api_general"
-    
+
     log_trace_command "Check existing general Starlink API rule" "uci show mwan3.${rule_name}"
     if uci show "mwan3.${rule_name}" >/dev/null 2>&1; then
         log_info "General Starlink API rule already exists - updating..."
@@ -3389,9 +3427,9 @@ configure_mwan3_starlink_api_routing() {
 
     # === MWAN3 POLICY FOR STARLINK-ONLY TRAFFIC ===
     log_info "Creating MWAN3 policy for Starlink-only traffic..."
-    
+
     policy_name="${starlink_interface}_only"
-    
+
     log_trace_command "Check existing Starlink-only policy" "uci show mwan3.${policy_name}"
     if uci show "mwan3.${policy_name}" >/dev/null 2>&1; then
         log_info "Starlink-only policy already exists - updating..."
@@ -3400,7 +3438,7 @@ configure_mwan3_starlink_api_routing() {
 
     # Create policy that forces traffic through Starlink interface only
     smart_safe_execute "uci set mwan3.${policy_name}=policy" "Create Starlink-only policy section"
-    
+
     # Add the Starlink interface member to the policy
     starlink_member="${DISCOVERED_MWAN_MEMBER:-member1}"
     smart_safe_execute "uci add_list mwan3.${policy_name}.use_member='${starlink_member}'" "Add Starlink member to policy"
@@ -3409,7 +3447,7 @@ configure_mwan3_starlink_api_routing() {
 
     # === ADDITIONAL ROUTING TABLE ENTRY ===
     log_info "Adding direct routing table entry for Starlink API..."
-    
+
     # Find the Starlink interface device name (e.g., eth1, ppp0, etc.)
     starlink_device=""
     if starlink_device_output=$(uci get network.${starlink_interface}.device 2>/dev/null); then
@@ -3437,20 +3475,20 @@ configure_mwan3_starlink_api_routing() {
     # === RESTART MWAN3 SERVICE ===
     log_info "Restarting MWAN3 service to apply changes..."
     log_trace_command "Restart MWAN3" "mwan3 restart"
-    
+
     # Capture MWAN3 restart output to check for basename errors
     mwan3_restart_output=""
     mwan3_restart_log="/tmp/mwan3_restart_$$.log"
-    
+
     if mwan3_restart_output=$(mwan3 restart 2>&1 | tee "$mwan3_restart_log"); then
         log_success "✅ MWAN3 service restarted"
-        
+
         # Check for basename errors in the output
         if echo "$mwan3_restart_output" | grep -q "Usage: basename\|multi-call binary"; then
             log_warning "⚠️  Detected BusyBox basename errors during MWAN3 restart"
             log_warning "These errors don't prevent operation but indicate script compatibility issues"
             log_info "📋 Basename error details logged to: $mwan3_restart_log"
-            
+
             # Show a sample of the errors for debugging
             basename_errors=$(echo "$mwan3_restart_output" | grep -A2 -B1 "Usage: basename\|multi-call binary" | head -10)
             if [ -n "$basename_errors" ]; then
@@ -3472,7 +3510,7 @@ configure_mwan3_starlink_api_routing() {
 
     # === VERIFICATION ===
     log_info "Verifying Starlink API routing configuration..."
-    
+
     # Show the created rule
     if rule_config=$(uci show mwan3.${rule_name} 2>/dev/null); then
         log_info "📋 Created rule configuration:"
@@ -3491,7 +3529,7 @@ configure_mwan3_starlink_api_routing() {
 
     # === MANUAL ROUTE BACKUP ===
     log_info "Adding backup static route for Starlink API access..."
-    
+
     # Add a static route as backup (in case MWAN3 rules don't work perfectly)
     # This ensures there's always a route to the Starlink API
     log_trace_command "Add static route to Starlink API" "ip route add ${starlink_ip}/32 dev ${starlink_device}"
@@ -3509,12 +3547,12 @@ configure_mwan3_starlink_api_routing() {
     log_info "   • Monitoring and configuration remain functional during failover"
     log_info "   • High-priority routing ensures reliable API communication"
     log_info "   • Multiple rules provide comprehensive coverage for all internal subnets"
-    
+
     log_info "🧪 Test the configuration with:"
     log_info "   ping ${starlink_ip}                    # Basic connectivity"
     log_info "   curl -m 5 http://${starlink_ip}:9200   # API availability"
     log_info "   mwan3 status                           # MWAN3 status"
-    
+
     log_function_exit "configure_mwan3_starlink_api_routing"
 }
 
@@ -3562,17 +3600,17 @@ main() {
     # CRITICAL: Setup deployment logging EARLY for analysis
     ERROR_CONTEXT="Setting up deployment logging"
     DEPLOYMENT_LOG_FILE="${LOG_DIR:-/tmp}/starlink-deployment-$(date +%Y%m%d-%H%M%S).log"
-    
+
     # Ensure log directory exists
     smart_safe_execute "mkdir -p '$(dirname "$DEPLOYMENT_LOG_FILE")'" "Create deployment log directory"
-    
+
     # Setup deployment logging (tee to both console and log file)
     if [ "${DRY_RUN:-0}" != "1" ]; then
         smart_info "📝 Deployment log: $DEPLOYMENT_LOG_FILE"
         smart_info "💡 Analyze deployment issues with:"
         smart_info "   ./quick-error-filter.sh '$DEPLOYMENT_LOG_FILE'"
         smart_info "   ./analyze-deployment-issues-rutos.sh '$DEPLOYMENT_LOG_FILE'"
-        
+
         # Export log file for child scripts
         export DEPLOYMENT_LOG_FILE
     else
@@ -3741,6 +3779,22 @@ main() {
     log_success "Intelligent Starlink Monitoring System v3.0 deployment completed!"
     log_success "All files stored in persistent storage: $INSTALL_BASE_DIR"
 
+    # === LOG FILE INFORMATION ===
+    log_step "📋 INSTALLATION LOG SUMMARY"
+    log_info "Full deployment log saved to: ${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}"
+    log_info ""
+    log_info "🔍 LOG ANALYSIS COMMANDS:"
+    log_info "   View errors only: grep -i error '${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}'"
+    log_info "   View warnings only: grep -i warning '${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}'"
+    log_info "   View errors & warnings: grep -i -E 'error|warning' '${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}'"
+    log_info "   View full log: less '${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}'"
+    log_info "   Count messages: grep -c -E 'ERROR|WARNING|SUCCESS' '${DEPLOYMENT_LOG_FILE:-/tmp/deploy.log}'"
+    log_info ""
+    log_info "📊 DEPLOYED LOG ANALYSIS TOOLS:"
+    log_info "   Quick error check: $SCRIPTS_DIR/quick-error-filter.sh /var/log/messages"
+    log_info "   Full log analysis: $SCRIPTS_DIR/analyze-logs.sh"
+    log_info "   Deployment issues: $SCRIPTS_DIR/analyze-deployment-issues-rutos.sh"
+
     # Final diagnostics - verify library usage throughout deployment
     log_debug "=== FINAL DEPLOYMENT DIAGNOSTICS ==="
     log_debug "Library status: $_LIBRARY_LOADED (1=loaded, 0=fallback)"
@@ -3798,28 +3852,53 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
 
     # Execute main deployment with enhanced error context and logging
     ERROR_CONTEXT="Main deployment execution"
-    
+
     # Setup deployment logging if not in DRY_RUN mode
     if [ "${DRY_RUN:-0}" != "1" ]; then
         # Create initial log directory structure
         mkdir -p "/tmp" 2>/dev/null || true
-        
-        # Set log file location  
+
+        # Set log file location
         DEPLOYMENT_LOG_FILE="${DEPLOYMENT_LOG_FILE:-/tmp/starlink-deployment-$(date +%Y%m%d-%H%M%S).log}"
-        
-        # Execute with tee to log both stdout and stderr (POSIX compatible)
-        printf "🚀 Starting deployment with logging enabled...\n"
-        printf "📝 All output will be captured for later analysis\n\n"
-        
-        printf "📝 Deployment logging will be saved to: ${DEPLOYMENT_LOG_FILE}\n"
-        printf "💡 Analyze issues with: ./quick-error-filter.sh [log_file]\n\n"
-        
-        # Use simple redirection - execute main and capture output
-        main "$@" 2>&1 | tee -a "${DEPLOYMENT_LOG_FILE}"
-        MAIN_EXIT_CODE=$?
-        
-        printf "\n📝 Deployment log saved: ${DEPLOYMENT_LOG_FILE}\n"
-        return $MAIN_EXIT_CODE
+
+        # Execute with logging (check if we're being called from bootstrap)
+        if [ -n "${INSTALL_LOG_FILE:-}" ]; then
+            # Called from bootstrap - output is already being logged
+            printf "🚀 Deployment logging handled by bootstrap script...\n"
+            printf "📝 Log file: ${DEPLOYMENT_LOG_FILE}\n\n"
+            main "$@"
+            return $?
+        else
+            # Direct execution - handle our own logging
+            printf "🚀 Starting deployment with logging enabled...\n"
+            printf "📝 All output will be captured for later analysis\n\n"
+
+            printf "📝 Deployment logging will be saved to: ${DEPLOYMENT_LOG_FILE}\n"
+            printf "💡 Analyze issues with: ./scripts/analyze-installation-log-rutos.sh [log_file]\n\n"
+
+            # Check if tee is available and working (BusyBox compatibility)
+            if command -v tee >/dev/null 2>&1 && echo "test" | tee /dev/null >/dev/null 2>&1; then
+                # Use tee for real-time output and logging
+                main "$@" 2>&1 | tee "${DEPLOYMENT_LOG_FILE}"
+                MAIN_EXIT_CODE=$?
+            else
+                # Fallback: log to file only, then display
+                printf "⏳ Logging to file (BusyBox mode)...\n"
+                main "$@" >"${DEPLOYMENT_LOG_FILE}" 2>&1
+                MAIN_EXIT_CODE=$?
+                printf "\n📋 DEPLOYMENT OUTPUT:\n"
+                printf "=====================================\n"
+                cat "${DEPLOYMENT_LOG_FILE}"
+                printf "=====================================\n"
+            fi
+
+            printf "\n📝 Deployment log saved: ${DEPLOYMENT_LOG_FILE}\n"
+            printf "🔍 Analyze deployment log:\n"
+            printf "   grep -i error '${DEPLOYMENT_LOG_FILE}'         # Show errors\n"
+            printf "   grep -i warning '${DEPLOYMENT_LOG_FILE}'       # Show warnings\n"
+            printf "   ./scripts/analyze-installation-log-rutos.sh '${DEPLOYMENT_LOG_FILE}'  # Full analysis\n"
+            return $MAIN_EXIT_CODE
+        fi
     else
         # In DRY_RUN mode, just execute main directly
         main "$@"
@@ -3832,7 +3911,7 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
     if [ $exit_code -eq 0 ]; then
         smart_success "🎉 Deployment script completed successfully (exit code: $exit_code)"
         smart_info "✅ All deployment steps completed without errors"
-        
+
         # Show log analysis information
         if [ -n "${DEPLOYMENT_LOG_FILE:-}" ] && [ -f "${DEPLOYMENT_LOG_FILE:-}" ]; then
             smart_info "📊 Deployment log available: $DEPLOYMENT_LOG_FILE"
@@ -3844,7 +3923,7 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
     else
         smart_error "❌ Deployment script failed (exit code: $exit_code)"
         smart_error "🔍 Check the error output above for specific failure details"
-        
+
         # Enhanced troubleshooting with log analysis
         if [ -n "${DEPLOYMENT_LOG_FILE:-}" ] && [ -f "${DEPLOYMENT_LOG_FILE:-}" ]; then
             smart_error "📊 Analyze deployment failures:"
