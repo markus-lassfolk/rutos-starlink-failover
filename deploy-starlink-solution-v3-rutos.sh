@@ -127,7 +127,7 @@ enhanced_error_handler() {
             *)
                 printf "💡 GENERIC ERROR: Unexpected failure\n"
                 printf "🔧 TROUBLESHOOTING:\n"
-                printf "   1. Run with DEBUG=1 RUTOS_TEST_MODE=1 for detailed logging\n"
+                printf "   1. Run with DEBUG=1 RUTOS_TEST_MODE=1 for detailed logging and command tracing\n"
                 printf "   2. Check system logs: logread | grep starlink\n"
                 printf "   3. Verify RUTOS system health: df -h && free\n"
                 ;;
@@ -188,6 +188,19 @@ log_function_exit() {
         smart_debug "FUNCTION: Exiting $func_name with code $exit_code"
     fi
     CURRENT_FUNCTION=""
+}
+
+# Command tracing function for RUTOS_TEST_MODE debugging
+log_trace_command() {
+    local command_description="$1"
+    shift
+    local command_line="$*"
+
+    # Only show command traces in RUTOS_TEST_MODE
+    if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+        smart_debug "🔍 [TRACE] $command_description"
+        smart_debug "📝 [CMD] $command_line"
+    fi
 }
 
 # Enhanced parameter validation with detailed error messages
@@ -477,6 +490,10 @@ smart_safe_execute() {
         log_debug "COMMAND EXECUTION: $description"
         log_debug "  Command: $command"
         log_debug "  DRY_RUN: ${DRY_RUN:-0}"
+        # Add RUTOS_TEST_MODE trace for better visibility
+        if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
+            log_trace_command "$description" "$command"
+        fi
         safe_execute "$command" "$description"
     else
         pre_debug "COMMAND EXECUTION: $description"
@@ -2176,6 +2193,7 @@ auto_discover_mwan3_config() {
     log_debug "MWAN3 command found at: $(which mwan3)"
 
     log_debug "Testing UCI access to mwan3 configuration..."
+    log_trace_command "Test UCI access to mwan3" "uci show mwan3"
     if ! uci_test_output=$(uci show mwan3 2>&1); then
         log_warning "MWAN3 UCI configuration not accessible for discovery"
         log_debug "UCI show mwan3 failed with: $uci_test_output"
@@ -2199,6 +2217,7 @@ auto_discover_mwan3_config() {
     log_debug "Running: uci show mwan3 | grep '\\.interface=' | cut -d'=' -f2 | tr -d \"'\" | sort -u"
 
     # Use a more robust command with error checking
+    log_trace_command "Extract interface lines from UCI" "uci show mwan3 | grep '\\.interface='"
     if interface_lines=$(uci show mwan3 2>/dev/null | grep '\.interface=' 2>/dev/null); then
         if [ -n "$interface_lines" ]; then
             DISCOVERED_INTERFACES=$(echo "$interface_lines" | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null)
@@ -2287,6 +2306,7 @@ auto_discover_mwan3_config() {
             lowest_metric=999
             for iface in $lan_wan_interfaces; do
                 # Use safer command construction to avoid quote escaping issues
+                log_trace_command "Extract metric for interface $iface" "uci show mwan3 | grep \"interface='${iface}'\" | grep '\\.metric='"
                 if metric_line=$(uci show mwan3 2>/dev/null | grep "interface='${iface}'" | grep '\.metric=' | head -1 2>/dev/null); then
                     metric=$(echo "$metric_line" | cut -d'=' -f2 | tr -d "'")
                     if [ -n "$metric" ] && [ "$metric" -lt "$lowest_metric" ]; then
@@ -2332,6 +2352,7 @@ auto_discover_mwan3_config() {
     log_debug "Running: uci show mwan3 | grep -E '(@member\\[|member[0-9]+)\\.interface=' | cut -d'=' -f2 | tr -d \"'\" | sort -u"
 
     # Use a more robust command with error checking
+    log_trace_command "Extract member lines from UCI" "uci show mwan3 | grep -E '(@member\\[|member[0-9]+)\\.interface='"
     if member_lines=$(uci show mwan3 2>/dev/null | grep -E '(@member\[|member[0-9]+)\.interface=' 2>/dev/null); then
         if [ -n "$member_lines" ]; then
             DISCOVERED_MEMBERS=$(echo "$member_lines" | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null)
@@ -2358,6 +2379,7 @@ auto_discover_mwan3_config() {
 
             # Look for the actual member name that matches our interface
             # Use safer command construction to avoid quote escaping issues
+            log_trace_command "Search for member matching interface" "uci show mwan3 | grep \"interface='${SUGGESTED_MWAN_IFACE}'\""
             if member_line=$(uci show mwan3 2>/dev/null | grep "interface='${SUGGESTED_MWAN_IFACE}'" | head -1 2>/dev/null); then
                 log_debug "Member search result: '$member_line'"
                 # Extract member name from line like: mwan3.member1.interface='wan'
@@ -2370,6 +2392,7 @@ auto_discover_mwan3_config() {
 
                 # Show all available member lines for debugging
                 log_debug "Available member lines:"
+                log_trace_command "List all member interface lines" "uci show mwan3 | grep -E '(@member\\[|member[0-9]+)\\.interface='"
                 if member_debug_lines=$(uci show mwan3 2>/dev/null | grep -E '(@member\[|member[0-9]+)\.interface=' 2>/dev/null); then
                     echo "$member_debug_lines" | while read -r line; do
                         log_debug "  $line"
@@ -2893,8 +2916,10 @@ debug_mwan3_system() {
     # 1. Basic MWAN3 availability
     log_info "1. MWAN3 Command Availability:"
     if command -v mwan3 >/dev/null 2>&1; then
+        log_trace_command "Get MWAN3 binary path" "which mwan3"
         mwan3_path=$(which mwan3)
         log_success "  ✅ MWAN3 found at: $mwan3_path"
+        log_trace_command "Get MWAN3 version" "mwan3 --version"
         log_info "  📊 MWAN3 version: $(mwan3 --version 2>/dev/null || echo 'Version info not available')"
     else
         log_error "  ❌ MWAN3 command not found"
@@ -2904,6 +2929,7 @@ debug_mwan3_system() {
 
     # 2. UCI Configuration Access
     log_info "2. UCI Configuration Access:"
+    log_trace_command "Get MWAN3 UCI configuration" "uci show mwan3"
     if uci_output=$(uci show mwan3 2>&1); then
         log_success "  ✅ UCI mwan3 configuration accessible"
         config_lines=$(echo "$uci_output" | wc -l)
@@ -2937,6 +2963,7 @@ debug_mwan3_system() {
 
     # 3. MWAN3 Status
     log_info "3. MWAN3 Service Status:"
+    log_trace_command "Get MWAN3 status" "mwan3 status"
     if mwan3_status=$(mwan3 status 2>&1); then
         log_success "  ✅ MWAN3 status command successful"
         log_info "  📊 Status (first 5 lines):"
@@ -2950,6 +2977,7 @@ debug_mwan3_system() {
 
     # 4. Interface Status
     log_info "4. MWAN3 Interface Status:"
+    log_trace_command "Get MWAN3 interface status" "mwan3 interfaces"
     if mwan3_interfaces=$(mwan3 interfaces 2>&1); then
         log_success "  ✅ Interface status available"
         echo "$mwan3_interfaces" | while read -r line; do
@@ -2962,6 +2990,7 @@ debug_mwan3_system() {
 
     # 5. Policy Status
     log_info "5. MWAN3 Policy Status:"
+    log_trace_command "Get MWAN3 policy status" "mwan3 policies"
     if mwan3_policies=$(mwan3 policies 2>&1); then
         log_success "  ✅ Policy status available"
         echo "$mwan3_policies" | while read -r line; do
@@ -2974,6 +3003,7 @@ debug_mwan3_system() {
 
     # 6. Network Interface Analysis
     log_info "6. System Network Interface Analysis:"
+    log_trace_command "List network interfaces" "ip link show"
     if ip_interfaces=$(ip link show 2>&1); then
         log_info "  📋 Available Network Interfaces:"
         echo "$ip_interfaces" | grep '^[0-9]' | while read -r line; do
@@ -2983,6 +3013,7 @@ debug_mwan3_system() {
 
     # 7. Routing Table Analysis
     log_info "7. Routing Table Analysis:"
+    log_trace_command "Show routing table" "ip route show"
     if route_table=$(ip route show 2>&1); then
         mwan3_routes=$(echo "$route_table" | grep -i "table\|mwan" | head -10)
         if [ -n "$mwan3_routes" ]; then
