@@ -2713,6 +2713,162 @@ download_binaries() {
     log_function_exit "download_binaries"
 }
 
+# Deploy log analysis tools
+deploy_log_analysis_tools() {
+    log_function_entry "deploy_log_analysis_tools"
+    log_step "Deploying Log Analysis and Debugging Tools"
+
+    log_info "Installing comprehensive log analysis toolkit for RUTOS debugging..."
+
+    # Define the log analysis tools to deploy
+    log_tools="
+        quick-error-filter.sh
+        analyze-deployment-issues-rutos.sh
+        scripts/filter-errors-rutos.sh
+    "
+
+    # Create tools directory in scripts folder
+    tools_dir="$SCRIPTS_DIR/tools"
+    smart_safe_execute "mkdir -p '$tools_dir'" "Create tools directory"
+
+    # Download/copy each log analysis tool
+    for tool in $log_tools; do
+        tool_basename=$(basename "$tool")
+        tool_dest="$tools_dir/$tool_basename"
+        tool_url="https://github.com/markus-lassfolk/rutos-starlink-failover/raw/main/$tool"
+
+        log_info "Deploying log analysis tool: $tool_basename"
+        log_debug "Source: $tool_url"
+        log_debug "Destination: $tool_dest"
+
+        if [ "${DRY_RUN:-0}" = "1" ]; then
+            log_info "DRY-RUN: Would download $tool_url to $tool_dest"
+        else
+            if smart_safe_execute "curl -fsSL '$tool_url' -o '$tool_dest'" "Download $tool_basename"; then
+                smart_safe_execute "chmod +x '$tool_dest'" "Make $tool_basename executable"
+                
+                # Verify the tool was downloaded successfully
+                if [ -f "$tool_dest" ] && [ -s "$tool_dest" ]; then
+                    file_size=$(wc -c <"$tool_dest" 2>/dev/null || echo "unknown")
+                    log_success "✅ $tool_basename installed ($file_size bytes)"
+                else
+                    log_error "❌ $tool_basename download succeeded but file is empty"
+                    return 1
+                fi
+            else
+                log_error "❌ Failed to download $tool_basename"
+                log_warning "Continuing without this tool - manual installation may be needed"
+            fi
+        fi
+    done
+
+    # Create convenience symlinks in the main scripts directory
+    log_info "Creating convenience symlinks for easy access..."
+    for tool in $log_tools; do
+        tool_basename=$(basename "$tool")
+        tool_source="$tools_dir/$tool_basename"
+        symlink_dest="$SCRIPTS_DIR/$tool_basename"
+
+        if [ "${DRY_RUN:-0}" = "1" ]; then
+            log_info "DRY-RUN: Would create symlink: $symlink_dest -> $tool_source"
+        else
+            # Remove existing symlink if it exists
+            [ -L "$symlink_dest" ] && rm -f "$symlink_dest"
+            
+            if smart_safe_execute "ln -sf '$tool_source' '$symlink_dest'" "Create symlink for $tool_basename"; then
+                log_debug "✅ Symlink created: $symlink_dest"
+            fi
+        fi
+    done
+
+    # Create a master log analysis script for easy access
+    master_script="$SCRIPTS_DIR/analyze-logs.sh"
+    
+    if [ "${DRY_RUN:-0}" = "1" ]; then
+        log_info "DRY-RUN: Would create master analysis script: $master_script"
+    else
+        log_info "Creating master log analysis script..."
+        cat > "$master_script" << 'EOF'
+#!/bin/sh
+# Master log analysis script for RUTOS Starlink deployment
+
+SCRIPT_DIR="$(dirname "$0")"
+DEPLOYMENT_LOG="${DEPLOYMENT_LOG_FILE:-/tmp/starlink-deployment-*.log}"
+
+echo "🔧 RUTOS Starlink Log Analysis Suite"
+echo "====================================="
+echo ""
+
+# Check if deployment log exists
+if [ -n "$DEPLOYMENT_LOG_FILE" ] && [ -f "$DEPLOYMENT_LOG_FILE" ]; then
+    echo "📂 Found deployment log: $DEPLOYMENT_LOG_FILE"
+    echo ""
+    
+    echo "1. Quick Error Filter (5 lines context):"
+    echo "   $SCRIPT_DIR/quick-error-filter.sh '$DEPLOYMENT_LOG_FILE'"
+    echo ""
+    
+    echo "2. Advanced Analysis (all severity levels):"
+    echo "   $SCRIPT_DIR/analyze-deployment-issues-rutos.sh '$DEPLOYMENT_LOG_FILE'"
+    echo ""
+    
+    echo "3. Critical Issues Only:"
+    echo "   $SCRIPT_DIR/analyze-deployment-issues-rutos.sh -s critical '$DEPLOYMENT_LOG_FILE'"
+    echo ""
+    
+    echo "4. RUTOS-specific Issues:"
+    echo "   $SCRIPT_DIR/analyze-deployment-issues-rutos.sh -r '$DEPLOYMENT_LOG_FILE'"
+    echo ""
+    
+    # If no arguments, run quick analysis
+    if [ $# -eq 0 ]; then
+        echo "🚀 Running quick analysis..."
+        echo "========================================="
+        "$SCRIPT_DIR/quick-error-filter.sh" "$DEPLOYMENT_LOG_FILE"
+    fi
+else
+    echo "⚠️  No deployment log found."
+    echo "Expected: $DEPLOYMENT_LOG_FILE"
+    echo ""
+    echo "Available tools:"
+    echo "  $SCRIPT_DIR/quick-error-filter.sh [log_file]"
+    echo "  $SCRIPT_DIR/analyze-deployment-issues-rutos.sh [options] [log_file]"
+    echo "  $SCRIPT_DIR/filter-errors-rutos.sh [options] [log_file]"
+fi
+
+echo ""
+echo "💡 Usage examples:"
+echo "   $0                                    # Quick analysis of deployment log"
+echo "   $0 /var/log/syslog                   # Analyze system log"
+echo "   ./deploy-script.sh 2>&1 | $SCRIPT_DIR/quick-error-filter.sh"
+echo "   $SCRIPT_DIR/analyze-deployment-issues-rutos.sh -f ./deploy-script.sh"
+EOF
+
+        smart_safe_execute "chmod +x '$master_script'" "Make master analysis script executable"
+        log_success "✅ Master analysis script created: $master_script"
+    fi
+
+    # Display installation summary
+    log_success "🎉 Log Analysis Tools Installation Complete!"
+    log_info "📋 Installed tools:"
+    for tool in $log_tools; do
+        tool_basename=$(basename "$tool")
+        log_info "   • $tool_basename → $SCRIPTS_DIR/$tool_basename"
+    done
+    
+    log_info "🎯 Quick access commands:"
+    log_info "   $master_script                           # Master analysis script"
+    log_info "   $SCRIPTS_DIR/quick-error-filter.sh [file]          # Quick error detection"
+    log_info "   $SCRIPTS_DIR/analyze-deployment-issues-rutos.sh [file]  # Advanced analysis"
+    
+    if [ -n "${DEPLOYMENT_LOG_FILE:-}" ]; then
+        log_info "📝 Current deployment log: $DEPLOYMENT_LOG_FILE"
+        log_info "💡 Analyze current deployment: $master_script"
+    fi
+
+    log_function_exit "deploy_log_analysis_tools"
+}
+
 # Check root privileges
 check_root_privileges() {
     log_function_entry "check_root_privileges"
@@ -3274,6 +3430,26 @@ main() {
 
     smart_step "Starlink Solution Deployment v$SCRIPT_VERSION - Intelligent Monitoring"
 
+    # CRITICAL: Setup deployment logging EARLY for analysis
+    ERROR_CONTEXT="Setting up deployment logging"
+    DEPLOYMENT_LOG_FILE="${LOG_DIR:-/tmp}/starlink-deployment-$(date +%Y%m%d-%H%M%S).log"
+    
+    # Ensure log directory exists
+    smart_safe_execute "mkdir -p '$(dirname "$DEPLOYMENT_LOG_FILE")'" "Create deployment log directory"
+    
+    # Setup deployment logging (tee to both console and log file)
+    if [ "${DRY_RUN:-0}" != "1" ]; then
+        smart_info "📝 Deployment log: $DEPLOYMENT_LOG_FILE"
+        smart_info "💡 Analyze deployment issues with:"
+        smart_info "   ./quick-error-filter.sh '$DEPLOYMENT_LOG_FILE'"
+        smart_info "   ./analyze-deployment-issues-rutos.sh '$DEPLOYMENT_LOG_FILE'"
+        
+        # Export log file for child scripts
+        export DEPLOYMENT_LOG_FILE
+    else
+        smart_info "📝 DRY-RUN: Would create deployment log at: $DEPLOYMENT_LOG_FILE"
+    fi
+
     # CRITICAL: Export debug environment for child scripts early
     ERROR_CONTEXT="Exporting debug environment"
     export_debug_environment
@@ -3325,6 +3501,8 @@ main() {
     install_required_packages
     ERROR_CONTEXT="Downloading binaries"
     download_binaries
+    ERROR_CONTEXT="Deploying log analysis tools"
+    deploy_log_analysis_tools
 
     # Configuration and recovery setup
     ERROR_CONTEXT="Generating configuration"
@@ -3485,8 +3663,25 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
         fi
     done
 
-    # Execute main deployment with enhanced error context
+    # Execute main deployment with enhanced error context and logging
     ERROR_CONTEXT="Main deployment execution"
+    
+    # Setup deployment logging if not in DRY_RUN mode
+    if [ "${DRY_RUN:-0}" != "1" ]; then
+        # Create initial log directory structure
+        mkdir -p "/tmp" 2>/dev/null || true
+        
+        # Execute with tee to log both stdout and stderr
+        printf "🚀 Starting deployment with logging enabled...\n"
+        printf "📝 All output will be captured for later analysis\n\n"
+        
+        # Use exec to redirect all output through tee
+        exec > >(tee -a "${DEPLOYMENT_LOG_FILE:-/tmp/starlink-deployment-$(date +%Y%m%d-%H%M%S).log}") 2>&1
+        
+        printf "📝 Deployment logging active: ${DEPLOYMENT_LOG_FILE:-/tmp/starlink-deployment-$(date +%Y%m%d-%H%M%S).log}\n"
+        printf "💡 Analyze issues with: ./quick-error-filter.sh [log_file]\n\n"
+    fi
+    
     main "$@"
 
     # Post-execution status with detailed reporting
@@ -3496,9 +3691,26 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
     if [ $exit_code -eq 0 ]; then
         smart_success "🎉 Deployment script completed successfully (exit code: $exit_code)"
         smart_info "✅ All deployment steps completed without errors"
+        
+        # Show log analysis information
+        if [ -n "${DEPLOYMENT_LOG_FILE:-}" ] && [ -f "${DEPLOYMENT_LOG_FILE:-}" ]; then
+            smart_info "📊 Deployment log available: $DEPLOYMENT_LOG_FILE"
+            smart_info "🔧 Analyze deployment log:"
+            smart_info "   ./analyze-logs.sh                    # Master analysis script"
+            smart_info "   ./quick-error-filter.sh '$DEPLOYMENT_LOG_FILE'"
+            smart_info "   ./analyze-deployment-issues-rutos.sh '$DEPLOYMENT_LOG_FILE'"
+        fi
     else
         smart_error "❌ Deployment script failed (exit code: $exit_code)"
         smart_error "🔍 Check the error output above for specific failure details"
+        
+        # Enhanced troubleshooting with log analysis
+        if [ -n "${DEPLOYMENT_LOG_FILE:-}" ] && [ -f "${DEPLOYMENT_LOG_FILE:-}" ]; then
+            smart_error "📊 Analyze deployment failures:"
+            smart_error "   ./quick-error-filter.sh '$DEPLOYMENT_LOG_FILE'  # Quick error scan"
+            smart_error "   ./analyze-deployment-issues-rutos.sh -s critical '$DEPLOYMENT_LOG_FILE'  # Critical issues"
+            smart_error "   ./analyze-deployment-issues-rutos.sh -r '$DEPLOYMENT_LOG_FILE'  # RUTOS-specific issues"
+        fi
 
         # Provide context-specific help based on exit code
         case $exit_code in
