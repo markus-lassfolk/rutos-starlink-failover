@@ -3062,7 +3062,7 @@ configure_mwan3_starlink_api_routing() {
     log_step "🌐 Configuring MWAN3 Starlink API Routing"
 
     log_info "Configuring direct routing to Starlink API (192.168.100.1) bypassing MWAN3 load balancing"
-    log_info "This ensures API access works even when Starlink is in standby mode"
+    log_info "This ensures API access works from all internal networks even when Starlink is in standby mode"
 
     # Check if MWAN3 is available
     if ! command -v mwan3 >/dev/null 2>&1; then
@@ -3076,32 +3076,58 @@ configure_mwan3_starlink_api_routing() {
     starlink_ip="${STARLINK_IP:-192.168.100.1}"
     rutos_ip="${RUTOS_IP:-192.168.80.1}"
 
+    # Define internal network ranges that should have access to Starlink API
+    internal_networks="192.168.1.0/24 192.168.80.0/24 192.168.20.0/24"
+
     log_info "Configuration parameters:"
     log_info "  Starlink interface: $starlink_interface"
     log_info "  Starlink API IP: $starlink_ip"
     log_info "  RUTOS router IP: $rutos_ip"
+    log_info "  Internal networks: $internal_networks"
 
-    # === MWAN3 RULE FOR STARLINK API ACCESS ===
-    log_info "Creating MWAN3 rule for Starlink API access..."
+    # === MWAN3 RULES FOR STARLINK API ACCESS FROM INTERNAL NETWORKS ===
+    log_info "Creating MWAN3 rules for Starlink API access from internal networks..."
     
-    # Create a dedicated rule to route Starlink API traffic directly through the Starlink interface
-    # This bypasses MWAN3 load balancing for API calls
-    rule_name="starlink_api_direct"
+    # Create rules for each internal network
+    rule_counter=1
+    for network in $internal_networks; do
+        rule_name="starlink_api_${rule_counter}"
+        
+        log_trace_command "Check existing Starlink API rule for $network" "uci show mwan3.${rule_name}"
+        if uci show "mwan3.${rule_name}" >/dev/null 2>&1; then
+            log_info "Starlink API rule for $network already exists - updating..."
+            smart_safe_execute "uci delete mwan3.${rule_name}" "Remove existing Starlink API rule for $network"
+        fi
+
+        # Create rule for this internal network to access Starlink API
+        log_trace_command "Create Starlink API rule for $network" "uci set mwan3.${rule_name}=rule"
+        smart_safe_execute "uci set mwan3.${rule_name}=rule" "Create Starlink API rule section for $network"
+        smart_safe_execute "uci set mwan3.${rule_name}.src_ip='${network}'" "Set source network: $network"
+        smart_safe_execute "uci set mwan3.${rule_name}.dest_ip='${starlink_ip}/32'" "Set destination IP for Starlink API"
+        smart_safe_execute "uci set mwan3.${rule_name}.use_policy='${starlink_interface}_only'" "Set policy to use Starlink interface only"
+        smart_safe_execute "uci set mwan3.${rule_name}.priority='10'" "Set high priority for API rule"
+
+        log_success "✅ Starlink API rule created: ${rule_name} (${network} → ${starlink_ip})"
+        rule_counter=$((rule_counter + 1))
+    done
+
+    # Also create a general rule for any source to Starlink API (as fallback)
+    rule_name="starlink_api_general"
     
-    log_trace_command "Check existing Starlink API rule" "uci show mwan3.${rule_name}"
+    log_trace_command "Check existing general Starlink API rule" "uci show mwan3.${rule_name}"
     if uci show "mwan3.${rule_name}" >/dev/null 2>&1; then
-        log_info "Starlink API rule already exists - updating..."
-        smart_safe_execute "uci delete mwan3.${rule_name}" "Remove existing Starlink API rule"
+        log_info "General Starlink API rule already exists - updating..."
+        smart_safe_execute "uci delete mwan3.${rule_name}" "Remove existing general Starlink API rule"
     fi
 
-    # Create the rule for direct Starlink API access
-    log_trace_command "Create Starlink API rule" "uci set mwan3.${rule_name}=rule"
-    smart_safe_execute "uci set mwan3.${rule_name}=rule" "Create Starlink API rule section"
+    # Create the general rule for direct Starlink API access (lower priority fallback)
+    log_trace_command "Create general Starlink API rule" "uci set mwan3.${rule_name}=rule"
+    smart_safe_execute "uci set mwan3.${rule_name}=rule" "Create general Starlink API rule section"
     smart_safe_execute "uci set mwan3.${rule_name}.dest_ip='${starlink_ip}/32'" "Set destination IP for Starlink API"
     smart_safe_execute "uci set mwan3.${rule_name}.use_policy='${starlink_interface}_only'" "Set policy to use Starlink interface only"
-    smart_safe_execute "uci set mwan3.${rule_name}.priority='10'" "Set high priority for API rule"
+    smart_safe_execute "uci set mwan3.${rule_name}.priority='15'" "Set medium priority for general API rule"
 
-    log_success "✅ Starlink API rule created: ${rule_name}"
+    log_success "✅ General Starlink API rule created: ${rule_name} (fallback for any source)"
 
     # === MWAN3 POLICY FOR STARLINK-ONLY TRAFFIC ===
     log_info "Creating MWAN3 policy for Starlink-only traffic..."
@@ -3192,10 +3218,12 @@ configure_mwan3_starlink_api_routing() {
 
     log_success "🌐 Starlink API routing configuration completed!"
     log_info "📡 Benefits of this configuration:"
-    log_info "   • Starlink API (${starlink_ip}) always accessible from RUTOS router"
+    log_info "   • Starlink API (${starlink_ip}) always accessible from all internal networks"
+    log_info "   • API access works from: $(echo "$internal_networks" | tr ' ' ',')"
     log_info "   • API access works regardless of MWAN3 primary/standby status"
     log_info "   • Monitoring and configuration remain functional during failover"
     log_info "   • High-priority routing ensures reliable API communication"
+    log_info "   • Multiple rules provide comprehensive coverage for all internal subnets"
     
     log_info "🧪 Test the configuration with:"
     log_info "   ping ${starlink_ip}                    # Basic connectivity"
