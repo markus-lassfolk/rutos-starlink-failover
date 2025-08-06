@@ -1579,31 +1579,32 @@ generate_enhanced_config() {
 #!/bin/sh
 # Minimal Starlink Solution Configuration (Fallback Template)
 # This fallback template is used when repository download fails
+# Format: VARIABLE_NAME="value" (simple format for easy user editing)
 
 # === BASIC CONFIGURATION ===
-export STARLINK_IP="${STARLINK_IP:-192.168.100.1}"
-export STARLINK_PORT="${STARLINK_PORT:-9200}"
-export RUTOS_IP="${RUTOS_IP:-192.168.80.1}"
+export STARLINK_IP="192.168.100.1"         # Starlink dish IP address
+export STARLINK_PORT="9200"                # Starlink gRPC API port
+export RUTOS_IP="192.168.80.1"            # RUTOS router IP address
 
 # === FEATURE TOGGLES ===
-export ENABLE_STARLINK_MONITORING="${ENABLE_STARLINK_MONITORING:-true}"
-export ENABLE_GPS="${ENABLE_GPS:-true}"
-export ENABLE_AZURE="${ENABLE_AZURE:-false}"
-export ENABLE_PUSHOVER="${ENABLE_PUSHOVER:-false}"
+export ENABLE_STARLINK_MONITORING="true"   # Enable Starlink quality monitoring
+export ENABLE_GPS="true"                   # Enable GPS location tracking
+export ENABLE_AZURE="false"                # Enable Azure integration
+export ENABLE_PUSHOVER="false"             # Enable Pushover notifications
 
 # === MONITORING CONFIGURATION ===
-export MONITORING_MODE="${MONITORING_MODE:-daemon}"
-export DAEMON_AUTOSTART="${DAEMON_AUTOSTART:-true}"
-export MONITORING_INTERVAL="${MONITORING_INTERVAL:-60}"
+export MONITORING_MODE="daemon"            # Monitoring mode: daemon, hybrid, or cron
+export DAEMON_AUTOSTART="true"             # Start monitoring daemon at boot
+export MONITORING_INTERVAL="60"            # Main monitoring interval in seconds
 
 # === BINARY PATHS ===
-export GRPCURL_CMD="${GRPCURL_CMD:-/usr/local/starlink/bin/grpcurl}"
-export JQ_CMD="${JQ_CMD:-/usr/local/starlink/bin/jq}"
+export GRPCURL_CMD="/usr/local/starlink/bin/grpcurl"    # Path to grpcurl binary
+export JQ_CMD="/usr/local/starlink/bin/jq"              # Path to jq binary
 
 # === DEVELOPMENT/DEBUG ===
-export DEBUG="${DEBUG:-0}"
-export DRY_RUN="${DRY_RUN:-0}"
-export RUTOS_TEST_MODE="${RUTOS_TEST_MODE:-0}"
+export DEBUG="0"                           # Enable debug logging (0=off, 1=on)
+export DRY_RUN="0"                         # Dry-run mode (0=off, 1=on)
+export RUTOS_TEST_MODE="0"                 # Test mode (0=off, 1=on)
 EOF
             log_info "Created minimal fallback template"
         fi
@@ -1611,76 +1612,82 @@ EOF
 
     # Update template with deployment-specific paths
     log_info "Customizing template with deployment-specific paths..."
-
+    
     # Use a temporary file for path substitution to avoid modifying the original template
     temp_template="${template_config}.customized.$$"
-
-    # Replace template placeholders with actual detected paths
+    
+    # Replace template placeholders with actual detected paths using simple string replacement
     sed \
-        -e "s|/usr/local/starlink|$INSTALL_BASE_DIR|g" \
-        -e "s|/usr/local/starlink/config|$CONFIG_DIR|g" \
-        -e "s|/usr/local/starlink/bin|$SCRIPTS_DIR|g" \
-        -e "s|/usr/local/starlink/logs|$LOG_DIR|g" \
-        -e "s|/usr/local/starlink/state|$STATE_DIR|g" \
-        -e "s|/usr/local/starlink/lib|$LIB_DIR|g" \
-        "$template_config" >"$temp_template"
-
-    # Replace the template with the customized version
+        -e "s|export INSTALL_BASE_DIR=\"/usr/local/starlink\"|export INSTALL_BASE_DIR=\"$INSTALL_BASE_DIR\"|g" \
+        -e "s|export CONFIG_DIR=\"/usr/local/starlink/config\"|export CONFIG_DIR=\"$CONFIG_DIR\"|g" \
+        -e "s|export SCRIPTS_DIR=\"/usr/local/starlink/bin\"|export SCRIPTS_DIR=\"$SCRIPTS_DIR\"|g" \
+        -e "s|export LOG_DIR=\"/usr/local/starlink/logs\"|export LOG_DIR=\"$LOG_DIR\"|g" \
+        -e "s|export STATE_DIR=\"/usr/local/starlink/state\"|export STATE_DIR=\"$STATE_DIR\"|g" \
+        -e "s|export LIB_DIR=\"/usr/local/starlink/lib\"|export LIB_DIR=\"$LIB_DIR\"|g" \
+        "$template_config" >"$temp_template"    # Replace the template with the customized version
     mv "$temp_template" "$template_config"
 
     # Set installation timestamp in template
     if [ "${DRY_RUN:-0}" != "1" ]; then
-        sed -i "s/INSTALLATION_DATE=\"\"/INSTALLATION_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" "$template_config"
-        sed -i "s/LAST_UPDATE_DATE=\"\"/LAST_UPDATE_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" "$template_config"
+        sed -i "s/export INSTALLATION_DATE=\"\"/export INSTALLATION_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" "$template_config"
+        sed -i "s/export LAST_UPDATE_DATE=\"\"/export LAST_UPDATE_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" "$template_config"
+        
+        # Set auto-populated paths that were left empty in template
+        sed -i "s|export LOG_BASE_DIR=\"\"|export LOG_BASE_DIR=\"$LOG_DIR\"|" "$template_config"
+        sed -i "s|export METRICS_LOG_DIR=\"\"|export METRICS_LOG_DIR=\"$LOG_DIR/metrics\"|" "$template_config"
+        sed -i "s|export GPS_LOG_DIR=\"\"|export GPS_LOG_DIR=\"$LOG_DIR/gps\"|" "$template_config"
+        sed -i "s|export AGGREGATED_LOG_DIR=\"\"|export AGGREGATED_LOG_DIR=\"$LOG_DIR/aggregated\"|" "$template_config"
+        sed -i "s|export ARCHIVE_LOG_DIR=\"\"|export ARCHIVE_LOG_DIR=\"$LOG_DIR/archive\"|" "$template_config"
+        sed -i "s|export GRPCURL_CMD=\"\"|export GRPCURL_CMD=\"$SCRIPTS_DIR/grpcurl\"|" "$template_config"
+        sed -i "s|export JQ_CMD=\"\"|export JQ_CMD=\"$SCRIPTS_DIR/jq\"|" "$template_config"
+        sed -i "s|export RECOVERY_SCRIPT=\"\"|export RECOVERY_SCRIPT=\"$SCRIPTS_DIR/recover-after-firmware-upgrade.sh\"|" "$template_config"
     fi
 
     log_success "Template customized with deployment paths"
 
     # Apply user configuration overrides from collection phase
     log_info "Applying user configuration overrides to template..."
-
+    
     # Update template with collected user values (if different from defaults)
     if [ "$STARLINK_IP" != "192.168.100.1" ]; then
-        sed -i "s/192.168.100.1/$STARLINK_IP/g" "$template_config"
+        sed -i "s/export STARLINK_IP=\"192.168.100.1\"/export STARLINK_IP=\"$STARLINK_IP\"/" "$template_config"
         log_debug "Updated STARLINK_IP to $STARLINK_IP"
     fi
-
+    
     if [ "$RUTOS_IP" != "192.168.80.1" ]; then
-        sed -i "s/192.168.80.1/$RUTOS_IP/g" "$template_config"
+        sed -i "s/export RUTOS_IP=\"192.168.80.1\"/export RUTOS_IP=\"$RUTOS_IP\"/" "$template_config"
         log_debug "Updated RUTOS_IP to $RUTOS_IP"
     fi
-
+    
     # Update feature toggles with collected values
-    sed -i "s/ENABLE_STARLINK_MONITORING=\"true\"/ENABLE_STARLINK_MONITORING=\"$ENABLE_STARLINK_MONITORING\"/" "$template_config"
-    sed -i "s/ENABLE_GPS=\"true\"/ENABLE_GPS=\"$ENABLE_GPS\"/" "$template_config"
-    sed -i "s/ENABLE_AZURE=\"false\"/ENABLE_AZURE=\"$ENABLE_AZURE\"/" "$template_config"
-    sed -i "s/ENABLE_PUSHOVER=\"false\"/ENABLE_PUSHOVER=\"$ENABLE_PUSHOVER\"/" "$template_config"
-
+    sed -i "s/export ENABLE_STARLINK_MONITORING=\"true\"/export ENABLE_STARLINK_MONITORING=\"$ENABLE_STARLINK_MONITORING\"/" "$template_config"
+    sed -i "s/export ENABLE_GPS=\"true\"/export ENABLE_GPS=\"$ENABLE_GPS\"/" "$template_config"
+    sed -i "s/export ENABLE_AZURE=\"false\"/export ENABLE_AZURE=\"$ENABLE_AZURE\"/" "$template_config"
+    sed -i "s/export ENABLE_PUSHOVER=\"false\"/export ENABLE_PUSHOVER=\"$ENABLE_PUSHOVER\"/" "$template_config"
+    
     # Update Azure settings if configured
     if [ -n "${AZURE_ENDPOINT:-}" ]; then
-        sed -i "s|AZURE_ENDPOINT=\"\"|AZURE_ENDPOINT=\"$AZURE_ENDPOINT\"|" "$template_config"
+        sed -i "s|export AZURE_ENDPOINT=\"\"|export AZURE_ENDPOINT=\"$AZURE_ENDPOINT\"|" "$template_config"
         log_debug "Updated AZURE_ENDPOINT"
     fi
-
-    # Update Pushover settings if configured
+    
+    # Update Pushover settings if configured  
     if [ -n "${PUSHOVER_USER_KEY:-}" ]; then
-        sed -i "s/PUSHOVER_USER_KEY=\"\"/PUSHOVER_USER_KEY=\"$PUSHOVER_USER_KEY\"/" "$template_config"
+        sed -i "s/export PUSHOVER_USER_KEY=\"\"/export PUSHOVER_USER_KEY=\"$PUSHOVER_USER_KEY\"/" "$template_config"
         log_debug "Updated PUSHOVER_USER_KEY"
     fi
-
+    
     if [ -n "${PUSHOVER_API_TOKEN:-}" ]; then
-        sed -i "s/PUSHOVER_API_TOKEN=\"\"/PUSHOVER_API_TOKEN=\"$PUSHOVER_API_TOKEN\"/" "$template_config"
+        sed -i "s/export PUSHOVER_API_TOKEN=\"\"/export PUSHOVER_API_TOKEN=\"$PUSHOVER_API_TOKEN\"/" "$template_config"
         log_debug "Updated PUSHOVER_API_TOKEN"
     fi
-
+    
     # Update monitoring configuration
-    sed -i "s/MONITORING_MODE=\"daemon\"/MONITORING_MODE=\"$MONITORING_MODE\"/" "$template_config"
-    sed -i "s/DAEMON_AUTOSTART=\"true\"/DAEMON_AUTOSTART=\"$DAEMON_AUTOSTART\"/" "$template_config"
-    sed -i "s/MONITORING_INTERVAL=\"60\"/MONITORING_INTERVAL=\"$MONITORING_INTERVAL\"/" "$template_config"
-    sed -i "s/QUICK_CHECK_INTERVAL=\"30\"/QUICK_CHECK_INTERVAL=\"$QUICK_CHECK_INTERVAL\"/" "$template_config"
-    sed -i "s/DEEP_ANALYSIS_INTERVAL=\"300\"/DEEP_ANALYSIS_INTERVAL=\"$DEEP_ANALYSIS_INTERVAL\"/" "$template_config"
-
-    log_success "User configuration overrides applied to template"
+    sed -i "s/export MONITORING_MODE=\"daemon\"/export MONITORING_MODE=\"$MONITORING_MODE\"/" "$template_config"
+    sed -i "s/export DAEMON_AUTOSTART=\"true\"/export DAEMON_AUTOSTART=\"$DAEMON_AUTOSTART\"/" "$template_config"
+    sed -i "s/export MONITORING_INTERVAL=\"60\"/export MONITORING_INTERVAL=\"$MONITORING_INTERVAL\"/" "$template_config"
+    sed -i "s/export QUICK_CHECK_INTERVAL=\"30\"/export QUICK_CHECK_INTERVAL=\"$QUICK_CHECK_INTERVAL\"/" "$template_config"
+    sed -i "s/export DEEP_ANALYSIS_INTERVAL=\"300\"/export DEEP_ANALYSIS_INTERVAL=\"$DEEP_ANALYSIS_INTERVAL\"/" "$template_config"    log_success "User configuration overrides applied to template"
 
     # === PRE-MERGE ANALYSIS ===
     log_info "=== PRE-MERGE CONFIGURATION ANALYSIS ==="
