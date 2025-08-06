@@ -1454,7 +1454,7 @@ intelligent_config_merge() {
 
                 # Create a safer replacement using a temporary file approach
                 temp_config="${output_config}.temp.$$"
-                
+
                 # Verify temp file path
                 log_debug "  -> Using temp file: $temp_config"
 
@@ -1561,9 +1561,9 @@ generate_enhanced_config() {
     current_config="$CONFIG_DIR/config.sh"
 
     log_info "Downloading configuration template from repository..."
-    
+
     config_template_url="https://github.com/markus-lassfolk/rutos-starlink-failover/raw/main/config/config.template.sh"
-    
+
     if [ "${DRY_RUN:-0}" = "1" ]; then
         log_info "DRY-RUN: Would download $config_template_url to $template_config"
     else
@@ -1573,7 +1573,7 @@ generate_enhanced_config() {
         else
             log_warning "Failed to download configuration template from repository"
             log_warning "Falling back to embedded minimal template"
-            
+
             # Create minimal embedded template as fallback
             cat >"$template_config" <<'EOF'
 #!/bin/sh
@@ -1611,10 +1611,10 @@ EOF
 
     # Update template with deployment-specific paths
     log_info "Customizing template with deployment-specific paths..."
-    
+
     # Use a temporary file for path substitution to avoid modifying the original template
     temp_template="${template_config}.customized.$$"
-    
+
     # Replace template placeholders with actual detected paths
     sed \
         -e "s|/usr/local/starlink|$INSTALL_BASE_DIR|g" \
@@ -1623,11 +1623,11 @@ EOF
         -e "s|/usr/local/starlink/logs|$LOG_DIR|g" \
         -e "s|/usr/local/starlink/state|$STATE_DIR|g" \
         -e "s|/usr/local/starlink/lib|$LIB_DIR|g" \
-        "$template_config" > "$temp_template"
-    
+        "$template_config" >"$temp_template"
+
     # Replace the template with the customized version
     mv "$temp_template" "$template_config"
-    
+
     # Set installation timestamp in template
     if [ "${DRY_RUN:-0}" != "1" ]; then
         sed -i "s/INSTALLATION_DATE=\"\"/INSTALLATION_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" "$template_config"
@@ -1638,58 +1638,58 @@ EOF
 
     # Apply user configuration overrides from collection phase
     log_info "Applying user configuration overrides to template..."
-    
+
     # Update template with collected user values (if different from defaults)
     if [ "$STARLINK_IP" != "192.168.100.1" ]; then
         sed -i "s/192.168.100.1/$STARLINK_IP/g" "$template_config"
         log_debug "Updated STARLINK_IP to $STARLINK_IP"
     fi
-    
+
     if [ "$RUTOS_IP" != "192.168.80.1" ]; then
         sed -i "s/192.168.80.1/$RUTOS_IP/g" "$template_config"
         log_debug "Updated RUTOS_IP to $RUTOS_IP"
     fi
-    
+
     # Update feature toggles with collected values
     sed -i "s/ENABLE_STARLINK_MONITORING=\"true\"/ENABLE_STARLINK_MONITORING=\"$ENABLE_STARLINK_MONITORING\"/" "$template_config"
     sed -i "s/ENABLE_GPS=\"true\"/ENABLE_GPS=\"$ENABLE_GPS\"/" "$template_config"
     sed -i "s/ENABLE_AZURE=\"false\"/ENABLE_AZURE=\"$ENABLE_AZURE\"/" "$template_config"
     sed -i "s/ENABLE_PUSHOVER=\"false\"/ENABLE_PUSHOVER=\"$ENABLE_PUSHOVER\"/" "$template_config"
-    
+
     # Update Azure settings if configured
     if [ -n "${AZURE_ENDPOINT:-}" ]; then
         sed -i "s|AZURE_ENDPOINT=\"\"|AZURE_ENDPOINT=\"$AZURE_ENDPOINT\"|" "$template_config"
         log_debug "Updated AZURE_ENDPOINT"
     fi
-    
-    # Update Pushover settings if configured  
+
+    # Update Pushover settings if configured
     if [ -n "${PUSHOVER_USER_KEY:-}" ]; then
         sed -i "s/PUSHOVER_USER_KEY=\"\"/PUSHOVER_USER_KEY=\"$PUSHOVER_USER_KEY\"/" "$template_config"
         log_debug "Updated PUSHOVER_USER_KEY"
     fi
-    
+
     if [ -n "${PUSHOVER_API_TOKEN:-}" ]; then
         sed -i "s/PUSHOVER_API_TOKEN=\"\"/PUSHOVER_API_TOKEN=\"$PUSHOVER_API_TOKEN\"/" "$template_config"
         log_debug "Updated PUSHOVER_API_TOKEN"
     fi
-    
+
     # Update monitoring configuration
     sed -i "s/MONITORING_MODE=\"daemon\"/MONITORING_MODE=\"$MONITORING_MODE\"/" "$template_config"
     sed -i "s/DAEMON_AUTOSTART=\"true\"/DAEMON_AUTOSTART=\"$DAEMON_AUTOSTART\"/" "$template_config"
     sed -i "s/MONITORING_INTERVAL=\"60\"/MONITORING_INTERVAL=\"$MONITORING_INTERVAL\"/" "$template_config"
     sed -i "s/QUICK_CHECK_INTERVAL=\"30\"/QUICK_CHECK_INTERVAL=\"$QUICK_CHECK_INTERVAL\"/" "$template_config"
     sed -i "s/DEEP_ANALYSIS_INTERVAL=\"300\"/DEEP_ANALYSIS_INTERVAL=\"$DEEP_ANALYSIS_INTERVAL\"/" "$template_config"
-    
+
     log_success "User configuration overrides applied to template"
 
     # === PRE-MERGE ANALYSIS ===
     log_info "=== PRE-MERGE CONFIGURATION ANALYSIS ==="
-    
+
     if [ -f "$current_config" ]; then
         log_info "Current config file exists: $current_config"
         log_info "Current config size: $(wc -l <"$current_config") lines, $(wc -c <"$current_config") bytes"
         log_info "Current config modification time: $(stat -c %y "$current_config" 2>/dev/null || ls -l "$current_config" | awk '{print $6, $7, $8}')"
-        
+
         # Show critical user settings before merge
         log_info "=== CRITICAL USER SETTINGS BEFORE MERGE ==="
         for critical_var in STARLINK_IP RUTOS_IP MONITORING_MODE CHECK_INTERVAL FAILOVER_THRESHOLD RECOVERY_THRESHOLD; do
@@ -1703,7 +1703,7 @@ EOF
                 log_info "  BEFORE: $critical_var = [NOT FOUND]"
             fi
         done
-        
+
         # Create a pre-merge snapshot for debugging
         pre_merge_snapshot="${current_config}.pre-merge.$(date +%Y%m%d_%H%M%S)"
         cp "$current_config" "$pre_merge_snapshot"
@@ -1711,7 +1711,7 @@ EOF
     else
         log_info "No existing config file found - this is a fresh installation"
     fi
-    
+
     log_info "Template file: $template_config"
     log_info "Template size: $(wc -l <"$template_config") lines, $(wc -c <"$template_config") bytes"
 
@@ -1719,13 +1719,13 @@ EOF
     log_info "=== STARTING INTELLIGENT CONFIG MERGE ==="
     if intelligent_config_merge "$template_config" "$current_config" "$current_config"; then
         log_success "Configuration merged successfully"
-        
+
         # === POST-MERGE VERIFICATION ===
         log_info "=== POST-MERGE CONFIGURATION VERIFICATION ==="
         if [ -f "$current_config" ]; then
             log_info "Merged config size: $(wc -l <"$current_config") lines, $(wc -c <"$current_config") bytes"
             log_info "Merged config modification time: $(stat -c %y "$current_config" 2>/dev/null || ls -l "$current_config" | awk '{print $6, $7, $8}')"
-            
+
             # Verify critical user settings after merge
             log_info "=== CRITICAL USER SETTINGS AFTER MERGE ==="
             for critical_var in STARLINK_IP RUTOS_IP MONITORING_MODE CHECK_INTERVAL FAILOVER_THRESHOLD RECOVERY_THRESHOLD; do
@@ -1739,7 +1739,7 @@ EOF
                     log_error "  AFTER:  $critical_var = [NOT FOUND] ⚠️  VARIABLE LOST!"
                 fi
             done
-            
+
             # Create post-merge snapshot for debugging
             post_merge_snapshot="${current_config}.post-merge.$(date +%Y%m%d_%H%M%S)"
             cp "$current_config" "$post_merge_snapshot"
@@ -1748,7 +1748,7 @@ EOF
             log_error "CRITICAL: Config file disappeared after merge!"
             return 1
         fi
-        
+
         # Clean up template
         rm -f "$template_config"
     else

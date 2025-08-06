@@ -49,13 +49,13 @@ export QUICK_CHECK_INTERVAL="${QUICK_CHECK_INTERVAL:-30}"
 export DEEP_ANALYSIS_INTERVAL="${DEEP_ANALYSIS_INTERVAL:-300}"
 
 # === INTELLIGENT LOGGING CONFIGURATION ===
-export HIGH_FREQ_INTERVAL="${HIGH_FREQ_INTERVAL:-1}"           # 1 second for unlimited connections
-export LOW_FREQ_INTERVAL="${LOW_FREQ_INTERVAL:-60}"          # 60 seconds for limited data connections
-export GPS_COLLECTION_INTERVAL="${GPS_COLLECTION_INTERVAL:-60}"    # GPS every minute
-export AGGREGATION_WINDOW="${AGGREGATION_WINDOW:-60}"         # 60-second aggregation windows
-export PERCENTILES="${PERCENTILES:-50,90,95,99}"       # Percentiles to calculate
-export LOG_RETENTION_HOURS="${LOG_RETENTION_HOURS:-24}"        # 24 hours of detailed logs
-export ARCHIVE_RETENTION_DAYS="${ARCHIVE_RETENTION_DAYS:-7}"      # 7 days of compressed archives
+export HIGH_FREQ_INTERVAL="${HIGH_FREQ_INTERVAL:-1}"            # 1 second for unlimited connections
+export LOW_FREQ_INTERVAL="${LOW_FREQ_INTERVAL:-60}"             # 60 seconds for limited data connections
+export GPS_COLLECTION_INTERVAL="${GPS_COLLECTION_INTERVAL:-60}" # GPS every minute
+export AGGREGATION_WINDOW="${AGGREGATION_WINDOW:-60}"           # 60-second aggregation windows
+export PERCENTILES="${PERCENTILES:-50,90,95,99}"                # Percentiles to calculate
+export LOG_RETENTION_HOURS="${LOG_RETENTION_HOURS:-24}"         # 24 hours of detailed logs
+export ARCHIVE_RETENTION_DAYS="${ARCHIVE_RETENTION_DAYS:-7}"    # 7 days of compressed archives
 
 # === LOGGING DIRECTORIES (PERSISTENT) ===
 export LOG_BASE_DIR="${LOG_BASE_DIR:-${LOG_DIR}}"
