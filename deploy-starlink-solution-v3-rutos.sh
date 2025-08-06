@@ -1612,10 +1612,10 @@ EOF
 
     # Update template with deployment-specific paths
     log_info "Customizing template with deployment-specific paths..."
-    
+
     # Use a temporary file for path substitution to avoid modifying the original template
     temp_template="${template_config}.customized.$$"
-    
+
     # Replace template placeholders with actual detected paths using simple string replacement
     sed \
         -e "s|export INSTALL_BASE_DIR=\"/usr/local/starlink\"|export INSTALL_BASE_DIR=\"$INSTALL_BASE_DIR\"|g" \
@@ -1624,14 +1624,14 @@ EOF
         -e "s|export LOG_DIR=\"/usr/local/starlink/logs\"|export LOG_DIR=\"$LOG_DIR\"|g" \
         -e "s|export STATE_DIR=\"/usr/local/starlink/state\"|export STATE_DIR=\"$STATE_DIR\"|g" \
         -e "s|export LIB_DIR=\"/usr/local/starlink/lib\"|export LIB_DIR=\"$LIB_DIR\"|g" \
-        "$template_config" >"$temp_template"    # Replace the template with the customized version
+        "$template_config" >"$temp_template" # Replace the template with the customized version
     mv "$temp_template" "$template_config"
 
     # Set installation timestamp in template
     if [ "${DRY_RUN:-0}" != "1" ]; then
         sed -i "s/export INSTALLATION_DATE=\"\"/export INSTALLATION_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" "$template_config"
         sed -i "s/export LAST_UPDATE_DATE=\"\"/export LAST_UPDATE_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" "$template_config"
-        
+
         # Set auto-populated paths that were left empty in template
         sed -i "s|export LOG_BASE_DIR=\"\"|export LOG_BASE_DIR=\"$LOG_DIR\"|" "$template_config"
         sed -i "s|export METRICS_LOG_DIR=\"\"|export METRICS_LOG_DIR=\"$LOG_DIR/metrics\"|" "$template_config"
@@ -1647,47 +1647,47 @@ EOF
 
     # Apply user configuration overrides from collection phase
     log_info "Applying user configuration overrides to template..."
-    
+
     # Update template with collected user values (if different from defaults)
     if [ "$STARLINK_IP" != "192.168.100.1" ]; then
         sed -i "s/export STARLINK_IP=\"192.168.100.1\"/export STARLINK_IP=\"$STARLINK_IP\"/" "$template_config"
         log_debug "Updated STARLINK_IP to $STARLINK_IP"
     fi
-    
+
     if [ "$RUTOS_IP" != "192.168.80.1" ]; then
         sed -i "s/export RUTOS_IP=\"192.168.80.1\"/export RUTOS_IP=\"$RUTOS_IP\"/" "$template_config"
         log_debug "Updated RUTOS_IP to $RUTOS_IP"
     fi
-    
+
     # Update feature toggles with collected values
     sed -i "s/export ENABLE_STARLINK_MONITORING=\"true\"/export ENABLE_STARLINK_MONITORING=\"$ENABLE_STARLINK_MONITORING\"/" "$template_config"
     sed -i "s/export ENABLE_GPS=\"true\"/export ENABLE_GPS=\"$ENABLE_GPS\"/" "$template_config"
     sed -i "s/export ENABLE_AZURE=\"false\"/export ENABLE_AZURE=\"$ENABLE_AZURE\"/" "$template_config"
     sed -i "s/export ENABLE_PUSHOVER=\"false\"/export ENABLE_PUSHOVER=\"$ENABLE_PUSHOVER\"/" "$template_config"
-    
+
     # Update Azure settings if configured
     if [ -n "${AZURE_ENDPOINT:-}" ]; then
         sed -i "s|export AZURE_ENDPOINT=\"\"|export AZURE_ENDPOINT=\"$AZURE_ENDPOINT\"|" "$template_config"
         log_debug "Updated AZURE_ENDPOINT"
     fi
-    
-    # Update Pushover settings if configured  
+
+    # Update Pushover settings if configured
     if [ -n "${PUSHOVER_USER_KEY:-}" ]; then
         sed -i "s/export PUSHOVER_USER_KEY=\"\"/export PUSHOVER_USER_KEY=\"$PUSHOVER_USER_KEY\"/" "$template_config"
         log_debug "Updated PUSHOVER_USER_KEY"
     fi
-    
+
     if [ -n "${PUSHOVER_API_TOKEN:-}" ]; then
         sed -i "s/export PUSHOVER_API_TOKEN=\"\"/export PUSHOVER_API_TOKEN=\"$PUSHOVER_API_TOKEN\"/" "$template_config"
         log_debug "Updated PUSHOVER_API_TOKEN"
     fi
-    
+
     # Update monitoring configuration
     sed -i "s/export MONITORING_MODE=\"daemon\"/export MONITORING_MODE=\"$MONITORING_MODE\"/" "$template_config"
     sed -i "s/export DAEMON_AUTOSTART=\"true\"/export DAEMON_AUTOSTART=\"$DAEMON_AUTOSTART\"/" "$template_config"
     sed -i "s/export MONITORING_INTERVAL=\"60\"/export MONITORING_INTERVAL=\"$MONITORING_INTERVAL\"/" "$template_config"
     sed -i "s/export QUICK_CHECK_INTERVAL=\"30\"/export QUICK_CHECK_INTERVAL=\"$QUICK_CHECK_INTERVAL\"/" "$template_config"
-    sed -i "s/export DEEP_ANALYSIS_INTERVAL=\"300\"/export DEEP_ANALYSIS_INTERVAL=\"$DEEP_ANALYSIS_INTERVAL\"/" "$template_config"    log_success "User configuration overrides applied to template"
+    sed -i "s/export DEEP_ANALYSIS_INTERVAL=\"300\"/export DEEP_ANALYSIS_INTERVAL=\"$DEEP_ANALYSIS_INTERVAL\"/" "$template_config" log_success "User configuration overrides applied to template"
 
     # === PRE-MERGE ANALYSIS ===
     log_info "=== PRE-MERGE CONFIGURATION ANALYSIS ==="
@@ -2186,12 +2186,32 @@ auto_discover_mwan3_config() {
     log_debug "UCI mwan3 configuration accessible - proceeding with discovery"
     log_debug "UCI output length: $(echo "$uci_test_output" | wc -l) lines"
 
+    # Validate the UCI output is not empty and contains expected structure
+    if ! echo "$uci_test_output" | grep -q "^mwan3\."; then
+        log_warning "UCI mwan3 configuration appears empty or malformed"
+        log_debug "Expected mwan3.* entries but found none"
+        return 0
+    fi
+
     # Discover MWAN3 interfaces with detailed debugging
     log_debug "=== MWAN3 INTERFACE DISCOVERY ==="
     log_debug "Discovering MWAN3 interfaces..."
     log_debug "Running: uci show mwan3 | grep '\\.interface=' | cut -d'=' -f2 | tr -d \"'\" | sort -u"
 
-    if DISCOVERED_INTERFACES=$(uci show mwan3 | grep '\.interface=' | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null); then
+    # Use a more robust command with error checking
+    if interface_lines=$(uci show mwan3 2>/dev/null | grep '\.interface=' 2>/dev/null); then
+        if [ -n "$interface_lines" ]; then
+            DISCOVERED_INTERFACES=$(echo "$interface_lines" | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null)
+        else
+            log_debug "No interface lines found in UCI configuration"
+            return 0
+        fi
+    else
+        log_debug "Failed to extract interface configuration from UCI"
+        return 0
+    fi
+
+    if [ -n "$DISCOVERED_INTERFACES" ]; then
         log_debug "Interface discovery command succeeded"
         log_debug "Raw discovery output: '$DISCOVERED_INTERFACES'"
         log_debug "Found interfaces: $DISCOVERED_INTERFACES"
@@ -2266,10 +2286,15 @@ auto_discover_mwan3_config() {
             log_debug "No Starlink API found, using lowest metric interface..."
             lowest_metric=999
             for iface in $lan_wan_interfaces; do
-                metric=$(uci show mwan3 | grep "interface='$iface'" | grep '\.metric=' | head -1 | cut -d'=' -f2 | tr -d "'")
-                if [ -n "$metric" ] && [ "$metric" -lt "$lowest_metric" ]; then
-                    lowest_metric="$metric"
-                    SUGGESTED_MWAN_IFACE="$iface"
+                # Use safer command construction to avoid quote escaping issues
+                if metric_line=$(uci show mwan3 2>/dev/null | grep "interface='${iface}'" | grep '\.metric=' | head -1 2>/dev/null); then
+                    metric=$(echo "$metric_line" | cut -d'=' -f2 | tr -d "'")
+                    if [ -n "$metric" ] && [ "$metric" -lt "$lowest_metric" ]; then
+                        lowest_metric="$metric"
+                        SUGGESTED_MWAN_IFACE="$iface"
+                    fi
+                else
+                    log_debug "No metric found for interface: $iface"
                 fi
             done
             if [ -n "$SUGGESTED_MWAN_IFACE" ]; then
@@ -2304,9 +2329,22 @@ auto_discover_mwan3_config() {
     # Discover MWAN3 members with detailed debugging
     log_debug "=== MWAN3 MEMBER DISCOVERY ==="
     log_debug "Discovering MWAN3 members..."
-    log_debug "Running: uci show mwan3 | grep '@member\\[' | grep '\\.interface=' | cut -d'=' -f2 | tr -d \"'\" | sort -u"
+    log_debug "Running: uci show mwan3 | grep -E '(@member\\[|member[0-9]+)\\.interface=' | cut -d'=' -f2 | tr -d \"'\" | sort -u"
 
-    if DISCOVERED_MEMBERS=$(uci show mwan3 | grep '@member\[' | grep '\.interface=' | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null); then
+    # Use a more robust command with error checking
+    if member_lines=$(uci show mwan3 2>/dev/null | grep -E '(@member\[|member[0-9]+)\.interface=' 2>/dev/null); then
+        if [ -n "$member_lines" ]; then
+            DISCOVERED_MEMBERS=$(echo "$member_lines" | cut -d'=' -f2 | tr -d "'" | sort -u | tr '\n' ' ' 2>/dev/null)
+        else
+            log_debug "No member lines found in UCI configuration"
+            DISCOVERED_MEMBERS=""
+        fi
+    else
+        log_debug "Failed to extract member configuration from UCI or no members configured"
+        DISCOVERED_MEMBERS=""
+    fi
+
+    if [ -n "$DISCOVERED_MEMBERS" ]; then
         log_debug "Member discovery command succeeded"
         log_debug "Found member interfaces: $DISCOVERED_MEMBERS"
 
@@ -2316,13 +2354,12 @@ auto_discover_mwan3_config() {
         # Try to find a member for our suggested interface
         if [ -n "$SUGGESTED_MWAN_IFACE" ]; then
             log_debug "Looking for member matching interface: $SUGGESTED_MWAN_IFACE"
-            log_debug "Running: uci show mwan3 | grep \"interface='$SUGGESTED_MWAN_IFACE'\" | head -1"
+            log_debug "Running: uci show mwan3 | grep \"interface='${SUGGESTED_MWAN_IFACE}'\" | head -1"
 
             # Look for the actual member name that matches our interface
-            member_line=$(uci show mwan3 | grep "interface='$SUGGESTED_MWAN_IFACE'" | head -1)
-            log_debug "Member search result: '$member_line'"
-
-            if [ -n "$member_line" ]; then
+            # Use safer command construction to avoid quote escaping issues
+            if member_line=$(uci show mwan3 2>/dev/null | grep "interface='${SUGGESTED_MWAN_IFACE}'" | head -1 2>/dev/null); then
+                log_debug "Member search result: '$member_line'"
                 # Extract member name from line like: mwan3.member1.interface='wan'
                 SUGGESTED_MWAN_MEMBER=$(echo "$member_line" | cut -d'.' -f2)
                 log_info "Found member for interface $SUGGESTED_MWAN_IFACE: $SUGGESTED_MWAN_MEMBER"
@@ -2333,9 +2370,13 @@ auto_discover_mwan3_config() {
 
                 # Show all available member lines for debugging
                 log_debug "Available member lines:"
-                uci show mwan3 | grep '@member\[.*\]\.interface=' | while read -r line; do
-                    log_debug "  $line"
-                done
+                if member_debug_lines=$(uci show mwan3 2>/dev/null | grep -E '(@member\[|member[0-9]+)\.interface=' 2>/dev/null); then
+                    echo "$member_debug_lines" | while read -r line; do
+                        log_debug "  $line"
+                    done
+                else
+                    log_debug "  No member lines found in debug output"
+                fi
             fi
         else
             log_debug "No suggested interface available for member matching"
