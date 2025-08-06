@@ -261,29 +261,15 @@ execute_with_library() {
     printf "⏳ Starting deployment with real-time logging...\n"
     printf "📝 Output will be shown on screen AND logged to: %s\n" "$MAIN_INSTALL_LOG_FILE"
     printf "📋 You can also monitor the log file with: tail -f '%s'\n\n" "$MAIN_INSTALL_LOG_FILE"
-
-    # Execute deployment with both screen output and logging
-    # Use a more compatible approach that works with BusyBox
-    if DRY_RUN="$DRY_RUN" DEBUG="$DEBUG" RUTOS_TEST_MODE="$RUTOS_TEST_MODE" \
+    
+    # Simple approach: Let the deployment script handle its own output and logging
+    # We just pass the log file location and let it do both screen + file output
+    DRY_RUN="$DRY_RUN" DEBUG="$DEBUG" RUTOS_TEST_MODE="$RUTOS_TEST_MODE" \
         ALLOW_TEST_EXECUTION="$ALLOW_TEST_EXECUTION" USE_LIBRARY="$USE_LIBRARY" \
         LIBRARY_PATH="$LIBRARY_PATH" INSTALL_LOG_FILE="$MAIN_INSTALL_LOG_FILE" \
-        "$deployment_script" 2>&1 | while IFS= read -r line; do
-        # Show on screen
-        printf "%s\n" "$line"
-        # Log to file
-        printf "%s\n" "$line" >>"$MAIN_INSTALL_LOG_FILE"
-    done; then
-        exit_code=0
-        printf "\n✅ Deployment completed successfully!\n"
-    else
-        # Handle pipe failure - check if deployment script actually failed
-        exit_code=$?
-        if [ $exit_code -eq 0 ]; then
-            printf "\n✅ Deployment completed successfully!\n"
-        else
-            printf "\n❌ Deployment failed with exit code: %d\n" $exit_code
-        fi
-    fi
+        "$deployment_script"
+    
+    exit_code=$?
 
     if [ $exit_code -eq 0 ]; then
         log_info "Deployment completed successfully!"

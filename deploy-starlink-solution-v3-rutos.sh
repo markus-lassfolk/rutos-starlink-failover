@@ -3863,11 +3863,26 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
 
         # Execute with logging (check if we're being called from bootstrap)
         if [ -n "${INSTALL_LOG_FILE:-}" ]; then
-            # Called from bootstrap - output is already being logged
-            printf "🚀 Deployment logging handled by bootstrap script...\n"
-            printf "📝 Log file: ${DEPLOYMENT_LOG_FILE}\n\n"
-            main "$@"
-            return $?
+            # Called from bootstrap - we need to provide BOTH live output AND logging
+            printf "🚀 Starting deployment with live output and logging...\n"
+            printf "� Live output on screen, logging to: ${INSTALL_LOG_FILE}\n\n"
+            
+            # Use the bootstrap-provided log file
+            DEPLOYMENT_LOG_FILE="${INSTALL_LOG_FILE}"
+            
+            # Execute main with tee for both screen and log file
+            if command -v tee >/dev/null 2>&1; then
+                # Use tee for real-time output and logging
+                main "$@" 2>&1 | tee "${DEPLOYMENT_LOG_FILE}"
+                return $?
+            else
+                # Fallback: use a simple while loop for BusyBox compatibility
+                main "$@" 2>&1 | while IFS= read -r line; do
+                    printf "%s\n" "$line"  # Show on screen
+                    printf "%s\n" "$line" >> "${DEPLOYMENT_LOG_FILE}"  # Log to file
+                done
+                return 0
+            fi
         else
             # Direct execution - handle our own logging
             printf "🚀 Starting deployment with logging enabled...\n"
