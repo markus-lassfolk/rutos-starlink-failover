@@ -1330,15 +1330,30 @@ collect_enhanced_configuration() {
 # Import functions from merge-config-rutos.sh
 
 # Function to extract variable value from config file
+# PowerShell-style approach: cleaner, more reliable
 extract_variable() {
     file="$1"
     var_name="$2"
 
     if [ -f "$file" ]; then
-        grep "^[[:space:]]*export[[:space:]]*${var_name}=" "$file" |
-            sed "s/^[[:space:]]*export[[:space:]]*${var_name}=[\"']\?//" |
-            sed "s/[\"']\?[[:space:]]*$//" |
-            head -n 1
+        # Find the line with the variable
+        line=$(grep "^[[:space:]]*export[[:space:]]*${var_name}=" "$file" | head -n 1)
+
+        if [ -n "$line" ]; then
+            # Remove the "export VAR_NAME=" part
+            value=$(echo "$line" | sed "s/^[[:space:]]*export[[:space:]]*${var_name}=//")
+
+            # Remove leading/trailing quotes
+            value=$(echo "$value" | sed 's/^[\"'\'']//' | sed 's/[\"'\''][[:space:]]*#.*$//' | sed 's/[\"'\''][[:space:]]*$//')
+
+            # Handle case where there's no quote but there's a comment
+            value=$(echo "$value" | sed 's/[[:space:]]*#.*$//')
+
+            # Clean up trailing whitespace
+            value=$(echo "$value" | sed 's/[[:space:]]*$//')
+
+            echo "$value"
+        fi
     fi
 }
 
@@ -3866,10 +3881,10 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
             # Called from bootstrap - we need to provide BOTH live output AND logging
             printf "🚀 Starting deployment with live output and logging...\n"
             printf "� Live output on screen, logging to: ${INSTALL_LOG_FILE}\n\n"
-            
+
             # Use the bootstrap-provided log file
             DEPLOYMENT_LOG_FILE="${INSTALL_LOG_FILE}"
-            
+
             # Execute main with tee for both screen and log file
             if command -v tee >/dev/null 2>&1; then
                 # Use tee for real-time output and logging
@@ -3878,8 +3893,8 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
             else
                 # Fallback: use a simple while loop for BusyBox compatibility
                 main "$@" 2>&1 | while IFS= read -r line; do
-                    printf "%s\n" "$line"  # Show on screen
-                    printf "%s\n" "$line" >> "${DEPLOYMENT_LOG_FILE}"  # Log to file
+                    printf "%s\n" "$line"                            # Show on screen
+                    printf "%s\n" "$line" >>"${DEPLOYMENT_LOG_FILE}" # Log to file
                 done
                 return 0
             fi
