@@ -192,9 +192,9 @@ log_function_exit() {
 
 # Command tracing function for RUTOS_TEST_MODE debugging
 log_trace_command() {
-    local command_description="$1"
+    command_description="$1"
     shift
-    local command_line="$*"
+    command_line="$*"
 
     # Only show command traces in RUTOS_TEST_MODE
     if [ "${RUTOS_TEST_MODE:-0}" = "1" ]; then
@@ -3804,18 +3804,26 @@ if [ "${0##*/}" = "deploy-starlink-solution-v3-rutos.sh" ]; then
         # Create initial log directory structure
         mkdir -p "/tmp" 2>/dev/null || true
         
-        # Execute with tee to log both stdout and stderr
+        # Set log file location  
+        DEPLOYMENT_LOG_FILE="${DEPLOYMENT_LOG_FILE:-/tmp/starlink-deployment-$(date +%Y%m%d-%H%M%S).log}"
+        
+        # Execute with tee to log both stdout and stderr (POSIX compatible)
         printf "🚀 Starting deployment with logging enabled...\n"
         printf "📝 All output will be captured for later analysis\n\n"
         
-        # Use exec to redirect all output through tee
-        exec > >(tee -a "${DEPLOYMENT_LOG_FILE:-/tmp/starlink-deployment-$(date +%Y%m%d-%H%M%S).log}") 2>&1
-        
-        printf "📝 Deployment logging active: ${DEPLOYMENT_LOG_FILE:-/tmp/starlink-deployment-$(date +%Y%m%d-%H%M%S).log}\n"
+        printf "📝 Deployment logging will be saved to: ${DEPLOYMENT_LOG_FILE}\n"
         printf "💡 Analyze issues with: ./quick-error-filter.sh [log_file]\n\n"
+        
+        # Use simple redirection - execute main and capture output
+        main "$@" 2>&1 | tee -a "${DEPLOYMENT_LOG_FILE}"
+        MAIN_EXIT_CODE=$?
+        
+        printf "\n📝 Deployment log saved: ${DEPLOYMENT_LOG_FILE}\n"
+        return $MAIN_EXIT_CODE
+    else
+        # In DRY_RUN mode, just execute main directly
+        main "$@"
     fi
-    
-    main "$@"
 
     # Post-execution status with detailed reporting
     exit_code=$?
