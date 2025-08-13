@@ -12,7 +12,10 @@ import (
 	"github.com/starfail/starfail/pkg/controller"
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/discovery"
+	"github.com/starfail/starfail/pkg/health"
 	"github.com/starfail/starfail/pkg/logx"
+	"github.com/starfail/starfail/pkg/metrics"
+	"github.com/starfail/starfail/pkg/mqtt"
 	"github.com/starfail/starfail/pkg/telem"
 	"github.com/starfail/starfail/pkg/ubus"
 	"github.com/starfail/starfail/pkg/uci"
@@ -103,14 +106,38 @@ func main() {
 	}
 	defer ubusServer.Stop()
 
-	// Start metrics server if enabled
+	// Initialize and start metrics server if enabled
+	var metricsServer *metrics.Server
 	if cfg.MetricsListener {
-		go startMetricsServer(cfg, logger)
+		metricsServer = metrics.NewServer(ctrl, decisionEngine, telemetry, logger)
+		if err := metricsServer.Start(cfg.MetricsPort); err != nil {
+			logger.Error("Failed to start metrics server", "error", err)
+			os.Exit(1)
+		}
+		defer metricsServer.Stop()
 	}
 
-	// Start health server if enabled
+	// Initialize and start health server if enabled
+	var healthServer *health.Server
 	if cfg.HealthListener {
-		go startHealthServer(cfg, logger)
+		healthServer = health.NewServer(ctrl, decisionEngine, telemetry, logger)
+		if err := healthServer.Start(cfg.HealthPort); err != nil {
+			logger.Error("Failed to start health server", "error", err)
+			os.Exit(1)
+		}
+		defer healthServer.Stop()
+	}
+
+	// Initialize MQTT client if enabled
+	var mqttClient *mqtt.Client
+	if cfg.MQTT.Enabled {
+		mqttClient = mqtt.NewClient(&cfg.MQTT, logger)
+		if err := mqttClient.Connect(); err != nil {
+			logger.Error("Failed to connect to MQTT broker", "error", err)
+			// Don't exit, MQTT is optional
+		} else {
+			defer mqttClient.Disconnect()
+		}
 	}
 
 	// Setup signal handling
@@ -121,7 +148,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
 	// Start main loop
-	go runMainLoop(ctx, cfg, decisionEngine, ctrl, logger, telemetry, discoverer)
+	go runMainLoop(ctx, cfg, decisionEngine, ctrl, logger, telemetry, discoverer, metricsServer, healthServer, mqttClient)
 
 	// Wait for shutdown signal
 	sig := <-sigChan
@@ -143,7 +170,7 @@ func main() {
 	}
 }
 
-func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, ctrl *controller.Controller, logger *logx.Logger, telemetry *telem.Store, discoverer *discovery.Discoverer) {
+func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, ctrl *controller.Controller, logger *logx.Logger, telemetry *telem.Store, discoverer *discovery.Discoverer, metricsServer *metrics.Server, healthServer *health.Server, mqttClient *mqtt.Client) {
 	// Create tickers for different intervals
 	decisionTicker := time.NewTicker(time.Duration(cfg.DecisionIntervalMS) * time.Millisecond)
 	discoveryTicker := time.NewTicker(time.Duration(cfg.DiscoveryIntervalMS) * time.Millisecond)
@@ -173,6 +200,11 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 				})
 			}
 			
+			// Update metrics if server is running
+			if metricsServer != nil {
+				metricsServer.UpdateMetrics()
+			}
+			
 		case <-discoveryTicker.C:
 			// Refresh member discovery
 			currentMembers := ctrl.GetMembers()
@@ -200,12 +232,4 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 	}
 }
 
-func startMetricsServer(cfg *uci.Config, logger *logx.Logger) {
-	// TODO: Implement Prometheus metrics server
-	logger.Info("Metrics server not yet implemented")
-}
-
-func startHealthServer(cfg *uci.Config, logger *logx.Logger) {
-	// TODO: Implement health check server
-	logger.Info("Health server not yet implemented")
-}
+// These functions are no longer needed as the servers are now properly integrated

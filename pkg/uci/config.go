@@ -16,6 +16,9 @@ type Config struct {
 	Enable            bool   `json:"enable"`
 	UseMWAN3          bool   `json:"use_mwan3"`
 	PollIntervalMS    int    `json:"poll_interval_ms"`
+	DecisionIntervalMS int   `json:"decision_interval_ms"`
+	DiscoveryIntervalMS int  `json:"discovery_interval_ms"`
+	CleanupIntervalMS int    `json:"cleanup_interval_ms"`
 	HistoryWindowS    int    `json:"history_window_s"`
 	RetentionHours    int    `json:"retention_hours"`
 	MaxRAMMB          int    `json:"max_ram_mb"`
@@ -26,6 +29,8 @@ type Config struct {
 	CooldownS         int    `json:"cooldown_s"`
 	MetricsListener   bool   `json:"metrics_listener"`
 	HealthListener    bool   `json:"health_listener"`
+	MetricsPort       int    `json:"metrics_port"`
+	HealthPort        int    `json:"health_port"`
 	LogLevel          string `json:"log_level"`
 	LogFile           string `json:"log_file"`
 
@@ -45,11 +50,27 @@ type Config struct {
 	MQTTBroker string `json:"mqtt_broker"`
 	MQTTTopic  string `json:"mqtt_topic"`
 
+	// MQTT Configuration
+	MQTT MQTTConfig `json:"mqtt"`
+
 	// Member configurations
 	Members map[string]*MemberConfig `json:"members"`
 
 	// Internal state
 	lastModified time.Time
+}
+
+// MQTTConfig represents MQTT configuration
+type MQTTConfig struct {
+	Broker      string `json:"broker"`
+	Port        int    `json:"port"`
+	ClientID    string `json:"client_id"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	TopicPrefix string `json:"topic_prefix"`
+	QoS         int    `json:"qos"`
+	Retain      bool   `json:"retain"`
+	Enabled     bool   `json:"enabled"`
 }
 
 // MemberConfig represents configuration for a specific member
@@ -115,6 +136,9 @@ func (c *Config) setDefaults() {
 	c.Enable = true
 	c.UseMWAN3 = true
 	c.PollIntervalMS = DefaultPollIntervalMS
+	c.DecisionIntervalMS = 5000
+	c.DiscoveryIntervalMS = 30000
+	c.CleanupIntervalMS = 60000
 	c.HistoryWindowS = DefaultHistoryWindowS
 	c.RetentionHours = DefaultRetentionHours
 	c.MaxRAMMB = DefaultMaxRAMMB
@@ -125,6 +149,8 @@ func (c *Config) setDefaults() {
 	c.CooldownS = DefaultCooldownS
 	c.MetricsListener = false
 	c.HealthListener = true
+	c.MetricsPort = 9090
+	c.HealthPort = 8080
 	c.LogLevel = DefaultLogLevel
 	c.LogFile = ""
 	c.FailThresholdLoss = DefaultFailThresholdLoss
@@ -137,6 +163,17 @@ func (c *Config) setDefaults() {
 	c.PushoverUser = ""
 	c.MQTTBroker = ""
 	c.MQTTTopic = "starfail/status"
+	
+	// Set MQTT defaults
+	c.MQTT = MQTTConfig{
+		Broker:      "localhost",
+		Port:        1883,
+		ClientID:    "starfaild",
+		TopicPrefix: "starfail",
+		QoS:         1,
+		Retain:      false,
+		Enabled:     false,
+	}
 }
 
 // parseUCI parses the UCI configuration file

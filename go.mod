@@ -3,6 +3,7 @@ module github.com/starfail/starfail
 go 1.22
 
 require (
+	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/gorilla/mux v1.8.1
 	github.com/prometheus/client_golang v1.17.0
 	github.com/sirupsen/logrus v1.9.3
