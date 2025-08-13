@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Starfail interface hotplug handler
+# This script is called when network interfaces change state
+
+[ "$ACTION" = "ifup" ] || [ "$ACTION" = "ifdown" ] || exit 0
+
+# Notify starfaild of interface changes
+ubus call starfail action '{"cmd":"recheck"}' >/dev/null 2>&1
+
+# Log the interface change
+logger -t starfail "Interface $INTERFACE $ACTION"
