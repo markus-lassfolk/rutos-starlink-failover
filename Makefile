@@ -13,6 +13,7 @@ help:
 	@echo "  verify-dry          - Run dry-run verification (show what would be done)"
 	@echo "  verify-luci         - Run LuCI verification only"
 	@echo "  verify-comprehensive- Run comprehensive verification (Go + LuCI)"
+	@echo "  verify-comprehensive-install - Run verification with auto-installation"
 	@echo "  build               - Build all binaries"
 	@echo "  test                - Run tests"
 	@echo "  clean               - Clean build artifacts"
@@ -28,6 +29,7 @@ help:
 	@echo "  make verify-fix"
 	@echo "  make verify-luci"
 	@echo "  make verify-comprehensive"
+	@echo "  make verify-comprehensive-install"
 
 # Detect OS and use appropriate script
 ifeq ($(OS),Windows_NT)
@@ -76,6 +78,10 @@ verify-luci:
 verify-comprehensive:
 	@echo "Running comprehensive verification (Go + LuCI)..."
 	$(VERIFY_CMD) $(COMPREHENSIVE_SCRIPT) all
+
+verify-comprehensive-install:
+	@echo "Running comprehensive verification with auto-installation..."
+	$(VERIFY_CMD) $(COMPREHENSIVE_SCRIPT) all --install-deps
 
 # Build targets
 build:

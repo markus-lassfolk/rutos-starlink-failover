@@ -144,6 +144,7 @@ param(
     # LuCI-specific options
     [switch]$NoLuci,
     [switch]$NoTranslations,
+    [switch]$InstallDeps,
     
     [int]$Timeout = 300
 )
@@ -172,6 +173,7 @@ $Script:Config = @{
     VerboseOutput = $VerboseOutput
     QuietMode = $Quiet
     Timeout = $Timeout
+    InstallDeps = $InstallDeps
 }
 
 # Colors for console output
@@ -241,6 +243,7 @@ OPTIONS:
     -Quiet          - Quiet mode (errors only)
     -DryRun         - Show what would be done
     -Fix            - Attempt to fix issues automatically
+    -InstallDeps    - Install missing tools automatically
 
 GO OPTIONS:
     -NoGo           - Skip Go verification
@@ -266,6 +269,7 @@ EXAMPLES:
     $Script:ScriptName files *.lua            # Check Lua files
     $Script:ScriptName all -Fix               # Auto-fix mode
     $Script:ScriptName ci -Coverage -Race     # CI/CD mode
+    $Script:ScriptName all -InstallDeps       # Install missing tools and verify
 
 REQUIRED TOOLS:
     Go: go, gofmt, goimports, golangci-lint, staticcheck, gocritic, gosec
@@ -342,10 +346,75 @@ function Test-Tools {
     
     if ($missing.Count -gt 0) {
         Write-Log "Missing $Category tools: $($missing -join ', ')" "WARNING" "Setup"
-        return $false
+        return @{ Success = $false; Missing = $missing; Available = $available }
     }
     
-    return $true
+    return @{ Success = $true; Missing = @(); Available = $available }
+}
+
+function Install-MissingTools {
+    param([hashtable]$Tools, [string]$Category, [string[]]$MissingTools)
+    
+    Write-Log "Installing missing $Category tools..." "INFO" "Setup"
+    
+    $installed = @()
+    $failed = @()
+    
+    foreach ($tool in $MissingTools) {
+        $toolInfo = $Tools[$tool]
+        $installCmd = $toolInfo.Install
+        
+        Write-Log "Installing $tool..." "INFO" "Setup"
+        
+        try {
+            if ($installCmd -eq "Built-in") {
+                Write-Log "Tool '$tool' is built-in, skipping installation" "WARNING" "Setup"
+                continue
+            }
+            
+            # Handle different installation methods
+            if ($installCmd -like "go install*") {
+                $result = Invoke-CommandWithTimeout "go" @("install", $installCmd.Split(" ")[-1])
+            }
+            elseif ($installCmd -like "npm install*") {
+                $result = Invoke-CommandWithTimeout "npm" @("install", "-g", $installCmd.Split(" ")[-1])
+            }
+            elseif ($installCmd -like "luarocks install*") {
+                $result = Invoke-CommandWithTimeout "luarocks" @("install", $installCmd.Split(" ")[-1])
+            }
+            else {
+                Write-Log "Manual installation required for $tool - $installCmd" "WARNING" "Setup"
+                $failed += $tool
+                continue
+            }
+            
+            if ($result.Success) {
+                Write-Log "Successfully installed $tool" "SUCCESS" "Setup"
+                $installed += $tool
+            } else {
+                Write-Log "Failed to install $tool - $($result.Output)" "ERROR" "Setup"
+                $failed += $tool
+            }
+        }
+        catch {
+            Write-Log "Error installing $tool - $($_.Exception.Message)" "ERROR" "Setup"
+            $failed += $tool
+        }
+    }
+    
+    if ($installed.Count -gt 0) {
+        Write-Log "Successfully installed $($installed.Count) $Category tool(s): $($installed -join ', ')" "SUCCESS" "Setup"
+    }
+    
+    if ($failed.Count -gt 0) {
+        Write-Log "Failed to install $($failed.Count) $Category tool(s): $($failed -join ', ')" "ERROR" "Setup"
+        Write-Log "Please install these tools manually:" "INFO" "Setup"
+        foreach ($tool in $failed) {
+            Write-Log "  $tool - $($Tools[$tool].Install)" "INFO" "Setup"
+        }
+    }
+    
+    return @{ Installed = $installed; Failed = $failed }
 }
 
 function Invoke-CommandWithTimeout {
@@ -766,8 +835,47 @@ if ($Script:Config.EnableDryRun) {
 }
 
 # Check tools
-$goToolsOk = Test-Tools $Script:GoTools "Go"
-$luciToolsOk = Test-Tools $Script:LuCITools "LuCI"
+$goToolsResult = Test-Tools $Script:GoTools "Go"
+$luciToolsResult = Test-Tools $Script:LuCITools "LuCI"
+
+$goToolsOk = $goToolsResult.Success
+$luciToolsOk = $luciToolsResult.Success
+
+# Install missing tools if requested
+if ($Script:Config.InstallDeps) {
+    Write-Log "Auto-installation mode enabled" "INFO" "Setup"
+    
+    # Install Go tools
+    if (-not $goToolsOk -and $goToolsResult.Missing.Count -gt 0) {
+        $goInstallResult = Install-MissingTools $Script:GoTools "Go" $goToolsResult.Missing
+        if ($goInstallResult.Failed.Count -eq 0) {
+            $goToolsOk = $true
+            Write-Log "All Go tools installed successfully" "SUCCESS" "Setup"
+        } else {
+            Write-Log "Some Go tools failed to install" "WARNING" "Setup"
+        }
+    }
+    
+    # Install LuCI tools
+    if (-not $luciToolsOk -and $luciToolsResult.Missing.Count -gt 0) {
+        $luciInstallResult = Install-MissingTools $Script:LuCITools "LuCI" $luciToolsResult.Missing
+        if ($luciInstallResult.Failed.Count -eq 0) {
+            $luciToolsOk = $true
+            Write-Log "All LuCI tools installed successfully" "SUCCESS" "Setup"
+        } else {
+            Write-Log "Some LuCI tools failed to install" "WARNING" "Setup"
+        }
+    }
+    
+    # Re-check tools after installation
+    if ($goToolsOk -or $luciToolsOk) {
+        Write-Log "Re-checking tools after installation..." "INFO" "Setup"
+        $goToolsResult = Test-Tools $Script:GoTools "Go"
+        $luciToolsResult = Test-Tools $Script:LuCITools "LuCI"
+        $goToolsOk = $goToolsResult.Success
+        $luciToolsOk = $luciToolsResult.Success
+    }
+}
 
 # Get files to check
 $filesToCheck = Get-FilesToCheck $Mode $Files

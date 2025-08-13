@@ -48,6 +48,7 @@ NO_DOCS=false
 NO_TRANSLATIONS=false
 COVERAGE=false
 RACE=false
+INSTALL_DEPS=false
 TIMEOUT=300
 
 # Colors for output
@@ -113,6 +114,7 @@ OPTIONS:
     -q, --quiet          - Quiet mode (errors only)
     --dry-run            - Show what would be done
     --fix                - Attempt to fix issues automatically
+    --install-deps       - Install missing tools automatically
 
 GO OPTIONS:
     --no-go              - Skip Go verification
@@ -138,6 +140,7 @@ EXAMPLES:
     $SCRIPT_NAME files "*.lua"          # Check Lua files
     $SCRIPT_NAME all --fix              # Auto-fix mode
     $SCRIPT_NAME ci --coverage --race   # CI/CD mode
+    $SCRIPT_NAME all --install-deps     # Install missing tools and verify
 
 REQUIRED TOOLS:
     Go: go, gofmt, goimports, golangci-lint, staticcheck, gocritic, gosec
@@ -220,10 +223,107 @@ test_tools() {
     
     if [[ ${#missing[@]} -gt 0 ]]; then
         write_log "Missing $category tools: ${missing[*]}" "WARNING" "Setup"
+        # Store missing tools in global variables for later use
+        if [[ "$category" == "Go" ]]; then
+            GO_MISSING_TOOLS=("${missing[@]}")
+        elif [[ "$category" == "LuCI" ]]; then
+            LUCI_MISSING_TOOLS=("${missing[@]}")
+        fi
         return 1
     fi
     
     return 0
+}
+
+install_missing_tools() {
+    local tools=("$@")
+    local category="$1"
+    shift
+    local missing_tools=("$@")
+    
+    write_log "Installing missing $category tools..." "INFO" "Setup"
+    
+    local installed=()
+    local failed=()
+    
+    for tool in "${missing_tools[@]}"; do
+        # Find the tool info
+        local tool_info=""
+        for info in "${tools[@]}"; do
+            IFS=':' read -r tool_name command install_cmd <<< "$info"
+            if [[ "$tool_name" == "$tool" ]]; then
+                tool_info="$info"
+                break
+            fi
+        done
+        
+        if [[ -z "$tool_info" ]]; then
+            write_log "Tool info not found for $tool" "ERROR" "Setup"
+            failed+=("$tool")
+            continue
+        fi
+        
+        IFS=':' read -r tool_name command install_cmd <<< "$tool_info"
+        
+        write_log "Installing $tool..." "INFO" "Setup"
+        
+        if [[ "$install_cmd" == "Built-in" ]]; then
+            write_log "Tool '$tool' is built-in, skipping installation" "WARNING" "Setup"
+            continue
+        fi
+        
+        # Handle different installation methods
+        local result=""
+        if [[ "$install_cmd" == go\ install* ]]; then
+            result=$(invoke_command_with_timeout "go" "install" "${install_cmd##* }")
+        elif [[ "$install_cmd" == npm\ install* ]]; then
+            result=$(invoke_command_with_timeout "npm" "install" "-g" "${install_cmd##* }")
+        elif [[ "$install_cmd" == luarocks\ install* ]]; then
+            result=$(invoke_command_with_timeout "luarocks" "install" "${install_cmd##* }")
+        else
+            write_log "Manual installation required for $tool: $install_cmd" "WARNING" "Setup"
+            failed+=("$tool")
+            continue
+        fi
+        
+        IFS=':' read -r status exit_code output error <<< "$result"
+        
+        if [[ "$status" == "SUCCESS" && "$exit_code" -eq 0 ]]; then
+            write_log "Successfully installed $tool" "SUCCESS" "Setup"
+            installed+=("$tool")
+        else
+            write_log "Failed to install $tool: $output $error" "ERROR" "Setup"
+            failed+=("$tool")
+        fi
+    done
+    
+    if [[ ${#installed[@]} -gt 0 ]]; then
+        write_log "Successfully installed ${#installed[@]} $category tool(s): ${installed[*]}" "SUCCESS" "Setup"
+    fi
+    
+    if [[ ${#failed[@]} -gt 0 ]]; then
+        write_log "Failed to install ${#failed[@]} $category tool(s): ${failed[*]}" "ERROR" "Setup"
+        write_log "Please install these tools manually:" "INFO" "Setup"
+        for tool in "${failed[@]}"; do
+            # Find the install command for this tool
+            for info in "${tools[@]}"; do
+                IFS=':' read -r tool_name command install_cmd <<< "$info"
+                if [[ "$tool_name" == "$tool" ]]; then
+                    write_log "  $tool: $install_cmd" "INFO" "Setup"
+                    break
+                fi
+            done
+        done
+    fi
+    
+    # Update global variables
+    if [[ "$category" == "Go" ]]; then
+        GO_INSTALLED_TOOLS=("${installed[@]}")
+        GO_FAILED_TOOLS=("${failed[@]}")
+    elif [[ "$category" == "LuCI" ]]; then
+        LUCI_INSTALLED_TOOLS=("${installed[@]}")
+        LUCI_FAILED_TOOLS=("${failed[@]}")
+    fi
 }
 
 invoke_command_with_timeout() {
@@ -760,6 +860,10 @@ while [[ $# -gt 0 ]]; do
             RACE=true
             shift
             ;;
+        --install-deps)
+            INSTALL_DEPS=true
+            shift
+            ;;
         all|go|luci|files|staged|commit|ci)
             MODE="$1"
             shift
@@ -789,6 +893,44 @@ fi
 
 if ! test_tools "LuCI" "${LUCI_TOOLS[@]}"; then
     luci_tools_ok=false
+fi
+
+# Install missing tools if requested
+if [[ "$INSTALL_DEPS" == "true" ]]; then
+    write_log "Auto-installation mode enabled" "INFO" "Setup"
+    
+    # Install Go tools
+    if [[ "$go_tools_ok" != "true" && ${#GO_MISSING_TOOLS[@]} -gt 0 ]]; then
+        install_missing_tools "${GO_TOOLS[@]}" "Go" "${GO_MISSING_TOOLS[@]}"
+        if [[ ${#GO_FAILED_TOOLS[@]} -eq 0 ]]; then
+            go_tools_ok=true
+            write_log "All Go tools installed successfully" "SUCCESS" "Setup"
+        else
+            write_log "Some Go tools failed to install" "WARNING" "Setup"
+        fi
+    fi
+    
+    # Install LuCI tools
+    if [[ "$luci_tools_ok" != "true" && ${#LUCI_MISSING_TOOLS[@]} -gt 0 ]]; then
+        install_missing_tools "${LUCI_TOOLS[@]}" "LuCI" "${LUCI_MISSING_TOOLS[@]}"
+        if [[ ${#LUCI_FAILED_TOOLS[@]} -eq 0 ]]; then
+            luci_tools_ok=true
+            write_log "All LuCI tools installed successfully" "SUCCESS" "Setup"
+        else
+            write_log "Some LuCI tools failed to install" "WARNING" "Setup"
+        fi
+    fi
+    
+    # Re-check tools after installation
+    if [[ "$go_tools_ok" == "true" || "$luci_tools_ok" == "true" ]]; then
+        write_log "Re-checking tools after installation..." "INFO" "Setup"
+        if test_tools "Go" "${GO_TOOLS[@]}"; then
+            go_tools_ok=true
+        fi
+        if test_tools "LuCI" "${LUCI_TOOLS[@]}"; then
+            luci_tools_ok=true
+        fi
+    fi
 fi
 
 # Get files to check
