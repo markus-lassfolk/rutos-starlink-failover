@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/controller"
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/logx"
@@ -206,16 +207,22 @@ func (s *Server) GetStatus() (*StatusResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	activeMember := s.controller.GetActiveMember()
-	members := s.controller.GetMembers()
+	activeMember, err := s.controller.GetActiveMember()
+	if err != nil {
+		activeMember = nil
+	}
+	members, err := s.controller.GetMembers()
+	if err != nil {
+		members = []*pkg.Member{}
+	}
 
 	// Get last switch event
-	var lastSwitch *types.Event
-	events := s.store.GetEvents(1, time.Hour)
-	if len(events) > 0 {
+	var lastSwitch *pkg.Event
+	events, err := s.store.GetEvents(time.Now().Add(-time.Hour), 1000)
+	if err == nil && len(events) > 0 {
 		for _, event := range events {
-			if event.Type == types.EventTypeSwitch {
-				lastSwitch = &event
+			if event.Type == pkg.EventTypeSwitch {
+				lastSwitch = event
 				break
 			}
 		}

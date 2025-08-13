@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/controller"
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/logx"
@@ -336,7 +337,7 @@ func (s *Server) getStatistics() Statistics {
 	}
 
 	// Count total events
-	events, err := s.store.GetEvents(time.Now().Add(-time.Hour))
+	events, err := s.store.GetEvents(time.Now().Add(-time.Hour), 1000)
 	if err == nil {
 		stats.TotalEvents = len(events)
 	}

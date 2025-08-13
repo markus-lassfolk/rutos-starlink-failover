@@ -8,6 +8,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/controller"
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/logx"
@@ -346,8 +347,8 @@ func (s *Server) updateMemberMetrics() {
 		s.memberStatus.With(statusLabels).Set(status)
 
 		// Update uptime metric (simplified)
-		if member.Created != (time.Time{}) {
-			uptime := time.Since(member.Created).Seconds()
+		if member.CreatedAt != (time.Time{}) {
+			uptime := time.Since(member.CreatedAt).Seconds()
 			s.memberUptime.With(labels).Set(uptime)
 		}
 	}
@@ -355,16 +356,21 @@ func (s *Server) updateMemberMetrics() {
 
 // updateTelemetryMetrics updates telemetry-related metrics
 func (s *Server) updateTelemetryMetrics() {
-	members := s.controller.GetMembers()
+	members, err := s.controller.GetMembers()
+	if err != nil {
+		return
+	}
 
 	// Update sample counts
 	for _, member := range members {
-		samples := s.store.GetSamples(member.Name, 1000, time.Hour)
-		s.telemetrySamples.With(prometheus.Labels{"member": member.Name}).Set(float64(len(samples)))
+		samples, err := s.store.GetSamples(member.Name, time.Now().Add(-time.Hour))
+		if err == nil {
+			s.telemetrySamples.With(prometheus.Labels{"member": member.Name}).Set(float64(len(samples)))
+		}
 	}
 
 	// Update event counts
-	events := s.store.GetEvents(1000, time.Hour)
+	events, err := s.store.GetEvents(time.Now().Add(-time.Hour), 1000)
 	eventCounts := make(map[string]int)
 	for _, event := range events {
 		eventCounts[event.Type]++
