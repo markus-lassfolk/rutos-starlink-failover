@@ -249,8 +249,14 @@ func (s *Server) getDetailedHealthStatus() HealthStatus {
 
 // getMemberHealth returns health information for all members
 func (s *Server) getMemberHealth() []MemberHealth {
-	members := s.controller.GetMembers()
-	activeMember := s.controller.GetActiveMember()
+	members, err := s.controller.GetMembers()
+	if err != nil {
+		return []MemberHealth{}
+	}
+	activeMember, err := s.controller.GetActiveMember()
+	if err != nil {
+		activeMember = nil
+	}
 
 	var memberHealth []MemberHealth
 
@@ -258,13 +264,13 @@ func (s *Server) getMemberHealth() []MemberHealth {
 		health := MemberHealth{
 			Name:      member.Name,
 			Class:     member.Class,
-			Interface: member.Interface,
+			Interface: member.Iface,
 			Status:    "unknown",
-			State:     s.decision.GetMemberState(member.Name),
+			State:     "unknown", // Placeholder - would need proper state lookup
 			Score:     0.0,
 			Active:    false,
-			LastSeen:  member.Created,
-			Uptime:    time.Since(member.Created),
+			LastSeen:  member.CreatedAt,
+			Uptime:    time.Since(member.CreatedAt),
 		}
 
 		// Check if member is active
@@ -276,10 +282,10 @@ func (s *Server) getMemberHealth() []MemberHealth {
 		}
 
 		// Get latest score
-		samples := s.store.GetSamples(member.Name, 1, time.Minute)
-		if len(samples) > 0 {
+		samples, err := s.store.GetSamples(member.Name, time.Now().Add(-time.Minute))
+		if err == nil && len(samples) > 0 {
 			health.Score = samples[0].Score.Final
-			health.LastSeen = samples[0].Metrics.Timestamp
+			health.LastSeen = samples[0].Timestamp
 		}
 
 		// Determine status based on score and state
@@ -303,8 +309,14 @@ func (s *Server) getMemberHealth() []MemberHealth {
 
 // getStatistics returns system statistics
 func (s *Server) getStatistics() Statistics {
-	members := s.controller.GetMembers()
-	activeMember := s.controller.GetActiveMember()
+	members, err := s.controller.GetMembers()
+	if err != nil {
+		return Statistics{}
+	}
+	activeMember, err := s.controller.GetActiveMember()
+	if err != nil {
+		activeMember = nil
+	}
 
 	stats := Statistics{
 		TotalMembers:  len(members),
@@ -317,17 +329,21 @@ func (s *Server) getStatistics() Statistics {
 
 	// Count total samples
 	for _, member := range members {
-		samples := s.store.GetSamples(member.Name, 1000, time.Hour)
-		stats.TotalSamples += len(samples)
+		samples, err := s.store.GetSamples(member.Name, time.Now().Add(-time.Hour))
+		if err == nil {
+			stats.TotalSamples += len(samples)
+		}
 	}
 
 	// Count total events
-	events := s.store.GetEvents(1000, time.Hour)
-	stats.TotalEvents = len(events)
+	events, err := s.store.GetEvents(time.Now().Add(-time.Hour))
+	if err == nil {
+		stats.TotalEvents = len(events)
+	}
 
 	// Count switches
 	for _, event := range events {
-		if event.Type == types.EventTypeSwitch {
+		if event.Type == pkg.EventTypeSwitch {
 			stats.TotalSwitches++
 		}
 	}

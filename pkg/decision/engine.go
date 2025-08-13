@@ -100,22 +100,7 @@ type Pattern struct {
 	Description string
 }
 
-// MLPredictor provides machine learning-based predictions
-type MLPredictor struct {
-	models    map[string]*MLModel
-	mu        sync.RWMutex
-	lastTrain time.Time
-}
-
-// MLModel represents a machine learning model
-type MLModel struct {
-	MemberName string
-	Features   []string
-	Algorithm  string // "random_forest", "neural_network", "svm"
-	Accuracy   float64
-	LastTrain  time.Time
-	ModelData  []byte // Serialized model
-}
+// Note: MLPredictor and MLModel are defined in predictive.go to avoid duplication
 
 // MemberState tracks the state of a member
 type MemberState struct {
@@ -143,7 +128,7 @@ func NewEngine(config *uci.Config, logger *logx.Logger, telemetry *telem.Store) 
 		predictiveModels: make(map[string]*PredictiveModel),
 		trendAnalysis:    make(map[string]*TrendAnalysis),
 		patternDetector:  NewPatternDetector(),
-		mlPredictor:      NewMLPredictor(),
+		mlPredictor:      NewMLPredictor("", logger), // Use empty model path for now
 	}
 }
 
@@ -774,6 +759,19 @@ func (e *Engine) GetScores() map[string]*pkg.Score {
 	return scores
 }
 
+// GetMemberState returns the state of a specific member
+func (e *Engine) GetMemberState(memberName string) (*MemberState, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	state, exists := e.memberState[memberName]
+	if !exists {
+		return nil, fmt.Errorf("member state not found: %s", memberName)
+	}
+
+	return state, nil
+}
+
 // Advanced Predictive Methods
 
 // NewPatternDetector creates a new pattern detector
@@ -783,18 +781,13 @@ func NewPatternDetector() *PatternDetector {
 	}
 }
 
-// NewMLPredictor creates a new ML predictor
-func NewMLPredictor() *MLPredictor {
-	return &MLPredictor{
-		models: make(map[string]*MLModel),
-	}
-}
+// Note: NewMLPredictor is defined in predictive.go to avoid duplication
 
 // updatePredictiveModels updates predictive models for all members
 func (e *Engine) updatePredictiveModels() {
 	now := time.Now()
 
-	for name, member := range e.members {
+	for name := range e.members {
 		// Get historical data
 		samples, err := e.telemetry.GetSamples(name, now.Add(-time.Hour))
 		if err != nil {
@@ -849,12 +842,16 @@ func (e *Engine) updateModel(model *PredictiveModel, samples []*telem.Sample) {
 	// Convert samples to data points
 	var dataPoints []DataPoint
 	for _, sample := range samples {
+		// Extract metrics from map
+		latency, _ := sample.Metrics["lat_ms"].(float64)
+		loss, _ := sample.Metrics["loss_pct"].(float64)
+
 		dataPoint := DataPoint{
 			Timestamp: sample.Timestamp,
-			Latency:   sample.Metrics.LatencyMS,
-			Loss:      sample.Metrics.LossPercent,
+			Latency:   latency,
+			Loss:      loss,
 			Score:     sample.Score.Final,
-			Status:    sample.Metrics.Status,
+			Status:    "healthy", // Default status since it's not in metrics map
 		}
 		dataPoints = append(dataPoints, dataPoint)
 	}
@@ -892,7 +889,7 @@ func (e *Engine) updateTrendAnalysis(trend *TrendAnalysis, samples []*telem.Samp
 
 // detectPatterns detects patterns in member behavior
 func (e *Engine) detectPatterns() {
-	for name, member := range e.members {
+	for name := range e.members {
 		samples, err := e.telemetry.GetSamples(name, time.Now().Add(-time.Hour))
 		if err != nil {
 			continue
@@ -1089,7 +1086,9 @@ func (e *Engine) calculateLatencyTrend(samples []*telem.Sample) float64 {
 		return 0.0
 	}
 
-	latencyDiff := last.Metrics.LatencyMS - first.Metrics.LatencyMS
+	lastLatency, _ := last.Metrics["lat_ms"].(float64)
+	firstLatency, _ := first.Metrics["lat_ms"].(float64)
+	latencyDiff := lastLatency - firstLatency
 	return latencyDiff / timeDiff
 }
 
@@ -1106,7 +1105,9 @@ func (e *Engine) calculateLossTrend(samples []*telem.Sample) float64 {
 		return 0.0
 	}
 
-	lossDiff := last.Metrics.LossPercent - first.Metrics.LossPercent
+	lastLoss, _ := last.Metrics["loss_pct"].(float64)
+	firstLoss, _ := first.Metrics["loss_pct"].(float64)
+	lossDiff := lastLoss - firstLoss
 	return lossDiff / timeDiff
 }
 

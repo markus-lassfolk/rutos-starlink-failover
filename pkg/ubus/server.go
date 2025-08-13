@@ -2,6 +2,7 @@ package ubus
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -84,27 +85,116 @@ func (s *Server) Stop() error {
 // registerMethods registers all RPC methods with the ubus daemon
 func (s *Server) registerMethods() error {
 	methods := map[string]MethodHandler{
-		"status":    s.handleStatus,
-		"members":   s.handleMembers,
-		"telemetry": s.handleTelemetry,
-		"events":    s.handleEvents,
-		"failover":  s.handleFailover,
-		"restore":   s.handleRestore,
-		"recheck":   s.handleRecheck,
-		"setlog":    s.handleSetLogLevel,
-		"config":    s.handleGetConfig,
-		"info":      s.handleGetInfo,
-		"action":    s.handleAction,
+		"status":    s.handleStatusWrapper,
+		"members":   s.handleMembersWrapper,
+		"telemetry": s.handleTelemetryWrapper,
+		"events":    s.handleEventsWrapper,
+		"failover":  s.handleFailoverWrapper,
+		"restore":   s.handleRestoreWrapper,
+		"recheck":   s.handleRecheckWrapper,
+		"setlog":    s.handleSetLogLevelWrapper,
+		"config":    s.handleGetConfigWrapper,
+		"info":      s.handleGetInfoWrapper,
+		"action":    s.handleActionWrapper,
 	}
 
 	return s.client.RegisterObject(s.ctx, "starfail", methods)
 }
 
+// Wrapper methods to convert MethodHandler signature
+func (s *Server) handleStatusWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleStatus(ctx, params)
+}
+
+func (s *Server) handleMembersWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleMembers(ctx, params)
+}
+
+func (s *Server) handleTelemetryWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleTelemetry(ctx, params)
+}
+
+func (s *Server) handleEventsWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleEvents(ctx, params)
+}
+
+func (s *Server) handleFailoverWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleFailover(ctx, params)
+}
+
+func (s *Server) handleRestoreWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleRestore(ctx, params)
+}
+
+func (s *Server) handleRecheckWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleRecheck(ctx, params)
+}
+
+func (s *Server) handleSetLogLevelWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleSetLogLevel(ctx, params)
+}
+
+func (s *Server) handleGetConfigWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleGetConfig(ctx, params)
+}
+
+func (s *Server) handleGetInfoWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleGetInfo(ctx, params)
+}
+
+func (s *Server) handleActionWrapper(ctx context.Context, data json.RawMessage) (interface{}, error) {
+	var params map[string]interface{}
+	if err := json.Unmarshal(data, &params); err != nil {
+		return nil, err
+	}
+	return s.handleAction(ctx, params)
+}
+
 // StatusResponse represents the response for status queries
 type StatusResponse struct {
-	ActiveMember    *types.Member     `json:"active_member"`
-	Members         []types.Member    `json:"members"`
-	LastSwitch      *types.Event      `json:"last_switch,omitempty"`
+	ActiveMember    *pkg.Member     `json:"active_member"`
+	Members         []pkg.Member    `json:"members"`
+	LastSwitch      *pkg.Event      `json:"last_switch,omitempty"`
 	Uptime          time.Duration     `json:"uptime"`
 	DecisionState   string            `json:"decision_state"`
 	ControllerState string            `json:"controller_state"`

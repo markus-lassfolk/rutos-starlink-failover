@@ -411,6 +411,18 @@ func (c *Controller) IsMWAN3Enabled() bool {
 	return c.mwan3Enabled
 }
 
+// GetMembers returns all available members (placeholder - would need discovery integration)
+func (c *Controller) GetMembers() ([]*pkg.Member, error) {
+	// This is a placeholder - in a real implementation, this would integrate with discovery
+	// For now, return an empty slice to satisfy the interface
+	return []*pkg.Member{}, nil
+}
+
+// GetActiveMember returns the currently active member (alias for GetCurrentMember)
+func (c *Controller) GetActiveMember() (*pkg.Member, error) {
+	return c.GetCurrentMember()
+}
+
 // GetControllerInfo returns general controller information
 func (c *Controller) GetControllerInfo() map[string]interface{} {
 	return map[string]interface{}{

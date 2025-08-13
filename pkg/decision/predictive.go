@@ -447,7 +447,7 @@ func (pe *PredictiveEngine) calculatePatternMatch(data []DataPoint, pattern *Pat
 	}
 
 	// Calculate similarity based on recent data
-	recentData := data[len(data)-5:]
+	_ = data[len(data)-5:] // recentData - placeholder for future enhancement
 
 	// For now, return a simple similarity score
 	// This could be enhanced with DTW, correlation analysis, etc.
@@ -699,7 +699,7 @@ func (ad *AnomalyDetector) UpdateBaseline(memberName string, dp DataPoint) {
 
 	// Update running statistics
 	baseline.SampleCount++
-	n := float64(baseline.SampleCount)
+	_ = float64(baseline.SampleCount) // n - placeholder for future use
 
 	// Update means using exponential moving average
 	baseline.MeanLatency = baseline.MeanLatency*(1-ad.updateRate) + dp.Latency*ad.updateRate
