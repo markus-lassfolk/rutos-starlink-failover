@@ -1,88 +1,122 @@
-````instructions
 # RUTOS Starlink Failover Project Instructions
 
-## Project Status: Go Rewrite in Progress
+## Architecture Overview: Production Go Daemon
 
-This project is transitioning from Bash scripts to a **Go-based daemon** (`starfaild`) for better performance, reliability, and maintainability on RutOS/OpenWrt routers.
+This project implements **starfaild**, a production-ready Go daemon for intelligent multi-interface failover on RutOS/OpenWrt routers. The system uses a **collector → decision → controller** pipeline with comprehensive telemetry.
 
-## Current Architecture
-
-### Core Components (Go)
-- **Main daemon**: `cmd/starfaild/` - Single Go binary for all functionality  
-- **Packages**: `pkg/` - Modular Go packages (collector, decision, controller, etc.)
-- **Target platforms**: RutOS and OpenWrt (ARMv7, MIPS)
-- **Integration**: UCI config, ubus API, mwan3, procd init system
-
-### Supporting Scripts (Shell)
-- **Init scripts**: `scripts/` - procd init, CLI helper, hotplug
-- **Legacy archive**: `archive/` - Preserved Bash implementation for reference
-- **Build/packaging**: `openwrt/`, `rutos/` - Cross-compilation and packaging
-
-## Development Guidelines
-
-### Go Code (Primary)
-- **Go version**: 1.22+ with modules enabled
-- **No CGO**: `CGO_ENABLED=0` for static binaries
-- **No external deps**: Keep minimal for embedded systems
-- **Structured logging**: JSON format via custom `pkg/logx`
-- **Cross-compile targets**: `GOOS=linux GOARCH=arm GOARM=7` (RutOS), `GOARCH=mips` (OpenWrt)
-
-### Shell Scripts (Supporting only)
-- **POSIX sh only** - No bash syntax (BusyBox compatibility)
-- **Minimal scripts**: Init, CLI wrapper, hotplug helpers only
-- **Use RUTOS Library**: For any remaining shell scripts, use existing `lib/rutos-lib.sh`
-
-### Integration Requirements
-- **UCI configuration**: `/etc/config/starfail` 
-- **ubus API**: Service name `starfail` with methods: status, members, metrics, action
-- **mwan3 integration**: Drive existing mwan3 policies, don't replace
-- **Resource constraints**: ≤12MB binary, ≤25MB RAM, minimal CPU on idle
-
-## File Structure (New)
-
-```
-/cmd/starfaild/          # Main Go daemon
-/pkg/                    # Go packages
-  collector/             # Metric collection (Starlink, cellular, etc.)
-  decision/              # Scoring and failover logic
-  controller/            # mwan3/netifd integration
-  telem/                 # Telemetry storage
-  logx/                  # Structured logging
-  uci/                   # UCI config management
-  ubus/                  # ubus API server
-/scripts/                # Shell support scripts (init, CLI, hotplug)
-/configs/                # Example UCI configurations
-/openwrt/                # OpenWrt Makefile
-/rutos/                  # RutOS SDK packaging
-/archive/                # Legacy Bash scripts (read-only)
+```text
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Collectors    │───▶│ Decision Engine │───▶│   Controllers   │
+│ (Starlink API,  │    │ (EWMA Scoring,  │    │ (mwan3 policies,│
+│  cellular ubus, │    │  hysteresis,    │    │  route metrics) │
+│  ping tests)    │    │  predictive)    │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+         ┌─────────────────────────────────────────────────┐
+         │       Telemetry Store & ubus API               │
+         └─────────────────────────────────────────────────┘
 ```
 
-## Build and Deployment
+## Core Development Patterns
 
-### Cross-compilation
+### Go Module Structure (Zero Dependencies)
+- **No external dependencies** - Pure stdlib for embedded targets
+- **Internal packages**: All functionality in `pkg/` with clear boundaries
+- **Structured data flow**: `collector.Metrics → decision.Score → controller.Action`
+- **Embed resources**: Use `//go:embed` for static configs/templates
+
+### Cross-Platform Build System
+Use `Makefile` targets for device-specific builds:
 ```bash
-# For RutOS (ARMv7)
-CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -ldflags "-s -w" -o starfaild ./cmd/starfaild
-
-# For OpenWrt (MIPS)
-CGO_ENABLED=0 GOOS=linux GOARCH=mips go build -ldflags "-s -w" -o starfaild ./cmd/starfaild
+make rutx50    # ARMv7 for RUTX50/11/12
+make rut901    # MIPS for older RUT series  
+make check     # fmt + vet + test
 ```
 
-### Package Integration
-- **OpenWrt**: Use `golang-package.mk` in feeds
-- **RutOS**: Build with Teltonika SDK
-- **Files**: Daemon binary, UCI config, init script, CLI helper
+### Embedded Integration Points
+- **UCI config**: Use `pkg/uci` for `/etc/config/starfail` parsing with struct tags
+- **ubus API**: `pkg/ubus` provides JSON-RPC interface matching OpenWrt conventions
+- **procd integration**: `scripts/starfail.init` with respawn and file watching
+- **mwan3 control**: `pkg/controller` drives existing policies, never replaces them
 
-## Quality Requirements
+### Resource-Constrained Design
+- **Memory limits**: ≤25MB RAM, with configurable sample retention in `pkg/telem`
+- **CPU efficiency**: Polling intervals configurable (default 1.5s), background collection
+- **Binary size**: Static linking with `-ldflags "-s -w"` targeting ≤12MB
+- **Graceful shutdown**: Signal handling with cleanup in main daemon
 
-- **Go**: Use `go fmt`, `go vet`, basic unit tests for core logic
-- **Shell**: Continue using ShellCheck for remaining scripts
-- **Testing**: Cross-platform testing on both RutOS and OpenWrt VMs
-- **Documentation**: Update PROJECT_INSTRUCTION.md as implementation progresses
+## Key Configuration Patterns
 
-## Legacy Compatibility
+### UCI Configuration Structure (configs/starfail.example)
+```uci
+config starfail 'main'
+    option enable '1'
+    option use_mwan3 '1'
+    option poll_interval_ms '1500'
+    
+config member 'starlink_any'
+    option detect 'auto'
+    option class 'starlink'
+```
 
-- **Archive preserved**: All working Bash scripts moved to `archive/` for reference
-- **Gradual migration**: Can run both systems during transition if needed
-- **Same interfaces**: UCI config and functionality should be compatible
-````
+### Metrics Collection Contract (pkg/collector/collector.go)
+- **Interface uniformity**: All collectors implement `Collector` interface
+- **Typed metrics**: Use `*float64` for optional values (Starlink obstruction, cellular RSSI)
+- **Class-specific data**: Starlink (SNR, outages), cellular (RSRP, RSRQ), WiFi (signal, bitrate)
+- **Timestamp consistency**: All metrics use `time.Time` for correlation
+
+### Decision Engine Scoring (pkg/decision/engine.go)
+- **Multi-layer scoring**: Instant, EWMA, WindowAvg → Final blended score (0-100)
+- **Hysteresis prevention**: Cooldown periods and switch margin thresholds
+- **Audit trail**: Every decision logged with `pkg/audit` for debugging
+
+## Development Workflows
+
+### Local Development
+```bash
+go run ./cmd/starfaild -config configs/starfail.example -log-level debug
+```
+
+### Testing Strategy
+- **Unit tests**: Focus on scoring algorithms and UCI parsing
+- **Integration tests**: Use actual ubus/mwan3 commands in test environment
+- **Cross-compilation**: Test binary size and startup on target architectures
+
+### Shell Script Constraints (scripts/)
+- **POSIX sh only**: No bash syntax - target BusyBox on routers
+- **Use instruction files**: Follow patterns in `.github/instructions/*.instructions.md`
+- **Minimal scripts**: Only init, CLI wrapper, hotplug handlers
+
+### OpenWrt Packaging (openwrt/Makefile)
+- **golang-package.mk**: Standard OpenWrt Go build system
+- **Dependencies**: +mwan3 +ca-bundle for HTTPS Starlink API
+- **Install files**: Binary, UCI config, init script, CLI helper
+
+## Debugging and Monitoring
+
+### Structured Logging (pkg/logx)
+```go
+logger.Info("interface score calculated", 
+    "member", member.Name,
+    "score", score.Final,
+    "metrics", metrics)
+```
+
+### ubus API for Live Monitoring
+```bash
+ubus call starfail status    # Current state and scores
+ubus call starfail metrics   # Historical telemetry  
+ubus call starfail members   # Interface discovery
+```
+
+### Telemetry Retention (pkg/telem)
+- **In-memory store**: Configurable sample limits per interface
+- **Event logging**: Failover decisions with full context
+- **JSON export**: Structured data for external analysis
+
+## Legacy and Migration
+
+- **Archive reference**: Complete bash implementation preserved in `archive/`
+- **UCI compatibility**: Same configuration interface as legacy version
+- **Gradual rollout**: Can run alongside bash version during transition
