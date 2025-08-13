@@ -9,7 +9,6 @@ import (
 	"github.com/starfail/starfail/pkg/performance"
 	"github.com/starfail/starfail/pkg/security"
 	"github.com/starfail/starfail/pkg/telem"
-	"github.com/starfail/starfail/pkg/types"
 )
 
 // IntegrationTestSuite provides comprehensive testing of all components
@@ -17,10 +16,10 @@ type IntegrationTestSuite struct {
 	t *testing.T
 
 	// Components
-	telemetry     *telem.Store
-	decisionEngine *decision.Engine
-	profiler      *performance.Profiler
-	auditor       *security.Auditor
+	telemetry        *telem.Store
+	decisionEngine   *decision.Engine
+	profiler         *performance.Profiler
+	auditor          *security.Auditor
 	predictiveEngine *decision.PredictiveEngine
 
 	// Test data
@@ -112,15 +111,15 @@ func (suite *IntegrationTestSuite) initializeComponents() {
 
 	// Initialize predictive engine
 	predictiveConfig := &decision.PredictiveConfig{
-		Enabled:            true,
-		LookbackWindow:     10 * time.Minute,
-		PredictionHorizon:  5 * time.Minute,
+		Enabled:             true,
+		LookbackWindow:      10 * time.Minute,
+		PredictionHorizon:   5 * time.Minute,
 		ConfidenceThreshold: 0.7,
-		AnomalyThreshold:   0.8,
-		TrendSensitivity:   0.1,
-		PatternMinSamples:  20,
-		MLEnabled:          true,
-		MLModelPath:        "/tmp/test_models",
+		AnomalyThreshold:    0.8,
+		TrendSensitivity:    0.1,
+		PatternMinSamples:   20,
+		MLEnabled:           true,
+		MLModelPath:         "/tmp/test_models",
 	}
 	suite.predictiveEngine = decision.NewPredictiveEngine(predictiveConfig, nil)
 }

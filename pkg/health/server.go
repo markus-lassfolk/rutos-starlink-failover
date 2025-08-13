@@ -12,7 +12,6 @@ import (
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/logx"
 	"github.com/starfail/starfail/pkg/telem"
-	"github.com/starfail/starfail/pkg/types"
 )
 
 // Server provides health check endpoints for starfaild
@@ -27,35 +26,35 @@ type Server struct {
 
 // HealthStatus represents the overall health status
 type HealthStatus struct {
-	Status      string                 `json:"status"`
-	Timestamp   time.Time              `json:"timestamp"`
-	Uptime      time.Duration          `json:"uptime"`
-	Version     string                 `json:"version"`
-	Components  map[string]Component   `json:"components"`
-	Members     []MemberHealth         `json:"members"`
-	Statistics  Statistics             `json:"statistics"`
-	Memory      MemoryInfo             `json:"memory"`
-	LastError   *ErrorInfo             `json:"last_error,omitempty"`
+	Status     string               `json:"status"`
+	Timestamp  time.Time            `json:"timestamp"`
+	Uptime     time.Duration        `json:"uptime"`
+	Version    string               `json:"version"`
+	Components map[string]Component `json:"components"`
+	Members    []MemberHealth       `json:"members"`
+	Statistics Statistics           `json:"statistics"`
+	Memory     MemoryInfo           `json:"memory"`
+	LastError  *ErrorInfo           `json:"last_error,omitempty"`
 }
 
 // Component represents the health of a component
 type Component struct {
-	Status    string    `json:"status"`
-	Message   string    `json:"message"`
-	LastCheck time.Time `json:"last_check"`
+	Status    string        `json:"status"`
+	Message   string        `json:"message"`
+	LastCheck time.Time     `json:"last_check"`
 	Uptime    time.Duration `json:"uptime"`
 }
 
 // MemberHealth represents the health of a member
 type MemberHealth struct {
-	Name      string    `json:"name"`
-	Class     string    `json:"class"`
-	Interface string    `json:"interface"`
-	Status    string    `json:"status"`
-	State     string    `json:"state"`
-	Score     float64   `json:"score"`
-	Active    bool      `json:"active"`
-	LastSeen  time.Time `json:"last_seen"`
+	Name      string        `json:"name"`
+	Class     string        `json:"class"`
+	Interface string        `json:"interface"`
+	Status    string        `json:"status"`
+	State     string        `json:"state"`
+	Score     float64       `json:"score"`
+	Active    bool          `json:"active"`
+	LastSeen  time.Time     `json:"last_seen"`
 	Uptime    time.Duration `json:"uptime"`
 }
 
@@ -72,14 +71,14 @@ type Statistics struct {
 
 // MemoryInfo represents memory usage information
 type MemoryInfo struct {
-	Alloc     uint64  `json:"alloc_bytes"`
-	Sys       uint64  `json:"sys_bytes"`
-	HeapAlloc uint64  `json:"heap_alloc_bytes"`
-	HeapSys   uint64  `json:"heap_sys_bytes"`
-	HeapIdle  uint64  `json:"heap_idle_bytes"`
-	HeapInuse uint64  `json:"heap_inuse_bytes"`
-	NumGC     uint32  `json:"num_gc"`
-	PauseNs   uint64  `json:"pause_ns"`
+	Alloc     uint64 `json:"alloc_bytes"`
+	Sys       uint64 `json:"sys_bytes"`
+	HeapAlloc uint64 `json:"heap_alloc_bytes"`
+	HeapSys   uint64 `json:"heap_sys_bytes"`
+	HeapIdle  uint64 `json:"heap_idle_bytes"`
+	HeapInuse uint64 `json:"heap_inuse_bytes"`
+	NumGC     uint32 `json:"num_gc"`
+	PauseNs   uint64 `json:"pause_ns"`
 }
 
 // ErrorInfo represents error information
@@ -132,7 +131,7 @@ func (s *Server) Start(port int) error {
 // Stop stops the health server
 func (s *Server) Stop() error {
 	s.logger.Info("Stopping health server")
-	
+
 	if s.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -144,22 +143,22 @@ func (s *Server) Stop() error {
 // healthHandler provides basic health status
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	status := s.getHealthStatus()
-	
+
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	if status.Status == "healthy" {
 		w.WriteHeader(http.StatusOK)
 	} else {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
-	
+
 	json.NewEncoder(w).Encode(status)
 }
 
 // detailedHealthHandler provides detailed health information
 func (s *Server) detailedHealthHandler(w http.ResponseWriter, r *http.Request) {
 	status := s.getDetailedHealthStatus()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(status)
@@ -168,9 +167,9 @@ func (s *Server) detailedHealthHandler(w http.ResponseWriter, r *http.Request) {
 // readyHandler provides readiness check
 func (s *Server) readyHandler(w http.ResponseWriter, r *http.Request) {
 	status := s.getHealthStatus()
-	
+
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	if status.Status == "healthy" {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"ready"}`))
@@ -230,21 +229,21 @@ func (s *Server) getHealthStatus() HealthStatus {
 // getDetailedHealthStatus returns detailed health status
 func (s *Server) getDetailedHealthStatus() HealthStatus {
 	status := s.getHealthStatus()
-	
+
 	// Add member health information
 	status.Members = s.getMemberHealth()
-	
+
 	// Add statistics
 	status.Statistics = s.getStatistics()
-	
+
 	// Add memory information
 	status.Memory = s.getMemoryInfo()
-	
+
 	// Add last error (if any)
 	if lastError := s.getLastError(); lastError != nil {
 		status.LastError = lastError
 	}
-	
+
 	return status
 }
 
@@ -252,9 +251,9 @@ func (s *Server) getDetailedHealthStatus() HealthStatus {
 func (s *Server) getMemberHealth() []MemberHealth {
 	members := s.controller.GetMembers()
 	activeMember := s.controller.GetActiveMember()
-	
+
 	var memberHealth []MemberHealth
-	
+
 	for _, member := range members {
 		health := MemberHealth{
 			Name:      member.Name,
@@ -267,7 +266,7 @@ func (s *Server) getMemberHealth() []MemberHealth {
 			LastSeen:  member.Created,
 			Uptime:    time.Since(member.Created),
 		}
-		
+
 		// Check if member is active
 		if activeMember != nil && activeMember.Name == member.Name {
 			health.Active = true
@@ -275,14 +274,14 @@ func (s *Server) getMemberHealth() []MemberHealth {
 		} else {
 			health.Status = "inactive"
 		}
-		
+
 		// Get latest score
 		samples := s.store.GetSamples(member.Name, 1, time.Minute)
 		if len(samples) > 0 {
 			health.Score = samples[0].Score.Final
 			health.LastSeen = samples[0].Metrics.Timestamp
 		}
-		
+
 		// Determine status based on score and state
 		if health.Score > 80 {
 			health.Status = "excellent"
@@ -295,10 +294,10 @@ func (s *Server) getMemberHealth() []MemberHealth {
 		} else {
 			health.Status = "critical"
 		}
-		
+
 		memberHealth = append(memberHealth, health)
 	}
-	
+
 	return memberHealth
 }
 
@@ -306,37 +305,37 @@ func (s *Server) getMemberHealth() []MemberHealth {
 func (s *Server) getStatistics() Statistics {
 	members := s.controller.GetMembers()
 	activeMember := s.controller.GetActiveMember()
-	
+
 	stats := Statistics{
-		TotalMembers: len(members),
+		TotalMembers:  len(members),
 		ActiveMembers: 0,
 	}
-	
+
 	if activeMember != nil {
 		stats.ActiveMembers = 1
 	}
-	
+
 	// Count total samples
 	for _, member := range members {
 		samples := s.store.GetSamples(member.Name, 1000, time.Hour)
 		stats.TotalSamples += len(samples)
 	}
-	
+
 	// Count total events
 	events := s.store.GetEvents(1000, time.Hour)
 	stats.TotalEvents = len(events)
-	
+
 	// Count switches
 	for _, event := range events {
 		if event.Type == types.EventTypeSwitch {
 			stats.TotalSwitches++
 		}
 	}
-	
+
 	// These would be tracked by the decision engine in a real implementation
 	stats.DecisionCycles = 0
 	stats.CollectionErrors = 0
-	
+
 	return stats
 }
 
@@ -344,7 +343,7 @@ func (s *Server) getStatistics() Statistics {
 func (s *Server) getMemoryInfo() MemoryInfo {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
+
 	return MemoryInfo{
 		Alloc:     m.Alloc,
 		Sys:       m.Sys,

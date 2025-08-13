@@ -2,7 +2,6 @@ package ubus
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/logx"
 	"github.com/starfail/starfail/pkg/telem"
-	"github.com/starfail/starfail/pkg/types"
 )
 
 // Server provides the ubus RPC interface for starfaild
@@ -43,25 +41,25 @@ func NewServer(ctrl *controller.Controller, eng *decision.Engine, store *telem.S
 // Start initializes and starts the ubus server
 func (s *Server) Start(ctx context.Context) error {
 	s.logger.Info("Starting ubus server")
-	
+
 	// Connect to ubus daemon
 	if err := s.client.Connect(ctx); err != nil {
 		return fmt.Errorf("failed to connect to ubus daemon: %w", err)
 	}
-	
+
 	// Register methods
 	if err := s.registerMethods(); err != nil {
 		s.client.Disconnect()
 		return fmt.Errorf("failed to register methods: %w", err)
 	}
-	
+
 	// Start listening for messages
 	go func() {
 		if err := s.client.Listen(s.ctx); err != nil && s.ctx.Err() == nil {
 			s.logger.Error("ubus listener error", "error", err)
 		}
 	}()
-	
+
 	s.logger.Info("ubus server started successfully")
 	return nil
 }
@@ -69,16 +67,16 @@ func (s *Server) Start(ctx context.Context) error {
 // Stop gracefully shuts down the ubus server
 func (s *Server) Stop() error {
 	s.logger.Info("Stopping ubus server")
-	
+
 	// Cancel context to stop listeners
 	s.cancel()
-	
+
 	// Unregister object
 	if s.client != nil {
 		s.client.UnregisterObject(context.Background(), "starfail")
 		s.client.Disconnect()
 	}
-	
+
 	s.logger.Info("ubus server stopped")
 	return nil
 }
@@ -86,17 +84,17 @@ func (s *Server) Stop() error {
 // registerMethods registers all RPC methods with the ubus daemon
 func (s *Server) registerMethods() error {
 	methods := map[string]MethodHandler{
-		"status":     s.handleStatus,
-		"members":    s.handleMembers,
-		"telemetry":  s.handleTelemetry,
-		"events":     s.handleEvents,
-		"failover":   s.handleFailover,
-		"restore":    s.handleRestore,
-		"recheck":    s.handleRecheck,
-		"setlog":     s.handleSetLogLevel,
-		"config":     s.handleGetConfig,
-		"info":       s.handleGetInfo,
-		"action":     s.handleAction,
+		"status":    s.handleStatus,
+		"members":   s.handleMembers,
+		"telemetry": s.handleTelemetry,
+		"events":    s.handleEvents,
+		"failover":  s.handleFailover,
+		"restore":   s.handleRestore,
+		"recheck":   s.handleRecheck,
+		"setlog":    s.handleSetLogLevel,
+		"config":    s.handleGetConfig,
+		"info":      s.handleGetInfo,
+		"action":    s.handleAction,
 	}
 
 	return s.client.RegisterObject(s.ctx, "starfail", methods)
@@ -120,7 +118,7 @@ func (s *Server) GetStatus() (*StatusResponse, error) {
 
 	activeMember := s.controller.GetActiveMember()
 	members := s.controller.GetMembers()
-	
+
 	// Get last switch event
 	var lastSwitch *types.Event
 	events := s.store.GetEvents(1, time.Hour)
@@ -144,10 +142,10 @@ func (s *Server) GetStatus() (*StatusResponse, error) {
 		DecisionState:   s.decision.GetState(),
 		ControllerState: s.controller.GetState(),
 		Health: map[string]string{
-			"decision_engine":   "healthy",
-			"controller":        "healthy",
-			"telemetry_store":   "healthy",
-			"ubus_server":       "healthy",
+			"decision_engine": "healthy",
+			"controller":      "healthy",
+			"telemetry_store": "healthy",
+			"ubus_server":     "healthy",
 		},
 	}
 
@@ -161,11 +159,11 @@ type MembersResponse struct {
 
 // MemberInfo provides detailed information about a member
 type MemberInfo struct {
-	Member  types.Member `json:"member"`
+	Member  types.Member   `json:"member"`
 	Metrics *types.Metrics `json:"metrics,omitempty"`
 	Score   *types.Score   `json:"score,omitempty"`
-	State   string        `json:"state"`
-	Status  string        `json:"status"`
+	State   string         `json:"state"`
+	Status  string         `json:"status"`
 }
 
 // GetMembers returns detailed information about all members
@@ -181,7 +179,7 @@ func (s *Server) GetMembers() (*MembersResponse, error) {
 		samples := s.store.GetSamples(member.Name, 1, time.Minute)
 		var metrics *types.Metrics
 		var score *types.Score
-		
+
 		if len(samples) > 0 {
 			metrics = &samples[0].Metrics
 			score = &samples[0].Score
@@ -201,9 +199,9 @@ func (s *Server) GetMembers() (*MembersResponse, error) {
 
 // MetricsResponse represents the response for metrics queries
 type MetricsResponse struct {
-	Member  string           `json:"member"`
-	Samples []types.Sample   `json:"samples"`
-	Period  time.Duration    `json:"period"`
+	Member  string         `json:"member"`
+	Samples []types.Sample `json:"samples"`
+	Period  time.Duration  `json:"period"`
 }
 
 // GetMetrics returns historical metrics for a specific member
@@ -432,7 +430,7 @@ type ConfigResponse struct {
 func (s *Server) GetConfig() (*ConfigResponse, error) {
 	// TODO: Implement configuration retrieval from UCI
 	// This would return the parsed configuration from /etc/config/starfail
-	
+
 	config := map[string]interface{}{
 		"general": map[string]interface{}{
 			"check_interval":    30,
@@ -472,7 +470,7 @@ type InfoResponse struct {
 func (s *Server) GetInfo() (*InfoResponse, error) {
 	// TODO: Implement actual system information gathering
 	// This would include real memory usage, statistics, etc.
-	
+
 	info := &InfoResponse{
 		Version:   "1.0.0",
 		BuildTime: "2024-01-01T00:00:00Z",
@@ -480,12 +478,12 @@ func (s *Server) GetInfo() (*InfoResponse, error) {
 		Platform:  "linux/arm",
 		Uptime:    time.Since(time.Now().Add(-time.Hour)), // Placeholder
 		MemoryUsage: map[string]interface{}{
-			"heap_alloc":     "10MB",
-			"heap_sys":       "20MB",
-			"heap_idle":      "5MB",
-			"heap_inuse":     "15MB",
-			"heap_released":  "2MB",
-			"heap_objects":   1000,
+			"heap_alloc":    "10MB",
+			"heap_sys":      "20MB",
+			"heap_idle":     "5MB",
+			"heap_inuse":    "15MB",
+			"heap_released": "2MB",
+			"heap_objects":  1000,
 		},
 		Stats: map[string]interface{}{
 			"total_switches":    10,
@@ -540,7 +538,7 @@ func (s *Server) handleFailover(ctx context.Context, params map[string]interface
 	if !ok {
 		return nil, fmt.Errorf("missing or invalid member parameter")
 	}
-	
+
 	result, err := s.Failover(targetMember)
 	if err != nil {
 		return nil, err
@@ -569,7 +567,7 @@ func (s *Server) handleSetLogLevel(ctx context.Context, params map[string]interf
 	if !ok {
 		return nil, fmt.Errorf("missing or invalid level parameter")
 	}
-	
+
 	result, err := s.SetLogLevel(level)
 	if err != nil {
 		return nil, err
@@ -598,7 +596,7 @@ func (s *Server) handleAction(ctx context.Context, params map[string]interface{}
 	if !ok {
 		return nil, fmt.Errorf("missing or invalid cmd parameter")
 	}
-	
+
 	result, err := s.Action(cmd)
 	if err != nil {
 		return nil, err

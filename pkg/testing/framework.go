@@ -10,7 +10,7 @@ import (
 	"github.com/starfail/starfail/pkg/discovery"
 	"github.com/starfail/starfail/pkg/logx"
 	"github.com/starfail/starfail/pkg/telem"
-	"github.com/starfail/starfail/pkg/types"
+
 	"github.com/starfail/starfail/pkg/uci"
 )
 
@@ -90,19 +90,19 @@ func (tf *TestFramework) MockMembers() []types.Member {
 // MockMetrics creates test metrics data
 func (tf *TestFramework) MockMetrics() types.Metrics {
 	return types.Metrics{
-		Timestamp:     time.Now(),
-		Latency:       50.0,
-		Loss:          0.1,
-		Jitter:        5.0,
-		Bandwidth:     100.0,
-		Signal:        -70.0,
-		Obstruction:   5.0,
-		Outages:       0,
-		NetworkType:   "4G",
-		Operator:      "Test Operator",
-		Roaming:       false,
-		Connected:     true,
-		LastSeen:      time.Now(),
+		Timestamp:   time.Now(),
+		Latency:     50.0,
+		Loss:        0.1,
+		Jitter:      5.0,
+		Bandwidth:   100.0,
+		Signal:      -70.0,
+		Obstruction: 5.0,
+		Outages:     0,
+		NetworkType: "4G",
+		Operator:    "Test Operator",
+		Roaming:     false,
+		Connected:   true,
+		LastSeen:    time.Now(),
 	}
 }
 

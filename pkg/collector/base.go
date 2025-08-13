@@ -70,7 +70,7 @@ func (bc *BaseCollector) CollectCommonMetrics(ctx context.Context, member *pkg.M
 func (bc *BaseCollector) pingTarget(ctx context.Context, target string) (latency, loss float64, err error) {
 	// Use TCP connect timing as fallback (ICMP might be blocked)
 	start := time.Now()
-	
+
 	conn, err := net.DialTimeout("tcp", target+":80", bc.timeout)
 	if err != nil {
 		return 0, 100, err // 100% loss if can't connect

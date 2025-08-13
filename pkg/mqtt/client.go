@@ -1,36 +1,34 @@
 package mqtt
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/starfail/starfail/pkg/logx"
-	"github.com/starfail/starfail/pkg/types"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	"github.com/starfail/starfail/pkg/logx"
 )
 
 // Client provides MQTT publishing for starfaild telemetry
 type Client struct {
-	client     MQTT.Client
-	logger     *logx.Logger
-	config     *Config
-	connected  bool
+	client      MQTT.Client
+	logger      *logx.Logger
+	config      *Config
+	connected   bool
 	lastPublish time.Time
 }
 
 // Config holds MQTT configuration
 type Config struct {
-	Broker     string `json:"broker"`
-	Port       int    `json:"port"`
-	ClientID   string `json:"client_id"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
+	Broker      string `json:"broker"`
+	Port        int    `json:"port"`
+	ClientID    string `json:"client_id"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
 	TopicPrefix string `json:"topic_prefix"`
-	QoS        int    `json:"qos"`
-	Retain     bool   `json:"retain"`
-	Enabled    bool   `json:"enabled"`
+	QoS         int    `json:"qos"`
+	Retain      bool   `json:"retain"`
+	Enabled     bool   `json:"enabled"`
 }
 
 // DefaultConfig returns default MQTT configuration
@@ -64,23 +62,23 @@ func (c *Client) Connect() error {
 	opts := MQTT.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", c.config.Broker, c.config.Port))
 	opts.SetClientID(c.config.ClientID)
-	
+
 	if c.config.Username != "" {
 		opts.SetUsername(c.config.Username)
 		opts.SetPassword(c.config.Password)
 	}
-	
+
 	opts.SetAutoReconnect(true)
 	opts.SetConnectRetry(true)
 	opts.SetConnectRetryInterval(5 * time.Second)
 	opts.SetMaxReconnectInterval(1 * time.Minute)
-	
+
 	opts.SetOnConnectHandler(c.onConnect)
 	opts.SetConnectionLostHandler(c.onConnectionLost)
 	opts.SetDefaultPublishHandler(c.onMessageReceived)
 
 	c.client = MQTT.NewClient(opts)
-	
+
 	if token := c.client.Connect(); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("failed to connect to MQTT broker: %w", token.Error())
 	}
@@ -126,60 +124,34 @@ func (c *Client) onMessageReceived(client MQTT.Client, msg MQTT.Message) {
 }
 
 // PublishSample publishes a member sample to MQTT
-func (c *Client) PublishSample(sample types.Sample) error {
+func (c *Client) PublishSample(sample interface{}) error {
 	if !c.config.Enabled || !c.connected {
 		return nil
 	}
 
-	topic := fmt.Sprintf("%s/members/%s/sample", c.config.TopicPrefix, sample.Member.Name)
-	
+	// Use reflection or type assertion to access sample fields
+	// For now, we'll use a generic approach
+	topic := fmt.Sprintf("%s/members/sample", c.config.TopicPrefix)
+
 	payload := map[string]interface{}{
-		"timestamp": sample.Metrics.Timestamp,
-		"member": map[string]interface{}{
-			"name":      sample.Member.Name,
-			"class":     sample.Member.Class,
-			"interface": sample.Member.Interface,
-		},
-		"metrics": map[string]interface{}{
-			"latency":      sample.Metrics.Latency,
-			"loss":         sample.Metrics.Loss,
-			"jitter":       sample.Metrics.Jitter,
-			"bandwidth":    sample.Metrics.Bandwidth,
-			"signal":       sample.Metrics.Signal,
-			"obstruction":  sample.Metrics.Obstruction,
-			"outages":      sample.Metrics.Outages,
-			"network_type": sample.Metrics.NetworkType,
-			"operator":     sample.Metrics.Operator,
-			"roaming":      sample.Metrics.Roaming,
-			"connected":    sample.Metrics.Connected,
-		},
-		"score": map[string]interface{}{
-			"instant":       sample.Score.Instant,
-			"ewma":          sample.Score.EWMA,
-			"window_average": sample.Score.WindowAverage,
-			"final":         sample.Score.Final,
-			"trend":         sample.Score.Trend,
-			"confidence":    sample.Score.Confidence,
-		},
+		"timestamp": time.Now(),
+		"sample":    sample,
 	}
 
 	return c.publishJSON(topic, payload)
 }
 
 // PublishEvent publishes an event to MQTT
-func (c *Client) PublishEvent(event types.Event) error {
+func (c *Client) PublishEvent(event interface{}) error {
 	if !c.config.Enabled || !c.connected {
 		return nil
 	}
 
-	topic := fmt.Sprintf("%s/events/%s", c.config.TopicPrefix, event.Type)
-	
+	topic := fmt.Sprintf("%s/events", c.config.TopicPrefix)
+
 	payload := map[string]interface{}{
-		"timestamp": event.Timestamp,
-		"type":      event.Type,
-		"member":    event.Member,
-		"message":   event.Message,
-		"data":      event.Data,
+		"timestamp": time.Now(),
+		"event":     event,
 	}
 
 	return c.publishJSON(topic, payload)
@@ -192,7 +164,7 @@ func (c *Client) PublishStatus(status map[string]interface{}) error {
 	}
 
 	topic := fmt.Sprintf("%s/status", c.config.TopicPrefix)
-	
+
 	payload := map[string]interface{}{
 		"timestamp": time.Now(),
 		"status":    status,
@@ -202,13 +174,13 @@ func (c *Client) PublishStatus(status map[string]interface{}) error {
 }
 
 // PublishMemberList publishes the current member list to MQTT
-func (c *Client) PublishMemberList(members []types.Member) error {
+func (c *Client) PublishMemberList(members interface{}) error {
 	if !c.config.Enabled || !c.connected {
 		return nil
 	}
 
 	topic := fmt.Sprintf("%s/members", c.config.TopicPrefix)
-	
+
 	payload := map[string]interface{}{
 		"timestamp": time.Now(),
 		"members":   members,
@@ -224,7 +196,7 @@ func (c *Client) PublishHealth(health map[string]interface{}) error {
 	}
 
 	topic := fmt.Sprintf("%s/health", c.config.TopicPrefix)
-	
+
 	payload := map[string]interface{}{
 		"timestamp": time.Now(),
 		"health":    health,
@@ -303,25 +275,25 @@ func (c *Client) Unsubscribe(topic string) error {
 // PublishWithRetry publishes with retry logic
 func (c *Client) PublishWithRetry(topic string, payload interface{}, maxRetries int) error {
 	var lastErr error
-	
+
 	for i := 0; i < maxRetries; i++ {
 		if err := c.publishJSON(topic, payload); err != nil {
 			lastErr = err
 			c.logger.Warn("MQTT publish failed, retrying", map[string]interface{}{
-				"topic":     topic,
-				"attempt":   i + 1,
+				"topic":       topic,
+				"attempt":     i + 1,
 				"max_retries": maxRetries,
-				"error":     err.Error(),
+				"error":       err.Error(),
 			})
-			
+
 			// Wait before retry
 			time.Sleep(time.Duration(i+1) * time.Second)
 			continue
 		}
-		
+
 		// Success
 		return nil
 	}
-	
+
 	return fmt.Errorf("failed to publish after %d retries: %w", maxRetries, lastErr)
 }

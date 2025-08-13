@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
@@ -239,7 +238,7 @@ func (wc *WiFiCollector) GetWiFiInfo(ctx context.Context, member *pkg.Member) (m
 	}
 
 	result := make(map[string]interface{})
-	
+
 	if info.SignalStrength != nil {
 		result["signal"] = *info.SignalStrength
 	}
@@ -273,7 +272,7 @@ func (wc *WiFiCollector) GetSignalQuality(signal, noise, snr *int) float64 {
 	if signal != nil {
 		// WiFi signal strength typically ranges from -100 to -30 dBm
 		// Convert to 0-100 scale
-		signalScore := float64(*signal + 100) / 70.0 * 100
+		signalScore := float64(*signal+100) / 70.0 * 100
 		if signalScore > 100 {
 			signalScore = 100
 		} else if signalScore < 0 {
@@ -324,7 +323,7 @@ func (wc *WiFiCollector) GetBitrateQuality(bitrate *int) float64 {
 func (wc *WiFiCollector) IsWiFiInterface(iface string) bool {
 	// Check if interface name matches WiFi patterns
 	wifiPatterns := []string{"wlan", "wifi", "ath", "radio"}
-	
+
 	ifaceLower := strings.ToLower(iface)
 	for _, pattern := range wifiPatterns {
 		if strings.Contains(ifaceLower, pattern) {

@@ -32,10 +32,10 @@ type Controller struct {
 // NewController creates a new controller
 func NewController(config *uci.Config, logger *logx.Logger) (*Controller, error) {
 	ctrl := &Controller{
-		config:     config,
-		logger:     logger,
-		mwan3Path:  "mwan3",
-		ubusPath:   "ubus",
+		config:       config,
+		logger:       logger,
+		mwan3Path:    "mwan3",
+		ubusPath:     "ubus",
 		mwan3Enabled: config.UseMWAN3,
 	}
 
@@ -307,7 +307,7 @@ func (c *Controller) GetMWAN3Info() (map[string]interface{}, error) {
 
 	// Extract relevant information
 	info := make(map[string]interface{})
-	
+
 	if interfaces, ok := status["interfaces"].(map[string]interface{}); ok {
 		interfaceInfo := make(map[string]interface{})
 		for ifaceName, ifaceData := range interfaces {

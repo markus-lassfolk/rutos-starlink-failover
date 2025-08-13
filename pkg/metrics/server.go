@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -13,7 +12,6 @@ import (
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/logx"
 	"github.com/starfail/starfail/pkg/telem"
-	"github.com/starfail/starfail/pkg/types"
 )
 
 // Server provides Prometheus metrics for starfaild
@@ -25,25 +23,25 @@ type Server struct {
 	server     *http.Server
 
 	// Prometheus metrics
-	memberScore *prometheus.GaugeVec
-	memberLatency *prometheus.GaugeVec
-	memberLoss *prometheus.GaugeVec
-	memberSignal *prometheus.GaugeVec
+	memberScore       *prometheus.GaugeVec
+	memberLatency     *prometheus.GaugeVec
+	memberLoss        *prometheus.GaugeVec
+	memberSignal      *prometheus.GaugeVec
 	memberObstruction *prometheus.GaugeVec
-	memberOutages *prometheus.CounterVec
-	memberSwitches *prometheus.CounterVec
-	memberUptime *prometheus.GaugeVec
-	memberStatus *prometheus.GaugeVec
-	
-	decisionCycles *prometheus.CounterVec
-	decisionErrors *prometheus.CounterVec
+	memberOutages     *prometheus.CounterVec
+	memberSwitches    *prometheus.CounterVec
+	memberUptime      *prometheus.GaugeVec
+	memberStatus      *prometheus.GaugeVec
+
+	decisionCycles   *prometheus.CounterVec
+	decisionErrors   *prometheus.CounterVec
 	collectionErrors *prometheus.CounterVec
-	
-	telemetrySamples *prometheus.GaugeVec
-	telemetryEvents *prometheus.GaugeVec
+
+	telemetrySamples     *prometheus.GaugeVec
+	telemetryEvents      *prometheus.GaugeVec
 	telemetryMemoryUsage *prometheus.GaugeVec
-	
-	daemonUptime *prometheus.GaugeVec
+
+	daemonUptime  *prometheus.GaugeVec
 	daemonVersion *prometheus.GaugeVec
 }
 
@@ -253,7 +251,7 @@ func (s *Server) Start(port int) error {
 // Stop stops the metrics server
 func (s *Server) Stop() error {
 	s.logger.Info("Stopping metrics server")
-	
+
 	if s.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -372,7 +370,7 @@ func (s *Server) updateDaemonMetrics() {
 
 	// Update version info
 	s.daemonVersion.With(prometheus.Labels{
-		"version":   "1.0.0",
+		"version":    "1.0.0",
 		"go_version": "1.22",
 	}).Set(1)
 }

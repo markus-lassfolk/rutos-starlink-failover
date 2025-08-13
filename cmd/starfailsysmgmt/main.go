@@ -3,15 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/sysmgmt"
-	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
+	"github.com/starfail/starfail/pkg/logx"
+	"github.com/starfail/starfail/pkg/sysmgmt"
 )
 
 var (
@@ -37,15 +35,15 @@ func main() {
 	// Initialize logger
 	logger := logx.NewLogger(effectiveLogLevel, "starfailsysmgmt")
 	logger.Info("Starting Starfail System Management", "version", "1.0.0")
-	
+
 	// Log monitoring mode status
 	if *monitor {
 		logger.Info("Running in monitoring mode", "verbose_logging", true, "foreground", *foreground)
 		logger.LogVerbose("monitoring_mode_enabled", map[string]interface{}{
-			"log_level": effectiveLogLevel,
-			"dry_run":   *dryRun,
+			"log_level":  effectiveLogLevel,
+			"dry_run":    *dryRun,
 			"check_only": *checkOnly,
-			"verbose":   *verbose,
+			"verbose":    *verbose,
 		})
 	}
 

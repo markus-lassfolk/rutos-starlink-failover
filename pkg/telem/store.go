@@ -1,7 +1,6 @@
 package telem
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -115,7 +114,16 @@ func (s *Store) GetSamples(member string, since time.Time) ([]*Sample, error) {
 		return []*Sample{}, nil
 	}
 
-	return buffer.GetSince(since), nil
+	// Convert interface{} to []*Sample
+	items := buffer.GetSince(since)
+	samples := make([]*Sample, 0, len(items))
+	for _, item := range items {
+		if sample, ok := item.(*Sample); ok {
+			samples = append(samples, sample)
+		}
+	}
+
+	return samples, nil
 }
 
 // GetEvents returns events within a time window
@@ -240,8 +248,8 @@ func metricsToMap(metrics *pkg.Metrics) map[string]interface{} {
 	}
 
 	result := map[string]interface{}{
-		"lat_ms":   metrics.LatencyMS,
-		"loss_pct": metrics.LossPercent,
+		"lat_ms":    metrics.LatencyMS,
+		"loss_pct":  metrics.LossPercent,
 		"jitter_ms": metrics.JitterMS,
 	}
 

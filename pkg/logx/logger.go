@@ -1,8 +1,6 @@
 package logx
 
 import (
-	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"time"
@@ -27,7 +25,7 @@ func NewLogger(level string, component string) *Logger {
 		},
 	})
 	logger.SetOutput(os.Stdout)
-	
+
 	// Set log level
 	switch level {
 	case "debug":
@@ -45,12 +43,12 @@ func NewLogger(level string, component string) *Logger {
 	}
 
 	result := &Logger{logger: logger}
-	
+
 	// Add component field if specified
 	if component != "" {
 		result = result.WithField("component", component)
 	}
-	
+
 	return result
 }
 
@@ -108,7 +106,7 @@ func (l *Logger) WithFields(fields map[string]interface{}) *Logger {
 // parseFields converts variadic arguments to logrus.Fields
 func parseFields(fields ...interface{}) logrus.Fields {
 	result := make(logrus.Fields)
-	
+
 	for i := 0; i < len(fields); i += 2 {
 		if i+1 < len(fields) {
 			key, ok := fields[i].(string)
@@ -117,7 +115,7 @@ func parseFields(fields ...interface{}) logrus.Fields {
 			}
 		}
 	}
-	
+
 	return result
 }
 
@@ -127,11 +125,11 @@ func (l *Logger) LogEvent(eventType, member string, data map[string]interface{})
 		"event_type": eventType,
 		"member":     member,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("event")
 }
 
@@ -140,11 +138,11 @@ func (l *Logger) LogMetrics(member string, metrics map[string]interface{}) {
 	fields := logrus.Fields{
 		"member": member,
 	}
-	
+
 	for k, v := range metrics {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Debug("metrics")
 }
 
@@ -155,11 +153,11 @@ func (l *Logger) LogDecision(decisionType, from, to string, data map[string]inte
 		"from":          from,
 		"to":            to,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("decision")
 }
 
@@ -170,11 +168,11 @@ func (l *Logger) LogDiscovery(member, class, iface string, data map[string]inter
 		"class":  class,
 		"iface":  iface,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("discovery")
 }
 
@@ -183,11 +181,11 @@ func (l *Logger) LogError(err error, context map[string]interface{}) {
 	fields := logrus.Fields{
 		"error": err.Error(),
 	}
-	
+
 	for k, v := range context {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Error("error")
 }
 
@@ -196,36 +194,36 @@ func (l *Logger) LogConfig(action string, data map[string]interface{}) {
 	fields := logrus.Fields{
 		"action": action,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("config")
 }
 
 // LogThrottle logs throttling events
 func (l *Logger) LogThrottle(what string, cooldownS, remainingS int) {
 	l.logger.WithFields(logrus.Fields{
-		"what":          what,
-		"cooldown_s":    cooldownS,
-		"remaining_s":   remainingS,
+		"what":        what,
+		"cooldown_s":  cooldownS,
+		"remaining_s": remainingS,
 	}).Warn("throttle")
 }
 
 // LogSwitch logs interface switching events
 func (l *Logger) LogSwitch(from, to, reason string, delta float64, data map[string]interface{}) {
 	fields := logrus.Fields{
-		"from":    from,
-		"to":      to,
-		"reason":  reason,
-		"delta":   delta,
+		"from":   from,
+		"to":     to,
+		"reason": reason,
+		"delta":  delta,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("switch")
 }
 
@@ -234,11 +232,11 @@ func (l *Logger) LogSample(member string, metrics map[string]interface{}) {
 	fields := logrus.Fields{
 		"member": member,
 	}
-	
+
 	for k, v := range metrics {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Debug("sample")
 }
 
@@ -248,11 +246,11 @@ func (l *Logger) LogProvider(member, provider string, data map[string]interface{
 		"member":   member,
 		"provider": provider,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("provider")
 }
 
@@ -261,11 +259,11 @@ func (l *Logger) LogMWAN3(action string, data map[string]interface{}) {
 	fields := logrus.Fields{
 		"action": action,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("mwan3")
 }
 
@@ -284,11 +282,11 @@ func (l *Logger) LogPerformance(operation string, duration time.Duration, data m
 		"operation": operation,
 		"duration":  duration.String(),
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Debug("performance")
 }
 
@@ -297,11 +295,11 @@ func (l *Logger) LogStartup(version string, data map[string]interface{}) {
 	fields := logrus.Fields{
 		"version": version,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("startup")
 }
 
@@ -310,11 +308,11 @@ func (l *Logger) LogShutdown(reason string, data map[string]interface{}) {
 	fields := logrus.Fields{
 		"reason": reason,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("shutdown")
 }
 
@@ -323,11 +321,11 @@ func (l *Logger) LogUptime(uptime time.Duration, data map[string]interface{}) {
 	fields := logrus.Fields{
 		"uptime": uptime.String(),
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("uptime")
 }
 
@@ -337,16 +335,16 @@ func (l *Logger) LogValidation(component string, valid bool, data map[string]int
 		"component": component,
 		"valid":     valid,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	level := logrus.InfoLevel
 	if !valid {
 		level = logrus.WarnLevel
 	}
-	
+
 	l.logger.WithFields(fields).Log(level, "validation")
 }
 
@@ -355,11 +353,11 @@ func (l *Logger) LogReload(source string, data map[string]interface{}) {
 	fields := logrus.Fields{
 		"source": source,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("reload")
 }
 
@@ -368,11 +366,11 @@ func (l *Logger) LogHeartbeat(interval time.Duration, data map[string]interface{
 	fields := logrus.Fields{
 		"interval": interval.String(),
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Debug("heartbeat")
 }
 
@@ -386,11 +384,11 @@ func (l *Logger) LogVerbose(operation string, data map[string]interface{}) {
 	fields := logrus.Fields{
 		"operation": operation,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Trace("verbose")
 }
 
@@ -399,27 +397,27 @@ func (l *Logger) LogDebugVerbose(operation string, data map[string]interface{}) 
 	fields := logrus.Fields{
 		"operation": operation,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Debug("debug_verbose")
 }
 
 // LogStateChange logs state changes with full context
 func (l *Logger) LogStateChange(component, fromState, toState string, reason string, data map[string]interface{}) {
 	fields := logrus.Fields{
-		"component": component,
+		"component":  component,
 		"from_state": fromState,
 		"to_state":   toState,
 		"reason":     reason,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Info("state_change")
 }
 
@@ -431,26 +429,26 @@ func (l *Logger) LogDataFlow(from, to string, dataType string, dataSize int, dat
 		"data_type": dataType,
 		"data_size": dataSize,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Debug("data_flow")
 }
 
 // LogTiming logs timing information for performance analysis
 func (l *Logger) LogTiming(operation string, duration time.Duration, data map[string]interface{}) {
 	fields := logrus.Fields{
-		"operation": operation,
+		"operation":   operation,
 		"duration_ms": duration.Milliseconds(),
 		"duration_ns": duration.Nanoseconds(),
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Debug("timing")
 }
 
@@ -463,39 +461,39 @@ func (l *Logger) LogResourceUsage(resourceType string, usage float64, limit floa
 		"unit":          unit,
 		"usage_pct":     (usage / limit) * 100,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Debug("resource_usage")
 }
 
 // LogNetworkActivity logs network-related activities
 func (l *Logger) LogNetworkActivity(activity string, interfaceName string, data map[string]interface{}) {
 	fields := logrus.Fields{
-		"activity":      activity,
-		"interface":     interfaceName,
+		"activity":  activity,
+		"interface": interfaceName,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	l.logger.WithFields(fields).Debug("network_activity")
 }
 
 // LogSystemCall logs system calls and their results
 func (l *Logger) LogSystemCall(command string, args []string, exitCode int, stdout string, stderr string, duration time.Duration) {
 	fields := logrus.Fields{
-		"command":    command,
-		"args":       args,
-		"exit_code":  exitCode,
-		"stdout_len": len(stdout),
-		"stderr_len": len(stderr),
+		"command":     command,
+		"args":        args,
+		"exit_code":   exitCode,
+		"stdout_len":  len(stdout),
+		"stderr_len":  len(stderr),
 		"duration_ms": duration.Milliseconds(),
 	}
-	
+
 	// Only log stdout/stderr if they're not too long
 	if len(stdout) > 0 && len(stdout) < 1000 {
 		fields["stdout"] = stdout
@@ -503,28 +501,28 @@ func (l *Logger) LogSystemCall(command string, args []string, exitCode int, stdo
 	if len(stderr) > 0 && len(stderr) < 1000 {
 		fields["stderr"] = stderr
 	}
-	
+
 	level := logrus.InfoLevel
 	if exitCode != 0 {
 		level = logrus.WarnLevel
 	}
-	
+
 	l.logger.WithFields(fields).Log(level, "system_call")
 }
 
 // LogAPICall logs API calls and their responses
 func (l *Logger) LogAPICall(method, url string, statusCode int, responseTime time.Duration, data map[string]interface{}) {
 	fields := logrus.Fields{
-		"method":        method,
-		"url":           url,
-		"status_code":   statusCode,
+		"method":           method,
+		"url":              url,
+		"status_code":      statusCode,
 		"response_time_ms": responseTime.Milliseconds(),
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	level := logrus.InfoLevel
 	if statusCode >= 400 {
 		level = logrus.WarnLevel
@@ -532,7 +530,7 @@ func (l *Logger) LogAPICall(method, url string, statusCode int, responseTime tim
 	if statusCode >= 500 {
 		level = logrus.ErrorLevel
 	}
-	
+
 	l.logger.WithFields(fields).Log(level, "api_call")
 }
 
@@ -543,16 +541,16 @@ func (l *Logger) LogConfiguration(action string, configPath string, valid bool, 
 		"config_path": configPath,
 		"valid":       valid,
 	}
-	
+
 	for k, v := range data {
 		fields[k] = v
 	}
-	
+
 	level := logrus.InfoLevel
 	if !valid {
 		level = logrus.WarnLevel
 	}
-	
+
 	l.logger.WithFields(fields).Log(level, "configuration")
 }
 
@@ -562,11 +560,11 @@ func (l *Logger) LogHealthCheck(component string, status string, details map[str
 		"component": component,
 		"status":    status,
 	}
-	
+
 	for k, v := range details {
 		fields[k] = v
 	}
-	
+
 	level := logrus.InfoLevel
 	switch status {
 	case "healthy":
@@ -576,6 +574,6 @@ func (l *Logger) LogHealthCheck(component string, status string, details map[str
 	case "critical":
 		level = logrus.ErrorLevel
 	}
-	
+
 	l.logger.WithFields(fields).Log(level, "health_check")
 }

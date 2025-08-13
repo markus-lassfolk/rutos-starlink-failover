@@ -8,18 +8,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
+	"github.com/starfail/starfail/pkg/logx"
 )
 
 // LogFloodDetector detects and prevents log flooding
 type LogFloodDetector struct {
 	config *Config
-	logger logx.Logger
+	logger *logx.Logger
 	dryRun bool
 }
 
 // NewLogFloodDetector creates a new log flood detector
-func NewLogFloodDetector(config *Config, logger logx.Logger, dryRun bool) *LogFloodDetector {
+func NewLogFloodDetector(config *Config, logger *logx.Logger, dryRun bool) *LogFloodDetector {
 	return &LogFloodDetector{
 		config: config,
 		logger: logger,
@@ -104,11 +104,11 @@ func (lfd *LogFloodDetector) reduceHostapdVerbosity(ctx context.Context) error {
 func (lfd *LogFloodDetector) genericLogFloodHandling(ctx context.Context, pattern string) error {
 	// Log the issue and send notification
 	lfd.logger.Warn("Log flooding detected", "pattern", pattern)
-	
+
 	if lfd.config.NotificationsEnabled && lfd.config.NotifyOnCritical {
 		lfd.sendCriticalNotification("Log flooding detected", fmt.Sprintf("Pattern: %s", pattern))
 	}
-	
+
 	return nil
 }
 
@@ -120,12 +120,12 @@ func (lfd *LogFloodDetector) sendCriticalNotification(action, details string) {
 // TimeManager manages time drift and NTP synchronization
 type TimeManager struct {
 	config *Config
-	logger logx.Logger
+	logger *logx.Logger
 	dryRun bool
 }
 
 // NewTimeManager creates a new time manager
-func NewTimeManager(config *Config, logger logx.Logger, dryRun bool) *TimeManager {
+func NewTimeManager(config *Config, logger *logx.Logger, dryRun bool) *TimeManager {
 	return &TimeManager{
 		config: config,
 		logger: logger,
@@ -160,14 +160,14 @@ func (tm *TimeManager) Check(ctx context.Context) error {
 func (tm *TimeManager) isNTPServiceRunning() (bool, error) {
 	// Check for common NTP services
 	services := []string{"sysntpd", "ntpd", "chronyd"}
-	
+
 	for _, service := range services {
 		cmd := exec.Command("pgrep", service)
 		if err := cmd.Run(); err == nil {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -175,13 +175,13 @@ func (tm *TimeManager) isNTPServiceRunning() (bool, error) {
 func (tm *TimeManager) checkTimeDrift() (time.Duration, error) {
 	// Try to get time offset from NTP servers
 	ntpServers := []string{"pool.ntp.org", "time.nist.gov", "time.google.com"}
-	
+
 	for _, server := range ntpServers {
 		if offset, err := tm.getNTPOffset(server); err == nil {
 			return time.Duration(offset) * time.Millisecond, nil
 		}
 	}
-	
+
 	return 0, fmt.Errorf("unable to check time drift")
 }
 
@@ -193,7 +193,7 @@ func (tm *TimeManager) getNTPOffset(server string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	
+
 	// Parse offset from output
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
@@ -208,25 +208,25 @@ func (tm *TimeManager) getNTPOffset(server string) (int64, error) {
 			}
 		}
 	}
-	
+
 	return 0, fmt.Errorf("unable to parse NTP offset")
 }
 
 // restartNTPService restarts the NTP service
 func (tm *TimeManager) restartNTPService(ctx context.Context) error {
 	tm.logger.Info("Restarting NTP service", "dry_run", tm.dryRun)
-	
+
 	if tm.dryRun {
 		tm.logger.Info("DRY RUN: Would restart NTP service")
 		return nil
 	}
-	
+
 	// Try to restart sysntpd (common on OpenWrt/RutOS)
 	cmd := exec.Command("/etc/init.d/sysntpd", "restart")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to restart NTP service: %w", err)
 	}
-	
+
 	tm.logger.Info("NTP service restarted")
 	return nil
 }
@@ -234,18 +234,18 @@ func (tm *TimeManager) restartNTPService(ctx context.Context) error {
 // syncTime synchronizes system time
 func (tm *TimeManager) syncTime(ctx context.Context) error {
 	tm.logger.Info("Synchronizing system time", "dry_run", tm.dryRun)
-	
+
 	if tm.dryRun {
 		tm.logger.Info("DRY RUN: Would sync time")
 		return nil
 	}
-	
+
 	// Use ntpdate to sync time
 	cmd := exec.Command("ntpdate", "pool.ntp.org")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to sync time: %w", err)
 	}
-	
+
 	tm.logger.Info("System time synchronized")
 	return nil
 }
@@ -253,12 +253,12 @@ func (tm *TimeManager) syncTime(ctx context.Context) error {
 // NetworkManager manages network interface stability
 type NetworkManager struct {
 	config *Config
-	logger logx.Logger
+	logger *logx.Logger
 	dryRun bool
 }
 
 // NewNetworkManager creates a new network manager
-func NewNetworkManager(config *Config, logger logx.Logger, dryRun bool) *NetworkManager {
+func NewNetworkManager(config *Config, logger *logx.Logger, dryRun bool) *NetworkManager {
 	return &NetworkManager{
 		config: config,
 		logger: logger,
@@ -322,18 +322,18 @@ func (nm *NetworkManager) countInterfaceEvents(iface string) (int, error) {
 // stabilizeInterface stabilizes a flapping interface
 func (nm *NetworkManager) stabilizeInterface(ctx context.Context, iface string) error {
 	nm.logger.Info("Stabilizing flapping interface", "interface", iface, "dry_run", nm.dryRun)
-	
+
 	if nm.dryRun {
 		nm.logger.Info("DRY RUN: Would stabilize interface", "interface", iface)
 		return nil
 	}
-	
+
 	// Restart network service to stabilize interfaces
 	cmd := exec.Command("/etc/init.d/network", "restart")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to restart network service: %w", err)
 	}
-	
+
 	nm.logger.Info("Network service restarted to stabilize interfaces")
 	return nil
 }
@@ -341,12 +341,12 @@ func (nm *NetworkManager) stabilizeInterface(ctx context.Context, iface string) 
 // StarlinkManager manages Starlink script health
 type StarlinkManager struct {
 	config *Config
-	logger logx.Logger
+	logger *logx.Logger
 	dryRun bool
 }
 
 // NewStarlinkManager creates a new Starlink manager
-func NewStarlinkManager(config *Config, logger logx.Logger, dryRun bool) *StarlinkManager {
+func NewStarlinkManager(config *Config, logger *logx.Logger, dryRun bool) *StarlinkManager {
 	return &StarlinkManager{
 		config: config,
 		logger: logger,
@@ -381,34 +381,34 @@ func (sm *StarlinkManager) Check(ctx context.Context) error {
 func (sm *StarlinkManager) isStarlinkScriptRunning() (bool, error) {
 	// Check for Starlink monitoring processes
 	processes := []string{"starlink_monitor", "starfaild", "starlink"}
-	
+
 	for _, process := range processes {
 		cmd := exec.Command("pgrep", "-f", process)
 		if err := cmd.Run(); err == nil {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
 // hasRecentStarlinkActivity checks for recent Starlink log activity
 func (sm *StarlinkManager) hasRecentStarlinkActivity() (bool, error) {
 	cutoff := time.Now().Add(-sm.config.StarlinkLogTimeout)
-	
+
 	// Check for recent Starlink log entries
 	logSources := []string{
 		"/var/log/messages",
 		"/var/log/syslog",
 		"/etc/starlink-logs/starlink_performance.csv",
 	}
-	
+
 	for _, logFile := range logSources {
 		if active, err := sm.checkLogActivity(logFile, cutoff); err == nil && active {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -464,18 +464,18 @@ func (sm *StarlinkManager) parseLogTimestamp(line string) (time.Time, error) {
 // restartStarlinkScript restarts Starlink monitoring script
 func (sm *StarlinkManager) restartStarlinkScript(ctx context.Context) error {
 	sm.logger.Info("Restarting Starlink script", "dry_run", sm.dryRun)
-	
+
 	if sm.dryRun {
 		sm.logger.Info("DRY RUN: Would restart Starlink script")
 		return nil
 	}
-	
+
 	// Try to restart cron daemon (which runs Starlink scripts)
 	cmd := exec.Command("/etc/init.d/cron", "restart")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to restart cron daemon: %w", err)
 	}
-	
+
 	sm.logger.Info("Cron daemon restarted")
 	return nil
 }
@@ -483,12 +483,12 @@ func (sm *StarlinkManager) restartStarlinkScript(ctx context.Context) error {
 // DatabaseManager manages database health
 type DatabaseManager struct {
 	config *Config
-	logger logx.Logger
+	logger *logx.Logger
 	dryRun bool
 }
 
 // NewDatabaseManager creates a new database manager
-func NewDatabaseManager(config *Config, logger logx.Logger, dryRun bool) *DatabaseManager {
+func NewDatabaseManager(config *Config, logger *logx.Logger, dryRun bool) *DatabaseManager {
 	return &DatabaseManager{
 		config: config,
 		logger: logger,
@@ -572,8 +572,8 @@ func (dbm *DatabaseManager) checkDatabaseHealth(dbPath string) (*dbHealthInfo, e
 	}
 
 	sizeStr := strings.TrimSpace(string(output))
-	size, err := fmt.Sscanf(sizeStr, "%d", new(int))
-	if err != nil {
+	var size int
+	if _, err := fmt.Sscanf(sizeStr, "%d", &size); err != nil {
 		return &dbHealthInfo{healthy: false, reason: "invalid size"}, nil
 	}
 
@@ -591,7 +591,7 @@ func (dbm *DatabaseManager) checkDatabaseHealth(dbPath string) (*dbHealthInfo, e
 
 	mtimeStr := strings.TrimSpace(string(output))
 	var mtime int64
-	if err := fmt.Sscanf(mtimeStr, "%d", &mtime); err != nil {
+	if _, err := fmt.Sscanf(mtimeStr, "%d", &mtime); err != nil {
 		return &dbHealthInfo{healthy: false, reason: "invalid modification time"}, nil
 	}
 
@@ -613,15 +613,15 @@ type dbHealthInfo struct {
 // fixDatabaseIssues fixes database issues
 func (dbm *DatabaseManager) fixDatabaseIssues(ctx context.Context) error {
 	dbm.logger.Info("Fixing database issues", "dry_run", dbm.dryRun)
-	
+
 	if dbm.dryRun {
 		dbm.logger.Info("DRY RUN: Would fix database issues")
 		return nil
 	}
-	
+
 	// Restart services that use databases
 	services := []string{"logd", "ubus"}
-	
+
 	for _, service := range services {
 		cmd := exec.Command("/etc/init.d/"+service, "restart")
 		if err := cmd.Run(); err != nil {
@@ -630,19 +630,19 @@ func (dbm *DatabaseManager) fixDatabaseIssues(ctx context.Context) error {
 			dbm.logger.Info("Restarted service", "service", service)
 		}
 	}
-	
+
 	return nil
 }
 
 // recreateDatabases recreates corrupted databases
 func (dbm *DatabaseManager) recreateDatabases(ctx context.Context, databases []string) error {
 	dbm.logger.Info("Recreating corrupted databases", "databases", databases, "dry_run", dbm.dryRun)
-	
+
 	if dbm.dryRun {
 		dbm.logger.Info("DRY RUN: Would recreate databases", "databases", databases)
 		return nil
 	}
-	
+
 	for _, db := range databases {
 		if err := dbm.recreateDatabase(db); err != nil {
 			dbm.logger.Error("Failed to recreate database", "database", db, "error", err)
@@ -650,7 +650,7 @@ func (dbm *DatabaseManager) recreateDatabases(ctx context.Context, databases []s
 			dbm.logger.Info("Recreated database", "database", db)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -660,32 +660,32 @@ func (dbm *DatabaseManager) recreateDatabase(dbPath string) error {
 	backupPath := dbPath + ".backup." + time.Now().Format("20060102_150405")
 	cmd := exec.Command("cp", dbPath, backupPath)
 	cmd.Run() // Ignore errors, file might not exist
-	
+
 	// Remove corrupted database
 	cmd = exec.Command("rm", "-f", dbPath)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to remove corrupted database: %w", err)
 	}
-	
+
 	// Restart related services to recreate database
 	services := []string{"logd", "ubus"}
 	for _, service := range services {
 		cmd = exec.Command("/etc/init.d/"+service, "restart")
 		cmd.Run() // Ignore errors
 	}
-	
+
 	return nil
 }
 
 // NotificationManager manages notifications
 type NotificationManager struct {
 	config *Config
-	logger logx.Logger
+	logger *logx.Logger
 	dryRun bool
 }
 
 // NewNotificationManager creates a new notification manager
-func NewNotificationManager(config *Config, logger logx.Logger, dryRun bool) *NotificationManager {
+func NewNotificationManager(config *Config, logger *logx.Logger, dryRun bool) *NotificationManager {
 	return &NotificationManager{
 		config: config,
 		logger: logger,
@@ -724,6 +724,6 @@ func (nm *NotificationManager) sendPushoverNotification(title, message string, p
 		"-F", "message="+message,
 		"-F", fmt.Sprintf("priority=%d", priority),
 		"https://api.pushover.net/1/messages.json")
-	
+
 	return cmd.Run()
 }

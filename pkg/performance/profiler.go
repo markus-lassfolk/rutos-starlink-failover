@@ -3,7 +3,6 @@ package performance
 import (
 	"context"
 	"fmt"
-	"math"
 	"runtime"
 	"runtime/pprof"
 	"sync"
@@ -17,9 +16,9 @@ type Profiler struct {
 	mu sync.RWMutex
 
 	// Configuration
-	enabled     bool
-	sampleRate  time.Duration
-	maxSamples  int
+	enabled    bool
+	sampleRate time.Duration
+	maxSamples int
 
 	// Dependencies
 	logger *logx.Logger
@@ -51,75 +50,75 @@ type PerformanceMetric struct {
 
 // PerformanceSample represents a performance sample
 type PerformanceSample struct {
-	Timestamp time.Time                    `json:"timestamp"`
-	Metrics   map[string]*PerformanceMetric `json:"metrics"`
-	Memory    *MemoryStats                 `json:"memory"`
-	CPU       *CPUStats                    `json:"cpu"`
-	Network   *NetworkStats                `json:"network"`
-	Goroutines *GoroutineStats             `json:"goroutines"`
+	Timestamp  time.Time                     `json:"timestamp"`
+	Metrics    map[string]*PerformanceMetric `json:"metrics"`
+	Memory     *MemoryStats                  `json:"memory"`
+	CPU        *CPUStats                     `json:"cpu"`
+	Network    *NetworkStats                 `json:"network"`
+	Goroutines *GoroutineStats               `json:"goroutines"`
 }
 
 // MemoryStats represents memory usage statistics
 type MemoryStats struct {
-	Alloc         uint64  `json:"alloc"`
-	TotalAlloc    uint64  `json:"total_alloc"`
-	Sys           uint64  `json:"sys"`
-	NumGC         uint32  `json:"num_gc"`
-	HeapAlloc     uint64  `json:"heap_alloc"`
-	HeapSys       uint64  `json:"heap_sys"`
-	HeapIdle      uint64  `json:"heap_idle"`
-	HeapInuse     uint64  `json:"heap_inuse"`
-	HeapReleased  uint64  `json:"heap_released"`
-	HeapObjects   uint64  `json:"heap_objects"`
-	StackInuse    uint64  `json:"stack_inuse"`
-	StackSys      uint64  `json:"stack_sys"`
-	MSpanInuse    uint64  `json:"mspan_inuse"`
-	MSpanSys      uint64  `json:"mspan_sys"`
-	MCacheInuse   uint64  `json:"mcache_inuse"`
-	MCacheSys     uint64  `json:"mcache_sys"`
-	BuckHashSys   uint64  `json:"buck_hash_sys"`
-	GCSys         uint64  `json:"gc_sys"`
-	OtherSys      uint64  `json:"other_sys"`
-	NextGC        uint64  `json:"next_gc"`
-	LastGC        uint64  `json:"last_gc"`
-	PauseTotalNs  uint64  `json:"pause_total_ns"`
+	Alloc         uint64      `json:"alloc"`
+	TotalAlloc    uint64      `json:"total_alloc"`
+	Sys           uint64      `json:"sys"`
+	NumGC         uint32      `json:"num_gc"`
+	HeapAlloc     uint64      `json:"heap_alloc"`
+	HeapSys       uint64      `json:"heap_sys"`
+	HeapIdle      uint64      `json:"heap_idle"`
+	HeapInuse     uint64      `json:"heap_inuse"`
+	HeapReleased  uint64      `json:"heap_released"`
+	HeapObjects   uint64      `json:"heap_objects"`
+	StackInuse    uint64      `json:"stack_inuse"`
+	StackSys      uint64      `json:"stack_sys"`
+	MSpanInuse    uint64      `json:"mspan_inuse"`
+	MSpanSys      uint64      `json:"mspan_sys"`
+	MCacheInuse   uint64      `json:"mcache_inuse"`
+	MCacheSys     uint64      `json:"mcache_sys"`
+	BuckHashSys   uint64      `json:"buck_hash_sys"`
+	GCSys         uint64      `json:"gc_sys"`
+	OtherSys      uint64      `json:"other_sys"`
+	NextGC        uint64      `json:"next_gc"`
+	LastGC        uint64      `json:"last_gc"`
+	PauseTotalNs  uint64      `json:"pause_total_ns"`
 	PauseNs       [256]uint64 `json:"pause_ns"`
 	PauseEnd      [256]uint64 `json:"pause_end"`
-	NumForcedGC   uint32  `json:"num_forced_gc"`
-	GCCPUFraction float64 `json:"gc_cpu_fraction"`
-	EnableGC      bool    `json:"enable_gc"`
-	DebugGC       bool    `json:"debug_gc"`
+	NumForcedGC   uint32      `json:"num_forced_gc"`
+	GCCPUFraction float64     `json:"gc_cpu_fraction"`
+	EnableGC      bool        `json:"enable_gc"`
+	DebugGC       bool        `json:"debug_gc"`
 }
 
 // CPUStats represents CPU usage statistics
 type CPUStats struct {
-	UsagePercent    float64   `json:"usage_percent"`
-	NumCPU          int       `json:"num_cpu"`
-	NumGoroutine    int       `json:"num_goroutine"`
-	NumThread       int       `json:"num_thread"`
-	NumCgoCall      int64     `json:"num_cgo_call"`
-	LastUpdate      time.Time `json:"last_update"`
+	UsagePercent float64   `json:"usage_percent"`
+	NumCPU       int       `json:"num_cpu"`
+	NumGoroutine int       `json:"num_goroutine"`
+	NumThread    int       `json:"num_thread"`
+	NumCgoCall   int64     `json:"num_cgo_call"`
+	LastUpdate   time.Time `json:"last_update"`
 }
 
 // NetworkStats represents network usage statistics
 type NetworkStats struct {
-	BytesSent     uint64    `json:"bytes_sent"`
-	BytesReceived uint64    `json:"bytes_received"`
-	PacketsSent   uint64    `json:"packets_sent"`
-	PacketsReceived uint64  `json:"packets_received"`
-	ErrorsIn      uint64    `json:"errors_in"`
-	ErrorsOut     uint64    `json:"errors_out"`
-	LastUpdate    time.Time `json:"last_update"`
+	BytesSent       uint64    `json:"bytes_sent"`
+	BytesReceived   uint64    `json:"bytes_received"`
+	PacketsSent     uint64    `json:"packets_sent"`
+	PacketsReceived uint64    `json:"packets_received"`
+	ErrorsIn        uint64    `json:"errors_in"`
+	ErrorsOut       uint64    `json:"errors_out"`
+	LastUpdate      time.Time `json:"last_update"`
 }
 
 // GoroutineStats represents goroutine statistics
 type GoroutineStats struct {
-	Count         int       `json:"count"`
-	MaxCount      int       `json:"max_count"`
-	MinCount      int       `json:"min_count"`
-	AvgCount      float64   `json:"avg_count"`
-	LeakDetected  bool      `json:"leak_detected"`
-	LastUpdate    time.Time `json:"last_update"`
+	Count        int       `json:"count"`
+	MaxCount     int       `json:"max_count"`
+	MinCount     int       `json:"min_count"`
+	AvgCount     float64   `json:"avg_count"`
+	LeakDetected bool      `json:"leak_detected"`
+	LastUpdate   time.Time `json:"last_update"`
 }
 
 // Optimization represents a performance optimization
@@ -136,14 +135,14 @@ type Optimization struct {
 
 // PerformanceAlert represents a performance alert
 type PerformanceAlert struct {
-	ID          string    `json:"id"`
-	Severity    string    `json:"severity"` // info, warning, error, critical
-	Message     string    `json:"message"`
-	Metric      string    `json:"metric"`
-	Value       float64   `json:"value"`
-	Threshold   float64   `json:"threshold"`
-	Timestamp   time.Time `json:"timestamp"`
-	Acknowledged bool     `json:"acknowledged"`
+	ID           string    `json:"id"`
+	Severity     string    `json:"severity"` // info, warning, error, critical
+	Message      string    `json:"message"`
+	Metric       string    `json:"metric"`
+	Value        float64   `json:"value"`
+	Threshold    float64   `json:"threshold"`
+	Timestamp    time.Time `json:"timestamp"`
+	Acknowledged bool      `json:"acknowledged"`
 }
 
 // NewProfiler creates a new performance profiler
@@ -368,7 +367,7 @@ func (p *Profiler) collectGoroutineStats() *GoroutineStats {
 func (p *Profiler) calculateCPUUsage() float64 {
 	// Simplified CPU usage calculation
 	// In a full implementation, this would use proper CPU time measurement
-	
+
 	// For now, return a placeholder value
 	return 5.0 // 5% CPU usage
 }
@@ -444,25 +443,25 @@ func (p *Profiler) updateMetrics(sample *PerformanceSample) {
 func (p *Profiler) checkAlerts(sample *PerformanceSample) {
 	// Memory alerts
 	if sample.Memory.Alloc > 100*1024*1024 { // 100MB
-		p.addAlert("memory_high", "warning", "High memory usage", "memory_alloc_mb", 
+		p.addAlert("memory_high", "warning", "High memory usage", "memory_alloc_mb",
 			float64(sample.Memory.Alloc)/1024/1024, 100)
 	}
 
 	// CPU alerts
 	if sample.CPU.UsagePercent > 80 {
-		p.addAlert("cpu_high", "warning", "High CPU usage", "cpu_usage_percent", 
+		p.addAlert("cpu_high", "warning", "High CPU usage", "cpu_usage_percent",
 			sample.CPU.UsagePercent, 80)
 	}
 
 	// Goroutine alerts
 	if sample.CPU.NumGoroutine > 1000 {
-		p.addAlert("goroutines_high", "error", "Too many goroutines", "goroutines_count", 
+		p.addAlert("goroutines_high", "error", "Too many goroutines", "goroutines_count",
 			float64(sample.CPU.NumGoroutine), 1000)
 	}
 
 	// GC alerts
 	if sample.Memory.GCCPUFraction > 0.1 { // 10%
-		p.addAlert("gc_high", "warning", "High GC activity", "gc_fraction", 
+		p.addAlert("gc_high", "warning", "High GC activity", "gc_fraction",
 			sample.Memory.GCCPUFraction*100, 10)
 	}
 }
@@ -470,13 +469,13 @@ func (p *Profiler) checkAlerts(sample *PerformanceSample) {
 // addAlert adds a performance alert
 func (p *Profiler) addAlert(id, severity, message, metric string, value, threshold float64) {
 	alert := &PerformanceAlert{
-		ID:          id,
-		Severity:    severity,
-		Message:     message,
-		Metric:      metric,
-		Value:       value,
-		Threshold:   threshold,
-		Timestamp:   time.Now(),
+		ID:           id,
+		Severity:     severity,
+		Message:      message,
+		Metric:       metric,
+		Value:        value,
+		Threshold:    threshold,
+		Timestamp:    time.Now(),
 		Acknowledged: false,
 	}
 
