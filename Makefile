@@ -48,36 +48,44 @@ deps:
 check: fmt vet test
 
 # Build tasks
-build: build/starfaild
+build: build/starfaild build/starfail-sysmgmt
 
 build/starfaild:
 	@mkdir -p build
 	go build $(BUILDFLAGS) -o build/starfaild ./cmd/starfaild
+
+build/starfail-sysmgmt:
+	@mkdir -p build
+	go build $(BUILDFLAGS) -o build/starfail-sysmgmt ./cmd/starfail-sysmgmt
 
 # Cross-compilation for specific devices
 rutx50:
 	@echo "Building for RUTX50 (ARMv7)..."
 	@mkdir -p build/rutx50
 	GOARCH=arm GOARM=7 go build $(BUILDFLAGS) -o build/rutx50/starfaild ./cmd/starfaild
-	@ls -lh build/rutx50/starfaild
+	GOARCH=arm GOARM=7 go build $(BUILDFLAGS) -o build/rutx50/starfail-sysmgmt ./cmd/starfail-sysmgmt
+	@ls -lh build/rutx50/starfail*
 
 rutx11:
 	@echo "Building for RUTX11 (ARMv7)..."
 	@mkdir -p build/rutx11
 	GOARCH=arm GOARM=7 go build $(BUILDFLAGS) -o build/rutx11/starfaild ./cmd/starfaild
-	@ls -lh build/rutx11/starfaild
+	GOARCH=arm GOARM=7 go build $(BUILDFLAGS) -o build/rutx11/starfail-sysmgmt ./cmd/starfail-sysmgmt
+	@ls -lh build/rutx11/starfail*
 
 rutx12:
 	@echo "Building for RUTX12 (ARMv7)..."
 	@mkdir -p build/rutx12
 	GOARCH=arm GOARM=7 go build $(BUILDFLAGS) -o build/rutx12/starfaild ./cmd/starfaild
-	@ls -lh build/rutx12/starfaild
+	GOARCH=arm GOARM=7 go build $(BUILDFLAGS) -o build/rutx12/starfail-sysmgmt ./cmd/starfail-sysmgmt
+	@ls -lh build/rutx12/starfail*
 
 rut901:
 	@echo "Building for RUT901 (MIPS)..."
 	@mkdir -p build/rut901
 	GOARCH=mips go build $(BUILDFLAGS) -o build/rut901/starfaild ./cmd/starfaild
-	@ls -lh build/rut901/starfaild
+	GOARCH=mips go build $(BUILDFLAGS) -o build/rut901/starfail-sysmgmt ./cmd/starfail-sysmgmt
+	@ls -lh build/rut901/starfail*
 
 # Build all targets
 build-all: $(addprefix build-, $(subst /,-,$(TARGETS)))

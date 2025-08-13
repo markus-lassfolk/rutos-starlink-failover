@@ -1,0 +1,55 @@
+#!/bin/sh
+
+# starfail-sysmgmt.cron - Cron script for starfail system management
+# 
+# This script should be added to crontab to run system health checks
+# automatically and fix common RUTOS issues.
+#
+# Recommended crontab entry:
+# */15 * * * * /usr/bin/starfail-sysmgmt.cron >/dev/null 2>&1
+
+# Configuration
+SYSMGMT_BIN="/usr/sbin/starfail-sysmgmt"
+LOG_LEVEL="warn"  # Only log warnings and errors in cron mode
+LOCK_FILE="/var/run/starfail-sysmgmt.lock"
+MAX_RUNTIME=300   # 5 minutes maximum runtime
+
+# Ensure only one instance runs at a time
+if [ -f "$LOCK_FILE" ]; then
+    # Check if process is still running
+    if kill -0 "$(cat "$LOCK_FILE")" 2>/dev/null; then
+        # Check if it's been running too long
+        if [ $(($(date +%s) - $(stat -c %Y "$LOCK_FILE"))) -gt $MAX_RUNTIME ]; then
+            # Kill stuck process
+            kill "$(cat "$LOCK_FILE")" 2>/dev/null
+            rm -f "$LOCK_FILE"
+        else
+            # Process still running normally, exit
+            exit 0
+        fi
+    else
+        # Stale lock file, remove it
+        rm -f "$LOCK_FILE"
+    fi
+fi
+
+# Create lock file
+echo $$ > "$LOCK_FILE"
+
+# Cleanup lock file on exit
+trap 'rm -f "$LOCK_FILE"' EXIT
+
+# Check if system management binary exists
+if [ ! -x "$SYSMGMT_BIN" ]; then
+    echo "ERROR: $SYSMGMT_BIN not found or not executable" >&2
+    exit 1
+fi
+
+# Run system management check and fix
+"$SYSMGMT_BIN" -log-level="$LOG_LEVEL"
+exit_code=$?
+
+# Clean up
+rm -f "$LOCK_FILE"
+
+exit $exit_code

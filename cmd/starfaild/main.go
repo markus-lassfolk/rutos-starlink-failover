@@ -9,10 +9,13 @@ import (
 	"syscall"
 	"time"
 
+	"starfail/pkg/audit"
 	"starfail/pkg/collector"
 	"starfail/pkg/controller"
 	"starfail/pkg/decision"
+	"starfail/pkg/gps"
 	"starfail/pkg/logx"
+	"starfail/pkg/obstruction"
 	"starfail/pkg/telem"
 	"starfail/pkg/ubus"
 	"starfail/pkg/uci"
@@ -72,7 +75,22 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
-	// TODO: Initialize components
+	// Initialize enhanced components
+	
+	// Initialize audit logger for comprehensive decision tracking
+	auditLogger, err := audit.NewAuditLogger("/var/log/starfail")
+	if err != nil {
+		logger.Error("failed to initialize audit logger", "error", err)
+		os.Exit(1)
+	}
+	defer auditLogger.Close()
+	
+	// Initialize GPS manager for location-aware intelligence
+	gpsManager := gps.NewGPSManager()
+	
+	// Initialize obstruction predictor for Starlink optimization
+	obstructionManager := obstruction.NewObstructionManager()
+
 	// Initialize telemetry store
 	store := telem.NewStore(telem.Config{
 		MaxSamplesPerMember: config.Main.MaxSamplesPerMember,
@@ -84,8 +102,8 @@ func main() {
 	// Initialize collector registry
 	registry := collector.NewRegistry()
 	
-	// Register collectors
-	starlinkCollector := collector.NewStarlinkCollector(logger)
+	// Register enhanced collectors
+	starlinkCollector := collector.NewStarlinkCollector(config.Main.StarlinkDishIP)
 	cellularCollector := collector.NewCellularCollector(logger)
 	wifiCollector := collector.NewWiFiCollector(logger)
 	pingCollector := collector.NewPingCollector(logger)
@@ -104,7 +122,7 @@ func main() {
 	}
 	ctrl := controller.NewController(controllerConfig, logger)
 
-	// Initialize decision engine
+	// Initialize enhanced decision engine with audit logging
 	decisionConfig := decision.Config{
 		SwitchMargin:         config.Main.SwitchMargin,
 		FailMinDurationS:     config.Main.FailMinDurationS,
@@ -124,7 +142,7 @@ func main() {
 		ObstructionOkPct:    config.Scoring.ObstructionOkPct,
 		ObstructionBadPct:   config.Scoring.ObstructionBadPct,
 	}
-	engine := decision.NewEngine(decisionConfig, logger, store)
+	engine := decision.NewEngine(decisionConfig, logger, store, auditLogger, gpsManager, obstructionManager)
 
 	// Initialize ubus API server
 	ubusConfig := ubus.Config{
@@ -165,6 +183,9 @@ func main() {
 		)
 	}
 
+	// Log startup in audit trail
+	auditLogger.LogRecovery(ctx, "startup", fmt.Sprintf("starfail daemon started with %d members", len(members)))
+
 	// Add startup event
 	store.AddEvent(telem.Event{
 		Timestamp: time.Now(),
@@ -172,13 +193,79 @@ func main() {
 		Type:      "startup",
 		Message:   "starfail daemon started",
 		Data: map[string]interface{}{
-			"version":       version,
-			"members_count": len(members),
-			"config_file":   *configFile,
+			"version":         version,
+			"members_count":   len(members),
+			"config_file":     *configFile,
+			"enhanced_features": []string{
+				"system_health_monitoring",
+				"enhanced_starlink_diagnostics", 
+				"location_aware_intelligence",
+				"comprehensive_audit_trail",
+				"predictive_obstruction_management",
+			},
 		},
 	})
 
-	// Main daemon loop
+	// Start background GPS monitoring
+	go func() {
+		gpsTicker := time.NewTicker(30 * time.Second) // Update GPS every 30s
+		defer gpsTicker.Stop()
+		
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-gpsTicker.C:
+				if pos, err := gpsManager.GetCurrentPosition(ctx); err == nil {
+					logger.Debug("GPS position updated",
+						"lat", pos.Latitude,
+						"lon", pos.Longitude,
+						"accuracy", pos.Accuracy,
+						"source", pos.Source,
+					)
+				}
+			}
+		}
+	}()
+
+	// Start background obstruction monitoring for Starlink members
+	go func() {
+		obstructionTicker := time.NewTicker(60 * time.Second) // Check obstructions every minute
+		defer obstructionTicker.Stop()
+		
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-obstructionTicker.C:
+				// Get location context for obstruction analysis
+				if locationCtx, err := gpsManager.GetLocationContext(ctx); err == nil && locationCtx.CurrentPosition != nil {
+					// Analyze obstruction patterns
+					if analysis, err := obstructionManager.AnalyzeObstruction(ctx, 
+						locationCtx.CurrentPosition.Latitude, 
+						locationCtx.CurrentPosition.Longitude); err == nil {
+						
+						logger.Debug("obstruction analysis completed",
+							"current_obstruction", analysis.CurrentState.Current,
+							"trend", analysis.CurrentState.Trend,
+							"confidence", analysis.Confidence,
+						)
+						
+						// Log significant obstruction events
+						if analysis.CurrentState.Severity == "high" || analysis.CurrentState.Severity == "critical" {
+							auditLogger.LogError(ctx, "obstruction", "analysis", 
+								fmt.Sprintf("High obstruction detected: %.1f%%", analysis.CurrentState.Current),
+								map[string]interface{}{
+									"analysis": analysis,
+								})
+						}
+					}
+				}
+			}
+		}
+	}()
+
+	// Main daemon loop with enhanced monitoring
 	ticker := time.NewTicker(time.Duration(config.Main.PollIntervalMs) * time.Millisecond)
 	defer ticker.Stop()
 

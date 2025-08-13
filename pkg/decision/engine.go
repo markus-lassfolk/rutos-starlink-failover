@@ -6,7 +6,12 @@ import (
 	"math"
 	"time"
 	
-	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/collector"
+	"starfail/pkg/audit"
+	"starfail/pkg/collector"
+	"starfail/pkg/gps"
+	"starfail/pkg/logx"
+	"starfail/pkg/obstruction"
+	"starfail/pkg/telem"
 )
 
 // Score represents interface health scoring
@@ -61,17 +66,24 @@ type Config struct {
 	PredictThreshold float64       `json:"predict_threshold"`
 }
 
-// Engine implements the decision logic for interface failover
+// Engine implements the enhanced decision logic for interface failover
 type Engine struct {
-	config       Config
-	members      map[string]*MemberState
-	currentPrimary string
-	lastSwitch   time.Time
-	eventHistory []SwitchEvent
+	config            Config
+	members           map[string]*MemberState
+	currentPrimary    string
+	lastSwitch        time.Time
+	eventHistory      []SwitchEvent
+	
+	// Enhanced components
+	logger            logx.Logger
+	store             *telem.Store
+	auditLogger       *audit.AuditLogger
+	gpsManager        *gps.GPSManager
+	obstructionManager *obstruction.ObstructionManager
 }
 
-// NewEngine creates a new decision engine
-func NewEngine(config Config) *Engine {
+// NewEngine creates a new enhanced decision engine
+func NewEngine(config Config, logger logx.Logger, store *telem.Store, auditLogger *audit.AuditLogger, gpsManager *gps.GPSManager, obstructionManager *obstruction.ObstructionManager) *Engine {
 	// Set default weights if not provided
 	if config.WeightLatency == 0 && config.WeightLoss == 0 && 
 	   config.WeightJitter == 0 && config.WeightClass == 0 {
@@ -93,9 +105,14 @@ func NewEngine(config Config) *Engine {
 	}
 	
 	return &Engine{
-		config:       config,
-		members:      make(map[string]*MemberState),
-		eventHistory: make([]SwitchEvent, 0),
+		config:            config,
+		members:           make(map[string]*MemberState),
+		eventHistory:      make([]SwitchEvent, 0),
+		logger:            logger,
+		store:             store,
+		auditLogger:       auditLogger,
+		gpsManager:        gpsManager,
+		obstructionManager: obstructionManager,
 	}
 }
 
@@ -485,15 +502,6 @@ type Engine struct {
 	members map[string]*MemberState
 	current string // Current active member
 	events  []SwitchEvent
-}
-
-// NewEngine creates a new decision engine
-func NewEngine(config Config) *Engine {
-	return &Engine{
-		config:  config,
-		members: make(map[string]*MemberState),
-		events:  make([]SwitchEvent, 0),
-	}
 }
 
 // UpdateMetrics updates member metrics and recalculates scores
