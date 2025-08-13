@@ -256,9 +256,9 @@ type MembersResponse struct {
 
 // MemberInfo provides detailed information about a member
 type MemberInfo struct {
-	Member  types.Member   `json:"member"`
-	Metrics *types.Metrics `json:"metrics,omitempty"`
-	Score   *types.Score   `json:"score,omitempty"`
+	Member  pkg.Member   `json:"member"`
+	Metrics *pkg.Metrics `json:"metrics,omitempty"`
+	Score   *pkg.Score   `json:"score,omitempty"`
 	State   string         `json:"state"`
 	Status  string         `json:"status"`
 }

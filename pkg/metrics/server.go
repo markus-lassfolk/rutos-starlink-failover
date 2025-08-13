@@ -417,10 +417,10 @@ func (s *Server) RecordCollectionError(member, class, errorType string) {
 }
 
 // RecordMemberSwitch records a member switch
-func (s *Server) RecordMemberSwitch(member types.Member) {
+func (s *Server) RecordMemberSwitch(member pkg.Member) {
 	s.memberSwitches.With(prometheus.Labels{
 		"member":    member.Name,
 		"class":     member.Class,
-		"interface": member.Interface,
+		"interface": member.Iface,
 	}).Inc()
 }
