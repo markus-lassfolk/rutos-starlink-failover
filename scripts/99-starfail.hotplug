@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# Hotplug script for starfail daemon
+# Triggers member discovery recheck on interface changes
+#
+
+[ "$ACTION" = "ifup" ] || [ "$ACTION" = "ifdown" ] || exit 0
+
+# Only trigger on WAN-related interfaces
+case "$INTERFACE" in
+    wan*|cell*|wwan*|ppp*|eth*|wlan*)
+        # Notify starfail daemon of interface change
+        ubus call starfail action '{"cmd":"recheck"}' >/dev/null 2>&1
+        logger -t starfail-hotplug "Interface $INTERFACE $ACTION - triggered recheck"
+        ;;
+esac

@@ -1,22 +1,54 @@
-# 🚀 RUTOS Starlink Failover
+# 🚀 RUTOS Starlink Failover - Go Edition
 
-**Version:** 2.7.1 | **Updated:** 2025-07-27
+**Version 4.0 - Go Rewrite** | **For RutOS/OpenWrt** | **In Development**
 
-**Version:** 2.6.0 | **Updated:** 2025-07-24
+![GitHub Stars](https://img.shields.io/github/stars/markus-lassfolk/rutos-starlink-failover)
+![License](https://img.shields.io/github/license/markus-lassfolk/rutos-starlink-failover)
+![Last Commit](https://img.shields.io/github/last-commit/markus-lassfolk/rutos-starlink-failover)
 
-**Version:** 2.5.0 | **Updated:** 2025-07-24
+An intelligent, autonomous failover daemon for RutOS and OpenWrt routers that automatically manages connections between **Starlink**, **Cellular (4G/5G)**, **Wi-Fi**, and **Ethernet** interfaces with **predictive switching** and **comprehensive monitoring**.
 
-**Version:** 2.4.12 | **Updated:** 2025-07-21
+## 🚀 Version 4.0: Go Rewrite
 
-**Version:** 2.4.11 | **Updated:** 2025-07-21
+This project is transitioning from Bash scripts to a **single Go daemon** (`starfaild`) for better performance, reliability, and maintainability. The new implementation provides:
 
-**Version:** 2.4.10 | **Updated:** 2025-07-21
+- **Single binary deployment** - No script dependencies or version conflicts
+- **Native platform integration** - UCI, ubus, mwan3, procd built-in
+- **Structured telemetry** - JSON logging and RAM-backed metrics storage  
+- **Predictive failover** - Advanced scoring with machine learning-ready data
+- **Resource efficiency** - ≤12MB binary, ≤25MB RAM, minimal CPU usage
 
-**Version:** 2.4.9 | **Updated:** 2025-07-21
+> **Legacy Support**: Bash scripts preserved in [`archive/`](./archive/) for reference
 
-**Version:** 2.4.8 | **Updated:** 2025-07-21
+## 📋 Quick Start
 
-**Version:** 2.4.7 | **Updated:** 2025-07-21
+### For RutOS (Teltonika)
+```bash
+# Download and install
+wget -O starfaild https://github.com/markus-lassfolk/rutos-starlink-failover/releases/latest/download/starfaild-rutos-armv7
+chmod +x starfaild && mv starfaild /usr/sbin/
+
+# Install support files
+wget -O /usr/sbin/starfailctl https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/starfailctl
+wget -O /etc/init.d/starfail https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/starfail.init
+chmod +x /usr/sbin/starfailctl /etc/init.d/starfail
+
+# Start service
+/etc/init.d/starfail enable
+/etc/init.d/starfail start
+
+# Verify operation
+starfailctl status
+```
+
+### For OpenWrt
+```bash
+# Install package (when available)
+opkg update
+opkg install starfail
+
+# Or install manually (same as RutOS above)
+```
 
 > **📍 Victron GPS Integration Moved!**  
 > The Victron GPS failover functionality has been split into its own repository for better maintainability.  

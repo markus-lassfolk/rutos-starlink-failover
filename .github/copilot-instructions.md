@@ -1,100 +1,88 @@
+````instructions
 # RUTOS Starlink Failover Project Instructions
 
-## Critical Project Requirements
+## Project Status: Go Rewrite in Progress
 
-- **Target**: RUTX50 router with RUTOS RUT5_R_00.07.09.7 (armv7l busybox shell)
-- **Shell**: POSIX sh only (NO bash syntax)
-- **Library**: Always use RUTOS Library System for all scripts
-- **Colors**: Method 5 printf format for RUTOS compatibility
-- **Deployment**: Remote installation via curl from GitHub
+This project is transitioning from Bash scripts to a **Go-based daemon** (`starfaild`) for better performance, reliability, and maintainability on RutOS/OpenWrt routers.
 
-## RUTOS Library Pattern (MANDATORY)
+## Current Architecture
 
-Every new script MUST follow this pattern:
+### Core Components (Go)
+- **Main daemon**: `cmd/starfaild/` - Single Go binary for all functionality  
+- **Packages**: `pkg/` - Modular Go packages (collector, decision, controller, etc.)
+- **Target platforms**: RutOS and OpenWrt (ARMv7, MIPS)
+- **Integration**: UCI config, ubus API, mwan3, procd init system
 
-```bash
-#!/bin/sh
-set -e
+### Supporting Scripts (Shell)
+- **Init scripts**: `scripts/` - procd init, CLI helper, hotplug
+- **Legacy archive**: `archive/` - Preserved Bash implementation for reference
+- **Build/packaging**: `openwrt/`, `rutos/` - Cross-compilation and packaging
 
-# Version information (auto-updated by update-version.sh)
-SCRIPT_VERSION="1.0.0"
+## Development Guidelines
 
-# CRITICAL: Load RUTOS library system (REQUIRED)
-. "$(dirname "$0")/lib/rutos-lib.sh"
+### Go Code (Primary)
+- **Go version**: 1.22+ with modules enabled
+- **No CGO**: `CGO_ENABLED=0` for static binaries
+- **No external deps**: Keep minimal for embedded systems
+- **Structured logging**: JSON format via custom `pkg/logx`
+- **Cross-compile targets**: `GOOS=linux GOARCH=arm GOARM=7` (RutOS), `GOARCH=mips` (OpenWrt)
 
-# CRITICAL: Initialize script with library features (REQUIRED)
-rutos_init "script-name-rutos.sh" "$SCRIPT_VERSION"
+### Shell Scripts (Supporting only)
+- **POSIX sh only** - No bash syntax (BusyBox compatibility)
+- **Minimal scripts**: Init, CLI wrapper, hotplug helpers only
+- **Use RUTOS Library**: For any remaining shell scripts, use existing `lib/rutos-lib.sh`
 
-# Now use standardized library functions
-log_info "Script started with library system"
-safe_execute "echo 'Hello World'" "Print greeting"
+### Integration Requirements
+- **UCI configuration**: `/etc/config/starfail` 
+- **ubus API**: Service name `starfail` with methods: status, members, metrics, action
+- **mwan3 integration**: Drive existing mwan3 policies, don't replace
+- **Resource constraints**: ≤12MB binary, ≤25MB RAM, minimal CPU on idle
+
+## File Structure (New)
+
+```
+/cmd/starfaild/          # Main Go daemon
+/pkg/                    # Go packages
+  collector/             # Metric collection (Starlink, cellular, etc.)
+  decision/              # Scoring and failover logic
+  controller/            # mwan3/netifd integration
+  telem/                 # Telemetry storage
+  logx/                  # Structured logging
+  uci/                   # UCI config management
+  ubus/                  # ubus API server
+/scripts/                # Shell support scripts (init, CLI, hotplug)
+/configs/                # Example UCI configurations
+/openwrt/                # OpenWrt Makefile
+/rutos/                  # RutOS SDK packaging
+/archive/                # Legacy Bash scripts (read-only)
 ```
 
-## Critical Shell Compatibility Rules
+## Build and Deployment
 
-1. **NO bash-specific syntax** - Use POSIX sh only
-2. **NO arrays** - Use space-separated strings or multiple variables
-3. **NO [[]]** - Use [ ] for all conditions
-4. **NO function() syntax** - Use `function_name() {` format
-5. **NO local variables** - All variables are global in busybox
-6. **NO echo -e** - Use printf instead
-7. **NO source command** - Use . (dot) for sourcing
-8. **NO $'\n'** - Use actual newlines or printf
-
-## NEVER Define These (Library Provides)
-
-❌ **Never manually define these functions/variables:**
-- `log_info()`, `log_error()`, `log_debug()`, `log_trace()`, etc.
-- Color variables (`RED`, `GREEN`, `BLUE`, etc.)
-- `safe_execute()` or similar command execution functions
-- `get_timestamp()` or timestamp functions
-- Environment validation functions
-
-✅ **Library provides all of this automatically!**
-
-## Method 5 Printf Format (RUTOS Compatible)
-
+### Cross-compilation
 ```bash
-# CORRECT for RUTOS (Method 5) - Shows actual colors
-printf "${RED}Error: %s${NC}\n" "$message"
-printf "${GREEN}[INFO]${NC} [%s] %s\n" "$timestamp" "$message"
+# For RutOS (ARMv7)
+CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -ldflags "-s -w" -o starfaild ./cmd/starfaild
 
-# WRONG - Shows escape codes in RUTOS
-printf "%sError: %s%s\n" "$RED" "$message" "$NC"
+# For OpenWrt (MIPS)
+CGO_ENABLED=0 GOOS=linux GOARCH=mips go build -ldflags "-s -w" -o starfaild ./cmd/starfaild
 ```
 
-## Standard Functions Always Available
-
-After `rutos_init`, use these library functions:
-
-```bash
-# Logging (4-level framework)
-log_info "General information"
-log_success "Operation completed"
-log_warning "Warning message"
-log_error "Error message"
-log_step "Progress step"
-log_debug "Debug info (DEBUG=1)"
-log_trace "Trace info (RUTOS_TEST_MODE=1)"
-
-# Safe command execution
-safe_execute "command here" "Description of command"
-
-# Environment modes
-DRY_RUN=1        # Safe mode - no actual changes
-DEBUG=1          # Enable debug logging
-RUTOS_TEST_MODE=1 # Enable trace logging
-```
-
-## File Naming Conventions
-
-- Scripts: `script-name-rutos.sh`
-- Configs: `config.template.sh`
-- Documentation: `UPPERCASE.md`
+### Package Integration
+- **OpenWrt**: Use `golang-package.mk` in feeds
+- **RutOS**: Build with Teltonika SDK
+- **Files**: Daemon binary, UCI config, init script, CLI helper
 
 ## Quality Requirements
 
-- Run `./scripts/pre-commit-validation.sh` before commits
-- All scripts must pass ShellCheck with no errors
-- Use WSL/Git Bash for shell script development (not PowerShell)
-- Version information must be consistent across scripts
+- **Go**: Use `go fmt`, `go vet`, basic unit tests for core logic
+- **Shell**: Continue using ShellCheck for remaining scripts
+- **Testing**: Cross-platform testing on both RutOS and OpenWrt VMs
+- **Documentation**: Update PROJECT_INSTRUCTION.md as implementation progresses
+
+## Legacy Compatibility
+
+- **Archive preserved**: All working Bash scripts moved to `archive/` for reference
+- **Gradual migration**: Can run both systems during transition if needed
+- **Same interfaces**: UCI config and functionality should be compatible
+````

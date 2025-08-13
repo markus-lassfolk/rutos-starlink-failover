@@ -1,0 +1,692 @@
+{
+  "scripts/analyze-outage-correlation-optimized-rutos.sh": {
+    "IssueNumber": "383",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:15:45",
+    "IssueCount": 1
+  },
+  "scripts/dev-testing-rutos.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:41:20",
+    "IssueNumber": "205",
+    "IssueCount": 7
+  },
+  "config/config.unified.template.sh": {
+    "IssueNumber": "385",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:15:55",
+    "IssueCount": 1
+  },
+  "scripts/comprehensive-validation.sh": {
+    "CreatedAt": "2025-07-21 15:47:50",
+    "IssueCount": 7,
+    "Status": "Assigned",
+    "IssueNumber": "171"
+  },
+  "SECURITY.md": {
+    "CreatedAt": "2025-07-24 02:20:57",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "269"
+  },
+  "docs/API_CHANGE_RESPONSE.md": {
+    "CreatedAt": "2025-07-24 02:19:18",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "251"
+  },
+  "tests/test-suite.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:42:44",
+    "IssueNumber": "221",
+    "IssueCount": 3
+  },
+  "test-validation-patterns.sh": {
+    "CreatedAt": "2025-07-21 15:50:01",
+    "IssueCount": 4,
+    "Status": "Assigned",
+    "IssueNumber": "195"
+  },
+  "CLEANUP_SUMMARY.md": {
+    "CreatedAt": "2025-07-24 02:18:34",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "243"
+  },
+  "automation/create-copilot-issues-optimized-BROKEN-BACKUP.ps1": {
+    "IssueNumber": "83",
+    "CreatedAt": "2025-07-18 18:41:27",
+    "IssueCount": 421,
+    "Status": "Assigned"
+  },
+  "ENHANCED_INTEGRATION_COMPLETE.md": {
+    "IssueNumber": "351",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:40:03",
+    "IssueCount": 8
+  },
+  "RUTOS-NAMING-CONVENTION-SUMMARY.md": {
+    "CreatedAt": "2025-07-24 02:21:30",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "275"
+  },
+  "docs/BRANCH_TESTING.md": {
+    "CreatedAt": "2025-07-24 02:24:36",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "309"
+  },
+  "DEPLOYMENT_SUMMARY.md": {
+    "CreatedAt": "2025-07-24 02:18:22",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "241"
+  },
+  "scripts/fix-database-loop-rutos.sh": {
+    "CreatedAt": "2025-07-21 15:48:13",
+    "IssueCount": 2,
+    "Status": "Assigned",
+    "IssueNumber": "175"
+  },
+  "RUTOS-COMPATIBILITY-FIXES.md": {
+    "CreatedAt": "2025-07-24 02:17:47",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "235"
+  },
+  "automation/create-copilot-issues-optimized.ps1": {
+    "IssueNumber": "87",
+    "CreatedAt": "2025-07-18 18:42:55",
+    "IssueCount": 346,
+    "Status": "Assigned"
+  },
+  "cellular-integration/demo-cellular-integration-rutos.sh": {
+    "IssueNumber": "343",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:39:21",
+    "IssueCount": 2
+  },
+  "automation/README.md": {
+    "CreatedAt": "2025-07-24 02:19:07",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "249"
+  },
+  "docs/VALIDATION_SYSTEM.md": {
+    "CreatedAt": "2025-07-24 02:21:41",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "277"
+  },
+  "Starlink-RUTOS-Failover/AzureLogging/SOLUTION_OVERVIEW.md": {
+    "CreatedAt": "2025-07-24 02:16:52",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "225"
+  },
+  "gps-integration/integrate-gps-into-install-rutos.sh": {
+    "IssueNumber": "347",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:39:42",
+    "IssueCount": 2
+  },
+  "gps-integration/gps-location-analyzer-rutos.sh": {
+    "IssueNumber": "335",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:38:37",
+    "IssueCount": 16
+  },
+  "scripts/setup-dev-environment.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:42:23",
+    "IssueNumber": "217",
+    "IssueCount": 2
+  },
+  "docs/DEVELOPMENT-TOOLS.md": {
+    "CreatedAt": "2025-07-24 02:20:46",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "267"
+  },
+  "Starlink-RUTOS-Failover/AzureLogging/GPS_INTEGRATION_GUIDE.md": {
+    "CreatedAt": "2025-07-24 02:20:35",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "265"
+  },
+  "Starlink-RUTOS-Failover/99-pushover_notify-rutos.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:42:02",
+    "IssueNumber": "213",
+    "IssueCount": 6
+  },
+  "scripts/tests/test-connectivity-rutos.sh": {
+    "CreatedAt": "2025-07-24 02:22:15",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "283"
+  },
+  "RUTOS_DATA_VALIDATION_REPORT.md": {
+    "IssueNumber": "337",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:38:48",
+    "IssueCount": 11
+  },
+  "docs/CODE_QUALITY_SYSTEM.md": {
+    "CreatedAt": "2025-07-24 02:20:25",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "263"
+  },
+  "scripts/test-pushover-quick-rutos.sh": {
+    "IssueNumber": "373",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:14:45",
+    "IssueCount": 5
+  },
+  "docs/VALIDATE_CONFIG_FIX.md": {
+    "CreatedAt": "2025-07-24 02:17:03",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "227"
+  },
+  "config/system-config.sh": {
+    "CreatedAt": "2025-07-24 02:24:15",
+    "Status": "Assigned",
+    "IssueCount": 3,
+    "IssueNumber": "305"
+  },
+  "scripts/diagnose-database-loop-rutos.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:40:36",
+    "IssueNumber": "197",
+    "IssueCount": 2
+  },
+  "scripts/test-all-scripts-rutos.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:41:09",
+    "IssueNumber": "203",
+    "IssueCount": 12
+  },
+  "TESTING.md": {
+    "CreatedAt": "2025-07-24 02:23:09",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "293"
+  },
+  "debug-merge-direct.sh": {
+    "CreatedAt": "2025-07-21 15:49:29",
+    "IssueCount": 2,
+    "Status": "Assigned",
+    "IssueNumber": "189"
+  },
+  "Starlink-RUTOS-Failover/AzureLogging/analysis/README.md": {
+    "CreatedAt": "2025-07-24 02:25:09",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "315"
+  },
+  "docs/ENHANCED_RESTORATION_SYSTEM.md": {
+    "CreatedAt": "2025-07-24 02:23:52",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "301"
+  },
+  "verify-install-completeness.sh": {
+    "IssueNumber": "365",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:14:02",
+    "IssueCount": 3
+  },
+  "Starlink-RUTOS-Failover/AzureLogging/ANALYSIS_GUIDE.md": {
+    "CreatedAt": "2025-07-24 02:22:46",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "289"
+  },
+  "scripts/pre-commit-validation.sh": {
+    "IssueNumber": "369",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:14:24",
+    "IssueCount": 2
+  },
+  "automation/COPILOT-ROLE-ASSIGNMENT-GUIDE.md": {
+    "CreatedAt": "2025-07-24 02:23:42",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "299"
+  },
+  "VALIDATION_FALSE_POSITIVE_FIX.md": {
+    "CreatedAt": "2025-07-24 02:23:19",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "295"
+  },
+  "automation/COPILOT-ASSIGNMENT-FIX.md": {
+    "CreatedAt": "2025-07-24 02:19:53",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "257"
+  },
+  "discover-rutos-installation.sh": {
+    "IssueNumber": "363",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:13:52",
+    "IssueCount": 9
+  },
+  "STATUS.md": {
+    "IssueNumber": "339",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:38:59",
+    "IssueCount": 2
+  },
+  "Starlink-RUTOS-Failover/AzureLogging/setup-analysis-environment.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:42:33",
+    "IssueNumber": "219",
+    "IssueCount": 3
+  },
+  "tests/README.md": {
+    "CreatedAt": "2025-07-24 02:20:03",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "259"
+  },
+  "scripts/upgrade-rutos.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:41:51",
+    "IssueNumber": "211",
+    "IssueCount": 4
+  },
+  "add-gps-logging-to-starlink-monitor.sh": {
+    "IssueNumber": "377",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:15:12",
+    "IssueCount": 6
+  },
+  "scripts/diagnose-pushover-notifications-rutos.sh": {
+    "IssueNumber": "361",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:13:39",
+    "IssueCount": 1
+  },
+  "enhanced-maintenance-logic.sh": {
+    "CreatedAt": "2025-07-21 15:49:39",
+    "IssueCount": 2,
+    "Status": "Assigned",
+    "IssueNumber": "191"
+  },
+  "analyze-failover-timing-simple-rutos.sh": {
+    "IssueNumber": "367",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:14:13",
+    "IssueCount": 4
+  },
+  "analyze-location-based-failovers-rutos.sh": {
+    "IssueNumber": "379",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:15:22",
+    "IssueCount": 9
+  },
+  "scripts/debug-starlink-api-rutos.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:42:12",
+    "IssueNumber": "215",
+    "IssueCount": 2
+  },
+  "automation/COPILOT-ASSIGNMENT-IMPLEMENTATION.md": {
+    "CreatedAt": "2025-07-24 02:22:03",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "281"
+  },
+  "scripts/system-maintenance-rutos.sh": {
+    "CreatedAt": "2025-07-21 15:48:01",
+    "IssueCount": 14,
+    "Status": "Assigned",
+    "IssueNumber": "173"
+  },
+  "CONFIGURATION_MANAGEMENT.md": {
+    "CreatedAt": "2025-07-24 02:21:19",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "273"
+  },
+  "AUTONOMOUS_PR_MANAGEMENT_COMPLETE.md": {
+    "IssueNumber": "349",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:39:53",
+    "IssueCount": 3
+  },
+  "DEPLOYMENT-READY.md": {
+    "CreatedAt": "2025-07-24 02:24:25",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "307"
+  },
+  "fix-validation-issues.sh": {
+    "IssueNumber": "355",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:40:25",
+    "IssueCount": 13
+  },
+  "Starlink-RUTOS-Failover/AzureLogging/DEPLOYMENT_CHECKLIST.md": {
+    "CreatedAt": "2025-07-24 02:25:20",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "317"
+  },
+  "Starlink-RUTOS-Failover/generate_api_docs.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:40:58",
+    "IssueNumber": "201",
+    "IssueCount": 5
+  },
+  "gps-integration/optimize-logger-with-gps-rutos.sh": {
+    "IssueNumber": "375",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:14:57",
+    "IssueCount": 2
+  },
+  "docs/API_REFERENCE.md": {
+    "CreatedAt": "2025-07-24 02:19:41",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "255"
+  },
+  "scripts/check_starlink_api_change.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:41:30",
+    "IssueNumber": "207",
+    "IssueCount": 6
+  },
+  "docs/POST_INSTALL_CHECK_IMPROVEMENTS.md": {
+    "CreatedAt": "2025-07-24 02:24:04",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "303"
+  },
+  "test-rutos-fixes.sh": {
+    "IssueNumber": "371",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:14:34",
+    "IssueCount": 10
+  },
+  "scripts/test-rutos-colors.sh": {
+    "CreatedAt": "2025-07-24 02:24:58",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "313"
+  },
+  "Starlink-RUTOS-Failover/AzureLogging/INSTALLATION_GUIDE.md": {
+    "CreatedAt": "2025-07-24 02:22:36",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "287"
+  },
+  "automation/create-copilot-issues-enhanced.ps1": {
+    "IssueNumber": "81",
+    "CreatedAt": "2025-07-18 18:40:39",
+    "IssueCount": 73,
+    "Status": "Assigned"
+  },
+  "Starlink-RUTOS-Failover/starlink_monitor_unified-rutos.sh": {
+    "IssueNumber": "329",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:38:06",
+    "IssueCount": 7
+  },
+  "scripts/test-method5-final.sh": {
+    "CreatedAt": "2025-07-24 02:16:42",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "223"
+  },
+  "scripts/update-cron-config-path-rutos.sh": {
+    "CreatedAt": "2025-07-21 15:49:08",
+    "IssueCount": 2,
+    "Status": "Assigned",
+    "IssueNumber": "185"
+  },
+  "scripts/dev-testing-enhanced-logs.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:40:47",
+    "IssueNumber": "199",
+    "IssueCount": 11
+  },
+  "scripts/post-install-check-rutos.sh": {
+    "CreatedAt": "2025-07-21 15:49:50",
+    "IssueCount": 40,
+    "Status": "Assigned",
+    "IssueNumber": "193"
+  },
+  "debug-simple.sh": {
+    "CreatedAt": "2025-07-21 15:48:57",
+    "IssueCount": 5,
+    "Status": "Assigned",
+    "IssueNumber": "183"
+  },
+  "fix-duplicate-cron.sh": {
+    "IssueNumber": "333",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:38:27",
+    "IssueCount": 5
+  },
+  "docs/UPGRADE-GUIDE.md": {
+    "CreatedAt": "2025-07-24 02:21:52",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "279"
+  },
+  "scripts/test-colors-rutos.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-20 16:52:17",
+    "IssueNumber": "135",
+    "IssueCount": 14
+  },
+  "SECURITY_GUIDELINES.md": {
+    "CreatedAt": "2025-07-24 02:20:14",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "261"
+  },
+  "comprehensive_failover_analysis.md": {
+    "IssueNumber": "357",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:40:37",
+    "IssueCount": 4
+  },
+  "automation/ENHANCED-LABEL-SYSTEM-SUMMARY.md": {
+    "CreatedAt": "2025-07-24 02:23:31",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "297"
+  },
+  "docs/CONFIG_PRESERVATION.md": {
+    "CreatedAt": "2025-07-24 02:22:25",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "285"
+  },
+  "SHELL-COMPATIBILITY-STRATEGY.md": {
+    "CreatedAt": "2025-07-24 02:18:10",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "239"
+  },
+  "scripts/format-markdown.sh": {
+    "CreatedAt": "2025-07-21 15:48:24",
+    "IssueCount": 2,
+    "Status": "Assigned",
+    "IssueNumber": "177"
+  },
+  "RUTOS-TEST-ANALYSIS.md": {
+    "CreatedAt": "2025-07-24 02:18:56",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "247"
+  },
+  "ENHANCED_NOTIFICATIONS.md": {
+    "CreatedAt": "2025-07-24 02:17:24",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "231"
+  },
+  "fix-markdown-issues.sh": {
+    "CreatedAt": "2025-07-21 15:49:18",
+    "IssueCount": 4,
+    "Status": "Assigned",
+    "IssueNumber": "187"
+  },
+  "config_merged_example.sh": {
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-24 01:41:41",
+    "IssueNumber": "209",
+    "IssueCount": 2
+  },
+  "scripts/fix-database-spam-rutos.sh": {
+    "CreatedAt": "2025-07-21 15:48:35",
+    "IssueCount": 10,
+    "Status": "Assigned",
+    "IssueNumber": "179"
+  },
+  "gps-integration/integrate-gps-into-starlink-monitor-rutos.sh": {
+    "IssueNumber": "359",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:13:29",
+    "IssueCount": 7
+  },
+  "cellular-integration/optimize-logger-with-cellular-rutos.sh": {
+    "IssueNumber": "325",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:37:45",
+    "IssueCount": 25
+  },
+  "quick-comprehensive-analysis.sh": {
+    "IssueNumber": "341",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:39:09",
+    "IssueCount": 26
+  },
+  "automation/create-copilot-issues-optimized-CLEAN.ps1": {
+    "IssueNumber": "85",
+    "CreatedAt": "2025-07-18 18:42:08",
+    "IssueCount": 257,
+    "Status": "Assigned"
+  },
+  "gps-integration/GPS_INTEGRATION_SYSTEM_SUMMARY.md": {
+    "IssueNumber": "345",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:39:31",
+    "IssueCount": 6
+  },
+  "cellular-integration/CELLULAR-INTEGRATION-COMPLETE.md": {
+    "IssueNumber": "323",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:37:34",
+    "IssueCount": 9
+  },
+  "INSTALLATION_STATUS.md": {
+    "CreatedAt": "2025-07-24 02:17:59",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "237"
+  },
+  "comprehensive-stats-analysis.sh": {
+    "IssueNumber": "319",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:37:13",
+    "IssueCount": 19
+  },
+  "debug-minimal.sh": {
+    "Status": "Assigned",
+    "IssueCount": 4,
+    "CreatedAt": "2025-07-18 15:34:02",
+    "IssueNumber": "75"
+  },
+  "docs/RUTX50-PRODUCTION-GUIDE.md": {
+    "CreatedAt": "2025-07-24 02:17:14",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "229"
+  },
+  ".github/copilot-instructions.md": {
+    "IssueNumber": "129",
+    "Status": "Assigned",
+    "IssueCount": 4,
+    "CreatedAt": "2025-07-18 23:21:16"
+  },
+  "Starlink-RUTOS-Failover/AzureLogging/README.md": {
+    "CreatedAt": "2025-07-24 02:22:57",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "291"
+  },
+  "AUTONOMOUS_SYSTEM_COMPLETE.md": {
+    "CreatedAt": "2025-07-24 02:18:45",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "245"
+  },
+  "analyze-failover-timing-rutos.sh": {
+    "IssueNumber": "331",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:38:17",
+    "IssueCount": 18
+  },
+  "ENHANCED_SYSTEM_MAINTENANCE_SUMMARY.md": {
+    "CreatedAt": "2025-07-24 02:17:35",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "233"
+  },
+  "debug-config-missing.sh": {
+    "IssueNumber": "327",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:37:56",
+    "IssueCount": 7
+  },
+  "scripts/placeholder-utils.sh": {
+    "CreatedAt": "2025-07-24 02:19:29",
+    "Status": "Assigned",
+    "IssueCount": 2,
+    "IssueNumber": "253"
+  },
+  "automation/create-copilot-issues.ps1": {
+    "IssueNumber": "89",
+    "CreatedAt": "2025-07-18 18:43:45",
+    "IssueCount": 373,
+    "Status": "Assigned"
+  },
+  "METHOD5_IMPLEMENTATION_SUMMARY.md": {
+    "CreatedAt": "2025-07-24 02:24:48",
+    "Status": "Assigned",
+    "IssueCount": 1,
+    "IssueNumber": "311"
+  },
+  "GPS-INTEGRATION-COMPLETE-SOLUTION.md": {
+    "IssueNumber": "321",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:37:24",
+    "IssueCount": 11
+  },
+  "Starlink-RUTOS-Failover/starlink_logger_unified-rutos.sh": {
+    "IssueNumber": "353",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-25 22:40:14",
+    "IssueCount": 3
+  },
+  "config/enhanced-features-config.template.sh": {
+    "IssueNumber": "381",
+    "Status": "Assigned",
+    "CreatedAt": "2025-07-26 07:15:34",
+    "IssueCount": 2
+  },
+  "scripts/validate-markdown.sh": {
+    "CreatedAt": "2025-07-21 15:48:46",
+    "IssueCount": 2,
+    "Status": "Assigned",
+    "IssueNumber": "181"
+  }
+}

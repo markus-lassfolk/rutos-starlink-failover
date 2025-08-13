@@ -1,0 +1,84 @@
+#!/bin/sh /etc/rc.common
+#
+# starfail daemon init script for OpenWrt/RutOS
+#
+
+START=90
+STOP=10
+USE_PROCD=1
+
+NAME=starfail
+DAEMON=/usr/sbin/starfaild
+CONFIGFILE=/etc/config/starfail
+
+start_service() {
+    # Check if daemon exists
+    [ -x "$DAEMON" ] || {
+        echo "starfail daemon not found: $DAEMON"
+        return 1
+    }
+    
+    # Check if config exists, create default if missing
+    [ -f "$CONFIGFILE" ] || {
+        echo "Creating default starfail configuration..."
+        cat > "$CONFIGFILE" << 'EOF'
+config starfail 'main'
+	option enable '1'
+	option use_mwan3 '1'
+	option poll_interval_ms '1500'
+	option history_window_s '600'
+	option retention_hours '24'
+	option max_ram_mb '16'
+	option data_cap_mode 'balanced'
+	option predictive '1'
+	option switch_margin '10'
+	option min_uptime_s '20'
+	option cooldown_s '20'
+	option metrics_listener '0'
+	option health_listener '1'
+	option log_level 'info'
+	option log_file ''
+	
+	option fail_threshold_loss '5'
+	option fail_threshold_latency '1200'
+	option fail_min_duration_s '10'
+	option restore_threshold_loss '1'
+	option restore_threshold_latency '800'
+	option restore_min_duration_s '30'
+	
+	option pushover_token ''
+	option pushover_user ''
+	option mqtt_broker ''
+	option mqtt_topic 'starfail/status'
+EOF
+    }
+    
+    procd_open_instance
+    procd_set_param command "$DAEMON" -config "$CONFIGFILE"
+    procd_set_param respawn 5000 3 0
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param user root
+    procd_close_instance
+}
+
+stop_service() {
+    # Send SIGTERM to allow graceful shutdown
+    killall starfaild 2>/dev/null
+}
+
+reload_service() {
+    # Send SIGHUP to reload configuration
+    killall -HUP starfaild 2>/dev/null || {
+        echo "Failed to reload starfail, restarting..."
+        restart
+    }
+}
+
+service_triggers() {
+    # Reload on config changes
+    procd_add_reload_trigger "starfail"
+    
+    # Restart on network interface changes
+    procd_add_interface_trigger "interface.*"
+}

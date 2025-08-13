@@ -1,0 +1,62 @@
+# Example starfail UCI configuration
+# Place this in /etc/config/starfail
+
+config starfail 'main'
+	option enable '1'
+	option use_mwan3 '1'
+	option poll_interval_ms '1500'
+	option history_window_s '600'
+	option retention_hours '24'
+	option max_ram_mb '16'
+	option data_cap_mode 'balanced'
+	option predictive '1'
+	option switch_margin '10'
+	option min_uptime_s '20'
+	option cooldown_s '20'
+	option metrics_listener '0'
+	option health_listener '1'
+	option log_level 'info'
+	option log_file ''
+
+	# Fail/restore thresholds (global defaults)
+	option fail_threshold_loss '5'
+	option fail_threshold_latency '1200'
+	option fail_min_duration_s '10'
+	option restore_threshold_loss '1'
+	option restore_threshold_latency '800'
+	option restore_min_duration_s '30'
+
+	# Optional notifications
+	option pushover_token ''
+	option pushover_user ''
+
+	# Optional telemetry publish
+	option mqtt_broker ''
+	option mqtt_topic 'starfail/status'
+
+# Member-specific overrides (optional)
+config member 'starlink_any'
+	option detect 'auto'
+	option class 'starlink'
+	option weight '100'
+	option min_uptime_s '30'
+	option cooldown_s '20'
+
+config member 'cellular_any'
+	option detect 'auto'
+	option class 'cellular'
+	option weight '80'
+	option prefer_roaming '0'
+	option metered '1'
+	option min_uptime_s '20'
+	option cooldown_s '20'
+
+config member 'wifi_any'
+	option detect 'auto'
+	option class 'wifi'
+	option weight '60'
+
+config member 'lan_any'
+	option detect 'auto'
+	option class 'lan'
+	option weight '40'

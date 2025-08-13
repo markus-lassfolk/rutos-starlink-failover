@@ -1,0 +1,17 @@
+[INFO] Starting deployment
+[DEBUG] Checking system compatibility
+[SUCCESS] System requirements verified
+[ERROR] Failed to download library file: rutos-lib.sh
+[INFO] Retrying download...
+[DEBUG] Network connectivity check
+[WARNING] Package update failed (may be offline)
+[INFO] Continuing with cached packages
+[CRITICAL] MWAN3 configuration not accessible
+[DEBUG] Error: uci: Entry not found
+[INFO] Falling back to defaults
+[SUCCESS] Configuration completed
+[ERROR] sed: log_success: No such file or directory
+[DEBUG] Line 1707 in script
+[INFO] Fixing sed command
+[SUCCESS] Command fixed
+[INFO] Deployment completed successfully

@@ -1,8 +1,9 @@
 name: Advanced Quality Gate
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+  # Temporarily disabled during Go transition
+  # pull_request:
+  #   types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       pr_number:

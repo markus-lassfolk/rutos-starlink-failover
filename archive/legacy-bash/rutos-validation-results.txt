@@ -1,0 +1,127 @@
+=== Running pre-commit validation on all RUTOS files ===
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
+Processing: 
+No issues found
+
