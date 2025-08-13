@@ -15,6 +15,7 @@
 - [x] Project structure and Go module setup
 - [x] Core types and interfaces (`pkg/types.go`)
 - [x] UCI configuration package (`pkg/uci/config.go`)
+- [x] UCI client implementation (`pkg/uci/uci.go`) - Complete UCI operations
 - [x] Structured logging package (`pkg/logx/logger.go`)
 - [x] Telemetry store with ring buffers (`pkg/telem/store.go`)
 - [x] Base collector interface and common functionality (`pkg/collector/base.go`)
@@ -23,6 +24,8 @@
 - [x] WiFi collector with iwinfo integration (`pkg/collector/wifi.go`)
 - [x] Decision engine with scoring and predictive logic (`pkg/decision/engine.go`)
 - [x] Controller package for mwan3/netifd integration (`pkg/controller/controller.go`)
+- [x] ubus client implementation (`pkg/ubus/client.go`) - Complete ubus client with method handlers
+- [x] ubus server implementation (`pkg/ubus/server.go`) - Enhanced with client integration
 - [x] Main daemon entry point (`cmd/starfaild/main.go`)
 - [x] CLI implementation (`scripts/starfailctl`)
 - [x] Init script for procd (`scripts/starfail.init`)
@@ -32,7 +35,6 @@
 - [x] README.md with project overview
 
 ### 🔄 IN PROGRESS
-- [ ] ubus server implementation
 - [ ] Member discovery and classification
 - [ ] Integration of collectors with decision engine
 - [ ] Complete the main loop with proper metric collection

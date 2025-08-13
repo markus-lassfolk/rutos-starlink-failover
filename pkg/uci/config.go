@@ -105,6 +105,24 @@ const (
 
 // LoadConfig loads and validates the starfail configuration from UCI
 func LoadConfig(path string) (*Config, error) {
+	// Try to load from UCI first
+	uci := NewUCI(nil) // We'll create a proper logger later
+	config, err := uci.LoadConfig(context.Background())
+	if err != nil {
+		// Fallback to file-based loading for development/testing
+		return loadConfigFromFile(path)
+	}
+
+	// Validate configuration
+	if err := config.validate(); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	return config, nil
+}
+
+// loadConfigFromFile loads configuration from a file (fallback method)
+func loadConfigFromFile(path string) (*Config, error) {
 	cfg := &Config{
 		Members: make(map[string]*MemberConfig),
 	}

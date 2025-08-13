@@ -43,6 +43,78 @@ type Engine struct {
 	// Predictive state
 	lastPredictive time.Time
 	predictiveRate time.Duration
+
+	// Advanced predictive algorithms
+	predictiveModels map[string]*PredictiveModel
+	trendAnalysis    map[string]*TrendAnalysis
+	patternDetector  *PatternDetector
+	mlPredictor      *MLPredictor
+}
+
+// PredictiveModel represents a predictive model for a member
+type PredictiveModel struct {
+	MemberName    string
+	LastUpdate    time.Time
+	HealthTrend   float64 // -1.0 to 1.0 (declining to improving)
+	FailureRisk   float64 // 0.0 to 1.0 (low to high risk)
+	RecoveryTime  time.Duration
+	Confidence    float64 // 0.0 to 1.0
+	DataPoints    []DataPoint
+	ModelType     string // "linear", "exponential", "ml"
+}
+
+// DataPoint represents a historical data point
+type DataPoint struct {
+	Timestamp time.Time
+	Latency   float64
+	Loss      float64
+	Score     float64
+	Status    string
+}
+
+// TrendAnalysis tracks trends for a member
+type TrendAnalysis struct {
+	MemberName     string
+	LatencyTrend   float64 // ms per minute
+	LossTrend      float64 // % per minute
+	ScoreTrend     float64 // points per minute
+	Volatility     float64 // standard deviation
+	LastCalculated time.Time
+	Window         time.Duration
+}
+
+// PatternDetector detects patterns in member behavior
+type PatternDetector struct {
+	patterns map[string]*Pattern
+	mu       sync.RWMutex
+}
+
+// Pattern represents a detected pattern
+type Pattern struct {
+	ID          string
+	MemberName  string
+	Type        string // "cyclic", "deteriorating", "improving", "stable"
+	Confidence  float64
+	StartTime   time.Time
+	EndTime     time.Time
+	Description string
+}
+
+// MLPredictor provides machine learning-based predictions
+type MLPredictor struct {
+	models    map[string]*MLModel
+	mu        sync.RWMutex
+	lastTrain time.Time
+}
+
+// MLModel represents a machine learning model
+type MLModel struct {
+	MemberName string
+	Features   []string
+	Algorithm  string // "random_forest", "neural_network", "svm"
+	Accuracy   float64
+	LastTrain  time.Time
+	ModelData  []byte // Serialized model
 }
 
 // MemberState tracks the state of a member
@@ -68,6 +140,10 @@ func NewEngine(config *uci.Config, logger *logx.Logger, telemetry *telem.Store) 
 		cooldowns:      make(map[string]time.Time),
 		warmups:        make(map[string]time.Time),
 		predictiveRate: time.Duration(config.FailMinDurationS*5) * time.Second,
+		predictiveModels: make(map[string]*PredictiveModel),
+		trendAnalysis:    make(map[string]*TrendAnalysis),
+		patternDetector:  NewPatternDetector(),
+		mlPredictor:      NewMLPredictor(),
 	}
 }
 
@@ -678,4 +754,578 @@ func (e *Engine) GetScores() map[string]*pkg.Score {
 	}
 
 	return scores
+}
+
+// Advanced Predictive Methods
+
+// NewPatternDetector creates a new pattern detector
+func NewPatternDetector() *PatternDetector {
+	return &PatternDetector{
+		patterns: make(map[string]*Pattern),
+	}
+}
+
+// NewMLPredictor creates a new ML predictor
+func NewMLPredictor() *MLPredictor {
+	return &MLPredictor{
+		models: make(map[string]*MLModel),
+	}
+}
+
+// updatePredictiveModels updates predictive models for all members
+func (e *Engine) updatePredictiveModels() {
+	now := time.Now()
+	
+	for name, member := range e.members {
+		// Get historical data
+		samples, err := e.telemetry.GetSamples(name, now.Add(-time.Hour))
+		if err != nil {
+			continue
+		}
+		
+		if len(samples) < 10 {
+			continue // Need minimum data points
+		}
+		
+		// Update or create predictive model
+		model := e.getOrCreatePredictiveModel(name)
+		e.updateModel(model, samples)
+		
+		// Update trend analysis
+		trend := e.getOrCreateTrendAnalysis(name)
+		e.updateTrendAnalysis(trend, samples)
+	}
+}
+
+// getOrCreatePredictiveModel gets or creates a predictive model for a member
+func (e *Engine) getOrCreatePredictiveModel(memberName string) *PredictiveModel {
+	if model, exists := e.predictiveModels[memberName]; exists {
+		return model
+	}
+	
+	model := &PredictiveModel{
+		MemberName: memberName,
+		ModelType:  "linear",
+		DataPoints: make([]DataPoint, 0),
+	}
+	e.predictiveModels[memberName] = model
+	return model
+}
+
+// getOrCreateTrendAnalysis gets or creates trend analysis for a member
+func (e *Engine) getOrCreateTrendAnalysis(memberName string) *TrendAnalysis {
+	if trend, exists := e.trendAnalysis[memberName]; exists {
+		return trend
+	}
+	
+	trend := &TrendAnalysis{
+		MemberName: memberName,
+		Window:     time.Hour,
+	}
+	e.trendAnalysis[memberName] = trend
+	return trend
+}
+
+// updateModel updates a predictive model with new data
+func (e *Engine) updateModel(model *PredictiveModel, samples []*telem.Sample) {
+	// Convert samples to data points
+	var dataPoints []DataPoint
+	for _, sample := range samples {
+		dataPoint := DataPoint{
+			Timestamp: sample.Timestamp,
+			Latency:   sample.Metrics.LatencyMS,
+			Loss:      sample.Metrics.LossPercent,
+			Score:     sample.Score.Final,
+			Status:    sample.Metrics.Status,
+		}
+		dataPoints = append(dataPoints, dataPoint)
+	}
+	
+	// Update model data
+	model.DataPoints = dataPoints
+	model.LastUpdate = time.Now()
+	
+	// Calculate health trend
+	model.HealthTrend = e.calculateHealthTrend(dataPoints)
+	
+	// Calculate failure risk
+	model.FailureRisk = e.calculateFailureRisk(dataPoints)
+	
+	// Calculate recovery time
+	model.RecoveryTime = e.calculateRecoveryTime(dataPoints)
+	
+	// Calculate confidence
+	model.Confidence = e.calculateConfidence(dataPoints)
+}
+
+// updateTrendAnalysis updates trend analysis with new data
+func (e *Engine) updateTrendAnalysis(trend *TrendAnalysis, samples []*telem.Sample) {
+	if len(samples) < 2 {
+		return
+	}
+	
+	// Calculate trends using linear regression
+	trend.LatencyTrend = e.calculateLatencyTrend(samples)
+	trend.LossTrend = e.calculateLossTrend(samples)
+	trend.ScoreTrend = e.calculateScoreTrend(samples)
+	trend.Volatility = e.calculateVolatility(samples)
+	trend.LastCalculated = time.Now()
+}
+
+// detectPatterns detects patterns in member behavior
+func (e *Engine) detectPatterns() {
+	for name, member := range e.members {
+		samples, err := e.telemetry.GetSamples(name, time.Now().Add(-time.Hour))
+		if err != nil {
+			continue
+		}
+		
+		patterns := e.patternDetector.detectPatterns(name, samples)
+		for _, pattern := range patterns {
+			e.logger.Info("Detected pattern", "member", name, "pattern", pattern.Type, "confidence", pattern.Confidence)
+		}
+	}
+}
+
+// getEligibleMembersWithPredictions returns eligible members with predictive adjustments
+func (e *Engine) getEligibleMembersWithPredictions() []*pkg.Member {
+	eligible := e.getEligibleMembers()
+	
+	// Apply predictive adjustments
+	for _, member := range eligible {
+		if model := e.predictiveModels[member.Name]; model != nil {
+			// Adjust score based on predictive model
+			if score := e.scores[member.Name]; score != nil {
+				adjustment := e.calculatePredictiveAdjustment(model)
+				score.Final += adjustment
+			}
+		}
+	}
+	
+	return eligible
+}
+
+// rankMembersWithPredictions ranks members with predictive considerations
+func (e *Engine) rankMembersWithPredictions(members []*pkg.Member) []*pkg.Member {
+	// Sort by adjusted score
+	sort.Slice(members, func(i, j int) bool {
+		scoreI := e.scores[members[i].Name]
+		scoreJ := e.scores[members[j].Name]
+		if scoreI == nil || scoreJ == nil {
+			return false
+		}
+		return scoreI.Final > scoreJ.Final
+	})
+	
+	return members
+}
+
+// shouldSwitchWithPredictions checks if we should switch with predictive considerations
+func (e *Engine) shouldSwitchWithPredictions(target *pkg.Member) bool {
+	// Basic switch logic
+	if !e.shouldSwitch(target) {
+		return false
+	}
+	
+	// Check predictive triggers
+	if e.config.Predictive {
+		// Check if current member is predicted to fail soon
+		if e.current != nil {
+			if model := e.predictiveModels[e.current.Name]; model != nil {
+				if model.FailureRisk > 0.7 && model.Confidence > 0.6 {
+					e.logger.Info("Predictive switch triggered", "member", e.current.Name, "risk", model.FailureRisk)
+					return true
+				}
+			}
+		}
+		
+		// Check if target member is predicted to improve
+		if model := e.predictiveModels[target.Name]; model != nil {
+			if model.HealthTrend > 0.3 && model.Confidence > 0.6 {
+				e.logger.Info("Predictive switch to improving member", "member", target.Name, "trend", model.HealthTrend)
+				return true
+			}
+		}
+	}
+	
+	return true
+}
+
+// isPredictiveSwitch checks if this is a predictive switch
+func (e *Engine) isPredictiveSwitch(target *pkg.Member) bool {
+	if !e.config.Predictive {
+		return false
+	}
+	
+	// Check if current member has high failure risk
+	if e.current != nil {
+		if model := e.predictiveModels[e.current.Name]; model != nil {
+			if model.FailureRisk > 0.7 && model.Confidence > 0.6 {
+				return true
+			}
+		}
+	}
+	
+	// Check if target member has improving trend
+	if model := e.predictiveModels[target.Name]; model != nil {
+		if model.HealthTrend > 0.3 && model.Confidence > 0.6 {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// Helper methods for predictive calculations
+
+func (e *Engine) calculateHealthTrend(dataPoints []DataPoint) float64 {
+	if len(dataPoints) < 2 {
+		return 0.0
+	}
+	
+	// Simple linear trend calculation
+	first := dataPoints[0]
+	last := dataPoints[len(dataPoints)-1]
+	
+	timeDiff := last.Timestamp.Sub(first.Timestamp).Minutes()
+	if timeDiff == 0 {
+		return 0.0
+	}
+	
+	scoreDiff := last.Score - first.Score
+	return scoreDiff / timeDiff
+}
+
+func (e *Engine) calculateFailureRisk(dataPoints []DataPoint) float64 {
+	if len(dataPoints) < 5 {
+		return 0.0
+	}
+	
+	// Calculate risk based on recent performance degradation
+	recent := dataPoints[len(dataPoints)-5:]
+	avgScore := 0.0
+	for _, dp := range recent {
+		avgScore += dp.Score
+	}
+	avgScore /= float64(len(recent))
+	
+	// Risk increases as score decreases
+	if avgScore > 80 {
+		return 0.0
+	} else if avgScore > 60 {
+		return 0.3
+	} else if avgScore > 40 {
+		return 0.6
+	} else {
+		return 0.9
+	}
+}
+
+func (e *Engine) calculateRecoveryTime(dataPoints []DataPoint) time.Duration {
+	// Simple heuristic based on recent performance
+	if len(dataPoints) < 3 {
+		return 5 * time.Minute
+	}
+	
+	recent := dataPoints[len(dataPoints)-3:]
+	avgScore := 0.0
+	for _, dp := range recent {
+		avgScore += dp.Score
+	}
+	avgScore /= float64(len(recent))
+	
+	if avgScore > 80 {
+		return 1 * time.Minute
+	} else if avgScore > 60 {
+		return 3 * time.Minute
+	} else {
+		return 10 * time.Minute
+	}
+}
+
+func (e *Engine) calculateConfidence(dataPoints []DataPoint) float64 {
+	if len(dataPoints) < 10 {
+		return 0.0
+	}
+	
+	// Confidence increases with more data points
+	baseConfidence := math.Min(float64(len(dataPoints))/100.0, 1.0)
+	
+	// Adjust based on data consistency
+	variance := e.calculateVariance(dataPoints)
+	consistencyBonus := math.Max(0, 1.0-variance/100.0)
+	
+	return math.Min(baseConfidence+consistencyBonus, 1.0)
+}
+
+func (e *Engine) calculateLatencyTrend(samples []*telem.Sample) float64 {
+	if len(samples) < 2 {
+		return 0.0
+	}
+	
+	first := samples[0]
+	last := samples[len(samples)-1]
+	
+	timeDiff := last.Timestamp.Sub(first.Timestamp).Minutes()
+	if timeDiff == 0 {
+		return 0.0
+	}
+	
+	latencyDiff := last.Metrics.LatencyMS - first.Metrics.LatencyMS
+	return latencyDiff / timeDiff
+}
+
+func (e *Engine) calculateLossTrend(samples []*telem.Sample) float64 {
+	if len(samples) < 2 {
+		return 0.0
+	}
+	
+	first := samples[0]
+	last := samples[len(samples)-1]
+	
+	timeDiff := last.Timestamp.Sub(first.Timestamp).Minutes()
+	if timeDiff == 0 {
+		return 0.0
+	}
+	
+	lossDiff := last.Metrics.LossPercent - first.Metrics.LossPercent
+	return lossDiff / timeDiff
+}
+
+func (e *Engine) calculateScoreTrend(samples []*telem.Sample) float64 {
+	if len(samples) < 2 {
+		return 0.0
+	}
+	
+	first := samples[0]
+	last := samples[len(samples)-1]
+	
+	timeDiff := last.Timestamp.Sub(first.Timestamp).Minutes()
+	if timeDiff == 0 {
+		return 0.0
+	}
+	
+	scoreDiff := last.Score.Final - first.Score.Final
+	return scoreDiff / timeDiff
+}
+
+func (e *Engine) calculateVolatility(samples []*telem.Sample) float64 {
+	if len(samples) < 2 {
+		return 0.0
+	}
+	
+	// Calculate standard deviation of scores
+	scores := make([]float64, len(samples))
+	for i, sample := range samples {
+		scores[i] = sample.Score.Final
+	}
+	
+	return e.calculateStandardDeviation(scores)
+}
+
+func (e *Engine) calculatePredictiveAdjustment(model *PredictiveModel) float64 {
+	// Adjust score based on predictive model
+	adjustment := 0.0
+	
+	// Health trend adjustment
+	adjustment += model.HealthTrend * 10.0
+	
+	// Failure risk adjustment (negative)
+	adjustment -= model.FailureRisk * 20.0
+	
+	// Confidence weighting
+	adjustment *= model.Confidence
+	
+	return adjustment
+}
+
+func (e *Engine) calculateVariance(dataPoints []DataPoint) float64 {
+	if len(dataPoints) < 2 {
+		return 0.0
+	}
+	
+	scores := make([]float64, len(dataPoints))
+	for i, dp := range dataPoints {
+		scores[i] = dp.Score
+	}
+	
+	mean := 0.0
+	for _, score := range scores {
+		mean += score
+	}
+	mean /= float64(len(scores))
+	
+	variance := 0.0
+	for _, score := range scores {
+		variance += math.Pow(score-mean, 2)
+	}
+	variance /= float64(len(scores))
+	
+	return variance
+}
+
+func (e *Engine) calculateStandardDeviation(values []float64) float64 {
+	if len(values) < 2 {
+		return 0.0
+	}
+	
+	mean := 0.0
+	for _, value := range values {
+		mean += value
+	}
+	mean /= float64(len(values))
+	
+	variance := 0.0
+	for _, value := range values {
+		variance += math.Pow(value-mean, 2)
+	}
+	variance /= float64(len(values))
+	
+	return math.Sqrt(variance)
+}
+
+// PatternDetector methods
+
+func (pd *PatternDetector) detectPatterns(memberName string, samples []*telem.Sample) []*Pattern {
+	var patterns []*Pattern
+	
+	// Detect cyclic patterns
+	if pattern := pd.detectCyclicPattern(memberName, samples); pattern != nil {
+		patterns = append(patterns, pattern)
+	}
+	
+	// Detect deteriorating patterns
+	if pattern := pd.detectDeterioratingPattern(memberName, samples); pattern != nil {
+		patterns = append(patterns, pattern)
+	}
+	
+	// Detect improving patterns
+	if pattern := pd.detectImprovingPattern(memberName, samples); pattern != nil {
+		patterns = append(patterns, pattern)
+	}
+	
+	return patterns
+}
+
+func (pd *PatternDetector) detectCyclicPattern(memberName string, samples []*telem.Sample) *Pattern {
+	// Simple cyclic pattern detection
+	if len(samples) < 20 {
+		return nil
+	}
+	
+	// Check for periodic score variations
+	scores := make([]float64, len(samples))
+	for i, sample := range samples {
+		scores[i] = sample.Score.Final
+	}
+	
+	// Simple autocorrelation check
+	autocorr := pd.calculateAutocorrelation(scores)
+	if autocorr > 0.5 {
+		return &Pattern{
+			ID:          fmt.Sprintf("cyclic_%s_%d", memberName, time.Now().Unix()),
+			MemberName:  memberName,
+			Type:        "cyclic",
+			Confidence:  autocorr,
+			StartTime:   samples[0].Timestamp,
+			EndTime:     samples[len(samples)-1].Timestamp,
+			Description: "Detected cyclic performance pattern",
+		}
+	}
+	
+	return nil
+}
+
+func (pd *PatternDetector) detectDeterioratingPattern(memberName string, samples []*telem.Sample) *Pattern {
+	if len(samples) < 10 {
+		return nil
+	}
+	
+	// Check for consistent score decline
+	recent := samples[len(samples)-10:]
+	trend := 0.0
+	
+	for i := 1; i < len(recent); i++ {
+		if recent[i].Score.Final < recent[i-1].Score.Final {
+			trend += 1.0
+		}
+	}
+	
+	declineRatio := trend / float64(len(recent)-1)
+	if declineRatio > 0.7 {
+		return &Pattern{
+			ID:          fmt.Sprintf("deteriorating_%s_%d", memberName, time.Now().Unix()),
+			MemberName:  memberName,
+			Type:        "deteriorating",
+			Confidence:  declineRatio,
+			StartTime:   recent[0].Timestamp,
+			EndTime:     recent[len(recent)-1].Timestamp,
+			Description: "Detected deteriorating performance pattern",
+		}
+	}
+	
+	return nil
+}
+
+func (pd *PatternDetector) detectImprovingPattern(memberName string, samples []*telem.Sample) *Pattern {
+	if len(samples) < 10 {
+		return nil
+	}
+	
+	// Check for consistent score improvement
+	recent := samples[len(samples)-10:]
+	trend := 0.0
+	
+	for i := 1; i < len(recent); i++ {
+		if recent[i].Score.Final > recent[i-1].Score.Final {
+			trend += 1.0
+		}
+	}
+	
+	improveRatio := trend / float64(len(recent)-1)
+	if improveRatio > 0.7 {
+		return &Pattern{
+			ID:          fmt.Sprintf("improving_%s_%d", memberName, time.Now().Unix()),
+			MemberName:  memberName,
+			Type:        "improving",
+			Confidence:  improveRatio,
+			StartTime:   recent[0].Timestamp,
+			EndTime:     recent[len(recent)-1].Timestamp,
+			Description: "Detected improving performance pattern",
+		}
+	}
+	
+	return nil
+}
+
+func (pd *PatternDetector) calculateAutocorrelation(values []float64) float64 {
+	if len(values) < 10 {
+		return 0.0
+	}
+	
+	// Simple autocorrelation calculation
+	lag := len(values) / 4
+	if lag < 2 {
+		return 0.0
+	}
+	
+	numerator := 0.0
+	denominator := 0.0
+	
+	mean := 0.0
+	for _, value := range values {
+		mean += value
+	}
+	mean /= float64(len(values))
+	
+	for i := lag; i < len(values); i++ {
+		numerator += (values[i] - mean) * (values[i-lag] - mean)
+		denominator += math.Pow(values[i]-mean, 2)
+	}
+	
+	if denominator == 0 {
+		return 0.0
+	}
+	
+	return numerator / denominator
 }

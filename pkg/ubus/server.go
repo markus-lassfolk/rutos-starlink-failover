@@ -20,16 +20,23 @@ type Server struct {
 	decision   *decision.Engine
 	store      *telem.Store
 	logger     *logx.Logger
+	client     *Client
+	ctx        context.Context
+	cancel     context.CancelFunc
 	mu         sync.RWMutex
 }
 
 // NewServer creates a new ubus server instance
 func NewServer(ctrl *controller.Controller, eng *decision.Engine, store *telem.Store, logger *logx.Logger) *Server {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
 		controller: ctrl,
 		decision:   eng,
 		store:      store,
 		logger:     logger,
+		client:     NewClient(logger),
+		ctx:        ctx,
+		cancel:     cancel,
 	}
 }
 
@@ -37,11 +44,23 @@ func NewServer(ctrl *controller.Controller, eng *decision.Engine, store *telem.S
 func (s *Server) Start(ctx context.Context) error {
 	s.logger.Info("Starting ubus server")
 	
-	// TODO: Implement actual ubus server initialization
-	// This would typically involve:
-	// 1. Registering with ubus daemon
-	// 2. Setting up RPC methods
-	// 3. Starting the message loop
+	// Connect to ubus daemon
+	if err := s.client.Connect(ctx); err != nil {
+		return fmt.Errorf("failed to connect to ubus daemon: %w", err)
+	}
+	
+	// Register methods
+	if err := s.registerMethods(); err != nil {
+		s.client.Disconnect()
+		return fmt.Errorf("failed to register methods: %w", err)
+	}
+	
+	// Start listening for messages
+	go func() {
+		if err := s.client.Listen(s.ctx); err != nil && s.ctx.Err() == nil {
+			s.logger.Error("ubus listener error", "error", err)
+		}
+	}()
 	
 	s.logger.Info("ubus server started successfully")
 	return nil
@@ -51,14 +70,36 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) Stop() error {
 	s.logger.Info("Stopping ubus server")
 	
-	// TODO: Implement graceful shutdown
-	// This would typically involve:
-	// 1. Unregistering from ubus daemon
-	// 2. Closing connections
-	// 3. Waiting for pending requests to complete
+	// Cancel context to stop listeners
+	s.cancel()
+	
+	// Unregister object
+	if s.client != nil {
+		s.client.UnregisterObject(context.Background(), "starfail")
+		s.client.Disconnect()
+	}
 	
 	s.logger.Info("ubus server stopped")
 	return nil
+}
+
+// registerMethods registers all RPC methods with the ubus daemon
+func (s *Server) registerMethods() error {
+	methods := map[string]MethodHandler{
+		"status":     s.handleStatus,
+		"members":    s.handleMembers,
+		"telemetry":  s.handleTelemetry,
+		"events":     s.handleEvents,
+		"failover":   s.handleFailover,
+		"restore":    s.handleRestore,
+		"recheck":    s.handleRecheck,
+		"setlog":     s.handleSetLogLevel,
+		"config":     s.handleGetConfig,
+		"info":       s.handleGetInfo,
+		"action":     s.handleAction,
+	}
+
+	return s.client.RegisterObject(s.ctx, "starfail", methods)
 }
 
 // StatusResponse represents the response for status queries
@@ -459,37 +500,108 @@ func (s *Server) GetInfo() (*InfoResponse, error) {
 	return info, nil
 }
 
-// RegisterMethods registers all RPC methods with the ubus daemon
-func (s *Server) RegisterMethods() error {
-	// TODO: Implement actual ubus method registration
-	// This would register all the methods above with the ubus daemon
-	
-	methods := map[string]interface{}{
-		"status":     s.GetStatus,
-		"members":    s.GetMembers,
-		"metrics":    s.GetMetrics,
-		"events":     s.GetEvents,
-		"failover":   s.Failover,
-		"restore":    s.Restore,
-		"recheck":    s.Recheck,
-		"setlog":     s.SetLogLevel,
-		"config":     s.GetConfig,
-		"info":       s.GetInfo,
+// Handler methods for ubus calls
+
+func (s *Server) handleStatus(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	status, err := s.GetStatus()
+	if err != nil {
+		return nil, err
 	}
-
-	s.logger.Info("Registered ubus methods", map[string]interface{}{
-		"method_count": len(methods),
-		"methods":      getMethodNames(methods),
-	})
-
-	return nil
+	return status, nil
 }
 
-// getMethodNames extracts method names from the methods map
-func getMethodNames(methods map[string]interface{}) []string {
-	names := make([]string, 0, len(methods))
-	for name := range methods {
-		names = append(names, name)
+func (s *Server) handleMembers(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	members, err := s.GetMembers()
+	if err != nil {
+		return nil, err
 	}
-	return names
+	return members, nil
+}
+
+func (s *Server) handleTelemetry(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	telemetry, err := s.GetTelemetry()
+	if err != nil {
+		return nil, err
+	}
+	return telemetry, nil
+}
+
+func (s *Server) handleEvents(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	events, err := s.GetEvents()
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
+}
+
+func (s *Server) handleFailover(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	// Extract target member from params
+	targetMember, ok := params["member"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing or invalid member parameter")
+	}
+	
+	result, err := s.Failover(targetMember)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *Server) handleRestore(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	result, err := s.Restore()
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *Server) handleRecheck(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	result, err := s.Recheck()
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *Server) handleSetLogLevel(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	level, ok := params["level"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing or invalid level parameter")
+	}
+	
+	result, err := s.SetLogLevel(level)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *Server) handleGetConfig(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	config, err := s.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+func (s *Server) handleGetInfo(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	info, err := s.GetInfo()
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+func (s *Server) handleAction(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	cmd, ok := params["cmd"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing or invalid cmd parameter")
+	}
+	
+	result, err := s.Action(cmd)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
