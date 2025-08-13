@@ -6,17 +6,17 @@ import (
 	"sync"
 	"time"
 
-	"starfail/pkg/collector"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/collector"
 )
 
 // Sample represents a timestamped metric sample with computed scores
 type Sample struct {
-	Timestamp   time.Time           `json:"timestamp"`
-	Member      string              `json:"member"`
-	Metrics     collector.Metrics   `json:"metrics"`
-	InstantScore float64            `json:"instant_score"`
-	EWMAScore   float64             `json:"ewma_score"`
-	FinalScore  float64             `json:"final_score"`
+	Timestamp    time.Time         `json:"timestamp"`
+	Member       string            `json:"member"`
+	Metrics      collector.Metrics `json:"metrics"`
+	InstantScore float64           `json:"instant_score"`
+	EWMAScore    float64           `json:"ewma_score"`
+	FinalScore   float64           `json:"final_score"`
 }
 
 // Event represents a system event (state changes, errors, etc.)
@@ -42,10 +42,10 @@ type Store struct {
 
 // Config for telemetry store
 type Config struct {
-	MaxSamplesPerMember int           `uci:"max_samples_per_member"`
-	MaxEvents          int           `uci:"max_events"`
-	RetentionHours     int           `uci:"retention_hours"`
-	MaxRAMMB           int           `uci:"max_ram_mb"`
+	MaxSamplesPerMember int `uci:"max_samples_per_member"`
+	MaxEvents           int `uci:"max_events"`
+	RetentionHours      int `uci:"retention_hours"`
+	MaxRAMMB            int `uci:"max_ram_mb"`
 }
 
 // NewStore creates a new telemetry store with the given configuration

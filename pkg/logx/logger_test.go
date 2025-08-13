@@ -2,12 +2,11 @@ package logx
 
 import (
 	"testing"
-	"strings"
 )
 
 func TestLoggerLevels(t *testing.T) {
 	tests := []struct {
-		level string
+		level    string
 		expected LogLevel
 	}{
 		{"debug", DebugLevel},
@@ -31,13 +30,13 @@ func TestLoggerLevels(t *testing.T) {
 func TestLoggerOutput(t *testing.T) {
 	// Test that logger produces valid JSON output
 	logger := New("debug")
-	
+
 	// We can't easily capture the output in this simple test,
 	// but we can at least verify the logger was created successfully
 	if logger == nil {
 		t.Fatal("Failed to create logger")
 	}
-	
+
 	if logger.level != DebugLevel {
 		t.Errorf("Expected debug level, got %v", logger.level)
 	}
@@ -45,7 +44,7 @@ func TestLoggerOutput(t *testing.T) {
 
 func TestLevelString(t *testing.T) {
 	tests := []struct {
-		level LogLevel
+		level    LogLevel
 		expected string
 	}{
 		{DebugLevel, "debug"},

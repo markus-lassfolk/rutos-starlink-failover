@@ -34,6 +34,9 @@ const (
 	ErrorLevel
 )
 
+// Fields is a type alias for structured logging fields
+type Fields map[string]interface{}
+
 // Config holds logger configuration
 type Config struct {
 	Level    string `json:"level"`
@@ -54,18 +57,6 @@ type Logger struct {
 	writer    io.Writer
 }
 
-// ANSI color codes for console output
-const (
-	ColorReset  = "\033[0m"
-	ColorRed    = "\033[31m"
-	ColorYellow = "\033[33m"
-	ColorBlue   = "\033[34m"
-	ColorGray   = "\033[37m"
-	ColorGreen  = "\033[32m"
-	ColorCyan   = "\033[36m"
-	ColorBold   = "\033[1m"
-)
-
 // New creates a new structured logger (backward compatibility)
 func New(levelStr string) *Logger {
 	config := Config{
@@ -79,7 +70,7 @@ func New(levelStr string) *Logger {
 // NewWithConfig creates a new logger with full configuration
 func NewWithConfig(config Config) *Logger {
 	level := parseLevel(config.Level)
-	
+
 	// Determine output writer
 	var writer io.Writer = os.Stdout
 	if config.Output == "syslog" {
@@ -90,7 +81,7 @@ func NewWithConfig(config Config) *Logger {
 			writer = file
 		}
 	}
-	
+
 	l := &Logger{
 		level:  level,
 		logger: log.New(writer, "", 0), // No prefix, we'll format everything
@@ -98,10 +89,10 @@ func NewWithConfig(config Config) *Logger {
 		fields: make(map[string]interface{}),
 		writer: writer,
 	}
-	
+
 	// Initialize syslog (platform-specific)
 	l.initSyslog()
-	
+
 	return l
 }
 
@@ -117,17 +108,17 @@ func NewWithFields(levelStr string, fields map[string]interface{}) *Logger {
 // WithFields returns a new logger with additional persistent fields
 func (l *Logger) WithFields(fields map[string]interface{}) *Logger {
 	newFields := make(map[string]interface{})
-	
+
 	// Copy existing fields
 	for k, v := range l.fields {
 		newFields[k] = v
 	}
-	
+
 	// Add new fields
 	for k, v := range fields {
 		newFields[k] = v
 	}
-	
+
 	return &Logger{
 		level:     l.level,
 		logger:    l.logger,
@@ -183,7 +174,7 @@ func (l *Logger) log(level LogLevel, msg string, keysAndValues ...interface{}) {
 	}
 
 	timestamp := time.Now().UTC()
-	
+
 	// Create log entry
 	entry := logEntry{
 		Timestamp: timestamp.Format(time.RFC3339),
@@ -211,7 +202,7 @@ func (l *Logger) log(level LogLevel, msg string, keysAndValues ...interface{}) {
 	} else {
 		l.logJSON(entry)
 	}
-	
+
 	// Also send to syslog if available and not monitoring mode
 	if !l.config.Monitor {
 		jsonBytes, _ := json.Marshal(entry)
@@ -235,23 +226,23 @@ func (l *Logger) logConsole(level LogLevel, timestamp time.Time, msg string, fie
 	// Build color prefix
 	levelColor := l.getLevelColor(level)
 	levelStr := levelString(level)
-	
+
 	// Format timestamp for console (shorter format)
 	timeStr := timestamp.Format("15:04:05.000")
-	
+
 	// Reset color if no color mode
 	reset := ColorReset
 	if l.config.NoColor {
 		levelColor = ""
 		reset = ""
 	}
-	
+
 	// Build base message
-	baseMsg := fmt.Sprintf("%s[%s]%s %s %s%s%s", 
+	baseMsg := fmt.Sprintf("%s[%s]%s %s %s%s%s",
 		ColorGray, timeStr, reset,
-		levelColor + strings.ToUpper(levelStr) + reset,
+		levelColor+strings.ToUpper(levelStr)+reset,
 		ColorBold, msg, reset)
-	
+
 	// Add fields if present
 	if len(fields) > 0 {
 		var fieldParts []string
@@ -266,7 +257,7 @@ func (l *Logger) logConsole(level LogLevel, timestamp time.Time, msg string, fie
 			baseMsg += " " + fieldsStr
 		}
 	}
-	
+
 	l.logger.Println(baseMsg)
 }
 
@@ -275,7 +266,7 @@ func (l *Logger) getLevelColor(level LogLevel) string {
 	if l.config.NoColor {
 		return ""
 	}
-	
+
 	switch level {
 	case TraceLevel:
 		return ColorGray

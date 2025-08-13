@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"starfail/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
 )
 
 // Manager handles smart notification management
@@ -24,14 +24,14 @@ type Manager struct {
 
 // Config holds notification configuration
 type Config struct {
-	Enabled                bool          `uci:"enabled" default:"true"`
-	EmergencyCooldownS     int           `uci:"emergency_cooldown_s" default:"0"`
-	CriticalCooldownS      int           `uci:"critical_cooldown_s" default:"300"`
-	WarningCooldownS       int           `uci:"warning_cooldown_s" default:"3600"`
-	InfoCooldownS          int           `uci:"info_cooldown_s" default:"21600"`
-	MaxRetries             int           `uci:"max_retries" default:"3"`
-	RetryBackoffS          int           `uci:"retry_backoff_s" default:"60"`
-	AcknowledgmentRequired bool          `uci:"acknowledgment_required" default:"false"`
+	Enabled                bool `uci:"enabled" default:"true"`
+	EmergencyCooldownS     int  `uci:"emergency_cooldown_s" default:"0"`
+	CriticalCooldownS      int  `uci:"critical_cooldown_s" default:"300"`
+	WarningCooldownS       int  `uci:"warning_cooldown_s" default:"3600"`
+	InfoCooldownS          int  `uci:"info_cooldown_s" default:"21600"`
+	MaxRetries             int  `uci:"max_retries" default:"3"`
+	RetryBackoffS          int  `uci:"retry_backoff_s" default:"60"`
+	AcknowledgmentRequired bool `uci:"acknowledgment_required" default:"false"`
 }
 
 // Priority represents notification priority levels
@@ -49,7 +49,7 @@ func (p Priority) String() string {
 	case PriorityInfo:
 		return "info"
 	case PriorityWarning:
-		return "warning" 
+		return "warning"
 	case PriorityCritical:
 		return "critical"
 	case PriorityEmergency:
@@ -71,27 +71,27 @@ const (
 
 // Notification represents a notification message with context
 type Notification struct {
-	ID          string           `json:"id"`
-	Priority    Priority         `json:"priority"`
-	Type        NotificationType `json:"type"`
-	Title       string           `json:"title"`
-	Message     string           `json:"message"`
-	Context     Context          `json:"context"`
-	Timestamp   time.Time        `json:"timestamp"`
-	Retry       RetryPolicy      `json:"retry"`
-	Acknowledged bool            `json:"acknowledged"`
-	Channels    []string         `json:"channels"` // Which channels to use
+	ID           string           `json:"id"`
+	Priority     Priority         `json:"priority"`
+	Type         NotificationType `json:"type"`
+	Title        string           `json:"title"`
+	Message      string           `json:"message"`
+	Context      Context          `json:"context"`
+	Timestamp    time.Time        `json:"timestamp"`
+	Retry        RetryPolicy      `json:"retry"`
+	Acknowledged bool             `json:"acknowledged"`
+	Channels     []string         `json:"channels"` // Which channels to use
 }
 
 // Context provides rich contextual information
 type Context struct {
-	CurrentStatus    string                 `json:"current_status"`
-	AttemptedFixes   []string               `json:"attempted_fixes,omitempty"`
-	NextSteps        []string               `json:"next_steps,omitempty"`
-	InterfaceStates  map[string]interface{} `json:"interface_states,omitempty"`
-	SystemMetrics    map[string]interface{} `json:"system_metrics,omitempty"`
-	LocationInfo     map[string]interface{} `json:"location_info,omitempty"`
-	SeverityFactors  []string               `json:"severity_factors,omitempty"`
+	CurrentStatus   string                 `json:"current_status"`
+	AttemptedFixes  []string               `json:"attempted_fixes,omitempty"`
+	NextSteps       []string               `json:"next_steps,omitempty"`
+	InterfaceStates map[string]interface{} `json:"interface_states,omitempty"`
+	SystemMetrics   map[string]interface{} `json:"system_metrics,omitempty"`
+	LocationInfo    map[string]interface{} `json:"location_info,omitempty"`
+	SeverityFactors []string               `json:"severity_factors,omitempty"`
 }
 
 // RetryPolicy defines how notifications should be retried
@@ -112,9 +112,9 @@ type Channel interface {
 
 // RateLimiter manages notification rate limiting
 type RateLimiter struct {
-	lastSent map[string]time.Time
+	lastSent  map[string]time.Time
 	cooldowns map[Priority]time.Duration
-	mutex    sync.RWMutex
+	mutex     sync.RWMutex
 }
 
 // NewManager creates a new notification manager
@@ -298,7 +298,7 @@ func (m *Manager) shouldSendToChannel(channel Channel, notification Notification
 // sendWithRetry sends notification with retry logic
 func (m *Manager) sendWithRetry(ctx context.Context, channel Channel, notification Notification) error {
 	var lastErr error
-	
+
 	for attempt := 0; attempt <= notification.Retry.MaxRetries; attempt++ {
 		if attempt > 0 {
 			select {
@@ -426,7 +426,7 @@ func (p *PushoverChannel) Send(ctx context.Context, notification Notification) e
 	}
 
 	// Send to Pushover API
-	req, err := http.NewRequestWithContext(ctx, "POST", 
+	req, err := http.NewRequestWithContext(ctx, "POST",
 		"https://api.pushover.net/1/messages.json",
 		strings.NewReader(string(jsonData)))
 	if err != nil {

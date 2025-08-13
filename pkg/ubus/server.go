@@ -9,18 +9,18 @@ import (
 	"strings"
 	"time"
 
-	"starfail/pkg/collector"
-	"starfail/pkg/controller"
-	"starfail/pkg/logx"
-	"starfail/pkg/telem"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/collector"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/controller"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/telem"
 )
 
 // Server provides ubus API endpoints for starfail daemon
 type Server struct {
-	logger     *logx.Logger
-	store      *telem.Store
-	controller *controller.Controller
-	registry   *collector.Registry
+	logger      *logx.Logger
+	store       *telem.Store
+	controller  *controller.Controller
+	registry    *collector.Registry
 	serviceName string
 }
 
@@ -31,9 +31,9 @@ type Config struct {
 }
 
 // NewServer creates a new ubus API server
-func NewServer(config Config, logger *logx.Logger, store *telem.Store, 
+func NewServer(config Config, logger *logx.Logger, store *telem.Store,
 	ctrl *controller.Controller, registry *collector.Registry) *Server {
-	
+
 	if config.ServiceName == "" {
 		config.ServiceName = "starfail"
 	}
@@ -109,19 +109,19 @@ type MembersResponse struct {
 
 // MemberInfo represents detailed member information
 type MemberInfo struct {
-	Member        controller.Member  `json:"member"`
-	LastMetrics   *collector.Metrics `json:"last_metrics,omitempty"`
-	LastScore     *float64           `json:"last_score,omitempty"`
-	Status        string             `json:"status"`
-	LastUpdate    int64              `json:"last_update_seconds,omitempty"`
+	Member      controller.Member  `json:"member"`
+	LastMetrics *collector.Metrics `json:"last_metrics,omitempty"`
+	LastScore   *float64           `json:"last_score,omitempty"`
+	Status      string             `json:"status"`
+	LastUpdate  int64              `json:"last_update_seconds,omitempty"`
 }
 
 // MetricsResponse represents the response for the metrics method
 type MetricsResponse struct {
-	Member    string               `json:"member"`
-	Samples   []telem.Sample       `json:"samples"`
-	Count     int                  `json:"count"`
-	TimeRange string               `json:"time_range"`
+	Member    string         `json:"member"`
+	Samples   []telem.Sample `json:"samples"`
+	Count     int            `json:"count"`
+	TimeRange string         `json:"time_range"`
 }
 
 // ActionRequest represents a request to execute an action
@@ -189,7 +189,7 @@ func (s *Server) HandleMembers(ctx context.Context) (*MembersResponse, error) {
 	for _, member := range members {
 		// Get latest sample for this member
 		samples := s.store.GetSamples(member.Name, 1)
-		
+
 		memberInfo := MemberInfo{
 			Member: member,
 			Status: "unknown",
@@ -231,7 +231,7 @@ func (s *Server) HandleMetrics(ctx context.Context, member string, limit int) (*
 	}
 
 	samples := s.store.GetSamples(member, limit)
-	
+
 	var timeRange string
 	if len(samples) > 0 {
 		oldest := samples[0].Timestamp
@@ -388,9 +388,9 @@ func (s *Server) ExecuteUbusCall(ctx context.Context, method string, params map[
 func (s *Server) GetServiceInfo() map[string]interface{} {
 	return map[string]interface{}{
 		"service_name": s.serviceName,
-		"methods": []string{"status", "members", "metrics", "action", "events"},
-		"description": "Starfail multi-interface failover daemon API",
-		"version":     "1.0.0",
+		"methods":      []string{"status", "members", "metrics", "action", "events"},
+		"description":  "Starfail multi-interface failover daemon API",
+		"version":      "1.0.0",
 	}
 }
 
@@ -398,7 +398,7 @@ func (s *Server) GetServiceInfo() map[string]interface{} {
 func ubusCall(ctx context.Context, service, method string, params map[string]interface{}) ([]byte, error) {
 	// Build ubus call command
 	args := []string{"call", service, method}
-	
+
 	if len(params) > 0 {
 		paramJSON, err := json.Marshal(params)
 		if err != nil {

@@ -2,7 +2,6 @@
 package recovery
 
 import (
-	"archive/tar"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
@@ -15,8 +14,8 @@ import (
 	"sort"
 	"time"
 
-	"starfail/pkg/logx"
-	"starfail/pkg/uci"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/uci"
 )
 
 // Manager handles backup and recovery operations
@@ -29,7 +28,7 @@ type Manager struct {
 
 // Config holds recovery configuration
 type Config struct {
-	Enable              bool   `uci:"enable" default:"true"`
+	Enable             bool   `uci:"enable" default:"true"`
 	BackupDir          string `uci:"backup_dir" default:"/etc/starfail/backup"`
 	MaxVersions        int    `uci:"max_versions" default:"10"`
 	AutoBackupOnChange bool   `uci:"auto_backup_on_change" default:"true"`
@@ -51,34 +50,34 @@ type ConfigVersion struct {
 
 // RecoveryState represents current recovery status
 type RecoveryState struct {
-	LastBackup          time.Time `json:"last_backup"`
-	LastRecovery        time.Time `json:"last_recovery"`
-	ConfigIntact        bool      `json:"config_intact"`
-	SystemIntact        bool      `json:"system_intact"`
-	RecoveryInProgress  bool      `json:"recovery_in_progress"`
-	RequiresManualIntervention bool `json:"requires_manual_intervention"`
+	LastBackup                 time.Time `json:"last_backup"`
+	LastRecovery               time.Time `json:"last_recovery"`
+	ConfigIntact               bool      `json:"config_intact"`
+	SystemIntact               bool      `json:"system_intact"`
+	RecoveryInProgress         bool      `json:"recovery_in_progress"`
+	RequiresManualIntervention bool      `json:"requires_manual_intervention"`
 }
 
 // BackupResult represents the result of a backup operation
 type BackupResult struct {
-	Success     bool      `json:"success"`
-	Version     int       `json:"version"`
-	Hash        string    `json:"hash"`
-	Size        int64     `json:"size"`
-	Duration    time.Duration `json:"duration"`
-	FilePath    string    `json:"file_path"`
-	Error       error     `json:"error,omitempty"`
+	Success  bool          `json:"success"`
+	Version  int           `json:"version"`
+	Hash     string        `json:"hash"`
+	Size     int64         `json:"size"`
+	Duration time.Duration `json:"duration"`
+	FilePath string        `json:"file_path"`
+	Error    error         `json:"error,omitempty"`
 }
 
 // RecoveryResult represents the result of a recovery operation
 type RecoveryResult struct {
-	Success          bool           `json:"success"`
-	RestoredVersion  int            `json:"restored_version"`
-	ConfigRestored   bool           `json:"config_restored"`
+	Success           bool          `json:"success"`
+	RestoredVersion   int           `json:"restored_version"`
+	ConfigRestored    bool          `json:"config_restored"`
 	ServicesRestarted []string      `json:"services_restarted"`
-	Duration         time.Duration  `json:"duration"`
-	Error            error          `json:"error,omitempty"`
-	RequiredActions  []string       `json:"required_actions,omitempty"`
+	Duration          time.Duration `json:"duration"`
+	Error             error         `json:"error,omitempty"`
+	RequiredActions   []string      `json:"required_actions,omitempty"`
 }
 
 // NewManager creates a new recovery manager
@@ -109,7 +108,7 @@ func NewManager(config Config, logger logx.Logger) (*Manager, error) {
 // BackupConfig creates a backup of the current configuration
 func (m *Manager) BackupConfig(ctx context.Context, description string) (*BackupResult, error) {
 	start := time.Now()
-	
+
 	result := &BackupResult{
 		Version: m.getNextVersion(),
 	}
@@ -135,7 +134,7 @@ func (m *Manager) BackupConfig(ctx context.Context, description string) (*Backup
 		result.Error = fmt.Errorf("failed to marshal config: %w", err)
 		return result, result.Error
 	}
-	
+
 	hash := sha256.Sum256(configData)
 	result.Hash = hex.EncodeToString(hash[:])
 
@@ -150,13 +149,13 @@ func (m *Manager) BackupConfig(ctx context.Context, description string) (*Backup
 	}
 
 	// Write backup file
-	fileName := fmt.Sprintf("starfail-config-v%d-%s.json", 
+	fileName := fmt.Sprintf("starfail-config-v%d-%s.json",
 		result.Version, version.Timestamp.Format("20060102-150405"))
-	
+
 	if m.config.CompressBackups {
 		fileName += ".gz"
 	}
-	
+
 	filePath := filepath.Join(m.backupDir, fileName)
 	version.FilePath = filePath
 	result.FilePath = filePath
@@ -174,7 +173,7 @@ func (m *Manager) BackupConfig(ctx context.Context, description string) (*Backup
 
 	// Add to versions list
 	m.versions = append(m.versions, version)
-	
+
 	// Clean up old versions
 	if err := m.cleanupOldVersions(); err != nil {
 		m.logger.Warn("failed to cleanup old versions", "error", err)
@@ -201,7 +200,7 @@ func (m *Manager) BackupConfig(ctx context.Context, description string) (*Backup
 // RestoreConfig restores configuration from a specific version
 func (m *Manager) RestoreConfig(ctx context.Context, version int) (*RecoveryResult, error) {
 	start := time.Now()
-	
+
 	result := &RecoveryResult{
 		RestoredVersion: version,
 	}
@@ -373,12 +372,12 @@ func (m *Manager) configToMap(config *uci.Config) (map[string]interface{}, error
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var result map[string]interface{}
 	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
@@ -459,7 +458,7 @@ func (m *Manager) cleanupOldVersions() error {
 	for i := 0; i < toRemove; i++ {
 		version := m.versions[i]
 		if err := os.Remove(version.FilePath); err != nil {
-			m.logger.Warn("failed to remove old backup file", 
+			m.logger.Warn("failed to remove old backup file",
 				"file", version.FilePath, "error", err)
 		}
 	}

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"starfail/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
 )
 
 // Member represents a mwan3 member configuration
@@ -23,18 +23,18 @@ type Member struct {
 
 // Controller manages mwan3 policies and member priorities
 type Controller struct {
-	logger      *logx.Logger
-	useMwan3    bool
-	dryRun      bool
-	cooldownS   int
-	lastChange  time.Time
+	logger     *logx.Logger
+	useMwan3   bool
+	dryRun     bool
+	cooldownS  int
+	lastChange time.Time
 }
 
 // Config for mwan3 controller
 type Config struct {
-	UseMwan3   bool `uci:"use_mwan3"`
-	DryRun     bool `uci:"dry_run"`
-	CooldownS  int  `uci:"cooldown_s"`
+	UseMwan3  bool `uci:"use_mwan3"`
+	DryRun    bool `uci:"dry_run"`
+	CooldownS int  `uci:"cooldown_s"`
 }
 
 // NewController creates a new mwan3 controller
@@ -134,7 +134,7 @@ func (c *Controller) GetCurrentPrimary(ctx context.Context) (*Member, error) {
 func (c *Controller) setMwan3Primary(ctx context.Context, member Member) error {
 	// Set member metric to make it primary (lower metric = higher priority)
 	primaryMetric := 1
-	
+
 	// First, get all members and set their metrics appropriately
 	members, err := c.DiscoverMembers(ctx)
 	if err != nil {
@@ -149,7 +149,7 @@ func (c *Controller) setMwan3Primary(ctx context.Context, member Member) error {
 			metric = primaryMetric + 10 // Backup members get higher metric
 		}
 
-		cmd := exec.CommandContext(ctx, "uci", "set", 
+		cmd := exec.CommandContext(ctx, "uci", "set",
 			fmt.Sprintf("mwan3.%s.metric=%d", m.Name, metric))
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to set metric for member %s: %w", m.Name, err)
@@ -178,7 +178,7 @@ func (c *Controller) setNetifacePrimary(ctx context.Context, member Member) erro
 
 	// Get all network interfaces
 	cmd := exec.CommandContext(ctx, "ubus", "call", "network.interface", "dump")
-	output, err := cmd.Output()
+	_, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to get network interfaces: %w", err)
 	}
@@ -193,7 +193,7 @@ func (c *Controller) setNetifacePrimary(ctx context.Context, member Member) erro
 	}).Info("setting route metrics for netifd")
 
 	// Set the primary interface metric
-	cmd = exec.CommandContext(ctx, "ubus", "call", "network.interface."+member.Interface, 
+	cmd = exec.CommandContext(ctx, "ubus", "call", "network.interface."+member.Interface,
 		"notify_proto", fmt.Sprintf(`{"metric":%d}`, primaryMetric))
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to set metric for interface %s: %w", member.Interface, err)

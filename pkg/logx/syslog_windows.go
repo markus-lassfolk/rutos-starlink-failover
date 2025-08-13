@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 // Package logx provides structured logging for starfail daemon (Windows version)

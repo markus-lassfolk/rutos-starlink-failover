@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"starfail/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
 )
 
 // Manager handles adaptive sampling rate decisions
@@ -17,14 +17,14 @@ type Manager struct {
 
 // Config holds sampling configuration
 type Config struct {
-	UnlimitedIntervalMs   int `uci:"unlimited_interval_ms" default:"1000"`
-	MeteredIntervalMs     int `uci:"metered_interval_ms" default:"60000"`
-	DegradedIntervalMs    int `uci:"degraded_interval_ms" default:"5000"`
-	StableIntervalMs      int `uci:"stable_interval_ms" default:"10000"`
-	MaxProbeSize          int `uci:"max_probe_size" default:"32"`
-	BusinessHourStart     int `uci:"business_hour_start" default:"8"`
-	BusinessHourEnd       int `uci:"business_hour_end" default:"18"`
-	OffHoursMultiplier    float64 `uci:"off_hours_multiplier" default:"2.0"`
+	UnlimitedIntervalMs int     `uci:"unlimited_interval_ms" default:"1000"`
+	MeteredIntervalMs   int     `uci:"metered_interval_ms" default:"60000"`
+	DegradedIntervalMs  int     `uci:"degraded_interval_ms" default:"5000"`
+	StableIntervalMs    int     `uci:"stable_interval_ms" default:"10000"`
+	MaxProbeSize        int     `uci:"max_probe_size" default:"32"`
+	BusinessHourStart   int     `uci:"business_hour_start" default:"8"`
+	BusinessHourEnd     int     `uci:"business_hour_end" default:"18"`
+	OffHoursMultiplier  float64 `uci:"off_hours_multiplier" default:"2.0"`
 }
 
 // InterfaceRate tracks sampling rate for a specific interface
@@ -91,14 +91,14 @@ func (ps PerformanceState) String() string {
 
 // SamplingRequest represents a request for sampling rate
 type SamplingRequest struct {
-	InterfaceName   string
-	ConnectionType  ConnectionType
-	IsMetered       bool
-	CurrentLatency  float64
-	CurrentLoss     float64
-	QualityScore    float64
-	RecentFailures  int
-	UserActivity    bool
+	InterfaceName  string
+	ConnectionType ConnectionType
+	IsMetered      bool
+	CurrentLatency float64
+	CurrentLoss    float64
+	QualityScore   float64
+	RecentFailures int
+	UserActivity   bool
 }
 
 // SamplingResponse provides the recommended sampling parameters
@@ -123,7 +123,7 @@ func NewManager(config Config, logger logx.Logger) *Manager {
 func (m *Manager) GetSamplingRate(ctx context.Context, req SamplingRequest) SamplingResponse {
 	// Get or create interface rate tracker
 	rate := m.getInterfaceRate(req.InterfaceName)
-	
+
 	// Update connection type if changed
 	if rate.ConnectionType != req.ConnectionType {
 		rate.ConnectionType = req.ConnectionType
@@ -148,13 +148,13 @@ func (m *Manager) GetSamplingRate(ctx context.Context, req SamplingRequest) Samp
 
 	// Calculate adaptive interval
 	interval := m.calculateAdaptiveInterval(rate, req)
-	
+
 	// Apply time-based adjustments
 	interval = m.applyTimeBasedAdjustments(interval, rate)
-	
+
 	// Determine probe parameters
 	probeSize, probeCount := m.getProbeParameters(req.ConnectionType, rate.PerformanceState)
-	
+
 	// Update tracking
 	rate.CurrentInterval = interval
 	rate.LastAdjustment = time.Now()

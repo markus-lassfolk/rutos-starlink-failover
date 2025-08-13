@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"starfail/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
 )
 
 const (
@@ -27,14 +27,14 @@ var (
 
 // SystemHealth represents overall system health status
 type SystemHealth struct {
-	OverlaySpaceUsed     int    `json:"overlay_space_used"`
-	MemoryUsedPct        int    `json:"memory_used_pct"`
+	OverlaySpaceUsed     int      `json:"overlay_space_used"`
+	MemoryUsedPct        int      `json:"memory_used_pct"`
 	CriticalServices     []string `json:"critical_services"`
 	HungServices         []string `json:"hung_services"`
-	LogFloodDetected     bool   `json:"log_flood_detected"`
-	TimeSync             bool   `json:"time_sync"`
-	InterfaceFlapping    bool   `json:"interface_flapping"`
-	StarlinkScriptHealth bool   `json:"starlink_script_health"`
+	LogFloodDetected     bool     `json:"log_flood_detected"`
+	TimeSync             bool     `json:"time_sync"`
+	InterfaceFlapping    bool     `json:"interface_flapping"`
+	StarlinkScriptHealth bool     `json:"starlink_script_health"`
 	DatabaseIssues       []string `json:"database_issues"`
 }
 
@@ -53,7 +53,7 @@ func main() {
 	}
 
 	logger := logx.New(*logLevel)
-	logger.Info("starting starfail system management", 
+	logger.Info("starting starfail system management",
 		"version", version,
 		"dry_run", *dryRun,
 	)
@@ -65,7 +65,7 @@ func main() {
 
 	ctx := context.Background()
 	health := mgr.CheckSystemHealth(ctx)
-	
+
 	issuesFound := mgr.AnalyzeHealth(health)
 	if issuesFound > 0 {
 		logger.Warn("system health issues detected", "issues", issuesFound)
@@ -82,34 +82,34 @@ func main() {
 // CheckSystemHealth performs comprehensive system health checks
 func (sm *SystemManager) CheckSystemHealth(ctx context.Context) SystemHealth {
 	health := SystemHealth{}
-	
+
 	// Check overlay space usage
 	health.OverlaySpaceUsed = sm.checkOverlaySpace()
-	
+
 	// Check memory usage
 	health.MemoryUsedPct = sm.checkMemoryUsage()
-	
+
 	// Check critical services
 	health.CriticalServices = sm.checkCriticalServices()
-	
+
 	// Check for hung services
 	health.HungServices = sm.checkHungServices()
-	
+
 	// Check for log flooding
 	health.LogFloodDetected = sm.checkLogFlooding()
-	
+
 	// Check time synchronization
 	health.TimeSync = sm.checkTimeSync()
-	
+
 	// Check interface flapping
 	health.InterfaceFlapping = sm.checkInterfaceFlapping()
-	
+
 	// Check Starlink script health
 	health.StarlinkScriptHealth = sm.checkStarlinkScriptHealth()
-	
+
 	// Check database issues
 	health.DatabaseIssues = sm.checkDatabaseIssues()
-	
+
 	return health
 }
 
@@ -121,23 +121,23 @@ func (sm *SystemManager) checkOverlaySpace() int {
 		sm.logger.Warn("failed to check overlay space", "error", err)
 		return 0
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	if len(lines) < 2 {
 		return 0
 	}
-	
+
 	fields := strings.Fields(lines[1])
 	if len(fields) < 5 {
 		return 0
 	}
-	
+
 	usedPct := strings.TrimSuffix(fields[4], "%")
 	pct, err := strconv.Atoi(usedPct)
 	if err != nil {
 		return 0
 	}
-	
+
 	sm.logger.Debug("overlay space usage", "percentage", pct)
 	return pct
 }
@@ -149,10 +149,10 @@ func (sm *SystemManager) checkMemoryUsage() int {
 		sm.logger.Warn("failed to read meminfo", "error", err)
 		return 0
 	}
-	
+
 	var memTotal, memAvailable int
 	lines := strings.Split(string(data), "\n")
-	
+
 	for _, line := range lines {
 		if strings.HasPrefix(line, "MemTotal:") {
 			fields := strings.Fields(line)
@@ -167,11 +167,11 @@ func (sm *SystemManager) checkMemoryUsage() int {
 			}
 		}
 	}
-	
+
 	if memTotal == 0 {
 		return 0
 	}
-	
+
 	usedPct := int((float64(memTotal-memAvailable) / float64(memTotal)) * 100)
 	sm.logger.Debug("memory usage", "percentage", usedPct)
 	return usedPct
@@ -181,7 +181,7 @@ func (sm *SystemManager) checkMemoryUsage() int {
 func (sm *SystemManager) checkCriticalServices() []string {
 	services := []string{"network", "system", "mwan3", "cron"}
 	var failed []string
-	
+
 	for _, service := range services {
 		cmd := exec.Command("/etc/init.d/"+service, "status")
 		if err := cmd.Run(); err != nil {
@@ -189,24 +189,24 @@ func (sm *SystemManager) checkCriticalServices() []string {
 			sm.logger.Warn("critical service not running", "service", service)
 		}
 	}
-	
+
 	return failed
 }
 
 // checkHungServices detects services that appear running but are unresponsive
 func (sm *SystemManager) checkHungServices() []string {
 	var hung []string
-	
+
 	// Check for services with no recent log activity
 	services := []string{"nlbwmon", "mdcollectd", "connchecker", "hostapd"}
-	
+
 	for _, service := range services {
 		if sm.isServiceHung(service) {
 			hung = append(hung, service)
 			sm.logger.Warn("service appears hung", "service", service)
 		}
 	}
-	
+
 	return hung
 }
 
@@ -217,10 +217,10 @@ func (sm *SystemManager) isServiceHung(service string) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	cutoff := time.Now().Add(-30 * time.Minute)
-	
+
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := lines[i]
 		if strings.Contains(line, service) {
@@ -230,7 +230,7 @@ func (sm *SystemManager) isServiceHung(service string) bool {
 			}
 		}
 	}
-	
+
 	return true // No recent activity
 }
 
@@ -241,7 +241,7 @@ func (sm *SystemManager) parseLogTime(line string) time.Time {
 	if len(fields) < 3 {
 		return time.Time{}
 	}
-	
+
 	// Try to parse timestamp (this is simplified)
 	timeStr := strings.Join(fields[0:3], " ")
 	t, _ := time.Parse("Jan 2 15:04:05", timeStr)
@@ -255,27 +255,27 @@ func (sm *SystemManager) checkLogFlooding() bool {
 	if err != nil {
 		return false
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	hostapCount := 0
 	cutoff := time.Now().Add(-1 * time.Hour)
-	
+
 	for _, line := range lines {
 		if sm.parseLogTime(line).After(cutoff) {
-			if strings.Contains(line, "hostapd") && 
-			   (strings.Contains(line, "STA-OPMODE-SMPS-MODE-CHANGED") ||
-				strings.Contains(line, "CTRL-EVENT-") ||
-				strings.Contains(line, "WPS-")) {
+			if strings.Contains(line, "hostapd") &&
+				(strings.Contains(line, "STA-OPMODE-SMPS-MODE-CHANGED") ||
+					strings.Contains(line, "CTRL-EVENT-") ||
+					strings.Contains(line, "WPS-")) {
 				hostapCount++
 			}
 		}
 	}
-	
+
 	flooding := hostapCount > 100
 	if flooding {
 		sm.logger.Warn("log flooding detected", "hostap_entries", hostapCount)
 	}
-	
+
 	return flooding
 }
 
@@ -287,7 +287,7 @@ func (sm *SystemManager) checkTimeSync() bool {
 		sm.logger.Warn("NTP daemon not running")
 		return false
 	}
-	
+
 	return true
 }
 
@@ -298,25 +298,25 @@ func (sm *SystemManager) checkInterfaceFlapping() bool {
 	if err != nil {
 		return false
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	interfaceEvents := 0
 	cutoff := time.Now().Add(-10 * time.Minute)
-	
+
 	for _, line := range lines {
 		if sm.parseLogTime(line).After(cutoff) {
-			if strings.Contains(line, "interface") && 
-			   (strings.Contains(line, "up") || strings.Contains(line, "down")) {
+			if strings.Contains(line, "interface") &&
+				(strings.Contains(line, "up") || strings.Contains(line, "down")) {
 				interfaceEvents++
 			}
 		}
 	}
-	
+
 	flapping := interfaceEvents > 5
 	if flapping {
 		sm.logger.Warn("interface flapping detected", "events", interfaceEvents)
 	}
-	
+
 	return flapping
 }
 
@@ -328,17 +328,17 @@ func (sm *SystemManager) checkStarlinkScriptHealth() bool {
 	if err != nil {
 		return false
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	cutoff := time.Now().Add(-5 * time.Minute)
-	
+
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := lines[i]
 		if strings.Contains(line, "StarlinkMonitor") && sm.parseLogTime(line).After(cutoff) {
 			return true
 		}
 	}
-	
+
 	sm.logger.Warn("starlink monitoring script appears inactive")
 	return false
 }
@@ -346,20 +346,20 @@ func (sm *SystemManager) checkStarlinkScriptHealth() bool {
 // checkDatabaseIssues detects database corruption
 func (sm *SystemManager) checkDatabaseIssues() []string {
 	var issues []string
-	
+
 	databases := []string{
 		"/tmp/dhcp.leases.sqlite",
 		"/tmp/nlbw.db",
 		"/tmp/hosts.db",
 	}
-	
+
 	for _, db := range databases {
 		if sm.isDatabaseCorrupted(db) {
 			issues = append(issues, db)
 			sm.logger.Warn("database corruption detected", "database", db)
 		}
 	}
-	
+
 	return issues
 }
 
@@ -370,24 +370,24 @@ func (sm *SystemManager) isDatabaseCorrupted(dbPath string) bool {
 	if err != nil {
 		return false // File doesn't exist, not corrupted
 	}
-	
+
 	// Very small database files are suspicious
 	if info.Size() < 1024 {
 		return true
 	}
-	
+
 	// Check modification time (stale databases)
 	if time.Since(info.ModTime()) > 7*24*time.Hour {
 		return true
 	}
-	
+
 	return false
 }
 
 // AnalyzeHealth analyzes health status and returns issue count
 func (sm *SystemManager) AnalyzeHealth(health SystemHealth) int {
 	issues := 0
-	
+
 	if health.OverlaySpaceUsed > 90 {
 		sm.logger.Error("critical overlay space usage", "percentage", health.OverlaySpaceUsed)
 		issues++
@@ -395,47 +395,47 @@ func (sm *SystemManager) AnalyzeHealth(health SystemHealth) int {
 		sm.logger.Warn("high overlay space usage", "percentage", health.OverlaySpaceUsed)
 		issues++
 	}
-	
+
 	if health.MemoryUsedPct > 90 {
 		sm.logger.Warn("high memory usage", "percentage", health.MemoryUsedPct)
 		issues++
 	}
-	
+
 	if len(health.CriticalServices) > 0 {
 		sm.logger.Error("critical services down", "services", health.CriticalServices)
 		issues++
 	}
-	
+
 	if len(health.HungServices) > 0 {
 		sm.logger.Warn("hung services detected", "services", health.HungServices)
 		issues++
 	}
-	
+
 	if health.LogFloodDetected {
 		sm.logger.Warn("log flooding detected")
 		issues++
 	}
-	
+
 	if !health.TimeSync {
 		sm.logger.Warn("time synchronization issue")
 		issues++
 	}
-	
+
 	if health.InterfaceFlapping {
 		sm.logger.Warn("network interface flapping")
 		issues++
 	}
-	
+
 	if !health.StarlinkScriptHealth {
 		sm.logger.Warn("starlink monitoring inactive")
 		issues++
 	}
-	
+
 	if len(health.DatabaseIssues) > 0 {
 		sm.logger.Warn("database issues detected", "databases", health.DatabaseIssues)
 		issues++
 	}
-	
+
 	return issues
 }
 
@@ -444,31 +444,31 @@ func (sm *SystemManager) FixIssues(ctx context.Context, health SystemHealth) {
 	if health.OverlaySpaceUsed > 80 {
 		sm.cleanupOverlaySpace()
 	}
-	
+
 	if len(health.CriticalServices) > 0 {
 		sm.restartCriticalServices(health.CriticalServices)
 	}
-	
+
 	if len(health.HungServices) > 0 {
 		sm.restartHungServices(health.HungServices)
 	}
-	
+
 	if health.LogFloodDetected {
 		sm.mitigateLogFlooding()
 	}
-	
+
 	if !health.TimeSync {
 		sm.fixTimeSync()
 	}
-	
+
 	if health.InterfaceFlapping {
 		sm.restartNetworkService()
 	}
-	
+
 	if !health.StarlinkScriptHealth {
 		sm.restartCronService()
 	}
-	
+
 	if len(health.DatabaseIssues) > 0 {
 		sm.fixDatabaseIssues(health.DatabaseIssues)
 	}
@@ -477,12 +477,12 @@ func (sm *SystemManager) FixIssues(ctx context.Context, health SystemHealth) {
 // cleanupOverlaySpace removes stale files to free space
 func (sm *SystemManager) cleanupOverlaySpace() {
 	sm.logger.Info("cleaning overlay space")
-	
+
 	// Remove old backup files
 	exec.Command("find", "/overlay", "-name", "*.old", "-mtime", "+7", "-delete").Run()
 	exec.Command("find", "/overlay", "-name", "*.bak", "-mtime", "+7", "-delete").Run()
 	exec.Command("find", "/overlay", "-name", "*.tmp", "-mtime", "+7", "-delete").Run()
-	
+
 	// Clean old maintenance logs
 	exec.Command("find", "/var/log", "-name", "*maintenance*", "-mtime", "+14", "-delete").Run()
 }
@@ -534,11 +534,11 @@ func (sm *SystemManager) restartCronService() {
 func (sm *SystemManager) fixDatabaseIssues(databases []string) {
 	for _, db := range databases {
 		sm.logger.Info("fixing database issue", "database", db)
-		
+
 		// Backup corrupted database
 		backupPath := db + ".corrupted." + time.Now().Format("20060102150405")
 		exec.Command("mv", db, backupPath).Run()
-		
+
 		// The database will be recreated by the respective service
 		// when it next starts or tries to access it
 	}

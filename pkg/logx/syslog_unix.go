@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 // Package logx provides structured logging for starfail daemon (Unix/Linux version)
@@ -19,15 +20,21 @@ func (l *Logger) logToSyslog(level LogLevel, message string) {
 	if l.syslogger == nil {
 		return
 	}
-	
+
+	// Type assert to syslog.Writer
+	writer, ok := l.syslogger.(*syslog.Writer)
+	if !ok {
+		return
+	}
+
 	switch level {
 	case DebugLevel:
-		l.syslogger.Debug(message)
+		writer.Debug(message)
 	case InfoLevel:
-		l.syslogger.Info(message)
+		writer.Info(message)
 	case WarnLevel:
-		l.syslogger.Warning(message)
+		writer.Warning(message)
 	case ErrorLevel:
-		l.syslogger.Err(message)
+		writer.Err(message)
 	}
 }

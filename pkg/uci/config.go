@@ -11,13 +11,13 @@ import (
 
 // Config represents the complete starfail configuration
 type Config struct {
-	Main          MainConfig           `uci:"starfail.main"`
-	Scoring       ScoringConfig        `uci:"starfail.scoring"`
-	SysMgmt       SysMgmtConfig        `uci:"starfail.sysmgmt"`
-	Recovery      RecoveryConfig       `uci:"starfail.recovery"`
-	Notifications NotificationConfig   `uci:"starfail.notifications"`
-	Sampling      SamplingConfig       `uci:"starfail.sampling"`
-	Members       []MemberConfig       `uci:"starfail.member"`
+	Main          MainConfig         `uci:"starfail.main"`
+	Scoring       ScoringConfig      `uci:"starfail.scoring"`
+	SysMgmt       SysMgmtConfig      `uci:"starfail.sysmgmt"`
+	Recovery      RecoveryConfig     `uci:"starfail.recovery"`
+	Notifications NotificationConfig `uci:"starfail.notifications"`
+	Sampling      SamplingConfig     `uci:"starfail.sampling"`
+	Members       []MemberConfig     `uci:"starfail.member"`
 }
 
 // ScoringConfig represents scoring algorithm configuration
@@ -26,7 +26,7 @@ type ScoringConfig struct {
 	WeightLoss        float64 `uci:"weight_loss" default:"30"`
 	WeightJitter      float64 `uci:"weight_jitter" default:"15"`
 	WeightObstruction float64 `uci:"weight_obstruction" default:"20"`
-	
+
 	LatencyOkMs       float64 `uci:"latency_ok_ms" default:"50"`
 	LatencyBadMs      float64 `uci:"latency_bad_ms" default:"1500"`
 	LossOkPct         float64 `uci:"loss_ok_pct" default:"0"`
@@ -50,38 +50,38 @@ type SysMgmtConfig struct {
 // MainConfig represents the main starfail configuration section
 type MainConfig struct {
 	Enable              bool          `uci:"enable" default:"true"`
-	UseMwan3           bool          `uci:"use_mwan3" default:"true"`
-	DryRun             bool          `uci:"dry_run" default:"false"`
-	EnableUbus         bool          `uci:"enable_ubus" default:"true"`
-	PollIntervalMs     int           `uci:"poll_interval_ms" default:"1500"`
-	HistoryWindowS     time.Duration `uci:"history_window_s" default:"600s"`
-	RetentionHours     int           `uci:"retention_hours" default:"24"`
-	MaxRAMMB           int           `uci:"max_ram_mb" default:"16"`
-	MaxSamplesPerMember int          `uci:"max_samples_per_member" default:"1000"`
-	MaxEvents          int           `uci:"max_events" default:"500"`
-	DataCapMode        string        `uci:"data_cap_mode" default:"balanced"`
-	Predictive         bool          `uci:"predictive" default:"true"`
-	SwitchMargin       float64       `uci:"switch_margin" default:"10"`
-	MinUptimeS         time.Duration `uci:"min_uptime_s" default:"20s"`
-	CooldownS          int           `uci:"cooldown_s" default:"30"`
-	EWMAAlpha          float64       `uci:"ewma_alpha" default:"0.2"`
-	MetricsListener    bool          `uci:"metrics_listener" default:"false"`
-	HealthListener     bool          `uci:"health_listener" default:"true"`
-	LogLevel           string        `uci:"log_level" default:"info"`
-	LogFile            string        `uci:"log_file" default:""`
-	
+	UseMwan3            bool          `uci:"use_mwan3" default:"true"`
+	DryRun              bool          `uci:"dry_run" default:"false"`
+	EnableUbus          bool          `uci:"enable_ubus" default:"true"`
+	PollIntervalMs      int           `uci:"poll_interval_ms" default:"1500"`
+	HistoryWindowS      time.Duration `uci:"history_window_s" default:"600s"`
+	RetentionHours      int           `uci:"retention_hours" default:"24"`
+	MaxRAMMB            int           `uci:"max_ram_mb" default:"16"`
+	MaxSamplesPerMember int           `uci:"max_samples_per_member" default:"1000"`
+	MaxEvents           int           `uci:"max_events" default:"500"`
+	DataCapMode         string        `uci:"data_cap_mode" default:"balanced"`
+	Predictive          bool          `uci:"predictive" default:"true"`
+	SwitchMargin        float64       `uci:"switch_margin" default:"10"`
+	MinUptimeS          time.Duration `uci:"min_uptime_s" default:"20s"`
+	CooldownS           int           `uci:"cooldown_s" default:"30"`
+	EWMAAlpha           float64       `uci:"ewma_alpha" default:"0.2"`
+	MetricsListener     bool          `uci:"metrics_listener" default:"false"`
+	HealthListener      bool          `uci:"health_listener" default:"true"`
+	LogLevel            string        `uci:"log_level" default:"info"`
+	LogFile             string        `uci:"log_file" default:""`
+
 	// Fail/restore thresholds
-	FailThresholdLoss     float64       `uci:"fail_threshold_loss" default:"5"`
-	FailThresholdLatency  time.Duration `uci:"fail_threshold_latency" default:"1200ms"`
-	FailMinDurationS      time.Duration `uci:"fail_min_duration_s" default:"10s"`
-	RestoreThresholdLoss  float64       `uci:"restore_threshold_loss" default:"1"`
+	FailThresholdLoss       float64       `uci:"fail_threshold_loss" default:"5"`
+	FailThresholdLatency    time.Duration `uci:"fail_threshold_latency" default:"1200ms"`
+	FailMinDurationS        time.Duration `uci:"fail_min_duration_s" default:"10s"`
+	RestoreThresholdLoss    float64       `uci:"restore_threshold_loss" default:"1"`
 	RestoreThresholdLatency time.Duration `uci:"restore_threshold_latency" default:"800ms"`
-	RestoreMinDurationS   time.Duration `uci:"restore_min_duration_s" default:"30s"`
-	
+	RestoreMinDurationS     time.Duration `uci:"restore_min_duration_s" default:"30s"`
+
 	// Optional notifications
 	PushoverToken string `uci:"pushover_token" default:""`
 	PushoverUser  string `uci:"pushover_user" default:""`
-	
+
 	// Optional telemetry
 	MqttBroker string `uci:"mqtt_broker" default:""`
 	MqttTopic  string `uci:"mqtt_topic" default:"starfail/status"`
@@ -89,19 +89,19 @@ type MainConfig struct {
 
 // MemberConfig represents per-member configuration overrides
 type MemberConfig struct {
-	Name            string        `uci:".name"`
-	Detect          string        `uci:"detect" default:"auto"`         // auto|disable|force
-	Class           string        `uci:"class" default:""`
-	Weight          int           `uci:"weight" default:"50"`
-	MinUptimeS      time.Duration `uci:"min_uptime_s"`
-	CooldownS       time.Duration `uci:"cooldown_s"`
-	PreferRoaming   bool          `uci:"prefer_roaming" default:"false"`
-	Metered         bool          `uci:"metered" default:"false"`
+	Name          string        `uci:".name"`
+	Detect        string        `uci:"detect" default:"auto"` // auto|disable|force
+	Class         string        `uci:"class" default:""`
+	Weight        int           `uci:"weight" default:"50"`
+	MinUptimeS    time.Duration `uci:"min_uptime_s"`
+	CooldownS     time.Duration `uci:"cooldown_s"`
+	PreferRoaming bool          `uci:"prefer_roaming" default:"false"`
+	Metered       bool          `uci:"metered" default:"false"`
 }
 
 // RecoveryConfig represents backup and recovery configuration
 type RecoveryConfig struct {
-	Enable              bool   `uci:"enable" default:"true"`
+	Enable             bool   `uci:"enable" default:"true"`
 	BackupDir          string `uci:"backup_dir" default:"/etc/starfail/backup"`
 	MaxVersions        int    `uci:"max_versions" default:"10"`
 	AutoBackupOnChange bool   `uci:"auto_backup_on_change" default:"true"`
@@ -111,40 +111,40 @@ type RecoveryConfig struct {
 
 // NotificationConfig represents notification system configuration
 type NotificationConfig struct {
-	Enable               bool   `uci:"enable" default:"true"`
-	RateLimitMinutes     int    `uci:"rate_limit_minutes" default:"5"`
-	PriorityThreshold    string `uci:"priority_threshold" default:"medium"`
-	
+	Enable            bool   `uci:"enable" default:"true"`
+	RateLimitMinutes  int    `uci:"rate_limit_minutes" default:"5"`
+	PriorityThreshold string `uci:"priority_threshold" default:"medium"`
+
 	// Pushover
-	PushoverEnabled      bool   `uci:"pushover_enabled" default:"false"`
-	PushoverToken        string `uci:"pushover_token" default:""`
-	PushoverUser         string `uci:"pushover_user" default:""`
-	
+	PushoverEnabled bool   `uci:"pushover_enabled" default:"false"`
+	PushoverToken   string `uci:"pushover_token" default:""`
+	PushoverUser    string `uci:"pushover_user" default:""`
+
 	// MQTT
-	MqttEnabled          bool   `uci:"mqtt_enabled" default:"false"`
-	MqttBroker           string `uci:"mqtt_broker" default:""`
-	MqttTopic            string `uci:"mqtt_topic" default:"starfail/alerts"`
-	
+	MqttEnabled bool   `uci:"mqtt_enabled" default:"false"`
+	MqttBroker  string `uci:"mqtt_broker" default:""`
+	MqttTopic   string `uci:"mqtt_topic" default:"starfail/alerts"`
+
 	// Webhook
-	WebhookEnabled       bool   `uci:"webhook_enabled" default:"false"`
-	WebhookURL           string `uci:"webhook_url" default:""`
-	
+	WebhookEnabled bool   `uci:"webhook_enabled" default:"false"`
+	WebhookURL     string `uci:"webhook_url" default:""`
+
 	// Email
-	EmailEnabled         bool   `uci:"email_enabled" default:"false"`
-	EmailSMTPServer      string `uci:"email_smtp_server" default:""`
-	EmailFrom            string `uci:"email_from" default:""`
-	EmailTo              string `uci:"email_to" default:""`
+	EmailEnabled    bool   `uci:"email_enabled" default:"false"`
+	EmailSMTPServer string `uci:"email_smtp_server" default:""`
+	EmailFrom       string `uci:"email_from" default:""`
+	EmailTo         string `uci:"email_to" default:""`
 }
 
 // SamplingConfig represents adaptive sampling configuration
 type SamplingConfig struct {
-	Enable                bool    `uci:"enable" default:"true"`
-	BaseIntervalMs        int     `uci:"base_interval_ms" default:"1000"`
-	FastIntervalMs        int     `uci:"fast_interval_ms" default:"500"`
-	SlowIntervalMs        int     `uci:"slow_interval_ms" default:"5000"`
-	PerformanceThreshold  float64 `uci:"performance_threshold" default:"70.0"`
-	DataCapAware          bool    `uci:"data_cap_aware" default:"true"`
-	AdaptationFactor      float64 `uci:"adaptation_factor" default:"0.1"`
+	Enable               bool    `uci:"enable" default:"true"`
+	BaseIntervalMs       int     `uci:"base_interval_ms" default:"1000"`
+	FastIntervalMs       int     `uci:"fast_interval_ms" default:"500"`
+	SlowIntervalMs       int     `uci:"slow_interval_ms" default:"5000"`
+	PerformanceThreshold float64 `uci:"performance_threshold" default:"70.0"`
+	DataCapAware         bool    `uci:"data_cap_aware" default:"true"`
+	AdaptationFactor     float64 `uci:"adaptation_factor" default:"0.1"`
 }
 
 // Loader handles UCI configuration loading and validation
@@ -163,7 +163,7 @@ func NewLoader(configPath string) *Loader {
 func (l *Loader) Load() (*Config, error) {
 	// Start with default config
 	config := l.getDefaultConfig()
-	
+
 	// Try to load UCI values
 	err := l.loadFromUCI(config)
 	if err != nil {
@@ -171,13 +171,13 @@ func (l *Loader) Load() (*Config, error) {
 		// TODO: Use logger when available
 		fmt.Printf("Warning: Failed to load UCI config: %v, using defaults\n", err)
 	}
-	
+
 	// Validate the configuration
 	err = l.Validate(config)
 	if err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
-	
+
 	return config, nil
 }
 
@@ -185,36 +185,36 @@ func (l *Loader) Load() (*Config, error) {
 func (l *Loader) getDefaultConfig() *Config {
 	return &Config{
 		Main: MainConfig{
-			Enable:              true,
-			UseMwan3:           true,
-			DryRun:             false,
-			EnableUbus:         true,
-			PollIntervalMs:     1500,
-			HistoryWindowS:     600 * time.Second,
-			RetentionHours:     24,
-			MaxRAMMB:           16,
-			MaxSamplesPerMember: 1000,
-			MaxEvents:          500,
-			DataCapMode:        "balanced",
-			Predictive:         true,
-			SwitchMargin:       10,
-			MinUptimeS:         20 * time.Second,
-			CooldownS:          30,
-			EWMAAlpha:          0.2,
-			MetricsListener:    false,
-			HealthListener:     true,
-			LogLevel:           "info",
-			LogFile:            "",
-			FailThresholdLoss:     5,
-			FailThresholdLatency:  1200 * time.Millisecond,
-			FailMinDurationS:      10 * time.Second,
-			RestoreThresholdLoss:  1,
+			Enable:                  true,
+			UseMwan3:                true,
+			DryRun:                  false,
+			EnableUbus:              true,
+			PollIntervalMs:          1500,
+			HistoryWindowS:          600 * time.Second,
+			RetentionHours:          24,
+			MaxRAMMB:                16,
+			MaxSamplesPerMember:     1000,
+			MaxEvents:               500,
+			DataCapMode:             "balanced",
+			Predictive:              true,
+			SwitchMargin:            10,
+			MinUptimeS:              20 * time.Second,
+			CooldownS:               30,
+			EWMAAlpha:               0.2,
+			MetricsListener:         false,
+			HealthListener:          true,
+			LogLevel:                "info",
+			LogFile:                 "",
+			FailThresholdLoss:       5,
+			FailThresholdLatency:    1200 * time.Millisecond,
+			FailMinDurationS:        10 * time.Second,
+			RestoreThresholdLoss:    1,
 			RestoreThresholdLatency: 800 * time.Millisecond,
-			RestoreMinDurationS:   30 * time.Second,
-			PushoverToken:      "",
-			PushoverUser:       "",
-			MqttBroker:         "",
-			MqttTopic:          "starfail/status",
+			RestoreMinDurationS:     30 * time.Second,
+			PushoverToken:           "",
+			PushoverUser:            "",
+			MqttBroker:              "",
+			MqttTopic:               "starfail/status",
 		},
 		Scoring: ScoringConfig{
 			WeightLatency:     25,
@@ -231,17 +231,15 @@ func (l *Loader) getDefaultConfig() *Config {
 			ObstructionBadPct: 10,
 		},
 		SysMgmt: SysMgmtConfig{
-			Enable:              true,
-			MaintenanceInterval: 600,
-			OverlayCleanup:      true,
-			OverlayPath:        "/overlay",
-			ServiceWatchdog:    true,
-			WatchdogServices:   []string{"starfail", "mwan3", "network"},
-			MemoryThreshold:    80,
-			DiskThreshold:      90,
+			Enable:                 true,
+			OverlayCleanupDays:     7,
+			LogCleanupDays:         3,
+			ServiceCheckInterval:   300,
+			TimeDriftThreshold:     30,
+			InterfaceFlapThreshold: 5,
 		},
 		Recovery: RecoveryConfig{
-			Enable:              true,
+			Enable:             true,
 			BackupDir:          "/etc/starfail/backup",
 			MaxVersions:        10,
 			AutoBackupOnChange: true,
@@ -249,30 +247,30 @@ func (l *Loader) getDefaultConfig() *Config {
 			CompressBackups:    true,
 		},
 		Notifications: NotificationConfig{
-			Enable:               true,
-			RateLimitMinutes:     5,
-			PriorityThreshold:    "medium",
-			PushoverEnabled:      false,
-			PushoverToken:        "",
-			PushoverUser:         "",
-			MqttEnabled:          false,
-			MqttBroker:           "",
-			MqttTopic:            "starfail/alerts",
-			WebhookEnabled:       false,
-			WebhookURL:           "",
-			EmailEnabled:         false,
-			EmailSMTPServer:      "",
-			EmailFrom:            "",
-			EmailTo:              "",
+			Enable:            true,
+			RateLimitMinutes:  5,
+			PriorityThreshold: "medium",
+			PushoverEnabled:   false,
+			PushoverToken:     "",
+			PushoverUser:      "",
+			MqttEnabled:       false,
+			MqttBroker:        "",
+			MqttTopic:         "starfail/alerts",
+			WebhookEnabled:    false,
+			WebhookURL:        "",
+			EmailEnabled:      false,
+			EmailSMTPServer:   "",
+			EmailFrom:         "",
+			EmailTo:           "",
 		},
 		Sampling: SamplingConfig{
-			Enable:                true,
-			BaseIntervalMs:        1000,
-			FastIntervalMs:        500,
-			SlowIntervalMs:        5000,
-			PerformanceThreshold:  70.0,
-			DataCapAware:          true,
-			AdaptationFactor:      0.1,
+			Enable:               true,
+			BaseIntervalMs:       1000,
+			FastIntervalMs:       500,
+			SlowIntervalMs:       5000,
+			PerformanceThreshold: 70.0,
+			DataCapAware:         true,
+			AdaptationFactor:     0.1,
 		},
 		Members: []MemberConfig{},
 	}
@@ -285,13 +283,13 @@ func (l *Loader) loadFromUCI(config *Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to load main config: %w", err)
 	}
-	
+
 	// Load member sections
 	err = l.loadMembersFromUCI(config)
 	if err != nil {
 		return fmt.Errorf("failed to load member configs: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -303,34 +301,34 @@ func (l *Loader) loadMainFromUCI(config *Config) error {
 		// Section doesn't exist, use defaults
 		return nil
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		// Parse: starfail.main.option='value'
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
 			continue
 		}
-		
+
 		key := parts[0]
 		value := strings.Trim(parts[1], "'\"")
-		
+
 		// Extract option name
 		keyParts := strings.Split(key, ".")
 		if len(keyParts) < 3 || keyParts[1] != "main" {
 			continue
 		}
 		option := keyParts[2]
-		
+
 		// Set config values
 		l.setMainOption(config, option, value)
 	}
-	
+
 	return nil
 }
 
@@ -341,40 +339,40 @@ func (l *Loader) loadMembersFromUCI(config *Config) error {
 	if err != nil {
 		return nil
 	}
-	
+
 	memberMap := make(map[string]*MemberConfig)
 	lines := strings.Split(string(output), "\n")
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" || !strings.Contains(line, ".@member[") {
 			continue
 		}
-		
+
 		// Parse member line
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
 			continue
 		}
-		
+
 		key := parts[0]
 		value := strings.Trim(parts[1], "'\"")
-		
+
 		// Extract member index and option from starfail.@member[0].option
 		keyParts := strings.Split(key, ".")
 		if len(keyParts) < 3 {
 			continue
 		}
-		
+
 		memberPart := keyParts[1]
 		option := keyParts[2]
-		
+
 		// Extract index from @member[0]
 		if !strings.HasPrefix(memberPart, "@member[") || !strings.HasSuffix(memberPart, "]") {
 			continue
 		}
 		indexStr := memberPart[8 : len(memberPart)-1]
-		
+
 		// Get or create member
 		member := memberMap[indexStr]
 		if member == nil {
@@ -386,17 +384,17 @@ func (l *Loader) loadMembersFromUCI(config *Config) error {
 			}
 			memberMap[indexStr] = member
 		}
-		
+
 		// Set option value
 		l.setMemberOption(member, option, value)
 	}
-	
+
 	// Convert map to slice
 	config.Members = make([]MemberConfig, 0, len(memberMap))
 	for _, member := range memberMap {
 		config.Members = append(config.Members, *member)
 	}
-	
+
 	return nil
 }
 
@@ -421,7 +419,7 @@ func (l *Loader) setMainOption(config *Config, option, value string) {
 		}
 	case "max_ram_mb":
 		if v, err := strconv.Atoi(value); err == nil {
-			config.Main.MaxRamMB = v
+			config.Main.MaxRAMMB = v
 		}
 	case "data_cap_mode":
 		config.Main.DataCapMode = value
@@ -437,7 +435,7 @@ func (l *Loader) setMainOption(config *Config, option, value string) {
 		}
 	case "cooldown_s":
 		if v, err := strconv.Atoi(value); err == nil {
-			config.Main.CooldownS = time.Duration(v) * time.Second
+			config.Main.CooldownS = int(v)
 		}
 	case "metrics_listener":
 		config.Main.MetricsListener = l.parseBool(value)
@@ -529,7 +527,7 @@ func (l *Loader) Validate(config *Config) error {
 	if err := l.validateMain(&config.Main); err != nil {
 		return fmt.Errorf("main config validation failed: %w", err)
 	}
-	
+
 	// Validate member configs
 	for i, member := range config.Members {
 		if err := l.validateMember(&member); err != nil {
@@ -537,7 +535,7 @@ func (l *Loader) Validate(config *Config) error {
 		}
 		config.Members[i] = member // Update in case of modifications
 	}
-	
+
 	return nil
 }
 
@@ -547,59 +545,59 @@ func (l *Loader) validateMain(main *MainConfig) error {
 	if main.PollIntervalMs < 500 || main.PollIntervalMs > 30000 {
 		return fmt.Errorf("poll_interval_ms must be between 500-30000ms, got %d", main.PollIntervalMs)
 	}
-	
+
 	if main.HistoryWindowS < 60*time.Second || main.HistoryWindowS > 3600*time.Second {
 		return fmt.Errorf("history_window_s must be between 60-3600s, got %v", main.HistoryWindowS)
 	}
-	
+
 	if main.RetentionHours < 1 || main.RetentionHours > 168 {
 		return fmt.Errorf("retention_hours must be between 1-168 hours, got %d", main.RetentionHours)
 	}
-	
-	if main.MaxRamMB < 4 || main.MaxRamMB > 128 {
-		return fmt.Errorf("max_ram_mb must be between 4-128MB, got %d", main.MaxRamMB)
+
+	if main.MaxRAMMB < 4 || main.MaxRAMMB > 128 {
+		return fmt.Errorf("max_ram_mb must be between 4-128MB, got %d", main.MaxRAMMB)
 	}
-	
+
 	if main.SwitchMargin < 1 || main.SwitchMargin > 50 {
 		return fmt.Errorf("switch_margin must be between 1-50, got %f", main.SwitchMargin)
 	}
-	
+
 	if main.MinUptimeS < 1*time.Second || main.MinUptimeS > 300*time.Second {
 		return fmt.Errorf("min_uptime_s must be between 1-300s, got %v", main.MinUptimeS)
 	}
-	
-	if main.CooldownS < 1*time.Second || main.CooldownS > 300*time.Second {
+
+	if main.CooldownS < 1 || main.CooldownS > 300 {
 		return fmt.Errorf("cooldown_s must be between 1-300s, got %v", main.CooldownS)
 	}
-	
+
 	// Validate string enums
 	validDataCapModes := []string{"conservative", "balanced", "aggressive"}
 	if !l.contains(validDataCapModes, main.DataCapMode) {
 		return fmt.Errorf("data_cap_mode must be one of %v, got '%s'", validDataCapModes, main.DataCapMode)
 	}
-	
+
 	validLogLevels := []string{"debug", "info", "warn", "error"}
 	if !l.contains(validLogLevels, main.LogLevel) {
 		return fmt.Errorf("log_level must be one of %v, got '%s'", validLogLevels, main.LogLevel)
 	}
-	
+
 	// Validate thresholds
 	if main.FailThresholdLoss < 0 || main.FailThresholdLoss > 100 {
 		return fmt.Errorf("fail_threshold_loss must be between 0-100%%, got %f", main.FailThresholdLoss)
 	}
-	
+
 	if main.RestoreThresholdLoss < 0 || main.RestoreThresholdLoss > 100 {
 		return fmt.Errorf("restore_threshold_loss must be between 0-100%%, got %f", main.RestoreThresholdLoss)
 	}
-	
+
 	if main.FailThresholdLatency < 50*time.Millisecond || main.FailThresholdLatency > 10*time.Second {
 		return fmt.Errorf("fail_threshold_latency must be between 50ms-10s, got %v", main.FailThresholdLatency)
 	}
-	
+
 	if main.RestoreThresholdLatency < 10*time.Millisecond || main.RestoreThresholdLatency > 5*time.Second {
 		return fmt.Errorf("restore_threshold_latency must be between 10ms-5s, got %v", main.RestoreThresholdLatency)
 	}
-	
+
 	return nil
 }
 
@@ -613,13 +611,13 @@ func (l *Loader) validateMember(member *MemberConfig) error {
 			member.Name = "member_unknown"
 		}
 	}
-	
+
 	// Validate detect mode
 	validDetectModes := []string{"auto", "disable", "force"}
 	if !l.contains(validDetectModes, member.Detect) {
 		return fmt.Errorf("detect must be one of %v, got '%s'", validDetectModes, member.Detect)
 	}
-	
+
 	// Validate class if set
 	if member.Class != "" {
 		validClasses := []string{"starlink", "cellular", "wifi", "lan", "other"}
@@ -627,21 +625,21 @@ func (l *Loader) validateMember(member *MemberConfig) error {
 			return fmt.Errorf("class must be one of %v, got '%s'", validClasses, member.Class)
 		}
 	}
-	
+
 	// Validate weight
 	if member.Weight < 1 || member.Weight > 100 {
 		return fmt.Errorf("weight must be between 1-100, got %d", member.Weight)
 	}
-	
+
 	// Validate durations if set
 	if member.MinUptimeS != 0 && (member.MinUptimeS < 1*time.Second || member.MinUptimeS > 300*time.Second) {
 		return fmt.Errorf("min_uptime_s must be between 1-300s, got %v", member.MinUptimeS)
 	}
-	
+
 	if member.CooldownS != 0 && (member.CooldownS < 1*time.Second || member.CooldownS > 300*time.Second) {
 		return fmt.Errorf("cooldown_s must be between 1-300s, got %v", member.CooldownS)
 	}
-	
+
 	return nil
 }
 

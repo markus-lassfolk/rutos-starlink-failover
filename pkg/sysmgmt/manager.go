@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"starfail/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
 )
 
 // Config holds system management configuration
@@ -182,7 +182,7 @@ func (m *Manager) checkMemoryUsage(ctx context.Context) CheckResult {
 	if memAvailable == 0 {
 		usedMem = memTotal - memFree
 	}
-	
+
 	usagePct := (usedMem * 100) / memTotal
 
 	// Warn if usage > 90%
@@ -283,9 +283,9 @@ func (m *Manager) cleanupOverlaySpace(ctx context.Context) MaintenanceResult {
 	tempDirs := []string{"/tmp", "/var/tmp", "/overlay/tmp"}
 	for _, dir := range tempDirs {
 		if _, err := os.Stat(dir); err == nil {
-			cmd := exec.CommandContext(ctx, "find", dir, "-type", "f", "-mtime", 
+			cmd := exec.CommandContext(ctx, "find", dir, "-type", "f", "-mtime",
 				fmt.Sprintf("+%d", m.config.OverlayCleanupDays), "-delete")
-			
+
 			if !m.config.DryRun {
 				if err := cmd.Run(); err == nil {
 					actions = append(actions, fmt.Sprintf("cleaned old files from %s", dir))
@@ -332,7 +332,7 @@ func (m *Manager) cleanupLogs(ctx context.Context) MaintenanceResult {
 					// Simple rotation: move current to .old and truncate
 					oldPath := logPath + ".old"
 					os.Rename(logPath, oldPath)
-					
+
 					// Create new empty log file
 					file, err := os.Create(logPath)
 					if err == nil {
@@ -347,9 +347,9 @@ func (m *Manager) cleanupLogs(ctx context.Context) MaintenanceResult {
 	}
 
 	// Clean old rotated logs
-	cmd := exec.CommandContext(ctx, "find", "/var/log", "/tmp/log", "-name", "*.old", 
+	cmd := exec.CommandContext(ctx, "find", "/var/log", "/tmp/log", "-name", "*.old",
 		"-mtime", fmt.Sprintf("+%d", m.config.LogCleanupDays), "-delete")
-	
+
 	if !m.config.DryRun {
 		if err := cmd.Run(); err == nil {
 			actions = append(actions, "cleaned old rotated logs")
@@ -371,9 +371,9 @@ func (m *Manager) restartHungServices(ctx context.Context) MaintenanceResult {
 
 	// Services to check for responsiveness
 	services := map[string]func() bool{
-		"mwan3":     m.checkMwan3Responsive,
-		"dnsmasq":   m.checkDnsmasqResponsive,
-		"nlbwmon":   m.checkNlbwmonResponsive,
+		"mwan3":   m.checkMwan3Responsive,
+		"dnsmasq": m.checkDnsmasqResponsive,
+		"nlbwmon": m.checkNlbwmonResponsive,
 	}
 
 	for service, checkFunc := range services {
@@ -409,7 +409,7 @@ func (m *Manager) fixTimeSync(ctx context.Context) MaintenanceResult {
 			if err := cmd.Run(); err == nil {
 				actions = append(actions, "restarted ntpd")
 			}
-			
+
 			// Force immediate sync
 			cmd = exec.CommandContext(ctx, "ntpd", "-q", "-n", "-p", "pool.ntp.org")
 			if err := cmd.Run(); err == nil {
@@ -466,7 +466,7 @@ func (m *Manager) optimizeDatabase(ctx context.Context) MaintenanceResult {
 			if err != nil {
 				return nil
 			}
-			
+
 			if strings.HasSuffix(path, ".db") || strings.HasSuffix(path, ".sqlite") {
 				if !m.config.DryRun {
 					cmd := exec.CommandContext(ctx, "sqlite3", path, "VACUUM;")

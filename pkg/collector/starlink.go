@@ -8,8 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -24,7 +22,7 @@ func NewStarlinkCollector(dishIP string) *StarlinkCollector {
 	if dishIP == "" {
 		dishIP = "192.168.100.1" // Default Starlink dish IP
 	}
-	
+
 	return &StarlinkCollector{
 		dishIP: dishIP,
 		httpClient: &http.Client{
@@ -48,18 +46,18 @@ func (s *StarlinkCollector) SupportsInterface(interfaceName string) bool {
 func (s *StarlinkCollector) isStarlinkReachable() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://%s/support/debug", s.dishIP), nil)
 	if err != nil {
 		return false
 	}
-	
+
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return false
 	}
 	defer resp.Body.Close()
-	
+
 	return resp.StatusCode == 200
 }
 
@@ -71,20 +69,20 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 		InterfaceName: member.InterfaceName,
 		Class:         "starlink",
 	}
-	
+
 	// Collect enhanced Starlink diagnostics
 	starlinkData, err := s.getEnhancedStarlinkData(ctx)
 	if err != nil {
 		return metrics, fmt.Errorf("failed to get Starlink data: %w", err)
 	}
-	
+
 	// Set API response time
 	apiResponseTime := time.Since(startTime).Seconds() * 1000
 	metrics.Extra = map[string]interface{}{
 		"api_response_time_ms": apiResponseTime,
 		"api_accessible":       starlinkData != nil,
 	}
-	
+
 	// Parse and set enhanced metrics
 	if starlinkData != nil {
 		// Basic connectivity metrics
@@ -92,26 +90,26 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 			latency := *starlinkData.PopPingMs
 			metrics.LatencyMs = &latency
 		}
-		
+
 		if starlinkData.PacketLossPct != nil {
 			loss := *starlinkData.PacketLossPct
 			metrics.LossPct = &loss
 		}
-		
+
 		// Signal quality
 		if starlinkData.SNR != nil {
 			metrics.SNR = starlinkData.SNR
 		}
-		
+
 		if starlinkData.ObstructionPct != nil {
 			metrics.ObstructionPct = starlinkData.ObstructionPct
 		}
-		
+
 		// Enhanced metrics in Extra field
 		if metrics.Extra == nil {
 			metrics.Extra = make(map[string]interface{})
 		}
-		
+
 		// Hardware health
 		if starlinkData.HardwareSelfTest != nil {
 			metrics.Extra["hardware_self_test"] = *starlinkData.HardwareSelfTest
@@ -128,7 +126,7 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 		if starlinkData.BootCount != nil {
 			metrics.Extra["boot_count"] = *starlinkData.BootCount
 		}
-		
+
 		// Bandwidth restrictions
 		if starlinkData.DlBandwidthRestricted != nil {
 			metrics.Extra["dl_bandwidth_restricted"] = *starlinkData.DlBandwidthRestricted
@@ -136,7 +134,7 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 		if starlinkData.UlBandwidthRestricted != nil {
 			metrics.Extra["ul_bandwidth_restricted"] = *starlinkData.UlBandwidthRestricted
 		}
-		
+
 		// Signal quality indicators
 		if starlinkData.IsSnrAboveNoise != nil {
 			metrics.Extra["is_snr_above_noise"] = *starlinkData.IsSnrAboveNoise
@@ -144,7 +142,7 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 		if starlinkData.IsSnrPersistentLow != nil {
 			metrics.Extra["is_snr_persistent_low"] = *starlinkData.IsSnrPersistentLow
 		}
-		
+
 		// GPS data
 		if starlinkData.Latitude != nil && starlinkData.Longitude != nil {
 			metrics.Extra["latitude"] = *starlinkData.Latitude
@@ -162,7 +160,7 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 		if starlinkData.GPSUncertainty != nil {
 			metrics.Extra["gps_uncertainty_m"] = *starlinkData.GPSUncertainty
 		}
-		
+
 		// Alerts
 		if starlinkData.RoamingAlert != nil {
 			metrics.Extra["roaming_alert"] = *starlinkData.RoamingAlert
@@ -171,7 +169,7 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 			metrics.Extra["software_update_pending"] = *starlinkData.SoftwareUpdate
 		}
 	}
-	
+
 	return metrics, nil
 }
 
@@ -182,34 +180,34 @@ type EnhancedStarlinkData struct {
 	PacketLossPct  *float64 `json:"packet_loss_pct"`
 	SNR            *float64 `json:"snr"`
 	ObstructionPct *float64 `json:"obstruction_pct"`
-	
-	// Hardware diagnostics  
-	HardwareSelfTest    *string `json:"hardware_self_test"`
-	ThermalThrottle     *bool   `json:"thermal_throttle"`
-	ThermalShutdown     *bool   `json:"thermal_shutdown"`
-	UptimeS             *int64  `json:"uptime_s"`
-	BootCount           *int    `json:"boot_count"`
-	
+
+	// Hardware diagnostics
+	HardwareSelfTest *string `json:"hardware_self_test"`
+	ThermalThrottle  *bool   `json:"thermal_throttle"`
+	ThermalShutdown  *bool   `json:"thermal_shutdown"`
+	UptimeS          *int64  `json:"uptime_s"`
+	BootCount        *int    `json:"boot_count"`
+
 	// Signal quality indicators
-	IsSnrAboveNoise     *bool   `json:"is_snr_above_noise_floor"`
-	IsSnrPersistentLow  *bool   `json:"is_snr_persistently_low"`
-	
+	IsSnrAboveNoise    *bool `json:"is_snr_above_noise_floor"`
+	IsSnrPersistentLow *bool `json:"is_snr_persistently_low"`
+
 	// Bandwidth and performance
 	DlBandwidthRestricted *string `json:"dl_bandwidth_restricted_reason"`
 	UlBandwidthRestricted *string `json:"ul_bandwidth_restricted_reason"`
-	
+
 	// GPS and location
-	Latitude        *float64 `json:"latitude"`
-	Longitude       *float64 `json:"longitude"`
-	Altitude        *float64 `json:"altitude"`
-	GPSValid        *bool    `json:"gps_valid"`
-	GPSSatellites   *int     `json:"gps_satellites"`
-	GPSUncertainty  *float64 `json:"gps_uncertainty_m"`
-	
+	Latitude       *float64 `json:"latitude"`
+	Longitude      *float64 `json:"longitude"`
+	Altitude       *float64 `json:"altitude"`
+	GPSValid       *bool    `json:"gps_valid"`
+	GPSSatellites  *int     `json:"gps_satellites"`
+	GPSUncertainty *float64 `json:"gps_uncertainty_m"`
+
 	// Alerts and status
-	RoamingAlert    *bool `json:"roaming_alert"`
-	SoftwareUpdate  *bool `json:"software_update_pending"`
-	
+	RoamingAlert   *bool `json:"roaming_alert"`
+	SoftwareUpdate *bool `json:"software_update_pending"`
+
 	// Legacy fields for compatibility
 	Outages *int    `json:"outages"`
 	State   *string `json:"state"`
@@ -221,7 +219,7 @@ func (s *StarlinkCollector) getEnhancedStarlinkData(ctx context.Context) (*Enhan
 	if grpcData, err := s.getGRPCData(ctx); err == nil {
 		return grpcData, nil
 	}
-	
+
 	// Fallback to JSON API
 	return s.getJSONData(ctx)
 }
@@ -229,29 +227,29 @@ func (s *StarlinkCollector) getEnhancedStarlinkData(ctx context.Context) (*Enhan
 // getGRPCData fetches data using grpcurl command
 func (s *StarlinkCollector) getGRPCData(ctx context.Context) (*EnhancedStarlinkData, error) {
 	// Try get_diagnostics for comprehensive data
-	cmd := exec.CommandContext(ctx, "grpcurl", "-plaintext", "-d", 
-		`{"get_diagnostics":{}}`, 
-		fmt.Sprintf("%s:9200", s.dishIP), 
+	cmd := exec.CommandContext(ctx, "grpcurl", "-plaintext", "-d",
+		`{"get_diagnostics":{}}`,
+		fmt.Sprintf("%s:9200", s.dishIP),
 		"SpaceX.API.Device.Device/Handle")
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("grpcurl get_diagnostics failed: %w", err)
 	}
-	
+
 	// Parse gRPC response
 	var grpcResp map[string]interface{}
 	if err := json.Unmarshal(output, &grpcResp); err != nil {
 		return nil, fmt.Errorf("failed to parse gRPC response: %w", err)
 	}
-	
+
 	return s.parseGRPCDiagnostics(grpcResp)
 }
 
 // parseGRPCDiagnostics extracts enhanced metrics from gRPC diagnostics response
 func (s *StarlinkCollector) parseGRPCDiagnostics(resp map[string]interface{}) (*EnhancedStarlinkData, error) {
 	data := &EnhancedStarlinkData{}
-	
+
 	// Navigate through nested JSON structure
 	if diagnostics, ok := resp["dishGetDiagnostics"].(map[string]interface{}); ok {
 		// Hardware diagnostics
@@ -266,12 +264,12 @@ func (s *StarlinkCollector) parseGRPCDiagnostics(resp map[string]interface{}) (*
 				data.RoamingAlert = &val
 			}
 		}
-		
+
 		// Hardware self-test
 		if val, exists := diagnostics["hardwareSelfTest"].(string); exists {
 			data.HardwareSelfTest = &val
 		}
-		
+
 		// Bandwidth restrictions
 		if val, exists := diagnostics["dlBandwidthRestrictedReason"].(string); exists {
 			data.DlBandwidthRestricted = &val
@@ -279,7 +277,7 @@ func (s *StarlinkCollector) parseGRPCDiagnostics(resp map[string]interface{}) (*
 		if val, exists := diagnostics["ulBandwidthRestrictedReason"].(string); exists {
 			data.UlBandwidthRestricted = &val
 		}
-		
+
 		// Location data
 		if location, ok := diagnostics["location"].(map[string]interface{}); ok {
 			if val, exists := location["latitude"].(float64); exists {
@@ -296,7 +294,7 @@ func (s *StarlinkCollector) parseGRPCDiagnostics(resp map[string]interface{}) (*
 			}
 		}
 	}
-	
+
 	// Get status data for connectivity metrics
 	statusData, _ := s.getGRPCStatus(context.Background())
 	if statusData != nil {
@@ -305,29 +303,29 @@ func (s *StarlinkCollector) parseGRPCDiagnostics(resp map[string]interface{}) (*
 		data.ObstructionPct = statusData.ObstructionPct
 		data.UptimeS = statusData.UptimeS
 	}
-	
+
 	return data, nil
 }
 
 // getGRPCStatus gets basic status metrics
 func (s *StarlinkCollector) getGRPCStatus(ctx context.Context) (*EnhancedStarlinkData, error) {
-	cmd := exec.CommandContext(ctx, "grpcurl", "-plaintext", "-d", 
-		`{"get_status":{}}`, 
-		fmt.Sprintf("%s:9200", s.dishIP), 
+	cmd := exec.CommandContext(ctx, "grpcurl", "-plaintext", "-d",
+		`{"get_status":{}}`,
+		fmt.Sprintf("%s:9200", s.dishIP),
 		"SpaceX.API.Device.Device/Handle")
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var grpcResp map[string]interface{}
 	if err := json.Unmarshal(output, &grpcResp); err != nil {
 		return nil, err
 	}
-	
+
 	data := &EnhancedStarlinkData{}
-	
+
 	if status, ok := grpcResp["dishGetStatus"].(map[string]interface{}); ok {
 		// Extract connectivity metrics
 		if val, exists := status["popPingLatencyMs"].(float64); exists {
@@ -346,7 +344,7 @@ func (s *StarlinkCollector) getGRPCStatus(ctx context.Context) (*EnhancedStarlin
 			uptime := int64(val)
 			data.UptimeS = &uptime
 		}
-		
+
 		// Ready states for signal quality
 		if readyStates, ok := status["readyStates"].(map[string]interface{}); ok {
 			if val, exists := readyStates["snrAboveNoiseFloor"].(bool); exists {
@@ -359,42 +357,42 @@ func (s *StarlinkCollector) getGRPCStatus(ctx context.Context) (*EnhancedStarlin
 			}
 		}
 	}
-	
+
 	return data, nil
 }
 
 // getJSONData fetches data using legacy JSON API
 func (s *StarlinkCollector) getJSONData(ctx context.Context) (*EnhancedStarlinkData, error) {
 	url := fmt.Sprintf("http://%s/support/debug", s.dishIP)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
 	}
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	// Parse JSON response (simplified for legacy API)
 	var jsonResp map[string]interface{}
 	if err := json.Unmarshal(body, &jsonResp); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
-	
+
 	data := &EnhancedStarlinkData{}
-	
+
 	// Extract basic metrics from JSON API
 	if val, exists := jsonResp["pop_ping_latency_ms"].(float64); exists {
 		data.PopPingMs = &val
@@ -402,70 +400,48 @@ func (s *StarlinkCollector) getJSONData(ctx context.Context) (*EnhancedStarlinkD
 	if val, exists := jsonResp["snr"].(float64); exists {
 		data.SNR = &val
 	}
-	
-	return data, nil
-}
-	
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
-	}
-	
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	
-	// Parse the JSON response
-	var rawData map[string]interface{}
-	if err := json.Unmarshal(body, &rawData); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
-	}
-	
-	// Extract relevant metrics from the complex JSON structure
-	data := &StarlinkData{}
-	s.extractMetrics(rawData, data)
-	
+
 	return data, nil
 }
 
 // extractMetrics extracts relevant metrics from raw Starlink JSON
-func (s *StarlinkCollector) extractMetrics(raw map[string]interface{}, data *StarlinkData) {
+func (s *StarlinkCollector) extractMetrics(raw map[string]interface{}, data *EnhancedStarlinkData) {
 	// This is a simplified extraction - the actual Starlink API has a complex nested structure
 	// In production, we'd need to navigate the proper JSON paths
-	
+
 	// Try to extract common metrics
 	if val, ok := raw["obstruction_pct"]; ok {
 		if f, ok := val.(float64); ok {
 			data.ObstructionPct = &f
 		}
 	}
-	
+
 	if val, ok := raw["snr"]; ok {
 		if f, ok := val.(float64); ok {
 			data.SNR = &f
 		}
 	}
-	
+
 	if val, ok := raw["pop_ping_latency_ms"]; ok {
 		if f, ok := val.(float64); ok {
 			data.PopPingMs = &f
 		}
 	}
-	
+
 	if val, ok := raw["outage_count"]; ok {
 		if i, ok := val.(float64); ok {
 			outages := int(i)
 			data.Outages = &outages
 		}
 	}
-	
+
 	if val, ok := raw["uptime"]; ok {
 		if i, ok := val.(float64); ok {
-			uptime := int(i)
+			uptime := int64(i)
 			data.UptimeS = &uptime
 		}
 	}
-	
+
 	if val, ok := raw["state"]; ok {
 		if s, ok := val.(string); ok {
 			data.State = &s

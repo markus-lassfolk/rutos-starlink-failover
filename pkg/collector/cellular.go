@@ -32,14 +32,14 @@ func (c *CellularCollector) Class() string {
 func (c *CellularCollector) SupportsInterface(interfaceName string) bool {
 	// Common cellular interface patterns on RutOS
 	patterns := []string{"wwan", "eth1", "usb", "mobile", "cellular", "lte", "gsm"}
-	
+
 	ifLower := strings.ToLower(interfaceName)
 	for _, pattern := range patterns {
 		if strings.Contains(ifLower, pattern) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -50,14 +50,14 @@ func (c *CellularCollector) Collect(ctx context.Context, member Member) (Metrics
 		InterfaceName: member.InterfaceName,
 		Class:         "cellular",
 	}
-	
+
 	// Try to get cellular metrics via ubus
 	cellularData, err := c.getCellularData(ctx)
 	if err != nil {
 		// Fallback to basic ping metrics if cellular-specific data unavailable
 		return c.fallbackPingMetrics(ctx, member)
 	}
-	
+
 	// Set cellular-specific metrics
 	if cellularData != nil {
 		metrics.RSSI = cellularData.RSSI
@@ -66,7 +66,7 @@ func (c *CellularCollector) Collect(ctx context.Context, member Member) (Metrics
 		metrics.SINR = cellularData.SINR
 		metrics.NetworkType = cellularData.NetworkType
 		metrics.Roaming = cellularData.Roaming
-		
+
 		// Convert signal strength to quality score for latency approximation
 		if cellularData.RSSI != nil {
 			// Rough approximation: better signal = lower latency
@@ -75,7 +75,7 @@ func (c *CellularCollector) Collect(ctx context.Context, member Member) (Metrics
 			metrics.LatencyMs = &estimatedLatency
 		}
 	}
-	
+
 	return metrics, nil
 }
 
@@ -83,7 +83,7 @@ func (c *CellularCollector) Collect(ctx context.Context, member Member) (Metrics
 type CellularData struct {
 	RSSI        *float64 `json:"rssi"`         // Signal strength
 	RSRP        *float64 `json:"rsrp"`         // Reference Signal Received Power
-	RSRQ        *float64 `json:"rsrq"`         // Reference Signal Received Quality  
+	RSRQ        *float64 `json:"rsrq"`         // Reference Signal Received Quality
 	SINR        *float64 `json:"sinr"`         // Signal-to-Interference-plus-Noise Ratio
 	NetworkType *string  `json:"network_type"` // 2G/3G/4G/5G
 	Roaming     *bool    `json:"roaming"`      // Roaming status
@@ -98,12 +98,12 @@ func (c *CellularCollector) getCellularData(ctx context.Context) (*CellularData,
 	if data, err := c.getMobiledData(ctx); err == nil {
 		return data, nil
 	}
-	
+
 	// Try generic GSM ubus interface
 	if data, err := c.getGSMData(ctx); err == nil {
 		return data, nil
 	}
-	
+
 	return nil, fmt.Errorf("no cellular data sources available")
 }
 
@@ -115,12 +115,12 @@ func (c *CellularCollector) getMobiledData(ctx context.Context) (*CellularData, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to call mobiled: %w", err)
 	}
-	
+
 	var interfaces map[string]interface{}
 	if err := json.Unmarshal(output, &interfaces); err != nil {
 		return nil, fmt.Errorf("failed to parse mobiled interfaces: %w", err)
 	}
-	
+
 	// Find the first available interface
 	var interfaceID string
 	if ifaces, ok := interfaces["interfaces"].(map[string]interface{}); ok {
@@ -129,28 +129,28 @@ func (c *CellularCollector) getMobiledData(ctx context.Context) (*CellularData, 
 			break
 		}
 	}
-	
+
 	if interfaceID == "" {
 		return nil, fmt.Errorf("no mobile interfaces found")
 	}
-	
+
 	// Get detailed info for the interface
-	cmd = exec.CommandContext(ctx, "ubus", "call", "mobiled", "get_interface_info", 
+	cmd = exec.CommandContext(ctx, "ubus", "call", "mobiled", "get_interface_info",
 		fmt.Sprintf(`{"interface":"%s"}`, interfaceID))
 	output, err = cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get interface info: %w", err)
 	}
-	
+
 	var info map[string]interface{}
 	if err := json.Unmarshal(output, &info); err != nil {
 		return nil, fmt.Errorf("failed to parse interface info: %w", err)
 	}
-	
+
 	// Extract cellular metrics
 	data := &CellularData{}
 	c.parseMobiledInfo(info, data)
-	
+
 	return data, nil
 }
 
@@ -161,15 +161,15 @@ func (c *CellularCollector) getGSMData(ctx context.Context) (*CellularData, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to call gsm: %w", err)
 	}
-	
+
 	var info map[string]interface{}
 	if err := json.Unmarshal(output, &info); err != nil {
 		return nil, fmt.Errorf("failed to parse gsm info: %w", err)
 	}
-	
+
 	data := &CellularData{}
 	c.parseGSMInfo(info, data)
-	
+
 	return data, nil
 }
 
@@ -181,44 +181,44 @@ func (c *CellularCollector) parseMobiledInfo(info map[string]interface{}, data *
 			data.RSSI = &f
 		}
 	}
-	
+
 	if val, ok := info["rsrp"]; ok {
 		if f, err := c.parseFloat(val); err == nil {
 			data.RSRP = &f
 		}
 	}
-	
+
 	if val, ok := info["rsrq"]; ok {
 		if f, err := c.parseFloat(val); err == nil {
 			data.RSRQ = &f
 		}
 	}
-	
+
 	if val, ok := info["sinr"]; ok {
 		if f, err := c.parseFloat(val); err == nil {
 			data.SINR = &f
 		}
 	}
-	
+
 	// Network type and roaming
 	if val, ok := info["network_type"]; ok {
 		if s, ok := val.(string); ok {
 			data.NetworkType = &s
 		}
 	}
-	
+
 	if val, ok := info["roaming"]; ok {
 		if b, ok := val.(bool); ok {
 			data.Roaming = &b
 		}
 	}
-	
+
 	if val, ok := info["provider"]; ok {
 		if s, ok := val.(string); ok {
 			data.Provider = &s
 		}
 	}
-	
+
 	if val, ok := info["state"]; ok {
 		if s, ok := val.(string); ok {
 			data.State = &s
@@ -234,7 +234,7 @@ func (c *CellularCollector) parseGSMInfo(info map[string]interface{}, data *Cell
 			data.RSSI = &f
 		}
 	}
-	
+
 	if val, ok := info["access_technology"]; ok {
 		if s, ok := val.(string); ok {
 			data.NetworkType = &s
@@ -260,12 +260,12 @@ func (c *CellularCollector) parseFloat(val interface{}) (float64, error) {
 func (c *CellularCollector) estimateLatencyFromRSSI(rssi float64) float64 {
 	// Very rough approximation:
 	// Excellent signal (-40 to -60 dBm): ~50-100ms
-	// Good signal (-60 to -80 dBm): ~100-200ms  
+	// Good signal (-60 to -80 dBm): ~100-200ms
 	// Fair signal (-80 to -100 dBm): ~200-400ms
 	// Poor signal (-100+ dBm): ~400+ ms
-	
+
 	if rssi >= -60 {
-		return 75  // Excellent
+		return 75 // Excellent
 	} else if rssi >= -80 {
 		return 150 // Good
 	} else if rssi >= -100 {
@@ -282,10 +282,10 @@ func (c *CellularCollector) fallbackPingMetrics(ctx context.Context, member Memb
 		InterfaceName: member.InterfaceName,
 		Class:         "cellular",
 	}
-	
+
 	// Basic ping test using the interface
 	// TODO: Implement ping via specific interface
 	// For now, return empty metrics
-	
+
 	return metrics, nil
 }

@@ -8,33 +8,37 @@ import (
 
 // Metrics represents collected metrics for an interface
 type Metrics struct {
-	Timestamp      time.Time `json:"timestamp"`
-	InterfaceName  string    `json:"interface"`
-	Class          string    `json:"class"`
-	
+	Timestamp     time.Time `json:"timestamp"`
+	InterfaceName string    `json:"interface"`
+	Class         string    `json:"class"`
+
 	// Common metrics (all classes)
-	LatencyMs      *float64 `json:"latency_ms,omitempty"`
-	PacketLossPct  *float64 `json:"packet_loss_pct,omitempty"`
-	JitterMs       *float64 `json:"jitter_ms,omitempty"`
-	
+	LatencyMs     *float64 `json:"latency_ms,omitempty"`
+	PacketLossPct *float64 `json:"packet_loss_pct,omitempty"`
+	JitterMs      *float64 `json:"jitter_ms,omitempty"`
+
 	// Starlink specific
 	ObstructionPct *float64 `json:"obstruction_pct,omitempty"`
-	SNR           *float64 `json:"snr,omitempty"`
-	Outages       *int     `json:"outages,omitempty"`
-	PopPingMs     *float64 `json:"pop_ping_ms,omitempty"`
-	
+	SNR            *float64 `json:"snr,omitempty"`
+	Outages        *int     `json:"outages,omitempty"`
+	PopPingMs      *float64 `json:"pop_ping_ms,omitempty"`
+
 	// Cellular specific
-	RSSI          *float64 `json:"rssi,omitempty"`
-	RSRP          *float64 `json:"rsrp,omitempty"`
-	RSRQ          *float64 `json:"rsrq,omitempty"`
-	SINR          *float64 `json:"sinr,omitempty"`
-	NetworkType   *string  `json:"network_type,omitempty"`
-	Roaming       *bool    `json:"roaming,omitempty"`
-	
+	RSSI        *float64 `json:"rssi,omitempty"`
+	RSRP        *float64 `json:"rsrp,omitempty"`
+	RSRQ        *float64 `json:"rsrq,omitempty"`
+	SINR        *float64 `json:"sinr,omitempty"`
+	NetworkType *string  `json:"network_type,omitempty"`
+	Roaming     *bool    `json:"roaming,omitempty"`
+
 	// WiFi specific
-	Signal        *float64 `json:"signal,omitempty"`
-	Noise         *float64 `json:"noise,omitempty"`
-	Bitrate       *float64 `json:"bitrate,omitempty"`
+	Signal  *float64 `json:"signal,omitempty"`
+	Noise   *float64 `json:"noise,omitempty"`
+	Bitrate *float64 `json:"bitrate,omitempty"`
+
+	// Additional fields for compatibility
+	Extra   map[string]interface{} `json:"extra,omitempty"`    // Additional class-specific data
+	LossPct *float64               `json:"loss_pct,omitempty"` // Alias for PacketLossPct
 }
 
 // Member represents a network interface member
@@ -50,10 +54,10 @@ type Member struct {
 type Collector interface {
 	// Collect gathers metrics for the given member
 	Collect(ctx context.Context, member Member) (Metrics, error)
-	
+
 	// Class returns the interface class this collector handles
 	Class() string
-	
+
 	// SupportsInterface checks if this collector can handle the given interface
 	SupportsInterface(interfaceName string) bool
 }

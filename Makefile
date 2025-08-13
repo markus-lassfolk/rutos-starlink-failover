@@ -27,7 +27,7 @@ RUT901_TARGET = linux/mips
 GENERIC_ARM_TARGET = linux/arm/v7
 GENERIC_MIPS_TARGET = linux/mips
 
-.PHONY: all clean build test fmt vet deps check rutx50 rutx11 rutx12 rut901 package install
+.PHONY: all clean build test fmt vet deps check verify verify-all verify-staged verify-files verify-quick verify-dry-run pre-commit rutx50 rutx11 rutx12 rut901 package install
 
 all: build
 
@@ -46,6 +46,76 @@ deps:
 	go mod tidy
 
 check: fmt vet test
+
+# Go verification targets using scripts
+verify: verify-all
+
+verify-all:
+	@echo "Running comprehensive Go verification..."
+	@if command -v ./scripts/go-verify.sh >/dev/null 2>&1; then \
+		./scripts/go-verify.sh all; \
+	elif command -v pwsh >/dev/null 2>&1; then \
+		pwsh ./scripts/go-verify.ps1 all; \
+	elif command -v powershell >/dev/null 2>&1; then \
+		powershell ./scripts/go-verify.ps1 all; \
+	else \
+		echo "No suitable verification script runner found"; exit 1; \
+	fi
+
+verify-staged:
+	@echo "Verifying staged files for commit..."
+	@if command -v ./scripts/go-verify.sh >/dev/null 2>&1; then \
+		./scripts/go-verify.sh staged; \
+	elif command -v pwsh >/dev/null 2>&1; then \
+		pwsh ./scripts/go-verify.ps1 staged; \
+	elif command -v powershell >/dev/null 2>&1; then \
+		powershell ./scripts/go-verify.ps1 staged; \
+	else \
+		echo "No suitable verification script runner found"; exit 1; \
+	fi
+
+verify-files:
+	@echo "Usage: make verify-files FILES='pkg/logx/*.go pkg/collector/*.go'"
+	@if [ -z "$(FILES)" ]; then \
+		echo "ERROR: FILES parameter required"; exit 1; \
+	fi
+	@echo "Verifying specified files: $(FILES)"
+	@if command -v ./scripts/go-verify.sh >/dev/null 2>&1; then \
+		./scripts/go-verify.sh files $(FILES); \
+	elif command -v pwsh >/dev/null 2>&1; then \
+		pwsh ./scripts/go-verify.ps1 files $(FILES); \
+	elif command -v powershell >/dev/null 2>&1; then \
+		powershell ./scripts/go-verify.ps1 files $(FILES); \
+	else \
+		echo "No suitable verification script runner found"; exit 1; \
+	fi
+
+verify-quick:
+	@echo "Running quick verification (no tests)..."
+	@if command -v ./scripts/go-verify.sh >/dev/null 2>&1; then \
+		./scripts/go-verify.sh --no-tests all; \
+	elif command -v pwsh >/dev/null 2>&1; then \
+		pwsh ./scripts/go-verify.ps1 -NoTests all; \
+	elif command -v powershell >/dev/null 2>&1; then \
+		powershell ./scripts/go-verify.ps1 -NoTests all; \
+	else \
+		echo "No suitable verification script runner found"; exit 1; \
+	fi
+
+verify-dry-run:
+	@echo "Showing what verification would do..."
+	@if command -v ./scripts/go-verify.sh >/dev/null 2>&1; then \
+		./scripts/go-verify.sh --dry-run all; \
+	elif command -v pwsh >/dev/null 2>&1; then \
+		pwsh ./scripts/go-verify.ps1 -DryRun all; \
+	elif command -v powershell >/dev/null 2>&1; then \
+		powershell ./scripts/go-verify.ps1 -DryRun all; \
+	else \
+		echo "No suitable verification script runner found"; exit 1; \
+	fi
+
+# Pre-commit hook integration
+pre-commit: verify-staged
 
 # Build tasks
 build: build/starfaild build/starfail-sysmgmt
