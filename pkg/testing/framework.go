@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/controller"
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/discovery"
@@ -58,31 +59,31 @@ func (tf *TestFramework) MockConfig() *uci.Config {
 }
 
 // MockMembers creates test member data
-func (tf *TestFramework) MockMembers() []types.Member {
-	return []types.Member{
+func (tf *TestFramework) MockMembers() []pkg.Member {
+	return []pkg.Member{
 		{
 			Name:      "starlink",
-			Interface: "wan",
-			Class:     types.MemberClassStarlink,
-			Enabled:   true,
-			Priority:  100,
-			Created:   time.Now(),
+			Iface:     "wan",
+			Class:     pkg.MemberClassStarlink,
+			Eligible:  true,
+			Weight:    100,
+			CreatedAt: time.Now(),
 		},
 		{
 			Name:      "cellular",
-			Interface: "wwan0",
-			Class:     types.MemberClassCellular,
-			Enabled:   true,
-			Priority:  80,
-			Created:   time.Now(),
+			Iface:     "wwan0",
+			Class:     pkg.MemberClassCellular,
+			Eligible:  true,
+			Weight:    80,
+			CreatedAt: time.Now(),
 		},
 		{
 			Name:      "wifi",
-			Interface: "wlan0",
-			Class:     types.MemberClassWiFi,
-			Enabled:   true,
-			Priority:  60,
-			Created:   time.Now(),
+			Iface:     "wlan0",
+			Class:     pkg.MemberClassWiFi,
+			Eligible:  true,
+			Weight:    60,
+			CreatedAt: time.Now(),
 		},
 	}
 }
