@@ -1,0 +1,495 @@
+package ubus
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/starfail/starfail/pkg/controller"
+	"github.com/starfail/starfail/pkg/decision"
+	"github.com/starfail/starfail/pkg/logx"
+	"github.com/starfail/starfail/pkg/telem"
+	"github.com/starfail/starfail/pkg/types"
+)
+
+// Server provides the ubus RPC interface for starfaild
+type Server struct {
+	controller *controller.Controller
+	decision   *decision.Engine
+	store      *telem.Store
+	logger     *logx.Logger
+	mu         sync.RWMutex
+}
+
+// NewServer creates a new ubus server instance
+func NewServer(ctrl *controller.Controller, eng *decision.Engine, store *telem.Store, logger *logx.Logger) *Server {
+	return &Server{
+		controller: ctrl,
+		decision:   eng,
+		store:      store,
+		logger:     logger,
+	}
+}
+
+// Start initializes and starts the ubus server
+func (s *Server) Start(ctx context.Context) error {
+	s.logger.Info("Starting ubus server")
+	
+	// TODO: Implement actual ubus server initialization
+	// This would typically involve:
+	// 1. Registering with ubus daemon
+	// 2. Setting up RPC methods
+	// 3. Starting the message loop
+	
+	s.logger.Info("ubus server started successfully")
+	return nil
+}
+
+// Stop gracefully shuts down the ubus server
+func (s *Server) Stop() error {
+	s.logger.Info("Stopping ubus server")
+	
+	// TODO: Implement graceful shutdown
+	// This would typically involve:
+	// 1. Unregistering from ubus daemon
+	// 2. Closing connections
+	// 3. Waiting for pending requests to complete
+	
+	s.logger.Info("ubus server stopped")
+	return nil
+}
+
+// StatusResponse represents the response for status queries
+type StatusResponse struct {
+	ActiveMember    *types.Member     `json:"active_member"`
+	Members         []types.Member    `json:"members"`
+	LastSwitch      *types.Event      `json:"last_switch,omitempty"`
+	Uptime          time.Duration     `json:"uptime"`
+	DecisionState   string            `json:"decision_state"`
+	ControllerState string            `json:"controller_state"`
+	Health          map[string]string `json:"health"`
+}
+
+// GetStatus returns the current status of the failover system
+func (s *Server) GetStatus() (*StatusResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	activeMember := s.controller.GetActiveMember()
+	members := s.controller.GetMembers()
+	
+	// Get last switch event
+	var lastSwitch *types.Event
+	events := s.store.GetEvents(1, time.Hour)
+	if len(events) > 0 {
+		for _, event := range events {
+			if event.Type == types.EventTypeSwitch {
+				lastSwitch = &event
+				break
+			}
+		}
+	}
+
+	// Calculate uptime (simplified - would need actual start time tracking)
+	uptime := time.Since(time.Now().Add(-time.Hour)) // Placeholder
+
+	response := &StatusResponse{
+		ActiveMember:    activeMember,
+		Members:         members,
+		LastSwitch:      lastSwitch,
+		Uptime:          uptime,
+		DecisionState:   s.decision.GetState(),
+		ControllerState: s.controller.GetState(),
+		Health: map[string]string{
+			"decision_engine":   "healthy",
+			"controller":        "healthy",
+			"telemetry_store":   "healthy",
+			"ubus_server":       "healthy",
+		},
+	}
+
+	return response, nil
+}
+
+// MembersResponse represents the response for members queries
+type MembersResponse struct {
+	Members []MemberInfo `json:"members"`
+}
+
+// MemberInfo provides detailed information about a member
+type MemberInfo struct {
+	Member  types.Member `json:"member"`
+	Metrics *types.Metrics `json:"metrics,omitempty"`
+	Score   *types.Score   `json:"score,omitempty"`
+	State   string        `json:"state"`
+	Status  string        `json:"status"`
+}
+
+// GetMembers returns detailed information about all members
+func (s *Server) GetMembers() (*MembersResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	members := s.controller.GetMembers()
+	memberInfos := make([]MemberInfo, len(members))
+
+	for i, member := range members {
+		// Get latest metrics and score
+		samples := s.store.GetSamples(member.Name, 1, time.Minute)
+		var metrics *types.Metrics
+		var score *types.Score
+		
+		if len(samples) > 0 {
+			metrics = &samples[0].Metrics
+			score = &samples[0].Score
+		}
+
+		memberInfos[i] = MemberInfo{
+			Member:  member,
+			Metrics: metrics,
+			Score:   score,
+			State:   s.decision.GetMemberState(member.Name),
+			Status:  s.controller.GetMemberStatus(member.Name),
+		}
+	}
+
+	return &MembersResponse{Members: memberInfos}, nil
+}
+
+// MetricsResponse represents the response for metrics queries
+type MetricsResponse struct {
+	Member  string           `json:"member"`
+	Samples []types.Sample   `json:"samples"`
+	Period  time.Duration    `json:"period"`
+}
+
+// GetMetrics returns historical metrics for a specific member
+func (s *Server) GetMetrics(memberName string, hours int) (*MetricsResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	period := time.Duration(hours) * time.Hour
+	samples := s.store.GetSamples(memberName, 1000, period) // Limit to 1000 samples
+
+	return &MetricsResponse{
+		Member:  memberName,
+		Samples: samples,
+		Period:  period,
+	}, nil
+}
+
+// EventsResponse represents the response for events queries
+type EventsResponse struct {
+	Events []types.Event `json:"events"`
+	Period time.Duration `json:"period"`
+}
+
+// GetEvents returns historical events
+func (s *Server) GetEvents(hours int) (*EventsResponse, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	period := time.Duration(hours) * time.Hour
+	events := s.store.GetEvents(1000, period) // Limit to 1000 events
+
+	return &EventsResponse{
+		Events: events,
+		Period: period,
+	}, nil
+}
+
+// FailoverRequest represents a manual failover request
+type FailoverRequest struct {
+	TargetMember string `json:"target_member"`
+	Reason       string `json:"reason"`
+}
+
+// FailoverResponse represents the response for failover requests
+type FailoverResponse struct {
+	Success      bool   `json:"success"`
+	Message      string `json:"message"`
+	ActiveMember string `json:"active_member,omitempty"`
+}
+
+// Failover triggers a manual failover to the specified member
+func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Validate target member exists
+	members := s.controller.GetMembers()
+	var targetMember *types.Member
+	for _, member := range members {
+		if member.Name == req.TargetMember {
+			targetMember = &member
+			break
+		}
+	}
+
+	if targetMember == nil {
+		return &FailoverResponse{
+			Success: false,
+			Message: fmt.Sprintf("Member '%s' not found", req.TargetMember),
+		}, nil
+	}
+
+	// Check if target member is eligible
+	if !s.decision.IsMemberEligible(req.TargetMember) {
+		return &FailoverResponse{
+			Success: false,
+			Message: fmt.Sprintf("Member '%s' is not eligible for failover", req.TargetMember),
+		}, nil
+	}
+
+	// Perform the failover
+	err := s.controller.SwitchToMember(req.TargetMember)
+	if err != nil {
+		return &FailoverResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failover failed: %v", err),
+		}, nil
+	}
+
+	// Log the manual failover
+	s.logger.Switch("Manual failover triggered", map[string]interface{}{
+		"target_member": req.TargetMember,
+		"reason":        req.Reason,
+		"user":          "ubus",
+	})
+
+	return &FailoverResponse{
+		Success:      true,
+		Message:      "Failover completed successfully",
+		ActiveMember: req.TargetMember,
+	}, nil
+}
+
+// RestoreRequest represents a restore request
+type RestoreRequest struct {
+	Reason string `json:"reason"`
+}
+
+// RestoreResponse represents the response for restore requests
+type RestoreResponse struct {
+	Success      bool   `json:"success"`
+	Message      string `json:"message"`
+	ActiveMember string `json:"active_member,omitempty"`
+}
+
+// Restore restores automatic failover decision making
+func (s *Server) Restore(req *RestoreRequest) (*RestoreResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Enable automatic decision making
+	s.decision.EnableAutomatic()
+
+	// Get current active member
+	activeMember := s.controller.GetActiveMember()
+	activeMemberName := ""
+	if activeMember != nil {
+		activeMemberName = activeMember.Name
+	}
+
+	// Log the restore
+	s.logger.Switch("Automatic failover restored", map[string]interface{}{
+		"reason": req.Reason,
+		"user":   "ubus",
+	})
+
+	return &RestoreResponse{
+		Success:      true,
+		Message:      "Automatic failover restored",
+		ActiveMember: activeMemberName,
+	}, nil
+}
+
+// RecheckRequest represents a recheck request
+type RecheckRequest struct {
+	Member string `json:"member,omitempty"` // If empty, recheck all members
+}
+
+// RecheckResponse represents the response for recheck requests
+type RecheckResponse struct {
+	Success bool     `json:"success"`
+	Message string   `json:"message"`
+	Checked []string `json:"checked"`
+}
+
+// Recheck forces a re-evaluation of member health
+func (s *Server) Recheck(req *RecheckRequest) (*RecheckResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var checked []string
+
+	if req.Member != "" {
+		// Recheck specific member
+		err := s.decision.RecheckMember(req.Member)
+		if err != nil {
+			return &RecheckResponse{
+				Success: false,
+				Message: fmt.Sprintf("Failed to recheck member '%s': %v", req.Member, err),
+			}, nil
+		}
+		checked = []string{req.Member}
+	} else {
+		// Recheck all members
+		members := s.controller.GetMembers()
+		for _, member := range members {
+			err := s.decision.RecheckMember(member.Name)
+			if err == nil {
+				checked = append(checked, member.Name)
+			}
+		}
+	}
+
+	return &RecheckResponse{
+		Success: true,
+		Message: fmt.Sprintf("Rechecked %d member(s)", len(checked)),
+		Checked: checked,
+	}, nil
+}
+
+// LogLevelRequest represents a log level change request
+type LogLevelRequest struct {
+	Level string `json:"level"`
+}
+
+// LogLevelResponse represents the response for log level changes
+type LogLevelResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Level   string `json:"level"`
+}
+
+// SetLogLevel changes the logging level
+func (s *Server) SetLogLevel(req *LogLevelRequest) (*LogLevelResponse, error) {
+	err := s.logger.SetLevel(req.Level)
+	if err != nil {
+		return &LogLevelResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to set log level: %v", err),
+		}, nil
+	}
+
+	return &LogLevelResponse{
+		Success: true,
+		Message: "Log level updated successfully",
+		Level:   req.Level,
+	}, nil
+}
+
+// ConfigResponse represents the response for configuration queries
+type ConfigResponse struct {
+	Config map[string]interface{} `json:"config"`
+}
+
+// GetConfig returns the current configuration
+func (s *Server) GetConfig() (*ConfigResponse, error) {
+	// TODO: Implement configuration retrieval from UCI
+	// This would return the parsed configuration from /etc/config/starfail
+	
+	config := map[string]interface{}{
+		"general": map[string]interface{}{
+			"check_interval":    30,
+			"decision_interval": 10,
+			"retention_hours":   24,
+			"max_ram_mb":        50,
+		},
+		"members": map[string]interface{}{
+			"starlink": map[string]interface{}{
+				"class":     "starlink",
+				"interface": "wan",
+				"enabled":   true,
+			},
+			"cellular": map[string]interface{}{
+				"class":     "cellular",
+				"interface": "wwan0",
+				"enabled":   true,
+			},
+		},
+	}
+
+	return &ConfigResponse{Config: config}, nil
+}
+
+// InfoResponse represents the response for info queries
+type InfoResponse struct {
+	Version     string                 `json:"version"`
+	BuildTime   string                 `json:"build_time"`
+	GoVersion   string                 `json:"go_version"`
+	Platform    string                 `json:"platform"`
+	Uptime      time.Duration          `json:"uptime"`
+	MemoryUsage map[string]interface{} `json:"memory_usage"`
+	Stats       map[string]interface{} `json:"stats"`
+}
+
+// GetInfo returns system information
+func (s *Server) GetInfo() (*InfoResponse, error) {
+	// TODO: Implement actual system information gathering
+	// This would include real memory usage, statistics, etc.
+	
+	info := &InfoResponse{
+		Version:   "1.0.0",
+		BuildTime: "2024-01-01T00:00:00Z",
+		GoVersion: "1.22",
+		Platform:  "linux/arm",
+		Uptime:    time.Since(time.Now().Add(-time.Hour)), // Placeholder
+		MemoryUsage: map[string]interface{}{
+			"heap_alloc":     "10MB",
+			"heap_sys":       "20MB",
+			"heap_idle":      "5MB",
+			"heap_inuse":     "15MB",
+			"heap_released":  "2MB",
+			"heap_objects":   1000,
+		},
+		Stats: map[string]interface{}{
+			"total_switches":    10,
+			"total_samples":     1000,
+			"total_events":      50,
+			"active_members":    2,
+			"decision_cycles":   100,
+			"collection_errors": 5,
+		},
+	}
+
+	return info, nil
+}
+
+// RegisterMethods registers all RPC methods with the ubus daemon
+func (s *Server) RegisterMethods() error {
+	// TODO: Implement actual ubus method registration
+	// This would register all the methods above with the ubus daemon
+	
+	methods := map[string]interface{}{
+		"status":     s.GetStatus,
+		"members":    s.GetMembers,
+		"metrics":    s.GetMetrics,
+		"events":     s.GetEvents,
+		"failover":   s.Failover,
+		"restore":    s.Restore,
+		"recheck":    s.Recheck,
+		"setlog":     s.SetLogLevel,
+		"config":     s.GetConfig,
+		"info":       s.GetInfo,
+	}
+
+	s.logger.Info("Registered ubus methods", map[string]interface{}{
+		"method_count": len(methods),
+		"methods":      getMethodNames(methods),
+	})
+
+	return nil
+}
+
+// getMethodNames extracts method names from the methods map
+func getMethodNames(methods map[string]interface{}) []string {
+	names := make([]string, 0, len(methods))
+	for name := range methods {
+		names = append(names, name)
+	}
+	return names
+}

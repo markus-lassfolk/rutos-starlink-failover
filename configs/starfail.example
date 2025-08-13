@@ -1,0 +1,150 @@
+# Starfail Configuration Example
+# Copy this file to /etc/config/starfail and modify as needed
+
+# Main configuration section
+config starfail 'main'
+    # Enable/disable the daemon
+    option enable '1'
+    
+    # Use mwan3 for interface control (1=yes, 0=use netifd fallback)
+    option use_mwan3 '1'
+    
+    # Polling interval in milliseconds
+    option poll_interval_ms '1500'
+    
+    # History window for rolling score calculation (seconds)
+    option history_window_s '600'
+    
+    # Telemetry retention in hours
+    option retention_hours '24'
+    
+    # Maximum RAM usage for telemetry in MB
+    option max_ram_mb '16'
+    
+    # Data cap mode: balanced, conservative, aggressive
+    option data_cap_mode 'balanced'
+    
+    # Enable predictive failover
+    option predictive '1'
+    
+    # Minimum score difference required to switch
+    option switch_margin '10'
+    
+    # Minimum uptime before member is eligible (seconds)
+    option min_uptime_s '20'
+    
+    # Cooldown period after switch (seconds)
+    option cooldown_s '20'
+    
+    # Enable Prometheus metrics endpoint
+    option metrics_listener '0'
+    
+    # Enable health check endpoint
+    option health_listener '1'
+    
+    # Log level: debug, info, warn, error
+    option log_level 'info'
+    
+    # Log file path (empty = syslog only)
+    option log_file ''
+    
+    # Failover thresholds
+    option fail_threshold_loss '5'          # Percentage
+    option fail_threshold_latency '1200'    # Milliseconds
+    option fail_min_duration_s '10'         # Seconds
+    
+    # Restore thresholds
+    option restore_threshold_loss '1'       # Percentage
+    option restore_threshold_latency '800'  # Milliseconds
+    option restore_min_duration_s '30'      # Seconds
+    
+    # Pushover notifications (optional)
+    option pushover_token ''
+    option pushover_user ''
+    
+    # MQTT telemetry publishing (optional)
+    option mqtt_broker ''
+    option mqtt_topic 'starfail/status'
+
+# Starlink member configuration
+config member 'starlink_any'
+    # Detection mode: auto, disable, force
+    option detect 'auto'
+    
+    # Member class
+    option class 'starlink'
+    
+    # Weight for scoring (0-100)
+    option weight '100'
+    
+    # Minimum uptime for this member (seconds)
+    option min_uptime_s '30'
+    
+    # Cooldown period for this member (seconds)
+    option cooldown_s '20'
+
+# Cellular member configuration
+config member 'cellular_any'
+    option detect 'auto'
+    option class 'cellular'
+    option weight '80'
+    
+    # Prefer roaming connections (0=penalize roaming)
+    option prefer_roaming '0'
+    
+    # Mark as metered connection (reduces probing)
+    option metered '1'
+    
+    option min_uptime_s '20'
+    option cooldown_s '20'
+
+# WiFi member configuration
+config member 'wifi_any'
+    option detect 'auto'
+    option class 'wifi'
+    option weight '60'
+    option min_uptime_s '15'
+    option cooldown_s '15'
+
+# LAN member configuration
+config member 'lan_any'
+    option detect 'auto'
+    option class 'lan'
+    option weight '40'
+    option min_uptime_s '10'
+    option cooldown_s '10'
+
+# Example: Multiple cellular SIMs
+config member 'sim1'
+    option detect 'auto'
+    option class 'cellular'
+    option weight '75'
+    option prefer_roaming '0'
+    option metered '1'
+    option min_uptime_s '20'
+    option cooldown_s '20'
+
+config member 'sim2'
+    option detect 'auto'
+    option class 'cellular'
+    option weight '70'
+    option prefer_roaming '0'
+    option metered '1'
+    option min_uptime_s '20'
+    option cooldown_s '20'
+
+# Example: WiFi tethering
+config member 'wifi_tether'
+    option detect 'auto'
+    option class 'wifi'
+    option weight '50'
+    option min_uptime_s '15'
+    option cooldown_s '15'
+
+# Example: LAN uplink
+config member 'lan_uplink'
+    option detect 'auto'
+    option class 'lan'
+    option weight '30'
+    option min_uptime_s '10'
+    option cooldown_s '10'
