@@ -25,10 +25,13 @@ import (
 
 var (
 	configPath = flag.String("config", "/etc/config/starfail", "Path to UCI configuration file")
-	logLevel   = flag.String("log-level", "", "Override log level (debug|info|warn|error)")
+	logLevel   = flag.String("log-level", "", "Override log level (debug|info|warn|error|trace)")
 	version    = flag.Bool("version", false, "Show version information")
 	profile    = flag.Bool("profile", false, "Enable performance profiling")
 	audit      = flag.Bool("audit", false, "Enable security auditing")
+	monitor    = flag.Bool("monitor", false, "Run in monitoring mode with verbose output")
+	verbose    = flag.Bool("verbose", false, "Enable verbose logging (equivalent to trace level)")
+	foreground = flag.Bool("foreground", false, "Run in foreground mode (don't daemonize)")
 )
 
 const (
@@ -44,11 +47,17 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Initialize logger
-	logger := logx.NewLogger()
+	// Determine log level
+	effectiveLogLevel := "info"
 	if *logLevel != "" {
-		logger.SetLevel(*logLevel)
+		effectiveLogLevel = *logLevel
 	}
+	if *verbose || *monitor {
+		effectiveLogLevel = "trace"
+	}
+
+	// Initialize logger with component name
+	logger := logx.NewLogger(effectiveLogLevel, "starfaild")
 
 	logger.Info("Starting starfail daemon", "version", AppVersion)
 
@@ -66,6 +75,17 @@ func main() {
 	}
 
 	logger.Info("Configuration loaded", "predictive", cfg.Predictive, "use_mwan3", cfg.UseMWAN3)
+	
+	// Log monitoring mode status
+	if *monitor {
+		logger.Info("Running in monitoring mode", "verbose_logging", true, "foreground", *foreground)
+		logger.LogVerbose("monitoring_mode_enabled", map[string]interface{}{
+			"log_level": effectiveLogLevel,
+			"profile":   *profile,
+			"audit":     *audit,
+			"verbose":   *verbose,
+		})
+	}
 
 	// Initialize telemetry store
 	telemetry, err := telem.NewStore(cfg.RetentionHours, cfg.MaxRAMMB)
