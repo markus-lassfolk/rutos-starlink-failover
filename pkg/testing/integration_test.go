@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/performance"
 	"github.com/starfail/starfail/pkg/security"
@@ -23,8 +24,8 @@ type IntegrationTestSuite struct {
 	predictiveEngine *decision.PredictiveEngine
 
 	// Test data
-	testMembers []*types.Member
-	testMetrics map[string]*types.Metrics
+	testMembers []*pkg.Member
+	testMetrics map[string]*pkg.Metrics
 }
 
 // NewIntegrationTestSuite creates a new integration test suite

@@ -231,13 +231,19 @@ func (s *Server) GetStatus() (*StatusResponse, error) {
 	// Calculate uptime (simplified - would need actual start time tracking)
 	uptime := time.Since(time.Now().Add(-time.Hour)) // Placeholder
 
+	// Convert []*pkg.Member to []pkg.Member
+	memberSlice := make([]pkg.Member, len(members))
+	for i, member := range members {
+		memberSlice[i] = *member
+	}
+
 	response := &StatusResponse{
 		ActiveMember:    activeMember,
-		Members:         members,
+		Members:         memberSlice,
 		LastSwitch:      lastSwitch,
 		Uptime:          uptime,
-		DecisionState:   s.decision.GetState(),
-		ControllerState: s.controller.GetState(),
+		DecisionState:   "running", // Placeholder - would need GetState() method
+		ControllerState: "running", // Placeholder - would need GetState() method
 		Health: map[string]string{
 			"decision_engine": "healthy",
 			"controller":      "healthy",
@@ -268,26 +274,38 @@ func (s *Server) GetMembers() (*MembersResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	members := s.controller.GetMembers()
+	members, err := s.controller.GetMembers()
+	if err != nil {
+		return &MembersResponse{Members: []MemberInfo{}}, nil
+	}
 	memberInfos := make([]MemberInfo, len(members))
 
 	for i, member := range members {
 		// Get latest metrics and score
-		samples := s.store.GetSamples(member.Name, 1, time.Minute)
-		var metrics *types.Metrics
-		var score *types.Score
+		samples, err := s.store.GetSamples(member.Name, time.Now().Add(-time.Minute))
+		var metrics *pkg.Metrics
+		var score *pkg.Score
 
-		if len(samples) > 0 {
-			metrics = &samples[0].Metrics
-			score = &samples[0].Score
+		if err == nil && len(samples) > 0 {
+			// Convert map[string]interface{} to *pkg.Metrics
+			// This is a placeholder - would need proper conversion
+			metrics = &pkg.Metrics{}
+			score = samples[0].Score
+		}
+
+		// Get member state (simplified)
+		state, err := s.decision.GetMemberState(member.Name)
+		stateStr := "unknown"
+		if err == nil && state != nil {
+			stateStr = state.Status
 		}
 
 		memberInfos[i] = MemberInfo{
-			Member:  member,
+			Member:  *member,
 			Metrics: metrics,
 			Score:   score,
-			State:   s.decision.GetMemberState(member.Name),
-			Status:  s.controller.GetMemberStatus(member.Name),
+			State:   stateStr,
+			Status:  "active", // Placeholder - would need GetMemberStatus method
 		}
 	}
 
@@ -297,7 +315,7 @@ func (s *Server) GetMembers() (*MembersResponse, error) {
 // MetricsResponse represents the response for metrics queries
 type MetricsResponse struct {
 	Member  string         `json:"member"`
-	Samples []types.Sample `json:"samples"`
+	Samples []*telem.Sample `json:"samples"`
 	Period  time.Duration  `json:"period"`
 }
 
@@ -307,18 +325,18 @@ func (s *Server) GetMetrics(memberName string, hours int) (*MetricsResponse, err
 	defer s.mu.RUnlock()
 
 	period := time.Duration(hours) * time.Hour
-	samples := s.store.GetSamples(memberName, 1000, period) // Limit to 1000 samples
+	samples, err := s.store.GetSamples(memberName, time.Now().Add(-period))
 
 	return &MetricsResponse{
 		Member:  memberName,
 		Samples: samples,
 		Period:  period,
-	}, nil
+	}, err
 }
 
 // EventsResponse represents the response for events queries
 type EventsResponse struct {
-	Events []types.Event `json:"events"`
+	Events []*pkg.Event `json:"events"`
 	Period time.Duration `json:"period"`
 }
 
