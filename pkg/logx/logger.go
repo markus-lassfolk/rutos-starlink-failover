@@ -22,17 +22,66 @@ const (
 
 // Logger provides structured JSON logging
 type Logger struct {
-	level  LogLevel
-	logger *log.Logger
+	level     LogLevel
+	logger    *log.Logger
+	syslogger interface{} // Platform-specific syslog writer (Unix only)
+	fields    map[string]interface{}
 }
 
 // New creates a new structured logger
 func New(levelStr string) *Logger {
 	level := parseLevel(levelStr)
-	return &Logger{
+	l := &Logger{
 		level:  level,
 		logger: log.New(os.Stdout, "", 0), // No prefix, we'll format everything in JSON
+		fields: make(map[string]interface{}),
 	}
+	
+	// Initialize syslog (platform-specific)
+	l.initSyslog()
+	
+	return l
+}
+
+// NewWithFields creates a logger with persistent contextual fields
+func NewWithFields(levelStr string, fields map[string]interface{}) *Logger {
+	l := New(levelStr)
+	for k, v := range fields {
+		l.fields[k] = v
+	}
+	return l
+}
+
+// WithFields returns a new logger with additional persistent fields
+func (l *Logger) WithFields(fields map[string]interface{}) *Logger {
+	newFields := make(map[string]interface{})
+	
+	// Copy existing fields
+	for k, v := range l.fields {
+		newFields[k] = v
+	}
+	
+	// Add new fields
+	for k, v := range fields {
+		newFields[k] = v
+	}
+	
+	return &Logger{
+		level:     l.level,
+		logger:    l.logger,
+		syslogger: l.syslogger,
+		fields:    newFields,
+	}
+}
+
+// WithField returns a new logger with an additional persistent field
+func (l *Logger) WithField(key string, value interface{}) *Logger {
+	return l.WithFields(map[string]interface{}{key: value})
+}
+
+// SetLevel changes the logging level
+func (l *Logger) SetLevel(levelStr string) {
+	l.level = parseLevel(levelStr)
 }
 
 // parseLevel converts string to LogLevel
@@ -56,6 +105,8 @@ type logEntry struct {
 	Timestamp string                 `json:"ts"`
 	Level     string                 `json:"level"`
 	Message   string                 `json:"msg"`
+	Component string                 `json:"component,omitempty"`
+	Module    string                 `json:"module,omitempty"`
 	Fields    map[string]interface{} `json:",inline,omitempty"`
 }
 
@@ -72,7 +123,12 @@ func (l *Logger) log(level LogLevel, msg string, keysAndValues ...interface{}) {
 		Fields:    make(map[string]interface{}),
 	}
 
-	// Parse key-value pairs
+	// Add persistent fields first
+	for k, v := range l.fields {
+		entry.Fields[k] = v
+	}
+
+	// Parse key-value pairs from arguments
 	for i := 0; i < len(keysAndValues); i += 2 {
 		if i+1 < len(keysAndValues) {
 			key := fmt.Sprintf("%v", keysAndValues[i])
@@ -88,7 +144,13 @@ func (l *Logger) log(level LogLevel, msg string, keysAndValues ...interface{}) {
 		return
 	}
 
-	l.logger.Println(string(jsonBytes))
+	jsonStr := string(jsonBytes)
+	
+	// Output to stdout (for procd/logread)
+	l.logger.Println(jsonStr)
+	
+	// Also send to syslog if available (Unix only)
+	l.logToSyslog(level, jsonStr)
 }
 
 // levelString converts LogLevel to string

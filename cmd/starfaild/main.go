@@ -4,13 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/uci"
 )
 
 const (
@@ -39,6 +39,27 @@ func main() {
 		"config", *configFile,
 	)
 
+	// Load UCI configuration
+	uciLoader := uci.NewLoader(*configFile)
+	config, err := uciLoader.Load()
+	if err != nil {
+		logger.Error("failed to load configuration", "error", err)
+		os.Exit(1)
+	}
+	
+	// Use config values for logger and daemon
+	logger.SetLevel(config.Main.LogLevel)
+	logger = logger.WithFields(map[string]interface{}{
+		"daemon": "starfaild",
+		"version": version,
+	})
+	
+	logger.Info("configuration loaded successfully",
+		"poll_interval_ms", config.Main.PollIntervalMs,
+		"use_mwan3", config.Main.UseMwan3,
+		"members_count", len(config.Members),
+	)
+
 	// Setup signal handling
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -56,7 +77,7 @@ func main() {
 	// - Telemetry store
 
 	// Main daemon loop
-	ticker := time.NewTicker(1500 * time.Millisecond) // 1.5s default tick
+	ticker := time.NewTicker(time.Duration(config.Main.PollIntervalMs) * time.Millisecond)
 	defer ticker.Stop()
 
 	logger.Info("daemon started successfully")
@@ -67,7 +88,16 @@ func main() {
 			switch sig {
 			case syscall.SIGHUP:
 				logger.Info("received SIGHUP, reloading configuration")
-				// TODO: Reload config
+				// Reload config
+				newConfig, err := uciLoader.Load()
+				if err != nil {
+					logger.Error("failed to reload configuration", "error", err)
+				} else {
+					config = newConfig
+					logger.SetLevel(config.Main.LogLevel)
+					ticker.Reset(time.Duration(config.Main.PollIntervalMs) * time.Millisecond)
+					logger.Info("configuration reloaded successfully")
+				}
 			case syscall.SIGINT, syscall.SIGTERM:
 				logger.Info("received shutdown signal", "signal", sig.String())
 				cancel()
