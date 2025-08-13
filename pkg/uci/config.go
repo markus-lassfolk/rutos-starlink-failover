@@ -11,23 +11,46 @@ import (
 
 // Config represents the complete starfail configuration
 type Config struct {
-	Main MainConfig `uci:"starfail.main"`
+	Main    MainConfig     `uci:"starfail.main"`
+	Scoring ScoringConfig  `uci:"starfail.scoring"`
 	Members []MemberConfig `uci:"starfail.member"`
+}
+
+// ScoringConfig represents scoring algorithm configuration
+type ScoringConfig struct {
+	WeightLatency     float64 `uci:"weight_latency" default:"25"`
+	WeightLoss        float64 `uci:"weight_loss" default:"30"`
+	WeightJitter      float64 `uci:"weight_jitter" default:"15"`
+	WeightObstruction float64 `uci:"weight_obstruction" default:"20"`
+	
+	LatencyOkMs       float64 `uci:"latency_ok_ms" default:"50"`
+	LatencyBadMs      float64 `uci:"latency_bad_ms" default:"1500"`
+	LossOkPct         float64 `uci:"loss_ok_pct" default:"0"`
+	LossBadPct        float64 `uci:"loss_bad_pct" default:"10"`
+	JitterOkMs        float64 `uci:"jitter_ok_ms" default:"5"`
+	JitterBadMs       float64 `uci:"jitter_bad_ms" default:"200"`
+	ObstructionOkPct  float64 `uci:"obstruction_ok_pct" default:"0"`
+	ObstructionBadPct float64 `uci:"obstruction_bad_pct" default:"10"`
 }
 
 // MainConfig represents the main starfail configuration section
 type MainConfig struct {
 	Enable              bool          `uci:"enable" default:"true"`
 	UseMwan3           bool          `uci:"use_mwan3" default:"true"`
+	DryRun             bool          `uci:"dry_run" default:"false"`
+	EnableUbus         bool          `uci:"enable_ubus" default:"true"`
 	PollIntervalMs     int           `uci:"poll_interval_ms" default:"1500"`
 	HistoryWindowS     time.Duration `uci:"history_window_s" default:"600s"`
 	RetentionHours     int           `uci:"retention_hours" default:"24"`
-	MaxRamMB           int           `uci:"max_ram_mb" default:"16"`
+	MaxRAMMB           int           `uci:"max_ram_mb" default:"16"`
+	MaxSamplesPerMember int          `uci:"max_samples_per_member" default:"1000"`
+	MaxEvents          int           `uci:"max_events" default:"500"`
 	DataCapMode        string        `uci:"data_cap_mode" default:"balanced"`
 	Predictive         bool          `uci:"predictive" default:"true"`
 	SwitchMargin       float64       `uci:"switch_margin" default:"10"`
 	MinUptimeS         time.Duration `uci:"min_uptime_s" default:"20s"`
-	CooldownS          time.Duration `uci:"cooldown_s" default:"20s"`
+	CooldownS          int           `uci:"cooldown_s" default:"30"`
+	EWMAAlpha          float64       `uci:"ewma_alpha" default:"0.2"`
 	MetricsListener    bool          `uci:"metrics_listener" default:"false"`
 	HealthListener     bool          `uci:"health_listener" default:"true"`
 	LogLevel           string        `uci:"log_level" default:"info"`
@@ -102,15 +125,20 @@ func (l *Loader) getDefaultConfig() *Config {
 		Main: MainConfig{
 			Enable:              true,
 			UseMwan3:           true,
+			DryRun:             false,
+			EnableUbus:         true,
 			PollIntervalMs:     1500,
 			HistoryWindowS:     600 * time.Second,
 			RetentionHours:     24,
-			MaxRamMB:           16,
+			MaxRAMMB:           16,
+			MaxSamplesPerMember: 1000,
+			MaxEvents:          500,
 			DataCapMode:        "balanced",
 			Predictive:         true,
 			SwitchMargin:       10,
 			MinUptimeS:         20 * time.Second,
-			CooldownS:          20 * time.Second,
+			CooldownS:          30,
+			EWMAAlpha:          0.2,
 			MetricsListener:    false,
 			HealthListener:     true,
 			LogLevel:           "info",
@@ -125,6 +153,20 @@ func (l *Loader) getDefaultConfig() *Config {
 			PushoverUser:       "",
 			MqttBroker:         "",
 			MqttTopic:          "starfail/status",
+		},
+		Scoring: ScoringConfig{
+			WeightLatency:     25,
+			WeightLoss:        30,
+			WeightJitter:      15,
+			WeightObstruction: 20,
+			LatencyOkMs:       50,
+			LatencyBadMs:      1500,
+			LossOkPct:         0,
+			LossBadPct:        10,
+			JitterOkMs:        5,
+			JitterBadMs:       200,
+			ObstructionOkPct:  0,
+			ObstructionBadPct: 10,
 		},
 		Members: []MemberConfig{},
 	}

@@ -1,39 +1,58 @@
-# 🚀 RUTOS Starlink Failover - Go Edition
+# 🚀 Starfail - Go Multi-Interface Failover Daemon
 
-**Version 4.0 - Go Rewrite** | **For RutOS/OpenWrt** | **In Development**
+**Version 4.0 - Production Go Implementation** | **For RutOS/OpenWrt** | **Ready for Deployment**
 
 ![GitHub Stars](https://img.shields.io/github/stars/markus-lassfolk/rutos-starlink-failover)
 ![License](https://img.shields.io/github/license/markus-lassfolk/rutos-starlink-failover)
 ![Last Commit](https://img.shields.io/github/last-commit/markus-lassfolk/rutos-starlink-failover)
 
-An intelligent, autonomous failover daemon for RutOS and OpenWrt routers that automatically manages connections between **Starlink**, **Cellular (4G/5G)**, **Wi-Fi**, and **Ethernet** interfaces with **predictive switching** and **comprehensive monitoring**.
+A production-ready Go daemon for intelligent multi-interface failover on OpenWrt/RutOS routers. Automatically manages connections between **Starlink**, **Cellular (4G/5G)**, **Wi-Fi**, and **Ethernet** interfaces with **predictive switching** and **comprehensive monitoring**.
 
-## 🚀 Version 4.0: Go Rewrite
+## 🎯 Architecture Overview
 
-This project is transitioning from Bash scripts to a **single Go daemon** (`starfaild`) for better performance, reliability, and maintainability. The new implementation provides:
+```text
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Collectors    │    │ Decision Engine │    │   Controllers   │
+│                 │    │                 │    │                 │
+│ • Starlink API  │───▶│ • EWMA Scoring  │───▶│ • mwan3 Policies│
+│ • Cellular ubus │    │ • Hysteresis    │    │ • netifd Routes │
+│ • WiFi iwinfo   │    │ • Predictive    │    │ • Route Metrics │
+│ • LAN/Ping      │    │   Logic         │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  Telemetry Store & ubus API                    │
+│         • In-memory samples    • Event logging                 │
+│         • JSON export          • Live monitoring               │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-- **Single binary deployment** - No script dependencies or version conflicts
-- **Native platform integration** - UCI, ubus, mwan3, procd built-in
-- **Structured telemetry** - JSON logging and RAM-backed metrics storage  
-- **Predictive failover** - Advanced scoring with machine learning-ready data
-- **Resource efficiency** - ≤12MB binary, ≤25MB RAM, minimal CPU usage
+## ✨ Key Features
 
-> **Legacy Support**: Bash scripts preserved in [`archive/`](./archive/) for reference
+- **🔄 Intelligent Failover**: Score-based decision engine with EWMA and hysteresis
+- **📊 Multi-Interface Support**: Starlink, Cellular, WiFi, and LAN monitoring
+- **🎛️ mwan3 Integration**: Native policy management and seamless control
+- **📈 Real-time Metrics**: In-memory telemetry with structured JSON logging
+- **🔌 ubus API**: Complete management interface for automation
+- **⚡ High Performance**: Zero-dependency Go binary (~4MB, <10MB RAM)
+- **🛡️ Production Ready**: Signal handling, config reloading, procd integration
+- **🔍 Observability**: Structured logging, event tracking, and live monitoring
 
-## 📋 Quick Start
+## � Quick Start
 
-### For RutOS (Teltonika)
+### Installation (RutOS/RUTX Series)
 ```bash
-# Download and install
-wget -O starfaild https://github.com/markus-lassfolk/rutos-starlink-failover/releases/latest/download/starfaild-rutos-armv7
-chmod +x starfaild && mv starfaild /usr/sbin/
+# Download pre-built binary for ARMv7 (RUTX50/11/12)
+wget -O starfaild https://github.com/markus-lassfolk/rutos-starlink-failover/releases/latest/download/starfaild-rutx50
+chmod +x starfaild && sudo mv starfaild /usr/sbin/
 
-# Install support files
-wget -O /usr/sbin/starfailctl https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/starfailctl
+# Install CLI and service files
+wget -O /usr/sbin/starfailctl https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/starfailctl.sh
 wget -O /etc/init.d/starfail https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/starfail.init
 chmod +x /usr/sbin/starfailctl /etc/init.d/starfail
 
-# Start service
+# Start the service
 /etc/init.d/starfail enable
 /etc/init.d/starfail start
 
@@ -41,13 +60,25 @@ chmod +x /usr/sbin/starfailctl /etc/init.d/starfail
 starfailctl status
 ```
 
-### For OpenWrt
+### Basic Usage
 ```bash
-# Install package (when available)
-opkg update
-opkg install starfail
+# Check daemon status and current primary interface
+starfailctl status
 
-# Or install manually (same as RutOS above)
+# List all discovered members with scores
+starfailctl members
+
+# View detailed metrics for an interface
+starfailctl metrics wan_starlink
+
+# Manual failover to specific interface
+starfailctl failover wan_cell
+
+# View recent system events
+starfailctl events
+
+# Service management
+/etc/init.d/starfail {start|stop|restart|reload|status}
 ```
 
 > **📍 Victron GPS Integration Moved!**  
@@ -251,6 +282,7 @@ The enhanced monitoring system includes:
 - **Health checks** and diagnostics
 - **Graceful error handling**
 - **Comprehensive logging**
+
 
 ### Security Features
 

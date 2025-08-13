@@ -9,8 +9,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
-	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/uci"
+	"starfail/pkg/collector"
+	"starfail/pkg/controller"
+	"starfail/pkg/decision"
+	"starfail/pkg/logx"
+	"starfail/pkg/telem"
+	"starfail/pkg/ubus"
+	"starfail/pkg/uci"
 )
 
 const (
@@ -68,13 +73,110 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
 	// TODO: Initialize components
-	// - UCI config loader
-	// - Member discovery
-	// - Metric collectors
-	// - Decision engine
-	// - Controllers (mwan3/netifd)
-	// - ubus API server
-	// - Telemetry store
+	// Initialize telemetry store
+	store := telem.NewStore(telem.Config{
+		MaxSamplesPerMember: config.Main.MaxSamplesPerMember,
+		MaxEvents:          config.Main.MaxEvents,
+		RetentionHours:     config.Main.RetentionHours,
+		MaxRAMMB:           config.Main.MaxRAMMB,
+	})
+
+	// Initialize collector registry
+	registry := collector.NewRegistry()
+	
+	// Register collectors
+	starlinkCollector := collector.NewStarlinkCollector(logger)
+	cellularCollector := collector.NewCellularCollector(logger)
+	wifiCollector := collector.NewWiFiCollector(logger)
+	pingCollector := collector.NewPingCollector(logger)
+	
+	registry.Register("starlink", starlinkCollector)
+	registry.Register("cellular", cellularCollector)
+	registry.Register("wifi", wifiCollector)
+	registry.Register("lan", pingCollector)
+	registry.Register("generic", pingCollector)
+
+	// Initialize mwan3 controller
+	controllerConfig := controller.Config{
+		UseMwan3:  config.Main.UseMwan3,
+		DryRun:    config.Main.DryRun,
+		CooldownS: config.Main.CooldownS,
+	}
+	ctrl := controller.NewController(controllerConfig, logger)
+
+	// Initialize decision engine
+	decisionConfig := decision.Config{
+		SwitchMargin:         config.Main.SwitchMargin,
+		FailMinDurationS:     config.Main.FailMinDurationS,
+		RestoreMinDurationS:  config.Main.RestoreMinDurationS,
+		HistoryWindowS:       config.Main.HistoryWindowS,
+		EWMAAlpha:           config.Main.EWMAAlpha,
+		WeightLatency:       config.Scoring.WeightLatency,
+		WeightLoss:          config.Scoring.WeightLoss,
+		WeightJitter:        config.Scoring.WeightJitter,
+		WeightObstruction:   config.Scoring.WeightObstruction,
+		LatencyOkMs:         config.Scoring.LatencyOkMs,
+		LatencyBadMs:        config.Scoring.LatencyBadMs,
+		LossOkPct:           config.Scoring.LossOkPct,
+		LossBadPct:          config.Scoring.LossBadPct,
+		JitterOkMs:          config.Scoring.JitterOkMs,
+		JitterBadMs:         config.Scoring.JitterBadMs,
+		ObstructionOkPct:    config.Scoring.ObstructionOkPct,
+		ObstructionBadPct:   config.Scoring.ObstructionBadPct,
+	}
+	engine := decision.NewEngine(decisionConfig, logger, store)
+
+	// Initialize ubus API server
+	ubusConfig := ubus.Config{
+		ServiceName: "starfail",
+		Enable:      config.Main.EnableUbus,
+	}
+	ubusServer := ubus.NewServer(ubusConfig, logger, store, ctrl, registry)
+
+	// Start ubus server if enabled
+	if config.Main.EnableUbus {
+		go func() {
+			if err := ubusServer.Start(ctx); err != nil {
+				logger.Error("failed to start ubus server", "error", err)
+			}
+		}()
+	}
+
+	// Validate controller configuration
+	if err := ctrl.ValidateConfig(ctx); err != nil {
+		logger.Error("controller validation failed", "error", err)
+		os.Exit(1)
+	}
+
+	// Discover initial members
+	members, err := ctrl.DiscoverMembers(ctx)
+	if err != nil {
+		logger.Error("failed to discover members", "error", err)
+		os.Exit(1)
+	}
+
+	logger.Info("discovered members", "count", len(members))
+	for _, member := range members {
+		logger.Info("member discovered", 
+			"name", member.Name,
+			"interface", member.Interface,
+			"enabled", member.Enabled,
+			"weight", member.Weight,
+		)
+	}
+
+	// Add startup event
+	store.AddEvent(telem.Event{
+		Timestamp: time.Now(),
+		Level:     "info",
+		Type:      "startup",
+		Message:   "starfail daemon started",
+		Data: map[string]interface{}{
+			"version":       version,
+			"members_count": len(members),
+			"config_file":   *configFile,
+		},
+	})
 
 	// Main daemon loop
 	ticker := time.NewTicker(time.Duration(config.Main.PollIntervalMs) * time.Millisecond)
@@ -105,18 +207,181 @@ func main() {
 			}
 
 		case <-ticker.C:
-			// TODO: Main tick logic
-			// 1. Discover/refresh members
+			// Main tick logic
+			logger.Debug("starting collection cycle")
+			
+			// 1. Discover/refresh members (periodically)
+			if time.Now().Unix()%60 == 0 { // Refresh every minute
+				freshMembers, err := ctrl.DiscoverMembers(ctx)
+				if err != nil {
+					logger.Error("failed to refresh members", "error", err)
+				} else {
+					members = freshMembers
+					logger.Debug("refreshed members", "count", len(members))
+				}
+			}
+
 			// 2. Collect metrics per member
-			// 3. Update scores
+			var samples []telem.Sample
+			for _, member := range members {
+				if !member.Enabled {
+					continue
+				}
+
+				// Get appropriate collector
+				collectorInstance, exists := registry.Get(determineClass(member.Interface))
+				if !exists {
+					// Fall back to generic ping collector
+					collectorInstance, _ = registry.Get("generic")
+				}
+
+				// Collect metrics
+				metrics, err := collectorInstance.Collect(ctx, collector.Member{
+					Name:          member.Name,
+					InterfaceName: member.Interface,
+					Class:         determineClass(member.Interface),
+					Weight:        member.Weight,
+					Enabled:       member.Enabled,
+				})
+
+				if err != nil {
+					logger.Error("failed to collect metrics", 
+						"member", member.Name, 
+						"error", err)
+					continue
+				}
+
+				// 3. Update scores using decision engine
+				scores := engine.CalculateScores(metrics)
+				
+				sample := telem.Sample{
+					Timestamp:    time.Now(),
+					Member:       member.Name,
+					Metrics:      metrics,
+					InstantScore: scores.Instant,
+					EWMAScore:    scores.EWMA,
+					FinalScore:   scores.Final,
+				}
+
+				samples = append(samples, sample)
+				store.AddSample(sample)
+
+				logger.Debug("collected sample",
+					"member", member.Name,
+					"class", metrics.Class,
+					"instant_score", scores.Instant,
+					"ewma_score", scores.EWMA,
+					"final_score", scores.Final,
+				)
+			}
+
 			// 4. Evaluate switch conditions
-			// 5. Apply decisions
-			// 6. Update telemetry
-			logger.Debug("tick")
+			if len(samples) > 0 {
+				// Get current primary
+				currentPrimary, err := ctrl.GetCurrentPrimary(ctx)
+				if err != nil {
+					logger.Error("failed to get current primary", "error", err)
+				} else {
+					// Evaluate if we need to switch
+					switchDecision := engine.EvaluateSwitch(samples, currentPrimary)
+					if switchDecision != nil {
+						logger.Info("switch decision made",
+							"from", switchDecision.From,
+							"to", switchDecision.To,
+							"reason", switchDecision.Reason,
+							"score_delta", switchDecision.ScoreDelta,
+						)
+
+						// 5. Apply decision via controller
+						targetMember := findMemberByName(members, switchDecision.To)
+						if targetMember != nil {
+							if err := ctrl.SetPrimary(ctx, *targetMember); err != nil {
+								logger.Error("failed to execute switch", 
+									"target", switchDecision.To,
+									"error", err)
+								
+								store.AddEvent(telem.Event{
+									Timestamp: time.Now(),
+									Level:     "error",
+									Type:      "switch_failed",
+									Member:    switchDecision.To,
+									Message:   fmt.Sprintf("failed to switch to %s: %v", switchDecision.To, err),
+									Data:      switchDecision,
+								})
+							} else {
+								logger.Info("switch executed successfully", 
+									"target", switchDecision.To)
+								
+								store.AddEvent(telem.Event{
+									Timestamp: time.Now(),
+									Level:     "info",
+									Type:      "switch_success",
+									Member:    switchDecision.To,
+									Message:   fmt.Sprintf("successfully switched to %s", switchDecision.To),
+									Data:      switchDecision,
+								})
+							}
+						}
+					}
+				}
+			}
+
+			// 6. Cleanup old telemetry data periodically
+			if time.Now().Unix()%300 == 0 { // Every 5 minutes
+				store.Cleanup()
+				logger.Debug("cleaned up old telemetry data")
+			}
 
 		case <-ctx.Done():
 			logger.Info("daemon shutting down")
+			
+			// Stop ubus server
+			if config.Main.EnableUbus {
+				if err := ubusServer.Stop(ctx); err != nil {
+					logger.Error("failed to stop ubus server", "error", err)
+				}
+			}
+
+			// Add shutdown event
+			store.AddEvent(telem.Event{
+				Timestamp: time.Now(),
+				Level:     "info",
+				Type:      "shutdown",
+				Message:   "starfail daemon shutting down",
+			})
+
 			return
 		}
 	}
+}
+
+// determineClass determines the interface class based on interface name and configuration
+func determineClass(interfaceName string) string {
+	// Simple heuristic-based classification
+	// In practice, this would be more sophisticated and configurable
+	
+	switch {
+	case interfaceName == "starlink" || interfaceName == "wan_starlink":
+		return "starlink"
+	case interfaceName == "wwan" || interfaceName == "wan_cell" || 
+		 interfaceName == "cellular" || interfaceName == "modem":
+		return "cellular"
+	case interfaceName == "wlan" || interfaceName == "wifi" || 
+		 interfaceName == "wireless":
+		return "wifi"
+	case interfaceName == "wan" || interfaceName == "eth1":
+		return "lan"
+	default:
+		return "generic"
+	}
+}
+
+// findMemberByName finds a member by name in the members slice
+func findMemberByName(members []controller.Member, name string) *controller.Member {
+	for _, member := range members {
+		if member.Name == name {
+			return &member
+		}
+	}
+	return nil
 }

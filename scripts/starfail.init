@@ -1,84 +1,223 @@
 #!/bin/sh /etc/rc.common
-#
-# starfail daemon init script for OpenWrt/RutOS
-#
+# starfail - Multi-interface failover daemon init script
+# Compatible with procd (OpenWrt/RutOS)
 
 START=90
 STOP=10
-USE_PROCD=1
 
-NAME=starfail
-DAEMON=/usr/sbin/starfaild
-CONFIGFILE=/etc/config/starfail
+USE_PROCD=1
+PROG="/usr/sbin/starfaild"
+NAME="starfail"
+
+# Default configuration
+CONFIG_FILE="/etc/config/starfail"
+LOG_LEVEL="info"
+RESPAWN_THRESHOLD="3600"
+RESPAWN_TIMEOUT="5"
+RESPAWN_RETRY="3"
 
 start_service() {
-    # Check if daemon exists
-    [ -x "$DAEMON" ] || {
-        echo "starfail daemon not found: $DAEMON"
+    # Check if daemon binary exists
+    [ -x "$PROG" ] || {
+        echo "starfaild binary not found at $PROG"
         return 1
     }
     
-    # Check if config exists, create default if missing
-    [ -f "$CONFIGFILE" ] || {
-        echo "Creating default starfail configuration..."
-        cat > "$CONFIGFILE" << 'EOF'
+    # Check if configuration exists, create basic config if missing
+    [ -f "$CONFIG_FILE" ] || {
+        echo "Creating default configuration at $CONFIG_FILE"
+        create_default_config
+    }
+    
+    echo "Starting $NAME daemon..."
+    
+    procd_open_instance "$NAME"
+    procd_set_param command "$PROG" -config "$CONFIG_FILE"
+    procd_set_param respawn "$RESPAWN_THRESHOLD" "$RESPAWN_TIMEOUT" "$RESPAWN_RETRY"
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param pidfile "/var/run/${NAME}.pid"
+    
+    # Set process limits
+    procd_set_param limits core="unlimited"
+    procd_set_param limits nofile="1024"
+    
+    # Environment variables
+    procd_set_param env LOG_LEVEL="$LOG_LEVEL"
+    
+    # Watch configuration file for changes
+    procd_set_param file "$CONFIG_FILE"
+    
+    procd_close_instance
+    
+    echo "$NAME daemon started"
+}
+
+stop_service() {
+    echo "Stopping $NAME daemon..."
+    # procd will handle the actual stopping
+}
+
+service_triggers() {
+    # Watch for network interface changes
+    procd_add_interface_trigger "interface" "*" /etc/init.d/starfail reload
+    
+    # Watch for mwan3 configuration changes
+    procd_add_reload_trigger "mwan3"
+    procd_add_reload_trigger "starfail"
+}
+
+reload_service() {
+    echo "Reloading $NAME configuration..."
+    # Send SIGHUP to reload configuration
+    local pid
+    pid=$(pgrep -f "$PROG")
+    if [ -n "$pid" ]; then
+        kill -HUP "$pid"
+        echo "Configuration reload signal sent"
+    else
+        echo "Daemon not running, starting..."
+        start
+    fi
+}
+
+create_default_config() {
+    cat > "$CONFIG_FILE" << 'EOF'
 config starfail 'main'
 	option enable '1'
 	option use_mwan3 '1'
+	option dry_run '0'
+	option enable_ubus '1'
 	option poll_interval_ms '1500'
 	option history_window_s '600'
 	option retention_hours '24'
 	option max_ram_mb '16'
+	option max_samples_per_member '1000'
+	option max_events '500'
 	option data_cap_mode 'balanced'
 	option predictive '1'
 	option switch_margin '10'
 	option min_uptime_s '20'
-	option cooldown_s '20'
+	option cooldown_s '30'
+	option ewma_alpha '0.2'
 	option metrics_listener '0'
 	option health_listener '1'
 	option log_level 'info'
 	option log_file ''
-	
 	option fail_threshold_loss '5'
 	option fail_threshold_latency '1200'
 	option fail_min_duration_s '10'
 	option restore_threshold_loss '1'
 	option restore_threshold_latency '800'
 	option restore_min_duration_s '30'
-	
 	option pushover_token ''
 	option pushover_user ''
 	option mqtt_broker ''
 	option mqtt_topic 'starfail/status'
+
+config scoring 'scoring'
+	option weight_latency '25'
+	option weight_loss '30'
+	option weight_jitter '15'
+	option weight_obstruction '20'
+	option latency_ok_ms '50'
+	option latency_bad_ms '1500'
+	option loss_ok_pct '0'
+	option loss_bad_pct '10'
+	option jitter_ok_ms '5'
+	option jitter_bad_ms '200'
+	option obstruction_ok_pct '0'
+	option obstruction_bad_pct '10'
+
+# Example member configurations (uncomment and modify as needed)
+#config member 'wan_starlink'
+#	option detect 'auto'
+#	option class 'starlink'
+#	option weight '100'
+#	option prefer_roaming '0'
+#	option metered '0'
+
+#config member 'wan_cell'
+#	option detect 'auto'
+#	option class 'cellular'
+#	option weight '50'
+#	option prefer_roaming '0'
+#	option metered '1'
 EOF
-    }
+
+    # Set appropriate permissions
+    chmod 644 "$CONFIG_FILE"
     
-    procd_open_instance
-    procd_set_param command "$DAEMON" -config "$CONFIGFILE"
-    procd_set_param respawn 5000 3 0
-    procd_set_param stdout 1
-    procd_set_param stderr 1
-    procd_set_param user root
-    procd_close_instance
+    echo "Default configuration created at $CONFIG_FILE"
+    echo "Please review and customize the configuration as needed"
 }
 
-stop_service() {
-    # Send SIGTERM to allow graceful shutdown
-    killall starfaild 2>/dev/null
-}
-
-reload_service() {
-    # Send SIGHUP to reload configuration
-    killall -HUP starfaild 2>/dev/null || {
-        echo "Failed to reload starfail, restarting..."
-        restart
-    }
-}
-
-service_triggers() {
-    # Reload on config changes
-    procd_add_reload_trigger "starfail"
+# Service status
+status() {
+    local pid
+    pid=$(pgrep -f "$PROG")
     
-    # Restart on network interface changes
-    procd_add_interface_trigger "interface.*"
+    if [ -n "$pid" ]; then
+        echo "$NAME is running (PID: $pid)"
+        
+        # Show basic status via ubus if available
+        if command -v ubus >/dev/null 2>&1 && ubus list | grep -q "^starfail$"; then
+            echo ""
+            echo "Daemon status:"
+            ubus call starfail status 2>/dev/null | \
+                sed 's/^/  /' || echo "  Unable to get detailed status"
+        fi
+        
+        return 0
+    else
+        echo "$NAME is not running"
+        return 1
+    fi
 }
+
+# Validate configuration
+validate() {
+    echo "Validating configuration..."
+    
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo "Configuration file not found: $CONFIG_FILE"
+        return 1
+    fi
+    
+    # Basic UCI syntax check
+    if ! uci -q get starfail.main.enable >/dev/null 2>&1; then
+        echo "Invalid UCI configuration syntax"
+        return 1
+    fi
+    
+    echo "Configuration validation passed"
+    return 0
+}
+
+# Show logs
+logs() {
+    local lines="${1:-50}"
+    echo "Recent $NAME logs (last $lines lines):"
+    logread | grep "starfail\|starfaild" | tail -n "$lines"
+}
+
+# Extra commands
+EXTRA_COMMANDS="status validate logs"
+EXTRA_HELP="
+	status		Show service status
+	validate	Validate configuration
+	logs [lines]	Show recent logs (default: 50)
+"
+
+# Handle extra commands
+case "$1" in
+    status)
+        status
+        ;;
+    validate)
+        validate
+        ;;
+    logs)
+        logs "$2"
+        ;;
+esac
