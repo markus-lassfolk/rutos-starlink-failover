@@ -34,6 +34,26 @@ type Config struct {
 	LogLevel          string `json:"log_level"`
 	LogFile           string `json:"log_file"`
 
+	// Performance and Security
+	PerformanceProfiling bool `json:"performance_profiling"`
+	SecurityAuditing     bool `json:"security_auditing"`
+	ProfilingEnabled     bool `json:"profiling_enabled"`
+	AuditingEnabled      bool `json:"auditing_enabled"`
+
+	// Machine Learning
+	MLEnabled     bool   `json:"ml_enabled"`
+	MLModelPath   string `json:"ml_model_path"`
+	MLTraining    bool   `json:"ml_training"`
+	MLPrediction  bool   `json:"ml_prediction"`
+
+	// Security Configuration
+	AllowedIPs        []string `json:"allowed_ips"`
+	BlockedIPs        []string `json:"blocked_ips"`
+	AllowedPorts      []int    `json:"allowed_ports"`
+	BlockedPorts      []int    `json:"blocked_ports"`
+	MaxFailedAttempts int      `json:"max_failed_attempts"`
+	BlockDuration     int      `json:"block_duration"`
+
 	// Thresholds
 	FailThresholdLoss     int `json:"fail_threshold_loss"`
 	FailThresholdLatency  int `json:"fail_threshold_latency"`
@@ -171,6 +191,27 @@ func (c *Config) setDefaults() {
 	c.HealthPort = 8080
 	c.LogLevel = DefaultLogLevel
 	c.LogFile = ""
+	
+	// Performance and Security defaults
+	c.PerformanceProfiling = false
+	c.SecurityAuditing = false
+	c.ProfilingEnabled = false
+	c.AuditingEnabled = false
+	
+	// Machine Learning defaults
+	c.MLEnabled = false
+	c.MLModelPath = "/tmp/starfail/models"
+	c.MLTraining = false
+	c.MLPrediction = false
+	
+	// Security defaults
+	c.AllowedIPs = []string{}
+	c.BlockedIPs = []string{}
+	c.AllowedPorts = []int{8080, 9090}
+	c.BlockedPorts = []int{22, 23, 25}
+	c.MaxFailedAttempts = 5
+	c.BlockDuration = 24
+	
 	c.FailThresholdLoss = DefaultFailThresholdLoss
 	c.FailThresholdLatency = DefaultFailThresholdLatency
 	c.FailMinDurationS = DefaultFailMinDurationS
@@ -302,6 +343,37 @@ func (c *Config) parseMainOption(option, value string) {
 		}
 	case "log_file":
 		c.LogFile = value
+		
+	// Performance and Security options
+	case "performance_profiling":
+		c.PerformanceProfiling = value == "1"
+	case "security_auditing":
+		c.SecurityAuditing = value == "1"
+	case "profiling_enabled":
+		c.ProfilingEnabled = value == "1"
+	case "auditing_enabled":
+		c.AuditingEnabled = value == "1"
+		
+	// Machine Learning options
+	case "ml_enabled":
+		c.MLEnabled = value == "1"
+	case "ml_model_path":
+		c.MLModelPath = value
+	case "ml_training":
+		c.MLTraining = value == "1"
+	case "ml_prediction":
+		c.MLPrediction = value == "1"
+		
+	// Security options
+	case "max_failed_attempts":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			c.MaxFailedAttempts = v
+		}
+	case "block_duration":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			c.BlockDuration = v
+		}
+		
 	case "fail_threshold_loss":
 		if v, err := strconv.Atoi(value); err == nil && v >= 0 {
 			c.FailThresholdLoss = v
