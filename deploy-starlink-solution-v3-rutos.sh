@@ -1799,16 +1799,26 @@ EOF
         ALL_INTERFACE_TYPES=""
         INTERFACE_COUNT=0
         
-        # Get all interfaces from mwan3 status
-        if mwan3_all_interfaces=$(mwan3 interfaces 2>/dev/null | grep -v "^$" || true); then
+        # Get all interfaces from mwan3 status - FIXED parsing to handle header line
+        if mwan3_all_interfaces=$(mwan3 interfaces 2>/dev/null | grep "^ interface " | sed 's/^ //' || true); then
+            log_debug "Raw mwan3 interfaces output:"
+            log_debug "$mwan3_all_interfaces"
+            
             while IFS= read -r interface_line; do
-                interface_name=$(printf "%s" "$interface_line" | awk '{print $1}')
+                # Extract interface name - it's the 2nd word after "interface"
+                interface_name=$(printf "%s" "$interface_line" | awk '{print $2}')
                 
-                if [ -n "$interface_name" ]; then
+                if [ -n "$interface_name" ] && [ "$interface_name" != "status:" ]; then
+                    log_debug "Processing interface: '$interface_name'"
                     # Find the member for this interface
                     member_name=""
+                    log_debug "Looking for member matching interface: '$interface_name'"
                     if member_line=$(uci show mwan3 2>/dev/null | grep "interface='${interface_name}'" | head -1 2>/dev/null); then
                         member_name=$(echo "$member_line" | cut -d'.' -f2)
+                        log_debug "Found member: '$member_name' for interface '$interface_name'"
+                    else
+                        log_warning "No member found for interface '$interface_name', skipping"
+                        continue
                     fi
                     
                     # Determine connection type for intelligent monitoring
@@ -1873,9 +1883,13 @@ export MWAN_INTERFACE_TYPES="$ALL_INTERFACE_TYPES"
 # Total number of monitored interfaces
 export MWAN_INTERFACE_COUNT="$INTERFACE_COUNT"
 
-# Primary interface (for legacy compatibility)
+# Primary interface (for legacy compatibility with single-interface scripts)
 export MWAN_PRIMARY_IFACE="$MWAN_IFACE"
 export MWAN_PRIMARY_MEMBER="$MWAN_MEMBER"
+
+# Legacy compatibility (will be removed in future versions)
+export MWAN_IFACE="$MWAN_IFACE"
+export MWAN_MEMBER="$MWAN_MEMBER"
 
 EOF
             
