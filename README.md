@@ -81,6 +81,184 @@ starfailctl events
 /etc/init.d/starfail {start|stop|restart|reload|status}
 ```
 
+## 🔧 Manual Operation & Debugging
+
+The starfail daemon can be run manually for testing, debugging, and real-time monitoring. This is especially useful during development, troubleshooting, or when you want to observe the daemon's behavior in detail.
+
+### Running the Daemon Manually
+
+#### Basic Manual Execution
+```bash
+# Run with default configuration
+starfaild --config /etc/config/starfail
+
+# Run with custom configuration file
+starfaild --config /tmp/test-starfail.conf
+```
+
+#### Real-Time Monitoring Mode
+```bash
+# Full monitoring with live console output
+starfaild --monitor --verbose --trace
+
+# Clean monitoring without colors (for log files)
+starfaild --monitor --no-color --verbose
+
+# JSON structured output for analysis
+starfaild --monitor --json --verbose
+```
+
+#### Debug and Development
+```bash
+# Debug configuration issues
+starfaild --monitor --debug --config ./configs/starfail.example
+
+# Trace all API calls and decision logic
+starfaild --monitor --trace --verbose
+
+# Test configuration without making changes
+starfaild --monitor --trace --config /tmp/test-config --log-level trace
+```
+
+### Command-Line Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--config PATH` | UCI configuration file path | `--config /etc/config/starfail` |
+| `--monitor` | Enable real-time console monitoring | `--monitor` |
+| `--verbose` | Enable verbose logging (debug level) | `--verbose` |
+| `--trace` | Enable trace logging (most detailed) | `--trace` |
+| `--debug` | Alias for verbose mode | `--debug` |
+| `--log-level LEVEL` | Set specific log level | `--log-level debug` |
+| `--log-file PATH` | Write logs to file | `--log-file /var/log/starfail.log` |
+| `--json` | Output logs in JSON format | `--json` |
+| `--no-color` | Disable colored output | `--no-color` |
+| `--version` | Show version and exit | `--version` |
+| `--help` | Show help with examples | `--help` |
+
+### Monitoring Output Example
+
+When running with `--monitor`, you'll see real-time output like this:
+
+```
+[15:04:05.123] INFO  Starting starfail daemon version=v2.0.0 config=/etc/config/starfail
+[15:04:05.234] DEBUG Loading UCI configuration members=3 interfaces_detected=2  
+[15:04:05.345] TRACE Starlink API request endpoint=192.168.100.1/SpaceX/get_status
+[15:04:05.456] INFO  Starlink metrics collected snr=8.2 outages=3 obstruction=2.1%
+[15:04:05.567] TRACE Cellular metrics ubus_call=network.interface.cellular_wan
+[15:04:05.678] INFO  Cellular metrics collected rsrp=-85 rsrq=-12 technology=LTE
+[15:04:05.789] DEBUG Decision engine processing members=2 scores=[85.2, 72.1]
+[15:04:05.890] WARN  Interface score below threshold interface=starlink score=65.2 threshold=70
+[15:04:05.991] INFO  Failover triggered from=starlink to=cellular reason=low_score
+```
+
+### Log Levels Explained
+
+- **TRACE**: Most detailed logging - shows internal operations, API calls, data flow
+- **DEBUG**: Development debugging - configuration parsing, metric collection details  
+- **INFO**: General operational information - startup, failovers, status changes
+- **WARN**: Warning conditions - score drops, API failures that don't stop operation
+- **ERROR**: Error conditions - configuration errors, critical failures
+
+### Common Debug Scenarios
+
+#### Testing Configuration Changes
+```bash
+# Test new configuration without affecting running daemon
+cp /etc/config/starfail /tmp/test-config
+# Edit /tmp/test-config
+starfaild --monitor --config /tmp/test-config --trace
+```
+
+#### Troubleshooting API Issues
+```bash
+# See all Starlink API calls and responses
+starfaild --monitor --trace | grep -i starlink
+
+# Monitor cellular connectivity issues
+starfaild --monitor --trace | grep -i cellular
+```
+
+#### Analyzing Failover Decisions
+```bash
+# Watch decision engine scoring in real-time
+starfaild --monitor --debug | grep -E "(score|decision|failover)"
+
+# Export decisions to file for analysis
+starfaild --monitor --json --verbose > /var/log/starfail-debug.json
+```
+
+#### Performance Monitoring
+```bash
+# Monitor resource usage and timing
+starfaild --monitor --trace | grep -E "(timing|memory|cpu)"
+
+# Check polling intervals and response times
+starfaild --monitor --debug | grep -E "(poll|interval|latency)"
+```
+
+### Integration with System Tools
+
+#### Using with systemctl (systemd systems)
+```bash
+# Stop service daemon
+systemctl stop starfail
+
+# Run manually for debugging
+starfaild --monitor --debug --config /etc/config/starfail
+
+# Restart service when done
+systemctl start starfail
+```
+
+#### Using with procd (OpenWrt/RutOS)
+```bash
+# Stop service daemon
+/etc/init.d/starfail stop
+
+# Run manually for debugging
+starfaild --monitor --debug --config /etc/config/starfail
+
+# Restart service when done
+/etc/init.d/starfail start
+```
+
+#### Log File Analysis
+```bash
+# Capture structured logs for analysis
+starfaild --json --verbose --log-file /var/log/starfail-debug.json
+
+# Parse logs with jq
+cat /var/log/starfail-debug.json | jq '.fields | select(.score != null)'
+
+# Monitor failover events
+tail -f /var/log/starfail-debug.json | jq 'select(.message | contains("failover"))'
+```
+
+### Safety Notes
+
+⚠️ **Important**: When running the daemon manually, ensure the system service is stopped to prevent conflicts:
+
+```bash
+# Always stop the service first
+/etc/init.d/starfail stop
+
+# Run your manual testing
+starfaild --monitor --debug
+
+# Remember to restart the service
+/etc/init.d/starfail start
+```
+
+💡 **Tip**: Use `screen` or `tmux` for long-running manual sessions:
+
+```bash
+screen -S starfail-debug
+starfaild --monitor --trace --config /etc/config/starfail
+# Ctrl+A, D to detach
+# screen -r starfail-debug to reattach
+```
+
 > **📍 Victron GPS Integration Moved!**  
 > The Victron GPS failover functionality has been split into its own repository for better maintainability.  
 > **New location:** [rutos-victron-gps](https://github.com/markus-lassfolk/rutos-victron-gps)

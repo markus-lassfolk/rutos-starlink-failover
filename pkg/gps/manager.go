@@ -12,11 +12,13 @@ import (
 	"time"
 )
 
-// GPSManager provides unified GPS data from multiple sources
+// GPSManager provides unified GPS data from multiple sources with movement detection
 type GPSManager struct {
 	lastPosition    *Position
 	movementHistory []MovementEvent
+	locationClusters []LocationCluster
 	maxHistorySize  int
+	movementThreshold float64 // meters
 }
 
 // Position represents a GPS coordinate with metadata
@@ -34,20 +36,44 @@ type Position struct {
 
 // MovementEvent tracks location changes over time
 type MovementEvent struct {
-	FromPosition Position  `json:"from"`
-	ToPosition   Position  `json:"to"`
-	Distance     float64   `json:"distance_m"`
-	Speed        float64   `json:"speed_mps"`
+	FromPosition Position      `json:"from"`
+	ToPosition   Position      `json:"to"`
+	Distance     float64       `json:"distance_m"`
+	Speed        float64       `json:"speed_mps"`
 	Duration     time.Duration `json:"duration"`
-	Timestamp    time.Time `json:"timestamp"`
+	Timestamp    time.Time     `json:"timestamp"`
+	Significant  bool          `json:"significant"` // >500m movement
+}
+
+// LocationCluster represents an area with performance history
+type LocationCluster struct {
+	Center       Position                    `json:"center"`
+	Radius       float64                     `json:"radius_m"`
+	Observations []PerformanceObservation    `json:"observations"`
+	QualityScore float64                     `json:"quality_score"`
+	LastVisit    time.Time                   `json:"last_visit"`
+	VisitCount   int                         `json:"visit_count"`
+}
+
+// PerformanceObservation tracks performance at a specific location
+type PerformanceObservation struct {
+	Position      Position                  `json:"position"`
+	Timestamp     time.Time                 `json:"timestamp"`
+	InterfaceType string                    `json:"interface_type"`
+	QualityMetrics map[string]float64       `json:"quality_metrics"`
+	Issues        []string                  `json:"issues"`
 }
 
 // LocationContext provides situational awareness for failover decisions
 type LocationContext struct {
-	CurrentPosition *Position       `json:"current_position"`
-	IsMoving        bool           `json:"is_moving"`
-	MovementSpeed   float64        `json:"movement_speed_mps"`
-	InKnownArea     bool           `json:"in_known_area"`
+	CurrentPosition   *Position             `json:"current_position"`
+	IsMoving          bool                  `json:"is_moving"`
+	MovementSpeed     float64               `json:"movement_speed_mps"`
+	InKnownArea       bool                  `json:"in_known_area"`
+	CurrentCluster    *LocationCluster      `json:"current_cluster,omitempty"`
+	MovementDetected  bool                  `json:"movement_detected"`
+	ShouldResetObstruction bool             `json:"should_reset_obstruction"`
+}
 	AreaType        string         `json:"area_type"` // "stationary", "mobile", "high_obstruction", "clear_sky"
 	Confidence      float64        `json:"confidence"`
 	RecentMovement  []MovementEvent `json:"recent_movement"`

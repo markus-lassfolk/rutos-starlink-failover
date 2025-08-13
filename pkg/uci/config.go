@@ -11,9 +11,13 @@ import (
 
 // Config represents the complete starfail configuration
 type Config struct {
-	Main    MainConfig     `uci:"starfail.main"`
-	Scoring ScoringConfig  `uci:"starfail.scoring"`
-	Members []MemberConfig `uci:"starfail.member"`
+	Main          MainConfig           `uci:"starfail.main"`
+	Scoring       ScoringConfig        `uci:"starfail.scoring"`
+	SysMgmt       SysMgmtConfig        `uci:"starfail.sysmgmt"`
+	Recovery      RecoveryConfig       `uci:"starfail.recovery"`
+	Notifications NotificationConfig   `uci:"starfail.notifications"`
+	Sampling      SamplingConfig       `uci:"starfail.sampling"`
+	Members       []MemberConfig       `uci:"starfail.member"`
 }
 
 // ScoringConfig represents scoring algorithm configuration
@@ -31,6 +35,16 @@ type ScoringConfig struct {
 	JitterBadMs       float64 `uci:"jitter_bad_ms" default:"200"`
 	ObstructionOkPct  float64 `uci:"obstruction_ok_pct" default:"0"`
 	ObstructionBadPct float64 `uci:"obstruction_bad_pct" default:"10"`
+}
+
+// SysMgmtConfig represents system management configuration
+type SysMgmtConfig struct {
+	Enable                 bool `uci:"enable" default:"true"`
+	OverlayCleanupDays     int  `uci:"overlay_cleanup_days" default:"7"`
+	LogCleanupDays         int  `uci:"log_cleanup_days" default:"3"`
+	ServiceCheckInterval   int  `uci:"service_check_interval" default:"300"`
+	TimeDriftThreshold     int  `uci:"time_drift_threshold" default:"30"`
+	InterfaceFlapThreshold int  `uci:"interface_flap_threshold" default:"5"`
 }
 
 // MainConfig represents the main starfail configuration section
@@ -83,6 +97,54 @@ type MemberConfig struct {
 	CooldownS       time.Duration `uci:"cooldown_s"`
 	PreferRoaming   bool          `uci:"prefer_roaming" default:"false"`
 	Metered         bool          `uci:"metered" default:"false"`
+}
+
+// RecoveryConfig represents backup and recovery configuration
+type RecoveryConfig struct {
+	Enable              bool   `uci:"enable" default:"true"`
+	BackupDir          string `uci:"backup_dir" default:"/etc/starfail/backup"`
+	MaxVersions        int    `uci:"max_versions" default:"10"`
+	AutoBackupOnChange bool   `uci:"auto_backup_on_change" default:"true"`
+	BackupInterval     int    `uci:"backup_interval_hours" default:"24"`
+	CompressBackups    bool   `uci:"compress_backups" default:"true"`
+}
+
+// NotificationConfig represents notification system configuration
+type NotificationConfig struct {
+	Enable               bool   `uci:"enable" default:"true"`
+	RateLimitMinutes     int    `uci:"rate_limit_minutes" default:"5"`
+	PriorityThreshold    string `uci:"priority_threshold" default:"medium"`
+	
+	// Pushover
+	PushoverEnabled      bool   `uci:"pushover_enabled" default:"false"`
+	PushoverToken        string `uci:"pushover_token" default:""`
+	PushoverUser         string `uci:"pushover_user" default:""`
+	
+	// MQTT
+	MqttEnabled          bool   `uci:"mqtt_enabled" default:"false"`
+	MqttBroker           string `uci:"mqtt_broker" default:""`
+	MqttTopic            string `uci:"mqtt_topic" default:"starfail/alerts"`
+	
+	// Webhook
+	WebhookEnabled       bool   `uci:"webhook_enabled" default:"false"`
+	WebhookURL           string `uci:"webhook_url" default:""`
+	
+	// Email
+	EmailEnabled         bool   `uci:"email_enabled" default:"false"`
+	EmailSMTPServer      string `uci:"email_smtp_server" default:""`
+	EmailFrom            string `uci:"email_from" default:""`
+	EmailTo              string `uci:"email_to" default:""`
+}
+
+// SamplingConfig represents adaptive sampling configuration
+type SamplingConfig struct {
+	Enable                bool    `uci:"enable" default:"true"`
+	BaseIntervalMs        int     `uci:"base_interval_ms" default:"1000"`
+	FastIntervalMs        int     `uci:"fast_interval_ms" default:"500"`
+	SlowIntervalMs        int     `uci:"slow_interval_ms" default:"5000"`
+	PerformanceThreshold  float64 `uci:"performance_threshold" default:"70.0"`
+	DataCapAware          bool    `uci:"data_cap_aware" default:"true"`
+	AdaptationFactor      float64 `uci:"adaptation_factor" default:"0.1"`
 }
 
 // Loader handles UCI configuration loading and validation
@@ -167,6 +229,50 @@ func (l *Loader) getDefaultConfig() *Config {
 			JitterBadMs:       200,
 			ObstructionOkPct:  0,
 			ObstructionBadPct: 10,
+		},
+		SysMgmt: SysMgmtConfig{
+			Enable:              true,
+			MaintenanceInterval: 600,
+			OverlayCleanup:      true,
+			OverlayPath:        "/overlay",
+			ServiceWatchdog:    true,
+			WatchdogServices:   []string{"starfail", "mwan3", "network"},
+			MemoryThreshold:    80,
+			DiskThreshold:      90,
+		},
+		Recovery: RecoveryConfig{
+			Enable:              true,
+			BackupDir:          "/etc/starfail/backup",
+			MaxVersions:        10,
+			AutoBackupOnChange: true,
+			BackupInterval:     24,
+			CompressBackups:    true,
+		},
+		Notifications: NotificationConfig{
+			Enable:               true,
+			RateLimitMinutes:     5,
+			PriorityThreshold:    "medium",
+			PushoverEnabled:      false,
+			PushoverToken:        "",
+			PushoverUser:         "",
+			MqttEnabled:          false,
+			MqttBroker:           "",
+			MqttTopic:            "starfail/alerts",
+			WebhookEnabled:       false,
+			WebhookURL:           "",
+			EmailEnabled:         false,
+			EmailSMTPServer:      "",
+			EmailFrom:            "",
+			EmailTo:              "",
+		},
+		Sampling: SamplingConfig{
+			Enable:                true,
+			BaseIntervalMs:        1000,
+			FastIntervalMs:        500,
+			SlowIntervalMs:        5000,
+			PerformanceThreshold:  70.0,
+			DataCapAware:          true,
+			AdaptationFactor:      0.1,
 		},
 		Members: []MemberConfig{},
 	}

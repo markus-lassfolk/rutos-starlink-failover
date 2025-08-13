@@ -15,7 +15,11 @@ import (
 	"starfail/pkg/decision"
 	"starfail/pkg/gps"
 	"starfail/pkg/logx"
+	"starfail/pkg/notification"
 	"starfail/pkg/obstruction"
+	"starfail/pkg/recovery"
+	"starfail/pkg/sampling"
+	"starfail/pkg/sysmgmt"
 	"starfail/pkg/telem"
 	"starfail/pkg/ubus"
 	"starfail/pkg/uci"
@@ -27,23 +31,71 @@ const (
 )
 
 var (
-	configFile = flag.String("config", "/etc/config/starfail", "UCI config file path")
-	logLevel   = flag.String("log-level", "info", "Log level (debug|info|warn|error)")
-	version_   = flag.Bool("version", false, "Show version and exit")
+	configFile     = flag.String("config", "/etc/config/starfail", "UCI config file path")
+	logLevel       = flag.String("log-level", "info", "Log level (debug|info|warn|error|trace)")
+	logFile        = flag.String("log-file", "", "Log file path (empty for stdout/syslog only)")
+	monitor        = flag.Bool("monitor", false, "Run in monitoring mode with real-time output")
+	verbose        = flag.Bool("verbose", false, "Enable verbose logging (equivalent to debug level)")
+	trace          = flag.Bool("trace", false, "Enable trace logging (most detailed)")
+	noColor        = flag.Bool("no-color", false, "Disable colored output in monitoring mode")
+	jsonLogs       = flag.Bool("json", true, "Output logs in JSON format")
+	version_       = flag.Bool("version", false, "Show version and exit")
+	help           = flag.Bool("help", false, "Show help message with examples")
 )
 
 func main() {
 	flag.Parse()
+
+	if *help {
+		showHelp()
+		os.Exit(0)
+	}
 
 	if *version_ {
 		fmt.Printf("%s %s\n", appName, version)
 		os.Exit(0)
 	}
 
-	// Initialize structured logger
-	logger := logx.New(*logLevel)
-	logger.Info("starting starfail daemon", 
-		"version", version,
+	// Determine effective log level
+	effectiveLogLevel := *logLevel
+	if *trace {
+		effectiveLogLevel = "trace"
+	} else if *verbose {
+		effectiveLogLevel = "debug"
+	}
+
+	// Initialize structured logger with enhanced options
+	loggerConfig := logx.Config{
+		Level:       effectiveLogLevel,
+		Format:      getLogFormat(),
+		Output:      getLogOutput(),
+		Monitor:     *monitor,
+		NoColor:     *noColor,
+		FilePath:    *logFile,
+	}
+	
+	logger := logx.NewWithConfig(loggerConfig)
+	logger = logger.WithFields(map[string]interface{}{
+		"daemon": "starfaild",
+		"version": version,
+		"pid": os.Getpid(),
+	})
+
+	if *monitor {
+		logger.Info("🚀 Starting starfail daemon in MONITORING MODE", 
+			"version", version,
+			"config", *configFile,
+			"log_level", effectiveLogLevel,
+			"trace", *trace,
+			"verbose", *verbose,
+		)
+	} else {
+		logger.Info("starting starfail daemon", 
+			"version", version,
+			"config", *configFile,
+			"log_level", effectiveLogLevel,
+		)
+	}
 		"config", *configFile,
 	)
 
@@ -76,6 +128,43 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
 	// Initialize enhanced components
+	
+	// Initialize system management for health monitoring and auto-recovery
+	sysMgmt, err := sysmgmt.NewManager(config.SysMgmt, logger)
+	if err != nil {
+		logger.Error("failed to initialize system management", "error", err)
+		os.Exit(1)
+	}
+	
+	// Initialize backup and recovery system
+	var recoveryMgr *recovery.Manager
+	if config.Recovery.Enable {
+		var err error
+		recoveryMgr, err = recovery.NewManager(config.Recovery, logger)
+		if err != nil {
+			logger.Warn("backup/recovery system disabled", "error", err)
+		}
+	}
+	
+	// Initialize notification system
+	var notificationMgr *notification.Manager
+	if config.Notifications.Enable {
+		var err error
+		notificationMgr, err = notification.NewManager(config.Notifications, logger)
+		if err != nil {
+			logger.Warn("notification system disabled", "error", err)
+		}
+	}
+	
+	// Initialize adaptive sampling system
+	var samplingMgr *sampling.Manager
+	if config.Sampling.Enable {
+		var err error
+		samplingMgr, err = sampling.NewManager(config.Sampling, logger)
+		if err != nil {
+			logger.Warn("adaptive sampling disabled", "error", err)
+		}
+	}
 	
 	// Initialize audit logger for comprehensive decision tracking
 	auditLogger, err := audit.NewAuditLogger("/var/log/starfail")
@@ -186,6 +275,20 @@ func main() {
 	// Log startup in audit trail
 	auditLogger.LogRecovery(ctx, "startup", fmt.Sprintf("starfail daemon started with %d members", len(members)))
 
+	// Send startup notification
+	if notificationMgr != nil {
+		notificationMgr.Send(ctx, notification.Alert{
+			Priority: notification.PriorityLow,
+			Title:    "Starfail Daemon Started",
+			Message:  fmt.Sprintf("System started with %d members", len(members)),
+			Source:   "daemon",
+			Context: map[string]interface{}{
+				"version":       version,
+				"members_count": len(members),
+			},
+		})
+	}
+
 	// Add startup event
 	store.AddEvent(telem.Event{
 		Timestamp: time.Now(),
@@ -201,7 +304,10 @@ func main() {
 				"enhanced_starlink_diagnostics", 
 				"location_aware_intelligence",
 				"comprehensive_audit_trail",
+				"advanced_notification_systems",
 				"predictive_obstruction_management",
+				"adaptive_sampling",
+				"backup_and_recovery",
 			},
 		},
 	})
@@ -294,6 +400,34 @@ func main() {
 			}
 
 		case <-ticker.C:
+			// Adaptive sampling: adjust interval based on connection characteristics
+			if samplingMgr != nil {
+				if newInterval := samplingMgr.GetCurrentInterval(); newInterval != time.Duration(config.Main.PollIntervalMs)*time.Millisecond {
+					ticker.Reset(newInterval)
+					logger.Debug("adjusted sampling interval", "new_interval_ms", newInterval.Milliseconds())
+				}
+			}
+			
+			// System health check every 10th cycle
+			if time.Now().Unix()%600 == 0 && sysMgmt != nil { // Every 10 minutes
+				if healthOk := sysMgmt.QuickHealthCheck(ctx); !healthOk {
+					logger.Warn("system health check failed, scheduling maintenance")
+					go func() {
+						if err := sysMgmt.FullMaintenance(ctx); err != nil {
+							logger.Error("system maintenance failed", "error", err)
+							if notificationMgr != nil {
+								notificationMgr.Send(ctx, notification.Alert{
+									Priority: notification.PriorityHigh,
+									Title:    "System Maintenance Failed",
+									Message:  fmt.Sprintf("Maintenance error: %v", err),
+									Source:   "sysmgmt",
+								})
+							}
+						}
+					}()
+				}
+			}
+			
 			// Main tick logic
 			logger.Debug("starting collection cycle")
 			
@@ -362,7 +496,19 @@ func main() {
 				)
 			}
 
-			// 4. Evaluate switch conditions
+			// 4. Update adaptive sampling with current performance
+			if samplingMgr != nil && len(samples) > 0 {
+				for _, sample := range samples {
+					performance := sampling.Performance{
+						Latency:      sample.Metrics.Latency,
+						PacketLoss:   sample.Metrics.Loss,
+						ConnectionOk: sample.FinalScore > 50.0,
+					}
+					samplingMgr.UpdatePerformance(sample.Member, performance)
+				}
+			}
+			
+			// 5. Evaluate switch conditions
 			if len(samples) > 0 {
 				// Get current primary
 				currentPrimary, err := ctrl.GetCurrentPrimary(ctx)
@@ -379,7 +525,25 @@ func main() {
 							"score_delta", switchDecision.ScoreDelta,
 						)
 
-						// 5. Apply decision via controller
+						// Send switch notification
+						if notificationMgr != nil {
+							priority := notification.PriorityMedium
+							if switchDecision.Confidence > 0.8 {
+								priority = notification.PriorityHigh
+							}
+							
+							notificationMgr.Send(ctx, notification.Alert{
+								Priority: priority,
+								Title:    "Failover Event",
+								Message:  fmt.Sprintf("Switching from %s to %s", switchDecision.From, switchDecision.To),
+								Source:   "decision_engine",
+								Context: map[string]interface{}{
+									"decision": switchDecision,
+								},
+							})
+						}
+
+						// 6. Apply decision via controller
 						targetMember := findMemberByName(members, switchDecision.To)
 						if targetMember != nil {
 							if err := ctrl.SetPrimary(ctx, *targetMember); err != nil {
@@ -395,6 +559,16 @@ func main() {
 									Message:   fmt.Sprintf("failed to switch to %s: %v", switchDecision.To, err),
 									Data:      switchDecision,
 								})
+								
+								// Send failure notification
+								if notificationMgr != nil {
+									notificationMgr.Send(ctx, notification.Alert{
+										Priority: notification.PriorityHigh,
+										Title:    "Failover Failed",
+										Message:  fmt.Sprintf("Failed to switch to %s: %v", switchDecision.To, err),
+										Source:   "controller",
+									})
+								}
 							} else {
 								logger.Info("switch executed successfully", 
 									"target", switchDecision.To)
@@ -407,13 +581,23 @@ func main() {
 									Message:   fmt.Sprintf("successfully switched to %s", switchDecision.To),
 									Data:      switchDecision,
 								})
+								
+								// Create automatic backup after successful switch
+								if recoveryMgr != nil {
+									go func() {
+										if _, err := recoveryMgr.BackupConfig(ctx, 
+											fmt.Sprintf("post-switch-to-%s", switchDecision.To)); err != nil {
+											logger.Warn("failed to create post-switch backup", "error", err)
+										}
+									}()
+								}
 							}
 						}
 					}
 				}
 			}
 
-			// 6. Cleanup old telemetry data periodically
+			// 7. Cleanup old telemetry data periodically
 			if time.Now().Unix()%300 == 0 { // Every 5 minutes
 				store.Cleanup()
 				logger.Debug("cleaned up old telemetry data")
@@ -421,6 +605,23 @@ func main() {
 
 		case <-ctx.Done():
 			logger.Info("daemon shutting down")
+			
+			// Send shutdown notification
+			if notificationMgr != nil {
+				notificationMgr.Send(ctx, notification.Alert{
+					Priority: notification.PriorityLow,
+					Title:    "Starfail Daemon Stopped",
+					Message:  "System is shutting down",
+					Source:   "daemon",
+				})
+			}
+			
+			// Create shutdown backup
+			if recoveryMgr != nil {
+				if _, err := recoveryMgr.BackupConfig(ctx, "shutdown-backup"); err != nil {
+					logger.Warn("failed to create shutdown backup", "error", err)
+				}
+			}
 			
 			// Stop ubus server
 			if config.Main.EnableUbus {
@@ -471,4 +672,137 @@ func findMemberByName(members []controller.Member, name string) *controller.Memb
 		}
 	}
 	return nil
+}
+
+// getLogFormat determines the log format based on flags
+func getLogFormat() string {
+	if *monitor && !*jsonLogs {
+		return "console"
+	}
+	return "json"
+}
+
+// getLogOutput determines the log output destination
+func getLogOutput() string {
+	if *logFile != "" {
+		return *logFile
+	}
+	if *monitor {
+		return "stdout"
+	}
+	return "syslog"
+}
+
+// showHelp displays comprehensive help information with examples
+func showHelp() {
+	fmt.Printf(`%s %s - Intelligent Multi-Interface Failover Daemon for RutOS/OpenWrt
+
+USAGE:
+    %s [OPTIONS]
+
+DESCRIPTION:
+    starfaild is a production-ready Go daemon for intelligent multi-interface failover on
+    RutOS/OpenWrt routers. It monitors Starlink, cellular, and other WAN interfaces using
+    real-time metrics and provides seamless failover with comprehensive telemetry.
+
+    The daemon uses a collector → decision → controller pipeline to gather interface
+    metrics, calculate health scores, and automatically switch between WAN connections
+    based on configurable policies.
+
+OPTIONS:
+    --config PATH           UCI configuration file path
+                           (default: /etc/config/starfail)
+    
+    --log-level LEVEL      Set logging level
+                           Options: trace, debug, info, warn, error
+                           (default: info)
+    
+    --log-file PATH        Log file path (empty for stdout/syslog only)
+                           (default: stdout in monitor mode, syslog otherwise)
+    
+    --monitor              Enable real-time monitoring mode
+                           Shows live console output with color coding
+    
+    --verbose              Enable verbose logging (debug level)
+                           Equivalent to --log-level debug
+    
+    --trace                Enable trace logging (most detailed)
+                           Shows internal operations and API calls
+    
+    --no-color             Disable colored output in monitoring mode
+                           Useful for log files or non-TTY environments
+    
+    --json                 Output logs in JSON format
+                           (default: true, false in monitor mode)
+    
+    --version              Show version information and exit
+    
+    --help                 Show this help message
+
+EXAMPLES:
+    # Basic daemon operation (production mode)
+    %s --config /etc/config/starfail
+
+    # Development/troubleshooting with full visibility
+    %s --monitor --trace --verbose
+
+    # Real-time monitoring with clean console output
+    %s --monitor --no-color --verbose
+
+    # Debug specific configuration issues
+    %s --monitor --debug --config ./configs/starfail.example
+
+    # JSON structured logs for analysis
+    %s --json --verbose --log-file /var/log/starfail.log
+
+    # Test configuration without making changes
+    %s --monitor --trace --config /tmp/test-config
+
+MONITORING MODE:
+    When --monitor is enabled, the daemon outputs real-time logs to the console
+    with color-coded log levels for easy visual scanning:
+    
+    [15:04:05.123] INFO  Starting starfail daemon
+    [15:04:05.456] DEBUG Loading UCI configuration members=3
+    [15:04:05.789] TRACE Starlink API request endpoint=192.168.100.1
+    [15:04:06.012] WARN  Interface score below threshold score=65.2
+    [15:04:06.345] INFO  Failover triggered from=starlink to=cellular
+
+LOG LEVELS:
+    TRACE    Most detailed logging, shows internal operations
+    DEBUG    Development debugging information  
+    INFO     General operational information
+    WARN     Warning conditions that don't stop operation
+    ERROR    Error conditions that may affect functionality
+
+CONFIGURATION:
+    The daemon uses UCI configuration format compatible with OpenWrt:
+    
+    config starfail 'main'
+        option enable '1'
+        option use_mwan3 '1'
+        option poll_interval_ms '1500'
+        
+    config member 'starlink_any'
+        option detect 'auto'
+        option class 'starlink'
+        
+    config member 'cellular_wan'
+        option interface 'cellular_wan'
+        option class 'cellular'
+
+SIGNALS:
+    SIGTERM/SIGINT    Graceful shutdown with cleanup
+    SIGHUP            Reload configuration (if supported)
+
+FILES:
+    /etc/config/starfail       Default UCI configuration
+    /var/run/starfail.pid      Process ID file
+    /var/log/messages          Syslog output (production mode)
+
+AUTHOR:
+    RutOS Starlink Failover Project
+    https://github.com/markus-lassfolk/rutos-starlink-failover
+
+`, appName, version, appName, appName, appName, appName, appName, appName, appName)
 }

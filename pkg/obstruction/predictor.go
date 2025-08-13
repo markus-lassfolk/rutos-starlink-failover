@@ -18,20 +18,28 @@ type ObstructionManager struct {
 	models           map[string]*PredictionModel
 }
 
-// ObstructionSample represents a point-in-time obstruction measurement
+// ObstructionSample represents a point-in-time obstruction measurement with enhanced data
 type ObstructionSample struct {
-	Timestamp       time.Time `json:"timestamp"`
-	ObstructionPct  float64   `json:"obstruction_pct"`
-	SNR             float64   `json:"snr"`
-	Latitude        float64   `json:"latitude"`
-	Longitude       float64   `json:"longitude"`
-	Altitude        float64   `json:"altitude"`
-	Azimuth         float64   `json:"azimuth"`
-	Elevation       float64   `json:"elevation"`
-	MovementSpeed   float64   `json:"movement_speed_mps"`
-	WeatherCode     string    `json:"weather_code"`
-	SatelliteID     string    `json:"satellite_id"`
-	BeamID          string    `json:"beam_id"`
+	Timestamp              time.Time `json:"timestamp"`
+	ObstructionPct         float64   `json:"obstruction_pct"`
+	SNR                    float64   `json:"snr"`
+	TimeObstructed         float64   `json:"time_obstructed"`
+	AvgProlongedObstructionIntervalS float64 `json:"avg_prolonged_obstruction_interval_s"`
+	PatchesValid           bool      `json:"patches_valid"`
+	ValidS                 float64   `json:"valid_s"`
+	Latitude               float64   `json:"latitude"`
+	Longitude              float64   `json:"longitude"`
+	Altitude               float64   `json:"altitude"`
+	Azimuth                float64   `json:"azimuth"`
+	Elevation              float64   `json:"elevation"`
+	MovementSpeed          float64   `json:"movement_speed_mps"`
+	WeatherCode            string    `json:"weather_code"`
+	SatelliteID            string    `json:"satellite_id"`
+	BeamID                 string    `json:"beam_id"`
+	
+	// Trend analysis fields
+	ObstructionRate        float64   `json:"obstruction_rate_pct_per_min"`
+	SNRRate                float64   `json:"snr_rate_db_per_min"`
 }
 
 // PredictionModel represents different obstruction prediction algorithms

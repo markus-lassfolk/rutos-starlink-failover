@@ -1,40 +1,102 @@
-// Package logx provides structured logging for the starfail daemon
+// Package logx provides structured logging for the starfail daemon with monitoring support
 package logx
 
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
 	"time"
 )
 
+// ANSI color codes for console output
+const (
+	ColorReset  = "\033[0m"
+	ColorBold   = "\033[1m"
+	ColorRed    = "\033[31m"
+	ColorGreen  = "\033[32m"
+	ColorYellow = "\033[33m"
+	ColorBlue   = "\033[34m"
+	ColorCyan   = "\033[36m"
+	ColorGray   = "\033[37m"
+)
+
 // LogLevel represents the logging level
 type LogLevel int
 
 const (
-	DebugLevel LogLevel = iota
+	TraceLevel LogLevel = iota
+	DebugLevel
 	InfoLevel
 	WarnLevel
 	ErrorLevel
 )
 
-// Logger provides structured JSON logging
+// Config holds logger configuration
+type Config struct {
+	Level    string `json:"level"`
+	Format   string `json:"format"`   // "json" or "console"
+	Output   string `json:"output"`   // "stdout", "syslog", or file path
+	Monitor  bool   `json:"monitor"`  // Enable monitoring mode
+	NoColor  bool   `json:"no_color"` // Disable colors in console format
+	FilePath string `json:"file_path,omitempty"`
+}
+
+// Logger provides structured logging with monitoring capabilities
 type Logger struct {
 	level     LogLevel
 	logger    *log.Logger
+	config    Config
 	syslogger interface{} // Platform-specific syslog writer (Unix only)
 	fields    map[string]interface{}
+	writer    io.Writer
 }
 
-// New creates a new structured logger
+// ANSI color codes for console output
+const (
+	ColorReset  = "\033[0m"
+	ColorRed    = "\033[31m"
+	ColorYellow = "\033[33m"
+	ColorBlue   = "\033[34m"
+	ColorGray   = "\033[37m"
+	ColorGreen  = "\033[32m"
+	ColorCyan   = "\033[36m"
+	ColorBold   = "\033[1m"
+)
+
+// New creates a new structured logger (backward compatibility)
 func New(levelStr string) *Logger {
-	level := parseLevel(levelStr)
+	config := Config{
+		Level:  levelStr,
+		Format: "json",
+		Output: "syslog",
+	}
+	return NewWithConfig(config)
+}
+
+// NewWithConfig creates a new logger with full configuration
+func NewWithConfig(config Config) *Logger {
+	level := parseLevel(config.Level)
+	
+	// Determine output writer
+	var writer io.Writer = os.Stdout
+	if config.Output == "syslog" {
+		writer = os.Stdout // Will also go to syslog
+	} else if config.Output != "stdout" && config.Output != "" {
+		// File output
+		if file, err := os.OpenFile(config.Output, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
+			writer = file
+		}
+	}
+	
 	l := &Logger{
 		level:  level,
-		logger: log.New(os.Stdout, "", 0), // No prefix, we'll format everything in JSON
+		logger: log.New(writer, "", 0), // No prefix, we'll format everything
+		config: config,
 		fields: make(map[string]interface{}),
+		writer: writer,
 	}
 	
 	// Initialize syslog (platform-specific)
@@ -69,8 +131,10 @@ func (l *Logger) WithFields(fields map[string]interface{}) *Logger {
 	return &Logger{
 		level:     l.level,
 		logger:    l.logger,
+		config:    l.config,
 		syslogger: l.syslogger,
 		fields:    newFields,
+		writer:    l.writer,
 	}
 }
 
@@ -87,6 +151,8 @@ func (l *Logger) SetLevel(levelStr string) {
 // parseLevel converts string to LogLevel
 func parseLevel(levelStr string) LogLevel {
 	switch strings.ToLower(levelStr) {
+	case "trace":
+		return TraceLevel
 	case "debug":
 		return DebugLevel
 	case "info":
@@ -110,14 +176,17 @@ type logEntry struct {
 	Fields    map[string]interface{} `json:",inline,omitempty"`
 }
 
-// log outputs a structured log entry
+// log outputs a structured log entry with format selection
 func (l *Logger) log(level LogLevel, msg string, keysAndValues ...interface{}) {
 	if level < l.level {
 		return
 	}
 
+	timestamp := time.Now().UTC()
+	
+	// Create log entry
 	entry := logEntry{
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Timestamp: timestamp.Format(time.RFC3339),
 		Level:     levelString(level),
 		Message:   msg,
 		Fields:    make(map[string]interface{}),
@@ -136,26 +205,98 @@ func (l *Logger) log(level LogLevel, msg string, keysAndValues ...interface{}) {
 		}
 	}
 
-	// Marshal to JSON
+	// Output based on format
+	if l.config.Format == "console" {
+		l.logConsole(level, timestamp, msg, entry.Fields)
+	} else {
+		l.logJSON(entry)
+	}
+	
+	// Also send to syslog if available and not monitoring mode
+	if !l.config.Monitor {
+		jsonBytes, _ := json.Marshal(entry)
+		l.logToSyslog(level, string(jsonBytes))
+	}
+}
+
+// logJSON outputs a JSON formatted log entry
+func (l *Logger) logJSON(entry logEntry) {
 	jsonBytes, err := json.Marshal(entry)
 	if err != nil {
 		// Fallback to simple log if JSON marshaling fails
 		l.logger.Printf("LOG_ERROR: failed to marshal log entry: %v", err)
 		return
 	}
+	l.logger.Println(string(jsonBytes))
+}
 
-	jsonStr := string(jsonBytes)
+// logConsole outputs a human-readable console log entry
+func (l *Logger) logConsole(level LogLevel, timestamp time.Time, msg string, fields map[string]interface{}) {
+	// Build color prefix
+	levelColor := l.getLevelColor(level)
+	levelStr := levelString(level)
 	
-	// Output to stdout (for procd/logread)
-	l.logger.Println(jsonStr)
+	// Format timestamp for console (shorter format)
+	timeStr := timestamp.Format("15:04:05.000")
 	
-	// Also send to syslog if available (Unix only)
-	l.logToSyslog(level, jsonStr)
+	// Reset color if no color mode
+	reset := ColorReset
+	if l.config.NoColor {
+		levelColor = ""
+		reset = ""
+	}
+	
+	// Build base message
+	baseMsg := fmt.Sprintf("%s[%s]%s %s %s%s%s", 
+		ColorGray, timeStr, reset,
+		levelColor + strings.ToUpper(levelStr) + reset,
+		ColorBold, msg, reset)
+	
+	// Add fields if present
+	if len(fields) > 0 {
+		var fieldParts []string
+		for k, v := range fields {
+			fieldParts = append(fieldParts, fmt.Sprintf("%s=%v", k, v))
+		}
+		if len(fieldParts) > 0 {
+			fieldsStr := strings.Join(fieldParts, " ")
+			if !l.config.NoColor {
+				fieldsStr = ColorCyan + fieldsStr + reset
+			}
+			baseMsg += " " + fieldsStr
+		}
+	}
+	
+	l.logger.Println(baseMsg)
+}
+
+// getLevelColor returns the ANSI color code for a log level
+func (l *Logger) getLevelColor(level LogLevel) string {
+	if l.config.NoColor {
+		return ""
+	}
+	
+	switch level {
+	case TraceLevel:
+		return ColorGray
+	case DebugLevel:
+		return ColorBlue
+	case InfoLevel:
+		return ColorGreen
+	case WarnLevel:
+		return ColorYellow
+	case ErrorLevel:
+		return ColorRed
+	default:
+		return ColorReset
+	}
 }
 
 // levelString converts LogLevel to string
 func levelString(level LogLevel) string {
 	switch level {
+	case TraceLevel:
+		return "trace"
 	case DebugLevel:
 		return "debug"
 	case InfoLevel:

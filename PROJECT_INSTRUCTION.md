@@ -9,6 +9,9 @@
 
 ## Implementation Progress Status
 **Started**: 2025-01-17 - Moving from Bash to Go implementation
+**Updated**: 2025-08-13 - Enhanced feature set and production requirements
+
+### Core Foundation ✅ COMPLETE
 - ✅ Repository restructure and Go project setup
 - ✅ Basic project structure (`cmd/starfaild/`, `pkg/` packages, `scripts/`, etc.)
 - ✅ Core interfaces and type definitions (collector.Collector, decision.Engine, etc.)
@@ -20,13 +23,51 @@
 - ✅ Cellular collector with ubus mobiled/GSM integration  
 - ✅ WiFi collector with ubus iwinfo/iwconfig support
 - ✅ LAN/Generic ping-based collector with interface binding
-- 🔄 **IN PROGRESS**: Implementing remaining core functionality
-  - Cellular collector (ubus mobiled integration)
-  - WiFi collector (ubus iwinfo integration) 
-  - LAN/Generic collector (ping-based)
-  - Decision engine with scoring and hysteresis
-  - mwan3 integration and controllers
-  - ubus API server
+
+### Core Functionality 🔄 IN PROGRESS
+- 🔄 Decision engine with EWMA scoring and hysteresis
+- 🔄 mwan3 integration and controllers
+- 🔄 ubus API server with complete method implementation
+- 🔄 CLI implementation (starfailctl)
+- 🔄 Telemetry store with RAM-backed ring buffers
+
+### Advanced Features 📋 PLANNED
+- 📋 **System Health Monitoring & Auto-Recovery** (starfail-sysmgmt)
+  - Overlay space management and log cleanup
+  - Service watchdog for hung processes
+  - Log flood detection and prevention
+  - NTP sync monitoring and time drift correction
+  - Network interface stabilization
+- 📋 **Enhanced Starlink Diagnostics**
+  - Hardware self-test and thermal monitoring
+  - Bandwidth restrictions and uptime tracking
+  - Predictive reboot detection and preemptive failover
+  - Pending update monitoring
+- 📋 **Location-Aware Intelligence**
+  - Multi-source GPS data collection (RUTOS > Starlink priority)
+  - Movement detection (>500m triggers obstruction map reset)
+  - Location clustering for pattern analysis
+  - Location-based threshold adjustments
+- 📋 **Comprehensive Decision Audit Trail**
+  - Structured decision reasoning logs
+  - Quality factor breakdown with scoring transparency
+  - Real-time decision viewer and historical pattern analysis
+  - Root cause analysis with automated recommendations
+- 📋 **Advanced Notification Systems**
+  - Smart notification management with rate limiting
+  - Contextual alerts with priority levels and cooldown
+  - Emergency notifications with retry and acknowledgment
+- 📋 **Predictive Obstruction Management**
+  - Obstruction acceleration detection for early warning
+  - SNR trend analysis and movement-triggered map refresh
+  - Multi-factor obstruction assessment with false positive reduction
+  - Data quality validation using patchesValid and validS
+- 📋 **Adaptive Sampling**
+  - Dynamic sampling rates (1s unlimited, 60s metered)
+  - Connection-type aware probing strategies
+- 📋 **Backup and Recovery**
+  - Automated recovery after firmware upgrades
+  - Configuration preservation and restoration
 
 **Note**: Development machine (Windows) has antivirus blocking Go compilation, but code structure is designed for target RutOS/OpenWrt Linux platform with proper cross-platform support.
 
@@ -49,15 +90,23 @@
 14. [Decision Engine & Hysteresis](#decision-engine--hysteresis)
 15. [Telemetry Store (Short-Term DB)](#telemetry-store-short-term-db)
 16. [Logging & Observability](#logging--observability)
-17. [Build, Packaging & Deployment](#build-packaging--deployment)
-18. [Init, Hotplug & Service Control](#init-hotplug--service-control)
-19. [Testing Strategy & Acceptance](#testing-strategy--acceptance)
-20. [Performance Targets](#performance-targets)
-21. [Security & Privacy](#security--privacy)
-22. [Failure Modes & Safe Behavior](#failure-modes--safe-behavior)
-23. [Future UI (LuCI/Vuci) – for later](#future-ui-lucivuci--for-later)
-24. [Coding Style & Quality](#coding-style--quality)
-25. [Appendix: Examples & Snippets](#appendix-examples--snippets)
+17. [System Health Monitoring & Auto-Recovery](#system-health-monitoring--auto-recovery)
+18. [Enhanced Starlink Diagnostics](#enhanced-starlink-diagnostics)
+19. [Location-Aware Intelligence](#location-aware-intelligence)
+20. [Comprehensive Decision Audit Trail](#comprehensive-decision-audit-trail)
+21. [Advanced Notification Systems](#advanced-notification-systems)
+22. [Predictive Obstruction Management](#predictive-obstruction-management)
+23. [Adaptive Sampling](#adaptive-sampling)
+24. [Backup and Recovery](#backup-and-recovery)
+25. [Build, Packaging & Deployment](#build-packaging--deployment)
+26. [Init, Hotplug & Service Control](#init-hotplug--service-control)
+27. [Testing Strategy & Acceptance](#testing-strategy--acceptance)
+28. [Performance Targets](#performance-targets)
+29. [Security & Privacy](#security--privacy)
+30. [Failure Modes & Safe Behavior](#failure-modes--safe-behavior)
+31. [Future UI (LuCI/Vuci) – for later](#future-ui-lucivuci--for-later)
+32. [Coding Style & Quality](#coding-style--quality)
+33. [Appendix: Examples & Snippets](#appendix-examples--snippets)
 
 ---
 
@@ -453,6 +502,358 @@ Two RAM-backed rings under `/tmp/starfail/`:
 - Throttle (WARN):
 ```
 {"ts":"...","level":"warn","msg":"throttle","what":"predictive","cooldown_s":20,"remaining_s":13}
+```
+
+---
+
+## System Health Monitoring & Auto-Recovery
+**Separate Go application**: `cmd/starfail-sysmgmt/` for cron-based system maintenance.
+
+### Core Functionality
+- **Overlay Space Management**: Monitor and cleanup `/overlay`, `/tmp`, `/var/log`
+  - Remove stale files older than configurable thresholds
+  - Compress/rotate large log files automatically
+  - Emergency cleanup when storage <10% free
+- **Service Watchdog**: Monitor critical services and restart if hung
+  - `nlbwmon`, `mdcollectd`, `mobiled`, `hostapd`, `mwan3`
+  - Process health checks via PID monitoring and responsiveness tests
+  - Graceful restart with backoff on repeated failures
+- **Log Flood Detection**: Prevent services from filling storage
+  - Monitor log growth rates and implement flood protection
+  - Rate limit `hostapd` and `kernel` message floods
+  - Automatic logrotate acceleration during floods
+- **Time Drift Correction**: NTP sync monitoring and correction
+  - Detect time drift >30s and force NTP sync
+  - Monitor NTP daemon health and restart if needed
+  - GPS time fallback for offline environments
+- **Network Interface Stabilization**: Detect and fix flapping interfaces
+  - Monitor interface up/down cycles and implement dampening
+  - Reset stuck interfaces with proper state restoration
+  - Coordinate with starfaild to prevent conflicts
+
+### Configuration
+```uci
+config starfail-sysmgmt 'main'
+    option enable '1'
+    option overlay_cleanup_days '7'
+    option log_cleanup_days '3'
+    option service_check_interval '300'
+    option time_drift_threshold '30'
+    option interface_flap_threshold '5'
+```
+
+### Cron Integration
+```bash
+# /etc/crontabs/root
+*/5 * * * * /usr/sbin/starfail-sysmgmt --quick-check
+0 */6 * * * /usr/sbin/starfail-sysmgmt --full-maintenance
+```
+
+---
+
+## Enhanced Starlink Diagnostics
+**Extended Starlink API integration** for comprehensive hardware monitoring.
+
+### Hardware Health Monitoring
+- **Self-test Results**: Monitor hardware self-test status and results
+- **Thermal Management**: Track dish and power supply temperatures
+  - Thermal throttling detection and preemptive failover
+  - Overheat warnings with automatic protective measures
+- **Power Supply Health**: Monitor power consumption and voltage stability
+- **Dish Alignment**: Track pointing accuracy and motor health
+
+### Bandwidth and Performance
+- **Bandwidth Restrictions**: Detect Fair Access Policy limitations
+- **Service Degradation**: Monitor plan limits and throttling
+- **Uptime Tracking**: Detailed uptime/downtime statistics
+- **Performance Trending**: Historical throughput and latency analysis
+
+### Predictive Maintenance
+- **Pending Updates**: Detect scheduled firmware updates
+  - Trigger preemptive failover before automatic reboots
+  - Monitor update progress and estimate completion time
+- **Scheduled Reboots**: API-reported maintenance windows
+  - Automatic failover 5 minutes before scheduled reboot
+  - Post-reboot connectivity validation and failback
+
+### Extended API Fields
+```go
+type StarlinkExtended struct {
+    // Hardware
+    ThermalThrottled    bool    `json:"thermal_throttled"`
+    DishTempC          float64 `json:"dish_temp_c"`
+    PSUTempC           float64 `json:"psu_temp_c"`
+    PowerDrawW         float64 `json:"power_draw_w"`
+    
+    // Performance
+    FairUsageExceeded  bool    `json:"fair_usage_exceeded"`
+    PlanDataLimitPct   float64 `json:"plan_data_limit_pct"`
+    ExpectedBandwidthMbps float64 `json:"expected_bandwidth_mbps"`
+    
+    // Maintenance
+    PendingUpdate      bool    `json:"pending_update"`
+    ScheduledRebootAt  *time.Time `json:"scheduled_reboot_at"`
+    LastUpdateAt       time.Time `json:"last_update_at"`
+}
+```
+
+---
+
+## Location-Aware Intelligence
+**Multi-source GPS integration** for location-aware decision making.
+
+### GPS Data Sources (Priority Order)
+1. **RUTOS GPS**: Primary source via ubus `gps.info`
+2. **Starlink GPS**: Secondary source from dish API
+3. **Manual Configuration**: Fallback static coordinates
+
+### Movement Detection
+- **Distance Threshold**: Movement >500m triggers obstruction map reset
+- **Speed Calculation**: Detect stationary vs mobile deployment
+- **Location Clustering**: Identify problematic vs equipment-related issues
+  - Poor performance at specific coordinates = environmental
+  - Poor performance across locations = equipment issue
+
+### Location-Based Adaptations
+- **Threshold Adjustments**: Modify scoring based on known difficult areas
+- **Historical Performance**: Location-specific performance baselines
+- **Environmental Factors**: Terrain, weather, and obstruction correlation
+- **Obstruction Map Management**: Auto-refresh when location changes
+
+### Implementation
+```go
+type LocationManager struct {
+    Current    GPSCoordinate
+    Previous   GPSCoordinate
+    Movement   MovementState
+    Clusters   []LocationCluster
+}
+
+type LocationCluster struct {
+    Center       GPSCoordinate
+    Radius       float64
+    Observations []PerformanceObservation
+    QualityScore float64
+}
+```
+
+---
+
+## Comprehensive Decision Audit Trail
+**Structured decision reasoning** for troubleshooting and transparency.
+
+### Decision Context Logging
+- **Quality Factor Breakdown**: Detailed scoring components
+  ```json
+  {
+    "decision_id": "d_2025081312345",
+    "timestamp": "2025-08-13T12:34:56Z",
+    "action": "failover",
+    "from": "wan_starlink", 
+    "to": "wan_cell",
+    "reason": "predictive_obstruction",
+    "quality_factors": {
+      "wan_starlink": {"latency": 1, "loss": 0, "obstruction": 1, "snr": 0, "final": 45.2},
+      "wan_cell": {"latency": 0, "loss": 0, "rsrp": 1, "rsrq": 1, "final": 78.3}
+    },
+    "thresholds": {"switch_margin": 10, "min_duration": 10},
+    "windows": {"bad_duration_s": 15, "good_duration_s": 0}
+  }
+  ```
+
+### Real-Time Decision Viewer
+- **Live Decision Stream**: ubus method for real-time decision monitoring
+- **Decision Replay**: Historical decision reconstruction with full context
+- **What-If Analysis**: Simulate decisions with different thresholds
+
+### Pattern Analysis
+- **Trend Identification**: Automated pattern recognition in decision history
+- **Recommendation Engine**: Suggest threshold adjustments based on patterns
+- **Root Cause Analysis**: Automated troubleshooting with pattern matching
+  - Frequent failovers = threshold too sensitive
+  - Delayed failovers = thresholds too conservative
+  - Location-specific patterns = environmental issues
+
+### Audit Storage
+```go
+type DecisionAudit struct {
+    ID              string                 `json:"decision_id"`
+    Timestamp       time.Time              `json:"timestamp"`
+    Action          string                 `json:"action"`
+    From            string                 `json:"from"`
+    To              string                 `json:"to"`
+    Reason          string                 `json:"reason"`
+    QualityFactors  map[string]ScoreBreakdown `json:"quality_factors"`
+    Context         DecisionContext        `json:"context"`
+    Outcome         DecisionOutcome        `json:"outcome"`
+}
+```
+
+---
+
+## Advanced Notification Systems
+**Intelligent notification management** with context-aware alerting.
+
+### Smart Rate Limiting
+- **Priority Levels**: Emergency > Critical > Warning > Info
+- **Cooldown Periods**: Prevent notification spam
+  - Emergency: No cooldown (immediate retry)
+  - Critical: 5-minute cooldown
+  - Warning: 1-hour cooldown
+  - Info: 6-hour cooldown
+- **Acknowledgment System**: Mark notifications as acknowledged to reduce noise
+
+### Contextual Alerts
+- **Notification Types**:
+  - **Fix Notifications**: Problem automatically resolved
+  - **Failure Notifications**: Require human intervention
+  - **Critical Notifications**: Emergency situations (all links down)
+  - **Status Notifications**: Regular health updates
+- **Rich Context**: Include current status, attempted fixes, and next steps
+
+### Emergency Priority System
+- **Escalation**: Retry critical notifications with increasing urgency
+- **Multiple Channels**: Pushover, MQTT, email, webhook
+- **Fallback Methods**: If primary channel fails, try alternatives
+- **Time-Based Escalation**: Increase priority if not acknowledged
+
+### Implementation
+```go
+type NotificationManager struct {
+    Channels    []NotificationChannel
+    RateLimiter map[string]time.Time
+    Priorities  map[string]Priority
+}
+
+type Notification struct {
+    ID       string    `json:"id"`
+    Priority Priority  `json:"priority"`
+    Type     string    `json:"type"`
+    Message  string    `json:"message"`
+    Context  Context   `json:"context"`
+    Retry    RetryPolicy `json:"retry"`
+}
+```
+
+---
+
+## Predictive Obstruction Management
+**Proactive failover** before signal loss impacts users.
+
+### Advanced Obstruction Detection
+- **Acceleration Detection**: Rapid obstruction percentage increases
+  - Rate of change >2%/minute triggers early warning
+  - Sustained acceleration >5%/minute triggers preemptive failover
+- **SNR Trend Analysis**: Signal-to-noise ratio degradation patterns
+  - SNR dropping >3dB/minute indicates incoming obstruction
+  - Combined with obstruction percentage for accurate prediction
+
+### Multi-Factor Assessment
+- **Current Obstruction**: Real-time obstruction percentage
+- **Historical Impact**: `timeObstructed` and `avgProlongedObstructionIntervalS`
+- **Duration Analysis**: Distinguish temporary vs persistent obstructions
+- **Environmental Correlation**: Weather, time of day, seasonal patterns
+
+### False Positive Reduction
+- **Data Quality Validation**: Use `patchesValid` and `validS` fields
+- **Minimum Thresholds**: Require sustained trends, not single data points
+- **Confidence Scoring**: Multi-factor confidence before triggering actions
+- **Learning Algorithm**: Improve predictions based on outcome feedback
+
+### Implementation
+```go
+type ObstructionPredictor struct {
+    History         []ObstructionSample
+    TrendAnalyzer   TrendAnalyzer
+    Confidence      float64
+    LastPrediction  time.Time
+}
+
+type ObstructionSample struct {
+    Timestamp           time.Time `json:"timestamp"`
+    ObstructionPct      float64   `json:"obstruction_pct"`
+    SNR                 float64   `json:"snr"`
+    TimeObstructed      float64   `json:"time_obstructed"`
+    ProlongedInterval   float64   `json:"prolonged_interval"`
+    PatchesValid        bool      `json:"patches_valid"`
+    ValidS              float64   `json:"valid_s"`
+}
+```
+
+---
+
+## Adaptive Sampling
+**Dynamic sampling rates** based on connection characteristics and data usage.
+
+### Connection-Type Aware Sampling
+- **Unlimited Connections**: 1-second sampling for maximum responsiveness
+  - Starlink, unlimited cellular plans, fiber/cable
+  - High-frequency monitoring for optimal performance
+- **Metered Connections**: 60-second sampling to conserve data
+  - Pay-per-MB cellular, satellite with data caps
+  - Reduced probe frequency while maintaining reliability
+
+### Intelligent Rate Adjustment
+- **Performance-Based**: Increase sampling during degraded performance
+- **Stability-Based**: Reduce sampling when connection is stable
+- **Event-Driven**: Temporary high-frequency sampling during failovers
+- **Time-Based**: Different rates for business hours vs off-hours
+
+### Data Conservation
+- **Probe Size Optimization**: Minimal ICMP packets for reachability tests
+- **Batch Operations**: Combine multiple tests into single sessions
+- **Smart Targeting**: Use closest/fastest targets for minimal latency
+- **Background vs Foreground**: Lower rates when no user activity detected
+
+### Configuration
+```go
+type SamplingConfig struct {
+    UnlimitedIntervalMs   int `uci:"unlimited_interval_ms" default:"1000"`
+    MeteredIntervalMs     int `uci:"metered_interval_ms" default:"60000"`
+    DegradedIntervalMs    int `uci:"degraded_interval_ms" default:"5000"`
+    StableIntervalMs      int `uci:"stable_interval_ms" default:"10000"`
+    MaxProbeSize          int `uci:"max_probe_size" default:"32"`
+}
+```
+
+---
+
+## Backup and Recovery
+**Automated recovery** and configuration preservation.
+
+### System Recovery
+- **Post-Firmware Recovery**: Detect firmware upgrades and restore configuration
+- **Service Recovery**: Restart starfaild after system maintenance
+- **Configuration Validation**: Verify UCI config integrity after upgrades
+- **Dependency Checking**: Ensure mwan3, ubus, and other deps are available
+
+### Configuration Preservation
+- **Backup on Change**: Automatic backup before configuration changes
+- **Version Control**: Keep multiple configuration versions
+- **Rollback Capability**: Revert to previous working configuration
+- **Migration Support**: Update configuration format during upgrades
+
+### Disaster Recovery
+- **Factory Reset Recovery**: Restore minimal working configuration
+- **Network Recovery**: Rebuild mwan3 configuration from starfail config
+- **Emergency Mode**: Basic connectivity when full system unavailable
+- **Remote Recovery**: Restore configuration via management interfaces
+
+### Implementation
+```go
+type RecoveryManager struct {
+    BackupPath      string
+    ConfigVersions  []ConfigVersion
+    RecoveryState   RecoveryState
+    LastBackup      time.Time
+}
+
+type ConfigVersion struct {
+    Version     int       `json:"version"`
+    Timestamp   time.Time `json:"timestamp"`
+    Config      Config    `json:"config"`
+    Hash        string    `json:"hash"`
+}
 ```
 
 ---

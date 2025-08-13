@@ -26,28 +26,79 @@ type AuditLogger struct {
 	contextDepth int
 }
 
-// DecisionEvent represents a single failover decision with full context
+// DecisionEvent represents a single failover decision with full context and reasoning
 type DecisionEvent struct {
-	Timestamp      time.Time              `json:"timestamp"`
-	EventID        string                 `json:"event_id"`
-	EventType      string                 `json:"event_type"` // "evaluation", "action", "recovery", "error"
-	Component      string                 `json:"component"`  // "starfaild", "decision", "controller"
+	// Basic event information
+	Timestamp       time.Time              `json:"timestamp"`
+	EventID         string                 `json:"event_id"`
+	EventType       string                 `json:"event_type"` // "evaluation", "action", "recovery", "error"
+	Component       string                 `json:"component"`  // "starfaild", "decision", "controller"
 	
 	// Decision context
-	TriggerReason  string                 `json:"trigger_reason"`
-	DecisionType   string                 `json:"decision_type"` // "failover", "failback", "maintain"
-	FromInterface  string                 `json:"from_interface"`
-	ToInterface    string                 `json:"to_interface"`
+	TriggerReason   string                 `json:"trigger_reason"`
+	DecisionType    string                 `json:"decision_type"` // "failover", "failback", "maintain", "predictive"
+	FromInterface   string                 `json:"from_interface"`
+	ToInterface     string                 `json:"to_interface"`
+	Confidence      float64                `json:"confidence"` // 0-1 confidence in decision
+	
+	// Quality factor breakdown for transparency
+	QualityFactors  map[string]ScoreBreakdown `json:"quality_factors"`
+	Thresholds      DecisionThresholds        `json:"thresholds"`
+	Windows         DecisionWindows           `json:"windows"`
 	
 	// Environmental context
-	SystemLoad     *SystemContext         `json:"system_context"`
-	NetworkState   map[string]interface{} `json:"network_state"`
-	LocationInfo   *LocationContext       `json:"location_context"`
-	WeatherImpact  *WeatherContext        `json:"weather_context"`
+	SystemLoad      *SystemContext         `json:"system_context"`
+	NetworkState    map[string]interface{} `json:"network_state"`
+	LocationInfo    *LocationContext       `json:"location_context"`
+	WeatherImpact   *WeatherContext        `json:"weather_context"`
 	
 	// Metrics and scoring
 	InterfaceMetrics map[string]interface{} `json:"interface_metrics"`
 	ScoreCalculation *ScoreBreakdown        `json:"score_calculation"`
+	
+	// Decision outcome tracking
+	Outcome         *DecisionOutcome       `json:"outcome,omitempty"`
+	FollowUp        []string               `json:"follow_up,omitempty"`
+}
+
+// ScoreBreakdown provides detailed scoring transparency
+type ScoreBreakdown struct {
+	FinalScore    float64            `json:"final_score"`
+	InstantScore  float64            `json:"instant_score"`
+	EWMAScore     float64            `json:"ewma_score"`
+	WindowScore   float64            `json:"window_score"`
+	Components    map[string]float64 `json:"components"` // latency, loss, jitter, obstruction, etc.
+	Penalties     map[string]float64 `json:"penalties"`  // roaming, weak signal, etc.
+	Bonuses       map[string]float64 `json:"bonuses"`    // strong signal, etc.
+	WeightFactors map[string]float64 `json:"weight_factors"`
+}
+
+// DecisionThresholds captures threshold values used in decision
+type DecisionThresholds struct {
+	SwitchMargin          float64 `json:"switch_margin"`
+	MinDuration           int     `json:"min_duration_s"`
+	FailThresholdLoss     float64 `json:"fail_threshold_loss"`
+	FailThresholdLatency  float64 `json:"fail_threshold_latency"`
+	RestoreThresholdLoss  float64 `json:"restore_threshold_loss"`
+	RestoreThresholdLatency float64 `json:"restore_threshold_latency"`
+}
+
+// DecisionWindows captures time window information
+type DecisionWindows struct {
+	BadDurationS      int     `json:"bad_duration_s"`
+	GoodDurationS     int     `json:"good_duration_s"`
+	CooldownS         int     `json:"cooldown_s"`
+	MinUptimeS        int     `json:"min_uptime_s"`
+}
+
+// DecisionOutcome tracks the result of a decision
+type DecisionOutcome struct {
+	Success           bool      `json:"success"`
+	ActualSwitchTime  time.Time `json:"actual_switch_time,omitempty"`
+	ErrorMessage      string    `json:"error_message,omitempty"`
+	PerformanceChange float64   `json:"performance_change,omitempty"`
+	UserImpact        string    `json:"user_impact,omitempty"` // "none", "brief", "noticeable"
+}
 	Thresholds       map[string]float64     `json:"thresholds"`
 	
 	// Decision logic
