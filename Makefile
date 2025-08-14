@@ -41,6 +41,10 @@ vet:
 test:
 	go test -v ./...
 
+.PHONY: test-ci
+test-ci:
+	./scripts/run-tests.sh
+
 deps:
 	go mod download
 	go mod tidy
