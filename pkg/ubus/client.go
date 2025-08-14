@@ -254,7 +254,9 @@ func (c *Client) Listen(ctx context.Context) error {
 		}
 
 		c.callMu.Lock()
-		_ = c.sendMessage(resp)
+		if err := c.sendMessage(resp); err != nil {
+			c.logger.Errorf("failed to send response: %v", err)
+		}
 		c.callMu.Unlock()
 	}
 }
