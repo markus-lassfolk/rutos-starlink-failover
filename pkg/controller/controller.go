@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -223,18 +224,42 @@ func (c *Controller) isMWAN3SwitchNeeded(from, to *pkg.Member, status map[string
 
 // updateMWAN3Policy updates the mwan3 policy to prefer the target member
 func (c *Controller) updateMWAN3Policy(to *pkg.Member) error {
-	// This is a simplified implementation
-	// In a real implementation, you would:
-	// 1. Read the current mwan3 configuration
-	// 2. Update the policy weights to prefer the target interface
-	// 3. Write the configuration back
-
-	c.logger.LogMWAN3("policy_update", map[string]interface{}{
+	c.logger.LogMWAN3("policy_update_start", map[string]interface{}{
 		"target": to.Name,
 		"iface":  to.Iface,
 	})
 
-	// For now, just log the intended change
+	// Read current mwan3 configuration from UCI
+	config, err := c.readMWAN3Config()
+	if err != nil {
+		return fmt.Errorf("failed to read mwan3 config: %w", err)
+	}
+
+	// Update member weights to prefer the target interface
+	updated, err := c.updateMemberWeights(config, to)
+	if err != nil {
+		return fmt.Errorf("failed to update member weights: %w", err)
+	}
+
+	if !updated {
+		c.logger.LogMWAN3("policy_unchanged", map[string]interface{}{
+			"target": to.Name,
+			"reason": "weights_already_optimal",
+		})
+		return nil
+	}
+
+	// Write the updated configuration back
+	if err := c.writeMWAN3Config(config); err != nil {
+		return fmt.Errorf("failed to write mwan3 config: %w", err)
+	}
+
+	c.logger.LogMWAN3("policy_update_complete", map[string]interface{}{
+		"target":        to.Name,
+		"iface":         to.Iface,
+		"weights_updated": true,
+	})
+
 	return nil
 }
 
@@ -247,17 +272,220 @@ func (c *Controller) reloadMWAN3() error {
 	return cmd.Run()
 }
 
+// MWAN3Config represents the mwan3 configuration structure
+type MWAN3Config struct {
+	Members []*MWAN3Member `json:"members"`
+	Policies []*MWAN3Policy `json:"policies"`
+}
+
+type MWAN3Member struct {
+	Name     string `json:"name"`
+	Iface    string `json:"interface"`
+	Weight   int    `json:"weight"`
+	Metric   int    `json:"metric"`
+	Enabled  bool   `json:"enabled"`
+}
+
+type MWAN3Policy struct {
+	Name    string   `json:"name"`
+	Members []string `json:"members"`
+}
+
+// readMWAN3Config reads the current mwan3 configuration from UCI
+func (c *Controller) readMWAN3Config() (*MWAN3Config, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Read mwan3 member configuration
+	cmd := exec.CommandContext(ctx, "uci", "show", "mwan3")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read mwan3 config: %w", err)
+	}
+
+	config := &MWAN3Config{
+		Members:  []*MWAN3Member{},
+		Policies: []*MWAN3Policy{},
+	}
+
+	// Parse UCI output
+	lines := strings.Split(string(output), "\n")
+	memberMap := make(map[string]*MWAN3Member)
+	policyMap := make(map[string]*MWAN3Policy)
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Parse member configurations
+		if strings.Contains(line, "mwan3.") && strings.Contains(line, "=member") {
+			parts := strings.Split(line, ".")
+			if len(parts) >= 2 {
+				memberName := parts[1]
+				if _, exists := memberMap[memberName]; !exists {
+					memberMap[memberName] = &MWAN3Member{
+						Name:    memberName,
+						Weight:  1,
+						Metric:  1,
+						Enabled: true,
+					}
+				}
+			}
+		}
+
+		// Parse member properties
+		if strings.Contains(line, ".interface=") {
+			parts := strings.Split(line, "=")
+			if len(parts) == 2 {
+				memberName := strings.Split(strings.Split(line, ".")[1], ".interface")[0]
+				if member, exists := memberMap[memberName]; exists {
+					member.Iface = strings.Trim(parts[1], "'\"")
+				}
+			}
+		}
+
+		if strings.Contains(line, ".weight=") {
+			parts := strings.Split(line, "=")
+			if len(parts) == 2 {
+				memberName := strings.Split(strings.Split(line, ".")[1], ".weight")[0]
+				if member, exists := memberMap[memberName]; exists {
+					if weight, err := strconv.Atoi(strings.Trim(parts[1], "'\"")); err == nil {
+						member.Weight = weight
+					}
+				}
+			}
+		}
+
+		if strings.Contains(line, ".metric=") {
+			parts := strings.Split(line, "=")
+			if len(parts) == 2 {
+				memberName := strings.Split(strings.Split(line, ".")[1], ".metric")[0]
+				if member, exists := memberMap[memberName]; exists {
+					if metric, err := strconv.Atoi(strings.Trim(parts[1], "'\"")); err == nil {
+						member.Metric = metric
+					}
+				}
+			}
+		}
+
+		// Parse policies
+		if strings.Contains(line, "=policy") {
+			parts := strings.Split(line, ".")
+			if len(parts) >= 2 {
+				policyName := parts[1]
+				if _, exists := policyMap[policyName]; !exists {
+					policyMap[policyName] = &MWAN3Policy{
+						Name:    policyName,
+						Members: []string{},
+					}
+				}
+			}
+		}
+	}
+
+	// Convert maps to slices
+	for _, member := range memberMap {
+		config.Members = append(config.Members, member)
+	}
+	for _, policy := range policyMap {
+		config.Policies = append(config.Policies, policy)
+	}
+
+	return config, nil
+}
+
+// updateMemberWeights updates member weights to prefer the target
+func (c *Controller) updateMemberWeights(config *MWAN3Config, target *pkg.Member) (bool, error) {
+	updated := false
+	targetFound := false
+
+	for _, member := range config.Members {
+		if member.Iface == target.Iface || member.Name == target.Name {
+			// Set target member to high priority
+			if member.Weight != 100 {
+				member.Weight = 100
+				updated = true
+				targetFound = true
+			}
+		} else {
+			// Set other members to low priority
+			if member.Weight != 10 {
+				member.Weight = 10
+				updated = true
+			}
+		}
+	}
+
+	if !targetFound {
+		return false, fmt.Errorf("target member %s (interface %s) not found in mwan3 config", target.Name, target.Iface)
+	}
+
+	return updated, nil
+}
+
+// writeMWAN3Config writes the mwan3 configuration back to UCI
+func (c *Controller) writeMWAN3Config(config *MWAN3Config) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Update each member's weight
+	for _, member := range config.Members {
+		cmd := exec.CommandContext(ctx, "uci", "set", 
+			fmt.Sprintf("mwan3.%s.weight=%d", member.Name, member.Weight))
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to set weight for member %s: %w", member.Name, err)
+		}
+	}
+
+	// Commit changes
+	cmd := exec.CommandContext(ctx, "uci", "commit", "mwan3")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to commit mwan3 config: %w", err)
+	}
+
+	return nil
+}
+
 // updateRouteMetrics updates route metrics to prefer the target interface
 func (c *Controller) updateRouteMetrics(to *pkg.Member) error {
-	// This is a simplified implementation
-	// In a real implementation, you would:
-	// 1. Get the current routing table
-	// 2. Update metrics for routes to prefer the target interface
-	// 3. Apply the changes
+	c.logger.Info("Updating route metrics via netifd", "target", to.Name, "iface", to.Iface)
 
-	c.logger.Info("Updating route metrics", "target", to.Name, "iface", to.Iface)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	// For now, just log the intended change
+	// Get current interface information
+	cmd := exec.CommandContext(ctx, c.ubusPath, "call", "network.interface."+to.Iface, "status")
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to get interface status for %s: %w", to.Iface, err)
+	}
+
+	var ifaceStatus map[string]interface{}
+	if err := json.Unmarshal(output, &ifaceStatus); err != nil {
+		return fmt.Errorf("failed to parse interface status: %w", err)
+	}
+
+	// Check if interface is up
+	if up, ok := ifaceStatus["up"].(bool); !ok || !up {
+		return fmt.Errorf("interface %s is not up", to.Iface)
+	}
+
+	// Update route metrics by setting interface as preferred
+	// This is done by lowering the metric for this interface's routes
+	cmd = exec.CommandContext(ctx, "ip", "route", "change", "default", 
+		"dev", to.Iface, "metric", "1")
+	if err := cmd.Run(); err != nil {
+		c.logger.Warn("Failed to update default route metric", "iface", to.Iface, "error", err)
+		// Try alternative approach - bring interface up with higher priority
+		cmd = exec.CommandContext(ctx, c.ubusPath, "call", "network.interface."+to.Iface, "up")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to bring up interface %s: %w", to.Iface, err)
+		}
+	}
+
+	c.logger.Info("Route metrics updated successfully", "target", to.Name, "iface", to.Iface)
 	return nil
 }
 

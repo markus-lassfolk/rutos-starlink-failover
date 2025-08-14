@@ -1,9 +1,12 @@
 package discovery
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,43 +27,58 @@ func NewDiscoverer(logger *logx.Logger) *Discoverer {
 }
 
 // DiscoverMembers scans the system for network interfaces and classifies them
-func (d *Discoverer) DiscoverMembers() ([]pkg.Member, error) {
+// Primary source: mwan3 configuration, fallback: system interfaces
+func (d *Discoverer) DiscoverMembers() ([]*pkg.Member, error) {
 	d.logger.Info("Starting member discovery")
 
-	// Get all network interfaces
-	interfaces, err := d.getNetworkInterfaces()
+	var members []*pkg.Member
+
+	// First, try to discover from mwan3 configuration (preferred)
+	mwan3Members, err := d.discoverFromMWAN3()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get network interfaces: %w", err)
+		d.logger.Warn("Failed to discover from mwan3, falling back to system interfaces", "error", err)
+		
+		// Fallback: discover from system interfaces
+		systemMembers, err := d.discoverFromSystemInterfaces()
+		if err != nil {
+			return nil, fmt.Errorf("failed to discover from both mwan3 and system interfaces: %w", err)
+		}
+		members = systemMembers
+	} else {
+		members = mwan3Members
+		d.logger.Info("Successfully discovered members from mwan3", "count", len(members))
 	}
 
-	var members []pkg.Member
+	// Validate and classify all discovered members
+	var validMembers []*pkg.Member
+	for _, member := range members {
+		// Enhanced classification
+		if err := d.enhanceClassification(member); err != nil {
+			d.logger.Warn("Failed to enhance classification", "member", member.Name, "error", err)
+		}
 
-	for _, iface := range interfaces {
-		member, err := d.classifyInterface(iface)
-		if err != nil {
-			d.logger.Warn("Failed to classify interface", map[string]interface{}{
-				"interface": iface,
-				"error":     err.Error(),
-			})
+		// Validate member
+		if err := d.ValidateMember(*member); err != nil {
+			d.logger.Warn("Member validation failed", "member", member.Name, "error", err)
 			continue
 		}
 
-		if member != nil {
-			members = append(members, *member)
-			d.logger.Info("Discovered member", map[string]interface{}{
-				"name":      member.Name,
-				"class":     member.Class,
-				"interface": member.Iface,
-			})
-		}
+		validMembers = append(validMembers, member)
+		d.logger.Info("Discovered member", map[string]interface{}{
+			"name":      member.Name,
+			"class":     member.Class,
+			"interface": member.Iface,
+			"weight":    member.Weight,
+			"source":    "mwan3",
+		})
 	}
 
 	d.logger.Info("Member discovery completed", map[string]interface{}{
-		"total_members": len(members),
-		"members":       getMemberNames(members),
+		"total_members": len(validMembers),
+		"members":       getMemberNames(validMembers),
 	})
 
-	return members, nil
+	return validMembers, nil
 }
 
 // getNetworkInterfaces returns a list of network interface names
@@ -259,7 +277,7 @@ func (d *Discoverer) hasCellularProperties(iface string) bool {
 // hasWiFiProperties checks for WiFi-specific device properties
 func (d *Discoverer) hasWiFiProperties(iface string) bool {
 	// Check for wireless directory
-	wirelessPath := fmt.Sprintf("/proc/net/wireless")
+	wirelessPath := "/proc/net/wireless"
 	if _, err := os.Stat(wirelessPath); err == nil {
 		// Read wireless info to see if this interface is listed
 		content, err := os.ReadFile(wirelessPath)
@@ -415,8 +433,182 @@ func (d *Discoverer) validateGenericMember(member pkg.Member) error {
 	return nil
 }
 
+// discoverFromMWAN3 discovers members from mwan3 configuration
+func (d *Discoverer) discoverFromMWAN3() ([]*pkg.Member, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Read mwan3 configuration
+	cmd := exec.CommandContext(ctx, "uci", "show", "mwan3")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read mwan3 config: %w", err)
+	}
+
+	members := make(map[string]*pkg.Member)
+	lines := strings.Split(string(output), "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Parse member configurations
+		if strings.Contains(line, "mwan3.") && strings.Contains(line, "=member") {
+			parts := strings.Split(line, ".")
+			if len(parts) >= 2 {
+				memberName := parts[1]
+				if _, exists := members[memberName]; !exists {
+					members[memberName] = &pkg.Member{
+						Name:      memberName,
+						Weight:    1,
+						Eligible:  true,
+						CreatedAt: time.Now(),
+						LastSeen:  time.Now(),
+						Detect:    "auto",
+						Config:    make(map[string]string),
+					}
+				}
+			}
+		}
+
+		// Parse member properties
+		if strings.Contains(line, ".interface=") {
+			parts := strings.Split(line, "=")
+			if len(parts) == 2 {
+				memberName := strings.Split(strings.Split(line, ".")[1], ".interface")[0]
+				if member, exists := members[memberName]; exists {
+					member.Iface = strings.Trim(parts[1], "'\"")
+				}
+			}
+		}
+
+		if strings.Contains(line, ".weight=") {
+			parts := strings.Split(line, "=")
+			if len(parts) == 2 {
+				memberName := strings.Split(strings.Split(line, ".")[1], ".weight")[0]
+				if member, exists := members[memberName]; exists {
+					if weight, err := strconv.Atoi(strings.Trim(parts[1], "'\"")); err == nil {
+						member.Weight = weight
+					}
+				}
+			}
+		}
+
+		if strings.Contains(line, ".metric=") {
+			parts := strings.Split(line, "=")
+			if len(parts) == 2 {
+				memberName := strings.Split(strings.Split(line, ".")[1], ".metric")[0]
+				if member, exists := members[memberName]; exists {
+					if metric, err := strconv.Atoi(strings.Trim(parts[1], "'\"")); err == nil {
+						member.Config["metric"] = strconv.Itoa(metric)
+					}
+				}
+			}
+		}
+	}
+
+	// Convert map to slice and validate interfaces
+	var result []*pkg.Member
+	for _, member := range members {
+		if member.Iface == "" {
+			d.logger.Warn("Member has no interface", "member", member.Name)
+			continue
+		}
+		
+		// Classify the member based on interface properties
+		member.Class = d.classifyByName(member.Iface)
+		if member.Class == "" {
+			member.Class = pkg.ClassOther
+		}
+
+		result = append(result, member)
+	}
+
+	return result, nil
+}
+
+// discoverFromSystemInterfaces discovers members from system network interfaces
+func (d *Discoverer) discoverFromSystemInterfaces() ([]*pkg.Member, error) {
+	// Get all network interfaces
+	interfaces, err := d.getNetworkInterfaces()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network interfaces: %w", err)
+	}
+
+	var members []*pkg.Member
+
+	for _, iface := range interfaces {
+		member, err := d.classifyInterface(iface)
+		if err != nil {
+			d.logger.Warn("Failed to classify interface", "interface", iface, "error", err)
+			continue
+		}
+
+		if member != nil {
+			members = append(members, member)
+		}
+	}
+
+	return members, nil
+}
+
+// enhanceClassification performs enhanced classification using multiple methods
+func (d *Discoverer) enhanceClassification(member *pkg.Member) error {
+	// If already classified, try to enhance with additional checks
+	if member.Class == pkg.ClassOther || member.Class == "" {
+		// Try classification by driver
+		if class := d.classifyByDriver(member.Iface); class != "" {
+			member.Class = class
+		} else if class := d.classifyByProperties(member.Iface); class != "" {
+			member.Class = class
+		}
+	}
+
+	// Set class-specific configuration based on enhanced classification
+	switch member.Class {
+	case pkg.ClassStarlink:
+		if member.Weight == 0 || member.Weight == 1 {
+			member.Weight = 100
+		}
+		member.Config["api_endpoint"] = "192.168.100.1"
+		member.Config["check_interval"] = "30s"
+		member.Config["obstruction_threshold"] = "10.0"
+
+	case pkg.ClassCellular:
+		if member.Weight == 0 || member.Weight == 1 {
+			member.Weight = 80
+		}
+		member.Config["check_interval"] = "45s"
+		member.Config["signal_threshold"] = "-110.0"
+		member.Config["roaming_penalty"] = "20"
+
+	case pkg.ClassWiFi:
+		if member.Weight == 0 || member.Weight == 1 {
+			member.Weight = 60
+		}
+		member.Config["check_interval"] = "60s"
+		member.Config["signal_threshold"] = "-70.0"
+
+	case pkg.ClassLAN:
+		if member.Weight == 0 || member.Weight == 1 {
+			member.Weight = 40
+		}
+		member.Config["check_interval"] = "90s"
+
+	default:
+		if member.Weight == 0 || member.Weight == 1 {
+			member.Weight = 20
+		}
+		member.Config["check_interval"] = "120s"
+	}
+
+	return nil
+}
+
 // getMemberNames returns a list of member names
-func getMemberNames(members []pkg.Member) []string {
+func getMemberNames(members []*pkg.Member) []string {
 	names := make([]string, len(members))
 	for i, member := range members {
 		names[i] = member.Name
@@ -425,7 +617,7 @@ func getMemberNames(members []pkg.Member) []string {
 }
 
 // RefreshMembers rediscoveries and validates existing members
-func (d *Discoverer) RefreshMembers(existing []pkg.Member) ([]pkg.Member, error) {
+func (d *Discoverer) RefreshMembers(existing []*pkg.Member) ([]*pkg.Member, error) {
 	d.logger.Info("Refreshing member discovery")
 
 	// Discover new members
@@ -438,9 +630,9 @@ func (d *Discoverer) RefreshMembers(existing []pkg.Member) ([]pkg.Member, error)
 	merged := d.mergeMembers(existing, newMembers)
 
 	// Validate all members
-	var validMembers []pkg.Member
+	var validMembers []*pkg.Member
 	for _, member := range merged {
-		if err := d.ValidateMember(member); err != nil {
+		if err := d.ValidateMember(*member); err != nil {
 			d.logger.Warn("Member validation failed", map[string]interface{}{
 				"member": member.Name,
 				"error":  err.Error(),
@@ -459,14 +651,14 @@ func (d *Discoverer) RefreshMembers(existing []pkg.Member) ([]pkg.Member, error)
 }
 
 // mergeMembers merges existing and new members, preserving configuration
-func (d *Discoverer) mergeMembers(existing, new []pkg.Member) []pkg.Member {
+func (d *Discoverer) mergeMembers(existing, new []*pkg.Member) []*pkg.Member {
 	// Create a map of existing members by name
-	existingMap := make(map[string]pkg.Member)
+	existingMap := make(map[string]*pkg.Member)
 	for _, member := range existing {
 		existingMap[member.Name] = member
 	}
 
-	var merged []pkg.Member
+	var merged []*pkg.Member
 
 	for _, newMember := range new {
 		if existingMember, exists := existingMap[newMember.Name]; exists {

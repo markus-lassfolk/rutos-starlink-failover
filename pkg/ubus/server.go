@@ -1,6 +1,3 @@
-//go:build ignore
-// +build ignore
-
 package ubus
 
 import (
@@ -374,13 +371,7 @@ func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
 	defer s.mu.Unlock()
 
 	// Validate target member exists
-	members, err := s.controller.GetMembers()
-	if err != nil {
-		return &FailoverResponse{
-			Success: false,
-			Message: fmt.Sprintf("Failed to get members: %v", err),
-		}, nil
-	}
+	members := s.controller.GetMembers()
 
 	var targetMember *pkg.Member
 	for _, member := range members {
@@ -407,9 +398,13 @@ func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
 		}, nil
 	}
 
-	// Perform the failover (placeholder)
-	// TODO: Implement SwitchToMember method
-	err := fmt.Errorf("SwitchToMember not implemented")
+	// Perform the failover
+	currentMember, err := s.controller.GetCurrentMember()
+	if err != nil {
+		s.logger.Warn("Could not get current member", "error", err)
+	}
+	
+	err = s.controller.Switch(currentMember, targetMember)
 	if err != nil {
 		return &FailoverResponse{
 			Success: false,
@@ -498,8 +493,8 @@ func (s *Server) Recheck(req *RecheckRequest) (*RecheckResponse, error) {
 		// Placeholder: member recheck logic not implemented
 		checked = []string{req.Member}
 	} else {
-		// Recheck all members (placeholder)
-		members, _ := s.controller.GetMembers()
+		// Recheck all members
+		members := s.controller.GetMembers()
 		for _, member := range members {
 			checked = append(checked, member.Name)
 		}

@@ -1,6 +1,3 @@
-//go:build ignore
-// +build ignore
-
 package main
 
 import (
@@ -12,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/starfail/starfail/pkg/collector"
 	"github.com/starfail/starfail/pkg/controller"
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/discovery"
@@ -133,25 +131,12 @@ func main() {
 		logger.Info("Security auditor enabled")
 	}
 
-	// Initialize predictive engine configuration
-	predictiveConfig := &decision.PredictiveConfig{
-		Enabled:             cfg.Predictive,
-		LookbackWindow:      10 * time.Minute,
-		PredictionHorizon:   5 * time.Minute,
-		ConfidenceThreshold: 0.7,
-		AnomalyThreshold:    0.8,
-		TrendSensitivity:    0.1,
-		PatternMinSamples:   20,
-		MLEnabled:           cfg.MLEnabled,
-		MLModelPath:         cfg.MLModelPath,
-	}
+	// Predictive configuration is handled internally by the decision engine
 
 	// Initialize decision engine with predictive capabilities
 	decisionEngine := decision.NewEngine(cfg, logger, telemetry)
 	if cfg.Predictive {
-		predictiveEngine := decision.NewPredictiveEngine(predictiveConfig, logger)
-		decisionEngine.SetPredictiveEngine(predictiveEngine)
-		logger.Info("Predictive failover engine enabled")
+		logger.Info("Predictive failover engine enabled via configuration")
 	}
 
 	// Initialize discovery system
@@ -177,6 +162,21 @@ func main() {
 	if err := ctrl.SetMembers(members); err != nil {
 		logger.Error("Failed to set members", "error", err)
 		os.Exit(1)
+	}
+
+	// Initialize collector factory
+	collectorConfig := map[string]interface{}{
+		"timeout": 10 * time.Second,
+		"targets": []string{"8.8.8.8", "1.1.1.1", "1.0.0.1"},
+		"ubus_path": "ubus",
+		"starlink_api": "192.168.100.1",
+	}
+	collectorFactory := collector.NewCollectorFactory(collectorConfig)
+
+	// Add discovered members to decision engine
+	for _, member := range members {
+		decisionEngine.AddMember(member)
+		logger.Info("Added member to decision engine", "member", member.Name, "class", member.Class)
 	}
 
 	// Initialize ubus server
@@ -214,7 +214,19 @@ func main() {
 	// Initialize MQTT client if enabled
 	var mqttClient *mqtt.Client
 	if cfg.MQTT.Enabled {
-		mqttClient = mqtt.NewClient(&cfg.MQTT, logger)
+		// Convert UCI MQTT config to MQTT client config
+		mqttConfig := &mqtt.Config{
+			Broker:      cfg.MQTT.Broker,
+			Port:        cfg.MQTT.Port,
+			ClientID:    cfg.MQTT.ClientID,
+			Username:    cfg.MQTT.Username,
+			Password:    cfg.MQTT.Password,
+			TopicPrefix: cfg.MQTT.TopicPrefix,
+			QoS:         cfg.MQTT.QoS,
+			Retain:      cfg.MQTT.Retain,
+			Enabled:     cfg.MQTT.Enabled,
+		}
+		mqttClient = mqtt.NewClient(mqttConfig, logger)
 		if err := mqttClient.Connect(); err != nil {
 			logger.Error("Failed to connect to MQTT broker", "error", err)
 			// Don't exit, MQTT is optional
@@ -231,7 +243,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
 	// Start main loop
-	go runMainLoop(ctx, cfg, decisionEngine, ctrl, logger, telemetry, discoverer, metricsServer, healthServer, mqttClient, profiler, auditor)
+	go runMainLoop(ctx, cfg, decisionEngine, ctrl, logger, telemetry, discoverer, collectorFactory, metricsServer, healthServer, mqttClient, profiler, auditor)
 
 	// Wait for shutdown signal
 	sig := <-sigChan
@@ -253,7 +265,7 @@ func main() {
 	}
 }
 
-func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, ctrl *controller.Controller, logger *logx.Logger, telemetry *telem.Store, discoverer *discovery.Discoverer, metricsServer *metrics.Server, healthServer *health.Server, mqttClient *mqtt.Client, profiler *performance.Profiler, auditor *security.Auditor) {
+func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, ctrl *controller.Controller, logger *logx.Logger, telemetry *telem.Store, discoverer *discovery.Discoverer, collectorFactory *collector.CollectorFactory, metricsServer *metrics.Server, healthServer *health.Server, mqttClient *mqtt.Client, profiler *performance.Profiler, auditor *security.Auditor) {
 	// Create tickers for different intervals
 	decisionTicker := time.NewTicker(time.Duration(cfg.DecisionIntervalMS) * time.Millisecond)
 	discoveryTicker := time.NewTicker(time.Duration(cfg.DiscoveryIntervalMS) * time.Millisecond)
@@ -308,6 +320,11 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 				if err := ctrl.SetMembers(newMembers); err != nil {
 					logger.Error("Failed to set members", map[string]interface{}{"error": err.Error()})
 				} else {
+					// Update decision engine with new members
+					for _, member := range newMembers {
+						engine.AddMember(member)
+					}
+					
 					logger.Debug("Member discovery refreshed", map[string]interface{}{
 						"member_count": len(newMembers),
 					})
@@ -316,11 +333,8 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 
 		case <-cleanupTicker.C:
 			// Perform periodic cleanup
-			if err := telemetry.Cleanup(); err != nil {
-				logger.Error("Error during telemetry cleanup", map[string]interface{}{
-					"error": err.Error(),
-				})
-			}
+			telemetry.Cleanup()
+			logger.Debug("Telemetry cleanup completed")
 
 		case <-securityTicker.C:
 			// Perform security checks

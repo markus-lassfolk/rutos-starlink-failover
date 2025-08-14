@@ -25,7 +25,8 @@ type Client struct {
 	callMu    sync.Mutex
 	// Registered handlers for incoming requests
 	handlers map[string]map[string]MethodHandler
-
+	// Registered objects
+	objects map[string]bool
 }
 
 // Message represents a ubus message
@@ -45,10 +46,9 @@ type MethodHandler func(ctx context.Context, data json.RawMessage) (interface{},
 // NewClient creates a new ubus client
 func NewClient(logger *logx.Logger) *Client {
 	return &Client{
-
 		logger:   logger,
 		handlers: make(map[string]map[string]MethodHandler),
-
+		objects:  make(map[string]bool),
 	}
 }
 
@@ -124,47 +124,24 @@ func (c *Client) Call(ctx context.Context, object, method string, data interface
 func (c *Client) callViaCLI(ctx context.Context, object, method string, data interface{}) (json.RawMessage, error) {
 	args := []string{"call", object, method}
 
+	var payload []byte
 	if data != nil {
 		b, err := json.Marshal(data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal data: %w", err)
 		}
 		payload = b
+		args = append(args, string(payload))
 	}
 
-	msg := &Message{
-		Type:   "call",
-		Path:   object,
-		Method: method,
-		Data:   payload,
-		ID:     c.GetNextCallID(),
-	}
-
-	c.callMu.Lock()
-	defer c.callMu.Unlock()
-
-	if err := c.sendMessage(msg); err != nil {
-		return nil, fmt.Errorf("failed to send message: %w", err)
-	}
-
-	if deadline, ok := ctx.Deadline(); ok {
-		c.conn.SetReadDeadline(deadline)
-	}
-	defer c.conn.SetReadDeadline(time.Time{})
-
-	resp, err := c.readMessage()
+	// Execute ubus CLI command
+	cmd := exec.CommandContext(ctx, "ubus", args...)
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		return nil, fmt.Errorf("ubus command failed: %w", err)
 	}
 
-	if resp.Code != 0 {
-		if resp.Message != "" {
-			return nil, fmt.Errorf(resp.Message)
-		}
-		return nil, fmt.Errorf("ubus error code %d", resp.Code)
-	}
-
-	return resp.Data, nil
+	return json.RawMessage(output), nil
 }
 
 // RegisterObject registers an object with the ubus daemon
@@ -370,7 +347,7 @@ func (c *Client) handleMessage(ctx context.Context, msg Message) {
 
 		c.callMu.Lock()
 		if err := c.sendMessage(resp); err != nil {
-			c.logger.Errorf("failed to send response: %v", err)
+			c.logger.Error("failed to send response", "error", err)
 		}
 		c.callMu.Unlock()
 	}
