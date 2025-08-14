@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package ubus
 
 import (
@@ -374,7 +377,6 @@ func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
 			Message: fmt.Sprintf("Failed to get members: %v", err),
 		}, nil
 	}
-
 
 	var targetMember *pkg.Member
 	for _, member := range members {
