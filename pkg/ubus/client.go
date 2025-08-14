@@ -163,7 +163,10 @@ func (c *Client) RegisterObject(ctx context.Context, name string, methods map[st
 		methodNames = append(methodNames, m)
 	}
 
-	data, _ := json.Marshal(methodNames)
+	data, err := json.Marshal(methodNames)
+	if err != nil {
+		return fmt.Errorf("failed to marshal method names: %w", err)
+	}
 	msg := &Message{Type: "register", Path: name, Data: data}
 
 	c.callMu.Lock()
