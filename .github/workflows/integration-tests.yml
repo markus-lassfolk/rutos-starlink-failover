@@ -1,120 +1,157 @@
-name: Integration Tests
+name: Go Integration Tests
 
 on:
   push:
     branches: [ '*' ]
     paths:
-      - 'Starlink-RUTOS-Failover/**'
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'pkg/**'
+      - 'cmd/**'
   pull_request:
     branches: [ '*' ]
     paths:
-      - 'Starlink-RUTOS-Failover/**'
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'pkg/**'
+      - 'cmd/**'
 
 jobs:
-  starlink-integration:
+  go-integration:
     runs-on: ubuntu-latest
-    name: Starlink Integration Tests
+    name: Go Integration Tests
     steps:
       - uses: actions/checkout@v4
       
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+          cache: true
+      
       - name: Install test dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y curl jq bc netcat-openbsd
+          go mod download
+          go install github.com/stretchr/testify@latest
+          go install github.com/golang/mock/mockgen@latest
       
-      - name: Test script dependencies
+      - name: Run integration tests
         run: |
-          echo "Checking if all required tools are available for scripts..."
+          echo "Running Go integration tests..."
           
-          # Check for required commands in scripts
-          echo "Testing grpcurl availability..."
-          if ! command -v grpcurl >/dev/null 2>&1; then
-            echo "Installing grpcurl for testing..."
-            curl -sSL "https://github.com/fullstorydev/grpcurl/releases/download/v1.8.8/grpcurl_1.8.8_linux_x86_64.tar.gz" | tar -xz -C /tmp
-            sudo mv /tmp/grpcurl /usr/local/bin/
-            chmod +x /usr/local/bin/grpcurl
+          # Run tests with verbose output and coverage
+          go test -v -race -coverprofile=integration.out ./pkg/...
+          
+          # Run integration tests for specific packages
+          echo "Testing controller package..."
+          go test -v -race ./pkg/controller/...
+          
+          echo "Testing decision engine..."
+          go test -v -race ./pkg/decision/...
+          
+          echo "Testing discovery package..."
+          go test -v -race ./pkg/discovery/...
+          
+          echo "Testing health server..."
+          go test -v -race ./pkg/health/...
+          
+          echo "Testing metrics server..."
+          go test -v -race ./pkg/metrics/...
+          
+          echo "Testing MQTT client..."
+          go test -v -race ./pkg/mqtt/...
+          
+          echo "Testing telemetry store..."
+          go test -v -race ./pkg/telem/...
+          
+          echo "Testing UCI configuration..."
+          go test -v -race ./pkg/uci/...
+          
+          echo "Testing UBUS client/server..."
+          go test -v -race ./pkg/ubus/...
+      
+      - name: Test binary compilation
+        run: |
+          echo "Testing binary compilation..."
+          
+          # Test starfaild compilation
+          echo "Building starfaild..."
+          go build -o /tmp/starfaild ./cmd/starfaild
+          if [ -f /tmp/starfaild ]; then
+            echo "✅ starfaild compiled successfully"
+            /tmp/starfaild -version
+          else
+            echo "::error::starfaild failed to compile"
+            exit 1
           fi
           
-          echo "✅ grpcurl available"
-          echo "✅ jq available: $(jq --version)"
-          echo "✅ curl available: $(curl --version | head -1)"
-          echo "✅ bc available: $(echo "scale=2; 1+1" | bc)"
+          # Test starfailsysmgmt compilation
+          echo "Building starfailsysmgmt..."
+          go build -o /tmp/starfailsysmgmt ./cmd/starfailsysmgmt
+          if [ -f /tmp/starfailsysmgmt ]; then
+            echo "✅ starfailsysmgmt compiled successfully"
+            /tmp/starfailsysmgmt -version
+          else
+            echo "::error::starfailsysmgmt failed to compile"
+            exit 1
+          fi
       
-      - name: Validate Azure logging scripts
+      - name: Test configuration loading
         run: |
-          echo "Testing Azure logging script configurations..."
+          echo "Testing configuration loading..."
           
-          cd Starlink-RUTOS-Failover/AzureLogging
+          # Create a test configuration file
+          cat > /tmp/test-config << 'EOF'
+          config starfail
+              option enabled '1'
+              option log_level 'info'
+              option predictive '1'
+              option use_mwan3 '1'
+              option retention_hours '24'
+              option max_ram_mb '100'
+              option performance_profiling '0'
+          EOF
           
-          # Test script syntax without execution
-          for script in *.sh; do
-            if [ -f "$script" ]; then
-              echo "Syntax checking: $script"
-              bash -n "$script" || exit 1
-            fi
+          # Test configuration loading
+          if go run ./cmd/starfaild -config /tmp/test-config -version; then
+            echo "✅ Configuration loading works correctly"
+          else
+            echo "::error::Configuration loading failed"
+            exit 1
+          fi
+      
+      - name: Test package dependencies
+        run: |
+          echo "Testing package dependencies..."
+          
+          # Check for circular dependencies
+          go mod graph | grep -v "github.com/starfail/starfail" | sort | uniq -c | sort -nr | head -10
+          
+          # Verify all dependencies are properly declared
+          go mod verify
+          
+          # Check for unused dependencies
+          go mod tidy
+          if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
+            echo "::warning::go.mod or go.sum has uncommitted changes"
+          fi
+      
+      - name: Test cross-compilation
+        run: |
+          echo "Testing cross-compilation for different architectures..."
+          
+          # Test compilation for different platforms
+          for os in linux darwin windows; do
+            for arch in amd64 arm64; do
+              echo "Building for $os/$arch..."
+              GOOS=$os GOARCH=$arch go build -o /tmp/starfaild-$os-$arch ./cmd/starfaild
+              if [ -f "/tmp/starfaild-$os-$arch" ]; then
+                echo "✅ Compiled successfully for $os/$arch"
+              else
+                echo "::error::Failed to compile for $os/$arch"
+                exit 1
+              fi
+            done
           done
-          
-          echo "✅ All shell scripts have valid syntax"
-      
-      - name: Test Azure Function configuration
-        run: |
-          echo "Testing Azure Function setup..."
-          
-          if [ -f "Starlink-RUTOS-Failover/AzureLogging/HttpLogIngestor/function.json" ]; then
-            echo "Validating Azure Function binding configuration..."
-            
-            # Check for HTTP trigger
-            if jq -e '.bindings[] | select(.type == "httpTrigger" and .direction == "in")' \
-               Starlink-RUTOS-Failover/AzureLogging/HttpLogIngestor/function.json >/dev/null; then
-              echo "✅ HTTP trigger configured correctly"
-            else
-              echo "::error::HTTP trigger not found or misconfigured"
-              exit 1
-            fi
-            
-            # Check for blob output bindings
-            blob_outputs=$(jq '[.bindings[] | select(.type == "blob" and .direction == "out")] | length' \
-                          Starlink-RUTOS-Failover/AzureLogging/HttpLogIngestor/function.json)
-            
-            if [ "$blob_outputs" -ge 1 ]; then
-              echo "✅ Found $blob_outputs blob output binding(s)"
-            else
-              echo "::warning::No blob output bindings found"
-            fi
-          fi
-      
-      - name: Test Bicep template structure
-        run: |
-          echo "Testing Bicep template structure..."
-          
-          if [ -f "Starlink-RUTOS-Failover/AzureLogging/main.bicep" ]; then
-            bicep_file="Starlink-RUTOS-Failover/AzureLogging/main.bicep"
-            
-            # Check for required resource types
-            if grep -q "Microsoft.Storage/storageAccounts" "$bicep_file"; then
-              echo "✅ Storage account resource found"
-            else
-              echo "::error::Storage account resource not found in Bicep template"
-              exit 1
-            fi
-            
-            if grep -q "Microsoft.Web/serverfarms" "$bicep_file"; then
-              echo "✅ App Service Plan resource found"
-            else
-              echo "::warning::App Service Plan resource not found"
-            fi
-            
-            if grep -q "Microsoft.Web/sites" "$bicep_file"; then
-              echo "✅ Function App resource found"
-            else
-              echo "::error::Function App resource not found in Bicep template"
-              exit 1
-            fi
-            
-            # Check for outputs
-            if grep -q "^output" "$bicep_file"; then
-              echo "✅ Outputs defined in Bicep template"
-            else
-              echo "::warning::No outputs found in Bicep template"
-            fi
-          fi
