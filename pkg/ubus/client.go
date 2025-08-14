@@ -232,7 +232,9 @@ func (c *Client) Listen(ctx context.Context) error {
 		if handler == nil {
 			resp := &Message{Type: "response", ID: msg.ID, Code: 404, Message: "method not found"}
 			c.callMu.Lock()
-			_ = c.sendMessage(resp)
+			if err := c.sendMessage(resp); err != nil {
+				c.logger.Errorf("failed to send method not found response: %v", err)
+			}
 			c.callMu.Unlock()
 			continue
 		}
