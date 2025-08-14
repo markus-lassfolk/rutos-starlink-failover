@@ -75,8 +75,12 @@ func (s *Server) Stop() error {
 
 	// Unregister object
 	if s.client != nil {
-		s.client.UnregisterObject(context.Background(), "starfail")
-		s.client.Disconnect()
+		if err := s.client.UnregisterObject(context.Background(), "starfail"); err != nil {
+			s.logger.Error("failed to unregister ubus object", "error", err)
+		}
+		if err := s.client.Disconnect(); err != nil {
+			s.logger.Error("failed to disconnect from ubus", "error", err)
+		}
 	}
 
 	s.logger.Info("ubus server stopped")
@@ -193,9 +197,9 @@ func (s *Server) handleActionWrapper(ctx context.Context, data json.RawMessage) 
 
 // StatusResponse represents the response for status queries
 type StatusResponse struct {
-	ActiveMember    *pkg.Member     `json:"active_member"`
-	Members         []pkg.Member    `json:"members"`
-	LastSwitch      *pkg.Event      `json:"last_switch,omitempty"`
+	ActiveMember    *pkg.Member       `json:"active_member"`
+	Members         []pkg.Member      `json:"members"`
+	LastSwitch      *pkg.Event        `json:"last_switch,omitempty"`
 	Uptime          time.Duration     `json:"uptime"`
 	DecisionState   string            `json:"decision_state"`
 	ControllerState string            `json:"controller_state"`
@@ -265,8 +269,8 @@ type MemberInfo struct {
 	Member  pkg.Member   `json:"member"`
 	Metrics *pkg.Metrics `json:"metrics,omitempty"`
 	Score   *pkg.Score   `json:"score,omitempty"`
-	State   string         `json:"state"`
-	Status  string         `json:"status"`
+	State   string       `json:"state"`
+	Status  string       `json:"status"`
 }
 
 // GetMembers returns detailed information about all members
@@ -314,9 +318,9 @@ func (s *Server) GetMembers() (*MembersResponse, error) {
 
 // MetricsResponse represents the response for metrics queries
 type MetricsResponse struct {
-	Member  string         `json:"member"`
+	Member  string          `json:"member"`
 	Samples []*telem.Sample `json:"samples"`
-	Period  time.Duration  `json:"period"`
+	Period  time.Duration   `json:"period"`
 }
 
 // GetMetrics returns historical metrics for a specific member
@@ -336,7 +340,7 @@ func (s *Server) GetMetrics(memberName string, hours int) (*MetricsResponse, err
 
 // EventsResponse represents the response for events queries
 type EventsResponse struct {
-	Events []*pkg.Event `json:"events"`
+	Events []*pkg.Event  `json:"events"`
 	Period time.Duration `json:"period"`
 }
 
@@ -380,7 +384,7 @@ func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
 			Message: fmt.Sprintf("Failed to get members: %v", err),
 		}, nil
 	}
-	
+
 	var targetMember *pkg.Member
 	for _, member := range members {
 		if member.Name == req.TargetMember {
