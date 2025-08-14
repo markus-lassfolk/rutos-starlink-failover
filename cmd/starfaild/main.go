@@ -9,7 +9,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/collector"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/controller"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/telem"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/ubus"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/uci"
 )
 
@@ -76,9 +80,38 @@ func main() {
 		"main_enabled", config.Main.Enable,
 	)
 
-	// Setup signal handling
+	// Initialize core components required by ubus server
+	storeCfg := telem.Config{
+		MaxSamplesPerMember: config.Main.MaxSamplesPerMember,
+		MaxEvents:           config.Main.MaxEvents,
+		RetentionHours:      config.Main.RetentionHours,
+		MaxRAMMB:            config.Main.MaxRAMMB,
+	}
+	store := telem.NewStore(storeCfg)
+
+	ctrlCfg := controller.Config{
+		UseMwan3:  config.Main.UseMwan3,
+		DryRun:    config.Main.DryRun,
+		CooldownS: config.Main.CooldownS,
+	}
+	ctrl := controller.NewController(ctrlCfg, logger)
+
+	registry := collector.NewRegistry()
+
+	// Setup signal handling and background context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Start ubus API server if enabled
+	var ubusServer *ubus.Server
+	if config.Main.EnableUbus {
+		ubusServer = ubus.NewServer(ubus.Config{ServiceName: "starfail", Enable: true}, logger, store, ctrl, registry)
+		if err := ubusServer.Start(ctx); err != nil {
+			logger.Error("failed to start ubus server", "error", err)
+		} else {
+			defer ubusServer.Stop(ctx)
+		}
+	}
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
