@@ -25,19 +25,26 @@
 - ✅ LAN/Generic ping-based collector with interface binding
 
 ### Core Functionality 🔄 IN PROGRESS
+- 🔄 Core daemon loop and lifecycle orchestration (remaining work)
 - 🔄 Decision engine with EWMA scoring and hysteresis
 - 🔄 mwan3 integration and controllers
-- 🔄 ubus API server with complete method implementation
+- 🔄 ubus API server with daemon loop integration still pending
 - 🔄 CLI implementation (starfailctl)
 - 🔄 Telemetry store with RAM-backed ring buffers
 
-### Advanced Features 📋 PLANNED
-- 📋 **System Health Monitoring & Auto-Recovery** (starfail-sysmgmt)
+### Advanced Features ✅ COMPLETE
+- ✅ **System Health Monitoring & Auto-Recovery** (starfail-sysmgmt)
   - Overlay space management and log cleanup
   - Service watchdog for hung processes
   - Log flood detection and prevention
   - NTP sync monitoring and time drift correction
   - Network interface stabilization
+- ✅ **Advanced Notification Systems**
+  - Smart notification management with rate limiting
+  - Contextual alerts with priority levels and cooldown
+  - Emergency notifications with retry and acknowledgment
+
+### Advanced Features 📋 PLANNED
 - 📋 **Enhanced Starlink Diagnostics**
   - Hardware self-test and thermal monitoring
   - Bandwidth restrictions and uptime tracking
@@ -53,10 +60,6 @@
   - Quality factor breakdown with scoring transparency
   - Real-time decision viewer and historical pattern analysis
   - Root cause analysis with automated recommendations
-- 📋 **Advanced Notification Systems**
-  - Smart notification management with rate limiting
-  - Contextual alerts with priority levels and cooldown
-  - Emergency notifications with retry and acknowledgment
 - 📋 **Predictive Obstruction Management**
   - Obstruction acceleration detection for early warning
   - SNR trend analysis and movement-triggered map refresh
