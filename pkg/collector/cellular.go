@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -189,6 +191,8 @@ func (cc *CellularCollector) collectFallbackInfo(ctx context.Context, member *pk
 			// Interface is up, try to get basic signal info
 			cc.collectBasicSignalInfo(member, info)
 		}
+	} else {
+		fmt.Printf("Warning: failed to read %s: %v\n", carrierPath, err)
 	}
 
 	return nil
@@ -203,28 +207,63 @@ func (cc *CellularCollector) collectBasicSignalInfo(member *pkg.Member, info *Ce
 	}
 
 	for _, path := range signalPaths {
-		if data, err := cc.readFile(path); err == nil {
-			if signal := cc.parseSignalFromFile(data, member.Iface); signal != nil {
-				// Convert signal to RSRP (rough approximation)
-				rsrp := cc.convertSignalToRSRP(*signal)
-				info.RSRP = &rsrp
-				break
-			}
+		data, err := cc.readFile(path)
+		if err != nil {
+			fmt.Printf("Warning: failed to read %s: %v\n", path, err)
+			continue
+		}
+
+		if signal := cc.parseSignalFromFile(data, member.Iface); signal != nil {
+			// Convert signal to RSRP (rough approximation)
+			rsrp := cc.convertSignalToRSRP(*signal)
+			info.RSRP = &rsrp
+			break
+		} else {
+			fmt.Printf("Debug: unable to parse signal from %s for %s\n", path, member.Iface)
 		}
 	}
 }
 
 // readFile reads a file and returns its contents
 func (cc *CellularCollector) readFile(path string) (string, error) {
-	// This is a simplified implementation
-	// In a real implementation, you'd use os.ReadFile
-	return "", fmt.Errorf("file reading not implemented")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read %s: %w", path, err)
+	}
+	return string(data), nil
 }
 
 // parseSignalFromFile parses signal strength from file contents
 func (cc *CellularCollector) parseSignalFromFile(data, iface string) *int {
-	// This is a simplified implementation
-	// In a real implementation, you'd parse the file format
+	// First, try to parse the data as a simple integer value
+	if val, err := strconv.Atoi(strings.TrimSpace(data)); err == nil {
+		return &val
+	}
+
+	// Otherwise attempt to parse /proc/net/wireless format
+	lines := strings.Split(data, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, iface) {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		// Expected format: iface: status link level noise ...
+		if len(fields) < 4 {
+			return nil
+		}
+
+		// The level is typically the 4th field
+		levelStr := strings.TrimSuffix(fields[3], ".")
+		level, err := strconv.ParseFloat(levelStr, 64)
+		if err != nil {
+			return nil
+		}
+		lvl := int(level)
+		return &lvl
+	}
+
 	return nil
 }
 
