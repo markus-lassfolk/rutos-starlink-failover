@@ -26,6 +26,10 @@ config starfail 'main'
     
     # Enable predictive failover
     option predictive '1'
+
+    # Machine learning model configuration
+    option ml_enabled '1'
+    option ml_model_path '/etc/starfail/models.json'
     
     # Minimum score difference required to switch
     option switch_margin '10'
