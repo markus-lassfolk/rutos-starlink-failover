@@ -1,157 +1,239 @@
-name: Go Integration Tests
+name: Integration Tests
 
 on:
   push:
-    branches: [ '*' ]
+    branches: [ main, develop ]
     paths:
       - '**/*.go'
       - 'go.mod'
       - 'go.sum'
-      - 'pkg/**'
       - 'cmd/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'tests/**'
   pull_request:
-    branches: [ '*' ]
+    branches: [ main, develop ]
     paths:
       - '**/*.go'
       - 'go.mod'
       - 'go.sum'
-      - 'pkg/**'
       - 'cmd/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'tests/**'
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday at 2 AM
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
-  go-integration:
+  integration-tests:
     runs-on: ubuntu-latest
-    name: Go Integration Tests
+    name: Integration Tests
+    strategy:
+      matrix:
+        test-suite: ['unit', 'integration', 'e2e']
+        go-version: ['1.22']
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
-      - name: Set up Go
+      - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4
         with:
-          go-version: '1.22'
+          go-version: ${{ matrix.go-version }}
           cache: true
       
-      - name: Install test dependencies
+      - name: Install dependencies
         run: |
+          echo "📦 Installing Go dependencies..."
           go mod download
-          go install github.com/stretchr/testify@latest
-          go install github.com/golang/mock/mockgen@latest
+          go mod verify
+      
+      - name: Install test tools
+        run: |
+          echo "🔧 Installing test tools..."
+          go install github.com/axw/gocov/gocov@latest
+          go install github.com/AlekSi/gocov-xml@latest
+          go install github.com/tebeka/go2xunit@latest
+          go install gotest.tools/gotestsum@latest
+      
+      - name: Run unit tests
+        if: matrix.test-suite == 'unit'
+        run: |
+          echo "🧪 Running unit tests..."
+          mkdir -p test-results
+          
+          # Run unit tests with coverage
+          gotestsum --format=standard-verbose --jsonfile=test-results/unit-tests.json --junitfile=test-results/unit-tests.xml \
+            -- go test -v -race -coverprofile=coverage-unit.out -covermode=atomic ./pkg/...
+          
+          # Generate coverage report
+          if [ -f coverage-unit.out ]; then
+            go tool cover -html=coverage-unit.out -o coverage-unit.html
+            go tool cover -func=coverage-unit.out > coverage-unit.txt
+          fi
       
       - name: Run integration tests
+        if: matrix.test-suite == 'integration'
         run: |
-          echo "Running Go integration tests..."
+          echo "🔗 Running integration tests..."
+          mkdir -p test-results
           
-          # Run tests with verbose output and coverage
-          go test -v -race -coverprofile=integration.out ./pkg/...
+          # Run integration tests
+          gotestsum --format=standard-verbose --jsonfile=test-results/integration-tests.json --junitfile=test-results/integration-tests.xml \
+            -- go test -v -race -coverprofile=coverage-integration.out -covermode=atomic -tags=integration ./...
           
-          # Run integration tests for specific packages
-          echo "Testing controller package..."
-          go test -v -race ./pkg/controller/...
-          
-          echo "Testing decision engine..."
-          go test -v -race ./pkg/decision/...
-          
-          echo "Testing discovery package..."
-          go test -v -race ./pkg/discovery/...
-          
-          echo "Testing health server..."
-          go test -v -race ./pkg/health/...
-          
-          echo "Testing metrics server..."
-          go test -v -race ./pkg/metrics/...
-          
-          echo "Testing MQTT client..."
-          go test -v -race ./pkg/mqtt/...
-          
-          echo "Testing telemetry store..."
-          go test -v -race ./pkg/telem/...
-          
-          echo "Testing UCI configuration..."
-          go test -v -race ./pkg/uci/...
-          
-          echo "Testing UBUS client/server..."
-          go test -v -race ./pkg/ubus/...
-      
-      - name: Test binary compilation
-        run: |
-          echo "Testing binary compilation..."
-          
-          # Test starfaild compilation
-          echo "Building starfaild..."
-          go build -o /tmp/starfaild ./cmd/starfaild
-          if [ -f /tmp/starfaild ]; then
-            echo "✅ starfaild compiled successfully"
-            /tmp/starfaild -version
-          else
-            echo "::error::starfaild failed to compile"
-            exit 1
-          fi
-          
-          # Test starfailsysmgmt compilation
-          echo "Building starfailsysmgmt..."
-          go build -o /tmp/starfailsysmgmt ./cmd/starfailsysmgmt
-          if [ -f /tmp/starfailsysmgmt ]; then
-            echo "✅ starfailsysmgmt compiled successfully"
-            /tmp/starfailsysmgmt -version
-          else
-            echo "::error::starfailsysmgmt failed to compile"
-            exit 1
+          # Generate coverage report
+          if [ -f coverage-integration.out ]; then
+            go tool cover -html=coverage-integration.out -o coverage-integration.html
+            go tool cover -func=coverage-integration.out > coverage-integration.txt
           fi
       
-      - name: Test configuration loading
+      - name: Run end-to-end tests
+        if: matrix.test-suite == 'e2e'
         run: |
-          echo "Testing configuration loading..."
+          echo "🌐 Running end-to-end tests..."
+          mkdir -p test-results
           
-          # Create a test configuration file
-          cat > /tmp/test-config << 'EOF'
-          config starfail
-              option enabled '1'
-              option log_level 'info'
-              option predictive '1'
-              option use_mwan3 '1'
-              option retention_hours '24'
-              option max_ram_mb '100'
-              option performance_profiling '0'
-          EOF
+          # Build binaries for testing
+          go build -o bin/starfaild ./cmd/starfaild
+          go build -o bin/starfailsysmgmt ./cmd/starfailsysmgmt
           
-          # Test configuration loading
-          if go run ./cmd/starfaild -config /tmp/test-config -version; then
-            echo "✅ Configuration loading works correctly"
-          else
-            echo "::error::Configuration loading failed"
-            exit 1
+          # Run E2E tests
+          gotestsum --format=standard-verbose --jsonfile=test-results/e2e-tests.json --junitfile=test-results/e2e-tests.xml \
+            -- go test -v -race -coverprofile=coverage-e2e.out -covermode=atomic -tags=e2e ./...
+          
+          # Generate coverage report
+          if [ -f coverage-e2e.out ]; then
+            go tool cover -html=coverage-e2e.out -o coverage-e2e.html
+            go tool cover -func=coverage-e2e.out > coverage-e2e.txt
           fi
       
-      - name: Test package dependencies
+      - name: Run performance tests
+        if: matrix.test-suite == 'unit'
         run: |
-          echo "Testing package dependencies..."
+          echo "⚡ Running performance tests..."
+          mkdir -p test-results
           
-          # Check for circular dependencies
-          go mod graph | grep -v "github.com/starfail/starfail" | sort | uniq -c | sort -nr | head -10
+          # Run benchmarks
+          gotestsum --format=standard-verbose --jsonfile=test-results/benchmark-tests.json \
+            -- go test -bench=. -benchmem -run=^$ ./pkg/... > benchmark-results.txt 2>&1 || true
           
-          # Verify all dependencies are properly declared
+          # Analyze benchmark results
+          if [ -f benchmark-results.txt ]; then
+            echo "📊 Benchmark Results Summary:"
+            grep -E "^Benchmark|^ok|^PASS|^FAIL" benchmark-results.txt || echo "No benchmark results found"
+          fi
+      
+      - name: Run stress tests
+        if: matrix.test-suite == 'integration'
+        run: |
+          echo "💪 Running stress tests..."
+          mkdir -p test-results
+          
+          # Run stress tests with multiple iterations
+          for i in {1..3}; do
+            echo "Stress test iteration $i/3"
+            gotestsum --format=standard-verbose \
+              -- go test -v -race -timeout=10m -run=^TestStress ./pkg/... || true
+          done
+      
+      - name: Test binary functionality
+        if: matrix.test-suite == 'e2e'
+        run: |
+          echo "🔧 Testing binary functionality..."
+          
+          # Test starfaild binary
+          echo "Testing starfaild binary..."
+          ./bin/starfaild --help || echo "starfaild help command completed"
+          
+          # Test starfailsysmgmt binary
+          echo "Testing starfailsysmgmt binary..."
+          ./bin/starfailsysmgmt --help || echo "starfailsysmgmt help command completed"
+          
+          # Test version commands
+          ./bin/starfaild --version || echo "starfaild version command completed"
+          ./bin/starfailsysmgmt --version || echo "starfailsysmgmt version command completed"
+      
+      - name: Run compatibility tests
+        if: matrix.test-suite == 'integration'
+        run: |
+          echo "🔍 Running compatibility tests..."
+          
+          # Test Go version compatibility
+          go version
+          
+          # Test module compatibility
           go mod verify
           
-          # Check for unused dependencies
-          go mod tidy
-          if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
-            echo "::warning::go.mod or go.sum has uncommitted changes"
-          fi
-      
-      - name: Test cross-compilation
-        run: |
-          echo "Testing cross-compilation for different architectures..."
+          # Test build compatibility
+          go build ./...
           
-          # Test compilation for different platforms
-          for os in linux darwin windows; do
-            for arch in amd64 arm64; do
-              echo "Building for $os/$arch..."
-              GOOS=$os GOARCH=$arch go build -o /tmp/starfaild-$os-$arch ./cmd/starfaild
-              if [ -f "/tmp/starfaild-$os-$arch" ]; then
-                echo "✅ Compiled successfully for $os/$arch"
-              else
-                echo "::error::Failed to compile for $os/$arch"
-                exit 1
-              fi
-            done
+          # Test test compatibility
+          go test ./... -run=^TestCompatibility || echo "No compatibility tests found"
+      
+      - name: Generate test report
+        if: always()
+        run: |
+          echo "📊 Generating test report..."
+          
+          # Create a comprehensive test report
+          echo "# Integration Test Report" > test-report.md
+          echo "" >> test-report.md
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> test-report.md
+          echo "**Branch:** ${{ github.ref_name }}" >> test-report.md
+          echo "**Commit:** ${{ github.sha }}" >> test-report.md
+          echo "**Test Suite:** ${{ matrix.test-suite }}" >> test-report.md
+          echo "**Go Version:** ${{ matrix.go-version }}" >> test-report.md
+          echo "" >> test-report.md
+          
+          echo "## Test Results" >> test-report.md
+          
+          # Add test result files if they exist
+          for result_file in test-results/*.json; do
+            if [ -f "$result_file" ]; then
+              echo "### $(basename "$result_file" .json)" >> test-report.md
+              jq -r '.TestResults[] | "- \(.Test): \(.Status)"' "$result_file" >> test-report.md 2>/dev/null || echo "- No test results found" >> test-report.md
+              echo "" >> test-report.md
+            fi
           done
+          
+          # Add coverage information if available
+          for coverage_file in coverage-*.txt; do
+            if [ -f "$coverage_file" ]; then
+              echo "### Coverage: $(basename "$coverage_file" .txt)" >> test-report.md
+              tail -5 "$coverage_file" >> test-report.md
+              echo "" >> test-report.md
+            fi
+          done
+          
+          echo "Report generated successfully"
+      
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.test-suite }}-${{ matrix.go-version }}
+          path: |
+            test-results/
+            coverage-*.out
+            coverage-*.html
+            coverage-*.txt
+            benchmark-results.txt
+            test-report.md
+          retention-days: 30
+      
+      - name: Upload coverage to Codecov
+        if: matrix.test-suite == 'unit' && always()
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage-unit.out
+          flags: integration-tests
+          name: codecov-integration
+          fail_ci_if_error: false

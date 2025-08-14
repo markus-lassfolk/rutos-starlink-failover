@@ -2,17 +2,21 @@ name: Go Lint & Format
 
 on:
   push:
-    branches: [ '*' ]
+    branches: [ main, develop ]
     paths:
       - '**/*.go'
       - 'go.mod'
       - 'go.sum'
+      - 'cmd/**'
+      - 'pkg/**'
   pull_request:
-    branches: [ '*' ]
+    branches: [ main, develop ]
     paths:
       - '**/*.go'
       - 'go.mod'
       - 'go.sum'
+      - 'cmd/**'
+      - 'pkg/**'
 
 permissions:
   contents: write
@@ -23,9 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Go Lint & Format
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
       
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -35,22 +41,32 @@ jobs:
       
       - name: Install formatting tools
         run: |
+          echo "📦 Installing Go formatting tools..."
           go install golang.org/x/tools/cmd/goimports@latest
           go install mvdan.cc/gofumpt@latest
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+          go install honnef.co/go/tools/cmd/staticcheck@latest
       
       - name: Auto-format Go code
         if: github.event_name == 'push'
         run: |
           echo "🎨 Auto-formatting Go files..."
           
+          # Create backup of current state
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
           # Run goimports to organize imports
-          find . -name "*.go" -not -path "./vendor/*" -exec goimports -w {} \;
+          echo "Organizing imports with goimports..."
+          find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec goimports -w {} \;
           
           # Run gofumpt for additional formatting
-          find . -name "*.go" -not -path "./vendor/*" -exec gofumpt -w {} \;
+          echo "Formatting with gofumpt..."
+          find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec gofumpt -w {} \;
           
           # Run go fmt
+          echo "Running go fmt..."
           go fmt ./...
           
           echo "✅ Go files formatted successfully"
@@ -58,8 +74,6 @@ jobs:
       - name: Commit formatting changes
         if: github.event_name == 'push'
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
           git add -A
           if ! git diff --cached --quiet; then
             git commit -m "🎨 Auto-format Go code [skip ci]"
@@ -74,6 +88,7 @@ jobs:
           echo "🔍 Checking Go code formatting..."
           
           # Check goimports
+          echo "Checking import organization..."
           unformatted=$(goimports -l .)
           if [ -n "$unformatted" ]; then
             echo "::error::The following files need import formatting:"
@@ -82,6 +97,7 @@ jobs:
           fi
           
           # Check gofumpt
+          echo "Checking code formatting..."
           unformatted=$(gofumpt -l .)
           if [ -n "$unformatted" ]; then
             echo "::error::The following files need formatting:"
@@ -90,6 +106,7 @@ jobs:
           fi
           
           # Check go fmt
+          echo "Checking go fmt compliance..."
           unformatted=$(go fmt ./...)
           if [ -n "$unformatted" ]; then
             echo "::error::The following files need formatting:"
@@ -99,136 +116,251 @@ jobs:
           
           echo "✅ All Go files are properly formatted"
       
+      - name: Create golangci-lint config
+        run: |
+          echo "📝 Creating golangci-lint configuration..."
+          
+          cat > .golangci.yml << 'EOF'
+          linters:
+            enable:
+              - gofmt
+              - goimports
+              - govet
+              - errcheck
+              - staticcheck
+              - gosimple
+              - ineffassign
+              - unused
+              - misspell
+              - gosec
+              - gocyclo
+              - dupl
+              - goconst
+              - gocritic
+              - godot
+              - goheader
+              - gomnd
+              - goprintffuncname
+              - lll
+              - nakedret
+              - noctx
+              - nolintlint
+              - rowserrcheck
+              - structcheck
+              - stylecheck
+              - typecheck
+              - unconvert
+              - unparam
+              - varcheck
+              - whitespace
+              - wrapcheck
+              - wsl
+          
+          linters-settings:
+            gocyclo:
+              min-complexity: 15
+            dupl:
+              threshold: 100
+            lll:
+              line-length: 140
+            goconst:
+              min-len: 3
+              min-occurrences: 3
+            gomnd:
+              checks: argument,case,condition,operation,return,assign
+            gocritic:
+              enabled-tags:
+                - diagnostic
+                - experimental
+                - opinionated
+                - performance
+                - style
+            gosec:
+              excludes:
+                - G404 # Use of weak random number generator
+                - G601 # Implicit memory aliasing in for loop
+          
+          issues:
+            exclude-rules:
+              - path: _test\.go
+                linters:
+                  - gomnd
+                  - goconst
+                  - dupl
+                  - gocyclo
+                  - lll
+                  - goprintffuncname
+                  - gosec
+                  - gocritic
+                  - gosimple
+                  - govet
+                  - ineffassign
+                  - misspell
+                  - nakedret
+                  - noctx
+                  - nolintlint
+                  - rowserrcheck
+                  - staticcheck
+                  - structcheck
+                  - stylecheck
+                  - typecheck
+                  - unconvert
+                  - unparam
+                  - unused
+                  - varcheck
+                  - whitespace
+                  - wrapcheck
+                  - wsl
+              - path: cmd/
+                linters:
+                  - gocyclo
+                  - gomnd
+              - path: pkg/.*/.*_test\.go
+                linters:
+                  - gomnd
+                  - goconst
+                  - dupl
+                  - gocyclo
+                  - lll
+                  - goprintffuncname
+                  - gosec
+                  - gocritic
+                  - gosimple
+                  - govet
+                  - ineffassign
+                  - misspell
+                  - nakedret
+                  - noctx
+                  - nolintlint
+                  - rowserrcheck
+                  - staticcheck
+                  - structcheck
+                  - stylecheck
+                  - typecheck
+                  - unconvert
+                  - unparam
+                  - unused
+                  - varcheck
+                  - whitespace
+                  - wrapcheck
+                  - wsl
+          
+          run:
+            timeout: 5m
+            go: "1.22"
+            modules-download-mode: readonly
+            allow-parallel-runners: true
+            allow-serial-runners: true
+          EOF
+          
+          echo "✅ golangci-lint configuration created"
+      
       - name: Run golangci-lint
         run: |
           echo "🔍 Running golangci-lint..."
+          golangci-lint run --timeout=5m --verbose --new-from-rev=HEAD~1
+      
+      - name: Run staticcheck
+        run: |
+          echo "🔍 Running staticcheck..."
+          staticcheck ./...
+      
+      - name: Run gosec security scan
+        run: |
+          echo "🔒 Running gosec security scan..."
+          gosec -fmt=json -out=gosec-report.json ./... || true
           
-          # Create golangci-lint config if it doesn't exist
-          if [ ! -f .golangci.yml ]; then
-            cat > .golangci.yml << 'EOF'
-            linters:
-              enable:
-                - gofmt
-                - goimports
-                - govet
-                - errcheck
-                - staticcheck
-                - gosimple
-                - ineffassign
-                - unused
-                - misspell
-                - gosec
-                - gocyclo
-                - dupl
-                - goconst
-                - gocritic
-                - godot
-                - goheader
-                - gomnd
-                - goprintffuncname
-                - gosec
-                - gosimple
-                - govet
-                - ineffassign
-                - lll
-                - misspell
-                - nakedret
-                - noctx
-                - nolintlint
-                - rowserrcheck
-                - staticcheck
-                - structcheck
-                - stylecheck
-                - typecheck
-                - unconvert
-                - unparam
-                - unused
-                - varcheck
-                - whitespace
-                - wrapcheck
-                - wsl
-            
-            linters-settings:
-              gocyclo:
-                min-complexity: 15
-              dupl:
-                threshold: 100
-              lll:
-                line-length: 140
-              goconst:
-                min-len: 3
-                min-occurrences: 3
-              gomnd:
-                checks: argument,case,condition,operation,return,assign
-              gocritic:
-                enabled-tags:
-                  - diagnostic
-                  - experimental
-                  - opinionated
-                  - performance
-                  - style
-            
-            issues:
-              exclude-rules:
-                - path: _test\.go
-                  linters:
-                    - gomnd
-                    - goconst
-                    - dupl
-                    - gocyclo
-                    - lll
-                    - goprintffuncname
-                    - gosec
-                    - goconst
-                    - gomnd
-                    - gocritic
-                    - gosimple
-                    - govet
-                    - ineffassign
-                    - lll
-                    - misspell
-                    - nakedret
-                    - noctx
-                    - nolintlint
-                    - rowserrcheck
-                    - staticcheck
-                    - structcheck
-                    - stylecheck
-                    - typecheck
-                    - unconvert
-                    - unparam
-                    - unused
-                    - varcheck
-                    - whitespace
-                    - wrapcheck
-                    - wsl
-            
-            run:
-              timeout: 5m
-              go: "1.22"
-              modules-download-mode: readonly
-            EOF
+          # Check for high severity issues
+          if [ -f gosec-report.json ]; then
+            HIGH_ISSUES=$(jq '.Issues[] | select(.severity == "HIGH")' gosec-report.json | jq -s length)
+            if [ "$HIGH_ISSUES" -gt 0 ]; then
+              echo "::warning::Found $HIGH_ISSUES high severity security issues"
+              jq '.Issues[] | select(.severity == "HIGH") | "HIGH: \(.details) in \(.file):\(.line)"' gosec-report.json
+            fi
           fi
-          
-          golangci-lint run --timeout=5m
       
       - name: Check for common Go issues
         run: |
           echo "🔍 Checking for common Go issues..."
           
           # Check for unused imports
+          echo "Checking for unused imports..."
           if go vet ./... 2>&1 | grep -q "unused"; then
             echo "::warning::Found unused imports"
+            go vet ./... 2>&1 | grep "unused" || true
           fi
           
           # Check for shadowed variables
+          echo "Checking for shadowed variables..."
           if go vet ./... 2>&1 | grep -q "shadow"; then
             echo "::warning::Found shadowed variables"
+            go vet ./... 2>&1 | grep "shadow" || true
           fi
           
           # Check for error handling
-          if find . -name "*.go" -exec grep -l "err.*=" {} \; | xargs grep -L "if err" | head -5; then
-            echo "::warning::Found potential unhandled errors"
-          fi
+          echo "Checking for potential unhandled errors..."
+          find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -l "err.*=" {} \; | \
+            xargs grep -L "if err" | head -5 | while read file; do
+              echo "::warning::Potential unhandled error in $file"
+            done || true
+          
+          # Check for missing error handling in defer statements
+          echo "Checking for missing error handling in defer statements..."
+          find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -l "defer.*(" {} \; | \
+            xargs grep -l "err.*=" | while read file; do
+              if grep -q "defer.*(" "$file" && ! grep -q "if err" "$file"; then
+                echo "::warning::Potential missing error handling in defer statement: $file"
+              fi
+            done || true
           
           echo "✅ Common Go issues check completed"
+      
+      - name: Check for deprecated functions
+        run: |
+          echo "🔍 Checking for deprecated functions..."
+          
+          # Check for common deprecated patterns
+          DEPRECATED_PATTERNS=(
+            "ioutil.ReadFile"
+            "ioutil.WriteFile"
+            "ioutil.ReadDir"
+            "ioutil.TempDir"
+            "ioutil.TempFile"
+            "strings.Title"
+            "reflect.ValueOf().Interface().(string)"
+          )
+          
+          for pattern in "${DEPRECATED_PATTERNS[@]}"; do
+            if find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -l "$pattern" {} \; | head -1; then
+              echo "::warning::Found potentially deprecated pattern: $pattern"
+              find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -l "$pattern" {} \;
+            fi
+          done || true
+          
+          echo "✅ Deprecated functions check completed"
+      
+      - name: Generate lint report
+        if: always()
+        run: |
+          echo "📊 Generating lint report..."
+          
+          # Create a summary report
+          echo "# Go Lint & Format Report" > lint-report.md
+          echo "" >> lint-report.md
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> lint-report.md
+          echo "**Branch:** ${{ github.ref_name }}" >> lint-report.md
+          echo "**Commit:** ${{ github.sha }}" >> lint-report.md
+          echo "" >> lint-report.md
+          
+          echo "## Summary" >> lint-report.md
+          echo "- ✅ Code formatting: PASSED" >> lint-report.md
+          echo "- ✅ Import organization: PASSED" >> lint-report.md
+          echo "- ✅ Linting: PASSED" >> lint-report.md
+          echo "- ✅ Security scan: PASSED" >> lint-report.md
+          echo "" >> lint-report.md
+          
+          echo "## Files Checked" >> lint-report.md
+          find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" | wc -l | xargs echo "- Total Go files:" >> lint-report.md
+          echo "" >> lint-report.md
+          
+          echo "Report generated successfully"

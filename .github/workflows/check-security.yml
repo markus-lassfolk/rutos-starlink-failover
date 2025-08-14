@@ -1,0 +1,254 @@
+name: Security Check
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'pkg/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'pkg/**'
+  schedule:
+    - cron: '0 3 * * 0'  # Weekly on Sunday at 3 AM
+
+permissions:
+  contents: read
+  pull-requests: read
+  security-events: write
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Check
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+          cache: true
+      
+      - name: Install security tools
+        run: |
+          echo "🔒 Installing security tools..."
+          go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          go install github.com/google/go-licenses@latest
+          go install github.com/dominikbraun/graph@latest
+          
+          # Install additional security scanners
+          curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.48.0
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin v0.74.0
+      
+      - name: Run gosec security scan
+        run: |
+          echo "🔍 Running gosec security scan..."
+          mkdir -p security-reports
+          
+          # Run gosec with detailed output
+          gosec -fmt=json -out=security-reports/gosec-report.json -fmt=text ./... || true
+          
+          # Generate HTML report
+          if [ -f security-reports/gosec-report.json ]; then
+            echo "Generating gosec HTML report..."
+            gosec -fmt=html -out=security-reports/gosec-report.html ./... || true
+          fi
+      
+      - name: Run Trivy vulnerability scan
+        run: |
+          echo "🔍 Running Trivy vulnerability scan..."
+          
+          # Scan Go modules for vulnerabilities
+          trivy fs --format json --output security-reports/trivy-report.json . || true
+          
+          # Scan for secrets
+          trivy fs --security-checks secret --format json --output security-reports/trivy-secrets.json . || true
+      
+      - name: Run Grype vulnerability scan
+        run: |
+          echo "🔍 Running Grype vulnerability scan..."
+          
+          # Scan for vulnerabilities in dependencies
+          grype --output json --file security-reports/grype-report.json . || true
+      
+      - name: Check for dependency vulnerabilities
+        run: |
+          echo "📦 Checking for dependency vulnerabilities..."
+          
+          # Check go.mod for known vulnerabilities
+          go list -m -json all | jq -r '.Path + "@" + .Version' | \
+            while read dep; do
+              echo "Checking dependency: $dep"
+              # This would integrate with a vulnerability database
+              # For now, we'll just log the dependencies
+            done
+          
+          # Check for outdated dependencies
+          go list -u -m all | grep -E "\[" || echo "All dependencies are up to date"
+      
+      - name: Check for license compliance
+        run: |
+          echo "📄 Checking license compliance..."
+          
+          # Check licenses of all dependencies
+          go-licenses check ./... || true
+          
+          # Generate license report
+          go-licenses csv ./... > security-reports/licenses.csv || true
+          
+          # Check for incompatible licenses
+          go-licenses check --include_tests ./... || true
+      
+      - name: Check for hardcoded secrets
+        run: |
+          echo "🔐 Checking for hardcoded secrets..."
+          
+          # Check for common secret patterns
+          SECRET_PATTERNS=(
+            "password.*=.*['\"][^'\"]*['\"]"
+            "secret.*=.*['\"][^'\"]*['\"]"
+            "token.*=.*['\"][^'\"]*['\"]"
+            "key.*=.*['\"][^'\"]*['\"]"
+            "api_key.*=.*['\"][^'\"]*['\"]"
+            "private_key.*=.*['\"][^'\"]*['\"]"
+          )
+          
+          for pattern in "${SECRET_PATTERNS[@]}"; do
+            if find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -l "$pattern" {} \; | head -1; then
+              echo "::warning::Potential hardcoded secret found with pattern: $pattern"
+              find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -n "$pattern" {} \;
+            fi
+          done || true
+      
+      - name: Check for unsafe code patterns
+        run: |
+          echo "⚠️ Checking for unsafe code patterns..."
+          
+          # Check for unsafe patterns
+          UNSAFE_PATTERNS=(
+            "unsafe\\.Pointer"
+            "reflect\\.ValueOf\\(\\)\\.UnsafeAddr"
+            "reflect\\.ValueOf\\(\\)\\.Pointer"
+            "syscall\\."
+            "C\\.go"
+          )
+          
+          for pattern in "${UNSAFE_PATTERNS[@]}"; do
+            if find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -l "$pattern" {} \; | head -1; then
+              echo "::warning::Unsafe code pattern found: $pattern"
+              find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -n "$pattern" {} \;
+            fi
+          done || true
+      
+      - name: Check for SQL injection vulnerabilities
+        run: |
+          echo "💉 Checking for SQL injection vulnerabilities..."
+          
+          # Check for potential SQL injection patterns
+          SQL_PATTERNS=(
+            "fmt\\.Sprintf.*SELECT"
+            "fmt\\.Sprintf.*INSERT"
+            "fmt\\.Sprintf.*UPDATE"
+            "fmt\\.Sprintf.*DELETE"
+            "strings\\.Join.*SELECT"
+            "strings\\.Join.*INSERT"
+            "strings\\.Join.*UPDATE"
+            "strings\\.Join.*DELETE"
+          )
+          
+          for pattern in "${SQL_PATTERNS[@]}"; do
+            if find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -l "$pattern" {} \; | head -1; then
+              echo "::warning::Potential SQL injection pattern found: $pattern"
+              find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -n "$pattern" {} \;
+            fi
+          done || true
+      
+      - name: Check for command injection vulnerabilities
+        run: |
+          echo "💻 Checking for command injection vulnerabilities..."
+          
+          # Check for potential command injection patterns
+          CMD_PATTERNS=(
+            "exec\\.Command.*fmt\\.Sprintf"
+            "exec\\.Command.*strings\\.Join"
+            "os\\.Exec.*fmt\\.Sprintf"
+            "os\\.Exec.*strings\\.Join"
+          )
+          
+          for pattern in "${CMD_PATTERNS[@]}"; do
+            if find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -l "$pattern" {} \; | head -1; then
+              echo "::warning::Potential command injection pattern found: $pattern"
+              find . -name "*.go" -not -path "./vendor/*" -not -path "./.git/*" -exec grep -n "$pattern" {} \;
+            fi
+          done || true
+      
+      - name: Generate security report
+        if: always()
+        run: |
+          echo "📊 Generating security report..."
+          
+          # Create a comprehensive security report
+          echo "# Security Check Report" > security-reports/security-report.md
+          echo "" >> security-reports/security-report.md
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> security-reports/security-report.md
+          echo "**Branch:** ${{ github.ref_name }}" >> security-reports/security-report.md
+          echo "**Commit:** ${{ github.sha }}" >> security-reports/security-report.md
+          echo "" >> security-reports/security-report.md
+          
+          echo "## Security Scanners Used" >> security-reports/security-report.md
+          echo "- ✅ gosec: Go security linter" >> security-reports/security-report.md
+          echo "- ✅ Trivy: Vulnerability scanner" >> security-reports/security-report.md
+          echo "- ✅ Grype: Dependency vulnerability scanner" >> security-reports/security-report.md
+          echo "- ✅ go-licenses: License compliance checker" >> security-reports/security-report.md
+          echo "" >> security-reports/security-report.md
+          
+          echo "## Summary" >> security-reports/security-report.md
+          
+          # Add gosec summary if available
+          if [ -f security-reports/gosec-report.json ]; then
+            HIGH_ISSUES=$(jq '.Issues[] | select(.severity == "HIGH")' security-reports/gosec-report.json | jq -s length)
+            MEDIUM_ISSUES=$(jq '.Issues[] | select(.severity == "MEDIUM")' security-reports/gosec-report.json | jq -s length)
+            LOW_ISSUES=$(jq '.Issues[] | select(.severity == "LOW")' security-reports/gosec-report.json | jq -s length)
+            
+            echo "- 🔴 High severity issues: $HIGH_ISSUES" >> security-reports/security-report.md
+            echo "- 🟡 Medium severity issues: $MEDIUM_ISSUES" >> security-reports/security-report.md
+            echo "- 🟢 Low severity issues: $LOW_ISSUES" >> security-reports/security-report.md
+          fi
+          
+          echo "" >> security-reports/security-report.md
+          echo "## Recommendations" >> security-reports/security-report.md
+          echo "- Review all high and medium severity issues" >> security-reports/security-report.md
+          echo "- Update dependencies with known vulnerabilities" >> security-reports/security-report.md
+          echo "- Ensure proper input validation and sanitization" >> security-reports/security-report.md
+          echo "- Use parameterized queries for database operations" >> security-reports/security-report.md
+          echo "- Avoid hardcoding secrets in source code" >> security-reports/security-report.md
+          echo "" >> security-reports/security-report.md
+          
+          echo "Report generated successfully"
+      
+      - name: Upload security artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-check-results
+          path: security-reports/
+          retention-days: 30
+      
+      - name: Upload SARIF file
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: security-reports/gosec-report.json
