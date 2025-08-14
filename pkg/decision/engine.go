@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/starfail/starfail/pkg"
+	"github.com/starfail/starfail/pkg/collector"
 	"github.com/starfail/starfail/pkg/logx"
 	"github.com/starfail/starfail/pkg/telem"
 	"github.com/starfail/starfail/pkg/uci"
@@ -232,15 +233,36 @@ func (e *Engine) collectMetrics() error {
 	return nil
 }
 
+// collectorFactory returns the appropriate collector for a member based on its class
+func (e *Engine) collectorFactory(member *pkg.Member) (pkg.Collector, error) {
+	cfg := map[string]interface{}{}
+
+	switch member.Class {
+	case pkg.ClassStarlink:
+		return collector.NewStarlinkCollector(cfg)
+	case pkg.ClassCellular:
+		return collector.NewCellularCollector(cfg)
+	case pkg.ClassWiFi:
+		return collector.NewWiFiCollector(cfg)
+	case pkg.ClassLAN:
+		return collector.NewLANCollector(cfg)
+	case pkg.ClassOther:
+		return collector.NewGenericCollector(cfg)
+	default:
+		return collector.NewGenericCollector(cfg)
+	}
+}
+
 // collectMemberMetrics collects metrics for a specific member
 func (e *Engine) collectMemberMetrics(ctx context.Context, member *pkg.Member) (*pkg.Metrics, error) {
-	// TODO: Use the collector factory to get the appropriate collector
-	// For now, return a mock metrics object
-	metrics := &pkg.Metrics{
-		Timestamp:   time.Now(),
-		LatencyMS:   50.0, // Mock values
-		LossPercent: 0.1,
-		JitterMS:    5.0,
+	coll, err := e.collectorFactory(member)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create collector for %s: %w", member.Name, err)
+	}
+
+	metrics, err := coll.Collect(ctx, member)
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect metrics for %s: %w", member.Name, err)
 	}
 
 	return metrics, nil

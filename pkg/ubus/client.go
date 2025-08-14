@@ -1,6 +1,7 @@
 package ubus
 
 import (
+	"bufio"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -10,7 +11,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/starfail/starfail/pkg/logx"
 )
@@ -23,7 +23,9 @@ type Client struct {
 	mu        sync.RWMutex
 	callID    uint32
 	callMu    sync.Mutex
-	objects   map[string]map[string]MethodHandler
+	// Registered handlers for incoming requests
+	handlers map[string]map[string]MethodHandler
+
 }
 
 // Message represents a ubus message
@@ -43,8 +45,10 @@ type MethodHandler func(ctx context.Context, data json.RawMessage) (interface{},
 // NewClient creates a new ubus client
 func NewClient(logger *logx.Logger) *Client {
 	return &Client{
-		logger:  logger,
-		objects: make(map[string]map[string]MethodHandler),
+
+		logger:   logger,
+		handlers: make(map[string]map[string]MethodHandler),
+
 	}
 }
 
@@ -98,13 +102,28 @@ func (c *Client) Disconnect() error {
 // Call makes a ubus call
 func (c *Client) Call(ctx context.Context, object, method string, data interface{}) (json.RawMessage, error) {
 	c.mu.RLock()
-	if !c.connected {
-		c.mu.RUnlock()
-		return nil, fmt.Errorf("not connected to ubus")
-	}
+	conn := c.conn
+	connected := c.connected
 	c.mu.RUnlock()
 
-	var payload json.RawMessage
+	if connected && conn != nil {
+		if resp, err := c.callViaSocket(ctx, conn, object, method, data); err == nil {
+			return resp, nil
+		} else if c.logger != nil {
+			c.logger.Warn("ubus socket call failed, falling back to CLI", "error", err)
+		}
+	} else {
+		return nil, fmt.Errorf("not connected to ubus")
+	}
+
+	// Fallback to ubus CLI
+	return c.callViaCLI(ctx, object, method, data)
+}
+
+// callViaCLI makes a ubus call using the CLI
+func (c *Client) callViaCLI(ctx context.Context, object, method string, data interface{}) (json.RawMessage, error) {
+	args := []string{"call", object, method}
+
 	if data != nil {
 		b, err := json.Marshal(data)
 		if err != nil {
@@ -151,8 +170,15 @@ func (c *Client) Call(ctx context.Context, object, method string, data interface
 // RegisterObject registers an object with the ubus daemon
 func (c *Client) RegisterObject(ctx context.Context, name string, methods map[string]MethodHandler) error {
 	c.mu.Lock()
-	c.objects[name] = methods
-	c.mu.Unlock()
+
+	defer c.mu.Unlock()
+
+	if c.handlers == nil {
+		c.handlers = make(map[string]map[string]MethodHandler)
+	}
+
+	c.handlers[name] = methods
+
 
 	if c.logger != nil {
 		c.logger.Info("Registering ubus object", "name", name, "methods", len(methods))
@@ -206,37 +232,126 @@ func (c *Client) UnregisterObject(ctx context.Context, name string) error {
 
 // Listen listens for ubus messages
 func (c *Client) Listen(ctx context.Context) error {
+
+
+	c.mu.RLock()
+	conn := c.conn
+	connected := c.connected
+	c.mu.RUnlock()
+
+	if !connected || conn == nil {
+		return fmt.Errorf("not connected to ubus")
+	}
+
+	reader := bufio.NewReader(conn)
+
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-		}
 
-		msg, err := c.readMessage()
+			line, err := reader.ReadBytes('\n')
+			if err != nil {
+				return err
+			}
+
+			var msg Message
+			if err := json.Unmarshal(line, &msg); err != nil {
+				if c.logger != nil {
+					c.logger.Error("Failed to decode ubus message", "error", err)
+				}
+				continue
+			}
+
+			go c.handleMessage(ctx, msg)
+		}
+	}
+}
+
+// callViaSocket makes a ubus call using the direct socket connection
+func (c *Client) callViaSocket(ctx context.Context, conn net.Conn, object, method string, data interface{}) (json.RawMessage, error) {
+	msg := Message{
+		Type:   "call",
+		Path:   object,
+		Method: method,
+		ID:     c.GetNextCallID(),
+	}
+
+	if data != nil {
+		raw, err := json.Marshal(data)
 		if err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			return fmt.Errorf("failed to read message: %w", err)
+			return nil, err
 		}
+		msg.Data = raw
+	}
 
-		if msg == nil {
-			continue
+	payload, err := json.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	if deadline, ok := ctx.Deadline(); ok {
+		conn.SetDeadline(deadline)
+	}
+
+	if _, err := conn.Write(append(payload, '\n')); err != nil {
+		return nil, err
+	}
+
+	reader := bufio.NewReader(conn)
+	line, err := reader.ReadBytes('\n')
+	if err != nil {
+		return nil, err
+	}
+
+	var resp Message
+	if err := json.Unmarshal(line, &resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Code != 0 {
+		return nil, fmt.Errorf("ubus error: %d %s", resp.Code, resp.Message)
+	}
+
+	return resp.Data, nil
+}
+
+// handleMessage handles incoming messages from the ubus socket
+func (c *Client) handleMessage(ctx context.Context, msg Message) {
+	if msg.Type != "request" {
+		return
+	}
+
+	c.mu.RLock()
+	methods := c.handlers[msg.Path]
+	handler := methods[msg.Method]
+	conn := c.conn
+	c.mu.RUnlock()
+
+	if handler == nil {
+		if c.logger != nil {
+			c.logger.Warn("No handler for ubus method", "path", msg.Path, "method", msg.Method)
 		}
-		c.mu.RLock()
-		methods := c.objects[msg.Path]
-		handler := methods[msg.Method]
-		c.mu.RUnlock()
+		return
+	}
 
-		if handler == nil {
-			resp := &Message{Type: "response", ID: msg.ID, Code: 404, Message: "method not found"}
-			c.callMu.Lock()
-			if err := c.sendMessage(resp); err != nil {
-				c.logger.Errorf("failed to send method not found response: %v", err)
-			}
-			c.callMu.Unlock()
-			continue
+	data, err := handler(ctx, msg.Data)
+	resp := Message{Type: "response", ID: msg.ID}
+	if err != nil {
+		resp.Code = -1
+		resp.Message = err.Error()
+	} else if data != nil {
+		if raw, err := json.Marshal(data); err == nil {
+			resp.Data = raw
+		}
+	}
+
+	if conn != nil {
+		if payload, err := json.Marshal(resp); err == nil {
+			conn.Write(append(payload, '\n'))
+
 		}
 
 		result, err := handler(ctx, msg.Data)
@@ -528,4 +643,12 @@ func (c *Client) GetNextCallID() uint32 {
 	defer c.callMu.Unlock()
 	c.callID++
 	return c.callID
+}
+
+// SetConn allows injection of a custom connection (primarily for testing)
+func (c *Client) SetConn(conn net.Conn) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.conn = conn
+	c.connected = conn != nil
 }

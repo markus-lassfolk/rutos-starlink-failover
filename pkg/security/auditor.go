@@ -40,6 +40,9 @@ type Auditor struct {
 	blockedIPs     map[string]time.Time
 	failedAttempts map[string]int
 
+	// Request tracking for suspicious activity detection
+	accessAttempts map[string][]time.Time
+
 	// File integrity
 	fileHashes    map[string]string
 	criticalFiles []string
@@ -135,6 +138,7 @@ func NewAuditor(config *AuditConfig, logger *logx.Logger) *Auditor {
 		allowedPorts:   make(map[int]bool),
 		blockedPorts:   make(map[int]bool),
 		auditConfig:    config,
+		accessAttempts: make(map[string][]time.Time),
 	}
 
 	// Initialize access control lists
@@ -255,6 +259,9 @@ func (a *Auditor) CheckAccess(ipAddress, userAgent, action, resource string) boo
 		a.recordFailedAttempt(ipAddress)
 		return false
 	}
+
+	// Record access attempt for threat detection
+	a.recordAccessAttempt(ipAddress)
 
 	// Check for suspicious activity
 	if a.isSuspiciousActivity(ipAddress, action, resource) {
@@ -709,12 +716,40 @@ func (a *Auditor) recordFailedAttempt(ipAddress string) {
 
 // isSuspiciousActivity checks for suspicious activity
 func (a *Auditor) isSuspiciousActivity(ipAddress, action, resource string) bool {
-	// Check for rapid requests
-	// Check for unusual patterns
-	// Check for known attack signatures
+	a.mu.RLock()
+	attempts := a.accessAttempts[ipAddress]
+	a.mu.RUnlock()
 
-	// Simplified check - in a real implementation, this would be more sophisticated
-	return false
+	cutoff := time.Now().Add(-1 * time.Minute)
+	count := 0
+	for i := len(attempts) - 1; i >= 0; i-- {
+		if attempts[i].After(cutoff) {
+			count++
+		} else {
+			break
+		}
+	}
+
+	// Consider more than 20 requests in a minute suspicious
+	return count > 20
+}
+
+// recordAccessAttempt records an access attempt for threat detection
+func (a *Auditor) recordAccessAttempt(ipAddress string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	now := time.Now()
+	attempts := append(a.accessAttempts[ipAddress], now)
+
+	cutoff := now.Add(-1 * time.Minute)
+	idx := 0
+	for ; idx < len(attempts); idx++ {
+		if attempts[idx].After(cutoff) {
+			break
+		}
+	}
+	a.accessAttempts[ipAddress] = attempts[idx:]
 }
 
 // calculateFileHash calculates the SHA256 hash of a file
