@@ -22,55 +22,55 @@ type StarlinkAPIResponse struct {
 	Status struct {
 		// Obstruction data
 		ObstructionStats struct {
-			CurrentlyObstructed        bool      `json:"currentlyObstructed"`
-			FractionObstructed         float64   `json:"fractionObstructed"`
-			Last24hObstructedS         int       `json:"last24hObstructedS"`
-			ValidS                     int       `json:"validS"`
-			WedgeFractionObstructed    []float64 `json:"wedgeFractionObstructed"`
-			WedgeAbsFractionObstructed []float64 `json:"wedgeAbsFractionObstructed"`
-			TimeObstructed             float64   `json:"timeObstructed"`
-			PatchesValid               int       `json:"patchesValid"`
-			AvgProlongedObstructionIntervalS float64 `json:"avgProlongedObstructionIntervalS"`
+			CurrentlyObstructed              bool      `json:"currentlyObstructed"`
+			FractionObstructed               float64   `json:"fractionObstructed"`
+			Last24hObstructedS               int       `json:"last24hObstructedS"`
+			ValidS                           int       `json:"validS"`
+			WedgeFractionObstructed          []float64 `json:"wedgeFractionObstructed"`
+			WedgeAbsFractionObstructed       []float64 `json:"wedgeAbsFractionObstructed"`
+			TimeObstructed                   float64   `json:"timeObstructed"`
+			PatchesValid                     int       `json:"patchesValid"`
+			AvgProlongedObstructionIntervalS float64   `json:"avgProlongedObstructionIntervalS"`
 		} `json:"obstructionStats"`
-		
+
 		// Outage information
 		Outage struct {
 			LastOutageS    int `json:"lastOutageS"`
 			OutageCount    int `json:"outageCount"`
 			OutageDuration int `json:"outageDuration"`
 		} `json:"outage"`
-		
+
 		// Network performance
-		PopPingLatencyMs  float64 `json:"popPingLatencyMs"`
+		PopPingLatencyMs      float64 `json:"popPingLatencyMs"`
 		DownlinkThroughputBps float64 `json:"downlinkThroughputBps"`
 		UplinkThroughputBps   float64 `json:"uplinkThroughputBps"`
 		PopPingDropRate       float64 `json:"popPingDropRate"`
-		
+
 		// SNR and signal quality
-		SnrDb                float64 `json:"snrDb"`
-		SecondsSinceLastSnr  int     `json:"secondsSinceLastSnr"`
-		
+		SnrDb               float64 `json:"snrDb"`
+		SecondsSinceLastSnr int     `json:"secondsSinceLastSnr"`
+
 		// Hardware status
 		HardwareSelfTest struct {
-			Passed       bool   `json:"passed"`
+			Passed       bool     `json:"passed"`
 			TestResults  []string `json:"testResults"`
-			LastTestTime int64  `json:"lastTestTime"`
+			LastTestTime int64    `json:"lastTestTime"`
 		} `json:"hardwareSelfTest"`
-		
+
 		// Thermal monitoring
 		Thermal struct {
 			Temperature     float64 `json:"temperature"`
 			ThermalThrottle bool    `json:"thermalThrottle"`
 			ThermalShutdown bool    `json:"thermalShutdown"`
 		} `json:"thermal"`
-		
+
 		// Power and voltage
 		Power struct {
-			PowerDraw   float64 `json:"powerDraw"`
-			Voltage     float64 `json:"voltage"`
-			PowerState  string  `json:"powerState"`
+			PowerDraw  float64 `json:"powerDraw"`
+			Voltage    float64 `json:"voltage"`
+			PowerState string  `json:"powerState"`
 		} `json:"power"`
-		
+
 		// Bandwidth restrictions
 		BandwidthRestrictions struct {
 			Restricted      bool    `json:"restricted"`
@@ -78,24 +78,24 @@ type StarlinkAPIResponse struct {
 			MaxDownloadMbps float64 `json:"maxDownloadMbps"`
 			MaxUploadMbps   float64 `json:"maxUploadMbps"`
 		} `json:"bandwidthRestrictions"`
-		
+
 		// System status
 		System struct {
-			UptimeS           int    `json:"uptimeS"`
-			AlertsActive      []string `json:"alertsActive"`
-			ScheduledReboot   bool   `json:"scheduledReboot"`
-			RebootTimeS       int64  `json:"rebootTimeS"`
-			SoftwareVersion   string `json:"softwareVersion"`
-			HardwareVersion   string `json:"hardwareVersion"`
+			UptimeS         int      `json:"uptimeS"`
+			AlertsActive    []string `json:"alertsActive"`
+			ScheduledReboot bool     `json:"scheduledReboot"`
+			RebootTimeS     int64    `json:"rebootTimeS"`
+			SoftwareVersion string   `json:"softwareVersion"`
+			HardwareVersion string   `json:"hardwareVersion"`
 		} `json:"system"`
-		
+
 		// GPS information
 		GPS struct {
-			Latitude     float64 `json:"latitude"`
-			Longitude    float64 `json:"longitude"`
-			Altitude     float64 `json:"altitude"`
-			GPSValid     bool    `json:"gpsValid"`
-			GPSLocked    bool    `json:"gpsLocked"`
+			Latitude  float64 `json:"latitude"`
+			Longitude float64 `json:"longitude"`
+			Altitude  float64 `json:"altitude"`
+			GPSValid  bool    `json:"gpsValid"`
+			GPSLocked bool    `json:"gpsLocked"`
 		} `json:"gps"`
 	} `json:"status"`
 }
@@ -193,7 +193,7 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 	// Basic obstruction data (enhanced with quality validation)
 	obstructionPct := apiResp.Status.ObstructionStats.FractionObstructed * 100
 	metrics.ObstructionPct = &obstructionPct
-	
+
 	// Enhanced outage tracking
 	outages := apiResp.Status.Outage.OutageCount
 	if apiResp.Status.Outage.LastOutageS > 0 && apiResp.Status.Outage.LastOutageS < 300 { // Recent outage (5 minutes)
@@ -206,7 +206,7 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 		latency := apiResp.Status.PopPingLatencyMs
 		metrics.LatencyMS = latency
 	}
-	
+
 	if apiResp.Status.PopPingDropRate >= 0 {
 		lossPercent := apiResp.Status.PopPingDropRate * 100
 		metrics.LossPercent = lossPercent
@@ -250,13 +250,13 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 	// Enhanced obstruction data
 	obstructionTime := apiResp.Status.ObstructionStats.TimeObstructed
 	metrics.ObstructionTimePct = &obstructionTime
-	
+
 	validS := int64(apiResp.Status.ObstructionStats.ValidS)
 	metrics.ObstructionValidS = &validS
-	
+
 	avgProlonged := apiResp.Status.ObstructionStats.AvgProlongedObstructionIntervalS
 	metrics.ObstructionAvgProlonged = &avgProlonged
-	
+
 	patchesValid := apiResp.Status.ObstructionStats.PatchesValid
 	metrics.ObstructionPatchesValid = &patchesValid
 
@@ -266,7 +266,7 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 		metrics.GPSLatitude = &apiResp.Status.GPS.Latitude
 		metrics.GPSLongitude = &apiResp.Status.GPS.Longitude
 		metrics.GPSAltitude = &apiResp.Status.GPS.Altitude
-		
+
 		gpsSource := "starlink"
 		metrics.GPSSource = &gpsSource
 	}
@@ -348,27 +348,27 @@ func (sc *StarlinkCollector) GetStarlinkInfo(ctx context.Context) (map[string]in
 		"pop_ping_latency_ms":   apiResp.Status.PopPingLatencyMs,
 		"last_outage_s":         apiResp.Status.Outage.LastOutageS,
 		"snr_db":                apiResp.Status.SnrDb,
-		
+
 		// Hardware health
-		"hardware_test_passed":   apiResp.Status.HardwareSelfTest.Passed,
-		"hardware_test_results":  apiResp.Status.HardwareSelfTest.TestResults,
+		"hardware_test_passed":  apiResp.Status.HardwareSelfTest.Passed,
+		"hardware_test_results": apiResp.Status.HardwareSelfTest.TestResults,
 		"temperature":           apiResp.Status.Thermal.Temperature,
 		"thermal_throttle":      apiResp.Status.Thermal.ThermalThrottle,
 		"thermal_shutdown":      apiResp.Status.Thermal.ThermalShutdown,
-		
+
 		// System status
-		"uptime_s":              apiResp.Status.System.UptimeS,
-		"alerts_active":         apiResp.Status.System.AlertsActive,
-		"scheduled_reboot":      apiResp.Status.System.ScheduledReboot,
-		"reboot_time_s":         apiResp.Status.System.RebootTimeS,
-		"software_version":      apiResp.Status.System.SoftwareVersion,
-		"hardware_version":      apiResp.Status.System.HardwareVersion,
-		
+		"uptime_s":         apiResp.Status.System.UptimeS,
+		"alerts_active":    apiResp.Status.System.AlertsActive,
+		"scheduled_reboot": apiResp.Status.System.ScheduledReboot,
+		"reboot_time_s":    apiResp.Status.System.RebootTimeS,
+		"software_version": apiResp.Status.System.SoftwareVersion,
+		"hardware_version": apiResp.Status.System.HardwareVersion,
+
 		// Performance
 		"downlink_throughput_bps": apiResp.Status.DownlinkThroughputBps,
 		"uplink_throughput_bps":   apiResp.Status.UplinkThroughputBps,
 		"bandwidth_restricted":    apiResp.Status.BandwidthRestrictions.Restricted,
-		
+
 		// GPS
 		"gps_latitude":  apiResp.Status.GPS.Latitude,
 		"gps_longitude": apiResp.Status.GPS.Longitude,
@@ -485,10 +485,10 @@ type StarlinkHealthStatus struct {
 func (sc *StarlinkCollector) DetectPredictiveFailure(ctx context.Context, recentMetrics []*pkg.Metrics) *PredictiveFailureAssessment {
 	if len(recentMetrics) < 3 {
 		return &PredictiveFailureAssessment{
-			FailureRisk:  "unknown",
-			Confidence:   0.0,
+			FailureRisk:   "unknown",
+			Confidence:    0.0,
 			TimeToFailure: 0,
-			Triggers:     []string{"insufficient_data"},
+			Triggers:      []string{"insufficient_data"},
 		}
 	}
 
@@ -530,10 +530,10 @@ func (sc *StarlinkCollector) DetectPredictiveFailure(ctx context.Context, recent
 
 // PredictiveFailureAssessment represents failure prediction analysis
 type PredictiveFailureAssessment struct {
-	FailureRisk   string   `json:"failure_risk"`   // low, medium, high, critical
-	Confidence    float64  `json:"confidence"`     // 0.0 to 1.0
+	FailureRisk   string   `json:"failure_risk"`    // low, medium, high, critical
+	Confidence    float64  `json:"confidence"`      // 0.0 to 1.0
 	TimeToFailure int      `json:"time_to_failure"` // seconds
-	Triggers      []string `json:"triggers"`       // reasons for prediction
+	Triggers      []string `json:"triggers"`        // reasons for prediction
 }
 
 // Helper methods for predictive analysis
