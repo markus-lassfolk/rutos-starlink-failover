@@ -224,7 +224,6 @@ func (c *Client) Listen(ctx context.Context) error {
 		if msg == nil {
 			continue
 		}
-
 		c.mu.RLock()
 		methods := c.objects[msg.Path]
 		handler := methods[msg.Method]
