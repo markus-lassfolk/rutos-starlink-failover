@@ -211,10 +211,7 @@ func (s *Server) GetStatus() (*StatusResponse, error) {
 	if err != nil {
 		activeMember = nil
 	}
-	members, err := s.controller.GetMembers()
-	if err != nil {
-		members = []*pkg.Member{}
-	}
+	members := s.controller.GetMembers()
 
 	// Get last switch event
 	var lastSwitch *pkg.Event
@@ -274,10 +271,7 @@ func (s *Server) GetMembers() (*MembersResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	members, err := s.controller.GetMembers()
-	if err != nil {
-		return &MembersResponse{Members: []MemberInfo{}}, nil
-	}
+	members := s.controller.GetMembers()
 	memberInfos := make([]MemberInfo, len(members))
 
 	for i, member := range members {
@@ -381,6 +375,7 @@ func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
 		}, nil
 	}
 
+
 	var targetMember *pkg.Member
 	for _, member := range members {
 		if member.Name == req.TargetMember {
@@ -408,7 +403,7 @@ func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
 
 	// Perform the failover (placeholder)
 	// TODO: Implement SwitchToMember method
-	err = fmt.Errorf("SwitchToMember not implemented")
+	err := fmt.Errorf("SwitchToMember not implemented")
 	if err != nil {
 		return &FailoverResponse{
 			Success: false,

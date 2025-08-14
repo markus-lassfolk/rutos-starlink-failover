@@ -1,11 +1,14 @@
 package decision
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/sajari/regression"
 	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/logx"
 )
@@ -85,6 +88,10 @@ type MLPredictor struct {
 	modelType   string
 	features    []string
 	hyperparams map[string]interface{}
+
+	// Persistence
+	modelPath string
+	logger    *logx.Logger
 }
 
 // MLModel represents a machine learning model
@@ -717,13 +724,23 @@ func (ad *AnomalyDetector) UpdateBaseline(memberName string, dp DataPoint) {
 
 // NewMLPredictor creates a new ML predictor
 func NewMLPredictor(modelPath string, logger *logx.Logger) *MLPredictor {
-	return &MLPredictor{
+	mlp := &MLPredictor{
 		models:      make(map[string]*MLModel),
 		trained:     false,
 		modelType:   "linear",
 		features:    []string{"latency", "loss", "score", "trend"},
 		hyperparams: make(map[string]interface{}),
+		modelPath:   modelPath,
+		logger:      logger,
 	}
+
+	if modelPath != "" {
+		if err := mlp.loadModels(); err != nil {
+			logger.Warn(fmt.Sprintf("failed to load ML models: %v", err))
+		}
+	}
+
+	return mlp
 }
 
 // IsTrained checks if a model is trained for a member
@@ -784,10 +801,14 @@ func (mlp *MLPredictor) UpdateModel(memberName string, dp DataPoint) {
 		mlp.models[memberName] = model
 	}
 
-	// Add training sample
+	// Add training sample with simple failure label based on score
+	target := 0.0
+	if dp.Score < 50 {
+		target = 1.0
+	}
 	sample := TrainingSample{
-		Features:  []float64{dp.Latency, dp.Loss, dp.Score, 0.0}, // Simplified features
-		Target:    0.0,                                           // Would need failure labels
+		Features:  []float64{dp.Latency, dp.Loss, dp.Score, 0.0},
+		Target:    target,
 		Weight:    1.0,
 		Timestamp: dp.Timestamp,
 	}
@@ -795,21 +816,44 @@ func (mlp *MLPredictor) UpdateModel(memberName string, dp DataPoint) {
 	model.TrainingData = append(model.TrainingData, sample)
 
 	// Retrain model periodically
-	if len(model.TrainingData) >= 50 {
+	if len(model.TrainingData) >= 20 {
 		mlp.retrainModel(model)
+		model.TrainingData = model.TrainingData[:0]
 	}
 }
 
 // retrainModel retrains the ML model
 func (mlp *MLPredictor) retrainModel(model *MLModel) {
-	// Simplified retraining
-	// In a full implementation, this would use proper ML algorithms
+	// Retrain using linear regression on collected samples
+	var r regression.Regression
+	r.SetObserved("failure")
+	for i, name := range model.Features {
+		r.SetVar(i, name)
+	}
 
-	// Update weights based on recent performance
-	// This is a placeholder - real implementation would use gradient descent, etc.
+	// Train regression with collected samples
+	for _, sample := range model.TrainingData {
+		r.Train(regression.DataPoint(sample.Target, sample.Features))
+	}
 
+	if err := r.Run(); err != nil {
+		mlp.logger.Warn(fmt.Sprintf("model training failed for %s: %v", model.MemberName, err))
+		return
+	}
+
+	coeffs := r.GetCoeffs()
+	if len(coeffs) > 0 {
+		model.Bias = coeffs[0]
+		model.Weights = coeffs[1:]
+	}
+
+	model.Accuracy = r.R2
 	model.LastTrained = time.Now()
-	model.Accuracy = 0.7 // Placeholder accuracy
+	mlp.trained = true
+
+	if err := mlp.saveModels(); err != nil {
+		mlp.logger.Warn(fmt.Sprintf("failed to save ML models: %v", err))
+	}
 }
 
 // GetModelType returns the model type for a member
@@ -821,4 +865,44 @@ func (mlp *MLPredictor) GetModelType(memberName string) string {
 		return model.ModelType
 	}
 	return "unknown"
+}
+
+// loadModels loads model definitions from disk
+func (mlp *MLPredictor) loadModels() error {
+	data, err := os.ReadFile(mlp.modelPath)
+	if err != nil {
+		return err
+	}
+
+	var stored []*MLModel
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return err
+	}
+
+	mlp.mu.Lock()
+	defer mlp.mu.Unlock()
+	for _, m := range stored {
+		mlp.models[m.MemberName] = m
+	}
+	mlp.trained = len(stored) > 0
+	return nil
+}
+
+// saveModels persists model definitions to disk
+func (mlp *MLPredictor) saveModels() error {
+	if mlp.modelPath == "" {
+		return nil
+	}
+
+	mlp.mu.RLock()
+	defer mlp.mu.RUnlock()
+	models := make([]*MLModel, 0, len(mlp.models))
+	for _, m := range mlp.models {
+		models = append(models, m)
+	}
+	data, err := json.MarshalIndent(models, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(mlp.modelPath, data, 0o644)
 }
