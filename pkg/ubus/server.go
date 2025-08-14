@@ -23,6 +23,7 @@ type Server struct {
 	controller  *controller.Controller
 	registry    *collector.Registry
 	serviceName string
+	startTime   time.Time
 }
 
 // Config for ubus server
@@ -57,6 +58,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// In a real implementation, we would use libubus bindings
 	// For now, we'll implement a basic command handler approach
+	s.startTime = time.Now()
 	return s.registerMethods(ctx)
 }
 
@@ -88,6 +90,8 @@ func (s *Server) registerMethods(ctx context.Context) error {
 		"metrics": {"member": "str", "limit": "int"},
 		"action":  {"action": "str", "member": "str", "force": "bool"},
 		"events":  {"limit": "int"},
+		"config.get": {},
+		"config.set": {"changes": "object"},
 	}
 
 	spec, err := json.Marshal(methods)
@@ -109,7 +113,7 @@ func (s *Server) registerMethods(ctx context.Context) error {
 	go s.handleCalls(ctx)
 
 	s.logger.WithFields(logx.Fields{
-		"methods": []string{"status", "members", "metrics", "action", "events"},
+		"methods": []string{"status", "members", "metrics", "action", "events", "config.get", "config.set"},
 	}).Info("registered ubus methods")
 
 	return nil
@@ -172,6 +176,14 @@ func (s *Server) handleCalls(ctx context.Context) {
 				limit = int(v)
 			}
 			result, callErr = s.HandleEvents(ctx, limit)
+		case "config.get":
+			result, callErr = s.HandleConfigGet(ctx)
+		case "config.set":
+			var payload map[string]interface{}
+			if req.Params != nil {
+				payload = req.Params
+			}
+			result, callErr = s.HandleConfigSet(ctx, payload)
 		default:
 			callErr = fmt.Errorf("unknown method: %s", req.Method)
 		}
@@ -268,7 +280,7 @@ func (s *Server) HandleStatus(ctx context.Context) (*StatusResponse, error) {
 
 	response := &StatusResponse{
 		Status:        "running",
-		Uptime:        int64(time.Since(time.Now()).Seconds()), // This would be actual uptime
+		Uptime:        int64(time.Since(s.startTime).Seconds()),
 		Version:       "1.0.0-dev",
 		CurrentMember: currentMember,
 		Stats:         stats,
@@ -329,9 +341,24 @@ func (s *Server) HandleMetrics(ctx context.Context, member string, limit int) (*
 	if member == "" {
 		return nil, fmt.Errorf("member parameter required")
 	}
-
+	// Clamp limit
 	if limit <= 0 {
-		limit = 100 // Default limit
+		limit = 100
+	} else if limit > 2000 {
+		limit = 2000
+	}
+	// Validate member exists (discover current members)
+	if members, err := s.controller.DiscoverMembers(ctx); err == nil {
+		found := false
+		for _, m := range members {
+			if m.Name == member {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("member '%s' not found", member)
+		}
 	}
 
 	samples := s.store.GetSamples(member, limit)
@@ -482,6 +509,10 @@ func (s *Server) ExecuteUbusCall(ctx context.Context, method string, params map[
 	case "events":
 		limit, _ := params["limit"].(int)
 		return s.HandleEvents(ctx, limit)
+	case "config.get":
+		return s.HandleConfigGet(ctx)
+	case "config.set":
+		return s.HandleConfigSet(ctx, params)
 
 	default:
 		return nil, fmt.Errorf("unknown method: %s", method)
@@ -492,10 +523,60 @@ func (s *Server) ExecuteUbusCall(ctx context.Context, method string, params map[
 func (s *Server) GetServiceInfo() map[string]interface{} {
 	return map[string]interface{}{
 		"service_name": s.serviceName,
-		"methods":      []string{"status", "members", "metrics", "action", "events"},
+		"methods":      []string{"status", "members", "metrics", "action", "events", "config.get", "config.set"},
 		"description":  "Starfail multi-interface failover daemon API",
 		"version":      "1.0.0",
 	}
+}
+
+// HandleConfigGet returns an effective configuration snapshot relevant to runtime
+func (s *Server) HandleConfigGet(ctx context.Context) (map[string]interface{}, error) {
+	stats := s.store.GetStats()
+	// We don't have a live Config object here; expose runtime-relevant bits we own
+	// plus controller/registry context summaries.
+	members, _ := s.controller.DiscoverMembers(ctx)
+	return map[string]interface{}{
+		"service": s.serviceName,
+		"telemetry": stats,
+		"members": members,
+	}, nil
+}
+
+// HandleConfigSet validates an incoming change-set and applies when supported.
+// For now, we accept only telemetry max_ram_mb updates at runtime; others are TODO.
+func (s *Server) HandleConfigSet(ctx context.Context, changes map[string]interface{}) (map[string]interface{}, error) {
+	if len(changes) == 0 {
+		return nil, fmt.Errorf("changes object required")
+	}
+	// Support telemetry.max_ram_mb live update
+	var applied = map[string]interface{}{}
+	if telemIface, ok := changes["telemetry"]; ok {
+		if telemMap, ok := telemIface.(map[string]interface{}); ok {
+			if v, ok := telemMap["max_ram_mb"]; ok {
+				switch t := v.(type) {
+				case float64:
+					mb := int(t)
+					if mb < 4 || mb > 128 {
+						return nil, fmt.Errorf("telemetry.max_ram_mb out of range 4-128")
+					}
+					// apply
+					// approximate: update store's cap via a helper (internal field)
+					if err := s.store.SetMaxRAMMB(mb); err != nil {
+						return nil, err
+					}
+					applied["telemetry.max_ram_mb"] = mb
+				default:
+					return nil, fmt.Errorf("telemetry.max_ram_mb must be number")
+				}
+			}
+		} else {
+			return nil, fmt.Errorf("telemetry must be object")
+		}
+	}
+	if len(applied) == 0 {
+		return nil, fmt.Errorf("no supported changes applied (config.set not fully implemented)")
+	}
+	return map[string]interface{}{"applied": applied}, nil
 }
 
 // ubusCall executes a ubus command (helper function)

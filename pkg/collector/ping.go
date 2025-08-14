@@ -5,10 +5,11 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/retry"
 )
 
 // PingCollector collects metrics using ping tests
@@ -17,6 +18,7 @@ type PingCollector struct {
 	count    int
 	timeout  time.Duration
 	interval time.Duration
+	runner   *retry.Runner
 }
 
 // NewPingCollector creates a new ping-based metrics collector
@@ -25,11 +27,20 @@ func NewPingCollector(hosts []string) *PingCollector {
 		hosts = []string{"8.8.8.8", "1.1.1.1"} // Default DNS servers
 	}
 
+	// Configure retry with reasonable defaults for ping
+	retryConfig := retry.Config{
+		MaxAttempts:   2, // Don't retry ping too aggressively
+		InitialDelay:  500 * time.Millisecond,
+		MaxDelay:      2 * time.Second,
+		BackoffFactor: 2.0,
+	}
+
 	return &PingCollector{
 		hosts:    hosts,
 		count:    3, // Send 3 pings
 		timeout:  5 * time.Second,
 		interval: 200 * time.Millisecond,
+		runner:   retry.NewRunner(retryConfig),
 	}
 }
 
@@ -119,8 +130,8 @@ func (p *PingCollector) pingHost(ctx context.Context, host, interfaceName string
 
 	args = append(args, host)
 
-	cmd := exec.CommandContext(ctx, "ping", args...)
-	output, err := cmd.Output()
+	// Use retry runner for reliable command execution
+	output, err := p.runner.Output(ctx, "ping", args...)
 	if err != nil {
 		return nil, fmt.Errorf("ping failed: %w", err)
 	}

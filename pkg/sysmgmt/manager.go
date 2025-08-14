@@ -7,12 +7,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
 )
+
+// isValidServiceName validates service names to prevent command injection
+func isValidServiceName(service string) bool {
+	// Only allow alphanumeric characters, hyphens, and underscores
+	validPattern := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	return validPattern.MatchString(service) && len(service) <= 50
+}
 
 // Config holds system management configuration
 type Config struct {
@@ -299,8 +307,11 @@ func (m *Manager) cleanupOverlaySpace(ctx context.Context) MaintenanceResult {
 	// Clean package cache
 	if _, err := os.Stat("/tmp/opkg-lists"); err == nil {
 		if !m.config.DryRun {
-			os.RemoveAll("/tmp/opkg-lists")
-			actions = append(actions, "cleaned opkg cache")
+			if err := os.RemoveAll("/tmp/opkg-lists"); err != nil {
+				m.logger.Info("failed to clean opkg cache", "error", err)
+			} else {
+				actions = append(actions, "cleaned opkg cache")
+			}
 		} else {
 			actions = append(actions, "would clean opkg cache")
 		}
@@ -331,13 +342,15 @@ func (m *Manager) cleanupLogs(ctx context.Context) MaintenanceResult {
 				if !m.config.DryRun {
 					// Simple rotation: move current to .old and truncate
 					oldPath := logPath + ".old"
-					os.Rename(logPath, oldPath)
-
-					// Create new empty log file
-					file, err := os.Create(logPath)
-					if err == nil {
-						file.Close()
-						actions = append(actions, fmt.Sprintf("rotated %s", logPath))
+					if err := os.Rename(logPath, oldPath); err != nil {
+						m.logger.Info("failed to rotate log file", "path", logPath, "error", err)
+					} else {
+						// Create new empty log file
+						file, err := os.Create(logPath)
+						if err == nil {
+							_ = file.Close()
+							actions = append(actions, fmt.Sprintf("rotated %s", logPath))
+						}
 					}
 				} else {
 					actions = append(actions, fmt.Sprintf("would rotate %s", logPath))
@@ -462,7 +475,7 @@ func (m *Manager) optimizeDatabase(ctx context.Context) MaintenanceResult {
 	}
 
 	for _, dbPath := range dbPaths {
-		filepath.Walk(dbPath, func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(dbPath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}
@@ -479,6 +492,9 @@ func (m *Manager) optimizeDatabase(ctx context.Context) MaintenanceResult {
 			}
 			return nil
 		})
+		if err != nil {
+			m.logger.Info("failed to walk database path", "path", dbPath, "error", err)
+		}
 	}
 
 	result.Success = true

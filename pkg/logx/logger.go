@@ -77,7 +77,7 @@ func NewWithConfig(config Config) *Logger {
 		writer = os.Stdout // Will also go to syslog
 	} else if config.Output != "stdout" && config.Output != "" {
 		// File output
-		if file, err := os.OpenFile(config.Output, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
+		if file, err := os.OpenFile(config.Output, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600); err == nil {
 			writer = file
 		}
 	}

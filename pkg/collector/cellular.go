@@ -5,21 +5,32 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/retry"
 )
 
 // CellularCollector collects metrics from cellular interfaces via ubus mobiled
 type CellularCollector struct {
-	provider string // ubus provider to use (auto-detect if empty)
+	provider string        // ubus provider to use (auto-detect if empty)
+	runner   *retry.Runner // command runner with retry logic
 }
 
 // NewCellularCollector creates a new cellular metrics collector
 func NewCellularCollector(provider string) *CellularCollector {
+	// Conservative retry config for ubus operations
+	config := retry.Config{
+		MaxAttempts:   3,
+		InitialDelay:  50 * time.Millisecond,
+		MaxDelay:      500 * time.Millisecond,
+		BackoffFactor: 2.0,
+	}
+
 	return &CellularCollector{
 		provider: provider,
+		runner:   retry.NewRunner(config),
 	}
 }
 
@@ -94,8 +105,20 @@ type CellularData struct {
 
 // getCellularData fetches telemetry from ubus mobiled or GSM providers
 func (c *CellularCollector) getCellularData(ctx context.Context) (*CellularData, error) {
-	// Try mobiled first (RutOS)
+	// Try provider-specific interface if specified
+	if c.provider != "" {
+		if data, err := c.getProviderData(ctx, c.provider); err == nil {
+			return data, nil
+		}
+	}
+
+	// Try mobiled interface (newer RutOS)
 	if data, err := c.getMobiledData(ctx); err == nil {
+		return data, nil
+	}
+
+	// Try specific GSM modem interface (common pattern: gsm.modem0)
+	if data, err := c.getGSMModemData(ctx, "gsm.modem0"); err == nil {
 		return data, nil
 	}
 
@@ -110,8 +133,7 @@ func (c *CellularCollector) getCellularData(ctx context.Context) (*CellularData,
 // getMobiledData gets data from RutOS mobiled ubus service
 func (c *CellularCollector) getMobiledData(ctx context.Context) (*CellularData, error) {
 	// Get mobile interface info
-	cmd := exec.CommandContext(ctx, "ubus", "call", "mobiled", "get_interfaces")
-	output, err := cmd.Output()
+	output, err := c.runner.Output(ctx, "ubus", "call", "mobiled", "get_interfaces")
 	if err != nil {
 		return nil, fmt.Errorf("failed to call mobiled: %w", err)
 	}
@@ -135,9 +157,8 @@ func (c *CellularCollector) getMobiledData(ctx context.Context) (*CellularData, 
 	}
 
 	// Get detailed info for the interface
-	cmd = exec.CommandContext(ctx, "ubus", "call", "mobiled", "get_interface_info",
+	output, err = c.runner.Output(ctx, "ubus", "call", "mobiled", "get_interface_info",
 		fmt.Sprintf(`{"interface":"%s"}`, interfaceID))
-	output, err = cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get interface info: %w", err)
 	}
@@ -154,10 +175,43 @@ func (c *CellularCollector) getMobiledData(ctx context.Context) (*CellularData, 
 	return data, nil
 }
 
+// getProviderData gets data from a specific provider interface
+func (c *CellularCollector) getProviderData(ctx context.Context, provider string) (*CellularData, error) {
+	output, err := c.runner.Output(ctx, "ubus", "call", provider, "info")
+	if err != nil {
+		return nil, fmt.Errorf("failed to call provider %s: %w", provider, err)
+	}
+
+	var info map[string]interface{}
+	if err := json.Unmarshal(output, &info); err != nil {
+		return nil, fmt.Errorf("failed to parse provider info: %w", err)
+	}
+
+	data := &CellularData{}
+	c.parseGSMModemInfo(info, data)
+	return data, nil
+}
+
+// getGSMModemData gets data from specific GSM modem interface (e.g., gsm.modem0)
+func (c *CellularCollector) getGSMModemData(ctx context.Context, modemInterface string) (*CellularData, error) {
+	output, err := c.runner.Output(ctx, "ubus", "call", modemInterface, "info")
+	if err != nil {
+		return nil, fmt.Errorf("failed to call %s: %w", modemInterface, err)
+	}
+
+	var info map[string]interface{}
+	if err := json.Unmarshal(output, &info); err != nil {
+		return nil, fmt.Errorf("failed to parse modem info: %w", err)
+	}
+
+	data := &CellularData{}
+	c.parseGSMModemInfo(info, data)
+	return data, nil
+}
+
 // getGSMData gets data from generic GSM ubus interface
 func (c *CellularCollector) getGSMData(ctx context.Context) (*CellularData, error) {
-	cmd := exec.CommandContext(ctx, "ubus", "call", "gsm", "info")
-	output, err := cmd.Output()
+	output, err := c.runner.Output(ctx, "ubus", "call", "gsm", "info")
 	if err != nil {
 		return nil, fmt.Errorf("failed to call gsm: %w", err)
 	}
@@ -240,6 +294,61 @@ func (c *CellularCollector) parseGSMInfo(info map[string]interface{}, data *Cell
 			data.NetworkType = &s
 		}
 	}
+}
+
+// parseGSMModemInfo extracts metrics from detailed GSM modem response (e.g., gsm.modem0)
+func (c *CellularCollector) parseGSMModemInfo(info map[string]interface{}, data *CellularData) {
+	// Extract signal strength from cache
+	if cache, ok := info["cache"].(map[string]interface{}); ok {
+		if val, ok := cache["rsrp_value"]; ok {
+			if f, err := c.parseFloat(val); err == nil {
+				data.RSRP = &f
+			}
+		}
+
+		if val, ok := cache["rsrq_value"]; ok {
+			if f, err := c.parseFloat(val); err == nil {
+				data.RSRQ = &f
+			}
+		}
+
+		if val, ok := cache["sinr_value"]; ok {
+			if f, err := c.parseFloat(val); err == nil {
+				data.SINR = &f
+			}
+		}
+
+		if val, ok := cache["rssi_value"]; ok {
+			if f, err := c.parseFloat(val); err == nil {
+				data.RSSI = &f
+			}
+		}
+
+		if val, ok := cache["net_mode_str"]; ok {
+			if s, ok := val.(string); ok {
+				data.NetworkType = &s
+			}
+		}
+
+		if val, ok := cache["provider_name"]; ok {
+			if s, ok := val.(string); ok {
+				data.Provider = &s
+			}
+		}
+
+		// Note: Band and Temperature fields not available in CellularData struct
+		// Consider adding them to the struct if needed for monitoring
+
+		// Parse network mode
+		if val, ok := cache["net_mode_str"]; ok {
+			if s, ok := val.(string); ok {
+				data.NetworkType = &s
+			}
+		}
+	}
+
+	// Note: Model field not available in CellularData struct
+	// Consider adding it if device identification is needed
 }
 
 // parseFloat safely converts interface{} to float64

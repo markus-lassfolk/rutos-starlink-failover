@@ -87,7 +87,7 @@ func NewManager(config Config, logger logx.Logger) (*Manager, error) {
 	}
 
 	// Ensure backup directory exists
-	if err := os.MkdirAll(config.BackupDir, 0755); err != nil {
+	if err := os.MkdirAll(config.BackupDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create backup directory: %w", err)
 	}
 
@@ -385,7 +385,7 @@ func (m *Manager) writeBackupFile(filePath string, data []byte) error {
 	if m.config.CompressBackups {
 		return m.writeCompressedFile(filePath, data)
 	}
-	return os.WriteFile(filePath, data, 0644)
+	return os.WriteFile(filePath, data, 0600)
 }
 
 func (m *Manager) writeCompressedFile(filePath string, data []byte) error {
@@ -488,5 +488,5 @@ func (m *Manager) saveVersions() error {
 		return err
 	}
 
-	return os.WriteFile(versionsFile, data, 0644)
+	return os.WriteFile(versionsFile, data, 0600)
 }

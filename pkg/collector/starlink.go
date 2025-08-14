@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os/exec"
+	"regexp"
 	"time"
 )
 
@@ -17,10 +19,26 @@ type StarlinkCollector struct {
 	httpClient *http.Client
 }
 
+// isValidIP validates IP address format and prevents command injection
+func isValidIP(ip string) bool {
+	// Only allow valid IPv4 addresses
+	if net.ParseIP(ip) == nil {
+		return false
+	}
+	// Additional check to ensure only IP format (no special characters)
+	matched, _ := regexp.MatchString(`^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$`, ip)
+	return matched
+}
+
 // NewStarlinkCollector creates a new Starlink metrics collector
 func NewStarlinkCollector(dishIP string) *StarlinkCollector {
 	if dishIP == "" {
 		dishIP = "192.168.100.1" // Default Starlink dish IP
+	}
+
+	// Validate IP to prevent command injection
+	if !isValidIP(dishIP) {
+		dishIP = "192.168.100.1" // Fallback to safe default
 	}
 
 	return &StarlinkCollector{

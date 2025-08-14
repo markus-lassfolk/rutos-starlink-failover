@@ -14,6 +14,7 @@ import (
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/decision"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/telem"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/ubus"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/uci"
 )
 
@@ -110,23 +111,7 @@ func main() {
 	}
 	ctrl := controller.NewController(controllerCfg, logger)
 
-	// Initialize core components required by ubus server
-	storeCfg := telem.Config{
-		MaxSamplesPerMember: config.Main.MaxSamplesPerMember,
-		MaxEvents:           config.Main.MaxEvents,
-		RetentionHours:      config.Main.RetentionHours,
-		MaxRAMMB:            config.Main.MaxRAMMB,
-	}
-	store := telem.NewStore(storeCfg)
-
-	ctrlCfg := controller.Config{
-		UseMwan3:  config.Main.UseMwan3,
-		DryRun:    config.Main.DryRun,
-		CooldownS: config.Main.CooldownS,
-	}
-	ctrl := controller.NewController(ctrlCfg, logger)
-
-	registry := collector.NewRegistry()
+	// Initialize core components required by ubus server (already created above)
 
 	// Setup signal handling and background context
 	ctx, cancel := context.WithCancel(context.Background())

@@ -20,8 +20,26 @@ func TestLoadDefaultsWhenUCINotPresent(t *testing.T) {
 
 func TestLoadMainAndMembersFromUCI(t *testing.T) {
 	dir := t.TempDir()
+	// Create platform-specific mock for `uci`
 	script := filepath.Join(dir, "uci")
-	content := `#!/bin/sh
+	if os.PathSeparator == '\\' { // Windows
+		// Create a .cmd shim
+		script += ".cmd"
+		content := "@echo off\r\n" +
+			"if \"%1\"==\"show\" if \"%2\"==\"starfail.main\" (\r\n" +
+			"  echo starfail.main.enable='0'\r\n" +
+			"  echo starfail.main.use_mwan3='0'\r\n" +
+			"  echo starfail.main.poll_interval_ms='2000'\r\n" +
+			") else if \"%1\"==\"show\" if \"%2\"==\"starfail\" (\r\n" +
+			"  echo starfail.@member[0].class='cellular'\r\n" +
+			"  echo starfail.@member[0].weight='60'\r\n" +
+			"  echo starfail.@member[1].class='wifi'\r\n" +
+			")\r\n"
+		if err := os.WriteFile(script, []byte(content), 0644); err != nil {
+			t.Fatalf("write windows script: %v", err)
+		}
+	} else {
+		content := `#!/bin/sh
 if [ "$1" = show ] && [ "$2" = starfail.main ]; then
   echo "starfail.main.enable='0'"
   echo "starfail.main.use_mwan3='0'"
@@ -32,8 +50,9 @@ elif [ "$1" = show ] && [ "$2" = starfail ]; then
   echo "starfail.@member[1].class='wifi'"
 fi
 `
-	if err := os.WriteFile(script, []byte(content), 0755); err != nil {
-		t.Fatalf("write script: %v", err)
+		if err := os.WriteFile(script, []byte(content), 0755); err != nil {
+			t.Fatalf("write script: %v", err)
+		}
 	}
 	t.Setenv("PATH", dir)
 

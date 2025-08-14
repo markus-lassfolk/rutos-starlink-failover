@@ -8,75 +8,115 @@
 > and human contributors. All major design decisions must be reflected here.
 
 ## Implementation Progress Status
-**Started**: 2025-01-17 - Moving from Bash to Go implementation
-**Updated**: 2025-08-13 - Enhanced feature set and production requirements
+**Started**: 2025-01-17 – Moving from Bash to Go implementation  
+**Updated**: 2025-08-14 – Status aligned to codebase; controller/netifd verified-apply added; decision hysteresis/windows implemented with tests
 
-### Core Foundation ✅ COMPLETE
-- ✅ Repository restructure and Go project setup
-- ✅ Basic project structure (`cmd/starfaild/`, `pkg/` packages, `scripts/`, etc.)
-- ✅ Core interfaces and type definitions (collector.Collector, decision.Engine, etc.)
-- ✅ Basic UCI config structures with validation framework
-- ✅ Structured JSON logging with levels and cross-platform syslog integration
-- ✅ UCI config loader with uci command integration and validation
-- ✅ Enhanced logging with contextual fields and platform-specific syslog support
-- ✅ Starlink collector implementation with JSON API support
-- ✅ Cellular collector with ubus mobiled/GSM integration  
-- ✅ WiFi collector with ubus iwinfo/iwconfig support
-- ✅ LAN/Generic ping-based collector with interface binding
+### ✅ COMPLETED
+- [x] Repository restructure and Go module setup
+  - ✅ Layout: `cmd/starfaild/`, `pkg/*`, `scripts/`, `openwrt/`, `configs/`
+  - ✅ `Makefile` targets for cross-build; static linking (`-ldflags -s -w`)
+- [x] Core daemon loop and lifecycle orchestration
+  - ✅ `cmd/starfaild/main.go` wires config → collectors → engine → controller → ubus → telemetry
+  - ✅ Ticker-based scheduling; graceful shutdown hooks; structured logging in place
+- [x] UCI config loader and validation
+  - ✅ `pkg/uci` loads `/etc/config/starfail`, defaults + range checks, WARN on fallback
+  - ✅ Effective config surfaced to daemon; unknown values normalized
+- [x] Logging foundation
+  - ✅ `pkg/logx` structured JSON, syslog/stdout integration; context fields
+- [x] Collectors (baseline)
+  - ✅ Starlink: local API JSON via helper; metrics mapped to common schema
+  - ✅ Cellular: ubus `mobiled/gsm` path; maps RSRP/RSRQ/SINR; generic fallback
+  - ✅ Wi‑Fi: iwinfo/proc parsing for signal/bitrate; generic reachability
+  - ✅ LAN/Generic: interface-bound latency/loss probing
+- [x] CLI helper
+  - ✅ `scripts/starfailctl` + PowerShell helper for dev; verbs match ubus subset
+- [x] Telemetry store (baseline)
+  - ✅ In-RAM rings per interface + event log; basic retention and downsampling stubs
 
-### Core Functionality 🔄 IN PROGRESS
-- 🔄 Core daemon loop and lifecycle orchestration (remaining work)
-- 🔄 Decision engine with EWMA scoring and hysteresis
-- 🔄 mwan3 integration and controllers
-- 🔄 ubus API server with daemon loop integration still pending
-- 🔄 CLI implementation (starfailctl)
-- 🔄 Telemetry store with RAM-backed ring buffers
+### ⚡ PARTIALLY IMPLEMENTED
+- [⚠️] Decision engine scoring & switching – `pkg/decision/engine.go`
+  - ✅ Instant + EWMA + WindowAvg scoring in place; switch margin enforced; basic predictive checks
+  - ✅ Duration-based hysteresis (fail_min_duration_s, restore_min_duration_s) implemented
+  - 🧪 Tests: `TestWindowAverageUsesTelemetry`, `TestDurationBasedHysteresis` pass
+  - 🔄 Next: refine predictive (trend slopes, obstruction/SNR), expand audit trail
+- [⚠️] Controller (mwan3 + netifd) – `pkg/controller`
+  - ✅ Idempotent SetPrimary with cooldown; generalized current-primary check
+  - ✅ Netifd fallback: apply UCI `network.*.metric`, reload, and verify default route with exponential backoff
+  - ✅ Test coverage: `TestSetPrimaryIdempotentDryRun`, `TestNetifdVerifiedApplyBackoff` pass
+  - 🔄 Next: improve mwan3 primary detection parsing; minimize restarts when possible
+- [⚠️] ubus API – `pkg/ubus`
+  - ✅ Methods exist; shell-backed handler works for status/members/events
+  - ✅ Basic input validation on metrics (member existence, limit clamping); correct uptime
+  - ✅ Added config.get and limited config.set (supports telemetry.max_ram_mb live update)
+  - 🔄 Next: harden parsing, align JSON schemas with spec; add rate limiting
+- [⚠️] Telemetry caps
+  - ✅ Baseline retention working; memory cap (`max_ram_mb`) enforced with downsampling
+  - 🧪 Added test: `TestRAMCapDownsampling`
+- [⚠️] Notifications – `pkg/notification`
+  - ✅ Pushover channel + manager; retries and rate-limiters present
+  - ❌ Not wired into engine/controller events yet
 
-### Advanced Features ✅ COMPLETE
-- ✅ **System Health Monitoring & Auto-Recovery** (starfail-sysmgmt)
-  - Overlay space management and log cleanup
-  - Service watchdog for hung processes
-  - Log flood detection and prevention
-  - NTP sync monitoring and time drift correction
-  - Network interface stabilization
-- ✅ **Advanced Notification Systems**
-  - Smart notification management with rate limiting
-  - Contextual alerts with priority levels and cooldown
-  - Emergency notifications with retry and acknowledgment
+### STUB/PLACEHOLDER
 
-### Advanced Features 📋 PLANNED
-- 📋 **Enhanced Starlink Diagnostics**
-  - Hardware self-test and thermal monitoring
-  - Bandwidth restrictions and uptime tracking
-  - Predictive reboot detection and preemptive failover
-  - Pending update monitoring
-- 📋 **Location-Aware Intelligence**
-  - Multi-source GPS data collection (RUTOS > Starlink priority)
-  - Movement detection (>500m triggers obstruction map reset)
-  - Location clustering for pattern analysis
-  - Location-based threshold adjustments
-- 📋 **Comprehensive Decision Audit Trail**
-  - Structured decision reasoning logs
-  - Quality factor breakdown with scoring transparency
-  - Real-time decision viewer and historical pattern analysis
-  - Root cause analysis with automated recommendations
-- 📋 **Predictive Obstruction Management**
-  - Obstruction acceleration detection for early warning
-  - SNR trend analysis and movement-triggered map refresh
-  - Multi-factor obstruction assessment with false positive reduction
-  - Data quality validation using patchesValid and validS
-- 📋 **Adaptive Sampling**
-  - Dynamic sampling rates (1s unlimited, 60s metered)
-  - Connection-type aware probing strategies
-- 📋 **Backup and Recovery**
-  - Automated recovery after firmware upgrades
-  - Configuration preservation and restoration
+- None intentionally. Any logging of "would do X" is being eliminated as we wire full implementations. If found, treat as defects per QA rules.
 
-**Note**: Development machine (Windows) has antivirus blocking Go compilation, but code structure is designed for target RutOS/OpenWrt Linux platform with proper cross-platform support.
+### 🚫 NOT IMPLEMENTED (Planned)
+- Config write-back (`uci` Save/Commit) and ubus `config.set` apply with diff log
+- In-process Starlink client (replace external helpers) with backoff
+- Full adaptive sampling manager driving probe cadence
+- Discovery module split-out with complete mwan3 parsing (if separated from main)
+
+Note: Development is performed on Windows but targets RutOS/OpenWrt. Cross-build artifacts are provided; runtime validation is on devices.
+
+---
+
+## Gap Analysis and Prioritized TODO (to reach Feature Complete)
+
+- Decision Engine and Hysteresis
+  - Implement true WindowAvg using telemetry history_window_s (use pkg/telem Store) [High]
+  - Enforce duration windows: fail_min_duration_s and restore_min_duration_s [High]
+  - Refine predictive logic: slopes (lat/loss/jitter), Starlink obstruction/SNR trends [Med]
+  - Emit comprehensive audit events via pkg/audit on each evaluation/switch [Med]
+
+- Controller Hardening (mwan3/netifd)
+  - ✅ Idempotent SetPrimary without full restarts when possible; avoid reload storms
+  - ✅ Robust primary detection: parse JSON where available; avoid brittle text parsing
+  - 🧪 Tests: `TestMwan3PrimaryDetectionJSON`, `TestMwan3PrimaryDetectionTextFallback`
+  - 🔄 Next: further minimize mwan3 restarts; optimize policy application
+  - Complete netifd fallback: set/verify route metrics, keep sessions, add backoff [Med]
+
+- Collectors
+  - Cellular: implement interface-bound ping fallback; remove RSSI→latency guess when ping available [High]
+  - Starlink: replace external grpcurl with in-process client (per spec) or add graceful backoff [Med]
+  - WiFi: pipe logger; expand iwinfo parsing; error handling/backoff [Low]
+
+- UCI + UBUS + CLI
+  - UCI Save()/commit support (pkg/uci) for future config.set handler [Med]
+  - UBUS server: move from shell-based add/listen to more robust handling or reinforce parsing [Med]
+  - Ensure uptime/version in status are accurate; add rank/members per spec [Med]
+  - Finalize CLI verbs parity with ubus API (scripts/starfailctl) [Low]
+
+- Telemetry Store
+  - Enforce RAM cap (max_ram_mb) with downsampling of older samples [Med]
+  - Add health/metrics endpoints if enabled (localhost only) [Low]
+
+- Reliability & Ops
+  - Add retries/backoff for external commands (ubus, uci, ping, grpcurl) [High]
+  - Improve logging context and levels across collectors/controller [Med]
+  - Unit tests: scoring, windows, predictive, controller parsing; add a couple integration tests [High]
+
+- Wiring Advanced Modules (Phase 2 once core is stable)
+  - Integrate gps/obstruction into predictive decisions
+  - Plug notification manager for critical/failure/fix events
+  - Enable recovery backups on config change and periodic schedule
+  - Optional: adaptive sampling to tune probe cadence by link state
+
+Deliverable exit criteria are listed in “Testing Strategy & Acceptance”; treat items marked [High] as blockers for v1 feature complete.
 
 ---
 
 ## Table of Contents
+
 1. [Overview & Problem Statement](#overview--problem-statement)
 2. [Design Principles](#design-principles)
 3. [Non-Goals](#non-goals)
@@ -109,11 +149,13 @@
 30. [Failure Modes & Safe Behavior](#failure-modes--safe-behavior)
 31. [Future UI (LuCI/Vuci) – for later](#future-ui-lucivuci--for-later)
 32. [Coding Style & Quality](#coding-style--quality)
-33. [Appendix: Examples & Snippets](#appendix-examples--snippets)
+33. [PROJECT_INSTRUCTION.md Maintenance Requirements](#project_instructionmd-maintenance-requirements)
+34. [Appendix: Examples & Snippets](#appendix-examples--snippets)
 
 ---
 
 ## Overview & Problem Statement
+
 We need a reliable, autonomous, and resource-efficient system on **RutOS** and **OpenWrt**
 routers to manage **multi-interface failover** (e.g., Starlink, cellular with multiple SIMs,
 Wi‑Fi STA/tethering, LAN uplinks), with **predictive** behavior so users _don’t notice_
@@ -121,6 +163,7 @@ degradation/outages. The legacy Bash approach created too much process churn, ha
 limitations, and was harder to maintain and extend.
 
 **Solution**: a **single Go daemon** (`starfaild`) that:
+
 - Discovers all **mwan3** members and their underlying netifd interfaces
 - Collects **metrics** per member (Starlink API, radio quality, latency/loss, etc.)
 - Computes **health scores** (instant + rolling) and performs **predictive failover/failback**
@@ -133,6 +176,7 @@ No Web UI is required in this phase; we’ll add LuCI/Vuci later to the same ubu
 ---
 
 ## Design Principles
+
 - **Single binary** (static, CGO disabled). No external runtimes or heavy deps.
 - **OS-native integration**: UCI for config; ubus for control/status; procd for lifecycle.
 - **Abstraction first**: collectors and controllers behind interfaces; easy to mock/test.
@@ -145,6 +189,7 @@ No Web UI is required in this phase; we’ll add LuCI/Vuci later to the same ubu
 ---
 
 ## Non-Goals
+
 - Shipping any Web UI now (LuCI/Vuci comes later).
 - Replacing mwan3 entirely (we **drive** it; we don’t reinvent it).
 - Long-term persistent database on flash by default (telemetry is in RAM by default).
@@ -152,6 +197,7 @@ No Web UI is required in this phase; we’ll add LuCI/Vuci later to the same ubu
 ---
 
 ## Target Platforms & Constraints
+
 - **RutOS** (Teltonika, BusyBox `ash`, procd, ubus, UCI, often with `mobiled`/cellular ubus)
 - **OpenWrt** (modern releases; BusyBox `ash`, procd, ubus, UCI, mwan3 available)
 - **Constraints**: limited flash & RAM; potential ICMP restrictions; variant firmware baselines.
@@ -160,10 +206,12 @@ No Web UI is required in this phase; we’ll add LuCI/Vuci later to the same ubu
 ---
 
 ## Repository & Branching
+
 - Create a new branch for this rewrite: `go-core`
 - Move legacy Bash & docs to `archive/` (read-only inspiration).
 - Proposed layout:
-```
+
+```text
 /cmd/starfaild/            # main daemon
 /pkg/                      # internal packages
   collector/               # starlink, cellular, wifi, lan providers
@@ -184,7 +232,9 @@ No Web UI is required in this phase; we’ll add LuCI/Vuci later to the same ubu
 ---
 
 ## High-Level Architecture
+
 **Core loop** (tick ~1.0–1.5s):
+
 1. Discover/refresh members periodically and on config reload.
 2. Collect metrics per member via provider interfaces.
 3. Update per-member instant & rolling scores.
@@ -192,7 +242,8 @@ No Web UI is required in this phase; we’ll add LuCI/Vuci later to the same ubu
 5. Apply decision via the active controller (mwan3 preferred; netifd fallback).
 6. Emit logs, events, telemetry; expose state via ubus.
 
-**Key components**
+### Key components
+
 - **Collectors**: per-class metric providers (Starlink/Cellular/Wi‑Fi/LAN/Other).
 - **Decision engine**: scoring + hysteresis + predictive, rate-limited.
 - **Controllers**: `mwan3` policy adjuster; `netifd`/route metric fallback.
@@ -202,6 +253,7 @@ No Web UI is required in this phase; we’ll add LuCI/Vuci later to the same ubu
 ---
 
 ## Configuration (UCI)
+
 File: `/etc/config/starfail`
 
 > All options must validate and default safely; never crash on missing/invalid config.
@@ -269,7 +321,8 @@ config member 'lan_any'
     option weight '40'
 ```
 
-**Validation rules**
+### Validation rules
+
 - Numeric options must parse and be within sane ranges; otherwise default & WARN.
 - Strings normalized (lowercase), unknown values → default & WARN.
 - Member sections are optional; discovery works without them.
@@ -280,7 +333,10 @@ config member 'lan_any'
 Service name: `starfail`
 
 ### Methods & Schemas
+
+
 - `starfail.status` → current state and summary
+
 ```json
 {
   "state":"primary|backup|degraded",
@@ -296,6 +352,7 @@ Service name: `starfail`
 ```
 
 - `starfail.members` → discovered members, metrics, scores
+
 ```json
 [{
   "name":"wan_starlink",
@@ -309,6 +366,7 @@ Service name: `starfail`
 ```
 
 - `starfail.metrics` → recent ring buffer (downsampled if large)
+
 ```json
 {"name":"wan_cell","samples":[
   {"ts":"2025-08-13T12:33:12Z","lat_ms":73,"loss_pct":1.5,"jitter_ms":8,"rsrp":-95,"rsrq":-9,"sinr":14,"instant":78.2},
@@ -321,10 +379,12 @@ Service name: `starfail`
 - `starfail.events` `{ "limit":100 }` → recent decision/events JSON objects
 
 - `starfail.action` → manual operations
+
 ```json
 {"cmd":"failover|restore|recheck|set_level|promote","name":"optional","level":"debug|info|warn|error"}
 ```
-**Rules**: All actions idempotent; rate-limited; log WARN on throttle.
+
+Rules: All actions idempotent; rate-limited; log WARN on throttle.
 
 - `starfail.config.get` → effective config (post-defaults)
 - `starfail.config.set` → (optional) write via UCI + commit + hot-reload
@@ -332,9 +392,10 @@ Service name: `starfail`
 ---
 
 ## CLI
+
 File: `/usr/sbin/starfailctl` (BusyBox `ash`)
 
-```
+```text
 starfailctl status
 starfailctl members
 starfailctl metrics <name>
@@ -347,6 +408,7 @@ starfailctl setlog <debug|info|warn|error>
 ---
 
 ## Integration: mwan3 & netifd
+
 - **Preferred**: Drive **mwan3** membership/weights/metrics for the active policy.
   - Change only what’s necessary; avoid reload storms.
   - Log when no change is needed (`mwan3 unchanged` @INFO).
@@ -354,13 +416,15 @@ starfailctl setlog <debug|info|warn|error>
   - Use `netifd`/ubus or route metrics to prefer the target member.
   - Keep existing sessions where possible; no reckless down/up.
 
-**Constraints**
+### Constraints
+
 - Respect per-member `min_uptime_s` and global `cooldown_s`.
 - Apply **switch_margin** (score gap) and duration windows before switching.
 
 ---
 
 ## Member Discovery & Classification
+
 1) Parse `/etc/config/mwan3` (UCI) for interfaces, members, policies.
 2) Map members → netifd iface names.
 3) Classify heuristically (+ optional hints from UCI member sections):
@@ -376,41 +440,51 @@ Target scale: **≥ 10 members** (mwan3 supports many; plan for 16).
 ---
 
 ## Metric Collection (per class)
+
 All collectors implement:
-```
+
+```text
 Collect(ctx, member) (Metrics, error)   # non-blocking, rate-controlled
 ```
 
-**Common metrics (all classes)**
+### Common metrics (all classes)
+
 - **Latency/Loss** probing to targets (ICMP preferred; TCP/UDP connect timing as fallback).
 - Jitter computed (e.g., MAD or stddev over last N samples).
 - Probe cadence obeys `data_cap_mode` and per-class defaults.
 
-**Starlink**
+### Starlink
+
 - Local API (gRPC/JSON) — **in-process**, no grpcurl/jq.
 - Fields (as available): `latency_ms`, `packet_loss_pct`, `obstruction_pct`, `outages`, `pop_ping_ms`.
 - Keep a **sanity ICMP** to one target at low rate.
 
-**Cellular**
+### Cellular
+
 - Prefer ubus (RutOS `mobiled`/`gsm` providers) to obtain: `RSSI`, `RSRP`, `RSRQ`, `SINR`, `network_type`, `roaming`, `operator`, `band`, `cell_id`.
 - If ubus unavailable, fall back to generic reachability (lat/loss), mark radio metrics `null`.
 - **Metered**: lower probing rate; coalesce pings.
 
-**Wi‑Fi (STA/tether)**
+### Wi‑Fi (STA/tether)
+
 - From ubus `iwinfo` (or `/proc/net/wireless`): `signal`, `noise`, `snr`, `bitrate`.
 - Latency/loss probing like common.
 
-**LAN**
+### LAN
+
 - Latency/loss probing only.
 
-**Provider selection**
+### Provider selection
+
 - At startup, log provider chosen per member (INFO): `provider: member=wan_cell using=rutos.mobiled`.
 
 ---
 
 ## Scoring & Predictive Logic
+
 **Instant score** (0..100):
-```
+
+```text
 score = clamp(0,100,
     base_weight
   - w_lat * norm(lat_ms,  L_ok, L_bad)
@@ -428,15 +502,18 @@ score = clamp(0,100,
 - **Wi‑Fi weak signal** penalty below RSSI threshold.
 
 **Rolling score**:
+
 - **EWMA** with α≈0.2.
 - **Window average** over `history_window_s` (downsampled).
 
 **Final score**:
-```
+
+```text
 final = 0.30*instant + 0.50*ewma + 0.20*window_avg
 ```
 
 **Predictive triggers** (primary only):
+
 - Rising **loss/latency slope** over last N samples,
 - **Jitter spike** above threshold,
 - **Starlink**: high/accelerating obstruction or API-reported outage,
@@ -447,38 +524,47 @@ Rate-limit predictive decisions (e.g., once per `5 * fail_min_duration_s`).
 ---
 
 ## Decision Engine & Hysteresis
+
 State per member: `eligible`, `cooldown`, `last_change`, `warmup`.
+
 Global windows:
+
 - `fail_min_duration_s`: sustained “bad” before **failover**.
 - `restore_min_duration_s`: sustained “good” before **failback**.
 
 At each tick:
+
 1) Rank **eligible** members by **final score**; tiebreak by `weight` then class.
 2) If top ≠ current:
-   - Ensure `top.final - current.final ≥ switch_margin`.
-   - Ensure **duration** criteria (bad/good windows) OR predictive rule satisfied.
-   - Respect `cooldown_s` and `min_uptime_s`.
+  - Ensure `top.final - current.final ≥ switch_margin`.
+  - Ensure **duration** criteria (bad/good windows) OR predictive rule satisfied.
+  - Respect `cooldown_s` and `min_uptime_s`.
 3) Apply change via controller (mwan3 or netifd).
 4) Emit an **event** with full context.
 
-**Idempotency**: No-ops when already in desired state.
+Idempotency: No-ops when already in desired state.
 
 ---
 
 ## Telemetry Store (Short-Term DB)
+
 Two RAM-backed rings under `/tmp/starfail/`:
+
 1) **Per-member samples**: timestamp + metrics + scores (bounded N).
 2) **Event log**: state changes, provider errors, throttles (JSON objects).
 
-**Retention**
+### Retention
+
 - Drop samples older than `retention_hours`.
 - Cap memory usage to `max_ram_mb`; if exceeded, **downsample** old data (keep every Nth sample).
 
-**Persistence**
+### Persistence
+
 - By default, nothing is written to flash.
 - Provide **manual** snapshot export (compressed) via a future CLI command (not required now).
 
-**Publish**
+### Publish
+
 - Optional Prometheus **/metrics** on `127.0.0.1:9101` (guarded by UCI).
 - **/healthz** (OK with build/version/uptime).
 
@@ -916,34 +1002,174 @@ ubus call starfail action '{"cmd":"recheck"}' >/dev/null 2>&1
 ---
 
 ## Testing Strategy & Acceptance
-**Unit tests**
+### Comprehensive Testing Framework
+
+#### Unit tests (Required)
 - Scoring math (norm, EWMA, window, blend)
 - Predictive slope detection & thresholds
 - Hysteresis windows & cooldown logic
 - UCI parsing, defaulting, validation
+- Controller updates (mwan3/netifd) behavior with idempotency and error paths
 
-**Integration tests**
-- Mock Starlink, cellular, wifi providers
-- Mock mwan3/netifd controllers
-- Config reload and live update
+#### Integration tests (Component interaction)
+- Mock Starlink, cellular, wifi providers feeding `pkg/telem`
+- Controller behavior with applied changes verification
+- Config reload and live update via ubus/Signals
 
-**Device E2E (RutOS + OpenWrt)**
+#### System Integration (on device)
 - 8–16 members discovered from synthetic mwan3 configuration
 - Starlink obstruction/outage → predictive switch to cellular
 - Cellular roaming penalty → prefer Wi‑Fi/LAN when better
 - Wi‑Fi signal drop → switch to cellular
 - LAN jitter spike → switch to cellular
 - Cooldowns prevent ping-pong
-- Data-cap **conservative** mode reduces probe volume measurably
+- Data-cap conservative mode reduces probe volume measurably
 - Reboot persistence; interface flaps; SIM switch; absence of mwan3
 
-**Acceptance Criteria**
-- Auto-discovers & classifies members reliably
-- Makes correct (and stable) predictive failovers/failbacks
-- Exposes ubus API and CLI works as specified
-- Telemetry retained within RAM caps and time window
-- Meets CPU/RAM targets; no busy loops
-- Degrades gracefully when providers are missing
+### Acceptance Criteria
+
+#### Functional Requirements
+- [ ] Auto-discovers & classifies members reliably (target ≥ 99% on lab configs)
+- [ ] Makes correct and stable predictive failovers/failbacks
+- [ ] Exposes ubus API and CLI per schemas in this spec
+- [ ] Telemetry retained within RAM caps and time window
+- [ ] Meets CPU/RAM targets; no busy loops; proper timeouts
+- [ ] Degrades gracefully when providers are missing
+
+#### Performance Requirements
+- [ ] Complete failover in <5 seconds
+- [ ] Respond to ubus calls in <1 second
+- [ ] Collect metrics in <2 seconds
+- [ ] Make decisions in <1 second
+- [ ] Handle 10+ concurrent members
+- [ ] Memory usage <25MB steady state
+
+#### Reliability Requirements
+- [ ] 99.9% uptime target
+- [ ] Zero data loss during failover
+- [ ] Automatic recovery from all failure modes
+- [ ] No memory leaks over 30-day period
+- [ ] Graceful handling of all error conditions
+
+### Automated Test Suite (example)
+
+```bash
+#!/bin/bash
+# scripts/run-tests.sh
+
+echo "🧪 Running comprehensive test suite..."
+
+# Unit tests
+echo "Running unit tests..."
+go test ./pkg/... -v -race -cover
+
+# Integration tests
+echo "Running integration tests..."
+go test ./test/integration/... -v || true
+
+# System tests (if hardware available)
+if [ -f "/etc/config/mwan3" ]; then
+    echo "Running system tests..."
+    ./test/integration/test-failover-rutx50.sh || true
+else
+    echo "⚠️  Skipping system tests (no hardware available)"
+fi
+
+# Performance tests
+echo "Running performance tests..."
+go test ./test/performance/... -v || true
+
+echo "✅ All tests completed"
+```
+
+### Continuous Integration (example)
+
+```yaml
+# .github/workflows/test.yml
+name: Test Suite
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+      - name: Run unit tests
+        run: go test ./pkg/... -v -race -cover
+      - name: Run integration tests
+        run: go test ./test/integration/... -v || true
+      - name: Generate coverage report
+        run: go test ./pkg/... -coverprofile=coverage.out
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.out
+```
+
+### Test Data Management (mocks)
+
+```json
+// test/data/mock_starlink_response.json
+{
+  "status": {
+    "obstructionStats": {
+      "currentlyObstructed": false,
+      "fractionObstructed": 0.0041,
+      "last24hObstructedS": 0,
+      "wedgeFractionObstructed": [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+    },
+    "outage": {"lastOutageS": 0},
+    "popPingLatencyMs": 53.2
+  }
+}
+```
+
+```json
+// test/data/mock_ubus_mobiled.json
+{
+  "rsrp": -95,
+  "rsrq": -9,
+  "sinr": 14,
+  "network_type": "LTE",
+  "roaming": false,
+  "operator": "Test Operator",
+  "band": "B3",
+  "cell_id": "12345"
+}
+```
+
+### Test Reporting (example format)
+
+```json
+{
+  "test_suite": "starfail_integration",
+  "timestamp": "2025-01-14T12:00:00Z",
+  "duration": "45.2s",
+  "results": {
+    "total_tests": 156,
+    "passed": 152,
+    "failed": 4,
+    "skipped": 0,
+    "coverage": 87.3
+  },
+  "performance": {
+    "avg_failover_time": "3.2s",
+    "avg_decision_time": "0.8s",
+    "memory_usage": "18.5MB",
+    "cpu_usage": "2.3%"
+  },
+  "failures": [
+    {
+      "test": "TestFailover_RapidFlapping",
+      "error": "failover occurred too quickly (1.2s < 2s minimum)",
+      "component": "decision_engine"
+    }
+  ]
+}
+```
 
 ---
 
@@ -981,12 +1207,68 @@ ubus call starfail action '{"cmd":"recheck"}' >/dev/null 2>&1
 ---
 
 ## Coding Style & Quality
-- Go 1.22+, modules enabled; CGO disabled.
-- No panics on bad input; always validate/default and log at WARN.
-- Interfaces for collectors/controllers; small test doubles.
-- Config reload via `SIGHUP` or ubus `config.set` → atomic apply and diff log.
-- No busy waits; timers via `time.Ticker`; contexts with deadlines everywhere.
-- Avoid third-party deps unless absolutely necessary (MQTT may require a small client).
+### Critical: No placeholders allowed
+- Production-critical: no TODO stubs, no "would do X" logs, no placeholder returns.
+- Every system call must be real, with timeouts/retries and error handling.
+
+### Implementation requirements
+- Complete functionality mandate: implement features fully; test thoroughly.
+- System integration: connect components end-to-end; validate data flow; handle errors.
+- Real system interaction: actual file I/O, ubus/UCI/mwan3 calls with validation and backoff.
+
+### Specific coding standards (Go)
+```go
+// Wrong (placeholder)
+func updateMWAN3Policy(target *Member) error {
+    logger.Info("Would update mwan3 policy", "target", target.Name)
+    return nil
+}
+
+// Correct (complete)
+func updateMWAN3Policy(target *Member) error {
+    cfg, err := readMWAN3Config()
+    if err != nil { return fmt.Errorf("read mwan3: %w", err) }
+    for _, m := range cfg.Members {
+        if m.Name == target.Name { m.Weight = 100 } else { m.Weight = 10 }
+    }
+    if err := writeMWAN3Config(cfg); err != nil { return fmt.Errorf("write mwan3: %w", err) }
+    if err := reloadMWAN3(); err != nil { return fmt.Errorf("reload mwan3: %w", err) }
+    logger.Info("mwan3 policy updated", "target", target.Name)
+    return nil
+}
+```
+
+### Task completion checklist
+- Implementation complete
+  - [ ] No TODOs; all error paths handled; meaningful returns; real system calls
+- Integration complete
+  - [ ] Wired in `main`; dependencies injected; data flows; no orphaned code
+- Testing complete
+  - [ ] Inputs/edges covered; retries/timeouts tested; perf acceptable
+
+### Specific component requirements
+- Controller (`pkg/controller`)
+  - Must modify mwan3 config and reload; verify applied; netifd fallback for routes
+- Discovery (if split to `pkg/discovery`)
+  - Parse `/etc/config/mwan3`; map members→ifaces; classify; detect changes; handle reloads
+- Collectors (`pkg/collector/*`)
+  - Multi-fallback strategies; strict validation; sane timeouts
+- Decision engine (`pkg/decision`)
+  - Trend detection; trigger real failovers; full reasoning logged; all edges handled
+- ubus server (`pkg/ubus`)
+  - Complete method set; validate inputs; handle errors; reliable responses
+
+### Quality assurance requirements
+- Code review checklist: no placeholders; all system calls implemented; components connected; perf acceptable
+- Testing requirements: real hardware trials on RUTX; failure modes; integration points; load tests
+
+### Basic Go standards
+- Go 1.22+, modules enabled; CGO disabled
+- Validate/default and WARN on bad input; avoid panics
+- Interfaces for collectors/controllers; light test doubles
+- Config reload via `SIGHUP` or ubus `config.set` with atomic apply and diff log
+- No busy waits; `time.Ticker`; contexts with deadlines everywhere
+- Avoid third-party deps unless absolutely necessary (MQTT may require a small client)
 
 ---
 
@@ -1108,6 +1390,32 @@ for {
   }
 }
 ```
+
+---
+
+## PROJECT_INSTRUCTION.md Maintenance Requirements
+
+### Mandatory progress tracking
+- This file is the single source of truth. Update it with every meaningful implementation change.
+
+### Update requirements
+- Always move items between status categories (✅/⚡/🔧/🚫)
+- Always reflect real functionality and testing status; avoid estimates without evidence
+- Always document new critical issues, blockers, and deviations
+
+### Progress update format
+- Follow the pattern used in the Implementation Progress Status section with clear bullets:
+  - What works; what’s missing; what’s in-progress; known limitations
+
+### Review cadence
+- Weekly reviews for accuracy; pre-release verification; immediate updates after major merges
+
+### Documentation standards
+- Consistent formatting and terminology; include file paths and function names when helpful
+- Reference actual code implementations and tests; note deviations from spec
+
+### Version control
+- Commit PROJECT_INSTRUCTION.md alongside related code changes; meaningful commit messages; maintain change history
 
 ---
 

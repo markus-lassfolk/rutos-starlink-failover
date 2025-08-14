@@ -2,6 +2,7 @@
 package telem
 
 import (
+	"fmt"
 	"encoding/json"
 	"sync"
 	"time"
@@ -95,6 +96,9 @@ func (s *Store) AddSample(sample Sample) {
 
 	// Clean old samples
 	s.cleanOldSamples(member)
+
+	// Enforce RAM cap (approximate) after adding
+	s.enforceRAMCapLocked()
 }
 
 // AddEvent stores a new system event
@@ -110,6 +114,9 @@ func (s *Store) AddEvent(event Event) {
 		copy(s.events, s.events[len(s.events)-s.maxEvents:])
 		s.events = s.events[:s.maxEvents]
 	}
+
+	// Enforce RAM cap (approximate) after adding
+	s.enforceRAMCapLocked()
 }
 
 // GetSamples returns recent samples for a member
@@ -256,12 +263,15 @@ func (s *Store) GetStats() map[string]interface{} {
 		totalSamples += len(samples)
 	}
 
+	estBytes := s.estimateBytesLocked()
+
 	return map[string]interface{}{
 		"total_samples":   totalSamples,
 		"total_events":    len(s.events),
 		"member_samples":  memberStats,
 		"retention_hours": s.retentionTime.Hours(),
 		"max_ram_mb":      s.maxRAMMB,
+		"estimated_bytes": estBytes,
 	}
 }
 
@@ -283,4 +293,86 @@ func (s *Store) ExportJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(export)
+}
+
+// --- RAM cap enforcement helpers ---
+
+// estimateBytesLocked returns an approximate memory usage for telemetry content.
+// It assumes a conservative size per sample/event to avoid exceeding the cap.
+func (s *Store) estimateBytesLocked() int {
+	const (
+		bytesPerSample = 320 // rough estimate including maps/struct overhead
+		bytesPerEvent  = 160
+	)
+	totalSamples := 0
+	for _, arr := range s.samples {
+		totalSamples += len(arr)
+	}
+	return totalSamples*bytesPerSample + len(s.events)*bytesPerEvent
+}
+
+// enforceRAMCapLocked downsamples old samples/events when the estimated memory
+// exceeds the configured maxRAMMB cap. Must be called with s.mu locked.
+func (s *Store) enforceRAMCapLocked() {
+	if s.maxRAMMB <= 0 {
+		return
+	}
+	capBytes := s.maxRAMMB * 1024 * 1024
+	// Try up to a few rounds of downsampling to get under cap
+	for i := 0; i < 5; i++ {
+		if s.estimateBytesLocked() <= capBytes {
+			return
+		}
+		// Downsample each member's older samples by factor 2
+		for m, arr := range s.samples {
+			if len(arr) <= 200 {
+				continue
+			}
+			s.samples[m] = downsampleKeepRecent(arr, 2, 100)
+		}
+		// Trim older events by half if still above cap
+		if len(s.events) > 200 && s.estimateBytesLocked() > capBytes {
+			keep := len(s.events) / 2
+			copy(s.events, s.events[len(s.events)-keep:])
+			s.events = s.events[:keep]
+		}
+	}
+}
+
+// downsampleKeepRecent keeps the last recentKeep items intact and downsamples
+// the older portion by keeping every nth item. The order is preserved.
+func downsampleKeepRecent[T any](in []T, n int, recentKeep int) []T {
+	if n <= 1 || len(in) <= recentKeep {
+		return in
+	}
+	if recentKeep < 0 {
+		recentKeep = 0
+	}
+	cutoff := len(in) - recentKeep
+	if cutoff < 0 {
+		cutoff = 0
+	}
+	older := in[:cutoff]
+	newer := in[cutoff:]
+	// keep every nth from older
+	kept := make([]T, 0, len(older)/n+len(newer))
+	for i := 0; i < len(older); i++ {
+		if i%n == 0 {
+			kept = append(kept, older[i])
+		}
+	}
+	kept = append(kept, newer...)
+	return kept
+}
+
+// SetMaxRAMMB updates the RAM cap and enforces it immediately.
+func (s *Store) SetMaxRAMMB(mb int) error {
+	if mb < 4 || mb > 128 {
+		return fmt.Errorf("max_ram_mb must be between 4-128, got %d", mb)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.maxRAMMB = mb
+	s.enforceRAMCapLocked()
+	return nil
 }

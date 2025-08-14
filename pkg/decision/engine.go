@@ -52,10 +52,12 @@ type Config struct {
 	WeightClass   float64 `json:"weight_class"`
 
 	// Thresholds
-	SwitchMargin   float64       `json:"switch_margin"`    // Min score delta to switch
-	MinUptimeS     time.Duration `json:"min_uptime_s"`     // Min uptime before eligible
-	CooldownS      time.Duration `json:"cooldown_s"`       // Cooldown after switch
-	HistoryWindowS time.Duration `json:"history_window_s"` // Rolling average window
+	SwitchMargin        float64       `json:"switch_margin"`         // Min score delta to switch
+	MinUptimeS          time.Duration `json:"min_uptime_s"`          // Min uptime before eligible
+	CooldownS           time.Duration `json:"cooldown_s"`            // Cooldown after switch
+	HistoryWindowS      time.Duration `json:"history_window_s"`      // Rolling average window
+	FailMinDurationS    time.Duration `json:"fail_min_duration_s"`   // Sustained dominance before failover
+	RestoreMinDurationS time.Duration `json:"restore_min_duration_s"`// Sustained dominance before failback
 
 	// Class preferences (higher = more preferred)
 	ClassWeights map[string]float64 `json:"class_weights"`
@@ -79,6 +81,9 @@ type Engine struct {
 	auditLogger        *audit.AuditLogger
 	gpsManager         *gps.GPSManager
 	obstructionManager *obstruction.ObstructionManager
+
+	// dominanceSince tracks when a candidate started leading current by margin
+	dominanceSince map[string]time.Time
 }
 
 // NewEngine creates a new enhanced decision engine
@@ -112,6 +117,7 @@ func NewEngine(config Config, logger logx.Logger, store *telem.Store, auditLogge
 		auditLogger:        auditLogger,
 		gpsManager:         gpsManager,
 		obstructionManager: obstructionManager,
+	dominanceSince:     make(map[string]time.Time),
 	}
 }
 
@@ -186,6 +192,21 @@ func (e *Engine) EvaluateSwitch() *SwitchEvent {
 		return nil // Not enough improvement
 	}
 
+	// Update dominance tracking for the best vs current
+	e.updateDominance(bestMember, scoreDelta)
+
+	// Determine required duration based on current quality (approximate "bad" vs "good")
+	required := e.config.FailMinDurationS
+	if currentScore > 50 && e.config.RestoreMinDurationS > 0 {
+		required = e.config.RestoreMinDurationS
+	}
+	if required > 0 {
+		since, ok := e.dominanceSince[bestMember]
+		if !ok || time.Since(since) < required {
+			return nil // Not dominant long enough
+		}
+	}
+
 	// Determine switch type
 	switchType := "failover"
 	if e.currentPrimary != "" && currentScore > 50 {
@@ -229,13 +250,25 @@ func (e *Engine) calculateScores(state *MemberState) {
 		state.Score.EWMA = alpha*instant + (1-alpha)*state.Score.EWMA
 	}
 
-	// TODO: Implement window average using historical data
-	state.Score.WindowAvg = state.Score.EWMA // Placeholder
+	// Window average over recent history using telemetry store (average of instant scores)
+	state.Score.WindowAvg = e.calculateWindowAverage(state.Member.Name, instant)
 
 	// Calculate final blended score
 	state.Score.Instant = instant
 	state.Score.Final = 0.3*instant + 0.5*state.Score.EWMA + 0.2*state.Score.WindowAvg
 	state.Score.LastUpdate = now
+
+	// Record sample to telemetry store (after computing final)
+	if e.store != nil {
+		e.store.AddSample(telem.Sample{
+			Timestamp:    now,
+			Member:       state.Member.Name,
+			Metrics:      metrics,
+			InstantScore: instant,
+			EWMAScore:    state.Score.EWMA,
+			FinalScore:   state.Score.Final,
+		})
+	}
 }
 
 // calculateInstantScore computes the current score for metrics
@@ -374,6 +407,58 @@ func (e *Engine) findBestMember() string {
 	return bestMember
 }
 
+// calculateWindowAverage computes the average of instant scores from telemetry within HistoryWindowS.
+// Includes the current instant value provided (to avoid dependence on store write timing).
+func (e *Engine) calculateWindowAverage(member string, currentInstant float64) float64 {
+	// Default to EWMA when no window configured
+	if e.config.HistoryWindowS <= 0 {
+		return currentInstant
+	}
+	var values []float64
+	// Pull recent samples and aggregate instant scores
+	if e.store != nil {
+		samples := e.store.GetRecentSamples(member, e.config.HistoryWindowS)
+		for _, s := range samples {
+			if s.InstantScore > 0 { // include zeros as valid, but keep logic simple
+				values = append(values, s.InstantScore)
+			}
+		}
+	}
+	// Always include current instant in the window computation
+	values = append(values, currentInstant)
+	if len(values) == 0 {
+		return currentInstant
+	}
+	sum := 0.0
+	for _, v := range values {
+		sum += v
+	}
+	return sum / float64(len(values))
+}
+
+// updateDominance updates the timestamp since when best has led current by at least SwitchMargin
+func (e *Engine) updateDominance(best string, scoreDelta float64) {
+	if e.currentPrimary == "" {
+		// Initial selection shouldn't require dominance
+		e.dominanceSince[best] = time.Now()
+		return
+	}
+	if scoreDelta >= e.config.SwitchMargin {
+		if _, ok := e.dominanceSince[best]; !ok {
+			e.dominanceSince[best] = time.Now()
+		}
+		// Reset others
+		for name := range e.dominanceSince {
+			if name != best {
+				delete(e.dominanceSince, name)
+			}
+		}
+	} else {
+		// Not leading by margin; reset
+		delete(e.dominanceSince, best)
+	}
+}
+
 // shouldPreemptiveSwitch determines if predictive switching should occur
 func (e *Engine) shouldPreemptiveSwitch(candidate string) bool {
 	if !e.config.EnablePredictive {
@@ -392,11 +477,7 @@ func (e *Engine) shouldPreemptiveSwitch(candidate string) bool {
 
 	// Check if current score is trending downward
 	scoreDecline := current.Score.EWMA - current.Score.Instant
-	if scoreDecline > e.config.PredictThreshold {
-		return true
-	}
-
-	return false
+	return scoreDecline > e.config.PredictThreshold
 }
 
 // generateSwitchReason creates a human-readable reason for the switch

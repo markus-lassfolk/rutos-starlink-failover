@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sort"
 )
 
 // Config represents the complete starfail configuration
@@ -340,7 +341,8 @@ func (l *Loader) loadMembersFromUCI(config *Config) error {
 		return nil
 	}
 
-	memberMap := make(map[string]*MemberConfig)
+	// Keep track of member index so we can preserve order
+	memberMap := make(map[int]*MemberConfig)
 	lines := strings.Split(string(output), "\n")
 
 	for _, line := range lines {
@@ -374,7 +376,13 @@ func (l *Loader) loadMembersFromUCI(config *Config) error {
 		indexStr := memberPart[8 : len(memberPart)-1]
 
 		// Get or create member
-		member := memberMap[indexStr]
+		// parse numeric index
+		idx, err := strconv.Atoi(indexStr)
+		if err != nil {
+			continue
+		}
+
+		member := memberMap[idx]
 		if member == nil {
 			member = &MemberConfig{
 				Weight:        50,
@@ -382,17 +390,27 @@ func (l *Loader) loadMembersFromUCI(config *Config) error {
 				PreferRoaming: false,
 				Metered:       false,
 			}
-			memberMap[indexStr] = member
+			memberMap[idx] = member
 		}
 
 		// Set option value
 		l.setMemberOption(member, option, value)
 	}
 
-	// Convert map to slice
-	config.Members = make([]MemberConfig, 0, len(memberMap))
-	for _, member := range memberMap {
-		config.Members = append(config.Members, *member)
+	// Convert map to slice in index order
+	if len(memberMap) > 0 {
+		indices := make([]int, 0, len(memberMap))
+		for i := range memberMap {
+			indices = append(indices, i)
+		}
+		sort.Ints(indices)
+
+		config.Members = make([]MemberConfig, 0, len(memberMap))
+		for _, i := range indices {
+			config.Members = append(config.Members, *memberMap[i])
+		}
+	} else {
+		config.Members = nil
 	}
 
 	return nil

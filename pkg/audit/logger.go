@@ -6,7 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -163,7 +163,7 @@ type Alternative struct {
 
 // NewAuditLogger creates a new audit logger
 func NewAuditLogger(logDir string) (*AuditLogger, error) {
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
@@ -225,7 +225,10 @@ func (a *AuditLogger) LogDecision(ctx context.Context, event *DecisionEvent) err
 
 	// Force sync for critical events
 	if event.EventType == "action" || event.EventType == "error" {
-		a.currentFile.Sync()
+		if err := a.currentFile.Sync(); err != nil {
+			// Log sync error but don't fail the operation
+			log.Printf("Warning: failed to sync audit log: %v", err)
+		}
 	}
 
 	return nil
@@ -380,7 +383,7 @@ func (a *AuditLogger) openLogFile() error {
 	filename := fmt.Sprintf("audit-%s.jsonl", time.Now().Format("20060102"))
 	path := filepath.Join(a.logDir, filename)
 
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return err
 	}
@@ -404,7 +407,9 @@ func (a *AuditLogger) needsRotation(additionalBytes int64) bool {
 
 func (a *AuditLogger) rotateLogFile() error {
 	if a.currentFile != nil {
-		a.currentFile.Close()
+		if err := a.currentFile.Close(); err != nil {
+			log.Printf("Warning: failed to close audit log file: %v", err)
+		}
 	}
 
 	// Clean up old files
@@ -422,7 +427,9 @@ func (a *AuditLogger) cleanupOldFiles() {
 	if len(files) > a.maxFiles {
 		// Remove oldest files
 		for i := 0; i < len(files)-a.maxFiles; i++ {
-			os.Remove(files[i])
+			if err := os.Remove(files[i]); err != nil {
+				log.Printf("Warning: failed to remove old audit log file %s: %v", files[i], err)
+			}
 		}
 	}
 }
@@ -441,7 +448,7 @@ func (a *AuditLogger) captureSystemContext() *SystemContext {
 // Enhanced system context collection functions
 func getCPUUsage() float64 {
 	// Read /proc/loadavg and convert to percentage
-	if data, err := ioutil.ReadFile("/proc/loadavg"); err == nil {
+	if data, err := os.ReadFile("/proc/loadavg"); err == nil {
 		fields := strings.Fields(string(data))
 		if len(fields) >= 1 {
 			if load, err := strconv.ParseFloat(fields[0], 64); err == nil {
@@ -455,7 +462,7 @@ func getCPUUsage() float64 {
 
 func getMemoryUsage() float64 {
 	// Read /proc/meminfo
-	if data, err := ioutil.ReadFile("/proc/meminfo"); err == nil {
+	if data, err := os.ReadFile("/proc/meminfo"); err == nil {
 		lines := strings.Split(string(data), "\n")
 		var memTotal, memAvailable float64
 
@@ -485,7 +492,7 @@ func getMemoryUsage() float64 {
 }
 
 func getLoadAverage() float64 {
-	if data, err := ioutil.ReadFile("/proc/loadavg"); err == nil {
+	if data, err := os.ReadFile("/proc/loadavg"); err == nil {
 		fields := strings.Fields(string(data))
 		if len(fields) >= 1 {
 			if load, err := strconv.ParseFloat(fields[0], 64); err == nil {
@@ -512,7 +519,7 @@ func getActiveConnections() int {
 }
 
 func getSystemUptime() int64 {
-	if data, err := ioutil.ReadFile("/proc/uptime"); err == nil {
+	if data, err := os.ReadFile("/proc/uptime"); err == nil {
 		fields := strings.Fields(string(data))
 		if len(fields) >= 1 {
 			if uptime, err := strconv.ParseFloat(fields[0], 64); err == nil {
@@ -524,7 +531,7 @@ func getSystemUptime() int64 {
 }
 
 func getProcessCount() int {
-	if data, err := ioutil.ReadFile("/proc/loadavg"); err == nil {
+	if data, err := os.ReadFile("/proc/loadavg"); err == nil {
 		fields := strings.Fields(string(data))
 		if len(fields) >= 4 {
 			// Format: "load1 load5 load15 running/total lastpid"

@@ -4,8 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +19,13 @@ const (
 	version = "1.0.0-dev"
 	appName = "starfail-sysmgmt"
 )
+
+// isValidServiceName validates service names to prevent command injection
+func isValidServiceName(service string) bool {
+	// Only allow alphanumeric characters, hyphens, and underscores
+	validPattern := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	return validPattern.MatchString(service) && len(service) <= 50
+}
 
 var (
 	configFile = flag.String("config", "/etc/config/starfail", "UCI config file path")
@@ -183,6 +192,10 @@ func (sm *SystemManager) checkCriticalServices() []string {
 	var failed []string
 
 	for _, service := range services {
+		if !isValidServiceName(service) {
+			sm.logger.Warn("invalid service name", "service", service)
+			continue
+		}
 		cmd := exec.Command("/etc/init.d/"+service, "status")
 		if err := cmd.Run(); err != nil {
 			failed = append(failed, service)
@@ -479,29 +492,51 @@ func (sm *SystemManager) cleanupOverlaySpace() {
 	sm.logger.Info("cleaning overlay space")
 
 	// Remove old backup files
-	exec.Command("find", "/overlay", "-name", "*.old", "-mtime", "+7", "-delete").Run()
-	exec.Command("find", "/overlay", "-name", "*.bak", "-mtime", "+7", "-delete").Run()
-	exec.Command("find", "/overlay", "-name", "*.tmp", "-mtime", "+7", "-delete").Run()
+	if err := exec.Command("find", "/overlay", "-name", "*.old", "-mtime", "+7", "-delete").Run(); err != nil {
+		log.Printf("Warning: failed to clean old backup files: %v", err)
+	}
+	if err := exec.Command("find", "/overlay", "-name", "*.bak", "-mtime", "+7", "-delete").Run(); err != nil {
+		log.Printf("Warning: failed to clean bak backup files: %v", err)
+	}
+	if err := exec.Command("find", "/overlay", "-name", "*.tmp", "-mtime", "+7", "-delete").Run(); err != nil {
+		log.Printf("Warning: failed to clean tmp backup files: %v", err)
+	}
 
 	// Clean old maintenance logs
-	exec.Command("find", "/var/log", "-name", "*maintenance*", "-mtime", "+14", "-delete").Run()
+	if err := exec.Command("find", "/var/log", "-name", "*maintenance*", "-mtime", "+14", "-delete").Run(); err != nil {
+		log.Printf("Warning: failed to clean maintenance logs: %v", err)
+	}
 }
 
 // restartCriticalServices restarts failed critical services
 func (sm *SystemManager) restartCriticalServices(services []string) {
 	for _, service := range services {
+		if !isValidServiceName(service) {
+			sm.logger.Warn("invalid service name for restart", "service", service)
+			continue
+		}
 		sm.logger.Info("restarting critical service", "service", service)
-		exec.Command("/etc/init.d/"+service, "restart").Run()
+		if err := exec.Command("/etc/init.d/"+service, "restart").Run(); err != nil {
+			sm.logger.Warn("failed to restart critical service", "service", service, "error", err)
+		}
 	}
 }
 
 // restartHungServices restarts hung services
 func (sm *SystemManager) restartHungServices(services []string) {
 	for _, service := range services {
+		if !isValidServiceName(service) {
+			sm.logger.Warn("invalid service name for hung restart", "service", service)
+			continue
+		}
 		sm.logger.Info("restarting hung service", "service", service)
-		exec.Command("killall", service).Run()
+		if err := exec.Command("killall", service).Run(); err != nil {
+			sm.logger.Warn("failed to kill hung service", "service", service, "error", err)
+		}
 		time.Sleep(2 * time.Second)
-		exec.Command("/etc/init.d/"+service, "restart").Run()
+		if err := exec.Command("/etc/init.d/"+service, "restart").Run(); err != nil {
+			sm.logger.Warn("failed to restart service", "service", service, "error", err)
+		}
 	}
 }
 
@@ -515,19 +550,25 @@ func (sm *SystemManager) mitigateLogFlooding() {
 // fixTimeSync restarts NTP service
 func (sm *SystemManager) fixTimeSync() {
 	sm.logger.Info("fixing time synchronization")
-	exec.Command("/etc/init.d/sysntpd", "restart").Run()
+	if err := exec.Command("/etc/init.d/sysntpd", "restart").Run(); err != nil {
+		sm.logger.Warn("failed to restart sysntpd", "error", err)
+	}
 }
 
 // restartNetworkService restarts network to fix flapping
 func (sm *SystemManager) restartNetworkService() {
 	sm.logger.Info("restarting network service to fix flapping")
-	exec.Command("/etc/init.d/network", "restart").Run()
+	if err := exec.Command("/etc/init.d/network", "restart").Run(); err != nil {
+		sm.logger.Warn("failed to restart network service", "error", err)
+	}
 }
 
 // restartCronService restarts cron daemon
 func (sm *SystemManager) restartCronService() {
 	sm.logger.Info("restarting cron service")
-	exec.Command("/etc/init.d/cron", "restart").Run()
+	if err := exec.Command("/etc/init.d/cron", "restart").Run(); err != nil {
+		sm.logger.Warn("failed to restart cron service", "error", err)
+	}
 }
 
 // fixDatabaseIssues recreates corrupted databases
@@ -537,9 +578,9 @@ func (sm *SystemManager) fixDatabaseIssues(databases []string) {
 
 		// Backup corrupted database
 		backupPath := db + ".corrupted." + time.Now().Format("20060102150405")
-		exec.Command("mv", db, backupPath).Run()
-
-		// The database will be recreated by the respective service
+		if err := exec.Command("mv", db, backupPath).Run(); err != nil {
+			log.Printf("Warning: failed to backup corrupted database %s: %v", db, err)
+		} // The database will be recreated by the respective service
 		// when it next starts or tries to access it
 	}
 }

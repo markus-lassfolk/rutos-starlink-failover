@@ -656,7 +656,7 @@ func (o *ObstructionManager) calculatePredictionConfidence(targetTime time.Time,
 	confidence := 1.0
 
 	// Reduce confidence based on time distance into future
-	timeDiff := targetTime.Sub(time.Now())
+	timeDiff := time.Until(targetTime)
 	if timeDiff > 6*time.Hour {
 		confidence *= 0.3
 	} else if timeDiff > 3*time.Hour {
