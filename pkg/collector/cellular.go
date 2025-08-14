@@ -223,8 +223,37 @@ func (cc *CellularCollector) readFile(path string) (string, error) {
 
 // parseSignalFromFile parses signal strength from file contents
 func (cc *CellularCollector) parseSignalFromFile(data, iface string) *int {
-	// This is a simplified implementation
-	// In a real implementation, you'd parse the file format
+	// First, try to parse the data as a simple integer value
+	if val, err := strconv.Atoi(strings.TrimSpace(data)); err == nil {
+		return &val
+	}
+
+	// Otherwise attempt to parse /proc/net/wireless format
+	lines := strings.Split(data, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		// Fix: Use exact interface name matching instead of prefix matching
+		// This prevents matching "wwan0" when looking for "wwan"
+		if !strings.HasPrefix(line, iface+":") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		// Expected format: iface: status link level noise ...
+		if len(fields) < 4 {
+			return nil
+		}
+
+		// The level is typically the 4th field
+		levelStr := strings.TrimSuffix(fields[3], ".")
+		level, err := strconv.ParseFloat(levelStr, 64)
+		if err != nil {
+			return nil
+		}
+		lvl := int(level)
+		return &lvl
+	}
+
 	return nil
 }
 

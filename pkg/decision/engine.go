@@ -772,6 +772,45 @@ func (e *Engine) GetMemberState(memberName string) (*MemberState, error) {
 	return state, nil
 }
 
+// RecheckMember forces a re-evaluation of a specific member's health
+func (e *Engine) RecheckMember(memberName string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Check if member exists
+	member, exists := e.members[memberName]
+	if !exists {
+		return fmt.Errorf("member not found: %s", memberName)
+	}
+
+	// Force immediate metrics collection for this member
+	ctx := context.Background()
+	metrics, err := e.collectMemberMetrics(ctx, member)
+	if err != nil {
+		return fmt.Errorf("failed to collect metrics for %s: %w", memberName, err)
+	}
+
+	// Update member state with new metrics
+	if state, exists := e.memberState[memberName]; exists {
+		state.LastCheck = time.Now()
+		state.LastMetrics = metrics
+		state.HealthStatus = "rechecked"
+	}
+
+	// Recalculate score for this member
+	if samples, err := e.telemetry.GetSamples(memberName, time.Now().Add(-time.Minute*5)); err == nil {
+		if score := e.calculateScore(member, samples); score != nil {
+			e.scores[memberName] = score
+		}
+	}
+
+	if e.logger != nil {
+		e.logger.Info("Member rechecked", "member", memberName)
+	}
+
+	return nil
+}
+
 // Advanced Predictive Methods
 
 // NewPatternDetector creates a new pattern detector

@@ -113,25 +113,6 @@ func (c *Client) Call(ctx context.Context, object, method string, data interface
 		payload = b
 	}
 
-	msg := &Message{
-		Type:   "call",
-		Path:   object,
-		Method: method,
-		Data:   payload,
-		ID:     c.GetNextCallID(),
-	}
-
-	c.callMu.Lock()
-	defer c.callMu.Unlock()
-	var msg *Message
-	c.callMu.Lock()
-	msg = &Message{
-		Type:   "call",
-		Path:   object,
-		Method: method,
-		Data:   payload,
-		ID:     c.GetNextCallID(),
-	}
 	c.callMu.Lock()
 	defer c.callMu.Unlock()
 	msg := &Message{

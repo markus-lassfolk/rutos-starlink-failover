@@ -191,12 +191,41 @@ func (wc *WiFiCollector) readWirelessFile() (string, error) {
 
 // parseWirelessFile parses /proc/net/wireless format
 func (wc *WiFiCollector) parseWirelessFile(data, iface string) *WiFiInfo {
-	// This is a simplified implementation
-	// In a real implementation, you'd parse the /proc/net/wireless format
-	// Example format:
-	// Inter-| sta-|   Quality        |   Discarded packets               | Missed | WE
-	//  face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
-	//  wlan0: 0000   70.  -50.  -256        0      0      0      0      0        0
+	lines := strings.Split(data, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		// Fix: Use exact interface name matching instead of prefix matching
+		// This prevents matching "wlan0" when looking for "wlan"
+		if !strings.HasPrefix(line, iface+":") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		// Expected: iface: status link level noise ...
+		if len(fields) < 5 {
+			return nil
+		}
+
+		levelStr := strings.TrimSuffix(fields[3], ".")
+		noiseStr := strings.TrimSuffix(fields[4], ".")
+
+		levelF, err1 := strconv.ParseFloat(levelStr, 64)
+		noiseF, err2 := strconv.ParseFloat(noiseStr, 64)
+		if err1 != nil || err2 != nil {
+			return nil
+		}
+
+		level := int(levelF)
+		noise := int(noiseF)
+		snr := level - noise
+
+		return &WiFiInfo{
+			SignalStrength: &level,
+			NoiseLevel:     &noise,
+			SNR:            &snr,
+		}
+	}
+
 	return nil
 }
 

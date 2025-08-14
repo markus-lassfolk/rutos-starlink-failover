@@ -630,6 +630,54 @@ func (s *Server) GetInfo() (*InfoResponse, error) {
 	return info, nil
 }
 
+// GetTelemetry returns telemetry data
+func (s *Server) GetTelemetry() (map[string]interface{}, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Get recent samples for all members
+	members, err := s.controller.GetMembers()
+	if err != nil {
+		return nil, err
+	}
+
+	telemetry := make(map[string]interface{})
+	for _, member := range members {
+		samples, err := s.store.GetSamples(member.Name, time.Now().Add(-time.Hour))
+		if err == nil {
+			telemetry[member.Name] = samples
+		}
+	}
+
+	return telemetry, nil
+}
+
+// Action executes a system action
+func (s *Server) Action(cmd string) (map[string]interface{}, error) {
+	switch cmd {
+	case "restart":
+		// TODO: Implement restart functionality
+		return map[string]interface{}{
+			"success": true,
+			"message": "Restart command received",
+		}, nil
+	case "status":
+		status, err := s.GetStatus()
+		if err != nil {
+			return nil, err
+		}
+		return map[string]interface{}{
+			"success": true,
+			"status":  status,
+		}, nil
+	default:
+		return map[string]interface{}{
+			"success": false,
+			"message": fmt.Sprintf("Unknown action: %s", cmd),
+		}, nil
+	}
+}
+
 // Handler methods for ubus calls
 
 func (s *Server) handleStatus(ctx context.Context, params map[string]interface{}) (interface{}, error) {
@@ -671,7 +719,12 @@ func (s *Server) handleFailover(ctx context.Context, params map[string]interface
 		return nil, fmt.Errorf("missing or invalid member parameter")
 	}
 
-	result, err := s.Failover(targetMember)
+	req := &FailoverRequest{
+		TargetMember: targetMember,
+		Reason:       "manual via ubus",
+	}
+
+	result, err := s.Failover(req)
 	if err != nil {
 		return nil, err
 	}
@@ -679,7 +732,10 @@ func (s *Server) handleFailover(ctx context.Context, params map[string]interface
 }
 
 func (s *Server) handleRestore(ctx context.Context, params map[string]interface{}) (interface{}, error) {
-	result, err := s.Restore()
+	req := &RestoreRequest{
+		Reason: "manual via ubus",
+	}
+	result, err := s.Restore(req)
 	if err != nil {
 		return nil, err
 	}
@@ -687,7 +743,11 @@ func (s *Server) handleRestore(ctx context.Context, params map[string]interface{
 }
 
 func (s *Server) handleRecheck(ctx context.Context, params map[string]interface{}) (interface{}, error) {
-	result, err := s.Recheck()
+	member, _ := params["member"].(string)
+	req := &RecheckRequest{
+		Member: member,
+	}
+	result, err := s.Recheck(req)
 	if err != nil {
 		return nil, err
 	}
@@ -700,7 +760,10 @@ func (s *Server) handleSetLogLevel(ctx context.Context, params map[string]interf
 		return nil, fmt.Errorf("missing or invalid level parameter")
 	}
 
-	result, err := s.SetLogLevel(level)
+	req := &LogLevelRequest{
+		Level: level,
+	}
+	result, err := s.SetLogLevel(req)
 	if err != nil {
 		return nil, err
 	}
