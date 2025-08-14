@@ -4,6 +4,12 @@
 
 All packages now compile successfully for **all target platforms** including Busybox/OpenWrt routers.
 
+## Current Limitations
+
+- **Daemon loop missing** – core runtime logic is not yet implemented.
+- **ubus integration incomplete** – API surface and message handling unfinished.
+- **Sparse tests** – minimal coverage; functionality largely unverified.
+
 ## Cross-Platform Executables Built Successfully
 
 ### Windows Binaries

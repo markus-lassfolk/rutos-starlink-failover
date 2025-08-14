@@ -1,12 +1,12 @@
 # 🚀 Starfail - Go Multi-Interface Failover Daemon
 
-**Version 4.0 - Production Go Implementation** | **For RutOS/OpenWrt** | **Ready for Deployment**
+**Experimental Go Implementation (Work in Progress)** | **For RutOS/OpenWrt**
 
 ![GitHub Stars](https://img.shields.io/github/stars/markus-lassfolk/rutos-starlink-failover)
 ![License](https://img.shields.io/github/license/markus-lassfolk/rutos-starlink-failover)
 ![Last Commit](https://img.shields.io/github/last-commit/markus-lassfolk/rutos-starlink-failover)
 
-A production-ready Go daemon for intelligent multi-interface failover on OpenWrt/RutOS routers. Automatically manages connections between **Starlink**, **Cellular (4G/5G)**, **Wi-Fi**, and **Ethernet** interfaces with **predictive switching** and **comprehensive monitoring**.
+An experimental Go daemon for intelligent multi-interface failover on OpenWrt/RutOS routers. Automatically manages connections between **Starlink**, **Cellular (4G/5G)**, **Wi-Fi**, and **Ethernet** interfaces with **predictive switching** and **comprehensive monitoring**.
 
 ## 🎯 Architecture Overview
 
@@ -36,7 +36,7 @@ A production-ready Go daemon for intelligent multi-interface failover on OpenWrt
 - **📈 Real-time Metrics**: In-memory telemetry with structured JSON logging
 - **🔌 ubus API**: Complete management interface for automation
 - **⚡ High Performance**: Zero-dependency Go binary (~4MB, <10MB RAM)
-- **🛡️ Production Ready**: Signal handling, config reloading, procd integration
+- **🚧 Experimental Status**: Core daemon loop and ubus integration are still under development
 - **🔍 Observability**: Structured logging, event tracking, and live monitoring
 
 ## � Quick Start
