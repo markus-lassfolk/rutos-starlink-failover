@@ -85,11 +85,11 @@ func (s *Server) registerMethods(ctx context.Context) error {
 
 	// Define the methods exposed over ubus
 	methods := map[string]map[string]interface{}{
-		"status":  {},
-		"members": {},
-		"metrics": {"member": "str", "limit": "int"},
-		"action":  {"action": "str", "member": "str", "force": "bool"},
-		"events":  {"limit": "int"},
+		"status":     {},
+		"members":    {},
+		"metrics":    {"member": "str", "limit": "int"},
+		"action":     {"action": "str", "member": "str", "force": "bool"},
+		"events":     {"limit": "int"},
 		"config.get": {},
 		"config.set": {"changes": "object"},
 	}
@@ -536,9 +536,9 @@ func (s *Server) HandleConfigGet(ctx context.Context) (map[string]interface{}, e
 	// plus controller/registry context summaries.
 	members, _ := s.controller.DiscoverMembers(ctx)
 	return map[string]interface{}{
-		"service": s.serviceName,
+		"service":   s.serviceName,
 		"telemetry": stats,
-		"members": members,
+		"members":   members,
 	}, nil
 }
 

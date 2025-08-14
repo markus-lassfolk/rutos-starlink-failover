@@ -4,10 +4,10 @@ package uci
 import (
 	"fmt"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"sort"
 )
 
 // Config represents the complete starfail configuration

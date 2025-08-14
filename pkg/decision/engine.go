@@ -52,12 +52,12 @@ type Config struct {
 	WeightClass   float64 `json:"weight_class"`
 
 	// Thresholds
-	SwitchMargin        float64       `json:"switch_margin"`         // Min score delta to switch
-	MinUptimeS          time.Duration `json:"min_uptime_s"`          // Min uptime before eligible
-	CooldownS           time.Duration `json:"cooldown_s"`            // Cooldown after switch
-	HistoryWindowS      time.Duration `json:"history_window_s"`      // Rolling average window
-	FailMinDurationS    time.Duration `json:"fail_min_duration_s"`   // Sustained dominance before failover
-	RestoreMinDurationS time.Duration `json:"restore_min_duration_s"`// Sustained dominance before failback
+	SwitchMargin        float64       `json:"switch_margin"`          // Min score delta to switch
+	MinUptimeS          time.Duration `json:"min_uptime_s"`           // Min uptime before eligible
+	CooldownS           time.Duration `json:"cooldown_s"`             // Cooldown after switch
+	HistoryWindowS      time.Duration `json:"history_window_s"`       // Rolling average window
+	FailMinDurationS    time.Duration `json:"fail_min_duration_s"`    // Sustained dominance before failover
+	RestoreMinDurationS time.Duration `json:"restore_min_duration_s"` // Sustained dominance before failback
 
 	// Class preferences (higher = more preferred)
 	ClassWeights map[string]float64 `json:"class_weights"`
@@ -117,7 +117,7 @@ func NewEngine(config Config, logger logx.Logger, store *telem.Store, auditLogge
 		auditLogger:        auditLogger,
 		gpsManager:         gpsManager,
 		obstructionManager: obstructionManager,
-	dominanceSince:     make(map[string]time.Time),
+		dominanceSince:     make(map[string]time.Time),
 	}
 }
 

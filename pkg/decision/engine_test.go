@@ -69,13 +69,13 @@ func TestScoreJitter(t *testing.T) {
 		jitter   float64
 		expected float64
 	}{
-		{2.0, 100}, // excellent
-		{5.0, 100}, // still excellent
+		{2.0, 100},    // excellent
+		{5.0, 100},    // still excellent
 		{10.0, 86.67}, // good
-		{20.0, 80}, // fair
-		{35.0, 70}, // poor
-		{50.0, 60}, // barely acceptable
-		{100.0, 30}, // very poor
+		{20.0, 80},    // fair
+		{35.0, 70},    // poor
+		{50.0, 60},    // barely acceptable
+		{100.0, 30},   // very poor
 	}
 
 	for _, c := range cases {
@@ -102,7 +102,7 @@ func TestCalculateInstantScoreIntegration(t *testing.T) {
 
 	member := collector.Member{Class: "starlink"}
 	score := eng.calculateInstantScore(starlinkMetrics, member)
-	
+
 	if score < 90 || score > 100 {
 		t.Fatalf("Starlink with good metrics should score high, got %.2f", score)
 	}
@@ -118,7 +118,7 @@ func TestCalculateInstantScoreIntegration(t *testing.T) {
 
 	member = collector.Member{Class: "cellular"}
 	score = eng.calculateInstantScore(cellularMetrics, member)
-	
+
 	if score < 80 || score > 95 {
 		t.Fatalf("Cellular with good metrics should score well, got %.2f", score)
 	}
@@ -133,7 +133,7 @@ func TestCalculateInstantScoreIntegration(t *testing.T) {
 
 	member = collector.Member{Class: "generic"}
 	score = eng.calculateInstantScore(poorMetrics, member)
-	
+
 	if score > 60 {
 		t.Fatalf("Interface with poor metrics should score low, got %.2f", score)
 	}
@@ -157,16 +157,16 @@ func TestEWMAScoring(t *testing.T) {
 
 	// Update the EWMA manually (simulating internal updateEWMA)
 	instant := 60.0
-	alpha := 0.1 // Default hardcoded value in engine
+	alpha := 0.1                                   // Default hardcoded value in engine
 	expectedEWMA := alpha*instant + (1-alpha)*80.0 // 0.1*60 + 0.9*80 = 6 + 72 = 78
-	
+
 	state.Score.EWMA = expectedEWMA
 
 	// Verify EWMA calculation
 	if (state.Score.EWMA-expectedEWMA) > 0.01 || (expectedEWMA-state.Score.EWMA) > 0.01 {
 		t.Fatalf("EWMA calculation incorrect, expected %.2f got %.2f", expectedEWMA, state.Score.EWMA)
 	}
-	
+
 	// EWMA should be between old (80) and new (60), closer to old due to low alpha
 	if state.Score.EWMA >= 80 || state.Score.EWMA <= 60 {
 		t.Fatalf("EWMA should blend scores between 60-80, got %.2f", state.Score.EWMA)

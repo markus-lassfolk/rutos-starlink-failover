@@ -26,14 +26,14 @@ func main() {
 		CooldownS: 1,
 	}
 	ctrl := controller.NewController(config, logger)
-	
+
 	members, err := ctrl.DiscoverMembers(ctx)
 	if err != nil {
 		fmt.Printf("   ❌ Controller discovery failed: %v\n", err)
 	} else {
 		fmt.Printf("   ✅ Found %d members:\n", len(members))
 		for _, member := range members {
-			fmt.Printf("      - %s (interface: %s, metric: %d, weight: %d)\n", 
+			fmt.Printf("      - %s (interface: %s, metric: %d, weight: %d)\n",
 				member.Name, member.Interface, member.Metric, member.Weight)
 		}
 	}
@@ -41,7 +41,7 @@ func main() {
 	// Test 2: Cellular Collector
 	fmt.Println("\n2. Testing cellular collector...")
 	cellular := collector.NewCellularCollector("")
-	
+
 	cellularMember := collector.Member{InterfaceName: "mob1s1a1"}
 	cellularMetrics, err := cellular.Collect(ctx, cellularMember)
 	if err != nil {
@@ -65,7 +65,7 @@ func main() {
 	// Test 3: Ping Collector on WAN interface
 	fmt.Println("\n3. Testing ping collector on WAN interface...")
 	ping := collector.NewPingCollector([]string{"1.1.1.1", "8.8.8.8"})
-	
+
 	wanMember := collector.Member{InterfaceName: "eth1"}
 	pingMetrics, err := ping.Collect(ctx, wanMember)
 	if err != nil {
@@ -86,7 +86,7 @@ func main() {
 	// Test 4: Starlink Collector
 	fmt.Println("\n4. Testing Starlink collector...")
 	starlink := collector.NewStarlinkCollector("")
-	
+
 	starlinkMember := collector.Member{InterfaceName: "eth1"}
 	starlinkMetrics, err := starlink.Collect(ctx, starlinkMember)
 	if err != nil {

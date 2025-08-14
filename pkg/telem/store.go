@@ -2,8 +2,8 @@
 package telem
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 

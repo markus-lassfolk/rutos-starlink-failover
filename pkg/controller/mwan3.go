@@ -520,5 +520,5 @@ func parseDefaultDev(s string) string {
 }
 
 // test helpers (unexported): allow tests to inject runner and sleep
-func (c *Controller) setRunnerForTest(r Runner) { c.run = r }
+func (c *Controller) setRunnerForTest(r Runner)             { c.run = r }
 func (c *Controller) setSleepForTest(f func(time.Duration)) { c.sleep = f }
