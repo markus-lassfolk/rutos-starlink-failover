@@ -403,7 +403,7 @@ func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
 	if err != nil {
 		s.logger.Warn("Could not get current member", "error", err)
 	}
-	
+
 	err = s.controller.Switch(currentMember, targetMember)
 	if err != nil {
 		return &FailoverResponse{

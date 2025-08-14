@@ -156,7 +156,6 @@ func (c *Client) RegisterObject(ctx context.Context, name string, methods map[st
 
 	c.handlers[name] = methods
 
-
 	if c.logger != nil {
 		c.logger.Info("Registering ubus object", "name", name, "methods", len(methods))
 	}
@@ -209,8 +208,6 @@ func (c *Client) UnregisterObject(ctx context.Context, name string) error {
 
 // Listen listens for ubus messages
 func (c *Client) Listen(ctx context.Context) error {
-
-
 	c.mu.RLock()
 	conn := c.conn
 	connected := c.connected
@@ -221,7 +218,6 @@ func (c *Client) Listen(ctx context.Context) error {
 	}
 
 	reader := bufio.NewReader(conn)
-
 
 	for {
 		select {
@@ -328,7 +324,6 @@ func (c *Client) handleMessage(ctx context.Context, msg Message) {
 	if conn != nil {
 		if payload, err := json.Marshal(resp); err == nil {
 			conn.Write(append(payload, '\n'))
-
 		}
 
 		result, err := handler(ctx, msg.Data)

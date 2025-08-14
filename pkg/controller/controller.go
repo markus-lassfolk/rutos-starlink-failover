@@ -255,8 +255,8 @@ func (c *Controller) updateMWAN3Policy(to *pkg.Member) error {
 	}
 
 	c.logger.LogMWAN3("policy_update_complete", map[string]interface{}{
-		"target":        to.Name,
-		"iface":         to.Iface,
+		"target":          to.Name,
+		"iface":           to.Iface,
 		"weights_updated": true,
 	})
 
@@ -274,16 +274,16 @@ func (c *Controller) reloadMWAN3() error {
 
 // MWAN3Config represents the mwan3 configuration structure
 type MWAN3Config struct {
-	Members []*MWAN3Member `json:"members"`
+	Members  []*MWAN3Member `json:"members"`
 	Policies []*MWAN3Policy `json:"policies"`
 }
 
 type MWAN3Member struct {
-	Name     string `json:"name"`
-	Iface    string `json:"interface"`
-	Weight   int    `json:"weight"`
-	Metric   int    `json:"metric"`
-	Enabled  bool   `json:"enabled"`
+	Name    string `json:"name"`
+	Iface   string `json:"interface"`
+	Weight  int    `json:"weight"`
+	Metric  int    `json:"metric"`
+	Enabled bool   `json:"enabled"`
 }
 
 type MWAN3Policy struct {
@@ -432,7 +432,7 @@ func (c *Controller) writeMWAN3Config(config *MWAN3Config) error {
 
 	// Update each member's weight
 	for _, member := range config.Members {
-		cmd := exec.CommandContext(ctx, "uci", "set", 
+		cmd := exec.CommandContext(ctx, "uci", "set",
 			fmt.Sprintf("mwan3.%s.weight=%d", member.Name, member.Weight))
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to set weight for member %s: %w", member.Name, err)
@@ -474,7 +474,7 @@ func (c *Controller) updateRouteMetrics(to *pkg.Member) error {
 
 	// Update route metrics by setting interface as preferred
 	// This is done by lowering the metric for this interface's routes
-	cmd = exec.CommandContext(ctx, "ip", "route", "change", "default", 
+	cmd = exec.CommandContext(ctx, "ip", "route", "change", "default",
 		"dev", to.Iface, "metric", "1")
 	if err := cmd.Run(); err != nil {
 		c.logger.Warn("Failed to update default route metric", "iface", to.Iface, "error", err)
