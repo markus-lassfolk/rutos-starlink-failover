@@ -1,10 +1,8 @@
 package decision
 
 import (
-	"context"
 	"fmt"
 	"math"
-	"sort"
 	"sync"
 	"time"
 
@@ -23,10 +21,10 @@ type PredictiveEngine struct {
 	logger *logx.Logger
 
 	// State
-	models        map[string]*PredictiveModel
-	trends        map[string]*TrendAnalysis
-	patterns      map[string]*Pattern
-	mlPredictor   *MLPredictor
+	models          map[string]*PredictiveModel
+	trends          map[string]*TrendAnalysis
+	patterns        map[string]*Pattern
+	mlPredictor     *MLPredictor
 	anomalyDetector *AnomalyDetector
 
 	// Historical data
@@ -36,15 +34,15 @@ type PredictiveEngine struct {
 
 // PredictiveConfig represents predictive engine configuration
 type PredictiveConfig struct {
-	Enabled           bool          `json:"enabled"`
-	LookbackWindow    time.Duration `json:"lookback_window"`
-	PredictionHorizon time.Duration `json:"prediction_horizon"`
-	ConfidenceThreshold float64     `json:"confidence_threshold"`
-	AnomalyThreshold   float64      `json:"anomaly_threshold"`
-	TrendSensitivity   float64      `json:"trend_sensitivity"`
-	PatternMinSamples  int          `json:"pattern_min_samples"`
-	MLEnabled         bool          `json:"ml_enabled"`
-	MLModelPath       string        `json:"ml_model_path"`
+	Enabled             bool          `json:"enabled"`
+	LookbackWindow      time.Duration `json:"lookback_window"`
+	PredictionHorizon   time.Duration `json:"prediction_horizon"`
+	ConfidenceThreshold float64       `json:"confidence_threshold"`
+	AnomalyThreshold    float64       `json:"anomaly_threshold"`
+	TrendSensitivity    float64       `json:"trend_sensitivity"`
+	PatternMinSamples   int           `json:"pattern_min_samples"`
+	MLEnabled           bool          `json:"ml_enabled"`
+	MLModelPath         string        `json:"ml_model_path"`
 }
 
 // AnomalyDetector detects anomalies in member behavior
@@ -56,23 +54,23 @@ type AnomalyDetector struct {
 	anomalyScores map[string][]float64
 
 	// Configuration
-	windowSize    int
-	sensitivity   float64
-	updateRate    float64
+	windowSize  int
+	sensitivity float64
+	updateRate  float64
 }
 
 // BaselineStats represents baseline statistics for anomaly detection
 type BaselineStats struct {
-	MeanLatency    float64
-	StdLatency     float64
-	MeanLoss       float64
-	StdLoss        float64
-	MeanJitter     float64
-	StdJitter      float64
-	MeanScore      float64
-	StdScore       float64
-	LastUpdate     time.Time
-	SampleCount    int
+	MeanLatency float64
+	StdLatency  float64
+	MeanLoss    float64
+	StdLoss     float64
+	MeanJitter  float64
+	StdJitter   float64
+	MeanScore   float64
+	StdScore    float64
+	LastUpdate  time.Time
+	SampleCount int
 }
 
 // MLPredictor implements machine learning-based prediction
@@ -80,32 +78,32 @@ type MLPredictor struct {
 	mu sync.RWMutex
 
 	// Model state
-	models map[string]*MLModel
+	models  map[string]*MLModel
 	trained bool
 
 	// Configuration
-	modelType     string
-	features      []string
-	hyperparams   map[string]interface{}
+	modelType   string
+	features    []string
+	hyperparams map[string]interface{}
 }
 
 // MLModel represents a machine learning model
 type MLModel struct {
-	MemberName    string
-	ModelType     string
-	Features      []string
-	Weights       []float64
-	Bias          float64
-	Accuracy      float64
-	LastTrained   time.Time
-	TrainingData  []TrainingSample
+	MemberName   string
+	ModelType    string
+	Features     []string
+	Weights      []float64
+	Bias         float64
+	Accuracy     float64
+	LastTrained  time.Time
+	TrainingData []TrainingSample
 }
 
 // TrainingSample represents a training sample for ML
 type TrainingSample struct {
-	Features []float64
-	Target   float64
-	Weight   float64
+	Features  []float64
+	Target    float64
+	Weight    float64
 	Timestamp time.Time
 }
 
@@ -271,7 +269,7 @@ func (pe *PredictiveEngine) predictFromPattern(memberName string, data []DataPoi
 
 	// Check if current behavior matches known failure patterns
 	patternMatch := pe.calculatePatternMatch(data, pattern)
-	
+
 	if patternMatch > 0.7 {
 		return &FailurePrediction{
 			Risk:       patternMatch,
@@ -279,7 +277,7 @@ func (pe *PredictiveEngine) predictFromPattern(memberName string, data []DataPoi
 			Method:     "pattern",
 			Horizon:    pe.config.PredictionHorizon,
 			Details: map[string]interface{}{
-				"pattern_type": pattern.Type,
+				"pattern_type":  pattern.Type,
 				"pattern_match": patternMatch,
 			},
 		}
@@ -338,7 +336,7 @@ func (pe *PredictiveEngine) predictFromML(memberName string, data []DataPoint) *
 
 	// Prepare features from recent data
 	features := pe.extractFeatures(data)
-	
+
 	// Make prediction
 	prediction, confidence, err := pe.mlPredictor.Predict(memberName, features)
 	if err != nil {
@@ -434,7 +432,7 @@ func (pe *PredictiveEngine) calculateTrend(data []DataPoint, extractor func(Data
 	}
 
 	slope := (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX)
-	
+
 	// Normalize slope to per-minute change
 	return slope / 60.0
 }
@@ -443,14 +441,14 @@ func (pe *PredictiveEngine) calculateTrend(data []DataPoint, extractor func(Data
 func (pe *PredictiveEngine) calculatePatternMatch(data []DataPoint, pattern *Pattern) float64 {
 	// Simplified pattern matching
 	// In a full implementation, this would use more sophisticated algorithms
-	
+
 	if len(data) < 5 {
 		return 0.0
 	}
 
 	// Calculate similarity based on recent data
-	recentData := data[len(data)-5:]
-	
+	_ = data[len(data)-5:] // recentData - placeholder for future enhancement
+
 	// For now, return a simple similarity score
 	// This could be enhanced with DTW, correlation analysis, etc.
 	return 0.5 // Placeholder
@@ -470,25 +468,25 @@ func (pe *PredictiveEngine) extractFeatures(data []DataPoint) []float64 {
 
 	// Statistical features from recent window
 	window := data[len(data)-10:]
-	
+
 	// Mean values
 	meanLatency := 0.0
 	meanLoss := 0.0
 	meanScore := 0.0
-	
+
 	for _, dp := range window {
 		meanLatency += dp.Latency
 		meanLoss += dp.Loss
 		meanScore += dp.Score
 	}
-	
+
 	features = append(features, meanLatency/10.0, meanLoss/10.0, meanScore/10.0)
 
 	// Trend features
 	latencyTrend := pe.calculateTrend(window, func(dp DataPoint) float64 { return dp.Latency })
 	lossTrend := pe.calculateTrend(window, func(dp DataPoint) float64 { return dp.Loss })
 	scoreTrend := pe.calculateTrend(window, func(dp DataPoint) float64 { return dp.Score })
-	
+
 	features = append(features, latencyTrend, lossTrend, scoreTrend)
 
 	// Volatility features
@@ -549,7 +547,7 @@ func (pe *PredictiveEngine) updateModels(memberName string, dp DataPoint) {
 func (pe *PredictiveEngine) updatePatterns(memberName string, dp DataPoint) {
 	// Simplified pattern detection
 	// In a full implementation, this would use more sophisticated algorithms
-	
+
 	data := pe.historicalData[memberName]
 	if len(data) < 20 {
 		return
@@ -586,7 +584,7 @@ func (pe *PredictiveEngine) updatePatterns(memberName string, dp DataPoint) {
 func (pe *PredictiveEngine) detectCyclicPattern(data []DataPoint) bool {
 	// Simplified cyclic pattern detection
 	// In a full implementation, this would use FFT or autocorrelation
-	
+
 	if len(data) < 20 {
 		return false
 	}
@@ -640,11 +638,11 @@ func (pe *PredictiveEngine) getPredictionMethods(predictions []*FailurePredictio
 
 // FailurePrediction represents a failure prediction
 type FailurePrediction struct {
-	Risk       float64                 `json:"risk"`
-	Confidence float64                 `json:"confidence"`
-	Method     string                  `json:"method"`
-	Horizon    time.Duration           `json:"horizon"`
-	Details    map[string]interface{}  `json:"details,omitempty"`
+	Risk       float64                `json:"risk"`
+	Confidence float64                `json:"confidence"`
+	Method     string                 `json:"method"`
+	Horizon    time.Duration          `json:"horizon"`
+	Details    map[string]interface{} `json:"details,omitempty"`
 }
 
 // NewAnomalyDetector creates a new anomaly detector
@@ -701,7 +699,7 @@ func (ad *AnomalyDetector) UpdateBaseline(memberName string, dp DataPoint) {
 
 	// Update running statistics
 	baseline.SampleCount++
-	n := float64(baseline.SampleCount)
+	_ = float64(baseline.SampleCount) // n - placeholder for future use
 
 	// Update means using exponential moving average
 	baseline.MeanLatency = baseline.MeanLatency*(1-ad.updateRate) + dp.Latency*ad.updateRate
@@ -732,7 +730,7 @@ func NewMLPredictor(modelPath string, logger *logx.Logger) *MLPredictor {
 func (mlp *MLPredictor) IsTrained(memberName string) bool {
 	mlp.mu.RLock()
 	defer mlp.mu.RUnlock()
-	
+
 	model, exists := mlp.models[memberName]
 	return exists && model.LastTrained.After(time.Now().Add(-24*time.Hour))
 }
@@ -767,7 +765,7 @@ func (mlp *MLPredictor) Predict(memberName string, features []float64) (float64,
 func (mlp *MLPredictor) UpdateModel(memberName string, dp DataPoint) {
 	// Simplified model update
 	// In a full implementation, this would use proper ML training algorithms
-	
+
 	mlp.mu.Lock()
 	defer mlp.mu.Unlock()
 
@@ -789,7 +787,7 @@ func (mlp *MLPredictor) UpdateModel(memberName string, dp DataPoint) {
 	// Add training sample
 	sample := TrainingSample{
 		Features:  []float64{dp.Latency, dp.Loss, dp.Score, 0.0}, // Simplified features
-		Target:    0.0, // Would need failure labels
+		Target:    0.0,                                           // Would need failure labels
 		Weight:    1.0,
 		Timestamp: dp.Timestamp,
 	}
@@ -806,10 +804,10 @@ func (mlp *MLPredictor) UpdateModel(memberName string, dp DataPoint) {
 func (mlp *MLPredictor) retrainModel(model *MLModel) {
 	// Simplified retraining
 	// In a full implementation, this would use proper ML algorithms
-	
+
 	// Update weights based on recent performance
 	// This is a placeholder - real implementation would use gradient descent, etc.
-	
+
 	model.LastTrained = time.Now()
 	model.Accuracy = 0.7 // Placeholder accuracy
 }
@@ -818,7 +816,7 @@ func (mlp *MLPredictor) retrainModel(model *MLModel) {
 func (mlp *MLPredictor) GetModelType(memberName string) string {
 	mlp.mu.RLock()
 	defer mlp.mu.RUnlock()
-	
+
 	if model, exists := mlp.models[memberName]; exists {
 		return model.ModelType
 	}

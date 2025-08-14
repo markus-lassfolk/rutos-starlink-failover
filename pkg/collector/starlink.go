@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/starfail/starfail/pkg"
@@ -23,9 +21,9 @@ type StarlinkCollector struct {
 type StarlinkAPIResponse struct {
 	Status struct {
 		ObstructionStats struct {
-			CurrentlyObstructed bool    `json:"currentlyObstructed"`
-			FractionObstructed  float64 `json:"fractionObstructed"`
-			Last24hObstructedS  int     `json:"last24hObstructedS"`
+			CurrentlyObstructed     bool      `json:"currentlyObstructed"`
+			FractionObstructed      float64   `json:"fractionObstructed"`
+			Last24hObstructedS      int       `json:"last24hObstructedS"`
 			WedgeFractionObstructed []float64 `json:"wedgeFractionObstructed"`
 		} `json:"obstructionStats"`
 		Outage struct {
@@ -206,8 +204,8 @@ func (sc *StarlinkCollector) GetStarlinkInfo(ctx context.Context) (map[string]in
 	}
 
 	info := map[string]interface{}{
-		"currently_obstructed": apiResp.Status.ObstructionStats.CurrentlyObstructed,
-		"fraction_obstructed":  apiResp.Status.ObstructionStats.FractionObstructed,
+		"currently_obstructed":  apiResp.Status.ObstructionStats.CurrentlyObstructed,
+		"fraction_obstructed":   apiResp.Status.ObstructionStats.FractionObstructed,
 		"last_24h_obstructed_s": apiResp.Status.ObstructionStats.Last24hObstructedS,
 		"pop_ping_latency_ms":   apiResp.Status.PopPingLatencyMs,
 		"last_outage_s":         apiResp.Status.Outage.LastOutageS,

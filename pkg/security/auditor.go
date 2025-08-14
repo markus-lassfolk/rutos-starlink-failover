@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -22,11 +20,11 @@ type Auditor struct {
 	mu sync.RWMutex
 
 	// Configuration
-	enabled     bool
-	auditLevel  string
-	logLevel    string
-	maxLogSize  int64
-	rotateSize  int64
+	enabled    bool
+	auditLevel string
+	logLevel   string
+	maxLogSize int64
+	rotateSize int64
 
 	// Dependencies
 	logger *logx.Logger
@@ -47,9 +45,9 @@ type Auditor struct {
 	criticalFiles []string
 
 	// Network security
-	tlsConfig     *tls.Config
-	allowedPorts  map[int]bool
-	blockedPorts  map[int]bool
+	tlsConfig    *tls.Config
+	allowedPorts map[int]bool
+	blockedPorts map[int]bool
 
 	// Audit configuration
 	auditConfig *AuditConfig
@@ -57,19 +55,19 @@ type Auditor struct {
 
 // SecurityEvent represents a security event
 type SecurityEvent struct {
-	ID          string                 `json:"id"`
-	Timestamp   time.Time              `json:"timestamp"`
-	Level       string                 `json:"level"` // info, warning, error, critical
-	Category    string                 `json:"category"`
-	Source      string                 `json:"source"`
-	Message     string                 `json:"message"`
-	Details     map[string]interface{} `json:"details,omitempty"`
-	IPAddress   string                 `json:"ip_address,omitempty"`
-	UserAgent   string                 `json:"user_agent,omitempty"`
-	Action      string                 `json:"action,omitempty"`
-	Resource    string                 `json:"resource,omitempty"`
-	RiskScore   int                    `json:"risk_score"`
-	Acknowledged bool                  `json:"acknowledged"`
+	ID           string                 `json:"id"`
+	Timestamp    time.Time              `json:"timestamp"`
+	Level        string                 `json:"level"` // info, warning, error, critical
+	Category     string                 `json:"category"`
+	Source       string                 `json:"source"`
+	Message      string                 `json:"message"`
+	Details      map[string]interface{} `json:"details,omitempty"`
+	IPAddress    string                 `json:"ip_address,omitempty"`
+	UserAgent    string                 `json:"user_agent,omitempty"`
+	Action       string                 `json:"action,omitempty"`
+	Resource     string                 `json:"resource,omitempty"`
+	RiskScore    int                    `json:"risk_score"`
+	Acknowledged bool                   `json:"acknowledged"`
 }
 
 // AuditConfig represents audit configuration
@@ -198,14 +196,14 @@ func (a *Auditor) LogSecurityEvent(level, category, source, message string, deta
 	}
 
 	event := &SecurityEvent{
-		ID:          a.generateEventID(),
-		Timestamp:   time.Now(),
-		Level:       level,
-		Category:    category,
-		Source:      source,
-		Message:     message,
-		Details:     details,
-		RiskScore:   a.calculateRiskScore(level, category, details),
+		ID:           a.generateEventID(),
+		Timestamp:    time.Now(),
+		Level:        level,
+		Category:     category,
+		Source:       source,
+		Message:      message,
+		Details:      details,
+		RiskScore:    a.calculateRiskScore(level, category, details),
 		Acknowledged: false,
 	}
 
@@ -237,7 +235,7 @@ func (a *Auditor) CheckAccess(ipAddress, userAgent, action, resource string) boo
 
 	// Check if IP is blocked
 	if a.isIPBlocked(ipAddress) {
-		a.LogSecurityEvent("warning", "access_control", "auditor", 
+		a.LogSecurityEvent("warning", "access_control", "auditor",
 			"Blocked IP attempted access", map[string]interface{}{
 				"ip_address": ipAddress,
 				"action":     action,
@@ -248,7 +246,7 @@ func (a *Auditor) CheckAccess(ipAddress, userAgent, action, resource string) boo
 
 	// Check if IP is allowed
 	if !a.isIPAllowed(ipAddress) {
-		a.LogSecurityEvent("error", "access_control", "auditor", 
+		a.LogSecurityEvent("error", "access_control", "auditor",
 			"Unauthorized IP attempted access", map[string]interface{}{
 				"ip_address": ipAddress,
 				"action":     action,
@@ -260,7 +258,7 @@ func (a *Auditor) CheckAccess(ipAddress, userAgent, action, resource string) boo
 
 	// Check for suspicious activity
 	if a.isSuspiciousActivity(ipAddress, action, resource) {
-		a.LogSecurityEvent("warning", "threat_detection", "auditor", 
+		a.LogSecurityEvent("warning", "threat_detection", "auditor",
 			"Suspicious activity detected", map[string]interface{}{
 				"ip_address": ipAddress,
 				"action":     action,
@@ -318,9 +316,9 @@ func (a *Auditor) ValidateFileIntegrity(filePath string) (*FileIntegrityCheck, e
 	} else {
 		check.Status = "modified"
 		check.Description = "File has been modified"
-		
+
 		// Log security event
-		a.LogSecurityEvent("error", "file_integrity", "auditor", 
+		a.LogSecurityEvent("error", "file_integrity", "auditor",
 			"File integrity check failed", map[string]interface{}{
 				"file_path": filePath,
 				"expected":  storedHash,
@@ -356,9 +354,9 @@ func (a *Auditor) CheckNetworkSecurity(port int, protocol string) (*NetworkSecur
 		check.Status = "unauthorized"
 		check.RiskLevel = "high"
 		check.Description = "Port is not in allowed list"
-		
+
 		// Log security event
-		a.LogSecurityEvent("warning", "network_security", "auditor", 
+		a.LogSecurityEvent("warning", "network_security", "auditor",
 			"Unauthorized port access", map[string]interface{}{
 				"port":     port,
 				"protocol": protocol,
@@ -429,8 +427,8 @@ func (a *Auditor) BlockIP(ipAddress string, duration time.Duration) {
 	defer a.mu.Unlock()
 
 	a.blockedIPs[ipAddress] = time.Now().Add(duration)
-	
-	a.LogSecurityEvent("info", "access_control", "auditor", 
+
+	a.LogSecurityEvent("info", "access_control", "auditor",
 		"IP address blocked", map[string]interface{}{
 			"ip_address": ipAddress,
 			"duration":   duration.String(),
@@ -443,8 +441,8 @@ func (a *Auditor) UnblockIP(ipAddress string) {
 	defer a.mu.Unlock()
 
 	delete(a.blockedIPs, ipAddress)
-	
-	a.LogSecurityEvent("info", "access_control", "auditor", 
+
+	a.LogSecurityEvent("info", "access_control", "auditor",
 		"IP address unblocked", map[string]interface{}{
 			"ip_address": ipAddress,
 		})
@@ -465,14 +463,14 @@ func (a *Auditor) ValidateSecureToken(token string) bool {
 	if len(token) != 64 { // 32 bytes = 64 hex characters
 		return false
 	}
-	
+
 	// Check if token contains only hex characters
 	for _, char := range token {
 		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -700,8 +698,8 @@ func (a *Auditor) recordFailedAttempt(ipAddress string) {
 	// Block IP if too many failed attempts
 	if a.failedAttempts[ipAddress] >= a.auditConfig.MaxFailedAttempts {
 		a.blockedIPs[ipAddress] = time.Now().Add(time.Duration(a.auditConfig.BlockDuration) * time.Hour)
-		
-		a.LogSecurityEvent("error", "access_control", "auditor", 
+
+		a.LogSecurityEvent("error", "access_control", "auditor",
 			"IP blocked due to failed attempts", map[string]interface{}{
 				"ip_address": ipAddress,
 				"attempts":   a.failedAttempts[ipAddress],
@@ -714,7 +712,7 @@ func (a *Auditor) isSuspiciousActivity(ipAddress, action, resource string) bool 
 	// Check for rapid requests
 	// Check for unusual patterns
 	// Check for known attack signatures
-	
+
 	// Simplified check - in a real implementation, this would be more sophisticated
 	return false
 }
@@ -763,7 +761,7 @@ func (a *Auditor) checkFileIntegrity() {
 func (a *Auditor) checkNetworkSecurity() {
 	// Check common ports
 	commonPorts := []int{22, 23, 25, 53, 80, 443, 8080, 9090}
-	
+
 	for _, port := range commonPorts {
 		if _, err := a.CheckNetworkSecurity(port, "tcp"); err != nil {
 			a.logger.Error("Network security check failed", "port", port, "error", err)
@@ -776,7 +774,7 @@ func (a *Auditor) detectThreats() {
 	// Check for unusual patterns in security events
 	// Check for potential attacks
 	// Update threat level
-	
+
 	// Simplified threat detection
 	recentEvents := 0
 	for _, event := range a.securityEvents {
@@ -786,7 +784,7 @@ func (a *Auditor) detectThreats() {
 	}
 
 	if recentEvents > 20 {
-		a.LogSecurityEvent("warning", "threat_detection", "auditor", 
+		a.LogSecurityEvent("warning", "threat_detection", "auditor",
 			"High number of security events detected", map[string]interface{}{
 				"event_count": recentEvents,
 			})
@@ -799,7 +797,7 @@ func (a *Auditor) cleanupAuditLogs() {
 	defer a.mu.Unlock()
 
 	cutoff := time.Now().Add(-time.Duration(a.auditConfig.RetentionDays) * 24 * time.Hour)
-	
+
 	var newEvents []*SecurityEvent
 	for _, event := range a.securityEvents {
 		if event.Timestamp.After(cutoff) {
@@ -818,13 +816,13 @@ func (a *Auditor) cleanupAuditLogs() {
 // calculateThreatScore calculates the current threat score
 func (a *Auditor) calculateThreatScore() int {
 	score := 0
-	
+
 	for _, event := range a.securityEvents {
 		if time.Since(event.Timestamp) < 24*time.Hour {
 			score += event.RiskScore
 		}
 	}
-	
+
 	return score
 }
 
@@ -848,7 +846,7 @@ func (a *Auditor) getThreatMitigations() []string {
 
 	switch a.threatLevel {
 	case "critical":
-		mitigations = append(mitigations, 
+		mitigations = append(mitigations,
 			"Immediately review all security events",
 			"Block suspicious IP addresses",
 			"Check file integrity",

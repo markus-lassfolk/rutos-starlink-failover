@@ -7,18 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
+	"github.com/starfail/starfail/pkg/logx"
 )
 
 // ServiceWatchdog monitors and restarts hung services
 type ServiceWatchdog struct {
 	config *Config
-	logger logx.Logger
+	logger *logx.Logger
 	dryRun bool
 }
 
 // NewServiceWatchdog creates a new service watchdog
-func NewServiceWatchdog(config *Config, logger logx.Logger, dryRun bool) *ServiceWatchdog {
+func NewServiceWatchdog(config *Config, logger *logx.Logger, dryRun bool) *ServiceWatchdog {
 	return &ServiceWatchdog{
 		config: config,
 		logger: logger,
@@ -132,7 +132,7 @@ func (sw *ServiceWatchdog) checkProcessRunning(service string) (bool, error) {
 // checkInitScript checks service status using init script
 func (sw *ServiceWatchdog) checkInitScript(service string) (bool, error) {
 	scriptPath := "/etc/init.d/" + service
-	
+
 	cmd := exec.Command("sh", scriptPath, "status")
 	output, err := cmd.Output()
 	if err != nil {
@@ -146,7 +146,7 @@ func (sw *ServiceWatchdog) checkInitScript(service string) (bool, error) {
 // hasRecentActivity checks if a service has recent log activity
 func (sw *ServiceWatchdog) hasRecentActivity(service string) (bool, error) {
 	cutoff := time.Now().Add(-sw.config.ServiceTimeout)
-	
+
 	// Check system logs for recent activity
 	logSources := []string{
 		"/var/log/messages",
@@ -250,12 +250,12 @@ func (sw *ServiceWatchdog) restartService(ctx context.Context, service, reason s
 	for _, method := range restartMethods {
 		if err := method(service); err == nil {
 			sw.logger.Info("Service restarted successfully", "service", service, "method", "unknown")
-			
+
 			// Send notification
 			if sw.config.NotificationsEnabled && sw.config.NotifyOnFixes {
 				sw.sendFixNotification("Service restart", fmt.Sprintf("Restarted %s (%s)", service, reason))
 			}
-			
+
 			return nil
 		} else {
 			lastErr = err
@@ -263,12 +263,12 @@ func (sw *ServiceWatchdog) restartService(ctx context.Context, service, reason s
 	}
 
 	sw.logger.Error("Failed to restart service", "service", service, "error", lastErr)
-	
+
 	// Send failure notification
 	if sw.config.NotificationsEnabled && sw.config.NotifyOnFailures {
 		sw.sendFailureNotification("Service restart failed", fmt.Sprintf("Failed to restart %s: %v", service, lastErr))
 	}
-	
+
 	return lastErr
 }
 
@@ -289,10 +289,10 @@ func (sw *ServiceWatchdog) restartWithKill(service string) error {
 	// Kill existing process
 	cmd := exec.Command("pkill", service)
 	cmd.Run() // Ignore errors, process might not exist
-	
+
 	// Wait a moment
 	time.Sleep(2 * time.Second)
-	
+
 	// Try to start service
 	cmd = exec.Command("/etc/init.d/"+service, "start")
 	return cmd.Run()

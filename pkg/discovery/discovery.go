@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
-	"github.com/starfail/starfail/pkg/collector"
+	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/logx"
-	"github.com/starfail/starfail/pkg/types"
 )
 
 // Discoverer handles member discovery and classification
@@ -26,7 +24,7 @@ func NewDiscoverer(logger *logx.Logger) *Discoverer {
 }
 
 // DiscoverMembers scans the system for network interfaces and classifies them
-func (d *Discoverer) DiscoverMembers() ([]types.Member, error) {
+func (d *Discoverer) DiscoverMembers() ([]pkg.Member, error) {
 	d.logger.Info("Starting member discovery")
 
 	// Get all network interfaces
@@ -35,7 +33,7 @@ func (d *Discoverer) DiscoverMembers() ([]types.Member, error) {
 		return nil, fmt.Errorf("failed to get network interfaces: %w", err)
 	}
 
-	var members []types.Member
+	var members []pkg.Member
 
 	for _, iface := range interfaces {
 		member, err := d.classifyInterface(iface)
@@ -50,9 +48,9 @@ func (d *Discoverer) DiscoverMembers() ([]types.Member, error) {
 		if member != nil {
 			members = append(members, *member)
 			d.logger.Info("Discovered member", map[string]interface{}{
-				"name":  member.Name,
-				"class": member.Class,
-				"interface": member.Interface,
+				"name":      member.Name,
+				"class":     member.Class,
+				"interface": member.Iface,
 			})
 		}
 	}
@@ -80,8 +78,8 @@ func (d *Discoverer) getNetworkInterfaces() ([]string, error) {
 		if entry.IsDir() {
 			// Skip loopback and virtual interfaces
 			name := entry.Name()
-			if name == "lo" || strings.HasPrefix(name, "veth") || 
-			   strings.HasPrefix(name, "docker") || strings.HasPrefix(name, "br-") {
+			if name == "lo" || strings.HasPrefix(name, "veth") ||
+				strings.HasPrefix(name, "docker") || strings.HasPrefix(name, "br-") {
 				continue
 			}
 			interfaces = append(interfaces, name)
@@ -92,7 +90,7 @@ func (d *Discoverer) getNetworkInterfaces() ([]string, error) {
 }
 
 // classifyInterface determines the class and properties of a network interface
-func (d *Discoverer) classifyInterface(iface string) (*types.Member, error) {
+func (d *Discoverer) classifyInterface(iface string) (*pkg.Member, error) {
 	// Check if interface is up and has an IP address
 	if !d.isInterfaceActive(iface) {
 		return nil, fmt.Errorf("interface %s is not active", iface)
@@ -117,7 +115,7 @@ func (d *Discoverer) classifyInterface(iface string) (*types.Member, error) {
 	}
 
 	// Default to generic class
-	return d.createMember(iface, types.MemberClassGeneric)
+	return d.createMember(iface, pkg.MemberClassGeneric)
 }
 
 // isInterfaceActive checks if an interface is up and has an IP address
@@ -144,25 +142,25 @@ func (d *Discoverer) isInterfaceActive(iface string) bool {
 func (d *Discoverer) classifyByName(iface string) string {
 	// Starlink patterns
 	if strings.Contains(iface, "starlink") || strings.Contains(iface, "dish") {
-		return types.MemberClassStarlink
+		return pkg.MemberClassStarlink
 	}
 
 	// Cellular patterns
 	if strings.HasPrefix(iface, "wwan") || strings.HasPrefix(iface, "usb") ||
-	   strings.Contains(iface, "modem") || strings.Contains(iface, "cellular") {
-		return types.MemberClassCellular
+		strings.Contains(iface, "modem") || strings.Contains(iface, "cellular") {
+		return pkg.MemberClassCellular
 	}
 
 	// WiFi patterns
 	if strings.HasPrefix(iface, "wlan") || strings.HasPrefix(iface, "wifi") ||
-	   strings.Contains(iface, "wireless") {
-		return types.MemberClassWiFi
+		strings.Contains(iface, "wireless") {
+		return pkg.MemberClassWiFi
 	}
 
 	// Ethernet patterns
 	if strings.HasPrefix(iface, "eth") || strings.HasPrefix(iface, "en") ||
-	   strings.HasPrefix(iface, "lan") || strings.HasPrefix(iface, "wan") {
-		return types.MemberClassLAN
+		strings.HasPrefix(iface, "lan") || strings.HasPrefix(iface, "wan") {
+		return pkg.MemberClassLAN
 	}
 
 	return ""
@@ -171,7 +169,7 @@ func (d *Discoverer) classifyByName(iface string) string {
 // classifyByDriver classifies interfaces based on their driver
 func (d *Discoverer) classifyByDriver(iface string) string {
 	driverPath := fmt.Sprintf("/sys/class/net/%s/device/driver", iface)
-	
+
 	// Read the driver symlink target
 	driverLink, err := os.Readlink(driverPath)
 	if err != nil {
@@ -182,19 +180,19 @@ func (d *Discoverer) classifyByDriver(iface string) string {
 
 	// Starlink drivers
 	if strings.Contains(driver, "starlink") || strings.Contains(driver, "dish") {
-		return types.MemberClassStarlink
+		return pkg.MemberClassStarlink
 	}
 
 	// Cellular drivers
 	if strings.Contains(driver, "qmi") || strings.Contains(driver, "cdc") ||
-	   strings.Contains(driver, "usb_serial") || strings.Contains(driver, "option") {
-		return types.MemberClassCellular
+		strings.Contains(driver, "usb_serial") || strings.Contains(driver, "option") {
+		return pkg.MemberClassCellular
 	}
 
 	// WiFi drivers
 	if strings.Contains(driver, "ath") || strings.Contains(driver, "mac80211") ||
-	   strings.Contains(driver, "wl") || strings.Contains(driver, "brcm") {
-		return types.MemberClassWiFi
+		strings.Contains(driver, "wl") || strings.Contains(driver, "brcm") {
+		return pkg.MemberClassWiFi
 	}
 
 	return ""
@@ -204,17 +202,17 @@ func (d *Discoverer) classifyByDriver(iface string) string {
 func (d *Discoverer) classifyByProperties(iface string) string {
 	// Check for Starlink-specific properties
 	if d.hasStarlinkProperties(iface) {
-		return types.MemberClassStarlink
+		return pkg.MemberClassStarlink
 	}
 
 	// Check for cellular-specific properties
 	if d.hasCellularProperties(iface) {
-		return types.MemberClassCellular
+		return pkg.MemberClassCellular
 	}
 
 	// Check for WiFi-specific properties
 	if d.hasWiFiProperties(iface) {
-		return types.MemberClassWiFi
+		return pkg.MemberClassWiFi
 	}
 
 	return ""
@@ -225,7 +223,7 @@ func (d *Discoverer) hasStarlinkProperties(iface string) bool {
 	// Check for Starlink API endpoint
 	// This is a simplified check - in practice, you'd want to actually test connectivity
 	devicePath := fmt.Sprintf("/sys/class/net/%s/device", iface)
-	
+
 	// Look for Starlink-specific files or properties
 	vendorPath := filepath.Join(devicePath, "vendor")
 	if vendor, err := os.ReadFile(vendorPath); err == nil {
@@ -242,7 +240,7 @@ func (d *Discoverer) hasStarlinkProperties(iface string) bool {
 // hasCellularProperties checks for cellular-specific device properties
 func (d *Discoverer) hasCellularProperties(iface string) bool {
 	devicePath := fmt.Sprintf("/sys/class/net/%s/device", iface)
-	
+
 	// Check for cellular modem properties
 	modemPath := filepath.Join(devicePath, "modem")
 	if _, err := os.Stat(modemPath); err == nil {
@@ -276,86 +274,102 @@ func (d *Discoverer) hasWiFiProperties(iface string) bool {
 }
 
 // createMember creates a Member struct with appropriate defaults
-func (d *Discoverer) createMember(iface, class string) (*types.Member, error) {
-	member := &types.Member{
+func (d *Discoverer) createMember(iface, class string) (*pkg.Member, error) {
+	member := &pkg.Member{
 		Name:      iface,
-		Interface: iface,
+		Iface:     iface,
 		Class:     class,
-		Enabled:   true,
-		Created:   time.Now(),
+		Eligible:  true,
+		CreatedAt: time.Now(),
+		LastSeen:  time.Now(),
 	}
 
-	// Set class-specific defaults
+	// Set class-specific defaults based on the actual pkg.Member structure
 	switch class {
-	case types.MemberClassStarlink:
-		member.Priority = 100
-		member.CheckInterval = 30 * time.Second
-		member.DecisionInterval = 10 * time.Second
-		member.CooldownPeriod = 5 * time.Minute
-		member.MinUptime = 2 * time.Minute
-		member.SwitchMargin = 20.0
-		member.ObstructionThreshold = 10.0
-		member.OutageThreshold = 3
+	case pkg.MemberClassStarlink:
+		member.Weight = 100
+		member.Detect = "auto"
+		member.Config = map[string]string{
+			"check_interval":        "30s",
+			"decision_interval":     "10s",
+			"cooldown_period":       "5m",
+			"min_uptime":            "2m",
+			"switch_margin":         "20.0",
+			"obstruction_threshold": "10.0",
+			"outage_threshold":      "3",
+		}
 
-	case types.MemberClassCellular:
-		member.Priority = 80
-		member.CheckInterval = 45 * time.Second
-		member.DecisionInterval = 15 * time.Second
-		member.CooldownPeriod = 10 * time.Minute
-		member.MinUptime = 5 * time.Minute
-		member.SwitchMargin = 15.0
-		member.SignalThreshold = -110.0
+	case pkg.MemberClassCellular:
+		member.Weight = 80
+		member.Detect = "auto"
+		member.Config = map[string]string{
+			"check_interval":    "45s",
+			"decision_interval": "15s",
+			"cooldown_period":   "10m",
+			"min_uptime":        "5m",
+			"switch_margin":     "15.0",
+			"signal_threshold":  "-110.0",
+		}
 
-	case types.MemberClassWiFi:
-		member.Priority = 60
-		member.CheckInterval = 60 * time.Second
-		member.DecisionInterval = 20 * time.Second
-		member.CooldownPeriod = 15 * time.Minute
-		member.MinUptime = 10 * time.Minute
-		member.SwitchMargin = 10.0
-		member.SignalThreshold = -70.0
+	case pkg.MemberClassWiFi:
+		member.Weight = 60
+		member.Detect = "auto"
+		member.Config = map[string]string{
+			"check_interval":    "60s",
+			"decision_interval": "20s",
+			"cooldown_period":   "15m",
+			"min_uptime":        "10m",
+			"switch_margin":     "10.0",
+			"signal_threshold":  "-70.0",
+		}
 
-	case types.MemberClassLAN:
-		member.Priority = 40
-		member.CheckInterval = 90 * time.Second
-		member.DecisionInterval = 30 * time.Second
-		member.CooldownPeriod = 20 * time.Minute
-		member.MinUptime = 15 * time.Minute
-		member.SwitchMargin = 5.0
+	case pkg.MemberClassLAN:
+		member.Weight = 40
+		member.Detect = "auto"
+		member.Config = map[string]string{
+			"check_interval":    "90s",
+			"decision_interval": "30s",
+			"cooldown_period":   "20m",
+			"min_uptime":        "15m",
+			"switch_margin":     "5.0",
+		}
 
 	default: // Generic
-		member.Priority = 20
-		member.CheckInterval = 120 * time.Second
-		member.DecisionInterval = 60 * time.Second
-		member.CooldownPeriod = 30 * time.Minute
-		member.MinUptime = 20 * time.Minute
-		member.SwitchMargin = 5.0
+		member.Weight = 20
+		member.Detect = "auto"
+		member.Config = map[string]string{
+			"check_interval":    "120s",
+			"decision_interval": "60s",
+			"cooldown_period":   "30m",
+			"min_uptime":        "20m",
+			"switch_margin":     "5.0",
+		}
 	}
 
 	return member, nil
 }
 
 // ValidateMember checks if a discovered member is valid and usable
-func (d *Discoverer) ValidateMember(member types.Member) error {
+func (d *Discoverer) ValidateMember(member pkg.Member) error {
 	// Check if interface exists
-	if !d.interfaceExists(member.Interface) {
-		return fmt.Errorf("interface %s does not exist", member.Interface)
+	if !d.interfaceExists(member.Iface) {
+		return fmt.Errorf("interface %s does not exist", member.Iface)
 	}
 
 	// Check if interface is up
-	if !d.isInterfaceActive(member.Interface) {
-		return fmt.Errorf("interface %s is not active", member.Interface)
+	if !d.isInterfaceActive(member.Iface) {
+		return fmt.Errorf("interface %s is not active", member.Iface)
 	}
 
 	// Class-specific validation
 	switch member.Class {
-	case types.MemberClassStarlink:
+	case pkg.MemberClassStarlink:
 		return d.validateStarlinkMember(member)
-	case types.MemberClassCellular:
+	case pkg.MemberClassCellular:
 		return d.validateCellularMember(member)
-	case types.MemberClassWiFi:
+	case pkg.MemberClassWiFi:
 		return d.validateWiFiMember(member)
-	case types.MemberClassLAN:
+	case pkg.MemberClassLAN:
 		return d.validateLANMember(member)
 	default:
 		return d.validateGenericMember(member)
@@ -369,40 +383,40 @@ func (d *Discoverer) interfaceExists(iface string) bool {
 }
 
 // validateStarlinkMember performs Starlink-specific validation
-func (d *Discoverer) validateStarlinkMember(member types.Member) error {
+func (d *Discoverer) validateStarlinkMember(member pkg.Member) error {
 	// Check if Starlink API is accessible
 	// This would require actual network connectivity testing
 	return nil
 }
 
 // validateCellularMember performs cellular-specific validation
-func (d *Discoverer) validateCellularMember(member types.Member) error {
+func (d *Discoverer) validateCellularMember(member pkg.Member) error {
 	// Check if cellular modem is available via ubus
 	// This would require ubus integration
 	return nil
 }
 
 // validateWiFiMember performs WiFi-specific validation
-func (d *Discoverer) validateWiFiMember(member types.Member) error {
+func (d *Discoverer) validateWiFiMember(member pkg.Member) error {
 	// Check if wireless interface is available
 	// This would require iw or iwinfo integration
 	return nil
 }
 
 // validateLANMember performs LAN-specific validation
-func (d *Discoverer) validateLANMember(member types.Member) error {
+func (d *Discoverer) validateLANMember(member pkg.Member) error {
 	// Basic Ethernet interface validation
 	return nil
 }
 
 // validateGenericMember performs generic validation
-func (d *Discoverer) validateGenericMember(member types.Member) error {
+func (d *Discoverer) validateGenericMember(member pkg.Member) error {
 	// Basic interface validation
 	return nil
 }
 
 // getMemberNames returns a list of member names
-func getMemberNames(members []types.Member) []string {
+func getMemberNames(members []pkg.Member) []string {
 	names := make([]string, len(members))
 	for i, member := range members {
 		names[i] = member.Name
@@ -411,7 +425,7 @@ func getMemberNames(members []types.Member) []string {
 }
 
 // RefreshMembers rediscoveries and validates existing members
-func (d *Discoverer) RefreshMembers(existing []types.Member) ([]types.Member, error) {
+func (d *Discoverer) RefreshMembers(existing []pkg.Member) ([]pkg.Member, error) {
 	d.logger.Info("Refreshing member discovery")
 
 	// Discover new members
@@ -424,7 +438,7 @@ func (d *Discoverer) RefreshMembers(existing []types.Member) ([]types.Member, er
 	merged := d.mergeMembers(existing, newMembers)
 
 	// Validate all members
-	var validMembers []types.Member
+	var validMembers []pkg.Member
 	for _, member := range merged {
 		if err := d.ValidateMember(member); err != nil {
 			d.logger.Warn("Member validation failed", map[string]interface{}{
@@ -445,21 +459,21 @@ func (d *Discoverer) RefreshMembers(existing []types.Member) ([]types.Member, er
 }
 
 // mergeMembers merges existing and new members, preserving configuration
-func (d *Discoverer) mergeMembers(existing, new []types.Member) []types.Member {
+func (d *Discoverer) mergeMembers(existing, new []pkg.Member) []pkg.Member {
 	// Create a map of existing members by name
-	existingMap := make(map[string]types.Member)
+	existingMap := make(map[string]pkg.Member)
 	for _, member := range existing {
 		existingMap[member.Name] = member
 	}
 
-	var merged []types.Member
+	var merged []pkg.Member
 
 	for _, newMember := range new {
 		if existingMember, exists := existingMap[newMember.Name]; exists {
 			// Preserve existing configuration but update interface and class
-			existingMember.Interface = newMember.Interface
+			existingMember.Iface = newMember.Iface
 			existingMember.Class = newMember.Class
-			existingMember.Updated = time.Now()
+			existingMember.LastSeen = time.Now()
 			merged = append(merged, existingMember)
 		} else {
 			// Add new member

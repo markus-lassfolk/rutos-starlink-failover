@@ -1,6 +1,7 @@
 package uci
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -13,26 +14,26 @@ import (
 // Config represents the starfail configuration
 type Config struct {
 	// Main configuration
-	Enable            bool   `json:"enable"`
-	UseMWAN3          bool   `json:"use_mwan3"`
-	PollIntervalMS    int    `json:"poll_interval_ms"`
-	DecisionIntervalMS int   `json:"decision_interval_ms"`
-	DiscoveryIntervalMS int  `json:"discovery_interval_ms"`
-	CleanupIntervalMS int    `json:"cleanup_interval_ms"`
-	HistoryWindowS    int    `json:"history_window_s"`
-	RetentionHours    int    `json:"retention_hours"`
-	MaxRAMMB          int    `json:"max_ram_mb"`
-	DataCapMode       string `json:"data_cap_mode"`
-	Predictive        bool   `json:"predictive"`
-	SwitchMargin      int    `json:"switch_margin"`
-	MinUptimeS        int    `json:"min_uptime_s"`
-	CooldownS         int    `json:"cooldown_s"`
-	MetricsListener   bool   `json:"metrics_listener"`
-	HealthListener    bool   `json:"health_listener"`
-	MetricsPort       int    `json:"metrics_port"`
-	HealthPort        int    `json:"health_port"`
-	LogLevel          string `json:"log_level"`
-	LogFile           string `json:"log_file"`
+	Enable              bool   `json:"enable"`
+	UseMWAN3            bool   `json:"use_mwan3"`
+	PollIntervalMS      int    `json:"poll_interval_ms"`
+	DecisionIntervalMS  int    `json:"decision_interval_ms"`
+	DiscoveryIntervalMS int    `json:"discovery_interval_ms"`
+	CleanupIntervalMS   int    `json:"cleanup_interval_ms"`
+	HistoryWindowS      int    `json:"history_window_s"`
+	RetentionHours      int    `json:"retention_hours"`
+	MaxRAMMB            int    `json:"max_ram_mb"`
+	DataCapMode         string `json:"data_cap_mode"`
+	Predictive          bool   `json:"predictive"`
+	SwitchMargin        int    `json:"switch_margin"`
+	MinUptimeS          int    `json:"min_uptime_s"`
+	CooldownS           int    `json:"cooldown_s"`
+	MetricsListener     bool   `json:"metrics_listener"`
+	HealthListener      bool   `json:"health_listener"`
+	MetricsPort         int    `json:"metrics_port"`
+	HealthPort          int    `json:"health_port"`
+	LogLevel            string `json:"log_level"`
+	LogFile             string `json:"log_file"`
 
 	// Performance and Security
 	PerformanceProfiling bool `json:"performance_profiling"`
@@ -41,10 +42,10 @@ type Config struct {
 	AuditingEnabled      bool `json:"auditing_enabled"`
 
 	// Machine Learning
-	MLEnabled     bool   `json:"ml_enabled"`
-	MLModelPath   string `json:"ml_model_path"`
-	MLTraining    bool   `json:"ml_training"`
-	MLPrediction  bool   `json:"ml_prediction"`
+	MLEnabled    bool   `json:"ml_enabled"`
+	MLModelPath  string `json:"ml_model_path"`
+	MLTraining   bool   `json:"ml_training"`
+	MLPrediction bool   `json:"ml_prediction"`
 
 	// Security Configuration
 	AllowedIPs        []string `json:"allowed_ips"`
@@ -55,12 +56,12 @@ type Config struct {
 	BlockDuration     int      `json:"block_duration"`
 
 	// Thresholds
-	FailThresholdLoss     int `json:"fail_threshold_loss"`
-	FailThresholdLatency  int `json:"fail_threshold_latency"`
-	FailMinDurationS      int `json:"fail_min_duration_s"`
-	RestoreThresholdLoss  int `json:"restore_threshold_loss"`
+	FailThresholdLoss       int `json:"fail_threshold_loss"`
+	FailThresholdLatency    int `json:"fail_threshold_latency"`
+	FailMinDurationS        int `json:"fail_min_duration_s"`
+	RestoreThresholdLoss    int `json:"restore_threshold_loss"`
 	RestoreThresholdLatency int `json:"restore_threshold_latency"`
-	RestoreMinDurationS   int `json:"restore_min_duration_s"`
+	RestoreMinDurationS     int `json:"restore_min_duration_s"`
 
 	// Notifications
 	PushoverToken string `json:"pushover_token"`
@@ -106,21 +107,21 @@ type MemberConfig struct {
 
 // Default configuration values
 const (
-	DefaultPollIntervalMS     = 1500
-	DefaultHistoryWindowS     = 600
-	DefaultRetentionHours     = 24
-	DefaultMaxRAMMB           = 16
-	DefaultDataCapMode        = "balanced"
-	DefaultSwitchMargin       = 10
-	DefaultMinUptimeS         = 20
-	DefaultCooldownS          = 20
-	DefaultLogLevel           = "info"
-	DefaultFailThresholdLoss  = 5
-	DefaultFailThresholdLatency = 1200
-	DefaultFailMinDurationS   = 10
-	DefaultRestoreThresholdLoss = 1
+	DefaultPollIntervalMS          = 1500
+	DefaultHistoryWindowS          = 600
+	DefaultRetentionHours          = 24
+	DefaultMaxRAMMB                = 16
+	DefaultDataCapMode             = "balanced"
+	DefaultSwitchMargin            = 10
+	DefaultMinUptimeS              = 20
+	DefaultCooldownS               = 20
+	DefaultLogLevel                = "info"
+	DefaultFailThresholdLoss       = 5
+	DefaultFailThresholdLatency    = 1200
+	DefaultFailMinDurationS        = 10
+	DefaultRestoreThresholdLoss    = 1
 	DefaultRestoreThresholdLatency = 800
-	DefaultRestoreMinDurationS = 30
+	DefaultRestoreMinDurationS     = 30
 )
 
 // LoadConfig loads and validates the starfail configuration from UCI
@@ -191,19 +192,19 @@ func (c *Config) setDefaults() {
 	c.HealthPort = 8080
 	c.LogLevel = DefaultLogLevel
 	c.LogFile = ""
-	
+
 	// Performance and Security defaults
 	c.PerformanceProfiling = false
 	c.SecurityAuditing = false
 	c.ProfilingEnabled = false
 	c.AuditingEnabled = false
-	
+
 	// Machine Learning defaults
 	c.MLEnabled = false
 	c.MLModelPath = "/tmp/starfail/models"
 	c.MLTraining = false
 	c.MLPrediction = false
-	
+
 	// Security defaults
 	c.AllowedIPs = []string{}
 	c.BlockedIPs = []string{}
@@ -211,7 +212,7 @@ func (c *Config) setDefaults() {
 	c.BlockedPorts = []int{22, 23, 25}
 	c.MaxFailedAttempts = 5
 	c.BlockDuration = 24
-	
+
 	c.FailThresholdLoss = DefaultFailThresholdLoss
 	c.FailThresholdLatency = DefaultFailThresholdLatency
 	c.FailMinDurationS = DefaultFailMinDurationS
@@ -222,7 +223,7 @@ func (c *Config) setDefaults() {
 	c.PushoverUser = ""
 	c.MQTTBroker = ""
 	c.MQTTTopic = "starfail/status"
-	
+
 	// Set MQTT defaults
 	c.MQTT = MQTTConfig{
 		Broker:      "localhost",
@@ -343,7 +344,7 @@ func (c *Config) parseMainOption(option, value string) {
 		}
 	case "log_file":
 		c.LogFile = value
-		
+
 	// Performance and Security options
 	case "performance_profiling":
 		c.PerformanceProfiling = value == "1"
@@ -353,7 +354,7 @@ func (c *Config) parseMainOption(option, value string) {
 		c.ProfilingEnabled = value == "1"
 	case "auditing_enabled":
 		c.AuditingEnabled = value == "1"
-		
+
 	// Machine Learning options
 	case "ml_enabled":
 		c.MLEnabled = value == "1"
@@ -363,7 +364,7 @@ func (c *Config) parseMainOption(option, value string) {
 		c.MLTraining = value == "1"
 	case "ml_prediction":
 		c.MLPrediction = value == "1"
-		
+
 	// Security options
 	case "max_failed_attempts":
 		if v, err := strconv.Atoi(value); err == nil && v > 0 {
@@ -373,7 +374,7 @@ func (c *Config) parseMainOption(option, value string) {
 		if v, err := strconv.Atoi(value); err == nil && v > 0 {
 			c.BlockDuration = v
 		}
-		
+
 	case "fail_threshold_loss":
 		if v, err := strconv.Atoi(value); err == nil && v >= 0 {
 			c.FailThresholdLoss = v

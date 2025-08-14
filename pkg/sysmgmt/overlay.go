@@ -10,18 +10,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
+	"github.com/starfail/starfail/pkg/logx"
 )
 
 // OverlayManager manages overlay filesystem space
 type OverlayManager struct {
 	config *Config
-	logger logx.Logger
+	logger *logx.Logger
 	dryRun bool
 }
 
 // NewOverlayManager creates a new overlay manager
-func NewOverlayManager(config *Config, logger logx.Logger, dryRun bool) *OverlayManager {
+func NewOverlayManager(config *Config, logger *logx.Logger, dryRun bool) *OverlayManager {
 	return &OverlayManager{
 		config: config,
 		logger: logger,
@@ -86,7 +86,7 @@ func (om *OverlayManager) performCleanup(ctx context.Context) error {
 
 	cleanupTasks := []struct {
 		name string
-		fn   func(context.Context) error
+		fn   func(context.Context) (int64, error)
 	}{
 		{"stale backup files", om.cleanupStaleBackups},
 		{"old log files", om.cleanupOldLogs},
@@ -126,7 +126,7 @@ func (om *OverlayManager) performEmergencyCleanup(ctx context.Context) error {
 	// More aggressive cleanup for emergency situations
 	emergencyTasks := []struct {
 		name string
-		fn   func(context.Context) error
+		fn   func(context.Context) (int64, error)
 	}{
 		{"all backup files", om.cleanupAllBackups},
 		{"all log files", om.cleanupAllLogs},

@@ -32,10 +32,10 @@ type Controller struct {
 // NewController creates a new controller
 func NewController(config *uci.Config, logger *logx.Logger) (*Controller, error) {
 	ctrl := &Controller{
-		config:     config,
-		logger:     logger,
-		mwan3Path:  "mwan3",
-		ubusPath:   "ubus",
+		config:       config,
+		logger:       logger,
+		mwan3Path:    "mwan3",
+		ubusPath:     "ubus",
 		mwan3Enabled: config.UseMWAN3,
 	}
 
@@ -307,7 +307,7 @@ func (c *Controller) GetMWAN3Info() (map[string]interface{}, error) {
 
 	// Extract relevant information
 	info := make(map[string]interface{})
-	
+
 	if interfaces, ok := status["interfaces"].(map[string]interface{}); ok {
 		interfaceInfo := make(map[string]interface{})
 		for ifaceName, ifaceData := range interfaces {
@@ -409,6 +409,18 @@ func (c *Controller) GetInterfaceStats(member *pkg.Member) (map[string]interface
 // IsMWAN3Enabled returns whether mwan3 is enabled
 func (c *Controller) IsMWAN3Enabled() bool {
 	return c.mwan3Enabled
+}
+
+// GetMembers returns all available members (placeholder - would need discovery integration)
+func (c *Controller) GetMembers() ([]*pkg.Member, error) {
+	// This is a placeholder - in a real implementation, this would integrate with discovery
+	// For now, return an empty slice to satisfy the interface
+	return []*pkg.Member{}, nil
+}
+
+// GetActiveMember returns the currently active member (alias for GetCurrentMember)
+func (c *Controller) GetActiveMember() (*pkg.Member, error) {
+	return c.GetCurrentMember()
 }
 
 // GetControllerInfo returns general controller information

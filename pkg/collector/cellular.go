@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
@@ -93,7 +92,7 @@ func (cc *CellularCollector) collectCellularInfo(ctx context.Context, member *pk
 
 	// Try different ubus providers based on RutOS/OpenWrt variants
 	providers := []string{"mobiled", "gsm", "modem"}
-	
+
 	for _, provider := range providers {
 		if cellularData, err := cc.queryUbusProvider(ctx, provider, member.Iface); err == nil {
 			// Parse the response and extract metrics
@@ -277,7 +276,7 @@ func (cc *CellularCollector) GetCellularInfo(ctx context.Context, member *pkg.Me
 	}
 
 	result := make(map[string]interface{})
-	
+
 	if info.RSRP != nil {
 		result["rsrp"] = *info.RSRP
 	}
@@ -314,7 +313,7 @@ func (cc *CellularCollector) GetSignalQuality(rsrp, rsrq, sinr *int) float64 {
 	if rsrp != nil {
 		// RSRP ranges from -140 to -44 dBm
 		// Convert to 0-100 scale
-		rsrpScore := float64(*rsrp + 140) / 96.0 * 100
+		rsrpScore := float64(*rsrp+140) / 96.0 * 100
 		if rsrpScore > 100 {
 			rsrpScore = 100
 		} else if rsrpScore < 0 {
@@ -326,7 +325,7 @@ func (cc *CellularCollector) GetSignalQuality(rsrp, rsrq, sinr *int) float64 {
 	if rsrq != nil {
 		// RSRQ ranges from -20 to -3 dB
 		// Convert to 0-100 scale
-		rsrqScore := float64(*rsrq + 20) / 17.0 * 100
+		rsrqScore := float64(*rsrq+20) / 17.0 * 100
 		if rsrqScore > 100 {
 			rsrqScore = 100
 		} else if rsrqScore < 0 {
@@ -338,7 +337,7 @@ func (cc *CellularCollector) GetSignalQuality(rsrp, rsrq, sinr *int) float64 {
 	if sinr != nil {
 		// SINR ranges from -20 to 30 dB
 		// Convert to 0-100 scale
-		sinrScore := float64(*sinr + 20) / 50.0 * 100
+		sinrScore := float64(*sinr+20) / 50.0 * 100
 		if sinrScore > 100 {
 			sinrScore = 100
 		} else if sinrScore < 0 {

@@ -75,7 +75,7 @@ func main() {
 	}
 
 	logger.Info("Configuration loaded", "predictive", cfg.Predictive, "use_mwan3", cfg.UseMWAN3)
-	
+
 	// Log monitoring mode status
 	if *monitor {
 		logger.Info("Running in monitoring mode", "verbose_logging", true, "foreground", *foreground)
@@ -132,15 +132,15 @@ func main() {
 
 	// Initialize predictive engine configuration
 	predictiveConfig := &decision.PredictiveConfig{
-		Enabled:            cfg.Predictive,
-		LookbackWindow:     10 * time.Minute,
-		PredictionHorizon:  5 * time.Minute,
+		Enabled:             cfg.Predictive,
+		LookbackWindow:      10 * time.Minute,
+		PredictionHorizon:   5 * time.Minute,
 		ConfidenceThreshold: 0.7,
-		AnomalyThreshold:   0.8,
-		TrendSensitivity:   0.1,
-		PatternMinSamples:  20,
-		MLEnabled:          cfg.MLEnabled,
-		MLModelPath:        cfg.MLModelPath,
+		AnomalyThreshold:    0.8,
+		TrendSensitivity:    0.1,
+		PatternMinSamples:   20,
+		MLEnabled:           cfg.MLEnabled,
+		MLModelPath:         cfg.MLModelPath,
 	}
 
 	// Initialize decision engine with predictive capabilities
@@ -254,7 +254,7 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 	cleanupTicker := time.NewTicker(time.Duration(cfg.CleanupIntervalMS) * time.Millisecond)
 	securityTicker := time.NewTicker(2 * time.Minute)
 	performanceTicker := time.NewTicker(1 * time.Minute)
-	
+
 	defer decisionTicker.Stop()
 	defer discoveryTicker.Stop()
 	defer cleanupTicker.Stop()
@@ -275,7 +275,7 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 		case <-ctx.Done():
 			logger.Info("Main loop stopped")
 			return
-			
+
 		case <-decisionTicker.C:
 			// Run decision engine tick
 			if err := engine.Tick(ctrl); err != nil {
@@ -283,12 +283,12 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 					"error": err.Error(),
 				})
 			}
-			
+
 			// Update metrics if server is running
 			if metricsServer != nil {
 				metricsServer.UpdateMetrics()
 			}
-			
+
 		case <-discoveryTicker.C:
 			// Refresh member discovery
 			currentMembers := ctrl.GetMembers()
@@ -304,7 +304,7 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 					"member_count": len(newMembers),
 				})
 			}
-			
+
 		case <-cleanupTicker.C:
 			// Perform periodic cleanup
 			if err := telemetry.Cleanup(); err != nil {
@@ -312,7 +312,7 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 					"error": err.Error(),
 				})
 			}
-			
+
 		case <-securityTicker.C:
 			// Perform security checks
 			if auditor != nil {
@@ -322,7 +322,7 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 						logger.Error("File integrity check failed", "file", filePath, "error", err)
 					}
 				}
-				
+
 				// Check network security
 				for _, port := range []int{8080, 9090} {
 					if _, err := auditor.CheckNetworkSecurity(port, "tcp"); err != nil {
@@ -330,7 +330,7 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 					}
 				}
 			}
-			
+
 		case <-performanceTicker.C:
 			// Perform performance monitoring
 			if profiler != nil {
@@ -339,13 +339,13 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 				if memoryUsage > 100 { // 100MB threshold
 					logger.Warn("High memory usage detected", "usage_mb", memoryUsage)
 				}
-				
+
 				// Check goroutine count
 				goroutineCount := profiler.GetGoroutineCount()
 				if goroutineCount > 500 {
 					logger.Warn("High goroutine count detected", "count", goroutineCount)
 				}
-				
+
 				// Force GC if memory usage is high
 				if memoryUsage > 200 { // 200MB threshold
 					logger.Info("Forcing garbage collection due to high memory usage")

@@ -4,16 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/controller"
 	"github.com/starfail/starfail/pkg/decision"
 	"github.com/starfail/starfail/pkg/logx"
 	"github.com/starfail/starfail/pkg/telem"
-	"github.com/starfail/starfail/pkg/types"
 )
 
 // Server provides Prometheus metrics for starfaild
@@ -25,25 +24,25 @@ type Server struct {
 	server     *http.Server
 
 	// Prometheus metrics
-	memberScore *prometheus.GaugeVec
-	memberLatency *prometheus.GaugeVec
-	memberLoss *prometheus.GaugeVec
-	memberSignal *prometheus.GaugeVec
+	memberScore       *prometheus.GaugeVec
+	memberLatency     *prometheus.GaugeVec
+	memberLoss        *prometheus.GaugeVec
+	memberSignal      *prometheus.GaugeVec
 	memberObstruction *prometheus.GaugeVec
-	memberOutages *prometheus.CounterVec
-	memberSwitches *prometheus.CounterVec
-	memberUptime *prometheus.GaugeVec
-	memberStatus *prometheus.GaugeVec
-	
-	decisionCycles *prometheus.CounterVec
-	decisionErrors *prometheus.CounterVec
+	memberOutages     *prometheus.CounterVec
+	memberSwitches    *prometheus.CounterVec
+	memberUptime      *prometheus.GaugeVec
+	memberStatus      *prometheus.GaugeVec
+
+	decisionCycles   *prometheus.CounterVec
+	decisionErrors   *prometheus.CounterVec
 	collectionErrors *prometheus.CounterVec
-	
-	telemetrySamples *prometheus.GaugeVec
-	telemetryEvents *prometheus.GaugeVec
+
+	telemetrySamples     *prometheus.GaugeVec
+	telemetryEvents      *prometheus.GaugeVec
 	telemetryMemoryUsage *prometheus.GaugeVec
-	
-	daemonUptime *prometheus.GaugeVec
+
+	daemonUptime  *prometheus.GaugeVec
 	daemonVersion *prometheus.GaugeVec
 }
 
@@ -253,7 +252,7 @@ func (s *Server) Start(port int) error {
 // Stop stops the metrics server
 func (s *Server) Stop() error {
 	s.logger.Info("Stopping metrics server")
-	
+
 	if s.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -278,18 +277,27 @@ func (s *Server) UpdateMetrics() {
 
 // updateMemberMetrics updates member-related metrics
 func (s *Server) updateMemberMetrics() {
-	members := s.controller.GetMembers()
-	activeMember := s.controller.GetActiveMember()
+	members, err := s.controller.GetMembers()
+	if err != nil {
+		return
+	}
+	activeMember, err := s.controller.GetActiveMember()
+	if err != nil {
+		activeMember = nil
+	}
 
 	for _, member := range members {
 		labels := prometheus.Labels{
 			"member":    member.Name,
 			"class":     member.Class,
-			"interface": member.Interface,
+			"interface": member.Iface,
 		}
 
 		// Get latest metrics for this member
-		samples := s.store.GetSamples(member.Name, 1, time.Minute)
+		samples, err := s.store.GetSamples(member.Name, time.Now().Add(-time.Minute))
+		if err != nil {
+			continue
+		}
 		if len(samples) > 0 {
 			metrics := samples[0].Metrics
 			score := samples[0].Score
@@ -297,32 +305,39 @@ func (s *Server) updateMemberMetrics() {
 			// Update score metric
 			s.memberScore.With(labels).Set(score.Final)
 
+			// Extract metrics from map
+			latency, _ := metrics["lat_ms"].(float64)
+			loss, _ := metrics["loss_pct"].(float64)
+			signal, _ := metrics["signal"].(float64)
+			obstruction, _ := metrics["obstruction_pct"].(float64)
+			outages, _ := metrics["outages"].(float64)
+
 			// Update latency metric
-			s.memberLatency.With(labels).Set(metrics.Latency)
+			s.memberLatency.With(labels).Set(latency)
 
 			// Update loss metric
-			s.memberLoss.With(labels).Set(metrics.Loss)
+			s.memberLoss.With(labels).Set(loss)
 
 			// Update signal metric (if available)
-			if metrics.Signal != 0 {
-				s.memberSignal.With(labels).Set(metrics.Signal)
+			if signal != 0 {
+				s.memberSignal.With(labels).Set(signal)
 			}
 
 			// Update obstruction metric (for Starlink)
-			if member.Class == types.MemberClassStarlink && metrics.Obstruction > 0 {
-				s.memberObstruction.With(labels).Set(metrics.Obstruction)
+			if member.Class == pkg.MemberClassStarlink && obstruction > 0 {
+				s.memberObstruction.With(labels).Set(obstruction)
 			}
 
 			// Update outages metric
-			s.memberOutages.With(labels).Add(float64(metrics.Outages))
+			s.memberOutages.With(labels).Add(outages)
 		}
 
 		// Update status metric
 		statusLabels := prometheus.Labels{
 			"member":    member.Name,
 			"class":     member.Class,
-			"interface": member.Interface,
-			"state":     s.decision.GetMemberState(member.Name),
+			"interface": member.Iface,
+			"state":     "unknown", // Placeholder - would need proper state lookup
 		}
 
 		status := 0.0
@@ -332,8 +347,8 @@ func (s *Server) updateMemberMetrics() {
 		s.memberStatus.With(statusLabels).Set(status)
 
 		// Update uptime metric (simplified)
-		if member.Created != (time.Time{}) {
-			uptime := time.Since(member.Created).Seconds()
+		if member.CreatedAt != (time.Time{}) {
+			uptime := time.Since(member.CreatedAt).Seconds()
 			s.memberUptime.With(labels).Set(uptime)
 		}
 	}
@@ -341,16 +356,21 @@ func (s *Server) updateMemberMetrics() {
 
 // updateTelemetryMetrics updates telemetry-related metrics
 func (s *Server) updateTelemetryMetrics() {
-	members := s.controller.GetMembers()
+	members, err := s.controller.GetMembers()
+	if err != nil {
+		return
+	}
 
 	// Update sample counts
 	for _, member := range members {
-		samples := s.store.GetSamples(member.Name, 1000, time.Hour)
-		s.telemetrySamples.With(prometheus.Labels{"member": member.Name}).Set(float64(len(samples)))
+		samples, err := s.store.GetSamples(member.Name, time.Now().Add(-time.Hour))
+		if err == nil {
+			s.telemetrySamples.With(prometheus.Labels{"member": member.Name}).Set(float64(len(samples)))
+		}
 	}
 
 	// Update event counts
-	events := s.store.GetEvents(1000, time.Hour)
+	events, err := s.store.GetEvents(time.Now().Add(-time.Hour), 1000)
 	eventCounts := make(map[string]int)
 	for _, event := range events {
 		eventCounts[event.Type]++
@@ -372,7 +392,7 @@ func (s *Server) updateDaemonMetrics() {
 
 	// Update version info
 	s.daemonVersion.With(prometheus.Labels{
-		"version":   "1.0.0",
+		"version":    "1.0.0",
 		"go_version": "1.22",
 	}).Set(1)
 }
@@ -397,10 +417,10 @@ func (s *Server) RecordCollectionError(member, class, errorType string) {
 }
 
 // RecordMemberSwitch records a member switch
-func (s *Server) RecordMemberSwitch(member types.Member) {
+func (s *Server) RecordMemberSwitch(member pkg.Member) {
 	s.memberSwitches.With(prometheus.Labels{
 		"member":    member.Name,
 		"class":     member.Class,
-		"interface": member.Interface,
+		"interface": member.Iface,
 	}).Inc()
 }
