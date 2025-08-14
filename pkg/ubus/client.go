@@ -132,7 +132,15 @@ func (c *Client) Call(ctx context.Context, object, method string, data interface
 		Data:   payload,
 		ID:     c.GetNextCallID(),
 	}
-	c.callMu.Unlock()
+	c.callMu.Lock()
+	defer c.callMu.Unlock()
+	msg := &Message{
+		Type:   "call",
+		Path:   object,
+		Method: method,
+		Data:   payload,
+		ID:     c.GetNextCallID(),
+	}
 	if err := c.sendMessage(msg); err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)
 	}
