@@ -5,6 +5,7 @@ go 1.23.0
 require (
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/prometheus/client_golang v1.17.0
+	github.com/sajari/regression v1.0.1
 	github.com/sirupsen/logrus v1.9.3
 )
 
@@ -22,5 +23,6 @@ require (
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
+	gonum.org/v1/gonum v0.16.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )

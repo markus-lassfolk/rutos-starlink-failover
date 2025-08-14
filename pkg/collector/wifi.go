@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -176,7 +178,11 @@ func (wc *WiFiCollector) collectFallbackInfo(ctx context.Context, member *pkg.Me
 			info.NoiseLevel = wifiData.NoiseLevel
 			info.SNR = wifiData.SNR
 			info.Bitrate = wifiData.Bitrate
+		} else {
+			fmt.Printf("Debug: no wireless stats found for %s\n", member.Iface)
 		}
+	} else {
+		fmt.Printf("Warning: failed to read /proc/net/wireless: %v\n", err)
 	}
 
 	return nil
@@ -184,19 +190,48 @@ func (wc *WiFiCollector) collectFallbackInfo(ctx context.Context, member *pkg.Me
 
 // readWirelessFile reads /proc/net/wireless
 func (wc *WiFiCollector) readWirelessFile() (string, error) {
-	// This is a simplified implementation
-	// In a real implementation, you'd use os.ReadFile
-	return "", fmt.Errorf("file reading not implemented")
+	data, err := os.ReadFile("/proc/net/wireless")
+	if err != nil {
+		return "", fmt.Errorf("read /proc/net/wireless: %w", err)
+	}
+	return string(data), nil
 }
 
 // parseWirelessFile parses /proc/net/wireless format
 func (wc *WiFiCollector) parseWirelessFile(data, iface string) *WiFiInfo {
-	// This is a simplified implementation
-	// In a real implementation, you'd parse the /proc/net/wireless format
-	// Example format:
-	// Inter-| sta-|   Quality        |   Discarded packets               | Missed | WE
-	//  face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
-	//  wlan0: 0000   70.  -50.  -256        0      0      0      0      0        0
+	lines := strings.Split(data, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, iface) {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		// Expected: iface: status link level noise ...
+		if len(fields) < 5 {
+			return nil
+		}
+
+		levelStr := strings.TrimSuffix(fields[3], ".")
+		noiseStr := strings.TrimSuffix(fields[4], ".")
+
+		levelF, err1 := strconv.ParseFloat(levelStr, 64)
+		noiseF, err2 := strconv.ParseFloat(noiseStr, 64)
+		if err1 != nil || err2 != nil {
+			return nil
+		}
+
+		level := int(levelF)
+		noise := int(noiseF)
+		snr := level - noise
+
+		return &WiFiInfo{
+			SignalStrength: &level,
+			NoiseLevel:     &noise,
+			SNR:            &snr,
+		}
+	}
+
 	return nil
 }
 

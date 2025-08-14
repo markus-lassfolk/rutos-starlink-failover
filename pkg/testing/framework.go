@@ -139,6 +139,11 @@ func (tf *TestFramework) MockController() *controller.Controller {
 	if err != nil {
 		tf.t.Fatalf("Failed to create controller: %v", err)
 	}
+
+	if err := ctrl.SetMembers(tf.MockMembers()); err != nil {
+		tf.t.Fatalf("Failed to set members: %v", err)
+	}
+
 	return ctrl
 }
 
