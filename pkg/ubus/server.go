@@ -78,8 +78,12 @@ func (s *Server) Stop() error {
 
 	// Unregister object
 	if s.client != nil {
-		s.client.UnregisterObject(context.Background(), "starfail")
-		s.client.Disconnect()
+		if err := s.client.UnregisterObject(context.Background(), "starfail"); err != nil {
+			s.logger.Error("failed to unregister ubus object", "error", err)
+		}
+		if err := s.client.Disconnect(); err != nil {
+			s.logger.Error("failed to disconnect from ubus", "error", err)
+		}
 	}
 
 	s.logger.Info("ubus server stopped")
