@@ -2,6 +2,7 @@
 package ubus
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -73,22 +74,125 @@ func (s *Server) Stop(ctx context.Context) error {
 
 // registerMethods registers all ubus API methods
 func (s *Server) registerMethods(ctx context.Context) error {
-	// In a real implementation, this would register actual ubus methods
-	// For now, we'll document the expected API
-
-	methods := map[string]string{
-		"status":  "Get daemon status and current member info",
-		"members": "List all discovered members with current metrics",
-		"metrics": "Get detailed metrics for a specific member",
-		"action":  "Execute manual failover actions",
-		"events":  "Get recent system events",
+	if _, err := exec.LookPath("ubus"); err != nil {
+		s.logger.WithFields(logx.Fields{
+			"error": err.Error(),
+		}).Warn("ubus command not found, skipping registration")
+		return nil
 	}
 
+	// Define the methods exposed over ubus
+	methods := map[string]map[string]interface{}{
+		"status":  {},
+		"members": {},
+		"metrics": {"member": "str", "limit": "int"},
+		"action":  {"action": "str", "member": "str", "force": "bool"},
+		"events":  {"limit": "int"},
+	}
+
+	spec, err := json.Marshal(methods)
+	if err != nil {
+		return fmt.Errorf("failed to marshal method spec: %w", err)
+	}
+
+	// Register the service with ubus
+	cmd := exec.CommandContext(ctx, "ubus", "add", s.serviceName, string(spec))
+	if output, err := cmd.CombinedOutput(); err != nil {
+		s.logger.WithFields(logx.Fields{
+			"error":  err.Error(),
+			"output": string(output),
+		}).Error("failed to register ubus service")
+		return err
+	}
+
+	// Start the handler loop to process ubus calls
+	go s.handleCalls(ctx)
+
 	s.logger.WithFields(logx.Fields{
-		"methods": methods,
+		"methods": []string{"status", "members", "metrics", "action", "events"},
 	}).Info("registered ubus methods")
 
 	return nil
+}
+
+// handleCalls listens for ubus method invocations and dispatches them
+func (s *Server) handleCalls(ctx context.Context) {
+	cmd := exec.CommandContext(ctx, "ubus", "listen", s.serviceName)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		s.logger.WithFields(logx.Fields{
+			"error": err.Error(),
+		}).Error("failed to get ubus listen stdout")
+		return
+	}
+	if err := cmd.Start(); err != nil {
+		s.logger.WithFields(logx.Fields{
+			"error": err.Error(),
+		}).Error("failed to start ubus listen")
+		return
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		var req struct {
+			ID     uint32                 `json:"id"`
+			Method string                 `json:"method"`
+			Params map[string]interface{} `json:"params"`
+		}
+		if err := json.Unmarshal(line, &req); err != nil {
+			continue
+		}
+
+		var (
+			result  interface{}
+			callErr error
+		)
+
+		switch req.Method {
+		case "status":
+			result, callErr = s.HandleStatus(ctx)
+		case "members":
+			result, callErr = s.HandleMembers(ctx)
+		case "metrics":
+			member, _ := req.Params["member"].(string)
+			limit := 0
+			if v, ok := req.Params["limit"].(float64); ok {
+				limit = int(v)
+			}
+			result, callErr = s.HandleMetrics(ctx, member, limit)
+		case "action":
+			var ar ActionRequest
+			b, _ := json.Marshal(req.Params)
+			_ = json.Unmarshal(b, &ar)
+			result, callErr = s.HandleAction(ctx, ar)
+		case "events":
+			limit := 0
+			if v, ok := req.Params["limit"].(float64); ok {
+				limit = int(v)
+			}
+			result, callErr = s.HandleEvents(ctx, limit)
+		default:
+			callErr = fmt.Errorf("unknown method: %s", req.Method)
+		}
+
+		reply := map[string]interface{}{}
+		if callErr != nil {
+			reply["error"] = callErr.Error()
+		} else {
+			reply["result"] = result
+		}
+		resp, _ := json.Marshal(reply)
+		exec.CommandContext(ctx, "ubus", "reply", fmt.Sprintf("%d", req.ID), string(resp)).Run()
+	}
+
+	if err := scanner.Err(); err != nil {
+		s.logger.WithFields(logx.Fields{
+			"error": err.Error(),
+		}).Warn("ubus listen scanner error")
+	}
+
+	_ = cmd.Wait()
 }
 
 // StatusResponse represents the response for the status method
