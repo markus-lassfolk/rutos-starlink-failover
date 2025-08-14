@@ -1,15 +1,19 @@
-name: ShellCheck & Formatting
+name: ShellCheck & Formatting (Legacy Scripts)
 
 on:
   push:
     branches: [ '*' ]
     paths:
-      - '**/*.sh'
+      - 'archive/**/*.sh'
+      - 'scripts/**/*.sh'
+      - 'Starlink-RUTOS-Failover/**/*.sh'
       - '**/99-pushover_notify*'
   pull_request:
     branches: [ '*' ]
     paths:
-      - '**/*.sh'
+      - 'archive/**/*.sh'
+      - 'scripts/**/*.sh'
+      - 'Starlink-RUTOS-Failover/**/*.sh'
       - '**/99-pushover_notify*'
 
 permissions:
