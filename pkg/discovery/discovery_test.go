@@ -15,7 +15,6 @@ func TestDiscoverer_DiscoverMembers(t *testing.T) {
 
 	// Test discovery
 	members, err := discoverer.DiscoverMembers()
-	
 	// This might fail in test environment without mwan3
 	if err != nil {
 		t.Logf("⚠️  Discovery failed (expected in test environment): %v", err)
@@ -33,7 +32,7 @@ func TestDiscoverer_DiscoverMembers(t *testing.T) {
 	}
 
 	t.Logf("✅ Discovered %d members", len(members))
-	
+
 	// Verify member structure
 	for i, member := range members {
 		if member.Name == "" {
@@ -45,7 +44,7 @@ func TestDiscoverer_DiscoverMembers(t *testing.T) {
 		if member.Class == "" {
 			t.Errorf("Member %d has empty class", i)
 		}
-		
+
 		t.Logf("  Member %d: %s (%s) - %s", i, member.Name, member.Iface, member.Class)
 	}
 }
@@ -56,9 +55,9 @@ func TestDiscoverer_ClassifyByName(t *testing.T) {
 	discoverer := NewDiscoverer(logger)
 
 	tests := []struct {
-		name      string
-		iface     string
-		expected  string
+		name     string
+		iface    string
+		expected string
 	}{
 		{"starlink interface", "wan_starlink", pkg.ClassStarlink},
 		{"starlink dish", "dish0", pkg.ClassStarlink},
@@ -90,9 +89,9 @@ func TestDiscoverer_CreateMember(t *testing.T) {
 	discoverer := NewDiscoverer(logger)
 
 	tests := []struct {
-		name          string
-		iface         string
-		class         string
+		name           string
+		iface          string
+		class          string
 		expectedWeight int
 	}{
 		{"starlink member", "wan_starlink", pkg.ClassStarlink, 100},
@@ -133,7 +132,7 @@ func TestDiscoverer_CreateMember(t *testing.T) {
 				t.Error("Expected non-nil config")
 			}
 
-			t.Logf("✅ %s: weight=%d, config_keys=%d", 
+			t.Logf("✅ %s: weight=%d, config_keys=%d",
 				tt.name, member.Weight, len(member.Config))
 		})
 	}
@@ -181,7 +180,7 @@ func TestDiscoverer_ValidateMember(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := discoverer.ValidateMember(tt.member)
-			
+
 			if tt.name == "valid member" {
 				// This will likely fail because interface doesn't exist
 				t.Logf("⚠️  Validation result for %s: %v (interface may not exist in test)", tt.name, err)
@@ -258,7 +257,7 @@ func TestDiscoverer_EnhanceClassification(t *testing.T) {
 				}
 			}
 
-			t.Logf("✅ %s: weight=%d, config_keys=%v", 
+			t.Logf("✅ %s: weight=%d, config_keys=%v",
 				tt.name, member.Weight, getConfigKeys(member.Config))
 		})
 	}
@@ -317,7 +316,7 @@ func TestDiscoverer_MergeMembers(t *testing.T) {
 	// Find starlink member
 	var starlinkMember *pkg.Member
 	var wifiMember *pkg.Member
-	
+
 	for _, member := range merged {
 		if member.Name == "starlink" {
 			starlinkMember = member
@@ -363,7 +362,6 @@ func TestDiscoverer_RefreshMembers(t *testing.T) {
 	}
 
 	refreshed, err := discoverer.RefreshMembers(existing)
-	
 	// This will likely fail in test environment
 	if err != nil {
 		t.Logf("⚠️  RefreshMembers failed (expected in test environment): %v", err)
@@ -391,9 +389,9 @@ func getConfigKeys(config map[string]string) []string {
 func BenchmarkDiscoverer_ClassifyByName(b *testing.B) {
 	logger := logx.NewLogger("error", "discovery_bench") // Reduce logging
 	discoverer := NewDiscoverer(logger)
-	
+
 	interfaces := []string{"wan_starlink", "wwan0", "wlan0", "eth0", "unknown0"}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		iface := interfaces[i%len(interfaces)]
@@ -405,7 +403,7 @@ func BenchmarkDiscoverer_ClassifyByName(b *testing.B) {
 func BenchmarkDiscoverer_CreateMember(b *testing.B) {
 	logger := logx.NewLogger("error", "discovery_bench")
 	discoverer := NewDiscoverer(logger)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = discoverer.createMember("eth0", pkg.ClassLAN)
