@@ -166,9 +166,9 @@ func main() {
 
 	// Initialize collector factory
 	collectorConfig := map[string]interface{}{
-		"timeout": 10 * time.Second,
-		"targets": []string{"8.8.8.8", "1.1.1.1", "1.0.0.1"},
-		"ubus_path": "ubus",
+		"timeout":      10 * time.Second,
+		"targets":      []string{"8.8.8.8", "1.1.1.1", "1.0.0.1"},
+		"ubus_path":    "ubus",
 		"starlink_api": "192.168.100.1",
 	}
 	collectorFactory := collector.NewCollectorFactory(collectorConfig)
@@ -324,7 +324,7 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 					for _, member := range newMembers {
 						engine.AddMember(member)
 					}
-					
+
 					logger.Debug("Member discovery refreshed", map[string]interface{}{
 						"member_count": len(newMembers),
 					})

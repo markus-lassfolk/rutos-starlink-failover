@@ -37,7 +37,7 @@ func (d *Discoverer) DiscoverMembers() ([]*pkg.Member, error) {
 	mwan3Members, err := d.discoverFromMWAN3()
 	if err != nil {
 		d.logger.Warn("Failed to discover from mwan3, falling back to system interfaces", "error", err)
-		
+
 		// Fallback: discover from system interfaces
 		systemMembers, err := d.discoverFromSystemInterfaces()
 		if err != nil {
@@ -516,7 +516,7 @@ func (d *Discoverer) discoverFromMWAN3() ([]*pkg.Member, error) {
 			d.logger.Warn("Member has no interface", "member", member.Name)
 			continue
 		}
-		
+
 		// Classify the member based on interface properties
 		member.Class = d.classifyByName(member.Iface)
 		if member.Class == "" {
