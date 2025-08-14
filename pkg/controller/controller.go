@@ -224,6 +224,10 @@ func (c *Controller) isMWAN3SwitchNeeded(from, to *pkg.Member, status map[string
 
 // updateMWAN3Policy updates the mwan3 policy to prefer the target member
 func (c *Controller) updateMWAN3Policy(to *pkg.Member) error {
+	if to == nil {
+		return fmt.Errorf("target member cannot be nil")
+	}
+
 	c.logger.LogMWAN3("policy_update_start", map[string]interface{}{
 		"target": to.Name,
 		"iface":  to.Iface,
