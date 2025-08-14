@@ -193,9 +193,9 @@ func (s *Server) handleActionWrapper(ctx context.Context, data json.RawMessage) 
 
 // StatusResponse represents the response for status queries
 type StatusResponse struct {
-	ActiveMember    *pkg.Member     `json:"active_member"`
-	Members         []pkg.Member    `json:"members"`
-	LastSwitch      *pkg.Event      `json:"last_switch,omitempty"`
+	ActiveMember    *pkg.Member       `json:"active_member"`
+	Members         []pkg.Member      `json:"members"`
+	LastSwitch      *pkg.Event        `json:"last_switch,omitempty"`
 	Uptime          time.Duration     `json:"uptime"`
 	DecisionState   string            `json:"decision_state"`
 	ControllerState string            `json:"controller_state"`
@@ -211,10 +211,7 @@ func (s *Server) GetStatus() (*StatusResponse, error) {
 	if err != nil {
 		activeMember = nil
 	}
-	members, err := s.controller.GetMembers()
-	if err != nil {
-		members = []*pkg.Member{}
-	}
+	members := s.controller.GetMembers()
 
 	// Get last switch event
 	var lastSwitch *pkg.Event
@@ -265,8 +262,8 @@ type MemberInfo struct {
 	Member  pkg.Member   `json:"member"`
 	Metrics *pkg.Metrics `json:"metrics,omitempty"`
 	Score   *pkg.Score   `json:"score,omitempty"`
-	State   string         `json:"state"`
-	Status  string         `json:"status"`
+	State   string       `json:"state"`
+	Status  string       `json:"status"`
 }
 
 // GetMembers returns detailed information about all members
@@ -274,10 +271,7 @@ func (s *Server) GetMembers() (*MembersResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	members, err := s.controller.GetMembers()
-	if err != nil {
-		return &MembersResponse{Members: []MemberInfo{}}, nil
-	}
+	members := s.controller.GetMembers()
 	memberInfos := make([]MemberInfo, len(members))
 
 	for i, member := range members {
@@ -314,9 +308,9 @@ func (s *Server) GetMembers() (*MembersResponse, error) {
 
 // MetricsResponse represents the response for metrics queries
 type MetricsResponse struct {
-	Member  string         `json:"member"`
+	Member  string          `json:"member"`
 	Samples []*telem.Sample `json:"samples"`
-	Period  time.Duration  `json:"period"`
+	Period  time.Duration   `json:"period"`
 }
 
 // GetMetrics returns historical metrics for a specific member
@@ -336,7 +330,7 @@ func (s *Server) GetMetrics(memberName string, hours int) (*MetricsResponse, err
 
 // EventsResponse represents the response for events queries
 type EventsResponse struct {
-	Events []*pkg.Event `json:"events"`
+	Events []*pkg.Event  `json:"events"`
 	Period time.Duration `json:"period"`
 }
 
@@ -373,14 +367,8 @@ func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
 	defer s.mu.Unlock()
 
 	// Validate target member exists
-	members, err := s.controller.GetMembers()
-	if err != nil {
-		return &FailoverResponse{
-			Success: false,
-			Message: fmt.Sprintf("Failed to get members: %v", err),
-		}, nil
-	}
-	
+	members := s.controller.GetMembers()
+
 	var targetMember *pkg.Member
 	for _, member := range members {
 		if member.Name == req.TargetMember {
@@ -408,7 +396,7 @@ func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
 
 	// Perform the failover (placeholder)
 	// TODO: Implement SwitchToMember method
-	err = fmt.Errorf("SwitchToMember not implemented")
+	err := fmt.Errorf("SwitchToMember not implemented")
 	if err != nil {
 		return &FailoverResponse{
 			Success: false,

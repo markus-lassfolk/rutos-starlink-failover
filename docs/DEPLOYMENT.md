@@ -179,6 +179,8 @@ config starfail 'main'
     option use_mwan3 '1'
     option poll_interval_ms '1500'
     option predictive '1'
+    option ml_enabled '1'
+    option ml_model_path '/etc/starfail/models.json'
     option switch_margin '10'
     option log_level 'info'
 
@@ -194,6 +196,10 @@ config member 'cellular_any'
     option weight '80'
     option metered '1'
 ```
+
+The `ml_model_path` option must point to a writable location containing
+JSON-formatted model definitions. If the file exists, models are loaded
+at startup; otherwise, new models will be trained and saved to this path.
 
 ### 3. Configure mwan3 (Recommended)
 
