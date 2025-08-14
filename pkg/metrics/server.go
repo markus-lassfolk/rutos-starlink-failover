@@ -277,10 +277,7 @@ func (s *Server) UpdateMetrics() {
 
 // updateMemberMetrics updates member-related metrics
 func (s *Server) updateMemberMetrics() {
-	members, err := s.controller.GetMembers()
-	if err != nil {
-		return
-	}
+	members := s.controller.GetMembers()
 	activeMember, err := s.controller.GetActiveMember()
 	if err != nil {
 		activeMember = nil
@@ -356,10 +353,7 @@ func (s *Server) updateMemberMetrics() {
 
 // updateTelemetryMetrics updates telemetry-related metrics
 func (s *Server) updateTelemetryMetrics() {
-	members, err := s.controller.GetMembers()
-	if err != nil {
-		return
-	}
+	members := s.controller.GetMembers()
 
 	// Update sample counts
 	for _, member := range members {
@@ -371,6 +365,9 @@ func (s *Server) updateTelemetryMetrics() {
 
 	// Update event counts
 	events, err := s.store.GetEvents(time.Now().Add(-time.Hour), 1000)
+	if err != nil {
+		return
+	}
 	eventCounts := make(map[string]int)
 	for _, event := range events {
 		eventCounts[event.Type]++
