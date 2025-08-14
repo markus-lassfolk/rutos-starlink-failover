@@ -151,7 +151,7 @@ func TestSystemIntegration(t *testing.T) {
 	t.Run("member_lifecycle", func(t *testing.T) {
 		// Test complete member lifecycle
 		initialMembers := createMockMembers()
-		
+
 		// Add members
 		for _, member := range initialMembers {
 			testEnv.DecisionEngine.AddMember(member)
@@ -165,7 +165,7 @@ func TestSystemIntegration(t *testing.T) {
 
 		// Remove a member
 		testEnv.DecisionEngine.RemoveMember(initialMembers[0].Name)
-		
+
 		members = testEnv.DecisionEngine.GetMembers()
 		if len(members) != len(initialMembers)-1 {
 			t.Errorf("Expected %d members after removal, got %d", len(initialMembers)-1, len(members))
@@ -272,7 +272,7 @@ func TestErrorHandling(t *testing.T) {
 	t.Run("decision_engine_error_recovery", func(t *testing.T) {
 		// Test decision engine with no members
 		emptyEngine := decision.NewEngine(testEnv.Config, testEnv.Logger, testEnv.Telemetry)
-		
+
 		err := emptyEngine.Tick(testEnv.Controller)
 		if err == nil {
 			t.Log("✅ Decision engine handles empty member list gracefully")

@@ -91,7 +91,6 @@ func TestController_ReadMWAN3Config(t *testing.T) {
 
 	// Test reading mwan3 config
 	mwan3Config, err := ctrl.readMWAN3Config()
-	
 	// This might fail if mwan3 is not installed, which is expected in test environment
 	if err != nil {
 		t.Logf("⚠️  mwan3 config read failed (expected in test environment): %v", err)
@@ -116,7 +115,7 @@ func TestController_ReadMWAN3Config(t *testing.T) {
 		t.Error("Expected non-nil Policies slice")
 	}
 
-	t.Logf("✅ Successfully read mwan3 config with %d members and %d policies", 
+	t.Logf("✅ Successfully read mwan3 config with %d members and %d policies",
 		len(mwan3Config.Members), len(mwan3Config.Policies))
 }
 
@@ -201,7 +200,6 @@ func TestController_Switch(t *testing.T) {
 
 	// Test switch functionality
 	err = ctrl.Switch(from, to)
-	
 	// This will likely fail in test environment without actual interfaces
 	if err != nil {
 		t.Logf("⚠️  Switch failed (expected in test environment): %v", err)
@@ -290,7 +288,6 @@ func TestController_GetMWAN3Info(t *testing.T) {
 	}
 
 	info, err := ctrl.GetMWAN3Info()
-	
 	// Expected to fail in test environment
 	if err != nil {
 		t.Logf("⚠️  GetMWAN3Info failed (expected in test environment): %v", err)
@@ -371,7 +368,7 @@ func BenchmarkController_UpdateMWAN3Policy(b *testing.B) {
 func TestMain(m *testing.M) {
 	// Setup
 	code := m.Run()
-	
+
 	// Teardown
 	os.Exit(code)
 }
