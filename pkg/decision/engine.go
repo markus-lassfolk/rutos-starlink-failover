@@ -453,9 +453,9 @@ func (e *Engine) scoreWiFi(metrics *pkg.Metrics, config *uci.MemberConfig) float
 	score -= lossPenalty
 
 	// Signal strength bonus/penalty
-	if signal, ok := metrics["signal"].(int); ok {
+	if metrics.SignalStrength != nil {
 		// WiFi signal typically ranges from -100 to -30 dBm
-		signalScore := float64(signal+100) / 70.0 * 100
+		signalScore := float64(*metrics.SignalStrength+100) / 70.0 * 100
 		if signalScore > 100 {
 			signalScore = 100
 		} else if signalScore < 0 {
@@ -468,39 +468,31 @@ func (e *Engine) scoreWiFi(metrics *pkg.Metrics, config *uci.MemberConfig) float
 }
 
 // scoreLAN calculates score for LAN members
-func (e *Engine) scoreLAN(metrics map[string]interface{}, config *uci.MemberConfig) float64 {
+func (e *Engine) scoreLAN(metrics *pkg.Metrics, config *uci.MemberConfig) float64 {
 	score := 100.0
 
 	// Latency penalty (LAN should be very fast)
-	if lat, ok := metrics["lat_ms"].(float64); ok {
-		latPenalty := e.normalize(lat, 1, 100) * 25
-		score -= latPenalty
-	}
+	latPenalty := e.normalize(metrics.LatencyMS, 1, 100) * 25
+	score -= latPenalty
 
 	// Loss penalty (LAN should have no loss)
-	if loss, ok := metrics["loss_pct"].(float64); ok {
-		lossPenalty := loss * 50 // High penalty for any loss on LAN
-		score -= lossPenalty
-	}
+	lossPenalty := metrics.LossPercent * 50 // High penalty for any loss on LAN
+	score -= lossPenalty
 
 	return score
 }
 
 // scoreGeneric calculates score for generic members
-func (e *Engine) scoreGeneric(metrics map[string]interface{}, config *uci.MemberConfig) float64 {
+func (e *Engine) scoreGeneric(metrics *pkg.Metrics, config *uci.MemberConfig) float64 {
 	score := 100.0
 
 	// Latency penalty
-	if lat, ok := metrics["lat_ms"].(float64); ok {
-		latPenalty := e.normalize(lat, 50, 1500) * 20
-		score -= latPenalty
-	}
+	latPenalty := e.normalize(metrics.LatencyMS, 50, 1500) * 20
+	score -= latPenalty
 
 	// Loss penalty
-	if loss, ok := metrics["loss_pct"].(float64); ok {
-		lossPenalty := e.normalize(loss, 0, 10) * 30
-		score -= lossPenalty
-	}
+	lossPenalty := e.normalize(metrics.LossPercent, 0, 10) * 30
+	score -= lossPenalty
 
 	return score
 }
@@ -1240,9 +1232,7 @@ func (e *Engine) updatePredictiveModels() {
 		model := e.getOrCreatePredictiveModel(name)
 		e.updateModel(model, samples)
 
-		// Update trend analysis
-		trend := e.getOrCreateTrendAnalysis(name)
-		e.updateTrendAnalysis(trend, samples)
+		// Trend analysis is updated in updateTrendAnalysis method called earlier
 	}
 }
 
@@ -1280,16 +1270,16 @@ func (e *Engine) updateModel(model *PredictiveModel, samples []*telem.Sample) {
 	// Convert samples to data points
 	var dataPoints []DataPoint
 	for _, sample := range samples {
-		// Extract metrics from map
-		latency, _ := sample.Metrics["lat_ms"].(float64)
-		loss, _ := sample.Metrics["loss_pct"].(float64)
+		// Extract metrics from struct
+		latency := sample.Metrics.LatencyMS
+		loss := sample.Metrics.LossPercent
 
 		dataPoint := DataPoint{
 			Timestamp: sample.Timestamp,
 			Latency:   latency,
 			Loss:      loss,
 			Score:     sample.Score.Final,
-			Status:    "healthy", // Default status since it's not in metrics map
+			Status:    "healthy", // Default status
 		}
 		dataPoints = append(dataPoints, dataPoint)
 	}
@@ -1311,19 +1301,7 @@ func (e *Engine) updateModel(model *PredictiveModel, samples []*telem.Sample) {
 	model.Confidence = e.calculateConfidence(dataPoints)
 }
 
-// updateTrendAnalysis updates trend analysis with new data
-func (e *Engine) updateTrendAnalysis(trend *TrendAnalysis, samples []*telem.Sample) {
-	if len(samples) < 2 {
-		return
-	}
 
-	// Calculate trends using linear regression
-	trend.LatencyTrend = e.calculateLatencyTrend(samples)
-	trend.LossTrend = e.calculateLossTrend(samples)
-	trend.ScoreTrend = e.calculateScoreTrend(samples)
-	trend.Volatility = e.calculateVolatility(samples)
-	trend.LastCalculated = time.Now()
-}
 
 // detectPatterns detects patterns in member behavior
 func (e *Engine) detectPatterns() {
@@ -1524,8 +1502,8 @@ func (e *Engine) calculateLatencyTrend(samples []*telem.Sample) float64 {
 		return 0.0
 	}
 
-	lastLatency, _ := last.Metrics["lat_ms"].(float64)
-	firstLatency, _ := first.Metrics["lat_ms"].(float64)
+	lastLatency := last.Metrics.LatencyMS
+	firstLatency := first.Metrics.LatencyMS
 	latencyDiff := lastLatency - firstLatency
 	return latencyDiff / timeDiff
 }
@@ -1543,8 +1521,8 @@ func (e *Engine) calculateLossTrend(samples []*telem.Sample) float64 {
 		return 0.0
 	}
 
-	lastLoss, _ := last.Metrics["loss_pct"].(float64)
-	firstLoss, _ := first.Metrics["loss_pct"].(float64)
+	lastLoss := last.Metrics.LossPercent
+	firstLoss := first.Metrics.LossPercent
 	lossDiff := lastLoss - firstLoss
 	return lossDiff / timeDiff
 }
@@ -1621,25 +1599,7 @@ func (e *Engine) calculateVariance(dataPoints []DataPoint) float64 {
 	return variance
 }
 
-func (e *Engine) calculateStandardDeviation(values []float64) float64 {
-	if len(values) < 2 {
-		return 0.0
-	}
 
-	mean := 0.0
-	for _, value := range values {
-		mean += value
-	}
-	mean /= float64(len(values))
-
-	variance := 0.0
-	for _, value := range values {
-		variance += math.Pow(value-mean, 2)
-	}
-	variance /= float64(len(values))
-
-	return math.Sqrt(variance)
-}
 
 // PatternDetector methods
 
