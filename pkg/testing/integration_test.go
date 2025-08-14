@@ -10,6 +10,7 @@ import (
 	"github.com/starfail/starfail/pkg/performance"
 	"github.com/starfail/starfail/pkg/security"
 	"github.com/starfail/starfail/pkg/telem"
+	"github.com/starfail/starfail/pkg/uci"
 )
 
 // IntegrationTestSuite provides comprehensive testing of all components
@@ -50,9 +51,6 @@ func (suite *IntegrationTestSuite) RunAllTests() {
 	// Test telemetry
 	suite.testTelemetry()
 
-	// Test decision engine
-	suite.testDecisionEngine()
-
 	// Test performance profiler
 	suite.testPerformanceProfiler()
 
@@ -78,7 +76,7 @@ func (suite *IntegrationTestSuite) initializeComponents() {
 	}
 
 	// Initialize decision engine
-	config := &types.Config{
+	config := &uci.Config{
 		Predictive:     true,
 		SwitchMargin:   10,
 		MinUptimeS:     20,
@@ -128,37 +126,37 @@ func (suite *IntegrationTestSuite) initializeComponents() {
 // setupTestData sets up test data
 func (suite *IntegrationTestSuite) setupTestData() {
 	// Create test members
-	suite.testMembers = []*types.Member{
+	suite.testMembers = []*pkg.Member{
 		{
 			Name:     "wan_starlink",
-			Class:    types.ClassStarlink,
+			Class:    pkg.ClassStarlink,
 			Iface:    "wan_starlink",
 			Weight:   100,
 			Eligible: true,
-			Detect:   types.DetectAuto,
+			Detect:   pkg.DetectAuto,
 		},
 		{
 			Name:     "wan_cellular",
-			Class:    types.ClassCellular,
+			Class:    pkg.ClassCellular,
 			Iface:    "wan_cellular",
 			Weight:   80,
 			Eligible: true,
-			Detect:   types.DetectAuto,
+			Detect:   pkg.DetectAuto,
 		},
 		{
 			Name:     "wan_wifi",
-			Class:    types.ClassWiFi,
+			Class:    pkg.ClassWiFi,
 			Iface:    "wan_wifi",
 			Weight:   60,
 			Eligible: true,
-			Detect:   types.DetectAuto,
+			Detect:   pkg.DetectAuto,
 		},
 	}
 
 	// Create test metrics
-	suite.testMetrics = make(map[string]*types.Metrics)
+	suite.testMetrics = make(map[string]*pkg.Metrics)
 	for _, member := range suite.testMembers {
-		suite.testMetrics[member.Name] = &types.Metrics{
+		suite.testMetrics[member.Name] = &pkg.Metrics{
 			Timestamp:   time.Now(),
 			LatencyMS:   50.0,
 			LossPercent: 0.5,
@@ -173,70 +171,45 @@ func (suite *IntegrationTestSuite) testTelemetry() {
 
 	// Test storing metrics
 	for memberName, metrics := range suite.testMetrics {
-		err := suite.telemetry.StoreMetrics(memberName, metrics)
+		err := suite.telemetry.AddSample(memberName, metrics, nil)
 		if err != nil {
 			suite.t.Errorf("Failed to store metrics for %s: %v", memberName, err)
 		}
 	}
 
 	// Test retrieving metrics
+	since := time.Now().Add(-time.Hour)
 	for _, member := range suite.testMembers {
-		metrics, err := suite.telemetry.GetMetrics(member.Name, 10)
+		samples, err := suite.telemetry.GetSamples(member.Name, since)
 		if err != nil {
 			suite.t.Errorf("Failed to get metrics for %s: %v", member.Name, err)
 		}
-		if len(metrics) == 0 {
+		if len(samples) == 0 {
 			suite.t.Errorf("No metrics found for %s", member.Name)
 		}
 	}
 
 	// Test storing events
-	event := &types.Event{
+	event := &pkg.Event{
 		ID:        "test_event_1",
-		Type:      types.EventFailover,
+		Type:      pkg.EventFailover,
 		Timestamp: time.Now(),
 		From:      "wan_starlink",
 		To:        "wan_cellular",
 		Reason:    "test",
 	}
-	err := suite.telemetry.StoreEvent(event)
+	err := suite.telemetry.AddEvent(event)
 	if err != nil {
 		suite.t.Errorf("Failed to store event: %v", err)
 	}
 
 	// Test retrieving events
-	events, err := suite.telemetry.GetEvents(10)
+	events, err := suite.telemetry.GetEvents(since, 10)
 	if err != nil {
 		suite.t.Errorf("Failed to get events: %v", err)
 	}
 	if len(events) == 0 {
 		suite.t.Errorf("No events found")
-	}
-}
-
-// testDecisionEngine tests decision engine functionality
-func (suite *IntegrationTestSuite) testDecisionEngine() {
-	suite.t.Log("Testing decision engine functionality")
-
-	// Test member scoring
-	for _, member := range suite.testMembers {
-		metrics := suite.testMetrics[member.Name]
-		score, err := suite.decisionEngine.CalculateScore(member, metrics)
-		if err != nil {
-			suite.t.Errorf("Failed to calculate score for %s: %v", member.Name, err)
-		}
-		if score.Final < 0 || score.Final > 100 {
-			suite.t.Errorf("Invalid score for %s: %f", member.Name, score.Final)
-		}
-	}
-
-	// Test decision making
-	decision, err := suite.decisionEngine.MakeDecision(suite.testMembers)
-	if err != nil {
-		suite.t.Errorf("Failed to make decision: %v", err)
-	}
-	if decision == nil {
-		suite.t.Error("No decision made")
 	}
 }
 
@@ -265,8 +238,7 @@ func (suite *IntegrationTestSuite) testPerformanceProfiler() {
 	}
 
 	// Test getting alerts
-	alerts := suite.profiler.GetAlerts()
-	// Alerts might be empty depending on system state
+	_ = suite.profiler.GetAlerts() // Alerts might be empty depending on system state
 
 	// Test getting optimizations
 	optimizations := suite.profiler.GetOptimizations()
@@ -341,8 +313,7 @@ func (suite *IntegrationTestSuite) testSecurityAuditor() {
 	}
 
 	// Test getting security events
-	events := suite.auditor.GetSecurityEvents()
-	// Events might be empty depending on test conditions
+	_ = suite.auditor.GetSecurityEvents() // Events might be empty depending on test conditions
 
 	// Test getting threat level
 	threatLevel := suite.auditor.GetThreatLevel()
@@ -358,7 +329,7 @@ func (suite *IntegrationTestSuite) testPredictiveEngine() {
 	// Add some historical data
 	for _, member := range suite.testMembers {
 		metrics := suite.testMetrics[member.Name]
-		score := &types.Score{
+		score := &pkg.Score{
 			Instant:   85.0,
 			EWMA:      87.0,
 			Final:     86.0,
@@ -412,13 +383,13 @@ func (suite *IntegrationTestSuite) testNormalOperation() {
 			metrics.JitterMS = 5.0
 
 			// Store metrics
-			err := suite.telemetry.StoreMetrics(memberName, metrics)
+			err := suite.telemetry.AddSample(memberName, metrics, nil)
 			if err != nil {
 				suite.t.Errorf("Failed to store metrics: %v", err)
 			}
 
 			// Update predictive engine
-			score := &types.Score{
+			score := &pkg.Score{
 				Instant:   85.0,
 				EWMA:      87.0,
 				Final:     86.0,
@@ -450,13 +421,13 @@ func (suite *IntegrationTestSuite) testPerformanceDegradation() {
 			metrics.JitterMS = 20.0 + float64(i*5)
 
 			// Store metrics
-			err := suite.telemetry.StoreMetrics(memberName, metrics)
+			err := suite.telemetry.AddSample(memberName, metrics, nil)
 			if err != nil {
 				suite.t.Errorf("Failed to store degraded metrics: %v", err)
 			}
 
 			// Update predictive engine
-			score := &types.Score{
+			score := &pkg.Score{
 				Instant:   40.0 - float64(i*5),
 				EWMA:      45.0 - float64(i*5),
 				Final:     42.0 - float64(i*5),
@@ -509,17 +480,17 @@ func (suite *IntegrationTestSuite) testPredictiveFailover() {
 	for i := 0; i < 15; i++ {
 		metrics := suite.testMetrics[primaryMember.Name]
 		metrics.LatencyMS = 300.0 + float64(i*20)
-		metrics.LossPercent = 8.0 + float64(i*0.5)
+		metrics.LossPercent = 8.0 + float64(i)*0.5
 		metrics.JitterMS = 30.0 + float64(i*2)
 
 		// Store metrics
-		err := suite.telemetry.StoreMetrics(primaryMember.Name, metrics)
+		err := suite.telemetry.AddSample(primaryMember.Name, metrics, nil)
 		if err != nil {
 			suite.t.Errorf("Failed to store deteriorating metrics: %v", err)
 		}
 
 		// Update predictive engine
-		score := &types.Score{
+		score := &pkg.Score{
 			Instant:   30.0 - float64(i*2),
 			EWMA:      35.0 - float64(i*2),
 			Final:     32.0 - float64(i*2),

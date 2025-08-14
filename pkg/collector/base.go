@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"time"
 
@@ -11,8 +12,10 @@ import (
 
 // BaseCollector provides common functionality for all collectors
 type BaseCollector struct {
-	timeout time.Duration
-	targets []string
+	timeout        time.Duration
+	targets        []string
+	latencyHistory map[string][]float64
+	historySize    int
 }
 
 // NewBaseCollector creates a new base collector
@@ -25,8 +28,10 @@ func NewBaseCollector(timeout time.Duration, targets []string) *BaseCollector {
 	}
 
 	return &BaseCollector{
-		timeout: timeout,
-		targets: targets,
+		timeout:        timeout,
+		targets:        targets,
+		latencyHistory: make(map[string][]float64),
+		historySize:    10,
 	}
 }
 
@@ -60,8 +65,8 @@ func (bc *BaseCollector) CollectCommonMetrics(ctx context.Context, member *pkg.M
 	metrics.LatencyMS = totalLatency / float64(validTargets)
 	metrics.LossPercent = totalLoss / float64(validTargets)
 
-	// Calculate jitter (simplified - could be enhanced with more sophisticated calculation)
-	metrics.JitterMS = bc.calculateJitter(member.Name)
+	// Calculate jitter based on latency history
+	metrics.JitterMS = bc.calculateJitter(member.Name, metrics.LatencyMS)
 
 	return metrics, nil
 }
@@ -83,13 +88,33 @@ func (bc *BaseCollector) pingTarget(ctx context.Context, target string) (latency
 	return latency, loss, nil
 }
 
-// calculateJitter calculates jitter based on recent samples
-// This is a simplified implementation - in practice, you'd want to track
-// multiple samples and calculate standard deviation or MAD
-func (bc *BaseCollector) calculateJitter(memberName string) float64 {
-	// TODO: Implement proper jitter calculation using historical data
-	// For now, return a small random value
-	return 5.0 // Placeholder
+// calculateJitter calculates jitter using a rolling window of latency samples
+// It maintains a short history per member and returns the standard deviation
+// of the collected latencies. If there are fewer than 2 samples, jitter is 0.
+func (bc *BaseCollector) calculateJitter(memberName string, latency float64) float64 {
+	history := append(bc.latencyHistory[memberName], latency)
+	if len(history) > bc.historySize {
+		history = history[len(history)-bc.historySize:]
+	}
+	bc.latencyHistory[memberName] = history
+
+	if len(history) < 2 {
+		return 0
+	}
+
+	var sum float64
+	for _, v := range history {
+		sum += v
+	}
+	mean := sum / float64(len(history))
+
+	var variance float64
+	for _, v := range history {
+		diff := v - mean
+		variance += diff * diff
+	}
+	variance /= float64(len(history))
+	return math.Sqrt(variance)
 }
 
 // Validate validates a member for this collector

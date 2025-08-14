@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/starfail/starfail/pkg"
@@ -20,6 +21,10 @@ type Controller struct {
 
 	// Current state
 	currentMember *pkg.Member
+
+	// Member list
+	members   []*pkg.Member
+	membersMu sync.RWMutex
 
 	// MWAN3 integration
 	mwan3Enabled bool
@@ -411,11 +416,33 @@ func (c *Controller) IsMWAN3Enabled() bool {
 	return c.mwan3Enabled
 }
 
-// GetMembers returns all available members (placeholder - would need discovery integration)
-func (c *Controller) GetMembers() ([]*pkg.Member, error) {
-	// This is a placeholder - in a real implementation, this would integrate with discovery
-	// For now, return an empty slice to satisfy the interface
-	return []*pkg.Member{}, nil
+// SetMembers stores the list of active members after validating them
+func (c *Controller) SetMembers(members []*pkg.Member) error {
+	if members == nil {
+		members = []*pkg.Member{}
+	}
+
+	for i, m := range members {
+		if err := c.Validate(m); err != nil {
+			return fmt.Errorf("invalid member at index %d: %w", i, err)
+		}
+	}
+
+	c.membersMu.Lock()
+	defer c.membersMu.Unlock()
+	c.members = make([]*pkg.Member, len(members))
+	copy(c.members, members)
+	return nil
+}
+
+// GetMembers returns all available members
+func (c *Controller) GetMembers() []*pkg.Member {
+	c.membersMu.RLock()
+	defer c.membersMu.RUnlock()
+
+	members := make([]*pkg.Member, len(c.members))
+	copy(members, c.members)
+	return members
 }
 
 // GetActiveMember returns the currently active member (alias for GetCurrentMember)

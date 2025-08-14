@@ -11,7 +11,6 @@ import (
 	"github.com/starfail/starfail/pkg/discovery"
 	"github.com/starfail/starfail/pkg/logx"
 	"github.com/starfail/starfail/pkg/telem"
-
 	"github.com/starfail/starfail/pkg/uci"
 )
 
@@ -41,18 +40,14 @@ func (tf *TestFramework) MockConfig() *uci.Config {
 		HealthListener:      false,
 		MetricsPort:         9090,
 		HealthPort:          8080,
-		Members: map[string]uci.MemberConfig{
+		Members: map[string]*uci.MemberConfig{
 			"starlink": {
-				Class:     "starlink",
-				Interface: "wan",
-				Enabled:   true,
-				Priority:  100,
+				Class:  pkg.ClassStarlink,
+				Weight: 100,
 			},
 			"cellular": {
-				Class:     "cellular",
-				Interface: "wwan0",
-				Enabled:   true,
-				Priority:  80,
+				Class:  pkg.ClassCellular,
+				Weight: 80,
 			},
 		},
 	}
@@ -89,44 +84,33 @@ func (tf *TestFramework) MockMembers() []pkg.Member {
 }
 
 // MockMetrics creates test metrics data
-func (tf *TestFramework) MockMetrics() types.Metrics {
-	return types.Metrics{
+func (tf *TestFramework) MockMetrics() pkg.Metrics {
+	return pkg.Metrics{
 		Timestamp:   time.Now(),
-		Latency:     50.0,
-		Loss:        0.1,
-		Jitter:      5.0,
-		Bandwidth:   100.0,
-		Signal:      -70.0,
-		Obstruction: 5.0,
-		Outages:     0,
-		NetworkType: "4G",
-		Operator:    "Test Operator",
-		Roaming:     false,
-		Connected:   true,
-		LastSeen:    time.Now(),
+		LatencyMS:   50.0,
+		LossPercent: 0.1,
+		JitterMS:    5.0,
 	}
 }
 
 // MockScore creates test score data
-func (tf *TestFramework) MockScore() types.Score {
-	return types.Score{
-		Timestamp:     time.Now(),
-		Instant:       85.0,
-		EWMA:          82.0,
-		WindowAverage: 80.0,
-		Final:         83.0,
-		Trend:         "stable",
-		Confidence:    0.9,
+func (tf *TestFramework) MockScore() pkg.Score {
+	return pkg.Score{
+		Instant:   85.0,
+		EWMA:      82.0,
+		Final:     83.0,
+		UpdatedAt: time.Now(),
 	}
 }
 
 // MockEvent creates test event data
-func (tf *TestFramework) MockEvent(eventType string) types.Event {
-	return types.Event{
-		Timestamp: time.Now(),
+func (tf *TestFramework) MockEvent(eventType string) pkg.Event {
+	return pkg.Event{
+		ID:        "test-event",
 		Type:      eventType,
+		Timestamp: time.Now(),
 		Member:    "starlink",
-		Message:   "Test event",
+		Reason:    "Test event",
 		Data: map[string]interface{}{
 			"test": "data",
 		},
@@ -144,9 +128,7 @@ func (tf *TestFramework) MockTelemetryStore() *telem.Store {
 
 // MockLogger creates a test logger
 func (tf *TestFramework) MockLogger() *logx.Logger {
-	logger := logx.NewLogger()
-	logger.SetLevel("debug")
-	return logger
+	return logx.NewLogger("debug", "test")
 }
 
 // MockController creates a test controller
@@ -157,7 +139,11 @@ func (tf *TestFramework) MockController() *controller.Controller {
 	if err != nil {
 		tf.t.Fatalf("Failed to create controller: %v", err)
 	}
-	ctrl.SetMembers(tf.MockMembers())
+
+	if err := ctrl.SetMembers(tf.MockMembers()); err != nil {
+		tf.t.Fatalf("Failed to set members: %v", err)
+	}
+
 	return ctrl
 }
 

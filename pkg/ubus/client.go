@@ -1,14 +1,16 @@
 package ubus
 
 import (
+	"bufio"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os/exec"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/starfail/starfail/pkg/logx"
 )
@@ -21,6 +23,9 @@ type Client struct {
 	mu        sync.RWMutex
 	callID    uint32
 	callMu    sync.Mutex
+	// Registered handlers for incoming requests
+	handlers map[string]map[string]MethodHandler
+
 }
 
 // Message represents a ubus message
@@ -40,7 +45,10 @@ type MethodHandler func(ctx context.Context, data json.RawMessage) (interface{},
 // NewClient creates a new ubus client
 func NewClient(logger *logx.Logger) *Client {
 	return &Client{
-		logger: logger,
+
+		logger:   logger,
+		handlers: make(map[string]map[string]MethodHandler),
+
 	}
 }
 
@@ -94,13 +102,21 @@ func (c *Client) Disconnect() error {
 // Call makes a ubus call
 func (c *Client) Call(ctx context.Context, object, method string, data interface{}) (json.RawMessage, error) {
 	c.mu.RLock()
-	if !c.connected {
-		c.mu.RUnlock()
-		return nil, fmt.Errorf("not connected to ubus")
-	}
+	conn := c.conn
+	connected := c.connected
 	c.mu.RUnlock()
 
-	// Use ubus CLI as fallback for now
+	if connected && conn != nil {
+		if resp, err := c.callViaSocket(ctx, conn, object, method, data); err == nil {
+			return resp, nil
+		} else if c.logger != nil {
+			c.logger.Warn("ubus socket call failed, falling back to CLI", "error", err)
+		}
+	} else {
+		return nil, fmt.Errorf("not connected to ubus")
+	}
+
+	// Fallback to ubus CLI
 	return c.callViaCLI(ctx, object, method, data)
 }
 
@@ -109,28 +125,88 @@ func (c *Client) callViaCLI(ctx context.Context, object, method string, data int
 	args := []string{"call", object, method}
 
 	if data != nil {
-		dataJSON, err := json.Marshal(data)
+		b, err := json.Marshal(data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal data: %w", err)
 		}
-		args = append(args, string(dataJSON))
+		payload = b
 	}
 
-	cmd := exec.CommandContext(ctx, "ubus", args...)
-	output, err := cmd.Output()
+	msg := &Message{
+		Type:   "call",
+		Path:   object,
+		Method: method,
+		Data:   payload,
+		ID:     c.GetNextCallID(),
+	}
+
+	c.callMu.Lock()
+	defer c.callMu.Unlock()
+
+	if err := c.sendMessage(msg); err != nil {
+		return nil, fmt.Errorf("failed to send message: %w", err)
+	}
+
+	if deadline, ok := ctx.Deadline(); ok {
+		c.conn.SetReadDeadline(deadline)
+	}
+	defer c.conn.SetReadDeadline(time.Time{})
+
+	resp, err := c.readMessage()
 	if err != nil {
-		return nil, fmt.Errorf("ubus call failed: %w", err)
+		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	return output, nil
+	if resp.Code != 0 {
+		if resp.Message != "" {
+			return nil, fmt.Errorf(resp.Message)
+		}
+		return nil, fmt.Errorf("ubus error code %d", resp.Code)
+	}
+
+	return resp.Data, nil
 }
 
 // RegisterObject registers an object with the ubus daemon
 func (c *Client) RegisterObject(ctx context.Context, name string, methods map[string]MethodHandler) error {
-	// For now, we'll use a simplified approach
-	// In a full implementation, this would register the object with the ubus daemon
+	c.mu.Lock()
+
+	defer c.mu.Unlock()
+
+	if c.handlers == nil {
+		c.handlers = make(map[string]map[string]MethodHandler)
+	}
+
+	c.handlers[name] = methods
+
+
 	if c.logger != nil {
 		c.logger.Info("Registering ubus object", "name", name, "methods", len(methods))
+	}
+
+	methodNames := make([]string, 0, len(methods))
+	for m := range methods {
+		methodNames = append(methodNames, m)
+	}
+
+	data, err := json.Marshal(methodNames)
+	if err != nil {
+		return fmt.Errorf("failed to marshal method names: %w", err)
+	}
+	msg := &Message{Type: "register", Path: name, Data: data}
+
+	c.callMu.Lock()
+	defer c.callMu.Unlock()
+	if err := c.sendMessage(msg); err != nil {
+		return fmt.Errorf("failed to register object: %w", err)
+	}
+
+	resp, err := c.readMessage()
+	if err != nil {
+		return fmt.Errorf("failed to read register response: %w", err)
+	}
+	if resp.Code != 0 {
+		return fmt.Errorf("registration failed: %s", resp.Message)
 	}
 	return nil
 }
@@ -140,25 +216,198 @@ func (c *Client) UnregisterObject(ctx context.Context, name string) error {
 	if c.logger != nil {
 		c.logger.Info("Unregistering ubus object", "name", name)
 	}
+
+	c.mu.Lock()
+	delete(c.objects, name)
+	c.mu.Unlock()
+
+	msg := &Message{Type: "unregister", Path: name}
+	c.callMu.Lock()
+	defer c.callMu.Unlock()
+	if err := c.sendMessage(msg); err != nil {
+		return fmt.Errorf("failed to unregister object: %w", err)
+	}
 	return nil
 }
 
 // Listen listens for ubus messages
 func (c *Client) Listen(ctx context.Context) error {
-	// For now, we'll use a simplified approach
-	// In a full implementation, this would listen for ubus messages
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+
+
+	c.mu.RLock()
+	conn := c.conn
+	connected := c.connected
+	c.mu.RUnlock()
+
+	if !connected || conn == nil {
+		return fmt.Errorf("not connected to ubus")
+	}
+
+	reader := bufio.NewReader(conn)
+
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
-			// Check for messages (simplified)
-			continue
+		default:
+
+			line, err := reader.ReadBytes('\n')
+			if err != nil {
+				return err
+			}
+
+			var msg Message
+			if err := json.Unmarshal(line, &msg); err != nil {
+				if c.logger != nil {
+					c.logger.Error("Failed to decode ubus message", "error", err)
+				}
+				continue
+			}
+
+			go c.handleMessage(ctx, msg)
 		}
 	}
+}
+
+// callViaSocket makes a ubus call using the direct socket connection
+func (c *Client) callViaSocket(ctx context.Context, conn net.Conn, object, method string, data interface{}) (json.RawMessage, error) {
+	msg := Message{
+		Type:   "call",
+		Path:   object,
+		Method: method,
+		ID:     c.GetNextCallID(),
+	}
+
+	if data != nil {
+		raw, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+		msg.Data = raw
+	}
+
+	payload, err := json.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	if deadline, ok := ctx.Deadline(); ok {
+		conn.SetDeadline(deadline)
+	}
+
+	if _, err := conn.Write(append(payload, '\n')); err != nil {
+		return nil, err
+	}
+
+	reader := bufio.NewReader(conn)
+	line, err := reader.ReadBytes('\n')
+	if err != nil {
+		return nil, err
+	}
+
+	var resp Message
+	if err := json.Unmarshal(line, &resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Code != 0 {
+		return nil, fmt.Errorf("ubus error: %d %s", resp.Code, resp.Message)
+	}
+
+	return resp.Data, nil
+}
+
+// handleMessage handles incoming messages from the ubus socket
+func (c *Client) handleMessage(ctx context.Context, msg Message) {
+	if msg.Type != "request" {
+		return
+	}
+
+	c.mu.RLock()
+	methods := c.handlers[msg.Path]
+	handler := methods[msg.Method]
+	conn := c.conn
+	c.mu.RUnlock()
+
+	if handler == nil {
+		if c.logger != nil {
+			c.logger.Warn("No handler for ubus method", "path", msg.Path, "method", msg.Method)
+		}
+		return
+	}
+
+	data, err := handler(ctx, msg.Data)
+	resp := Message{Type: "response", ID: msg.ID}
+	if err != nil {
+		resp.Code = -1
+		resp.Message = err.Error()
+	} else if data != nil {
+		if raw, err := json.Marshal(data); err == nil {
+			resp.Data = raw
+		}
+	}
+
+	if conn != nil {
+		if payload, err := json.Marshal(resp); err == nil {
+			conn.Write(append(payload, '\n'))
+
+		}
+
+		result, err := handler(ctx, msg.Data)
+		resp := &Message{Type: "response", ID: msg.ID}
+		if err != nil {
+			resp.Code = 500
+			resp.Message = err.Error()
+		} else if result != nil {
+			if b, err := json.Marshal(result); err == nil {
+				resp.Data = b
+			} else {
+				resp.Code = 500
+				resp.Message = err.Error()
+			}
+		}
+
+		c.callMu.Lock()
+		if err := c.sendMessage(resp); err != nil {
+			c.logger.Errorf("failed to send response: %v", err)
+		}
+		c.callMu.Unlock()
+	}
+}
+
+// sendMessage encodes and sends a message with length framing
+func (c *Client) sendMessage(msg *Message) error {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	length := uint32(len(data))
+	header := make([]byte, 4)
+	binary.BigEndian.PutUint32(header, length)
+	if _, err := c.conn.Write(header); err != nil {
+		return err
+	}
+	_, err = c.conn.Write(data)
+	return err
+}
+
+// readMessage reads a framed message from the connection
+func (c *Client) readMessage() (*Message, error) {
+	header := make([]byte, 4)
+	if _, err := io.ReadFull(c.conn, header); err != nil {
+		return nil, err
+	}
+	length := binary.BigEndian.Uint32(header)
+	body := make([]byte, length)
+	if _, err := io.ReadFull(c.conn, body); err != nil {
+		return nil, err
+	}
+	var msg Message
+	if err := json.Unmarshal(body, &msg); err != nil {
+		return nil, err
+	}
+	return &msg, nil
 }
 
 // ListObjects lists available ubus objects
@@ -394,4 +643,12 @@ func (c *Client) GetNextCallID() uint32 {
 	defer c.callMu.Unlock()
 	c.callID++
 	return c.callID
+}
+
+// SetConn allows injection of a custom connection (primarily for testing)
+func (c *Client) SetConn(conn net.Conn) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.conn = conn
+	c.connected = conn != nil
 }
