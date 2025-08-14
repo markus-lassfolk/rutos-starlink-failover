@@ -29,6 +29,13 @@ type WiFiInfo struct {
 	SSID           *string `json:"ssid,omitempty"`
 	Channel        *int    `json:"channel,omitempty"`
 	Mode           *string `json:"mode,omitempty"`
+	Frequency      *int    `json:"frequency,omitempty"`
+	Quality        *int    `json:"quality,omitempty"`
+	LinkQuality    *int    `json:"link_quality,omitempty"`
+	TxPower        *int    `json:"tx_power,omitempty"`
+	Encryption     *string `json:"encryption,omitempty"`
+	Country        *string `json:"country,omitempty"`
+	TetheringMode  *bool   `json:"tethering_mode,omitempty"`
 }
 
 // NewWiFiCollector creates a new WiFi collector
@@ -78,6 +85,26 @@ func (wc *WiFiCollector) Collect(ctx context.Context, member *pkg.Member) (*pkg.
 		metrics.NoiseLevel = wifiInfo.NoiseLevel
 		metrics.SNR = wifiInfo.SNR
 		metrics.Bitrate = wifiInfo.Bitrate
+		
+		// Add extended WiFi metrics to the metrics structure
+		if wifiInfo.Quality != nil {
+			metrics.Quality = wifiInfo.Quality
+		}
+		if wifiInfo.LinkQuality != nil {
+			metrics.LinkQuality = wifiInfo.LinkQuality
+		}
+		if wifiInfo.TxPower != nil {
+			metrics.TxPower = wifiInfo.TxPower
+		}
+		if wifiInfo.Frequency != nil {
+			metrics.Frequency = wifiInfo.Frequency
+		}
+		if wifiInfo.Channel != nil {
+			metrics.Channel = wifiInfo.Channel
+		}
+		if wifiInfo.TetheringMode != nil {
+			metrics.TetheringMode = wifiInfo.TetheringMode
+		}
 	}
 
 	return metrics, nil
@@ -160,10 +187,68 @@ func (wc *WiFiCollector) parseWiFiData(data map[string]interface{}, info *WiFiIn
 		info.Mode = &mode
 	}
 
+	// Try to extract frequency
+	if frequency, ok := data["frequency"].(float64); ok {
+		frequencyInt := int(frequency)
+		info.Frequency = &frequencyInt
+	}
+
+	// Try to extract quality
+	if quality, ok := data["quality"].(float64); ok {
+		qualityInt := int(quality)
+		info.Quality = &qualityInt
+	}
+
+	// Try to extract link quality
+	if linkQuality, ok := data["quality_max"].(float64); ok {
+		linkQualityInt := int(linkQuality)
+		info.LinkQuality = &linkQualityInt
+	}
+
+	// Try to extract TX power
+	if txPower, ok := data["txpower"].(float64); ok {
+		txPowerInt := int(txPower)
+		info.TxPower = &txPowerInt
+	}
+
+	// Try to extract encryption
+	if encryption, ok := data["encryption"].(map[string]interface{}); ok {
+		if encType, ok := encryption["enabled"].(bool); ok && encType {
+			if ciphers, ok := encryption["ciphers"].([]interface{}); ok && len(ciphers) > 0 {
+				if cipher, ok := ciphers[0].(string); ok {
+					info.Encryption = &cipher
+				}
+			} else {
+				encStr := "enabled"
+				info.Encryption = &encStr
+			}
+		} else {
+			encStr := "none"
+			info.Encryption = &encStr
+		}
+	}
+
+	// Try to extract country code
+	if country, ok := data["country"].(string); ok {
+		info.Country = &country
+	}
+
+	// Detect tethering mode (AP mode typically indicates tethering)
+	if info.Mode != nil {
+		isAP := strings.ToLower(*info.Mode) == "ap" || strings.ToLower(*info.Mode) == "master"
+		info.TetheringMode = &isAP
+	}
+
 	// Calculate SNR if we have both signal and noise
 	if info.SignalStrength != nil && info.NoiseLevel != nil {
 		snr := *info.SignalStrength - *info.NoiseLevel
 		info.SNR = &snr
+	}
+
+	// Calculate quality percentage if we have quality and max quality
+	if info.Quality != nil && info.LinkQuality != nil && *info.LinkQuality > 0 {
+		qualityPct := (*info.Quality * 100) / *info.LinkQuality
+		info.Quality = &qualityPct
 	}
 
 	return nil
@@ -207,28 +292,81 @@ func (wc *WiFiCollector) parseWirelessFile(data, iface string) *WiFiInfo {
 		}
 
 		fields := strings.Fields(line)
-		// Expected: iface: status link level noise ...
+		// Expected format: iface: status quality level noise nwid crypt frag retry misc beacon
 		if len(fields) < 5 {
 			return nil
 		}
 
-		levelStr := strings.TrimSuffix(fields[3], ".")
-		noiseStr := strings.TrimSuffix(fields[4], ".")
+		info := &WiFiInfo{}
 
-		levelF, err1 := strconv.ParseFloat(levelStr, 64)
-		noiseF, err2 := strconv.ParseFloat(noiseStr, 64)
-		if err1 != nil || err2 != nil {
-			return nil
+		// Parse quality (field 2)
+		if len(fields) > 2 {
+			qualityStr := strings.TrimSuffix(fields[2], ".")
+			if qualityF, err := strconv.ParseFloat(qualityStr, 64); err == nil {
+				quality := int(qualityF)
+				info.Quality = &quality
+			}
 		}
 
-		level := int(levelF)
-		noise := int(noiseF)
-		snr := level - noise
+		// Parse signal level (field 3)
+		if len(fields) > 3 {
+			levelStr := strings.TrimSuffix(fields[3], ".")
+			if levelF, err := strconv.ParseFloat(levelStr, 64); err == nil {
+				level := int(levelF)
+				info.SignalStrength = &level
+			}
+		}
 
-		return &WiFiInfo{
-			SignalStrength: &level,
-			NoiseLevel:     &noise,
-			SNR:            &snr,
+		// Parse noise level (field 4)
+		if len(fields) > 4 {
+			noiseStr := strings.TrimSuffix(fields[4], ".")
+			if noiseF, err := strconv.ParseFloat(noiseStr, 64); err == nil {
+				noise := int(noiseF)
+				info.NoiseLevel = &noise
+			}
+		}
+
+		// Calculate SNR if we have both signal and noise
+		if info.SignalStrength != nil && info.NoiseLevel != nil {
+			snr := *info.SignalStrength - *info.NoiseLevel
+			info.SNR = &snr
+		}
+
+		// Try to get additional info from iwconfig as fallback
+		if info.Bitrate == nil {
+			if bitrate := wc.getIwconfigBitrate(iface); bitrate != nil {
+				info.Bitrate = bitrate
+			}
+		}
+
+		return info
+	}
+
+	return nil
+}
+
+// getIwconfigBitrate tries to get bitrate from iwconfig command
+func (wc *WiFiCollector) getIwconfigBitrate(iface string) *int {
+	cmd := exec.Command("iwconfig", iface)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	// Parse iwconfig output for bitrate
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "Bit Rate") {
+			// Look for pattern like "Bit Rate=54 Mb/s"
+			parts := strings.Split(line, "Bit Rate=")
+			if len(parts) > 1 {
+				ratePart := strings.Fields(parts[1])[0]
+				if rateF, err := strconv.ParseFloat(ratePart, 64); err == nil {
+					// Convert Mb/s to bps
+					rateBps := int(rateF * 1000000)
+					return &rateBps
+				}
+			}
 		}
 	}
 
@@ -403,4 +541,201 @@ func (wc *WiFiCollector) GetWiFiModes(ctx context.Context, iface string) ([]stri
 	}
 
 	return nil, fmt.Errorf("failed to get WiFi modes")
+}
+
+// DetectTetheringMode detects if the WiFi interface is in tethering/AP mode
+func (wc *WiFiCollector) DetectTetheringMode(ctx context.Context, member *pkg.Member) (bool, error) {
+	info, err := wc.collectWiFiInfo(ctx, member)
+	if err != nil {
+		return false, err
+	}
+
+	// Check if we already detected tethering mode
+	if info.TetheringMode != nil {
+		return *info.TetheringMode, nil
+	}
+
+	// Additional checks for tethering detection
+	// 1. Check interface mode
+	if info.Mode != nil {
+		mode := strings.ToLower(*info.Mode)
+		if mode == "ap" || mode == "master" || mode == "hostap" {
+			return true, nil
+		}
+	}
+
+	// 2. Check if interface has DHCP server running
+	if wc.hasActiveDHCPServer(member.Iface) {
+		return true, nil
+	}
+
+	// 3. Check if interface is in bridge mode
+	if wc.isInBridgeMode(member.Iface) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// hasActiveDHCPServer checks if there's an active DHCP server on the interface
+func (wc *WiFiCollector) hasActiveDHCPServer(iface string) bool {
+	// Check if dnsmasq is running with this interface
+	cmd := exec.Command("ps", "aux")
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "dnsmasq") && strings.Contains(line, iface) {
+			return true
+		}
+	}
+
+	// Check if hostapd is running for this interface
+	cmd = exec.Command("ps", "aux")
+	output, err = cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	lines = strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "hostapd") && strings.Contains(line, iface) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isInBridgeMode checks if the interface is part of a bridge
+func (wc *WiFiCollector) isInBridgeMode(iface string) bool {
+	// Check if interface is in a bridge
+	bridgeFile := fmt.Sprintf("/sys/class/net/%s/brport/bridge", iface)
+	if _, err := os.Stat(bridgeFile); err == nil {
+		return true
+	}
+
+	// Check if interface is a bridge itself
+	bridgeDir := fmt.Sprintf("/sys/class/net/%s/bridge", iface)
+	if _, err := os.Stat(bridgeDir); err == nil {
+		return true
+	}
+
+	return false
+}
+
+// AnalyzeSignalTrend analyzes signal strength trends over time
+func (wc *WiFiCollector) AnalyzeSignalTrend(recentMetrics []*pkg.Metrics) map[string]interface{} {
+	if len(recentMetrics) < 3 {
+		return map[string]interface{}{
+			"trend": "insufficient_data",
+			"confidence": 0.0,
+		}
+	}
+
+	// Calculate signal strength trend
+	var signalValues []float64
+	for _, metric := range recentMetrics {
+		if metric.SignalStrength != nil {
+			signalValues = append(signalValues, float64(*metric.SignalStrength))
+		}
+	}
+
+	if len(signalValues) < 3 {
+		return map[string]interface{}{
+			"trend": "no_signal_data",
+			"confidence": 0.0,
+		}
+	}
+
+	// Simple linear trend calculation
+	n := float64(len(signalValues))
+	sumX := n * (n - 1) / 2 // Sum of indices 0, 1, 2, ...
+	sumY := 0.0
+	sumXY := 0.0
+	sumXX := (n - 1) * n * (2*n - 1) / 6
+
+	for i, y := range signalValues {
+		sumY += y
+		sumXY += float64(i) * y
+	}
+
+	// Calculate slope (trend)
+	slope := (n*sumXY - sumX*sumY) / (n*sumXX - sumX*sumX)
+
+	// Determine trend direction and confidence
+	trend := "stable"
+	confidence := 0.5
+
+	if slope > 1.0 {
+		trend = "improving"
+		confidence = 0.8
+	} else if slope < -1.0 {
+		trend = "degrading"
+		confidence = 0.8
+	}
+
+	// Calculate signal quality assessment
+	avgSignal := sumY / n
+	quality := "unknown"
+	
+	if avgSignal > -50 {
+		quality = "excellent"
+	} else if avgSignal > -60 {
+		quality = "good"
+	} else if avgSignal > -70 {
+		quality = "fair"
+	} else if avgSignal > -80 {
+		quality = "poor"
+	} else {
+		quality = "very_poor"
+	}
+
+	return map[string]interface{}{
+		"trend":           trend,
+		"confidence":      confidence,
+		"slope":           slope,
+		"average_signal":  avgSignal,
+		"signal_quality":  quality,
+		"sample_count":    len(signalValues),
+	}
+}
+
+// GetAdvancedWiFiMetrics returns comprehensive WiFi analysis
+func (wc *WiFiCollector) GetAdvancedWiFiMetrics(ctx context.Context, member *pkg.Member, recentMetrics []*pkg.Metrics) (map[string]interface{}, error) {
+	// Get basic WiFi info
+	info, err := wc.collectWiFiInfo(ctx, member)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get detailed info
+	detailedInfo, _ := wc.GetWiFiInfo(ctx, member)
+	
+	// Analyze signal trends
+	trendAnalysis := wc.AnalyzeSignalTrend(recentMetrics)
+	
+	// Detect tethering mode
+	isTetheringMode, _ := wc.DetectTetheringMode(ctx, member)
+	
+	// Calculate comprehensive quality score
+	signalQuality := wc.GetSignalQuality(info.SignalStrength, info.NoiseLevel, info.SNR)
+	bitrateQuality := wc.GetBitrateQuality(info.Bitrate)
+	
+	overallQuality := (signalQuality*0.6 + bitrateQuality*0.4)
+
+	result := map[string]interface{}{
+		"basic_info":       detailedInfo,
+		"trend_analysis":   trendAnalysis,
+		"tethering_mode":   isTetheringMode,
+		"signal_quality":   signalQuality,
+		"bitrate_quality":  bitrateQuality,
+		"overall_quality":  overallQuality,
+		"timestamp":        time.Now().Format(time.RFC3339),
+	}
+
+	return result, nil
 }

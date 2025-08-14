@@ -19,6 +19,7 @@ type StarlinkCollector struct {
 	timeout time.Duration
 }
 
+<<<<<<< HEAD
 // StarlinkGRPCResponse represents the response from Starlink gRPC API
 type StarlinkGRPCResponse struct {
 	DishGetStatus *DishGetStatusResponse `json:"dishGetStatus,omitempty"`
@@ -83,6 +84,89 @@ type GPSStats struct {
 	GPSSats         int32 `json:"gpsSats,omitempty"`
 	NoSatsAfterTTFF int32 `json:"noSatsAfterTtff,omitempty"`
 	InhibitGPS      bool  `json:"inhibitGps,omitempty"`
+=======
+// StarlinkAPIResponse represents the enhanced response from Starlink API
+type StarlinkAPIResponse struct {
+	Status struct {
+		// Obstruction data
+		ObstructionStats struct {
+			CurrentlyObstructed              bool      `json:"currentlyObstructed"`
+			FractionObstructed               float64   `json:"fractionObstructed"`
+			Last24hObstructedS               int       `json:"last24hObstructedS"`
+			ValidS                           int       `json:"validS"`
+			WedgeFractionObstructed          []float64 `json:"wedgeFractionObstructed"`
+			WedgeAbsFractionObstructed       []float64 `json:"wedgeAbsFractionObstructed"`
+			TimeObstructed                   float64   `json:"timeObstructed"`
+			PatchesValid                     int       `json:"patchesValid"`
+			AvgProlongedObstructionIntervalS float64   `json:"avgProlongedObstructionIntervalS"`
+		} `json:"obstructionStats"`
+
+		// Outage information
+		Outage struct {
+			LastOutageS    int `json:"lastOutageS"`
+			OutageCount    int `json:"outageCount"`
+			OutageDuration int `json:"outageDuration"`
+		} `json:"outage"`
+
+		// Network performance
+		PopPingLatencyMs      float64 `json:"popPingLatencyMs"`
+		DownlinkThroughputBps float64 `json:"downlinkThroughputBps"`
+		UplinkThroughputBps   float64 `json:"uplinkThroughputBps"`
+		PopPingDropRate       float64 `json:"popPingDropRate"`
+
+		// SNR and signal quality
+		SnrDb               float64 `json:"snrDb"`
+		SecondsSinceLastSnr int     `json:"secondsSinceLastSnr"`
+
+		// Hardware status
+		HardwareSelfTest struct {
+			Passed       bool     `json:"passed"`
+			TestResults  []string `json:"testResults"`
+			LastTestTime int64    `json:"lastTestTime"`
+		} `json:"hardwareSelfTest"`
+
+		// Thermal monitoring
+		Thermal struct {
+			Temperature     float64 `json:"temperature"`
+			ThermalThrottle bool    `json:"thermalThrottle"`
+			ThermalShutdown bool    `json:"thermalShutdown"`
+		} `json:"thermal"`
+
+		// Power and voltage
+		Power struct {
+			PowerDraw  float64 `json:"powerDraw"`
+			Voltage    float64 `json:"voltage"`
+			PowerState string  `json:"powerState"`
+		} `json:"power"`
+
+		// Bandwidth restrictions
+		BandwidthRestrictions struct {
+			Restricted      bool    `json:"restricted"`
+			RestrictionType string  `json:"restrictionType"`
+			MaxDownloadMbps float64 `json:"maxDownloadMbps"`
+			MaxUploadMbps   float64 `json:"maxUploadMbps"`
+		} `json:"bandwidthRestrictions"`
+
+		// System status
+		System struct {
+			UptimeS         int      `json:"uptimeS"`
+			AlertsActive    []string `json:"alertsActive"`
+			ScheduledReboot bool     `json:"scheduledReboot"`
+			RebootTimeS     int64    `json:"rebootTimeS"`
+			SoftwareVersion string   `json:"softwareVersion"`
+			HardwareVersion string   `json:"hardwareVersion"`
+		} `json:"system"`
+
+		// GPS information
+		GPS struct {
+			Latitude  float64 `json:"latitude"`
+			Longitude float64 `json:"longitude"`
+			Altitude  float64 `json:"altitude"`
+			GPSValid  bool    `json:"gpsValid"`
+			GPSLocked bool    `json:"gpsLocked"`
+		} `json:"gps"`
+	} `json:"status"`
+>>>>>>> 127102738bfdb6fdfe00ac510aa7b14b2d76d0b4
 }
 
 // NewStarlinkCollector creates a new Starlink collector
@@ -166,6 +250,7 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 		Timestamp: time.Now(),
 	}
 
+<<<<<<< HEAD
 	// Basic obstruction data
 	if status.ObstructionStats != nil {
 		obstructionPct := status.ObstructionStats.FractionObstructed * 100
@@ -183,6 +268,16 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 
 		patchesValid := int(status.ObstructionStats.PatchesValid)
 		metrics.ObstructionPatchesValid = &patchesValid
+=======
+	// Basic obstruction data (enhanced with quality validation)
+	obstructionPct := apiResp.Status.ObstructionStats.FractionObstructed * 100
+	metrics.ObstructionPct = &obstructionPct
+
+	// Enhanced outage tracking
+	outages := apiResp.Status.Outage.OutageCount
+	if apiResp.Status.Outage.LastOutageS > 0 && apiResp.Status.Outage.LastOutageS < 300 { // Recent outage (5 minutes)
+		outages++
+>>>>>>> 127102738bfdb6fdfe00ac510aa7b14b2d76d0b4
 	}
 
 	// Network performance metrics
@@ -190,8 +285,13 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 		metrics.LatencyMS = status.PopPingLatencyMs
 	}
 
+<<<<<<< HEAD
 	if status.PopPingDropRate >= 0 {
 		lossPercent := status.PopPingDropRate * 100
+=======
+	if apiResp.Status.PopPingDropRate >= 0 {
+		lossPercent := apiResp.Status.PopPingDropRate * 100
+>>>>>>> 127102738bfdb6fdfe00ac510aa7b14b2d76d0b4
 		metrics.LossPercent = lossPercent
 	}
 
@@ -207,9 +307,47 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 		metrics.UptimeS = &uptime
 	}
 
+<<<<<<< HEAD
 	// GPS data
 	if status.GPSStats != nil && status.GPSStats.GPSValid {
 		metrics.GPSValid = &status.GPSStats.GPSValid
+=======
+	// Thermal monitoring
+	metrics.ThermalThrottle = &apiResp.Status.Thermal.ThermalThrottle
+	metrics.ThermalShutdown = &apiResp.Status.Thermal.ThermalShutdown
+
+	// Bandwidth restrictions
+	if apiResp.Status.BandwidthRestrictions.Restricted {
+		metrics.DLBandwidthRestrictedReason = &apiResp.Status.BandwidthRestrictions.RestrictionType
+		metrics.ULBandwidthRestrictedReason = &apiResp.Status.BandwidthRestrictions.RestrictionType
+	}
+
+	// Scheduled reboot detection
+	if apiResp.Status.System.ScheduledReboot && apiResp.Status.System.RebootTimeS > 0 {
+		rebootTime := time.Unix(apiResp.Status.System.RebootTimeS, 0).UTC().Format(time.RFC3339)
+		metrics.RebootScheduledUTC = &rebootTime
+	}
+
+	// Enhanced obstruction data
+	obstructionTime := apiResp.Status.ObstructionStats.TimeObstructed
+	metrics.ObstructionTimePct = &obstructionTime
+
+	validS := int64(apiResp.Status.ObstructionStats.ValidS)
+	metrics.ObstructionValidS = &validS
+
+	avgProlonged := apiResp.Status.ObstructionStats.AvgProlongedObstructionIntervalS
+	metrics.ObstructionAvgProlonged = &avgProlonged
+
+	patchesValid := apiResp.Status.ObstructionStats.PatchesValid
+	metrics.ObstructionPatchesValid = &patchesValid
+
+	// GPS data
+	if apiResp.Status.GPS.GPSValid {
+		metrics.GPSValid = &apiResp.Status.GPS.GPSValid
+		metrics.GPSLatitude = &apiResp.Status.GPS.Latitude
+		metrics.GPSLongitude = &apiResp.Status.GPS.Longitude
+		metrics.GPSAltitude = &apiResp.Status.GPS.Altitude
+>>>>>>> 127102738bfdb6fdfe00ac510aa7b14b2d76d0b4
 
 		gpsSource := "starlink"
 		metrics.GPSSource = &gpsSource
@@ -428,6 +566,7 @@ func (sc *StarlinkCollector) GetStarlinkInfo(ctx context.Context) (map[string]in
 
 	info := map[string]interface{}{
 		// Basic metrics
+<<<<<<< HEAD
 		"pop_ping_latency_ms": status.PopPingLatencyMs,
 		"pop_ping_drop_rate":  status.PopPingDropRate,
 		"snr_db":              status.SNR,
@@ -480,6 +619,39 @@ func (sc *StarlinkCollector) GetStarlinkInfo(ctx context.Context) (map[string]in
 		info["gps_sats"] = status.GPSStats.GPSSats
 		info["gps_no_sats_after_ttff"] = status.GPSStats.NoSatsAfterTTFF
 		info["gps_inhibit"] = status.GPSStats.InhibitGPS
+=======
+		"currently_obstructed":  apiResp.Status.ObstructionStats.CurrentlyObstructed,
+		"fraction_obstructed":   apiResp.Status.ObstructionStats.FractionObstructed,
+		"last_24h_obstructed_s": apiResp.Status.ObstructionStats.Last24hObstructedS,
+		"pop_ping_latency_ms":   apiResp.Status.PopPingLatencyMs,
+		"last_outage_s":         apiResp.Status.Outage.LastOutageS,
+		"snr_db":                apiResp.Status.SnrDb,
+
+		// Hardware health
+		"hardware_test_passed":  apiResp.Status.HardwareSelfTest.Passed,
+		"hardware_test_results": apiResp.Status.HardwareSelfTest.TestResults,
+		"temperature":           apiResp.Status.Thermal.Temperature,
+		"thermal_throttle":      apiResp.Status.Thermal.ThermalThrottle,
+		"thermal_shutdown":      apiResp.Status.Thermal.ThermalShutdown,
+
+		// System status
+		"uptime_s":         apiResp.Status.System.UptimeS,
+		"alerts_active":    apiResp.Status.System.AlertsActive,
+		"scheduled_reboot": apiResp.Status.System.ScheduledReboot,
+		"reboot_time_s":    apiResp.Status.System.RebootTimeS,
+		"software_version": apiResp.Status.System.SoftwareVersion,
+		"hardware_version": apiResp.Status.System.HardwareVersion,
+
+		// Performance
+		"downlink_throughput_bps": apiResp.Status.DownlinkThroughputBps,
+		"uplink_throughput_bps":   apiResp.Status.UplinkThroughputBps,
+		"bandwidth_restricted":    apiResp.Status.BandwidthRestrictions.Restricted,
+
+		// GPS
+		"gps_latitude":  apiResp.Status.GPS.Latitude,
+		"gps_longitude": apiResp.Status.GPS.Longitude,
+		"gps_valid":     apiResp.Status.GPS.GPSValid,
+>>>>>>> 127102738bfdb6fdfe00ac510aa7b14b2d76d0b4
 	}
 
 	return info, nil

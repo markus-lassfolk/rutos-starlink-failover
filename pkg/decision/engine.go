@@ -50,6 +50,7 @@ type Engine struct {
 	trendAnalysis    map[string]*TrendAnalysis
 	patternDetector  *PatternDetector
 	mlPredictor      *MLPredictor
+	predictiveEngine *PredictiveEngine
 }
 
 // PredictiveModel represents a predictive model for a member
@@ -114,6 +115,19 @@ type MemberState struct {
 
 // NewEngine creates a new decision engine
 func NewEngine(config *uci.Config, logger *logx.Logger, telemetry *telem.Store) *Engine {
+	// Create predictive engine configuration
+	predictiveConfig := &PredictiveConfig{
+		Enabled:             config.Predictive,
+		LookbackWindow:      time.Duration(config.HistoryWindowS) * time.Second,
+		PredictionHorizon:   time.Duration(config.FailMinDurationS*2) * time.Second,
+		ConfidenceThreshold: 0.7,
+		AnomalyThreshold:    0.8,
+		TrendSensitivity:    0.1,
+		PatternMinSamples:   10,
+		MLEnabled:           true,
+		MLModelPath:         "/tmp/starfail/ml_models.json",
+	}
+
 	return &Engine{
 		config:           config,
 		logger:           logger,
@@ -130,6 +144,7 @@ func NewEngine(config *uci.Config, logger *logx.Logger, telemetry *telem.Store) 
 		trendAnalysis:    make(map[string]*TrendAnalysis),
 		patternDetector:  NewPatternDetector(),
 		mlPredictor:      NewMLPredictor("", logger), // Use empty model path for now
+		predictiveEngine: NewPredictiveEngine(predictiveConfig, logger),
 	}
 }
 
@@ -287,6 +302,15 @@ func (e *Engine) updateScores() {
 		// Calculate scores
 		score := e.calculateScore(member, samples)
 		e.scores[name] = score
+
+		// Update predictive engine with new data
+		if e.predictiveEngine != nil && len(samples) > 0 {
+			latest := samples[len(samples)-1]
+			e.predictiveEngine.UpdateMemberData(name, latest.Metrics, score)
+		}
+
+		// Update trend analysis
+		e.updateTrendAnalysis(name, samples)
 	}
 }
 
@@ -323,7 +347,7 @@ func (e *Engine) calculateScore(member *pkg.Member, samples []*telem.Sample) *pk
 }
 
 // calculateInstantScore calculates the instant score for a member
-func (e *Engine) calculateInstantScore(member *pkg.Member, metrics map[string]interface{}) float64 {
+func (e *Engine) calculateInstantScore(member *pkg.Member, metrics *pkg.Metrics) float64 {
 	score := 100.0 // Base score
 
 	// Get member config
@@ -353,35 +377,29 @@ func (e *Engine) calculateInstantScore(member *pkg.Member, metrics map[string]in
 }
 
 // scoreStarlink calculates score for Starlink members
-func (e *Engine) scoreStarlink(metrics map[string]interface{}, config *uci.MemberConfig) float64 {
+func (e *Engine) scoreStarlink(metrics *pkg.Metrics, config *uci.MemberConfig) float64 {
 	score := 100.0
 
 	// Latency penalty
-	if lat, ok := metrics["lat_ms"].(float64); ok {
-		latPenalty := e.normalize(lat, 50, 1500) * 20
-		score -= latPenalty
-	}
+	latPenalty := e.normalize(metrics.LatencyMS, 50, 1500) * 20
+	score -= latPenalty
 
 	// Loss penalty
-	if loss, ok := metrics["loss_pct"].(float64); ok {
-		lossPenalty := e.normalize(loss, 0, 10) * 30
-		score -= lossPenalty
-	}
+	lossPenalty := e.normalize(metrics.LossPercent, 0, 10) * 30
+	score -= lossPenalty
 
 	// Jitter penalty
-	if jitter, ok := metrics["jitter_ms"].(float64); ok {
-		jitterPenalty := e.normalize(jitter, 5, 200) * 15
-		score -= jitterPenalty
-	}
+	jitterPenalty := e.normalize(metrics.JitterMS, 5, 200) * 15
+	score -= jitterPenalty
 
 	// Obstruction penalty
-	if obst, ok := metrics["obstruction_pct"].(float64); ok {
-		obstPenalty := e.normalize(obst, 0, 10) * 25
+	if metrics.ObstructionPct != nil {
+		obstPenalty := e.normalize(*metrics.ObstructionPct, 0, 10) * 25
 		score -= obstPenalty
 	}
 
 	// Outage penalty
-	if outages, ok := metrics["outages"].(int); ok && outages > 0 {
+	if metrics.Outages != nil && *metrics.Outages > 0 {
 		score -= 20 // Significant penalty for outages
 	}
 
@@ -389,25 +407,21 @@ func (e *Engine) scoreStarlink(metrics map[string]interface{}, config *uci.Membe
 }
 
 // scoreCellular calculates score for cellular members
-func (e *Engine) scoreCellular(metrics map[string]interface{}, config *uci.MemberConfig) float64 {
+func (e *Engine) scoreCellular(metrics *pkg.Metrics, config *uci.MemberConfig) float64 {
 	score := 100.0
 
 	// Latency penalty
-	if lat, ok := metrics["lat_ms"].(float64); ok {
-		latPenalty := e.normalize(lat, 50, 1500) * 20
-		score -= latPenalty
-	}
+	latPenalty := e.normalize(metrics.LatencyMS, 50, 1500) * 20
+	score -= latPenalty
 
 	// Loss penalty
-	if loss, ok := metrics["loss_pct"].(float64); ok {
-		lossPenalty := e.normalize(loss, 0, 10) * 30
-		score -= lossPenalty
-	}
+	lossPenalty := e.normalize(metrics.LossPercent, 0, 10) * 30
+	score -= lossPenalty
 
 	// Signal quality bonus/penalty
-	if rsrp, ok := metrics["rsrp"].(int); ok {
+	if metrics.RSRP != nil {
 		// RSRP ranges from -140 to -44 dBm
-		rsrpScore := float64(rsrp+140) / 96.0 * 100
+		rsrpScore := float64(*metrics.RSRP+140) / 96.0 * 100
 		if rsrpScore > 100 {
 			rsrpScore = 100
 		} else if rsrpScore < 0 {
@@ -417,7 +431,7 @@ func (e *Engine) scoreCellular(metrics map[string]interface{}, config *uci.Membe
 	}
 
 	// Roaming penalty
-	if roaming, ok := metrics["roaming"].(bool); ok && roaming {
+	if metrics.Roaming != nil && *metrics.Roaming {
 		if config == nil || !config.PreferRoaming {
 			score -= 15 // Penalty for roaming
 		}
@@ -427,20 +441,16 @@ func (e *Engine) scoreCellular(metrics map[string]interface{}, config *uci.Membe
 }
 
 // scoreWiFi calculates score for WiFi members
-func (e *Engine) scoreWiFi(metrics map[string]interface{}, config *uci.MemberConfig) float64 {
+func (e *Engine) scoreWiFi(metrics *pkg.Metrics, config *uci.MemberConfig) float64 {
 	score := 100.0
 
 	// Latency penalty
-	if lat, ok := metrics["lat_ms"].(float64); ok {
-		latPenalty := e.normalize(lat, 50, 1500) * 20
-		score -= latPenalty
-	}
+	latPenalty := e.normalize(metrics.LatencyMS, 50, 1500) * 20
+	score -= latPenalty
 
 	// Loss penalty
-	if loss, ok := metrics["loss_pct"].(float64); ok {
-		lossPenalty := e.normalize(loss, 0, 10) * 30
-		score -= lossPenalty
-	}
+	lossPenalty := e.normalize(metrics.LossPercent, 0, 10) * 30
+	score -= lossPenalty
 
 	// Signal strength bonus/penalty
 	if signal, ok := metrics["signal"].(int); ok {
@@ -629,10 +639,416 @@ func (e *Engine) shouldPredictiveSwitch(target *pkg.Member) bool {
 		return false
 	}
 
-	// TODO: Implement predictive logic based on trends
-	// For now, just check if current member is degrading rapidly
+	if e.current == nil || e.predictiveEngine == nil {
+		return false
+	}
+
+	// Get failure prediction for current member
+	prediction, err := e.predictiveEngine.PredictFailure(e.current.Name)
+	if err != nil {
+		e.logger.Debug("Failed to get failure prediction", "member", e.current.Name, "error", err)
+		return false
+	}
+
+	// Check if prediction indicates high failure risk
+	if prediction.Risk > 0.7 && prediction.Confidence > 0.6 {
+		e.logger.Info("Predictive failover triggered",
+			"current", e.current.Name,
+			"target", target.Name,
+			"risk", prediction.Risk,
+			"confidence", prediction.Confidence,
+			"method", prediction.Method,
+		)
+		
+		e.lastPredictive = now
+		return true
+	}
+
+	// Check for specific predictive triggers based on member class
+	if e.checkClassSpecificPredictiveTriggers(target) {
+		e.logger.Info("Class-specific predictive failover triggered",
+			"current", e.current.Name,
+			"target", target.Name,
+		)
+		
+		e.lastPredictive = now
+		return true
+	}
+
+	// Check trend-based predictive triggers
+	if e.checkTrendBasedPredictiveTriggers(target) {
+		e.logger.Info("Trend-based predictive failover triggered",
+			"current", e.current.Name,
+			"target", target.Name,
+		)
+		
+		e.lastPredictive = now
+		return true
+	}
 
 	return false
+}
+
+// checkClassSpecificPredictiveTriggers checks for class-specific predictive conditions
+func (e *Engine) checkClassSpecificPredictiveTriggers(target *pkg.Member) bool {
+	if e.current == nil {
+		return false
+	}
+
+	// Get recent samples for current member
+	now := time.Now()
+	samples, err := e.telemetry.GetSamples(e.current.Name, now.Add(-5*time.Minute))
+	if err != nil || len(samples) < 3 {
+		return false
+	}
+
+	// Starlink-specific triggers
+	if e.current.Class == pkg.ClassStarlink {
+		return e.checkStarlinkPredictiveTriggers(samples)
+	}
+
+	// Cellular-specific triggers
+	if e.current.Class == pkg.ClassCellular {
+		return e.checkCellularPredictiveTriggers(samples)
+	}
+
+	// WiFi-specific triggers
+	if e.current.Class == pkg.ClassWiFi {
+		return e.checkWiFiPredictiveTriggers(samples)
+	}
+
+	return false
+}
+
+// checkStarlinkPredictiveTriggers checks Starlink-specific predictive conditions
+func (e *Engine) checkStarlinkPredictiveTriggers(samples []*telem.Sample) bool {
+	if len(samples) < 3 {
+		return false
+	}
+
+	latest := samples[len(samples)-1]
+	metrics := latest.Metrics
+
+	// Check for rapid obstruction increase
+	if metrics.ObstructionPct != nil && *metrics.ObstructionPct > 5.0 {
+		// Check if obstruction is accelerating
+		if len(samples) >= 3 {
+			prev1 := samples[len(samples)-2]
+			prev2 := samples[len(samples)-3]
+			
+			if prev1.Metrics.ObstructionPct != nil && prev2.Metrics.ObstructionPct != nil {
+				current := *metrics.ObstructionPct
+				prev1Val := *prev1.Metrics.ObstructionPct
+				prev2Val := *prev2.Metrics.ObstructionPct
+				
+				// Check for acceleration in obstruction
+				if current > prev1Val && prev1Val > prev2Val {
+					acceleration := (current - prev1Val) - (prev1Val - prev2Val)
+					if acceleration > 2.0 { // 2% acceleration threshold
+						e.logger.Info("Starlink obstruction acceleration detected",
+							"current", current,
+							"prev1", prev1Val,
+							"prev2", prev2Val,
+							"acceleration", acceleration,
+						)
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	// Check for thermal issues
+	if metrics.ThermalThrottle != nil && *metrics.ThermalThrottle {
+		e.logger.Info("Starlink thermal throttling detected")
+		return true
+	}
+
+	// Check for pending software update reboot
+	if metrics.SwupdateRebootReady != nil && *metrics.SwupdateRebootReady {
+		e.logger.Info("Starlink software update reboot pending")
+		return true
+	}
+
+	// Check for persistently low SNR
+	if metrics.IsSNRPersistentlyLow != nil && *metrics.IsSNRPersistentlyLow {
+		e.logger.Info("Starlink persistently low SNR detected")
+		return true
+	}
+
+	return false
+}
+
+// checkCellularPredictiveTriggers checks cellular-specific predictive conditions
+func (e *Engine) checkCellularPredictiveTriggers(samples []*telem.Sample) bool {
+	if len(samples) < 3 {
+		return false
+	}
+
+	latest := samples[len(samples)-1]
+	metrics := latest.Metrics
+
+	// Check for signal degradation
+	if metrics.RSRP != nil && *metrics.RSRP < -110 {
+		e.logger.Info("Cellular signal severely degraded", "rsrp", *metrics.RSRP)
+		return true
+	}
+
+	// Check for roaming activation
+	if metrics.Roaming != nil && *metrics.Roaming {
+		e.logger.Info("Cellular roaming detected")
+		return true
+	}
+
+	// Check for rapid RSRP degradation
+	if len(samples) >= 3 && metrics.RSRP != nil {
+		prev1 := samples[len(samples)-2]
+		prev2 := samples[len(samples)-3]
+		
+		if prev1.Metrics.RSRP != nil && prev2.Metrics.RSRP != nil {
+			current := float64(*metrics.RSRP)
+			prev1Val := float64(*prev1.Metrics.RSRP)
+			prev2Val := float64(*prev2.Metrics.RSRP)
+			
+			// Check for rapid degradation (RSRP getting more negative)
+			if current < prev1Val-5 && prev1Val < prev2Val-5 {
+				e.logger.Info("Cellular rapid signal degradation detected",
+					"current", current,
+					"prev1", prev1Val,
+					"prev2", prev2Val,
+				)
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// checkWiFiPredictiveTriggers checks WiFi-specific predictive conditions
+func (e *Engine) checkWiFiPredictiveTriggers(samples []*telem.Sample) bool {
+	if len(samples) < 3 {
+		return false
+	}
+
+	latest := samples[len(samples)-1]
+	metrics := latest.Metrics
+
+	// Check for very poor signal strength
+	if metrics.SignalStrength != nil && *metrics.SignalStrength < -80 {
+		e.logger.Info("WiFi signal severely degraded", "signal", *metrics.SignalStrength)
+		return true
+	}
+
+	// Check for very low SNR
+	if metrics.SNR != nil && *metrics.SNR < 10 {
+		e.logger.Info("WiFi SNR critically low", "snr", *metrics.SNR)
+		return true
+	}
+
+	return false
+}
+
+// checkTrendBasedPredictiveTriggers checks for trend-based predictive conditions
+func (e *Engine) checkTrendBasedPredictiveTriggers(target *pkg.Member) bool {
+	if e.current == nil {
+		return false
+	}
+
+	// Get trend analysis for current member
+	trend, exists := e.trendAnalysis[e.current.Name]
+	if !exists {
+		return false
+	}
+
+	now := time.Now()
+	// Only use recent trend data
+	if now.Sub(trend.LastCalculated) > 2*time.Minute {
+		return false
+	}
+
+	// Check for rapid latency increase
+	if trend.LatencyTrend > 50.0 { // 50ms per minute increase
+		e.logger.Info("Rapid latency increase detected",
+			"member", e.current.Name,
+			"trend", trend.LatencyTrend,
+		)
+		return true
+	}
+
+	// Check for rapid loss increase
+	if trend.LossTrend > 2.0 { // 2% per minute increase
+		e.logger.Info("Rapid loss increase detected",
+			"member", e.current.Name,
+			"trend", trend.LossTrend,
+		)
+		return true
+	}
+
+	// Check for rapid score degradation
+	if trend.ScoreTrend < -10.0 { // 10 points per minute decrease
+		e.logger.Info("Rapid score degradation detected",
+			"member", e.current.Name,
+			"trend", trend.ScoreTrend,
+		)
+		return true
+	}
+
+	return false
+}
+
+// updateTrendAnalysis updates trend analysis for a member
+func (e *Engine) updateTrendAnalysis(memberName string, samples []*telem.Sample) {
+	if len(samples) < 5 {
+		return // Need at least 5 samples for trend analysis
+	}
+
+	now := time.Now()
+	
+	// Get or create trend analysis
+	trend, exists := e.trendAnalysis[memberName]
+	if !exists {
+		trend = &TrendAnalysis{
+			MemberName:     memberName,
+			LastCalculated: now,
+			Window:         time.Duration(e.config.HistoryWindowS) * time.Second,
+		}
+		e.trendAnalysis[memberName] = trend
+	}
+
+	// Only update if enough time has passed
+	if now.Sub(trend.LastCalculated) < 30*time.Second {
+		return
+	}
+
+	// Calculate trends using linear regression on recent samples
+	recentSamples := samples
+	if len(samples) > 20 {
+		recentSamples = samples[len(samples)-20:] // Use last 20 samples
+	}
+
+	// Calculate latency trend
+	trend.LatencyTrend = e.calculateTrendForMetric(recentSamples, func(s *telem.Sample) float64 {
+		return s.Metrics.LatencyMS
+	})
+
+	// Calculate loss trend
+	trend.LossTrend = e.calculateTrendForMetric(recentSamples, func(s *telem.Sample) float64 {
+		return s.Metrics.LossPercent
+	})
+
+	// Calculate score trend (if we have score data)
+	if len(recentSamples) > 0 {
+		// Get scores for recent samples
+		scoreValues := make([]float64, 0, len(recentSamples))
+		timestamps := make([]time.Time, 0, len(recentSamples))
+		
+		for _, sample := range recentSamples {
+			// Calculate instant score for each sample
+			member := e.members[memberName]
+			if member != nil {
+				instantScore := e.calculateInstantScore(member, sample.Metrics)
+				scoreValues = append(scoreValues, instantScore)
+				timestamps = append(timestamps, sample.Timestamp)
+			}
+		}
+
+		if len(scoreValues) >= 3 {
+			trend.ScoreTrend = e.calculateTrendFromValues(timestamps, scoreValues)
+		}
+	}
+
+	// Calculate volatility (standard deviation of recent scores)
+	if len(recentSamples) >= 3 {
+		latencyValues := make([]float64, len(recentSamples))
+		for i, sample := range recentSamples {
+			latencyValues[i] = sample.Metrics.LatencyMS
+		}
+		trend.Volatility = e.calculateStandardDeviation(latencyValues)
+	}
+
+	trend.LastCalculated = now
+}
+
+// calculateTrendForMetric calculates trend for a specific metric
+func (e *Engine) calculateTrendForMetric(samples []*telem.Sample, extractor func(*telem.Sample) float64) float64 {
+	if len(samples) < 3 {
+		return 0.0
+	}
+
+	timestamps := make([]time.Time, len(samples))
+	values := make([]float64, len(samples))
+
+	for i, sample := range samples {
+		timestamps[i] = sample.Timestamp
+		values[i] = extractor(sample)
+	}
+
+	return e.calculateTrendFromValues(timestamps, values)
+}
+
+// calculateTrendFromValues calculates trend from timestamp/value pairs
+func (e *Engine) calculateTrendFromValues(timestamps []time.Time, values []float64) float64 {
+	if len(timestamps) != len(values) || len(values) < 2 {
+		return 0.0
+	}
+
+	n := float64(len(values))
+	
+	// Convert timestamps to seconds since first timestamp
+	baseTime := timestamps[0]
+	x := make([]float64, len(timestamps))
+	for i, ts := range timestamps {
+		x[i] = ts.Sub(baseTime).Seconds()
+	}
+
+	// Calculate linear regression
+	sumX := 0.0
+	sumY := 0.0
+	sumXY := 0.0
+	sumX2 := 0.0
+
+	for i := 0; i < len(x); i++ {
+		sumX += x[i]
+		sumY += values[i]
+		sumXY += x[i] * values[i]
+		sumX2 += x[i] * x[i]
+	}
+
+	// Calculate slope (trend per second)
+	denominator := n*sumX2 - sumX*sumX
+	if denominator == 0 {
+		return 0.0
+	}
+	
+	slope := (n*sumXY - sumX*sumY) / denominator
+
+	// Convert to per-minute trend
+	return slope * 60.0
+}
+
+// calculateStandardDeviation calculates standard deviation of values
+func (e *Engine) calculateStandardDeviation(values []float64) float64 {
+	if len(values) < 2 {
+		return 0.0
+	}
+
+	// Calculate mean
+	sum := 0.0
+	for _, v := range values {
+		sum += v
+	}
+	mean := sum / float64(len(values))
+
+	// Calculate variance
+	variance := 0.0
+	for _, v := range values {
+		diff := v - mean
+		variance += diff * diff
+	}
+	variance /= float64(len(values))
+
+	return math.Sqrt(variance)
 }
 
 // checkDurationWindows checks if duration windows are satisfied

@@ -38,10 +38,10 @@ type RingBuffer struct {
 
 // Sample represents a telemetry sample with metadata
 type Sample struct {
-	Member    string                 `json:"member"`
-	Timestamp time.Time              `json:"timestamp"`
-	Metrics   map[string]interface{} `json:"metrics"`
-	Score     *pkg.Score             `json:"score,omitempty"`
+	Member    string      `json:"member"`
+	Timestamp time.Time   `json:"timestamp"`
+	Metrics   *pkg.Metrics `json:"metrics"`
+	Score     *pkg.Score  `json:"score,omitempty"`
 }
 
 // NewStore creates a new telemetry store
@@ -78,7 +78,7 @@ func (s *Store) AddSample(member string, metrics *pkg.Metrics, score *pkg.Score)
 	sample := &Sample{
 		Member:    member,
 		Timestamp: time.Now(),
-		Metrics:   metricsToMap(metrics),
+		Metrics:   metrics,
 		Score:     score,
 	}
 
@@ -242,62 +242,7 @@ func (s *Store) downsample() {
 }
 
 // metricsToMap converts metrics to a map for storage
-func metricsToMap(metrics *pkg.Metrics) map[string]interface{} {
-	if metrics == nil {
-		return nil
-	}
 
-	result := map[string]interface{}{
-		"lat_ms":    metrics.LatencyMS,
-		"loss_pct":  metrics.LossPercent,
-		"jitter_ms": metrics.JitterMS,
-	}
-
-	if metrics.ObstructionPct != nil {
-		result["obstruction_pct"] = *metrics.ObstructionPct
-	}
-	if metrics.Outages != nil {
-		result["outages"] = *metrics.Outages
-	}
-	if metrics.RSRP != nil {
-		result["rsrp"] = *metrics.RSRP
-	}
-	if metrics.RSRQ != nil {
-		result["rsrq"] = *metrics.RSRQ
-	}
-	if metrics.SINR != nil {
-		result["sinr"] = *metrics.SINR
-	}
-	if metrics.SignalStrength != nil {
-		result["signal"] = *metrics.SignalStrength
-	}
-	if metrics.NoiseLevel != nil {
-		result["noise"] = *metrics.NoiseLevel
-	}
-	if metrics.SNR != nil {
-		result["snr"] = *metrics.SNR
-	}
-	if metrics.Bitrate != nil {
-		result["bitrate"] = *metrics.Bitrate
-	}
-	if metrics.NetworkType != nil {
-		result["network_type"] = *metrics.NetworkType
-	}
-	if metrics.Roaming != nil {
-		result["roaming"] = *metrics.Roaming
-	}
-	if metrics.Operator != nil {
-		result["operator"] = *metrics.Operator
-	}
-	if metrics.Band != nil {
-		result["band"] = *metrics.Band
-	}
-	if metrics.CellID != nil {
-		result["cell_id"] = *metrics.CellID
-	}
-
-	return result
-}
 
 // NewRingBuffer creates a new ring buffer
 func NewRingBuffer(capacity int) *RingBuffer {

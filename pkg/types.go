@@ -51,6 +51,12 @@ type Metrics struct {
 	NoiseLevel     *int      `json:"noise,omitempty"`           // WiFi only
 	SNR            *int      `json:"snr,omitempty"`             // WiFi only
 	Bitrate        *int      `json:"bitrate,omitempty"`         // WiFi only
+	Quality        *int      `json:"quality,omitempty"`         // WiFi quality percentage
+	LinkQuality    *int      `json:"link_quality,omitempty"`    // WiFi link quality
+	TxPower        *int      `json:"tx_power,omitempty"`        // WiFi transmission power
+	Frequency      *int      `json:"frequency,omitempty"`       // WiFi frequency in MHz
+	Channel        *int      `json:"channel,omitempty"`         // WiFi channel number
+	TetheringMode  *bool     `json:"tethering_mode,omitempty"`  // WiFi tethering/AP mode
 	NetworkType    *string   `json:"network_type,omitempty"`    // Cellular only
 	Roaming        *bool     `json:"roaming,omitempty"`         // Cellular only
 	Operator       *string   `json:"operator,omitempty"`        // Cellular only

@@ -24,31 +24,31 @@ func TestStarlinkCollector_Collect(t *testing.T) {
 		response := StarlinkAPIResponse{
 			Status: struct {
 				ObstructionStats struct {
-					CurrentlyObstructed        bool      `json:"currentlyObstructed"`
-					FractionObstructed         float64   `json:"fractionObstructed"`
-					Last24hObstructedS         int       `json:"last24hObstructedS"`
-					ValidS                     int       `json:"validS"`
-					WedgeFractionObstructed    []float64 `json:"wedgeFractionObstructed"`
-					WedgeAbsFractionObstructed []float64 `json:"wedgeAbsFractionObstructed"`
-					TimeObstructed             float64   `json:"timeObstructed"`
-					PatchesValid               int       `json:"patchesValid"`
-					AvgProlongedObstructionIntervalS float64 `json:"avgProlongedObstructionIntervalS"`
+					CurrentlyObstructed              bool      `json:"currentlyObstructed"`
+					FractionObstructed               float64   `json:"fractionObstructed"`
+					Last24hObstructedS               int       `json:"last24hObstructedS"`
+					ValidS                           int       `json:"validS"`
+					WedgeFractionObstructed          []float64 `json:"wedgeFractionObstructed"`
+					WedgeAbsFractionObstructed       []float64 `json:"wedgeAbsFractionObstructed"`
+					TimeObstructed                   float64   `json:"timeObstructed"`
+					PatchesValid                     int       `json:"patchesValid"`
+					AvgProlongedObstructionIntervalS float64   `json:"avgProlongedObstructionIntervalS"`
 				} `json:"obstructionStats"`
 				Outage struct {
 					LastOutageS    int `json:"lastOutageS"`
 					OutageCount    int `json:"outageCount"`
 					OutageDuration int `json:"outageDuration"`
 				} `json:"outage"`
-				PopPingLatencyMs  float64 `json:"popPingLatencyMs"`
+				PopPingLatencyMs      float64 `json:"popPingLatencyMs"`
 				DownlinkThroughputBps float64 `json:"downlinkThroughputBps"`
 				UplinkThroughputBps   float64 `json:"uplinkThroughputBps"`
 				PopPingDropRate       float64 `json:"popPingDropRate"`
-				SnrDb                float64 `json:"snrDb"`
-				SecondsSinceLastSnr  int     `json:"secondsSinceLastSnr"`
-				HardwareSelfTest struct {
-					Passed       bool   `json:"passed"`
+				SnrDb                 float64 `json:"snrDb"`
+				SecondsSinceLastSnr   int     `json:"secondsSinceLastSnr"`
+				HardwareSelfTest      struct {
+					Passed       bool     `json:"passed"`
 					TestResults  []string `json:"testResults"`
-					LastTestTime int64  `json:"lastTestTime"`
+					LastTestTime int64    `json:"lastTestTime"`
 				} `json:"hardwareSelfTest"`
 				Thermal struct {
 					Temperature     float64 `json:"temperature"`
@@ -56,9 +56,9 @@ func TestStarlinkCollector_Collect(t *testing.T) {
 					ThermalShutdown bool    `json:"thermalShutdown"`
 				} `json:"thermal"`
 				Power struct {
-					PowerDraw   float64 `json:"powerDraw"`
-					Voltage     float64 `json:"voltage"`
-					PowerState  string  `json:"powerState"`
+					PowerDraw  float64 `json:"powerDraw"`
+					Voltage    float64 `json:"voltage"`
+					PowerState string  `json:"powerState"`
 				} `json:"power"`
 				BandwidthRestrictions struct {
 					Restricted      bool    `json:"restricted"`
@@ -67,38 +67,38 @@ func TestStarlinkCollector_Collect(t *testing.T) {
 					MaxUploadMbps   float64 `json:"maxUploadMbps"`
 				} `json:"bandwidthRestrictions"`
 				System struct {
-					UptimeS           int    `json:"uptimeS"`
-					AlertsActive      []string `json:"alertsActive"`
-					ScheduledReboot   bool   `json:"scheduledReboot"`
-					RebootTimeS       int64  `json:"rebootTimeS"`
-					SoftwareVersion   string `json:"softwareVersion"`
-					HardwareVersion   string `json:"hardwareVersion"`
+					UptimeS         int      `json:"uptimeS"`
+					AlertsActive    []string `json:"alertsActive"`
+					ScheduledReboot bool     `json:"scheduledReboot"`
+					RebootTimeS     int64    `json:"rebootTimeS"`
+					SoftwareVersion string   `json:"softwareVersion"`
+					HardwareVersion string   `json:"hardwareVersion"`
 				} `json:"system"`
 				GPS struct {
-					Latitude     float64 `json:"latitude"`
-					Longitude    float64 `json:"longitude"`
-					Altitude     float64 `json:"altitude"`
-					GPSValid     bool    `json:"gpsValid"`
-					GPSLocked    bool    `json:"gpsLocked"`
+					Latitude  float64 `json:"latitude"`
+					Longitude float64 `json:"longitude"`
+					Altitude  float64 `json:"altitude"`
+					GPSValid  bool    `json:"gpsValid"`
+					GPSLocked bool    `json:"gpsLocked"`
 				} `json:"gps"`
 			}{
 				ObstructionStats: struct {
-					CurrentlyObstructed        bool      `json:"currentlyObstructed"`
-					FractionObstructed         float64   `json:"fractionObstructed"`
-					Last24hObstructedS         int       `json:"last24hObstructedS"`
-					ValidS                     int       `json:"validS"`
-					WedgeFractionObstructed    []float64 `json:"wedgeFractionObstructed"`
-					WedgeAbsFractionObstructed []float64 `json:"wedgeAbsFractionObstructed"`
-					TimeObstructed             float64   `json:"timeObstructed"`
-					PatchesValid               int       `json:"patchesValid"`
-					AvgProlongedObstructionIntervalS float64 `json:"avgProlongedObstructionIntervalS"`
+					CurrentlyObstructed              bool      `json:"currentlyObstructed"`
+					FractionObstructed               float64   `json:"fractionObstructed"`
+					Last24hObstructedS               int       `json:"last24hObstructedS"`
+					ValidS                           int       `json:"validS"`
+					WedgeFractionObstructed          []float64 `json:"wedgeFractionObstructed"`
+					WedgeAbsFractionObstructed       []float64 `json:"wedgeAbsFractionObstructed"`
+					TimeObstructed                   float64   `json:"timeObstructed"`
+					PatchesValid                     int       `json:"patchesValid"`
+					AvgProlongedObstructionIntervalS float64   `json:"avgProlongedObstructionIntervalS"`
 				}{
-					CurrentlyObstructed:  false,
-					FractionObstructed:   0.02,
-					Last24hObstructedS:   120,
-					ValidS:               3600,
-					TimeObstructed:       45.5,
-					PatchesValid:         95,
+					CurrentlyObstructed:              false,
+					FractionObstructed:               0.02,
+					Last24hObstructedS:               120,
+					ValidS:                           3600,
+					TimeObstructed:                   45.5,
+					PatchesValid:                     95,
 					AvgProlongedObstructionIntervalS: 15.2,
 				},
 				Outage: struct {
@@ -117,9 +117,9 @@ func TestStarlinkCollector_Collect(t *testing.T) {
 				SnrDb:                 12.5,
 				SecondsSinceLastSnr:   5,
 				HardwareSelfTest: struct {
-					Passed       bool   `json:"passed"`
+					Passed       bool     `json:"passed"`
 					TestResults  []string `json:"testResults"`
-					LastTestTime int64  `json:"lastTestTime"`
+					LastTestTime int64    `json:"lastTestTime"`
 				}{
 					Passed:       true,
 					TestResults:  []string{"antenna_ok", "modem_ok", "power_ok"},
@@ -135,9 +135,9 @@ func TestStarlinkCollector_Collect(t *testing.T) {
 					ThermalShutdown: false,
 				},
 				Power: struct {
-					PowerDraw   float64 `json:"powerDraw"`
-					Voltage     float64 `json:"voltage"`
-					PowerState  string  `json:"powerState"`
+					PowerDraw  float64 `json:"powerDraw"`
+					Voltage    float64 `json:"voltage"`
+					PowerState string  `json:"powerState"`
 				}{
 					PowerDraw:  85.4,
 					Voltage:    54.2,
@@ -155,12 +155,12 @@ func TestStarlinkCollector_Collect(t *testing.T) {
 					MaxUploadMbps:   0,
 				},
 				System: struct {
-					UptimeS           int    `json:"uptimeS"`
-					AlertsActive      []string `json:"alertsActive"`
-					ScheduledReboot   bool   `json:"scheduledReboot"`
-					RebootTimeS       int64  `json:"rebootTimeS"`
-					SoftwareVersion   string `json:"softwareVersion"`
-					HardwareVersion   string `json:"hardwareVersion"`
+					UptimeS         int      `json:"uptimeS"`
+					AlertsActive    []string `json:"alertsActive"`
+					ScheduledReboot bool     `json:"scheduledReboot"`
+					RebootTimeS     int64    `json:"rebootTimeS"`
+					SoftwareVersion string   `json:"softwareVersion"`
+					HardwareVersion string   `json:"hardwareVersion"`
 				}{
 					UptimeS:         86400,
 					AlertsActive:    []string{},
@@ -170,11 +170,11 @@ func TestStarlinkCollector_Collect(t *testing.T) {
 					HardwareVersion: "rev2_proto3",
 				},
 				GPS: struct {
-					Latitude     float64 `json:"latitude"`
-					Longitude    float64 `json:"longitude"`
-					Altitude     float64 `json:"altitude"`
-					GPSValid     bool    `json:"gpsValid"`
-					GPSLocked    bool    `json:"gpsLocked"`
+					Latitude  float64 `json:"latitude"`
+					Longitude float64 `json:"longitude"`
+					Altitude  float64 `json:"altitude"`
+					GPSValid  bool    `json:"gpsValid"`
+					GPSLocked bool    `json:"gpsLocked"`
 				}{
 					Latitude:  37.7749,
 					Longitude: -122.4194,
@@ -290,64 +290,64 @@ func TestStarlinkCollector_Collect(t *testing.T) {
 // TestStarlinkCollector_CheckHardwareHealth tests hardware health assessment
 func TestStarlinkCollector_CheckHardwareHealth(t *testing.T) {
 	tests := []struct {
-		name           string
-		temperature    float64
+		name            string
+		temperature     float64
 		thermalThrottle bool
 		thermalShutdown bool
-		voltage        float64
-		snrDb          float64
+		voltage         float64
+		snrDb           float64
 		scheduledReboot bool
-		alertsActive   []string
-		expectedHealth string
-		expectedAlerts int
+		alertsActive    []string
+		expectedHealth  string
+		expectedAlerts  int
 	}{
 		{
-			name:           "healthy system",
-			temperature:    45.0,
+			name:            "healthy system",
+			temperature:     45.0,
 			thermalThrottle: false,
 			thermalShutdown: false,
-			voltage:        54.0,
-			snrDb:          15.0,
+			voltage:         54.0,
+			snrDb:           15.0,
 			scheduledReboot: false,
-			alertsActive:   []string{},
-			expectedHealth: "healthy",
-			expectedAlerts: 0,
+			alertsActive:    []string{},
+			expectedHealth:  "healthy",
+			expectedAlerts:  0,
 		},
 		{
-			name:           "thermal warning",
-			temperature:    72.0,
+			name:            "thermal warning",
+			temperature:     72.0,
 			thermalThrottle: false,
 			thermalShutdown: false,
-			voltage:        54.0,
-			snrDb:          15.0,
+			voltage:         54.0,
+			snrDb:           15.0,
 			scheduledReboot: false,
-			alertsActive:   []string{},
-			expectedHealth: "healthy",
-			expectedAlerts: 1,
+			alertsActive:    []string{},
+			expectedHealth:  "healthy",
+			expectedAlerts:  1,
 		},
 		{
-			name:           "thermal throttling",
-			temperature:    75.0,
+			name:            "thermal throttling",
+			temperature:     75.0,
 			thermalThrottle: true,
 			thermalShutdown: false,
-			voltage:        54.0,
-			snrDb:          15.0,
+			voltage:         54.0,
+			snrDb:           15.0,
 			scheduledReboot: false,
-			alertsActive:   []string{},
-			expectedHealth: "degraded",
-			expectedAlerts: 2,
+			alertsActive:    []string{},
+			expectedHealth:  "degraded",
+			expectedAlerts:  2,
 		},
 		{
-			name:           "critical system",
-			temperature:    80.0,
+			name:            "critical system",
+			temperature:     80.0,
 			thermalThrottle: true,
 			thermalShutdown: true,
-			voltage:        45.0, // Low voltage
-			snrDb:          3.0,  // Low SNR
+			voltage:         45.0, // Low voltage
+			snrDb:           3.0,  // Low SNR
 			scheduledReboot: true,
-			alertsActive:   []string{"hardware_fault", "signal_degraded"},
-			expectedHealth: "critical",
-			expectedAlerts: 6,
+			alertsActive:    []string{"hardware_fault", "signal_degraded"},
+			expectedHealth:  "critical",
+			expectedAlerts:  6,
 		},
 	}
 
@@ -358,31 +358,31 @@ func TestStarlinkCollector_CheckHardwareHealth(t *testing.T) {
 				response := StarlinkAPIResponse{
 					Status: struct {
 						ObstructionStats struct {
-							CurrentlyObstructed        bool      `json:"currentlyObstructed"`
-							FractionObstructed         float64   `json:"fractionObstructed"`
-							Last24hObstructedS         int       `json:"last24hObstructedS"`
-							ValidS                     int       `json:"validS"`
-							WedgeFractionObstructed    []float64 `json:"wedgeFractionObstructed"`
-							WedgeAbsFractionObstructed []float64 `json:"wedgeAbsFractionObstructed"`
-							TimeObstructed             float64   `json:"timeObstructed"`
-							PatchesValid               int       `json:"patchesValid"`
-							AvgProlongedObstructionIntervalS float64 `json:"avgProlongedObstructionIntervalS"`
+							CurrentlyObstructed              bool      `json:"currentlyObstructed"`
+							FractionObstructed               float64   `json:"fractionObstructed"`
+							Last24hObstructedS               int       `json:"last24hObstructedS"`
+							ValidS                           int       `json:"validS"`
+							WedgeFractionObstructed          []float64 `json:"wedgeFractionObstructed"`
+							WedgeAbsFractionObstructed       []float64 `json:"wedgeAbsFractionObstructed"`
+							TimeObstructed                   float64   `json:"timeObstructed"`
+							PatchesValid                     int       `json:"patchesValid"`
+							AvgProlongedObstructionIntervalS float64   `json:"avgProlongedObstructionIntervalS"`
 						} `json:"obstructionStats"`
 						Outage struct {
 							LastOutageS    int `json:"lastOutageS"`
 							OutageCount    int `json:"outageCount"`
 							OutageDuration int `json:"outageDuration"`
 						} `json:"outage"`
-						PopPingLatencyMs  float64 `json:"popPingLatencyMs"`
+						PopPingLatencyMs      float64 `json:"popPingLatencyMs"`
 						DownlinkThroughputBps float64 `json:"downlinkThroughputBps"`
 						UplinkThroughputBps   float64 `json:"uplinkThroughputBps"`
 						PopPingDropRate       float64 `json:"popPingDropRate"`
-						SnrDb                float64 `json:"snrDb"`
-						SecondsSinceLastSnr  int     `json:"secondsSinceLastSnr"`
-						HardwareSelfTest struct {
-							Passed       bool   `json:"passed"`
+						SnrDb                 float64 `json:"snrDb"`
+						SecondsSinceLastSnr   int     `json:"secondsSinceLastSnr"`
+						HardwareSelfTest      struct {
+							Passed       bool     `json:"passed"`
 							TestResults  []string `json:"testResults"`
-							LastTestTime int64  `json:"lastTestTime"`
+							LastTestTime int64    `json:"lastTestTime"`
 						} `json:"hardwareSelfTest"`
 						Thermal struct {
 							Temperature     float64 `json:"temperature"`
@@ -390,9 +390,9 @@ func TestStarlinkCollector_CheckHardwareHealth(t *testing.T) {
 							ThermalShutdown bool    `json:"thermalShutdown"`
 						} `json:"thermal"`
 						Power struct {
-							PowerDraw   float64 `json:"powerDraw"`
-							Voltage     float64 `json:"voltage"`
-							PowerState  string  `json:"powerState"`
+							PowerDraw  float64 `json:"powerDraw"`
+							Voltage    float64 `json:"voltage"`
+							PowerState string  `json:"powerState"`
 						} `json:"power"`
 						BandwidthRestrictions struct {
 							Restricted      bool    `json:"restricted"`
@@ -401,26 +401,26 @@ func TestStarlinkCollector_CheckHardwareHealth(t *testing.T) {
 							MaxUploadMbps   float64 `json:"maxUploadMbps"`
 						} `json:"bandwidthRestrictions"`
 						System struct {
-							UptimeS           int    `json:"uptimeS"`
-							AlertsActive      []string `json:"alertsActive"`
-							ScheduledReboot   bool   `json:"scheduledReboot"`
-							RebootTimeS       int64  `json:"rebootTimeS"`
-							SoftwareVersion   string `json:"softwareVersion"`
-							HardwareVersion   string `json:"hardwareVersion"`
+							UptimeS         int      `json:"uptimeS"`
+							AlertsActive    []string `json:"alertsActive"`
+							ScheduledReboot bool     `json:"scheduledReboot"`
+							RebootTimeS     int64    `json:"rebootTimeS"`
+							SoftwareVersion string   `json:"softwareVersion"`
+							HardwareVersion string   `json:"hardwareVersion"`
 						} `json:"system"`
 						GPS struct {
-							Latitude     float64 `json:"latitude"`
-							Longitude    float64 `json:"longitude"`
-							Altitude     float64 `json:"altitude"`
-							GPSValid     bool    `json:"gpsValid"`
-							GPSLocked    bool    `json:"gpsLocked"`
+							Latitude  float64 `json:"latitude"`
+							Longitude float64 `json:"longitude"`
+							Altitude  float64 `json:"altitude"`
+							GPSValid  bool    `json:"gpsValid"`
+							GPSLocked bool    `json:"gpsLocked"`
 						} `json:"gps"`
 					}{
 						SnrDb: tt.snrDb,
 						HardwareSelfTest: struct {
-							Passed       bool   `json:"passed"`
+							Passed       bool     `json:"passed"`
 							TestResults  []string `json:"testResults"`
-							LastTestTime int64  `json:"lastTestTime"`
+							LastTestTime int64    `json:"lastTestTime"`
 						}{
 							Passed: true,
 						},
@@ -434,35 +434,35 @@ func TestStarlinkCollector_CheckHardwareHealth(t *testing.T) {
 							ThermalShutdown: tt.thermalShutdown,
 						},
 						Power: struct {
-							PowerDraw   float64 `json:"powerDraw"`
-							Voltage     float64 `json:"voltage"`
-							PowerState  string  `json:"powerState"`
+							PowerDraw  float64 `json:"powerDraw"`
+							Voltage    float64 `json:"voltage"`
+							PowerState string  `json:"powerState"`
 						}{
 							Voltage: tt.voltage,
 						},
 						System: struct {
-							UptimeS           int    `json:"uptimeS"`
-							AlertsActive      []string `json:"alertsActive"`
-							ScheduledReboot   bool   `json:"scheduledReboot"`
-							RebootTimeS       int64  `json:"rebootTimeS"`
-							SoftwareVersion   string `json:"softwareVersion"`
-							HardwareVersion   string `json:"hardwareVersion"`
+							UptimeS         int      `json:"uptimeS"`
+							AlertsActive    []string `json:"alertsActive"`
+							ScheduledReboot bool     `json:"scheduledReboot"`
+							RebootTimeS     int64    `json:"rebootTimeS"`
+							SoftwareVersion string   `json:"softwareVersion"`
+							HardwareVersion string   `json:"hardwareVersion"`
 						}{
 							AlertsActive:    tt.alertsActive,
 							ScheduledReboot: tt.scheduledReboot,
 						},
 						ObstructionStats: struct {
-							CurrentlyObstructed        bool      `json:"currentlyObstructed"`
-							FractionObstructed         float64   `json:"fractionObstructed"`
-							Last24hObstructedS         int       `json:"last24hObstructedS"`
-							ValidS                     int       `json:"validS"`
-							WedgeFractionObstructed    []float64 `json:"wedgeFractionObstructed"`
-							WedgeAbsFractionObstructed []float64 `json:"wedgeAbsFractionObstructed"`
-							TimeObstructed             float64   `json:"timeObstructed"`
-							PatchesValid               int       `json:"patchesValid"`
-							AvgProlongedObstructionIntervalS float64 `json:"avgProlongedObstructionIntervalS"`
+							CurrentlyObstructed              bool      `json:"currentlyObstructed"`
+							FractionObstructed               float64   `json:"fractionObstructed"`
+							Last24hObstructedS               int       `json:"last24hObstructedS"`
+							ValidS                           int       `json:"validS"`
+							WedgeFractionObstructed          []float64 `json:"wedgeFractionObstructed"`
+							WedgeAbsFractionObstructed       []float64 `json:"wedgeAbsFractionObstructed"`
+							TimeObstructed                   float64   `json:"timeObstructed"`
+							PatchesValid                     int       `json:"patchesValid"`
+							AvgProlongedObstructionIntervalS float64   `json:"avgProlongedObstructionIntervalS"`
 						}{
-							FractionObstructed: 0.01,
+							FractionObstructed:               0.01,
 							AvgProlongedObstructionIntervalS: 10.0,
 						},
 					},
