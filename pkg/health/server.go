@@ -250,10 +250,7 @@ func (s *Server) getDetailedHealthStatus() HealthStatus {
 
 // getMemberHealth returns health information for all members
 func (s *Server) getMemberHealth() []MemberHealth {
-	members, err := s.controller.GetMembers()
-	if err != nil {
-		return []MemberHealth{}
-	}
+	members := s.controller.GetMembers()
 	activeMember, err := s.controller.GetActiveMember()
 	if err != nil {
 		activeMember = nil
@@ -310,10 +307,7 @@ func (s *Server) getMemberHealth() []MemberHealth {
 
 // getStatistics returns system statistics
 func (s *Server) getStatistics() Statistics {
-	members, err := s.controller.GetMembers()
-	if err != nil {
-		return Statistics{}
-	}
+	members := s.controller.GetMembers()
 	activeMember, err := s.controller.GetActiveMember()
 	if err != nil {
 		activeMember = nil

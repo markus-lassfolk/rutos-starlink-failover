@@ -171,7 +171,10 @@ func main() {
 	}
 
 	// Set discovered members in controller
-	ctrl.SetMembers(members)
+	if err := ctrl.SetMembers(members); err != nil {
+		logger.Error("Failed to set members", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize ubus server
 	ubusServer := ubus.NewServer(ctrl, decisionEngine, telemetry, logger)
@@ -299,10 +302,13 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 				})
 			} else {
 				// Update controller with new members
-				ctrl.SetMembers(newMembers)
-				logger.Debug("Member discovery refreshed", map[string]interface{}{
-					"member_count": len(newMembers),
-				})
+				if err := ctrl.SetMembers(newMembers); err != nil {
+					logger.Error("Failed to set members", map[string]interface{}{"error": err.Error()})
+				} else {
+					logger.Debug("Member discovery refreshed", map[string]interface{}{
+						"member_count": len(newMembers),
+					})
+				}
 			}
 
 		case <-cleanupTicker.C:
