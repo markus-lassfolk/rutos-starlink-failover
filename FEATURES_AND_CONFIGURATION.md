@@ -394,8 +394,8 @@ instant_score = base_weight
 
 ```bash
 ubus call starfail status
-
 ```
+
 **Returns:**
 
 ```json
@@ -423,8 +423,8 @@ ubus call starfail status
 
 ```bash
 ubus call starfail members
-
 ```
+
 **Returns:**
 
 ```json
@@ -468,8 +468,8 @@ ubus call starfail members
 
 ```bash
 ubus call starfail metrics '{"member": "starlink_any", "limit": 100}'
-
 ```
+
 **Returns:**
 
 ```json
@@ -507,8 +507,8 @@ ubus call starfail metrics '{"member": "starlink_any", "limit": 100}'
 
 ```bash
 ubus call starfail events '{"limit": 50}'
-
 ```
+
 **Returns:**
 
 ```json
