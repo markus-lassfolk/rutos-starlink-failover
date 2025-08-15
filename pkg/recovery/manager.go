@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"time"
@@ -426,20 +427,95 @@ func (m *Manager) readCompressedFile(filePath string) ([]byte, error) {
 }
 
 func (m *Manager) writeConfigToUCI(configMap map[string]interface{}) error {
-	// This would need to convert the map back to UCI format and write it
-	// For now, this is a placeholder
-	m.logger.Info("writing configuration to UCI", "keys", len(configMap))
+	// Create UCI loader for configuration operations
+	uciLoader := uci.NewLoader("/etc/config/starfail")
+	
+	// Load current configuration
+	config, err := uciLoader.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load current UCI config: %w", err)
+	}
+
+	// Apply changes from the configMap
+	// Note: This is a simplified implementation that handles basic config restoration
+	// A full implementation would need to map the configMap structure to the UCI config fields
+	for key, value := range configMap {
+		m.logger.Debug("restoring config value", "key", key, "value", value)
+		// For now, we'll restore the main fields that are commonly backed up
+		switch key {
+		case "main.enable":
+			if v, ok := value.(bool); ok {
+				config.Main.Enable = v
+			}
+		case "main.poll_interval_ms":
+			if v, ok := value.(float64); ok {
+				config.Main.PollIntervalMs = int(v)
+			}
+		case "main.dry_run":
+			if v, ok := value.(bool); ok {
+				config.Main.DryRun = v
+			}
+		default:
+			m.logger.Debug("skipping unsupported config key during restoration", "key", key)
+		}
+	}
+
+	// Save and commit the configuration
+	if err := uciLoader.Save(config); err != nil {
+		return fmt.Errorf("failed to save UCI config: %w", err)
+	}
+
+	m.logger.Info("configuration written to UCI", "keys", len(configMap))
 	return nil
 }
 
 func (m *Manager) restartService(service string) error {
 	m.logger.Info("restarting service", "service", service)
-	// Implementation would use system commands to restart the service
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	// Use procd service management for RutOS/OpenWrt
+	if err := m.execCommand(ctx, "/etc/init.d/"+service, "restart"); err != nil {
+		return fmt.Errorf("failed to restart service %s: %w", service, err)
+	}
+	
+	// Wait a moment for service to stabilize
+	time.Sleep(2 * time.Second)
+	
+	// Verify service is running
+	if err := m.checkServiceRunning(service); err != nil {
+		return fmt.Errorf("service %s failed to start after restart: %w", service, err)
+	}
+	
+	m.logger.Info("service restarted successfully", "service", service)
 	return nil
 }
 
 func (m *Manager) checkServiceRunning(service string) error {
-	// Implementation would check if service is running
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	// Check service status using procd
+	if err := m.execCommand(ctx, "/etc/init.d/"+service, "status"); err != nil {
+		return fmt.Errorf("service %s is not running: %w", service, err)
+	}
+	
+	return nil
+}
+
+// execCommand executes a system command with the given arguments
+func (m *Manager) execCommand(ctx context.Context, name string, args ...string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		m.logger.Debug("command execution failed", 
+			"command", name, 
+			"args", args, 
+			"output", string(output), 
+			"error", err)
+		return err
+	}
 	return nil
 }
 
