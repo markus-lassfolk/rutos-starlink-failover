@@ -71,8 +71,30 @@ type Config struct {
 	RestoreMinDurationS     int `json:"restore_min_duration_s"`
 
 	// Notifications
-	PushoverToken string `json:"pushover_token"`
-	PushoverUser  string `json:"pushover_user"`
+	PushoverToken            string `json:"pushover_token"`
+	PushoverUser             string `json:"pushover_user"`
+	PushoverEnabled          bool   `json:"pushover_enabled"`
+	PushoverDevice           string `json:"pushover_device"`
+	PriorityThreshold        string `json:"priority_threshold"`
+	AcknowledgmentTracking   bool   `json:"acknowledgment_tracking"`
+	LocationEnabled          bool   `json:"location_enabled"`
+	RichContextEnabled       bool   `json:"rich_context_enabled"`
+	NotifyOnFailover         bool   `json:"notify_on_failover"`
+	NotifyOnFailback         bool   `json:"notify_on_failback"`
+	NotifyOnMemberDown       bool   `json:"notify_on_member_down"`
+	NotifyOnMemberUp         bool   `json:"notify_on_member_up"`
+	NotifyOnPredictive       bool   `json:"notify_on_predictive"`
+	NotifyOnCritical         bool   `json:"notify_on_critical"`
+	NotifyOnRecovery         bool   `json:"notify_on_recovery"`
+	NotificationCooldownS    int    `json:"notification_cooldown_s"`
+	MaxNotificationsHour     int    `json:"max_notifications_hour"`
+	PriorityFailover         int    `json:"priority_failover"`
+	PriorityFailback         int    `json:"priority_failback"`
+	PriorityMemberDown       int    `json:"priority_member_down"`
+	PriorityMemberUp         int    `json:"priority_member_up"`
+	PriorityPredictive       int    `json:"priority_predictive"`
+	PriorityCritical         int    `json:"priority_critical"`
+	PriorityRecovery         int    `json:"priority_recovery"`
 
 	// Telemetry publish
 	MQTTBroker string `json:"mqtt_broker"`
@@ -233,8 +255,33 @@ func (c *Config) setDefaults() {
 	c.RestoreThresholdLoss = DefaultRestoreThresholdLoss
 	c.RestoreThresholdLatency = DefaultRestoreThresholdLatency
 	c.RestoreMinDurationS = DefaultRestoreMinDurationS
+	
+	// Notification defaults
 	c.PushoverToken = ""
 	c.PushoverUser = ""
+	c.PushoverEnabled = false
+	c.PushoverDevice = ""
+	c.PriorityThreshold = "warning"
+	c.AcknowledgmentTracking = true
+	c.LocationEnabled = true
+	c.RichContextEnabled = true
+	c.NotifyOnFailover = true
+	c.NotifyOnFailback = true
+	c.NotifyOnMemberDown = true
+	c.NotifyOnMemberUp = false
+	c.NotifyOnPredictive = true
+	c.NotifyOnCritical = true
+	c.NotifyOnRecovery = true
+	c.NotificationCooldownS = 300 // 5 minutes
+	c.MaxNotificationsHour = 20
+	c.PriorityFailover = 1    // High
+	c.PriorityFailback = 0    // Normal
+	c.PriorityMemberDown = 1  // High
+	c.PriorityMemberUp = -1   // Low
+	c.PriorityPredictive = 0  // Normal
+	c.PriorityCritical = 2    // Emergency
+	c.PriorityRecovery = 0    // Normal
+	
 	c.MQTTBroker = ""
 	c.MQTTTopic = "starfail/status"
 
@@ -417,6 +464,72 @@ func (c *Config) parseMainOption(option, value string) {
 		c.PushoverToken = value
 	case "pushover_user":
 		c.PushoverUser = value
+	case "pushover_enabled":
+		c.PushoverEnabled = value == "1"
+	case "pushover_device":
+		c.PushoverDevice = value
+	case "priority_threshold":
+		// Validate priority threshold
+		threshold := strings.ToLower(value)
+		if threshold == "info" || threshold == "warning" || threshold == "critical" || threshold == "emergency" {
+			c.PriorityThreshold = threshold
+		}
+	case "acknowledgment_tracking":
+		c.AcknowledgmentTracking = value == "1"
+	case "location_enabled":
+		c.LocationEnabled = value == "1"
+	case "rich_context_enabled":
+		c.RichContextEnabled = value == "1"
+	case "notify_on_failover":
+		c.NotifyOnFailover = value == "1"
+	case "notify_on_failback":
+		c.NotifyOnFailback = value == "1"
+	case "notify_on_member_down":
+		c.NotifyOnMemberDown = value == "1"
+	case "notify_on_member_up":
+		c.NotifyOnMemberUp = value == "1"
+	case "notify_on_predictive":
+		c.NotifyOnPredictive = value == "1"
+	case "notify_on_critical":
+		c.NotifyOnCritical = value == "1"
+	case "notify_on_recovery":
+		c.NotifyOnRecovery = value == "1"
+	case "notification_cooldown_s":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			c.NotificationCooldownS = v
+		}
+	case "max_notifications_hour":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			c.MaxNotificationsHour = v
+		}
+	case "priority_failover":
+		if v, err := strconv.Atoi(value); err == nil && v >= -2 && v <= 2 {
+			c.PriorityFailover = v
+		}
+	case "priority_failback":
+		if v, err := strconv.Atoi(value); err == nil && v >= -2 && v <= 2 {
+			c.PriorityFailback = v
+		}
+	case "priority_member_down":
+		if v, err := strconv.Atoi(value); err == nil && v >= -2 && v <= 2 {
+			c.PriorityMemberDown = v
+		}
+	case "priority_member_up":
+		if v, err := strconv.Atoi(value); err == nil && v >= -2 && v <= 2 {
+			c.PriorityMemberUp = v
+		}
+	case "priority_predictive":
+		if v, err := strconv.Atoi(value); err == nil && v >= -2 && v <= 2 {
+			c.PriorityPredictive = v
+		}
+	case "priority_critical":
+		if v, err := strconv.Atoi(value); err == nil && v >= -2 && v <= 2 {
+			c.PriorityCritical = v
+		}
+	case "priority_recovery":
+		if v, err := strconv.Atoi(value); err == nil && v >= -2 && v <= 2 {
+			c.PriorityRecovery = v
+		}
 	case "mqtt_broker":
 		c.MQTTBroker = value
 	case "mqtt_topic":

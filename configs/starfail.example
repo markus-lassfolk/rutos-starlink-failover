@@ -63,8 +63,38 @@ config starfail 'main'
     option restore_min_duration_s '30'      # Seconds
     
     # Pushover notifications (optional)
-    option pushover_token ''
-    option pushover_user ''
+    option pushover_enabled '0'                # Enable Pushover notifications (1=enabled, 0=disabled)
+    option pushover_token ''                   # Your Pushover API token from https://pushover.net/apps/build
+    option pushover_user ''                    # Your Pushover user key from https://pushover.net/
+    option pushover_device ''                  # Optional: specific device to send to
+    
+    # Advanced Pushover features
+    option priority_threshold 'warning'       # Minimum priority to send: info, warning, critical, emergency
+    option acknowledgment_tracking '1'        # Track message acknowledgments (1=enabled, 0=disabled)
+    option location_enabled '1'               # Include GPS coordinates in notifications (1=enabled, 0=disabled)
+    option rich_context_enabled '1'           # Include detailed performance metrics (1=enabled, 0=disabled)
+    
+    # Notification types (1=enabled, 0=disabled)
+    option notify_on_failover '1'              # Notify when network fails over to backup
+    option notify_on_failback '1'              # Notify when primary connection is restored
+    option notify_on_member_down '1'           # Notify when a backup connection goes down
+    option notify_on_member_up '0'             # Notify when a backup connection comes up (can be noisy)
+    option notify_on_predictive '1'            # Notify on predictive warnings
+    option notify_on_critical '1'             # Notify on critical system errors
+    option notify_on_recovery '1'             # Notify when system recovers from errors
+    
+    # Notification timing and limits
+    option notification_cooldown_s '300'      # Minimum seconds between similar notifications (5 minutes)
+    option max_notifications_hour '20'        # Maximum notifications per hour (prevents spam)
+    
+    # Notification priorities (-2=silent, -1=quiet, 0=normal, 1=high, 2=emergency)
+    option priority_failover '1'              # High priority - network is down
+    option priority_failback '0'              # Normal priority - network restored
+    option priority_member_down '1'           # High priority - backup connection lost
+    option priority_member_up '-1'            # Low priority - backup restored
+    option priority_predictive '0'            # Normal priority - early warning
+    option priority_critical '2'              # Emergency priority - system failure
+    option priority_recovery '0'              # Normal priority - system recovered
     
     # MQTT telemetry publishing (optional)
     option mqtt_broker ''
