@@ -235,7 +235,7 @@ func TestAuditor_ValidateFileIntegrity(t *testing.T) {
 	testFile := filepath.Join(tempDir, "test_file.txt")
 	testContent := "This is a test file for integrity checking"
 
-	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(testContent), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 

@@ -167,14 +167,14 @@ func main() {
 
 	// Initialize collector factory with UCI configuration
 	collectorConfig := map[string]interface{}{
-		"timeout":              time.Duration(cfg.StarlinkTimeout) * time.Second,
-		"targets":              []string{"8.8.8.8", "1.1.1.1", "1.0.0.1"},
-		"ubus_path":            "ubus",
-		"starlink_api_host":    cfg.StarlinkAPIHost,
-		"starlink_api_port":    cfg.StarlinkAPIPort,
-		"starlink_timeout_s":   cfg.StarlinkTimeout,
-		"starlink_grpc_first":  cfg.StarlinkGRPCFirst,
-		"starlink_http_first":  cfg.StarlinkHTTPFirst,
+		"timeout":             time.Duration(cfg.StarlinkTimeout) * time.Second,
+		"targets":             []string{"8.8.8.8", "1.1.1.1", "1.0.0.1"},
+		"ubus_path":           "ubus",
+		"starlink_api_host":   cfg.StarlinkAPIHost,
+		"starlink_api_port":   cfg.StarlinkAPIPort,
+		"starlink_timeout_s":  cfg.StarlinkTimeout,
+		"starlink_grpc_first": cfg.StarlinkGRPCFirst,
+		"starlink_http_first": cfg.StarlinkHTTPFirst,
 	}
 	collectorFactory := collector.NewCollectorFactory(collectorConfig)
 
