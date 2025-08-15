@@ -2,6 +2,9 @@
 package decision
 
 import (
+	"context"
+	"crypto/rand"
+	"fmt"
 	"math"
 	"time"
 
@@ -9,9 +12,15 @@ import (
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/collector"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/gps"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/notification"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/obstruction"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/telem"
 )
+
+// NotificationManager defines the interface for sending notifications
+type NotificationManager interface {
+	SendNotification(ctx context.Context, notif notification.Notification) error
+}
 
 // Score represents interface health scoring
 type Score struct {
@@ -81,13 +90,14 @@ type Engine struct {
 	auditLogger        *audit.AuditLogger
 	gpsManager         *gps.GPSManager
 	obstructionManager *obstruction.ObstructionManager
+	notificationMgr    NotificationManager // Interface for notifications
 
 	// dominanceSince tracks when a candidate started leading current by margin
 	dominanceSince map[string]time.Time
 }
 
 // NewEngine creates a new enhanced decision engine
-func NewEngine(config Config, logger logx.Logger, store *telem.Store, auditLogger *audit.AuditLogger, gpsManager *gps.GPSManager, obstructionManager *obstruction.ObstructionManager) *Engine {
+func NewEngine(config Config, logger logx.Logger, store *telem.Store, auditLogger *audit.AuditLogger, gpsManager *gps.GPSManager, obstructionManager *obstruction.ObstructionManager, notificationMgr NotificationManager) *Engine {
 	// Set default weights if not provided
 	if config.WeightLatency == 0 && config.WeightLoss == 0 &&
 		config.WeightJitter == 0 && config.WeightClass == 0 {
@@ -117,6 +127,7 @@ func NewEngine(config Config, logger logx.Logger, store *telem.Store, auditLogge
 		auditLogger:        auditLogger,
 		gpsManager:         gpsManager,
 		obstructionManager: obstructionManager,
+		notificationMgr:    notificationMgr,
 		dominanceSince:     make(map[string]time.Time),
 	}
 }
@@ -160,19 +171,25 @@ func (e *Engine) GetMemberStates() map[string]MemberState {
 
 // EvaluateSwitch determines if a failover/failback should occur
 func (e *Engine) EvaluateSwitch() *SwitchEvent {
+	evaluationStart := time.Now()
+	
 	// Find the best eligible member
 	bestMember := e.findBestMember()
 	if bestMember == "" {
+		e.logEvaluation("no_eligible_members", "", "", 0, evaluationStart)
 		return nil // No eligible members
 	}
 
 	// Check if we need to switch
 	if bestMember == e.currentPrimary {
+		e.logEvaluation("maintain_current", e.currentPrimary, bestMember, 0, evaluationStart)
 		return nil // Already using the best member
 	}
 
 	// Check cooldown
-	if time.Since(e.lastSwitch) < e.config.CooldownS {
+	cooldownRemaining := e.config.CooldownS - time.Since(e.lastSwitch)
+	if cooldownRemaining > 0 {
+		e.logEvaluation("cooldown_active", e.currentPrimary, bestMember, float64(cooldownRemaining.Seconds()), evaluationStart)
 		return nil // Still in cooldown
 	}
 
@@ -189,6 +206,7 @@ func (e *Engine) EvaluateSwitch() *SwitchEvent {
 
 	// Check if score improvement justifies switch
 	if scoreDelta < e.config.SwitchMargin {
+		e.logEvaluation("insufficient_margin", e.currentPrimary, bestMember, scoreDelta, evaluationStart)
 		return nil // Not enough improvement
 	}
 
@@ -203,6 +221,11 @@ func (e *Engine) EvaluateSwitch() *SwitchEvent {
 	if required > 0 {
 		since, ok := e.dominanceSince[bestMember]
 		if !ok || time.Since(since) < required {
+			remainingDuration := required
+			if ok {
+				remainingDuration = required - time.Since(since)
+			}
+			e.logEvaluation("insufficient_duration", e.currentPrimary, bestMember, float64(remainingDuration.Seconds()), evaluationStart)
 			return nil // Not dominant long enough
 		}
 	}
@@ -214,8 +237,10 @@ func (e *Engine) EvaluateSwitch() *SwitchEvent {
 	}
 
 	// Predictive check
+	isPredictive := false
 	if e.config.EnablePredictive && e.shouldPreemptiveSwitch(bestMember) {
 		switchType = "predictive"
+		isPredictive = true
 	}
 
 	// Create switch event
@@ -226,7 +251,11 @@ func (e *Engine) EvaluateSwitch() *SwitchEvent {
 		To:         bestMember,
 		ScoreDelta: scoreDelta,
 		Reason:     e.generateSwitchReason(bestMember),
+		DecisionID: e.generateDecisionID(),
 	}
+
+	// Log comprehensive audit event before executing
+	e.logDecisionEvent(&event, isPredictive, evaluationStart)
 
 	// Execute switch
 	e.executeSwitch(event)
@@ -475,9 +504,100 @@ func (e *Engine) shouldPreemptiveSwitch(candidate string) bool {
 		return true // Current primary not found
 	}
 
-	// Check if current score is trending downward
+	// Enhanced predictive analysis with multiple signals
+	shouldSwitch := false
+	
+	// 1. Score decline trend
 	scoreDecline := current.Score.EWMA - current.Score.Instant
-	return scoreDecline > e.config.PredictThreshold
+	if scoreDecline > e.config.PredictThreshold {
+		shouldSwitch = true
+		e.logger.Debug("predictive: score declining", 
+			"member", e.currentPrimary,
+			"decline", scoreDecline,
+			"threshold", e.config.PredictThreshold)
+	}
+
+	// 2. Latency trend analysis (if we have telemetry data)
+	if e.store != nil && current.Metrics.LatencyMs != nil {
+		recentSamples := e.store.GetRecentSamples(e.currentPrimary, 30*time.Second)
+		if len(recentSamples) >= 3 {
+			latencyTrend := e.calculateLatencyTrend(recentSamples)
+			if latencyTrend > 20.0 { // >20ms/minute increase
+				shouldSwitch = true
+				e.logger.Debug("predictive: latency trending up",
+					"member", e.currentPrimary,
+					"trend_ms_per_min", latencyTrend)
+			}
+		}
+	}
+
+	// 3. Loss rate spike detection
+	if current.Metrics.PacketLossPct != nil && *current.Metrics.PacketLossPct > 2.0 {
+		// Sudden loss spike - consider predictive failover
+		if e.store != nil {
+			recentSamples := e.store.GetRecentSamples(e.currentPrimary, 15*time.Second)
+			if len(recentSamples) >= 2 {
+				avgLoss := e.calculateAverageLoss(recentSamples)
+				if *current.Metrics.PacketLossPct > avgLoss*2 { // 2x recent average
+					shouldSwitch = true
+					e.logger.Debug("predictive: loss spike detected",
+						"member", e.currentPrimary,
+						"current_loss", *current.Metrics.PacketLossPct,
+						"recent_avg", avgLoss)
+				}
+			}
+		}
+	}
+
+	// 4. Starlink-specific predictive signals
+	if current.Member.Class == "starlink" {
+		// Obstruction percentage trending up
+		if current.Metrics.ObstructionPct != nil && *current.Metrics.ObstructionPct > 0.01 {
+			// Check if obstruction is rising
+			if e.store != nil {
+				recentSamples := e.store.GetRecentSamples(e.currentPrimary, 60*time.Second)
+				if len(recentSamples) >= 3 {
+					obstructionTrend := e.calculateObstructionTrend(recentSamples)
+					if obstructionTrend > 0.005 { // >0.5% increase per minute
+						shouldSwitch = true
+						e.logger.Debug("predictive: obstruction rising",
+							"member", e.currentPrimary,
+							"current_obstruction", *current.Metrics.ObstructionPct,
+							"trend_per_min", obstructionTrend)
+					}
+				}
+			}
+		}
+
+		// SNR degradation
+		if current.Metrics.SNR != nil && *current.Metrics.SNR < 8.0 {
+			shouldSwitch = true
+			e.logger.Debug("predictive: low SNR detected",
+				"member", e.currentPrimary,
+				"snr", *current.Metrics.SNR)
+		}
+	}
+
+	// 5. Cellular-specific predictive signals
+	if current.Member.Class == "cellular" {
+		// Signal strength degradation
+		if current.Metrics.RSRP != nil && *current.Metrics.RSRP < -110 {
+			shouldSwitch = true
+			e.logger.Debug("predictive: weak cellular signal",
+				"member", e.currentPrimary,
+				"rsrp", *current.Metrics.RSRP)
+		}
+		
+		// Signal quality issues
+		if current.Metrics.RSRQ != nil && *current.Metrics.RSRQ < -15 {
+			shouldSwitch = true
+			e.logger.Debug("predictive: poor cellular quality",
+				"member", e.currentPrimary,
+				"rsrq", *current.Metrics.RSRQ)
+		}
+	}
+
+	return shouldSwitch
 }
 
 // generateSwitchReason creates a human-readable reason for the switch
@@ -549,6 +669,9 @@ func (e *Engine) executeSwitch(event SwitchEvent) {
 	if len(e.eventHistory) > 100 {
 		e.eventHistory = e.eventHistory[len(e.eventHistory)-100:]
 	}
+
+	// Send notification for the switch
+	e.sendSwitchNotification(event)
 }
 
 // GetEventHistory returns recent switch events
@@ -557,4 +680,394 @@ func (e *Engine) GetEventHistory() []SwitchEvent {
 	events := make([]SwitchEvent, len(e.eventHistory))
 	copy(events, e.eventHistory)
 	return events
+}
+
+// generateDecisionID creates a unique decision ID
+func (e *Engine) generateDecisionID() string {
+	timestamp := time.Now().Format("20060102150405")
+	buf := make([]byte, 4)
+	rand.Read(buf)
+	return fmt.Sprintf("d_%s_%x", timestamp, buf)
+}
+
+// logEvaluation logs an evaluation decision with context
+func (e *Engine) logEvaluation(reason, from, to string, value float64, startTime time.Time) {
+	if e.auditLogger == nil {
+		return
+	}
+
+	processingTime := time.Since(startTime)
+	
+	event := &audit.DecisionEvent{
+		Timestamp:     time.Now(),
+		EventType:     "evaluation",
+		Component:     "decision_engine",
+		TriggerReason: reason,
+		DecisionType:  "maintain",
+		FromInterface: from,
+		ToInterface:   to,
+		ProcessingTime: processingTime,
+		InterfaceMetrics: e.buildInterfaceMetrics(),
+		QualityFactors:   e.buildQualityFactors(),
+		Thresholds: audit.DecisionThresholds{
+			SwitchMargin:            e.config.SwitchMargin,
+			FailThresholdLoss:       5.0,  // TODO: Make configurable
+			FailThresholdLatency:    150.0, // TODO: Make configurable
+			RestoreThresholdLoss:    1.0,   // TODO: Make configurable
+			RestoreThresholdLatency: 50.0,  // TODO: Make configurable
+		},
+		Windows: audit.DecisionWindows{
+			BadDurationS:  int(e.config.FailMinDurationS.Seconds()),
+			GoodDurationS: int(e.config.RestoreMinDurationS.Seconds()),
+			CooldownS:     int(e.config.CooldownS.Seconds()),
+			MinUptimeS:    int(e.config.MinUptimeS.Seconds()),
+		},
+	}
+
+	// Add specific context based on reason
+	switch reason {
+	case "cooldown_active":
+		event.Extra = map[string]interface{}{
+			"cooldown_remaining_s": value,
+		}
+	case "insufficient_margin":
+		event.Extra = map[string]interface{}{
+			"score_delta": value,
+			"required_margin": e.config.SwitchMargin,
+		}
+	case "insufficient_duration":
+		event.Extra = map[string]interface{}{
+			"remaining_duration_s": value,
+		}
+	}
+
+	e.auditLogger.LogDecision(context.TODO(), event)
+}
+
+// logDecisionEvent logs a comprehensive decision event
+func (e *Engine) logDecisionEvent(event *SwitchEvent, isPredictive bool, startTime time.Time) {
+	if e.auditLogger == nil {
+		return
+	}
+
+	processingTime := time.Since(startTime)
+	
+	auditEvent := &audit.DecisionEvent{
+		Timestamp:        event.Timestamp,
+		EventType:        "action",
+		Component:        "decision_engine",
+		TriggerReason:    event.Reason,
+		DecisionType:     event.Type,
+		FromInterface:    event.From,
+		ToInterface:      event.To,
+		ProcessingTime:   processingTime,
+		InterfaceMetrics: e.buildInterfaceMetrics(),
+		QualityFactors:   e.buildQualityFactors(),
+		Thresholds: audit.DecisionThresholds{
+			SwitchMargin:            e.config.SwitchMargin,
+			FailThresholdLoss:       5.0,  // TODO: Make configurable
+			FailThresholdLatency:    150.0, // TODO: Make configurable
+			RestoreThresholdLoss:    1.0,   // TODO: Make configurable
+			RestoreThresholdLatency: 50.0,  // TODO: Make configurable
+		},
+		Windows: audit.DecisionWindows{
+			BadDurationS:  int(e.config.FailMinDurationS.Seconds()),
+			GoodDurationS: int(e.config.RestoreMinDurationS.Seconds()),
+			CooldownS:     int(e.config.CooldownS.Seconds()),
+			MinUptimeS:    int(e.config.MinUptimeS.Seconds()),
+		},
+		Extra: map[string]interface{}{
+			"score_delta":    event.ScoreDelta,
+			"is_predictive":  isPredictive,
+			"decision_id":    event.DecisionID,
+		},
+	}
+
+	e.auditLogger.LogDecision(context.TODO(), auditEvent)
+}
+
+// buildInterfaceMetrics creates a map of current interface metrics
+func (e *Engine) buildInterfaceMetrics() map[string]interface{} {
+	metrics := make(map[string]interface{})
+	
+	for name, state := range e.members {
+		metrics[name] = map[string]interface{}{
+			"latency_ms":     state.Metrics.LatencyMs,
+			"packet_loss_pct": state.Metrics.PacketLossPct,
+			"jitter_ms":      state.Metrics.JitterMs,
+			"instant_score":  state.Score.Instant,
+			"ewma_score":     state.Score.EWMA,
+			"window_avg":     state.Score.WindowAvg,
+			"final_score":    state.Score.Final,
+			"eligible":       state.Eligible,
+			"class":          state.Member.Class,
+		}
+	}
+	
+	return metrics
+}
+
+// buildQualityFactors creates a map of quality factor breakdowns
+func (e *Engine) buildQualityFactors() map[string]audit.ScoreBreakdown {
+	factors := make(map[string]audit.ScoreBreakdown)
+	
+	for name, state := range e.members {
+		components := make(map[string]float64)
+		
+		// Calculate individual component scores
+		if state.Metrics.LatencyMs != nil {
+			components["latency"] = e.scoreLatency(*state.Metrics.LatencyMs)
+		}
+		if state.Metrics.PacketLossPct != nil {
+			components["loss"] = e.scoreLoss(*state.Metrics.PacketLossPct)
+		}
+		if state.Metrics.JitterMs != nil {
+			components["jitter"] = e.scoreJitter(*state.Metrics.JitterMs)
+		}
+		
+		// Add class weight
+		classWeight := e.config.ClassWeights[state.Member.Class]
+		if classWeight == 0 {
+			classWeight = 0.5
+		}
+		
+		factors[name] = audit.ScoreBreakdown{
+			FinalScore:   state.Score.Final,
+			InstantScore: state.Score.Instant,
+			EWMAScore:    state.Score.EWMA,
+			WindowScore:  state.Score.WindowAvg,
+			Components:   components,
+			WeightFactors: map[string]float64{
+				"latency": e.config.WeightLatency,
+				"loss":    e.config.WeightLoss,
+				"jitter":  e.config.WeightJitter,
+				"class":   classWeight,
+			},
+		}
+	}
+	
+	return factors
+}
+
+// calculateLatencyTrend computes the rate of latency change (ms per minute)
+func (e *Engine) calculateLatencyTrend(samples []telem.Sample) float64 {
+	if len(samples) < 2 {
+		return 0
+	}
+
+	// Extract latency values with timestamps
+	var points []struct {
+		time    float64 // minutes since first sample
+		latency float64
+	}
+
+	firstTime := samples[0].Timestamp
+	for _, sample := range samples {
+		if sample.Metrics.LatencyMs != nil {
+			minutes := sample.Timestamp.Sub(firstTime).Minutes()
+			points = append(points, struct {
+				time    float64
+				latency float64
+			}{minutes, *sample.Metrics.LatencyMs})
+		}
+	}
+
+	if len(points) < 2 {
+		return 0
+	}
+
+	// Simple linear regression to find slope (trend)
+	n := float64(len(points))
+	sumX, sumY, sumXY, sumX2 := 0.0, 0.0, 0.0, 0.0
+
+	for _, p := range points {
+		sumX += p.time
+		sumY += p.latency
+		sumXY += p.time * p.latency
+		sumX2 += p.time * p.time
+	}
+
+	// Slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX)
+	denominator := n*sumX2 - sumX*sumX
+	if denominator == 0 {
+		return 0
+	}
+
+	slope := (n*sumXY - sumX*sumY) / denominator
+	return slope // ms per minute
+}
+
+// calculateAverageLoss computes average packet loss from recent samples
+func (e *Engine) calculateAverageLoss(samples []telem.Sample) float64 {
+	if len(samples) == 0 {
+		return 0
+	}
+
+	sum := 0.0
+	count := 0
+	for _, sample := range samples {
+		if sample.Metrics.PacketLossPct != nil {
+			sum += *sample.Metrics.PacketLossPct
+			count++
+		}
+	}
+
+	if count == 0 {
+		return 0
+	}
+
+	return sum / float64(count)
+}
+
+// calculateObstructionTrend computes the rate of obstruction change (percentage points per minute)
+func (e *Engine) calculateObstructionTrend(samples []telem.Sample) float64 {
+	if len(samples) < 2 {
+		return 0
+	}
+
+	// Extract obstruction values with timestamps
+	var points []struct {
+		time        float64 // minutes since first sample
+		obstruction float64
+	}
+
+	firstTime := samples[0].Timestamp
+	for _, sample := range samples {
+		if sample.Metrics.ObstructionPct != nil {
+			minutes := sample.Timestamp.Sub(firstTime).Minutes()
+			points = append(points, struct {
+				time        float64
+				obstruction float64
+			}{minutes, *sample.Metrics.ObstructionPct})
+		}
+	}
+
+	if len(points) < 2 {
+		return 0
+	}
+
+	// Simple linear regression to find slope (trend)
+	n := float64(len(points))
+	sumX, sumY, sumXY, sumX2 := 0.0, 0.0, 0.0, 0.0
+
+	for _, p := range points {
+		sumX += p.time
+		sumY += p.obstruction
+		sumXY += p.time * p.obstruction
+		sumX2 += p.time * p.time
+	}
+
+	// Slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX)
+	denominator := n*sumX2 - sumX*sumX
+	if denominator == 0 {
+		return 0
+	}
+
+	slope := (n*sumXY - sumX*sumY) / denominator
+	return slope // percentage points per minute
+}
+
+// sendSwitchNotification sends a notification about a failover event
+func (e *Engine) sendSwitchNotification(event SwitchEvent) {
+	if e.notificationMgr == nil {
+		return
+	}
+
+	// Determine notification priority and type based on event
+	var priority notification.Priority
+	var notifType notification.NotificationType
+	var title, message string
+
+	switch event.Type {
+	case "predictive":
+		priority = notification.PriorityWarning
+		notifType = notification.TypeStatus
+		title = "🔮 Predictive Failover"
+		message = fmt.Sprintf("Preemptively switched from %s to %s due to %s (score improved by %.1f)", 
+			event.From, event.To, event.Reason, event.ScoreDelta)
+	case "failover":
+		priority = notification.PriorityCritical
+		notifType = notification.TypeFailure
+		title = "⚠️ Failover Activated"
+		message = fmt.Sprintf("Failed over from %s to %s due to %s (score improved by %.1f)", 
+			event.From, event.To, event.Reason, event.ScoreDelta)
+	case "failback":
+		priority = notification.PriorityInfo
+		notifType = notification.TypeFix
+		title = "✅ Failback Complete"
+		message = fmt.Sprintf("Restored primary connection from %s to %s, %s (score improved by %.1f)", 
+			event.From, event.To, event.Reason, event.ScoreDelta)
+	default:
+		priority = notification.PriorityInfo
+		notifType = notification.TypeStatus
+		title = "🔄 Interface Switch"
+		message = fmt.Sprintf("Switched from %s to %s due to %s", event.From, event.To, event.Reason)
+	}
+
+	// Build rich context
+	notifContext := notification.Context{
+		CurrentStatus: fmt.Sprintf("Primary: %s", e.currentPrimary),
+		InterfaceStates: make(map[string]interface{}),
+	}
+
+	// Add interface states to context
+	for name, state := range e.members {
+		notifContext.InterfaceStates[name] = map[string]interface{}{
+			"score":    state.Score.Final,
+			"eligible": state.Eligible,
+			"class":    state.Member.Class,
+		}
+		
+		// Add specific metrics
+		if state.Metrics.LatencyMs != nil {
+			notifContext.InterfaceStates[name].(map[string]interface{})["latency_ms"] = *state.Metrics.LatencyMs
+		}
+		if state.Metrics.PacketLossPct != nil {
+			notifContext.InterfaceStates[name].(map[string]interface{})["loss_pct"] = *state.Metrics.PacketLossPct
+		}
+	}
+
+	// Add next steps based on event type
+	switch event.Type {
+	case "predictive":
+		notifContext.NextSteps = []string{
+			"Monitor original interface for recovery",
+			"Check for environmental factors affecting connectivity",
+		}
+	case "failover":
+		notifContext.NextSteps = []string{
+			"Investigate cause of primary interface failure",
+			"Monitor backup interface performance",
+			"Check for service restoration on failed interface",
+		}
+	case "failback":
+		notifContext.NextSteps = []string{
+			"Verify stable performance on restored interface",
+			"Update monitoring thresholds if needed",
+		}
+	}
+
+	notif := notification.Notification{
+		ID:        fmt.Sprintf("switch_%s", event.DecisionID),
+		Priority:  priority,
+		Type:      notifType,
+		Title:     title,
+		Message:   message,
+		Context:   notifContext,
+		Timestamp: event.Timestamp,
+		Channels:  []string{"default"}, // Use default channels
+	}
+
+	// Send the notification (non-blocking)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		
+		if err := e.notificationMgr.SendNotification(ctx, notif); err != nil {
+			e.logger.Warn("failed to send switch notification", 
+				"error", err, 
+				"event_type", event.Type,
+				"decision_id", event.DecisionID)
+		}
+	}()
 }

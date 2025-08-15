@@ -98,7 +98,7 @@ func TestEndToEndFailover(t *testing.T) {
 		CooldownS:      1 * time.Second,
 		HistoryWindowS: 5 * time.Second,
 	}
-	engine := decision.NewEngine(decisionCfg, *logger, store, nil, nil, nil)
+	engine := decision.NewEngine(decisionCfg, *logger, store, nil, nil, nil, nil)
 
 	// Set up controller with dry-run mode
 	controllerCfg := controller.Config{
@@ -209,7 +209,7 @@ func TestCollectorDecisionIntegration(t *testing.T) {
 		CooldownS:      0,
 		HistoryWindowS: 3 * time.Second,
 	}
-	engine := decision.NewEngine(cfg, *logger, store, nil, nil, nil)
+	engine := decision.NewEngine(cfg, *logger, store, nil, nil, nil, nil)
 
 	// Simulate metrics from different collector types
 	starlinkMember := collector.Member{

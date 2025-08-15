@@ -9,10 +9,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/audit"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/collector"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/controller"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/decision"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/gps"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/notification"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/obstruction"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/telem"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/ubus"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/uci"
@@ -102,7 +106,29 @@ func main() {
 		HistoryWindowS:   config.Main.HistoryWindowS,
 		EnablePredictive: config.Main.Predictive,
 	}
-	engine := decision.NewEngine(decisionCfg, *logger, store, nil, nil, nil)
+
+	// Initialize managers for enhanced decision engine
+	auditLogger, err := audit.NewAuditLogger("/var/log/starfail")
+	if err != nil {
+		logger.Error("Failed to create audit logger", "error", err)
+		auditLogger = nil // Continue without audit logging
+	}
+
+	gpsManager := gps.NewGPSManager()
+	obstructionManager := obstruction.NewObstructionManager()
+
+	notificationManager := notification.NewManager(notification.Config{
+		Enabled:                true,
+		EmergencyCooldownS:     0,
+		CriticalCooldownS:      300,
+		WarningCooldownS:       3600,
+		InfoCooldownS:          21600,
+		MaxRetries:             3,
+		RetryBackoffS:          60,
+		AcknowledgmentRequired: false,
+	}, *logger)
+
+	engine := decision.NewEngine(decisionCfg, *logger, store, auditLogger, gpsManager, obstructionManager, notificationManager)
 
 	controllerCfg := controller.Config{
 		UseMwan3:  config.Main.UseMwan3,

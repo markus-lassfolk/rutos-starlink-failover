@@ -168,6 +168,11 @@ func (m *Manager) Send(ctx context.Context, notification Notification) error {
 	return m.sendToChannels(ctx, notification)
 }
 
+// SendNotification is an alias for Send to implement decision.NotificationManager interface
+func (m *Manager) SendNotification(ctx context.Context, notification Notification) error {
+	return m.Send(ctx, notification)
+}
+
 // SendFix sends a notification that a problem was automatically resolved
 func (m *Manager) SendFix(ctx context.Context, title, message string, context Context) error {
 	notification := Notification{

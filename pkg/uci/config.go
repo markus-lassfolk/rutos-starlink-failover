@@ -2,12 +2,14 @@
 package uci
 
 import (
+	"context"
 	"fmt"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/retry"
 )
 
 // Config represents the complete starfail configuration
@@ -151,12 +153,22 @@ type SamplingConfig struct {
 // Loader handles UCI configuration loading and validation
 type Loader struct {
 	configPath string
+	runner     *retry.Runner
 }
 
 // NewLoader creates a new UCI configuration loader
 func NewLoader(configPath string) *Loader {
+	// Conservative retry config for UCI operations
+	retryConfig := retry.Config{
+		MaxAttempts:   3,
+		InitialDelay:  200 * time.Millisecond,
+		MaxDelay:      1 * time.Second,
+		BackoffFactor: 2.0,
+	}
+
 	return &Loader{
 		configPath: configPath,
+		runner:     retry.NewRunner(retryConfig),
 	}
 }
 
@@ -296,8 +308,8 @@ func (l *Loader) loadFromUCI(config *Config) error {
 
 // loadMainFromUCI loads main section from UCI
 func (l *Loader) loadMainFromUCI(config *Config) error {
-	cmd := exec.Command("uci", "show", "starfail.main")
-	output, err := cmd.Output()
+	ctx := context.Background()
+	output, err := l.runner.Output(ctx, "uci", "show", "starfail.main")
 	if err != nil {
 		// Section doesn't exist, use defaults
 		return nil
@@ -335,8 +347,8 @@ func (l *Loader) loadMainFromUCI(config *Config) error {
 
 // loadMembersFromUCI loads member sections from UCI
 func (l *Loader) loadMembersFromUCI(config *Config) error {
-	cmd := exec.Command("uci", "show", "starfail")
-	output, err := cmd.Output()
+	ctx := context.Background()
+	output, err := l.runner.Output(ctx, "uci", "show", "starfail")
 	if err != nil {
 		return nil
 	}

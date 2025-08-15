@@ -5,21 +5,32 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/retry"
 )
 
 // WiFiCollector collects metrics from WiFi interfaces via ubus iwinfo
 type WiFiCollector struct {
 	pingCollector *PingCollector // Fallback for connectivity metrics
+	runner        *retry.Runner  // For external command reliability
 }
 
 // NewWiFiCollector creates a new WiFi metrics collector
 func NewWiFiCollector(pingHosts []string) *WiFiCollector {
+	// Conservative retry config for WiFi ubus/iwconfig operations
+	retryConfig := retry.Config{
+		MaxAttempts:   3,
+		InitialDelay:  500 * time.Millisecond,
+		MaxDelay:      2 * time.Second,
+		BackoffFactor: 1.5,
+	}
+
 	return &WiFiCollector{
 		pingCollector: NewPingCollector(pingHosts),
+		runner:        retry.NewRunner(retryConfig),
 	}
 }
 
@@ -107,9 +118,8 @@ func (w *WiFiCollector) getWiFiData(ctx context.Context, interfaceName string) (
 
 // getIWInfoData gets WiFi data from ubus iwinfo service
 func (w *WiFiCollector) getIWInfoData(ctx context.Context, interfaceName string) (*WiFiData, error) {
-	cmd := exec.CommandContext(ctx, "ubus", "call", "iwinfo", "info",
+	output, err := w.runner.Output(ctx, "ubus", "call", "iwinfo", "info",
 		fmt.Sprintf(`{"device":"%s"}`, interfaceName))
-	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to call iwinfo: %w", err)
 	}
@@ -127,8 +137,7 @@ func (w *WiFiCollector) getIWInfoData(ctx context.Context, interfaceName string)
 
 // getIWConfigData gets WiFi data from iwconfig command as fallback
 func (w *WiFiCollector) getIWConfigData(ctx context.Context, interfaceName string) (*WiFiData, error) {
-	cmd := exec.CommandContext(ctx, "iwconfig", interfaceName)
-	output, err := cmd.Output()
+	output, err := w.runner.Output(ctx, "iwconfig", interfaceName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to run iwconfig: %w", err)
 	}

@@ -16,7 +16,7 @@ func floatPtr(f float64) *float64 {
 
 func TestScoreLatency(t *testing.T) {
 	logger := logx.New("debug")
-	eng := NewEngine(Config{}, *logger, nil, nil, nil, nil)
+	eng := NewEngine(Config{}, *logger, nil, nil, nil, nil, nil)
 
 	cases := []struct {
 		latency  float64
@@ -38,7 +38,7 @@ func TestScoreLatency(t *testing.T) {
 
 func TestScorePacketLoss(t *testing.T) {
 	logger := logx.New("debug")
-	eng := NewEngine(Config{}, *logger, nil, nil, nil, nil)
+	eng := NewEngine(Config{}, *logger, nil, nil, nil, nil, nil)
 
 	cases := []struct {
 		loss     float64
@@ -63,7 +63,7 @@ func TestScorePacketLoss(t *testing.T) {
 
 func TestScoreJitter(t *testing.T) {
 	logger := logx.New("debug")
-	eng := NewEngine(Config{}, *logger, nil, nil, nil, nil)
+	eng := NewEngine(Config{}, *logger, nil, nil, nil, nil, nil)
 
 	cases := []struct {
 		jitter   float64
@@ -88,7 +88,7 @@ func TestScoreJitter(t *testing.T) {
 
 func TestCalculateInstantScoreIntegration(t *testing.T) {
 	logger := logx.New("debug")
-	eng := NewEngine(Config{}, *logger, nil, nil, nil, nil)
+	eng := NewEngine(Config{}, *logger, nil, nil, nil, nil, nil)
 
 	// Test with Starlink metrics
 	starlinkMetrics := collector.Metrics{
@@ -142,7 +142,7 @@ func TestCalculateInstantScoreIntegration(t *testing.T) {
 func TestEWMAScoring(t *testing.T) {
 	logger := logx.New("debug")
 	// Not using engine for this test since we're testing the calculation directly
-	_ = NewEngine(Config{}, *logger, nil, nil, nil, nil)
+	_ = NewEngine(Config{}, *logger, nil, nil, nil, nil, nil)
 
 	// Set up member state with initial EWMA score
 	state := &MemberState{
@@ -176,7 +176,7 @@ func TestEWMAScoring(t *testing.T) {
 func TestCalculateInstantScoreClassPreference(t *testing.T) {
 	cfg := Config{}
 	logger := logx.New("debug")
-	eng := NewEngine(cfg, *logger, nil, nil, nil, nil)
+	eng := NewEngine(cfg, *logger, nil, nil, nil, nil, nil)
 
 	lat := 100.0
 	loss := 2.0
@@ -194,7 +194,7 @@ func TestCalculateInstantScoreClassPreference(t *testing.T) {
 func TestPredictiveSwitch(t *testing.T) {
 	cfg := Config{EnablePredictive: true, PredictThreshold: 5}
 	logger := logx.New("debug")
-	eng := NewEngine(cfg, *logger, nil, nil, nil, nil)
+	eng := NewEngine(cfg, *logger, nil, nil, nil, nil, nil)
 
 	eng.currentPrimary = "wan1"
 	eng.members["wan1"] = &MemberState{Score: Score{EWMA: 80, Instant: 70}, Eligible: true}
@@ -209,7 +209,7 @@ func TestWindowAverageUsesTelemetry(t *testing.T) {
 	store := telem.NewStore(telem.Config{MaxSamplesPerMember: 100, RetentionHours: 1})
 	cfg := Config{HistoryWindowS: 10 * time.Second}
 	logger := logx.New("debug")
-	eng := NewEngine(cfg, *logger, store, nil, nil, nil)
+	eng := NewEngine(cfg, *logger, store, nil, nil, nil, nil)
 
 	// Seed telemetry with varying instant scores in the last 10s
 	now := time.Now()
@@ -241,7 +241,7 @@ func TestDurationBasedHysteresis(t *testing.T) {
 		HistoryWindowS:      0,
 	}
 	logger := logx.New("debug")
-	eng := NewEngine(cfg, *logger, store, nil, nil, nil)
+	eng := NewEngine(cfg, *logger, store, nil, nil, nil, nil)
 
 	// Two members
 	m1 := collector.Member{Name: "wan1", Class: "starlink", Enabled: true}
@@ -268,7 +268,7 @@ func TestDurationBasedHysteresis(t *testing.T) {
 func TestScoreCalculationEdgeCases(t *testing.T) {
 	cfg := Config{}
 	logger := logx.New("debug")
-	eng := NewEngine(cfg, *logger, nil, nil, nil, nil)
+	eng := NewEngine(cfg, *logger, nil, nil, nil, nil, nil)
 
 	testCases := []struct {
 		name     string
@@ -333,7 +333,7 @@ func TestScoreCalculationEdgeCases(t *testing.T) {
 func TestMemberStateManagement(t *testing.T) {
 	cfg := Config{}
 	logger := logx.New("debug")
-	eng := NewEngine(cfg, *logger, nil, nil, nil, nil)
+	eng := NewEngine(cfg, *logger, nil, nil, nil, nil, nil)
 
 	member := collector.Member{Name: "test", Class: "starlink", Enabled: true}
 	metrics := collector.Metrics{

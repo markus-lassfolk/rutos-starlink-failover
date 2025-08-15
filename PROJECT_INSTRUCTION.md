@@ -32,6 +32,16 @@
   - ✅ `scripts/starfailctl` + PowerShell helper for dev; verbs match ubus subset
 - [x] Telemetry store (baseline)
   - ✅ In-RAM rings per interface + event log; basic retention and downsampling stubs
+- [x] Enhanced decision engine with comprehensive audit trails
+  - ✅ Decision ID generation, evaluation logging, switch notifications implemented
+  - ✅ Predictive logic with trend analysis for Starlink obstruction and cellular signals
+  - ✅ Notification system integration with context-aware alerting
+- [x] Cellular collector ping fallback
+  - ✅ Interface-bound ping when cellular-specific metrics unavailable
+  - ✅ Multi-host redundancy testing with jitter calculation
+- [x] Manager integration
+  - ✅ Audit logger, GPS manager, obstruction manager, notification manager wired
+  - ✅ Complete system integration in main daemon
 
 ### ⚡ PARTIALLY IMPLEMENTED
 - [⚠️] Decision engine scoring & switching – `pkg/decision/engine.go`

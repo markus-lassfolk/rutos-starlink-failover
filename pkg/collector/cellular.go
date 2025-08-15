@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -50,351 +51,304 @@ func (c *CellularCollector) SupportsInterface(interfaceName string) bool {
 			return true
 		}
 	}
-
 	return false
 }
 
-// Collect gathers metrics for the given cellular member
+// Collect gathers cellular-specific metrics from ubus mobiled interface
 func (c *CellularCollector) Collect(ctx context.Context, member Member) (Metrics, error) {
 	metrics := Metrics{
-		Timestamp:     time.Now(),
 		InterfaceName: member.InterfaceName,
 		Class:         "cellular",
+		Timestamp:     time.Now(),
 	}
 
-	// Try to get cellular metrics via ubus
-	cellularData, err := c.getCellularData(ctx)
-	if err != nil {
-		// Fallback to basic ping metrics if cellular-specific data unavailable
-		return c.fallbackPingMetrics(ctx, member)
-	}
-
-	// Set cellular-specific metrics
-	if cellularData != nil {
-		metrics.RSSI = cellularData.RSSI
-		metrics.RSRP = cellularData.RSRP
-		metrics.RSRQ = cellularData.RSRQ
-		metrics.SINR = cellularData.SINR
-		metrics.NetworkType = cellularData.NetworkType
-		metrics.Roaming = cellularData.Roaming
-
-		// Convert signal strength to quality score for latency approximation
-		if cellularData.RSSI != nil {
-			// Rough approximation: better signal = lower latency
-			rssi := *cellularData.RSSI
-			estimatedLatency := c.estimateLatencyFromRSSI(rssi)
-			metrics.LatencyMs = &estimatedLatency
+	// Try cellular-specific metrics first via ubus mobiled
+	if err := c.collectCellularMetrics(ctx, member.InterfaceName, &metrics); err != nil {
+		// Fallback to interface-bound ping if cellular metrics unavailable
+		if fallbackMetrics, fallbackErr := c.fallbackPingMetrics(ctx, member); fallbackErr == nil {
+			metrics.LatencyMs = fallbackMetrics.LatencyMs
+			metrics.PacketLossPct = fallbackMetrics.PacketLossPct
+			metrics.JitterMs = fallbackMetrics.JitterMs
+		} else {
+			// Return empty metrics if both cellular and ping fail
+			return metrics, fmt.Errorf("cellular metrics and ping fallback both failed: %w, fallback: %w", err, fallbackErr)
 		}
 	}
 
 	return metrics, nil
 }
 
-// CellularData represents parsed cellular modem telemetry
-type CellularData struct {
-	RSSI        *float64 `json:"rssi"`         // Signal strength
-	RSRP        *float64 `json:"rsrp"`         // Reference Signal Received Power
-	RSRQ        *float64 `json:"rsrq"`         // Reference Signal Received Quality
-	SINR        *float64 `json:"sinr"`         // Signal-to-Interference-plus-Noise Ratio
-	NetworkType *string  `json:"network_type"` // 2G/3G/4G/5G
-	Roaming     *bool    `json:"roaming"`      // Roaming status
-	Provider    *string  `json:"provider"`     // Network operator
-	IMEI        *string  `json:"imei"`         // Device IMEI
-	State       *string  `json:"state"`        // Connection state
-}
-
-// getCellularData fetches telemetry from ubus mobiled or GSM providers
-func (c *CellularCollector) getCellularData(ctx context.Context) (*CellularData, error) {
-	// Try provider-specific interface if specified
-	if c.provider != "" {
-		if data, err := c.getProviderData(ctx, c.provider); err == nil {
-			return data, nil
+// collectCellularMetrics gathers cellular-specific data via ubus mobiled
+func (c *CellularCollector) collectCellularMetrics(ctx context.Context, interfaceName string, metrics *Metrics) error {
+	provider := c.provider
+	if provider == "" {
+		// Auto-detect provider if not specified
+		detectedProvider, err := c.detectProvider(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to detect cellular provider: %w", err)
 		}
+		provider = detectedProvider
 	}
 
-	// Try mobiled interface (newer RutOS)
-	if data, err := c.getMobiledData(ctx); err == nil {
-		return data, nil
-	}
-
-	// Try specific GSM modem interface (common pattern: gsm.modem0)
-	if data, err := c.getGSMModemData(ctx, "gsm.modem0"); err == nil {
-		return data, nil
-	}
-
-	// Try generic GSM ubus interface
-	if data, err := c.getGSMData(ctx); err == nil {
-		return data, nil
-	}
-
-	return nil, fmt.Errorf("no cellular data sources available")
-}
-
-// getMobiledData gets data from RutOS mobiled ubus service
-func (c *CellularCollector) getMobiledData(ctx context.Context) (*CellularData, error) {
-	// Get mobile interface info
-	output, err := c.runner.Output(ctx, "ubus", "call", "mobiled", "get_interfaces")
+	// Get connection info
+	connInfo, err := c.getConnectionInfo(ctx, provider)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call mobiled: %w", err)
+		return fmt.Errorf("failed to get connection info: %w", err)
 	}
 
-	var interfaces map[string]interface{}
-	if err := json.Unmarshal(output, &interfaces); err != nil {
-		return nil, fmt.Errorf("failed to parse mobiled interfaces: %w", err)
-	}
-
-	// Find the first available interface
-	var interfaceID string
-	if ifaces, ok := interfaces["interfaces"].(map[string]interface{}); ok {
-		for id := range ifaces {
-			interfaceID = id
-			break
-		}
-	}
-
-	if interfaceID == "" {
-		return nil, fmt.Errorf("no mobile interfaces found")
-	}
-
-	// Get detailed info for the interface
-	output, err = c.runner.Output(ctx, "ubus", "call", "mobiled", "get_interface_info",
-		fmt.Sprintf(`{"interface":"%s"}`, interfaceID))
+	// Get signal info for signal strength metrics
+	signalInfo, err := c.getSignalInfo(ctx, provider)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get interface info: %w", err)
+		return fmt.Errorf("failed to get signal info: %w", err)
 	}
 
-	var info map[string]interface{}
-	if err := json.Unmarshal(output, &info); err != nil {
-		return nil, fmt.Errorf("failed to parse interface info: %w", err)
-	}
+	// Parse and populate metrics
+	c.parseConnectionInfo(connInfo, metrics)
+	c.parseSignalInfo(signalInfo, metrics)
 
-	// Extract cellular metrics
-	data := &CellularData{}
-	c.parseMobiledInfo(info, data)
-
-	return data, nil
+	return nil
 }
 
-// getProviderData gets data from a specific provider interface
-func (c *CellularCollector) getProviderData(ctx context.Context, provider string) (*CellularData, error) {
-	output, err := c.runner.Output(ctx, "ubus", "call", provider, "info")
+// detectProvider discovers available cellular providers via ubus
+func (c *CellularCollector) detectProvider(ctx context.Context) (string, error) {
+	// Common provider patterns on RutOS
+	providers := []string{"gsm", "lte", "cellular", "mobile"}
+
+	for _, provider := range providers {
+		// Test if provider responds to ubus call
+		_, err := c.runner.Output(ctx, "ubus", "call", provider, "get_status")
+		if err == nil {
+			return provider, nil
+		}
+	}
+
+	return "", fmt.Errorf("no cellular provider found via ubus")
+}
+
+// getConnectionInfo retrieves connection status from cellular provider
+func (c *CellularCollector) getConnectionInfo(ctx context.Context, provider string) (map[string]interface{}, error) {
+	output, err := c.runner.Output(ctx, "ubus", "call", provider, "get_status")
 	if err != nil {
-		return nil, fmt.Errorf("failed to call provider %s: %w", provider, err)
+		return nil, fmt.Errorf("ubus call to %s get_status failed: %w", provider, err)
 	}
 
-	var info map[string]interface{}
-	if err := json.Unmarshal(output, &info); err != nil {
-		return nil, fmt.Errorf("failed to parse provider info: %w", err)
+	var result map[string]interface{}
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse connection info JSON: %w", err)
 	}
 
-	data := &CellularData{}
-	c.parseGSMModemInfo(info, data)
-	return data, nil
+	return result, nil
 }
 
-// getGSMModemData gets data from specific GSM modem interface (e.g., gsm.modem0)
-func (c *CellularCollector) getGSMModemData(ctx context.Context, modemInterface string) (*CellularData, error) {
-	output, err := c.runner.Output(ctx, "ubus", "call", modemInterface, "info")
+// getSignalInfo retrieves signal strength from cellular provider
+func (c *CellularCollector) getSignalInfo(ctx context.Context, provider string) (map[string]interface{}, error) {
+	output, err := c.runner.Output(ctx, "ubus", "call", provider, "get_signal")
 	if err != nil {
-		return nil, fmt.Errorf("failed to call %s: %w", modemInterface, err)
+		return nil, fmt.Errorf("ubus call to %s get_signal failed: %w", provider, err)
 	}
 
-	var info map[string]interface{}
-	if err := json.Unmarshal(output, &info); err != nil {
-		return nil, fmt.Errorf("failed to parse modem info: %w", err)
+	var result map[string]interface{}
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse signal info JSON: %w", err)
 	}
 
-	data := &CellularData{}
-	c.parseGSMModemInfo(info, data)
-	return data, nil
+	return result, nil
 }
 
-// getGSMData gets data from generic GSM ubus interface
-func (c *CellularCollector) getGSMData(ctx context.Context) (*CellularData, error) {
-	output, err := c.runner.Output(ctx, "ubus", "call", "gsm", "info")
-	if err != nil {
-		return nil, fmt.Errorf("failed to call gsm: %w", err)
+// parseConnectionInfo extracts connection metrics from ubus response
+func (c *CellularCollector) parseConnectionInfo(info map[string]interface{}, metrics *Metrics) {
+	// Extract network type if available
+	if netType, ok := info["network_type"].(string); ok {
+		metrics.NetworkType = &netType
 	}
-
-	var info map[string]interface{}
-	if err := json.Unmarshal(output, &info); err != nil {
-		return nil, fmt.Errorf("failed to parse gsm info: %w", err)
-	}
-
-	data := &CellularData{}
-	c.parseGSMInfo(info, data)
-
-	return data, nil
 }
 
-// parseMobiledInfo extracts metrics from mobiled ubus response
-func (c *CellularCollector) parseMobiledInfo(info map[string]interface{}, data *CellularData) {
-	// Extract signal strength metrics
-	if val, ok := info["rssi"]; ok {
-		if f, err := c.parseFloat(val); err == nil {
-			data.RSSI = &f
+// parseSignalInfo extracts signal strength metrics from ubus response
+func (c *CellularCollector) parseSignalInfo(info map[string]interface{}, metrics *Metrics) {
+	// Extract RSRP (Reference Signal Received Power)
+	if rsrp, ok := info["rsrp"].(float64); ok {
+		metrics.RSRP = &rsrp
+	} else if rsrpStr, ok := info["rsrp"].(string); ok {
+		if rsrp, err := strconv.ParseFloat(rsrpStr, 64); err == nil {
+			metrics.RSRP = &rsrp
 		}
 	}
 
-	if val, ok := info["rsrp"]; ok {
-		if f, err := c.parseFloat(val); err == nil {
-			data.RSRP = &f
+	// Extract RSRQ (Reference Signal Received Quality)
+	if rsrq, ok := info["rsrq"].(float64); ok {
+		metrics.RSRQ = &rsrq
+	} else if rsrqStr, ok := info["rsrq"].(string); ok {
+		if rsrq, err := strconv.ParseFloat(rsrqStr, 64); err == nil {
+			metrics.RSRQ = &rsrq
 		}
 	}
 
-	if val, ok := info["rsrq"]; ok {
-		if f, err := c.parseFloat(val); err == nil {
-			data.RSRQ = &f
+	// Extract RSSI (Received Signal Strength Indicator)
+	if rssi, ok := info["rssi"].(float64); ok {
+		metrics.RSSI = &rssi
+	} else if rssiStr, ok := info["rssi"].(string); ok {
+		if rssi, err := strconv.ParseFloat(rssiStr, 64); err == nil {
+			metrics.RSSI = &rssi
 		}
 	}
 
-	if val, ok := info["sinr"]; ok {
-		if f, err := c.parseFloat(val); err == nil {
-			data.SINR = &f
-		}
-	}
-
-	// Network type and roaming
-	if val, ok := info["network_type"]; ok {
-		if s, ok := val.(string); ok {
-			data.NetworkType = &s
-		}
-	}
-
-	if val, ok := info["roaming"]; ok {
-		if b, ok := val.(bool); ok {
-			data.Roaming = &b
-		}
-	}
-
-	if val, ok := info["provider"]; ok {
-		if s, ok := val.(string); ok {
-			data.Provider = &s
-		}
-	}
-
-	if val, ok := info["state"]; ok {
-		if s, ok := val.(string); ok {
-			data.State = &s
+	// Extract SINR (Signal to Interference plus Noise Ratio)
+	if sinr, ok := info["sinr"].(float64); ok {
+		metrics.SINR = &sinr
+	} else if sinrStr, ok := info["sinr"].(string); ok {
+		if sinr, err := strconv.ParseFloat(sinrStr, 64); err == nil {
+			metrics.SINR = &sinr
 		}
 	}
 }
 
-// parseGSMInfo extracts metrics from generic GSM ubus response
-func (c *CellularCollector) parseGSMInfo(info map[string]interface{}, data *CellularData) {
-	// Similar parsing for generic GSM interface
-	if val, ok := info["signal"]; ok {
-		if f, err := c.parseFloat(val); err == nil {
-			data.RSSI = &f
-		}
-	}
-
-	if val, ok := info["access_technology"]; ok {
-		if s, ok := val.(string); ok {
-			data.NetworkType = &s
-		}
-	}
-}
-
-// parseGSMModemInfo extracts metrics from detailed GSM modem response (e.g., gsm.modem0)
-func (c *CellularCollector) parseGSMModemInfo(info map[string]interface{}, data *CellularData) {
-	// Extract signal strength from cache
-	if cache, ok := info["cache"].(map[string]interface{}); ok {
-		if val, ok := cache["rsrp_value"]; ok {
-			if f, err := c.parseFloat(val); err == nil {
-				data.RSRP = &f
-			}
-		}
-
-		if val, ok := cache["rsrq_value"]; ok {
-			if f, err := c.parseFloat(val); err == nil {
-				data.RSRQ = &f
-			}
-		}
-
-		if val, ok := cache["sinr_value"]; ok {
-			if f, err := c.parseFloat(val); err == nil {
-				data.SINR = &f
-			}
-		}
-
-		if val, ok := cache["rssi_value"]; ok {
-			if f, err := c.parseFloat(val); err == nil {
-				data.RSSI = &f
-			}
-		}
-
-		if val, ok := cache["net_mode_str"]; ok {
-			if s, ok := val.(string); ok {
-				data.NetworkType = &s
-			}
-		}
-
-		if val, ok := cache["provider_name"]; ok {
-			if s, ok := val.(string); ok {
-				data.Provider = &s
-			}
-		}
-
-		// Note: Band and Temperature fields not available in CellularData struct
-		// Consider adding them to the struct if needed for monitoring
-
-		// Parse network mode
-		if val, ok := cache["net_mode_str"]; ok {
-			if s, ok := val.(string); ok {
-				data.NetworkType = &s
-			}
-		}
-	}
-
-	// Note: Model field not available in CellularData struct
-	// Consider adding it if device identification is needed
-}
-
-// parseFloat safely converts interface{} to float64
-func (c *CellularCollector) parseFloat(val interface{}) (float64, error) {
-	switch v := val.(type) {
-	case float64:
-		return v, nil
-	case int:
-		return float64(v), nil
-	case string:
-		return strconv.ParseFloat(v, 64)
-	default:
-		return 0, fmt.Errorf("cannot convert %T to float64", val)
-	}
-}
-
-// estimateLatencyFromRSSI provides rough latency estimate based on signal strength
-func (c *CellularCollector) estimateLatencyFromRSSI(rssi float64) float64 {
-	// Very rough approximation:
-	// Excellent signal (-40 to -60 dBm): ~50-100ms
-	// Good signal (-60 to -80 dBm): ~100-200ms
-	// Fair signal (-80 to -100 dBm): ~200-400ms
-	// Poor signal (-100+ dBm): ~400+ ms
-
-	if rssi >= -60 {
-		return 75 // Excellent
-	} else if rssi >= -80 {
-		return 150 // Good
-	} else if rssi >= -100 {
-		return 300 // Fair
-	} else {
-		return 500 // Poor
-	}
-}
-
-// fallbackPingMetrics provides basic ping-based metrics if cellular-specific data unavailable
+// fallbackPingMetrics performs interface-bound ping when cellular-specific metrics fail
 func (c *CellularCollector) fallbackPingMetrics(ctx context.Context, member Member) (Metrics, error) {
 	metrics := Metrics{
-		Timestamp:     time.Now(),
 		InterfaceName: member.InterfaceName,
 		Class:         "cellular",
+		Timestamp:     time.Now(),
 	}
 
-	// Basic ping test using the interface
-	// TODO: Implement ping via specific interface
-	// For now, return empty metrics
+	// Test multiple hosts for redundancy
+	hosts := []string{"8.8.8.8", "1.1.1.1", "8.8.4.4"}
+	var latencies []float64
+	var totalLoss float64
+	var successfulPings int
+
+	for _, host := range hosts {
+		result, err := c.pingViaInterface(ctx, host, member.InterfaceName)
+		if err != nil {
+			continue // Try next host
+		}
+
+		if result.AvgLatency > 0 {
+			latencies = append(latencies, result.AvgLatency)
+		}
+		totalLoss += result.PacketLoss
+		successfulPings++
+	}
+
+	if successfulPings == 0 {
+		return metrics, fmt.Errorf("all ping tests failed for interface %s", member.InterfaceName)
+	}
+
+	// Calculate aggregate metrics
+	if len(latencies) > 0 {
+		avgLatency := c.calculateMean(latencies)
+		metrics.LatencyMs = &avgLatency
+
+		// Calculate jitter from latency variation
+		jitter := c.calculateJitter(latencies)
+		metrics.JitterMs = &jitter
+	}
+
+	// Average packet loss across hosts
+	avgLoss := totalLoss / float64(successfulPings)
+	metrics.PacketLossPct = &avgLoss
 
 	return metrics, nil
+}
+
+// CellularPingResult represents ping test results for cellular interfaces
+type CellularPingResult struct {
+	AvgLatency float64
+	PacketLoss float64
+}
+
+// pingViaInterface performs interface-bound ping test
+func (c *CellularCollector) pingViaInterface(ctx context.Context, host, interfaceName string) (*CellularPingResult, error) {
+	// Use interface-specific ping command
+	// On Linux: ping -I interface_name -c 3 -W 5 host
+	args := []string{"-I", interfaceName, "-c", "3", "-W", "5", host}
+	
+	output, err := c.runner.Output(ctx, "ping", args...)
+	if err != nil {
+		return nil, fmt.Errorf("ping failed for %s via %s: %w", host, interfaceName, err)
+	}
+
+	latency, loss, err := c.parsePingOutput(string(output))
+	if err != nil {
+		return nil, err
+	}
+	
+	return &CellularPingResult{
+		AvgLatency: latency,
+		PacketLoss: loss,
+	}, nil
+}
+
+// parsePingOutput extracts latency and packet loss from ping command output
+func (c *CellularCollector) parsePingOutput(output string) (float64, float64, error) {
+	lines := strings.Split(output, "\n")
+	
+	var avgLatency, packetLoss float64
+	
+	// Look for packet loss line: "3 packets transmitted, 3 received, 0% packet loss"
+	for _, line := range lines {
+		if strings.Contains(line, "packet loss") {
+			fields := strings.Fields(line)
+			for i, field := range fields {
+				if strings.HasSuffix(field, "%") && i > 0 {
+					lossStr := strings.TrimSuffix(field, "%")
+					if loss, err := strconv.ParseFloat(lossStr, 64); err == nil {
+						packetLoss = loss
+					}
+					break
+				}
+			}
+		}
+		
+		// Look for average latency line: "round-trip min/avg/max = 10.123/15.456/20.789 ms"
+		if strings.Contains(line, "round-trip") || strings.Contains(line, "min/avg/max") {
+			// Extract the avg value from the format: min/avg/max = X/Y/Z ms
+			parts := strings.Split(line, "=")
+			if len(parts) >= 2 {
+				values := strings.Fields(parts[1])
+				if len(values) > 0 {
+					// Get the first value set (X/Y/Z)
+					valueSet := values[0]
+					latencies := strings.Split(valueSet, "/")
+					if len(latencies) >= 2 {
+						// Take the average (middle value)
+						if avg, err := strconv.ParseFloat(latencies[1], 64); err == nil {
+							avgLatency = avg
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return avgLatency, packetLoss, nil
+}
+
+// calculateMean computes the arithmetic mean of a slice of float64
+func (c *CellularCollector) calculateMean(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	
+	sum := 0.0
+	for _, v := range values {
+		sum += v
+	}
+	return sum / float64(len(values))
+}
+
+// calculateJitter computes the jitter (standard deviation) of latency values
+func (c *CellularCollector) calculateJitter(latencies []float64) float64 {
+	if len(latencies) < 2 {
+		return 0
+	}
+
+	mean := c.calculateMean(latencies)
+	sumSquares := 0.0
+	for _, latency := range latencies {
+		diff := latency - mean
+		sumSquares += diff * diff
+	}
+
+	variance := sumSquares / float64(len(latencies))
+	return math.Sqrt(variance)
 }

@@ -8,15 +8,17 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os/exec"
 	"regexp"
 	"time"
+
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/retry"
 )
 
 // StarlinkCollector collects metrics from Starlink dish via JSON API and gRPC
 type StarlinkCollector struct {
 	dishIP     string
 	httpClient *http.Client
+	runner     *retry.Runner // command runner with retry logic
 }
 
 // isValidIP validates IP address format and prevents command injection
@@ -41,11 +43,20 @@ func NewStarlinkCollector(dishIP string) *StarlinkCollector {
 		dishIP = "192.168.100.1" // Fallback to safe default
 	}
 
+	// Configure retry for external commands
+	retryConfig := retry.Config{
+		MaxAttempts:   3,
+		InitialDelay:  100 * time.Millisecond,
+		MaxDelay:      2 * time.Second,
+		BackoffFactor: 2.0,
+	}
+
 	return &StarlinkCollector{
 		dishIP: dishIP,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
+		runner: retry.NewRunner(retryConfig),
 	}
 }
 
@@ -242,15 +253,17 @@ func (s *StarlinkCollector) getEnhancedStarlinkData(ctx context.Context) (*Enhan
 	return s.getJSONData(ctx)
 }
 
-// getGRPCData fetches data using grpcurl command
+// getGRPCData fetches data using grpcurl command with retry logic
 func (s *StarlinkCollector) getGRPCData(ctx context.Context) (*EnhancedStarlinkData, error) {
-	// Try get_diagnostics for comprehensive data
-	cmd := exec.CommandContext(ctx, "grpcurl", "-plaintext", "-d",
+	// Try get_diagnostics for comprehensive data with retry
+	args := []string{
+		"-plaintext", "-d",
 		`{"get_diagnostics":{}}`,
 		fmt.Sprintf("%s:9200", s.dishIP),
-		"SpaceX.API.Device.Device/Handle")
+		"SpaceX.API.Device.Device/Handle",
+	}
 
-	output, err := cmd.Output()
+	output, err := s.runner.Output(ctx, "grpcurl", args...)
 	if err != nil {
 		return nil, fmt.Errorf("grpcurl get_diagnostics failed: %w", err)
 	}
@@ -325,14 +338,16 @@ func (s *StarlinkCollector) parseGRPCDiagnostics(resp map[string]interface{}) (*
 	return data, nil
 }
 
-// getGRPCStatus gets basic status metrics
+// getGRPCStatus gets basic status metrics with retry logic
 func (s *StarlinkCollector) getGRPCStatus(ctx context.Context) (*EnhancedStarlinkData, error) {
-	cmd := exec.CommandContext(ctx, "grpcurl", "-plaintext", "-d",
+	args := []string{
+		"-plaintext", "-d",
 		`{"get_status":{}}`,
 		fmt.Sprintf("%s:9200", s.dishIP),
-		"SpaceX.API.Device.Device/Handle")
+		"SpaceX.API.Device.Device/Handle",
+	}
 
-	output, err := cmd.Output()
+	output, err := s.runner.Output(ctx, "grpcurl", args...)
 	if err != nil {
 		return nil, err
 	}
