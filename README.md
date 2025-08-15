@@ -281,6 +281,34 @@ starfaild --monitor --trace --config /etc/config/starfail
 A comprehensive solution for **RV and boat owners** seeking robust internet connectivity. This repository provides
 intelligent failover systems for Starlink connections on RUTOS routers.
 
+## 📚 Complete Documentation
+
+### 📖 Essential Reading
+
+| Document | Description | Use Case |
+|----------|-------------|-----------|
+| **[🚀 Quick Reference](QUICK_REFERENCE.md)** | Essential commands and basic setup | Getting started quickly |
+| **[📚 Complete Features Guide](FEATURES_AND_CONFIGURATION.md)** | Comprehensive features and configuration | Understanding all capabilities |
+| **[🔌 API Reference](API_REFERENCE.md)** | Complete ubus API and CLI documentation | Integration and automation |
+| **[📋 Configuration Examples](CONFIGURATION_EXAMPLES.md)** | Real-world configuration scenarios | Deployment-specific setups |
+
+### 🎯 Quick Navigation
+
+**For New Users:**
+1. Start with [Quick Reference](QUICK_REFERENCE.md) for essential commands
+2. Read [Configuration Examples](CONFIGURATION_EXAMPLES.md) for your deployment type
+3. Use [Features Guide](FEATURES_AND_CONFIGURATION.md) for detailed configuration
+
+**For Developers:**
+1. Review [API Reference](API_REFERENCE.md) for integration details
+2. Check [Features Guide](FEATURES_AND_CONFIGURATION.md) for technical architecture
+3. See [Configuration Examples](CONFIGURATION_EXAMPLES.md) for testing setups
+
+**For System Administrators:**
+1. Read [Features Guide](FEATURES_AND_CONFIGURATION.md) for complete system understanding
+2. Use [Configuration Examples](CONFIGURATION_EXAMPLES.md) for production deployments
+3. Reference [API Reference](API_REFERENCE.md) for monitoring and automation
+
 ## 🌟 Features
 
 ### 🔄 Proactive Starlink Failover
