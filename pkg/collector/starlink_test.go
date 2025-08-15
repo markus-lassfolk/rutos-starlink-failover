@@ -141,14 +141,14 @@ func TestStarlinkCollector_NativeGRPC(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			response, err := sc.callStarlinkNativeGRPC(ctx)
+			response, err := sc.callStarlinkWithGrpcurlLibrary(ctx)
 
 			if tt.wantErr && err == nil {
-				t.Errorf("callStarlinkNativeGRPC() expected error but got none")
+				t.Errorf("callStarlinkWithGrpcurlLibrary() expected error but got none")
 			}
 
 			if !tt.wantErr && err != nil {
-				t.Logf("callStarlinkNativeGRPC() error = %v (may be expected if no Starlink present)", err)
+				t.Logf("callStarlinkWithGrpcurlLibrary() error = %v (may be expected if no Starlink present)", err)
 			}
 
 			// If we got a response, validate its structure
@@ -573,14 +573,14 @@ func TestStarlinkCollector_GRPCIntegration(t *testing.T) {
 		}
 	})
 
-	t.Run("native gRPC call", func(t *testing.T) {
+	t.Run("grpcurl library call", func(t *testing.T) {
 		// This test will only pass if there's an actual Starlink dish available
-		response, err := sc.callStarlinkGRPCNative(ctx)
+		response, err := sc.callStarlinkWithGrpcurlLibrary(ctx)
 		if err != nil {
-			t.Logf("Native gRPC call failed (expected if no Starlink dish): %v", err)
+			t.Logf("grpcurl library call failed (expected if no Starlink dish): %v", err)
 			// Don't fail the test - this is expected in most test environments
 		} else {
-			t.Log("Native gRPC call successful - real Starlink dish detected")
+			t.Log("grpcurl library call successful - real Starlink dish detected")
 			if response == nil {
 				t.Error("Expected non-nil response from successful gRPC call")
 			} else {

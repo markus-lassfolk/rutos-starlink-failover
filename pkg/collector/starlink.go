@@ -572,18 +572,8 @@ func (sc *StarlinkCollector) getStarlinkAPIData(ctx context.Context) (*StarlinkA
 
 // tryStarlinkGRPC attempts to call the Starlink gRPC API with native Go gRPC client
 func (sc *StarlinkCollector) tryStarlinkGRPC(ctx context.Context) (*StarlinkAPIResponse, error) {
-	// Try grpcurl library approach first (proper native gRPC)
-	response, err := sc.callStarlinkWithGrpcurlLibrary(ctx)
-	if err != nil {
-		fmt.Printf("Debug: grpcurl library failed, trying legacy native gRPC: %v\n", err)
-		// Fallback to our old native implementation
-		response, err = sc.callStarlinkGRPCNative(ctx)
-		if err != nil {
-			fmt.Printf("Debug: Legacy native gRPC failed, trying WSL grpcurl fallback: %v\n", err)
-			return sc.callStarlinkWithWSLGrpcurl(ctx)
-		}
-	}
-	return response, nil
+	// Use grpcurl library approach (100% native Go gRPC implementation)
+	return sc.callStarlinkWithGrpcurlLibrary(ctx)
 }
 
 // callStarlinkNativeGRPC uses native Go gRPC to call the Starlink API
