@@ -681,6 +681,7 @@ option pushover_user 'your_user_key'
 - **Retry logic**: Exponential backoff on failures
 
 #### **2. MQTT Publishing**
+
 ```uci
 option mqtt_enabled '1'
 option mqtt_broker 'mqtt://broker:1883'
@@ -688,11 +689,13 @@ option mqtt_topic 'starfail/alerts'
 ```
 
 **Topics:**
+
 - `starfail/alerts/switch` - Failover events
 - `starfail/alerts/member` - Member state changes
 - `starfail/alerts/system` - System events
 
 #### **3. Webhook Integration**
+
 ```uci
 option webhook_enabled '1'
 option webhook_url 'https://your-webhook.com/starfail'
