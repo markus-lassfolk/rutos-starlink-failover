@@ -986,11 +986,11 @@ func (sc *StarlinkCollector) tryStarlinkHTTPEnhanced(ctx context.Context) (*Star
 func (sc *StarlinkCollector) callStarlinkGRPCNative(ctx context.Context) (*StarlinkAPIResponse, error) {
 	// Create gRPC connection with timeout
 	endpoint := fmt.Sprintf("%s:%d", sc.apiHost, sc.apiPort)
-	
+
 	// Set up connection with timeout
 	dialCtx, cancel := context.WithTimeout(ctx, sc.timeout)
 	defer cancel()
-	
+
 	conn, err := grpc.DialContext(dialCtx, endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
@@ -1002,7 +1002,7 @@ func (sc *StarlinkCollector) callStarlinkGRPCNative(ctx context.Context) (*Starl
 
 	// Try to get service information via reflection
 	reflectionClient := grpc_reflection_v1alpha.NewServerReflectionClient(conn)
-	
+
 	// Create request for service list
 	stream, err := reflectionClient.ServerReflectionInfo(ctx)
 	if err != nil {
@@ -1017,7 +1017,7 @@ func (sc *StarlinkCollector) callStarlinkGRPCNative(ctx context.Context) (*Starl
 			ListServices: "",
 		},
 	}
-	
+
 	if err := stream.Send(listServicesReq); err != nil {
 		return sc.callStarlinkDirectMethods(ctx, conn)
 	}
@@ -1041,8 +1041,6 @@ func (sc *StarlinkCollector) callStarlinkGRPCNative(ctx context.Context) (*Starl
 	// Fallback to direct method calls
 	return sc.callStarlinkDirectMethods(ctx, conn)
 }
-
-
 
 // tryAlternativeGRPCMethods tries alternative gRPC connection methods
 func (sc *StarlinkCollector) tryAlternativeGRPCMethods(ctx context.Context) (*StarlinkAPIResponse, error) {
