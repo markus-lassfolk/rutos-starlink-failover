@@ -8,10 +8,12 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/logx"
+	"google.golang.org/grpc"
 )
 
 // GPSCollectorImpl implements the GPSCollector interface
@@ -55,6 +57,7 @@ type StarlinkGPSSource struct {
 	logger    *logx.Logger
 	priority  int
 	apiHost   string
+	apiPort   int
 	collector interface{} // Reference to Starlink collector
 }
 
@@ -90,6 +93,7 @@ func NewGPSCollector(config *GPSConfig, logger *logx.Logger) *GPSCollectorImpl {
 				logger:   logger,
 				priority: i,
 				apiHost:  "192.168.100.1",
+				apiPort:  9200,
 			}
 			collector.sources = append(collector.sources, source)
 		case "cellular":
@@ -446,18 +450,422 @@ func (ss *StarlinkGPSSource) IsAvailable(ctx context.Context) bool {
 
 // CollectGPS collects GPS data from Starlink API
 func (ss *StarlinkGPSSource) CollectGPS(ctx context.Context) (*pkg.GPSData, error) {
-	// This would integrate with the Starlink collector
-	// For now, return mock data
-	return &pkg.GPSData{
-		Latitude:   47.6062,
-		Longitude:  -122.3321,
-		Altitude:   100.0,
-		Accuracy:   3.0,
-		Source:     "starlink",
-		Satellites: 8,
-		Valid:      true,
-		Timestamp:  time.Now(),
-	}, nil
+	// Try to get GPS data from Starlink API via gRPC
+	gpsData, err := ss.getStarlinkGPSData(ctx)
+	if err != nil {
+		ss.logger.Warn("Failed to get Starlink GPS data", "error", err)
+		return nil, err
+	}
+
+	return gpsData, nil
+}
+
+// getStarlinkGPSData gets GPS coordinates from Starlink gRPC API
+func (ss *StarlinkGPSSource) getStarlinkGPSData(ctx context.Context) (*pkg.GPSData, error) {
+	// Connect to Starlink gRPC API
+	conn, err := grpc.DialContext(ctx, fmt.Sprintf("%s:%d", ss.apiHost, ss.apiPort),
+		grpc.WithInsecure(),
+		grpc.WithTimeout(10*time.Second))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Starlink API: %w", err)
+	}
+	defer conn.Close()
+
+	// Try to call get_location method
+	locationData, err := ss.callStarlinkLocationMethod(ctx, conn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get location data: %w", err)
+	}
+
+	return locationData, nil
+}
+
+// callStarlinkLocationMethod calls the Starlink location gRPC method
+func (ss *StarlinkGPSSource) callStarlinkLocationMethod(ctx context.Context, conn *grpc.ClientConn) (*pkg.GPSData, error) {
+	// Prepare request for get_location
+	request := ss.createLocationRequest()
+
+	// Call the gRPC method
+	var response []byte
+	err := conn.Invoke(ctx, "/SpaceX.API.Device.Device/Handle", request, &response)
+	if err != nil {
+		return nil, fmt.Errorf("gRPC call failed: %w", err)
+	}
+
+	// Parse the protobuf response
+	return ss.parseLocationResponse(response)
+}
+
+// createLocationRequest creates a protobuf request for location data
+func (ss *StarlinkGPSSource) createLocationRequest() []byte {
+	// Create a basic protobuf request for get_location
+	// Field 13 is typically the get_location request in Starlink API
+	request := []byte{}
+
+	// Add field 13 (get_location) with empty message
+	request = append(request, 0x6A) // Field 13, wire type 2 (length-delimited)
+	request = append(request, 0x00) // Length 0 (empty message)
+
+	return request
+}
+
+// parseLocationResponse parses GPS data from Starlink protobuf response
+func (ss *StarlinkGPSSource) parseLocationResponse(data []byte) (*pkg.GPSData, error) {
+	gpsData := &pkg.GPSData{
+		Source:    "starlink",
+		Timestamp: time.Now(),
+		Valid:     false,
+	}
+
+	// Parse protobuf wire format
+	offset := 0
+	for offset < len(data) {
+		// Read field tag
+		tag, tagLen, err := ss.readVarint(data, offset)
+		if err != nil {
+			break
+		}
+		offset += tagLen
+
+		fieldNum := tag >> 3
+		wireType := tag & 0x7
+
+		switch wireType {
+		case 0: // Varint
+			value, valueLen, err := ss.readVarint(data, offset)
+			if err != nil {
+				return nil, err
+			}
+			offset += valueLen
+
+			// Map known GPS fields
+			switch fieldNum {
+			case 1: // satellites
+				gpsData.Satellites = int(value)
+			}
+
+		case 1: // 64-bit
+			if offset+8 > len(data) {
+				return nil, fmt.Errorf("insufficient data for 64-bit field")
+			}
+			value := ss.readUint64(data[offset:])
+			offset += 8
+
+			// Map GPS coordinate fields (as fixed64)
+			switch fieldNum {
+			case 2: // latitude (as fixed64 scaled)
+				gpsData.Latitude = float64(int64(value)) / 1e7
+				gpsData.Valid = true
+			case 3: // longitude (as fixed64 scaled)
+				gpsData.Longitude = float64(int64(value)) / 1e7
+				gpsData.Valid = true
+			}
+
+		case 2: // Length-delimited
+			length, lengthLen, err := ss.readVarint(data, offset)
+			if err != nil {
+				return nil, err
+			}
+			offset += lengthLen
+
+			if offset+int(length) > len(data) {
+				return nil, fmt.Errorf("insufficient data for length-delimited field")
+			}
+
+			// Skip the data for now
+			offset += int(length)
+
+		case 5: // 32-bit
+			if offset+4 > len(data) {
+				return nil, fmt.Errorf("insufficient data for 32-bit field")
+			}
+			value := ss.readUint32(data[offset:])
+			offset += 4
+
+			// Map GPS fields
+			switch fieldNum {
+			case 4: // altitude (as float32)
+				gpsData.Altitude = float64(math.Float32frombits(value))
+			case 5: // accuracy (as float32)
+				gpsData.Accuracy = float64(math.Float32frombits(value))
+			}
+
+		default:
+			return nil, fmt.Errorf("unknown wire type: %d", wireType)
+		}
+	}
+
+	return gpsData, nil
+}
+
+// Helper methods for protobuf parsing
+func (ss *StarlinkGPSSource) readVarint(data []byte, offset int) (uint64, int, error) {
+	var result uint64
+	var shift uint
+	bytesRead := 0
+
+	for i := offset; i < len(data) && bytesRead < 10; i++ {
+		b := data[i]
+		bytesRead++
+
+		result |= uint64(b&0x7F) << shift
+		if b&0x80 == 0 {
+			return result, bytesRead, nil
+		}
+		shift += 7
+	}
+
+	return 0, 0, fmt.Errorf("invalid varint")
+}
+
+func (ss *StarlinkGPSSource) readUint32(data []byte) uint32 {
+	return uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24
+}
+
+func (ss *StarlinkGPSSource) readUint64(data []byte) uint64 {
+	return uint64(data[0]) | uint64(data[1])<<8 | uint64(data[2])<<16 | uint64(data[3])<<24 |
+		uint64(data[4])<<32 | uint64(data[5])<<40 | uint64(data[6])<<48 | uint64(data[7])<<56
+}
+
+// LocationCluster represents a cluster of GPS locations with performance data
+type LocationCluster struct {
+	ID        string    `json:"id"`
+	CenterLat float64   `json:"center_lat"`
+	CenterLon float64   `json:"center_lon"`
+	Radius    float64   `json:"radius_meters"`
+	Locations int       `json:"location_count"`
+	FirstSeen time.Time `json:"first_seen"`
+	LastSeen  time.Time `json:"last_seen"`
+
+	// Performance metrics for this cluster
+	AvgLatency      float64 `json:"avg_latency_ms"`
+	AvgLoss         float64 `json:"avg_loss_percent"`
+	AvgObstruction  float64 `json:"avg_obstruction_percent"`
+	IssueCount      int     `json:"issue_count"`
+	ProblematicArea bool    `json:"problematic_area"`
+}
+
+// MovementDetector tracks location changes and detects significant movement
+type MovementDetector struct {
+	lastLocation      *pkg.GPSData
+	movementThreshold float64 // meters
+	logger            *logx.Logger
+	onMovement        func(oldLocation, newLocation *pkg.GPSData, distance float64)
+}
+
+// NewMovementDetector creates a new movement detector
+func NewMovementDetector(thresholdMeters float64, logger *logx.Logger) *MovementDetector {
+	return &MovementDetector{
+		movementThreshold: thresholdMeters,
+		logger:            logger,
+	}
+}
+
+// SetMovementCallback sets callback function for movement events
+func (md *MovementDetector) SetMovementCallback(callback func(oldLocation, newLocation *pkg.GPSData, distance float64)) {
+	md.onMovement = callback
+}
+
+// CheckMovement checks if location has changed significantly
+func (md *MovementDetector) CheckMovement(newLocation *pkg.GPSData) bool {
+	if md.lastLocation == nil {
+		md.lastLocation = newLocation
+		md.logger.Info("Initial location recorded",
+			"lat", newLocation.Latitude,
+			"lon", newLocation.Longitude,
+			"source", newLocation.Source)
+		return false
+	}
+
+	// Calculate distance between locations
+	distance := md.calculateDistance(md.lastLocation, newLocation)
+
+	if distance > md.movementThreshold {
+		md.logger.Info("Significant movement detected",
+			"distance_meters", distance,
+			"threshold_meters", md.movementThreshold,
+			"old_lat", md.lastLocation.Latitude,
+			"old_lon", md.lastLocation.Longitude,
+			"new_lat", newLocation.Latitude,
+			"new_lon", newLocation.Longitude)
+
+		// Trigger callback if set
+		if md.onMovement != nil {
+			md.onMovement(md.lastLocation, newLocation, distance)
+		}
+
+		// Update last location
+		md.lastLocation = newLocation
+		return true
+	}
+
+	return false
+}
+
+// calculateDistance calculates the distance between two GPS points using Haversine formula
+func (md *MovementDetector) calculateDistance(loc1, loc2 *pkg.GPSData) float64 {
+	const earthRadius = 6371000 // Earth radius in meters
+
+	lat1Rad := loc1.Latitude * math.Pi / 180
+	lat2Rad := loc2.Latitude * math.Pi / 180
+	deltaLatRad := (loc2.Latitude - loc1.Latitude) * math.Pi / 180
+	deltaLonRad := (loc2.Longitude - loc1.Longitude) * math.Pi / 180
+
+	a := math.Sin(deltaLatRad/2)*math.Sin(deltaLatRad/2) +
+		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
+			math.Sin(deltaLonRad/2)*math.Sin(deltaLonRad/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	return earthRadius * c
+}
+
+// LocationClustering manages location clusters and performance correlation
+type LocationClustering struct {
+	clusters      map[string]*LocationCluster
+	clusterRadius float64 // meters
+	logger        *logx.Logger
+	mu            sync.RWMutex
+}
+
+// NewLocationClustering creates a new location clustering manager
+func NewLocationClustering(clusterRadiusMeters float64, logger *logx.Logger) *LocationClustering {
+	return &LocationClustering{
+		clusters:      make(map[string]*LocationCluster),
+		clusterRadius: clusterRadiusMeters,
+		logger:        logger,
+	}
+}
+
+// AddLocationData adds GPS location with performance metrics to clustering
+func (lc *LocationClustering) AddLocationData(gpsData *pkg.GPSData, metrics *pkg.Metrics) {
+	lc.mu.Lock()
+	defer lc.mu.Unlock()
+
+	// Find existing cluster or create new one
+	cluster := lc.findOrCreateCluster(gpsData)
+
+	// Update cluster with performance data
+	if metrics != nil {
+		cluster.Locations++
+		cluster.LastSeen = time.Now()
+
+		// Update performance metrics (simple averaging for now)
+		cluster.AvgLatency = (cluster.AvgLatency*float64(cluster.Locations-1) + metrics.LatencyMS) / float64(cluster.Locations)
+		cluster.AvgLoss = (cluster.AvgLoss*float64(cluster.Locations-1) + metrics.LossPercent) / float64(cluster.Locations)
+
+		if metrics.ObstructionPct != nil {
+			cluster.AvgObstruction = (cluster.AvgObstruction*float64(cluster.Locations-1) + *metrics.ObstructionPct) / float64(cluster.Locations)
+		}
+
+		// Check if this is a problematic area
+		if metrics.LossPercent > 5 || metrics.LatencyMS > 1000 || (metrics.ObstructionPct != nil && *metrics.ObstructionPct > 15) {
+			cluster.IssueCount++
+
+			// Mark as problematic if >30% of samples have issues
+			if float64(cluster.IssueCount)/float64(cluster.Locations) > 0.3 {
+				cluster.ProblematicArea = true
+				lc.logger.Warn("Problematic area detected",
+					"cluster_id", cluster.ID,
+					"lat", cluster.CenterLat,
+					"lon", cluster.CenterLon,
+					"issue_rate", float64(cluster.IssueCount)/float64(cluster.Locations))
+			}
+		}
+	}
+}
+
+// findOrCreateCluster finds existing cluster or creates new one
+func (lc *LocationClustering) findOrCreateCluster(gpsData *pkg.GPSData) *LocationCluster {
+	// Look for existing cluster within radius
+	for _, cluster := range lc.clusters {
+		distance := lc.calculateClusterDistance(gpsData.Latitude, gpsData.Longitude, cluster.CenterLat, cluster.CenterLon)
+		if distance <= lc.clusterRadius {
+			return cluster
+		}
+	}
+
+	// Create new cluster
+	clusterID := fmt.Sprintf("cluster_%d_%d",
+		int(gpsData.Latitude*1000000),
+		int(gpsData.Longitude*1000000))
+
+	cluster := &LocationCluster{
+		ID:        clusterID,
+		CenterLat: gpsData.Latitude,
+		CenterLon: gpsData.Longitude,
+		Radius:    lc.clusterRadius,
+		FirstSeen: time.Now(),
+		LastSeen:  time.Now(),
+		Locations: 0,
+	}
+
+	lc.clusters[clusterID] = cluster
+	lc.logger.Info("New location cluster created",
+		"cluster_id", clusterID,
+		"lat", gpsData.Latitude,
+		"lon", gpsData.Longitude)
+
+	return cluster
+}
+
+// calculateClusterDistance calculates distance between point and cluster center
+func (lc *LocationClustering) calculateClusterDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	const earthRadius = 6371000 // Earth radius in meters
+
+	lat1Rad := lat1 * math.Pi / 180
+	lat2Rad := lat2 * math.Pi / 180
+	deltaLatRad := (lat2 - lat1) * math.Pi / 180
+	deltaLonRad := (lon2 - lon1) * math.Pi / 180
+
+	a := math.Sin(deltaLatRad/2)*math.Sin(deltaLatRad/2) +
+		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
+			math.Sin(deltaLonRad/2)*math.Sin(deltaLonRad/2)
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	return earthRadius * c
+}
+
+// GetClusters returns all location clusters
+func (lc *LocationClustering) GetClusters() map[string]*LocationCluster {
+	lc.mu.RLock()
+	defer lc.mu.RUnlock()
+
+	// Return copy of clusters
+	clusters := make(map[string]*LocationCluster)
+	for k, v := range lc.clusters {
+		clusters[k] = v
+	}
+	return clusters
+}
+
+// GetProblematicAreas returns clusters marked as problematic
+func (lc *LocationClustering) GetProblematicAreas() []*LocationCluster {
+	lc.mu.RLock()
+	defer lc.mu.RUnlock()
+
+	var problematic []*LocationCluster
+	for _, cluster := range lc.clusters {
+		if cluster.ProblematicArea {
+			problematic = append(problematic, cluster)
+		}
+	}
+	return problematic
+}
+
+// IsInProblematicArea checks if current location is in a known problematic area
+func (lc *LocationClustering) IsInProblematicArea(gpsData *pkg.GPSData) (*LocationCluster, bool) {
+	lc.mu.RLock()
+	defer lc.mu.RUnlock()
+
+	for _, cluster := range lc.clusters {
+		if cluster.ProblematicArea {
+			distance := lc.calculateClusterDistance(gpsData.Latitude, gpsData.Longitude, cluster.CenterLat, cluster.CenterLon)
+			if distance <= cluster.Radius {
+				return cluster, true
+			}
+		}
+	}
+	return nil, false
 }
 
 // CellularGPSSource implementation

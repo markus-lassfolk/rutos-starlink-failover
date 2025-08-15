@@ -783,7 +783,7 @@ func (m *Manager) addRichContext(event *NotificationEvent) {
 					event.PerformanceMetrics["obstruction_percent"] = *event.Metrics.ObstructionPct
 				}
 				if event.Metrics.SNR != nil {
-					event.PerformanceMetrics["snr_db"] = *event.Metrics.SNR
+					event.PerformanceMetrics["snr_db"] = float64(*event.Metrics.SNR)
 				}
 			case "cellular":
 				if event.Metrics.RSRP != nil {

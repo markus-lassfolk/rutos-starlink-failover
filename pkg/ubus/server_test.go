@@ -7,6 +7,7 @@ import (
 	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/logx"
 	"github.com/starfail/starfail/pkg/telem"
+	"github.com/starfail/starfail/pkg/testing"
 )
 
 // MockController for testing
@@ -140,10 +141,11 @@ func (m *MockDecisionEngine) GetMemberState(memberName string) (*pkg.MemberState
 }
 
 func TestServer_NewServer(t *testing.T) {
-	logger := logx.NewLogger("ubus_test", "debug")
-	controller := NewMockController()
-	store := NewMockTelemetryStore()
-	decision := NewMockDecisionEngine()
+	tf := testing.NewTestFramework(t)
+	controller := tf.MockController()
+	store := tf.MockTelemetryStore()
+	decision := tf.MockDecisionEngine()
+	logger := tf.MockLogger()
 
 	server := NewServer(controller, decision, store, logger)
 
@@ -157,10 +159,11 @@ func TestServer_NewServer(t *testing.T) {
 }
 
 func TestServer_GetStatus(t *testing.T) {
-	logger := logx.NewLogger("ubus_test", "debug")
-	controller := NewMockController()
-	store := NewMockTelemetryStore()
-	decision := NewMockDecisionEngine()
+	tf := testing.NewTestFramework(t)
+	controller := tf.MockController()
+	store := tf.MockTelemetryStore()
+	decision := tf.MockDecisionEngine()
+	logger := tf.MockLogger()
 
 	server := NewServer(controller, decision, store, logger)
 
@@ -185,10 +188,11 @@ func TestServer_GetStatus(t *testing.T) {
 }
 
 func TestServer_GetInfo(t *testing.T) {
-	logger := logx.NewLogger("ubus_test", "debug")
-	controller := NewMockController()
-	store := NewMockTelemetryStore()
-	decision := NewMockDecisionEngine()
+	tf := testing.NewTestFramework(t)
+	controller := tf.MockController()
+	store := tf.MockTelemetryStore()
+	decision := tf.MockDecisionEngine()
+	logger := tf.MockLogger()
 
 	server := NewServer(controller, decision, store, logger)
 
@@ -225,10 +229,11 @@ func TestServer_GetInfo(t *testing.T) {
 }
 
 func TestServer_GetConfig(t *testing.T) {
-	logger := logx.NewLogger("ubus_test", "debug")
-	controller := NewMockController()
-	store := NewMockTelemetryStore()
-	decision := NewMockDecisionEngine()
+	tf := testing.NewTestFramework(t)
+	controller := tf.MockController()
+	store := tf.MockTelemetryStore()
+	decision := tf.MockDecisionEngine()
+	logger := tf.MockLogger()
 
 	server := NewServer(controller, decision, store, logger)
 
@@ -259,10 +264,11 @@ func TestServer_GetConfig(t *testing.T) {
 }
 
 func TestServer_GetMetrics(t *testing.T) {
-	logger := logx.NewLogger("ubus_test", "debug")
-	controller := NewMockController()
-	store := NewMockTelemetryStore()
-	decision := NewMockDecisionEngine()
+	tf := testing.NewTestFramework(t)
+	controller := tf.MockController()
+	store := tf.MockTelemetryStore()
+	decision := tf.MockDecisionEngine()
+	logger := tf.MockLogger()
 
 	server := NewServer(controller, decision, store, logger)
 
@@ -291,10 +297,11 @@ func TestServer_GetMetrics(t *testing.T) {
 }
 
 func TestServer_GetTelemetry(t *testing.T) {
-	logger := logx.NewLogger("ubus_test", "debug")
-	controller := NewMockController()
-	store := NewMockTelemetryStore()
-	decision := NewMockDecisionEngine()
+	tf := testing.NewTestFramework(t)
+	controller := tf.MockController()
+	store := tf.MockTelemetryStore()
+	decision := tf.MockDecisionEngine()
+	logger := tf.MockLogger()
 
 	server := NewServer(controller, decision, store, logger)
 
@@ -308,16 +315,22 @@ func TestServer_GetTelemetry(t *testing.T) {
 		return
 	}
 
-	// Verify response structure
-	if response.Members == nil {
+	// Verify response structure by type assertion
+	telemetryResponse, ok := response.(*TelemetryResponse)
+	if !ok {
+		t.Error("GetTelemetry() response is not of type *TelemetryResponse")
+		return
+	}
+
+	if telemetryResponse.Members == nil {
 		t.Error("GetTelemetry() members should not be nil")
 	}
 
-	if response.Events == nil {
+	if telemetryResponse.Events == nil {
 		t.Error("GetTelemetry() events should not be nil")
 	}
 
-	if response.MemoryUsage == nil {
+	if telemetryResponse.MemoryUsage == nil {
 		t.Error("GetTelemetry() memory usage should not be nil")
 	}
 }

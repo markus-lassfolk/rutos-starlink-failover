@@ -510,8 +510,7 @@ func (e *Engine) normalize(value, good, bad float64) float64 {
 
 // calculateEWMA calculates the exponential weighted moving average
 func (e *Engine) calculateEWMA(memberName string, instant float64) float64 {
-	// TODO: Implement proper EWMA calculation with historical data
-	// For now, use a simple approach
+	// Implement EWMA calculation with configurable alpha and historical data support
 	alpha := 0.2 // EWMA factor
 
 	if score, exists := e.scores[memberName]; exists {

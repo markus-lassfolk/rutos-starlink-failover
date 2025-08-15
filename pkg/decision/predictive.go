@@ -146,7 +146,7 @@ func (pe *PredictiveEngine) UpdateMemberData(memberName string, metrics *pkg.Met
 		Latency:   metrics.LatencyMS,
 		Loss:      metrics.LossPercent,
 		Score:     score.Final,
-		Status:    "healthy", // TODO: determine actual status
+		Status:    pe.determineStatus(metrics, score), // Determine status based on metrics and score
 	}
 
 	// Add to historical data
@@ -905,4 +905,33 @@ func (mlp *MLPredictor) saveModels() error {
 		return err
 	}
 	return os.WriteFile(mlp.modelPath, data, 0o644)
+}
+
+// determineStatus determines the health status based on metrics and score
+func (pe *PredictiveEngine) determineStatus(metrics *pkg.Metrics, score *pkg.Score) string {
+	// Determine status based on score and critical metrics
+	if score.Final < 30 {
+		return "critical"
+	}
+	if score.Final < 50 {
+		return "degraded"
+	}
+	if score.Final < 70 {
+		return "warning"
+	}
+
+	// Check for specific issues
+	if metrics.LossPercent > 5 {
+		return "degraded"
+	}
+	if metrics.LatencyMS > 1000 {
+		return "degraded"
+	}
+
+	// Check class-specific issues
+	if metrics.ObstructionPct != nil && *metrics.ObstructionPct > 10 {
+		return "warning"
+	}
+
+	return "healthy"
 }

@@ -485,13 +485,11 @@ func (s *Server) Failover(req *FailoverRequest) (*FailoverResponse, error) {
 		}, nil
 	}
 
-	// Log the manual failover (placeholder)
-	// TODO: Implement Switch method in logger
-	s.logger.Info("Manual failover triggered", map[string]interface{}{
-		"target_member": req.TargetMember,
-		"reason":        req.Reason,
-		"user":          "ubus",
-	})
+	// Log the manual failover
+	s.logger.Info("Manual failover triggered",
+		"target_member", req.TargetMember,
+		"reason", req.Reason,
+		"user", "ubus")
 
 	return &FailoverResponse{
 		Success:      true,
@@ -528,12 +526,10 @@ func (s *Server) Restore(req *RestoreRequest) (*RestoreResponse, error) {
 		activeMemberName = activeMember.Name
 	}
 
-	// Log the restore (placeholder)
-	// TODO: Implement Switch method in logger
-	s.logger.Info("Automatic failover restored", map[string]interface{}{
-		"reason": req.Reason,
-		"user":   "ubus",
-	})
+	// Log the restore
+	s.logger.Info("Automatic failover restored",
+		"reason", req.Reason,
+		"user", "ubus")
 
 	return &RestoreResponse{
 		Success:      true,

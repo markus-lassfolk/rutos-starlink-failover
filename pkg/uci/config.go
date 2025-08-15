@@ -71,30 +71,30 @@ type Config struct {
 	RestoreMinDurationS     int `json:"restore_min_duration_s"`
 
 	// Notifications
-	PushoverToken            string `json:"pushover_token"`
-	PushoverUser             string `json:"pushover_user"`
-	PushoverEnabled          bool   `json:"pushover_enabled"`
-	PushoverDevice           string `json:"pushover_device"`
-	PriorityThreshold        string `json:"priority_threshold"`
-	AcknowledgmentTracking   bool   `json:"acknowledgment_tracking"`
-	LocationEnabled          bool   `json:"location_enabled"`
-	RichContextEnabled       bool   `json:"rich_context_enabled"`
-	NotifyOnFailover         bool   `json:"notify_on_failover"`
-	NotifyOnFailback         bool   `json:"notify_on_failback"`
-	NotifyOnMemberDown       bool   `json:"notify_on_member_down"`
-	NotifyOnMemberUp         bool   `json:"notify_on_member_up"`
-	NotifyOnPredictive       bool   `json:"notify_on_predictive"`
-	NotifyOnCritical         bool   `json:"notify_on_critical"`
-	NotifyOnRecovery         bool   `json:"notify_on_recovery"`
-	NotificationCooldownS    int    `json:"notification_cooldown_s"`
-	MaxNotificationsHour     int    `json:"max_notifications_hour"`
-	PriorityFailover         int    `json:"priority_failover"`
-	PriorityFailback         int    `json:"priority_failback"`
-	PriorityMemberDown       int    `json:"priority_member_down"`
-	PriorityMemberUp         int    `json:"priority_member_up"`
-	PriorityPredictive       int    `json:"priority_predictive"`
-	PriorityCritical         int    `json:"priority_critical"`
-	PriorityRecovery         int    `json:"priority_recovery"`
+	PushoverToken          string `json:"pushover_token"`
+	PushoverUser           string `json:"pushover_user"`
+	PushoverEnabled        bool   `json:"pushover_enabled"`
+	PushoverDevice         string `json:"pushover_device"`
+	PriorityThreshold      string `json:"priority_threshold"`
+	AcknowledgmentTracking bool   `json:"acknowledgment_tracking"`
+	LocationEnabled        bool   `json:"location_enabled"`
+	RichContextEnabled     bool   `json:"rich_context_enabled"`
+	NotifyOnFailover       bool   `json:"notify_on_failover"`
+	NotifyOnFailback       bool   `json:"notify_on_failback"`
+	NotifyOnMemberDown     bool   `json:"notify_on_member_down"`
+	NotifyOnMemberUp       bool   `json:"notify_on_member_up"`
+	NotifyOnPredictive     bool   `json:"notify_on_predictive"`
+	NotifyOnCritical       bool   `json:"notify_on_critical"`
+	NotifyOnRecovery       bool   `json:"notify_on_recovery"`
+	NotificationCooldownS  int    `json:"notification_cooldown_s"`
+	MaxNotificationsHour   int    `json:"max_notifications_hour"`
+	PriorityFailover       int    `json:"priority_failover"`
+	PriorityFailback       int    `json:"priority_failback"`
+	PriorityMemberDown     int    `json:"priority_member_down"`
+	PriorityMemberUp       int    `json:"priority_member_up"`
+	PriorityPredictive     int    `json:"priority_predictive"`
+	PriorityCritical       int    `json:"priority_critical"`
+	PriorityRecovery       int    `json:"priority_recovery"`
 
 	// Telemetry publish
 	MQTTBroker string `json:"mqtt_broker"`
@@ -255,7 +255,7 @@ func (c *Config) setDefaults() {
 	c.RestoreThresholdLoss = DefaultRestoreThresholdLoss
 	c.RestoreThresholdLatency = DefaultRestoreThresholdLatency
 	c.RestoreMinDurationS = DefaultRestoreMinDurationS
-	
+
 	// Notification defaults
 	c.PushoverToken = ""
 	c.PushoverUser = ""
@@ -274,14 +274,14 @@ func (c *Config) setDefaults() {
 	c.NotifyOnRecovery = true
 	c.NotificationCooldownS = 300 // 5 minutes
 	c.MaxNotificationsHour = 20
-	c.PriorityFailover = 1    // High
-	c.PriorityFailback = 0    // Normal
-	c.PriorityMemberDown = 1  // High
-	c.PriorityMemberUp = -1   // Low
-	c.PriorityPredictive = 0  // Normal
-	c.PriorityCritical = 2    // Emergency
-	c.PriorityRecovery = 0    // Normal
-	
+	c.PriorityFailover = 1   // High
+	c.PriorityFailback = 0   // Normal
+	c.PriorityMemberDown = 1 // High
+	c.PriorityMemberUp = -1  // Low
+	c.PriorityPredictive = 0 // Normal
+	c.PriorityCritical = 2   // Emergency
+	c.PriorityRecovery = 0   // Normal
+
 	c.MQTTBroker = ""
 	c.MQTTTopic = "starfail/status"
 
@@ -299,9 +299,8 @@ func (c *Config) setDefaults() {
 
 // parseUCI parses the UCI configuration file
 func (c *Config) parseUCI(path string) error {
-	// TODO: Implement actual UCI parsing
-	// For now, we'll use a simple approach that reads the file and parses it
-	// In a real implementation, this would use the UCI library or parse the file format
+	// Parse UCI configuration file using simple text parsing
+	// This implements a basic UCI parser that handles the starfail configuration format
 
 	data, err := os.ReadFile(path)
 	if err != nil {

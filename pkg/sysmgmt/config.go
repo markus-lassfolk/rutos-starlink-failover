@@ -1,6 +1,8 @@
 package sysmgmt
 
 import (
+	"os"
+	"strings"
 	"time"
 )
 
@@ -120,7 +122,38 @@ func DefaultConfig() *Config {
 
 // LoadConfig loads configuration from UCI
 func LoadConfig(configPath string) (*Config, error) {
-	// TODO: Implement UCI configuration loading
-	// For now, return default config
-	return DefaultConfig(), nil
+	// Load configuration from UCI file or use defaults
+	config := DefaultConfig()
+
+	// Try to load from UCI file if it exists
+	if configPath != "" {
+		if data, err := os.ReadFile(configPath); err == nil {
+			// Parse basic UCI options for system management
+			lines := strings.Split(string(data), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if strings.HasPrefix(line, "option ") {
+					parts := strings.Fields(line)
+					if len(parts) >= 3 {
+						key := parts[1]
+						value := strings.Trim(parts[2], "'\"")
+
+						// Parse relevant system management options
+						switch key {
+						case "sysmgmt_enabled":
+							config.Enabled = value == "1"
+						case "sysmgmt_check_interval":
+							if duration, err := time.ParseDuration(value); err == nil {
+								config.CheckInterval = duration
+							}
+						case "sysmgmt_auto_fix":
+							config.AutoFixEnabled = value == "1"
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return config, nil
 }

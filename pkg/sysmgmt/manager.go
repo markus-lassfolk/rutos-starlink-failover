@@ -147,3 +147,28 @@ func (m *Manager) GetStatus() map[string]interface{} {
 		"auto_fix_enabled":   m.config.AutoFixEnabled,
 	}
 }
+
+// Start initializes and starts the system management components
+func (m *Manager) Start() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	
+	m.logger.Info("Starting system management", "enabled", m.config.Enabled)
+	
+	// Initialize all components if needed
+	// Most components are already initialized in NewManager
+	// This method is mainly for future extensibility
+	
+	return nil
+}
+
+// Stop gracefully shuts down the system management components
+func (m *Manager) Stop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	
+	m.logger.Info("Stopping system management")
+	
+	// Stop any background tasks or cleanup resources
+	// Currently no background tasks to stop, but method exists for future use
+}

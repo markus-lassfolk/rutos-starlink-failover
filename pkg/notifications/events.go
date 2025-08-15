@@ -59,7 +59,7 @@ func (eb *EventBuilder) FailoverEvent(from, to *pkg.Member, reason string, metri
 	}
 	
 	if metrics != nil {
-		message.WriteString(fmt.Sprintf("\n📊 Current Metrics:\n"))
+		message.WriteString("\n📊 Current Metrics:\n")
 		if metrics.LatencyMS > 0 {
 			latencyIcon := "🟢"
 			if metrics.LatencyMS > 200 {
@@ -124,7 +124,7 @@ func (eb *EventBuilder) FailbackEvent(from, to *pkg.Member, metrics *pkg.Metrics
 	}
 	
 	if metrics != nil && to != nil {
-		message.WriteString(fmt.Sprintf("\nRestored Connection Quality:\n"))
+		message.WriteString("\nRestored Connection Quality:\n")
 		if metrics.LatencyMS > 0 {
 			message.WriteString(fmt.Sprintf("• Latency: %.1f ms\n", metrics.LatencyMS))
 		}
@@ -175,7 +175,7 @@ func (eb *EventBuilder) MemberDownEvent(member *pkg.Member, reason string, metri
 	}
 	
 	if metrics != nil {
-		message.WriteString(fmt.Sprintf("\nLast Known Metrics:\n"))
+		message.WriteString("\nLast Known Metrics:\n")
 		if metrics.LatencyMS > 0 {
 			message.WriteString(fmt.Sprintf("• Latency: %.1f ms\n", metrics.LatencyMS))
 		}
@@ -232,7 +232,7 @@ func (eb *EventBuilder) MemberUpEvent(member *pkg.Member, metrics *pkg.Metrics) 
 	message.WriteString(fmt.Sprintf("Interface: %s\n", member.Iface))
 	
 	if metrics != nil {
-		message.WriteString(fmt.Sprintf("\nCurrent Quality:\n"))
+		message.WriteString("\nCurrent Quality:\n")
 		if metrics.LatencyMS > 0 {
 			message.WriteString(fmt.Sprintf("• Latency: %.1f ms\n", metrics.LatencyMS))
 		}
@@ -273,7 +273,7 @@ func (eb *EventBuilder) PredictiveEvent(member *pkg.Member, prediction string, c
 	message.WriteString(fmt.Sprintf("Member: %s (%s)\n", member.Name, member.Class))
 	
 	if metrics != nil {
-		message.WriteString(fmt.Sprintf("\nCurrent Metrics:\n"))
+		message.WriteString("\nCurrent Metrics:\n")
 		if metrics.LatencyMS > 0 {
 			message.WriteString(fmt.Sprintf("• Latency: %.1f ms\n", metrics.LatencyMS))
 		}
@@ -385,10 +385,8 @@ func (eb *EventBuilder) SummaryEvent(period string, stats map[string]interface{}
 	var message strings.Builder
 	message.WriteString(fmt.Sprintf("Network activity summary for %s\n\n", strings.ToLower(period)))
 	
-	if stats != nil {
-		for key, value := range stats {
-			message.WriteString(fmt.Sprintf("• %s: %v\n", key, value))
-		}
+	for key, value := range stats {
+		message.WriteString(fmt.Sprintf("• %s: %v\n", key, value))
 	}
 	
 	return &NotificationEvent{

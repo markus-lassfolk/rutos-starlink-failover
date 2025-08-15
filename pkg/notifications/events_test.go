@@ -15,7 +15,7 @@ func newTestLogger() *logx.Logger {
 }
 
 func TestEventBuilder_FailoverEvent(t *testing.T) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	
@@ -144,7 +144,7 @@ func TestEventBuilder_FailoverEvent(t *testing.T) {
 }
 
 func TestEventBuilder_FailbackEvent(t *testing.T) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	
@@ -207,7 +207,7 @@ func TestEventBuilder_FailbackEvent(t *testing.T) {
 }
 
 func TestEventBuilder_MemberDownEvent(t *testing.T) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	
@@ -328,7 +328,7 @@ func TestEventBuilder_MemberDownEvent(t *testing.T) {
 }
 
 func TestEventBuilder_MemberUpEvent(t *testing.T) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	
@@ -382,7 +382,7 @@ func TestEventBuilder_MemberUpEvent(t *testing.T) {
 }
 
 func TestEventBuilder_PredictiveEvent(t *testing.T) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	
@@ -443,7 +443,7 @@ func TestEventBuilder_PredictiveEvent(t *testing.T) {
 }
 
 func TestEventBuilder_CriticalErrorEvent(t *testing.T) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	
@@ -496,7 +496,7 @@ func TestEventBuilder_CriticalErrorEvent(t *testing.T) {
 }
 
 func TestEventBuilder_RecoveryEvent(t *testing.T) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	
@@ -539,7 +539,7 @@ func TestEventBuilder_RecoveryEvent(t *testing.T) {
 }
 
 func TestEventBuilder_TestEvent(t *testing.T) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	
@@ -580,7 +580,7 @@ func TestEventBuilder_TestEvent(t *testing.T) {
 }
 
 func TestEventBuilder_CustomEvent(t *testing.T) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	
@@ -615,7 +615,7 @@ func TestEventBuilder_CustomEvent(t *testing.T) {
 
 // Benchmark tests
 func BenchmarkEventBuilder_FailoverEvent(b *testing.B) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	
@@ -634,7 +634,7 @@ func BenchmarkEventBuilder_FailoverEvent(b *testing.B) {
 }
 
 func BenchmarkEventBuilder_MemberDownEvent(b *testing.B) {
-	logger := newMockLogger()
+	logger := newTestLogger()
 	manager := NewManager(nil, logger)
 	builder := NewEventBuilder(manager)
 	

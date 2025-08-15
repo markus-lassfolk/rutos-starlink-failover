@@ -20,6 +20,7 @@ import (
 	"github.com/starfail/starfail/pkg/mqtt"
 	"github.com/starfail/starfail/pkg/performance"
 	"github.com/starfail/starfail/pkg/security"
+	"github.com/starfail/starfail/pkg/sysmgmt"
 	"github.com/starfail/starfail/pkg/telem"
 	"github.com/starfail/starfail/pkg/ubus"
 	"github.com/starfail/starfail/pkg/uci"
@@ -247,8 +248,20 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
+	// Initialize system management
+	sysmgmtManager, err := initializeSystemManagement(cfg, logger)
+	if err != nil {
+		logger.Error("Failed to initialize system management", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if sysmgmtManager != nil {
+			sysmgmtManager.Stop()
+		}
+	}()
+
 	// Start main loop
-	go runMainLoop(ctx, cfg, decisionEngine, ctrl, logger, telemetry, discoverer, collectorFactory, metricsServer, healthServer, mqttClient, profiler, auditor)
+	go runMainLoop(ctx, cfg, decisionEngine, ctrl, logger, telemetry, discoverer, collectorFactory, metricsServer, healthServer, mqttClient, profiler, auditor, sysmgmtManager)
 
 	// Wait for shutdown signal
 	sig := <-sigChan
@@ -270,7 +283,7 @@ func main() {
 	}
 }
 
-func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, ctrl *controller.Controller, logger *logx.Logger, telemetry *telem.Store, discoverer *discovery.Discoverer, collectorFactory *collector.CollectorFactory, metricsServer *metrics.Server, healthServer *health.Server, mqttClient *mqtt.Client, profiler *performance.Profiler, auditor *security.Auditor) {
+func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, ctrl *controller.Controller, logger *logx.Logger, telemetry *telem.Store, discoverer *discovery.Discoverer, collectorFactory *collector.CollectorFactory, metricsServer *metrics.Server, healthServer *health.Server, mqttClient *mqtt.Client, profiler *performance.Profiler, auditor *security.Auditor, sysmgmtManager *sysmgmt.Manager) {
 	// Set up event publishing callback if MQTT is enabled
 	if mqttClient != nil && cfg.MQTT.Enabled {
 		// Create a callback function for real-time event publishing
@@ -301,7 +314,8 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 	cleanupTicker := time.NewTicker(time.Duration(cfg.CleanupIntervalMS) * time.Millisecond)
 	securityTicker := time.NewTicker(2 * time.Minute)
 	performanceTicker := time.NewTicker(1 * time.Minute)
-	mqttTicker := time.NewTicker(30 * time.Second) // Publish telemetry every 30 seconds
+	mqttTicker := time.NewTicker(30 * time.Second)   // Publish telemetry every 30 seconds
+	sysmgmtTicker := time.NewTicker(5 * time.Minute) // System management checks every 5 minutes
 
 	defer decisionTicker.Stop()
 	defer discoveryTicker.Stop()
@@ -309,6 +323,7 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 	defer securityTicker.Stop()
 	defer performanceTicker.Stop()
 	defer mqttTicker.Stop()
+	defer sysmgmtTicker.Stop()
 
 	logger.Info("Starting main loop", map[string]interface{}{
 		"decision_interval_ms":  cfg.DecisionIntervalMS,
@@ -411,6 +426,14 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 			// Publish telemetry data via MQTT
 			if mqttClient != nil && cfg.MQTT.Enabled {
 				publishTelemetryToMQTT(mqttClient, ctrl, telemetry, engine, logger)
+			}
+
+		case <-sysmgmtTicker.C:
+			// Run system management checks
+			if sysmgmtManager != nil {
+				if err := sysmgmtManager.RunHealthCheck(ctx); err != nil {
+					logger.Error("System management check failed", "error", err)
+				}
 			}
 		}
 	}
@@ -532,4 +555,31 @@ func publishTelemetryToMQTT(mqttClient *mqtt.Client, ctrl *controller.Controller
 	}
 
 	logger.Debug("Successfully published telemetry to MQTT")
+}
+
+// initializeSystemManagement initializes the system management component
+func initializeSystemManagement(cfg *uci.Config, logger *logx.Logger) (*sysmgmt.Manager, error) {
+	// Load system management configuration
+	sysmgmtConfig, err := sysmgmt.LoadConfig(*configPath)
+	if err != nil {
+		logger.Warn("Failed to load system management config, using defaults", "error", err)
+		sysmgmtConfig = sysmgmt.DefaultConfig()
+	}
+
+	// Create system management manager
+	manager := sysmgmt.NewManager(sysmgmtConfig, logger, false) // false = not dry-run
+
+	// Start system management if enabled
+	if sysmgmtConfig.Enabled {
+		if err := manager.Start(); err != nil {
+			return nil, fmt.Errorf("failed to start system management: %w", err)
+		}
+		logger.Info("System management started",
+			"check_interval", sysmgmtConfig.CheckInterval,
+			"auto_fix", sysmgmtConfig.AutoFixEnabled)
+	} else {
+		logger.Info("System management disabled in configuration")
+	}
+
+	return manager, nil
 }

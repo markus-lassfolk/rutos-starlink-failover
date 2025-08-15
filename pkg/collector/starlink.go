@@ -222,7 +222,6 @@ func (sc *StarlinkCollector) Collect(ctx context.Context, member *pkg.Member) (*
 	starlinkMetrics, err := sc.collectStarlinkMetrics(ctx)
 	if err != nil {
 		// Log error but don't fail - continue with common metrics
-		// TODO: Add logger parameter to collector
 		fmt.Printf("Warning: Failed to collect Starlink metrics: %v\n", err)
 	} else {
 		// Merge Starlink metrics
