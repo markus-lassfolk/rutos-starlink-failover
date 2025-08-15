@@ -429,7 +429,7 @@ func (m *Manager) readCompressedFile(filePath string) ([]byte, error) {
 func (m *Manager) writeConfigToUCI(configMap map[string]interface{}) error {
 	// Create UCI loader for configuration operations
 	uciLoader := uci.NewLoader("/etc/config/starfail")
-	
+
 	// Load current configuration
 	config, err := uciLoader.Load()
 	if err != nil {
@@ -471,23 +471,23 @@ func (m *Manager) writeConfigToUCI(configMap map[string]interface{}) error {
 
 func (m *Manager) restartService(service string) error {
 	m.logger.Info("restarting service", "service", service)
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	// Use procd service management for RutOS/OpenWrt
 	if err := m.execCommand(ctx, "/etc/init.d/"+service, "restart"); err != nil {
 		return fmt.Errorf("failed to restart service %s: %w", service, err)
 	}
-	
+
 	// Wait a moment for service to stabilize
 	time.Sleep(2 * time.Second)
-	
+
 	// Verify service is running
 	if err := m.checkServiceRunning(service); err != nil {
 		return fmt.Errorf("service %s failed to start after restart: %w", service, err)
 	}
-	
+
 	m.logger.Info("service restarted successfully", "service", service)
 	return nil
 }
@@ -495,12 +495,12 @@ func (m *Manager) restartService(service string) error {
 func (m *Manager) checkServiceRunning(service string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	// Check service status using procd
 	if err := m.execCommand(ctx, "/etc/init.d/"+service, "status"); err != nil {
 		return fmt.Errorf("service %s is not running: %w", service, err)
 	}
-	
+
 	return nil
 }
 
@@ -509,10 +509,10 @@ func (m *Manager) execCommand(ctx context.Context, name string, args ...string) 
 	cmd := exec.CommandContext(ctx, name, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		m.logger.Debug("command execution failed", 
-			"command", name, 
-			"args", args, 
-			"output", string(output), 
+		m.logger.Debug("command execution failed",
+			"command", name,
+			"args", args,
+			"output", string(output),
 			"error", err)
 		return err
 	}

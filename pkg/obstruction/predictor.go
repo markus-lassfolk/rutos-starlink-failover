@@ -953,32 +953,32 @@ func (o *ObstructionManager) updateModels() {
 		if model, exists := o.models["temporal"]; exists {
 			model.SampleCount = len(o.history)
 			model.LastTrained = time.Now()
-			
+
 			// Calculate recent accuracy based on predictions vs actual results
 			// This is a simplified accuracy calculation
 			recentSamples := o.history
 			if len(recentSamples) > 50 {
 				recentSamples = o.history[len(o.history)-50:] // Last 50 samples
 			}
-			
+
 			// Simple accuracy metric: how often trend predictions were correct
 			correctPredictions := 0
 			for i := 1; i < len(recentSamples); i++ {
 				current := recentSamples[i].ObstructionPct
 				previous := recentSamples[i-1].ObstructionPct
-				
+
 				// Check if trend direction was correct
 				if (current > previous && recentSamples[i].ObstructionRate > 0) ||
-				   (current < previous && recentSamples[i].ObstructionRate < 0) ||
-				   (math.Abs(current-previous) < 0.5 && math.Abs(recentSamples[i].ObstructionRate) < 0.1) {
+					(current < previous && recentSamples[i].ObstructionRate < 0) ||
+					(math.Abs(current-previous) < 0.5 && math.Abs(recentSamples[i].ObstructionRate) < 0.1) {
 					correctPredictions++
 				}
 			}
-			
+
 			if len(recentSamples) > 1 {
 				model.Accuracy = float64(correctPredictions) / float64(len(recentSamples)-1)
 			}
-			
+
 			// Update model parameters based on recent patterns
 			if model.Parameters == nil {
 				model.Parameters = make(map[string]interface{})
@@ -987,7 +987,7 @@ func (o *ObstructionManager) updateModels() {
 			model.Parameters["sample_count"] = len(o.history)
 		}
 	}
-	
+
 	// Update spatial prediction models if location data is available
 	if len(o.history) > 0 {
 		lastSample := o.history[len(o.history)-1]
