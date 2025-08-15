@@ -3,6 +3,7 @@ package uci
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -76,4 +77,82 @@ func TestValidateMainInvalidPollInterval(t *testing.T) {
 	if err := loader.Validate(cfg); err == nil {
 		t.Fatalf("expected validation error")
 	}
+}
+
+func TestSaveConfig(t *testing.T) {
+	dir := t.TempDir()
+	
+	// Create platform-specific mock for `uci` that logs set commands
+	script := filepath.Join(dir, "uci")
+	logFile := filepath.Join(dir, "uci_commands.log")
+	
+	if os.PathSeparator == '\\' { // Windows
+		script += ".cmd"
+		content := "@echo off\r\n" +
+			"echo %* >> " + logFile + "\r\n" +
+			"if \"%1\"==\"show\" (\r\n" +
+			"  rem Return empty for show commands\r\n" +
+			")\r\n"
+		if err := os.WriteFile(script, []byte(content), 0644); err != nil {
+			t.Fatalf("write windows script: %v", err)
+		}
+	} else {
+		content := `#!/bin/sh
+echo "$@" >> ` + logFile + `
+if [ "$1" = "show" ]; then
+  # Return empty for show commands
+  true
+fi
+`
+		if err := os.WriteFile(script, []byte(content), 0755); err != nil {
+			t.Fatalf("write script: %v", err)
+		}
+	}
+	t.Setenv("PATH", dir)
+
+	// Create a simple config to save
+	loader := NewLoader("/etc/config/starfail")
+	cfg := &Config{
+		Main: MainConfig{
+			Enable:         true,
+			UseMwan3:       false,
+			PollIntervalMs: 2000,
+		},
+		Members: []MemberConfig{
+			{
+				Name:   "cellular1",
+				Class:  "cellular",
+				Detect: "auto",
+				Weight: 80,
+			},
+		},
+	}
+
+	// Test save operation
+	err := loader.Save(cfg)
+	if err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+
+	// Verify commands were written to log
+	logData, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("failed to read log: %v", err)
+	}
+	
+	logContent := string(logData)
+	
+	// Should contain set commands for main config
+	if !containsString(logContent, "set starfail.main.enable=1") {
+		t.Errorf("missing main enable set command in log: %s", logContent)
+	}
+	
+	// Should contain commit command
+	if !containsString(logContent, "commit starfail") {
+		t.Errorf("missing commit command in log: %s", logContent)
+	}
+}
+
+func containsString(haystack, needle string) bool {
+	return strings.Contains(haystack, needle)
 }

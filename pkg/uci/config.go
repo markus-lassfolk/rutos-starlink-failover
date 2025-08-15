@@ -4,6 +4,7 @@ package uci
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -544,11 +545,57 @@ func (l *Loader) parseBool(value string) bool {
 
 // Save writes the configuration back to UCI
 func (l *Loader) Save(config *Config) error {
-	// TODO: Implement UCI saving
-	// 1. Convert config struct back to UCI format
-	// 2. Write to UCI config file
-	// 3. Commit changes
-	return fmt.Errorf("UCI save not implemented yet")
+	ctx := context.Background()
+	
+	// Save main config
+	if err := l.saveSection(ctx, "starfail.main", config.Main); err != nil {
+		return fmt.Errorf("failed to save main config: %w", err)
+	}
+	
+	// Save scoring config
+	if err := l.saveSection(ctx, "starfail.scoring", config.Scoring); err != nil {
+		return fmt.Errorf("failed to save scoring config: %w", err)
+	}
+	
+	// Save sysmgmt config
+	if err := l.saveSection(ctx, "starfail.sysmgmt", config.SysMgmt); err != nil {
+		return fmt.Errorf("failed to save sysmgmt config: %w", err)
+	}
+	
+	// Save recovery config
+	if err := l.saveSection(ctx, "starfail.recovery", config.Recovery); err != nil {
+		return fmt.Errorf("failed to save recovery config: %w", err)
+	}
+	
+	// Save notification config
+	if err := l.saveSection(ctx, "starfail.notifications", config.Notifications); err != nil {
+		return fmt.Errorf("failed to save notification config: %w", err)
+	}
+	
+	// Save sampling config
+	if err := l.saveSection(ctx, "starfail.sampling", config.Sampling); err != nil {
+		return fmt.Errorf("failed to save sampling config: %w", err)
+	}
+	
+	// Remove existing member configs first
+	if err := l.removeAllMembers(ctx); err != nil {
+		return fmt.Errorf("failed to remove existing members: %w", err)
+	}
+	
+	// Save member configs
+	for i, member := range config.Members {
+		sectionName := fmt.Sprintf("starfail.@member[%d]", i)
+		if err := l.saveSection(ctx, sectionName, member); err != nil {
+			return fmt.Errorf("failed to save member[%d] config: %w", i, err)
+		}
+	}
+	
+	// Commit changes
+	if err := l.runner.Run(ctx, "uci", "commit", "starfail"); err != nil {
+		return fmt.Errorf("failed to commit starfail config: %w", err)
+	}
+	
+	return nil
 }
 
 // Validate checks configuration constraints and applies defaults
@@ -681,4 +728,107 @@ func (l *Loader) contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// saveSection writes a config section to UCI using reflection
+func (l *Loader) saveSection(ctx context.Context, sectionName string, config interface{}) error {
+	// Use reflection to convert struct fields to UCI commands
+	v := reflect.ValueOf(config)
+	t := reflect.TypeOf(config)
+	
+	// Handle pointer types
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return nil
+		}
+		v = v.Elem()
+		t = t.Elem()
+	}
+	
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldType := t.Field(i)
+		
+		// Get UCI tag
+		uciTag := fieldType.Tag.Get("uci")
+		if uciTag == "" || uciTag == "-" {
+			continue
+		}
+		
+		// Convert value to string
+		var value string
+		switch field.Kind() {
+		case reflect.Bool:
+			if field.Bool() {
+				value = "1"
+			} else {
+				value = "0"
+			}
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			value = fmt.Sprintf("%d", field.Int())
+		case reflect.Float32, reflect.Float64:
+			value = fmt.Sprintf("%.2f", field.Float())
+		case reflect.String:
+			value = field.String()
+		case reflect.Slice:
+			if field.Type().Elem().Kind() == reflect.String {
+				values := make([]string, field.Len())
+				for j := 0; j < field.Len(); j++ {
+					values[j] = field.Index(j).String()
+				}
+				value = strings.Join(values, " ")
+			}
+		default:
+			// Handle duration as seconds
+			if field.Type() == reflect.TypeOf(time.Duration(0)) {
+				duration := field.Interface().(time.Duration)
+				value = fmt.Sprintf("%d", int(duration.Seconds()))
+			} else {
+				continue
+			}
+		}
+		
+		// Set the UCI value
+		uciPath := fmt.Sprintf("%s.%s=%s", sectionName, uciTag, value)
+		if err := l.runner.Run(ctx, "uci", "set", uciPath); err != nil {
+			return fmt.Errorf("failed to set %s: %w", uciPath, err)
+		}
+	}
+	
+	return nil
+}
+
+// removeAllMembers removes all existing member sections
+func (l *Loader) removeAllMembers(ctx context.Context) error {
+	// Get all existing member sections
+	output, err := l.runner.Output(ctx, "uci", "show", "starfail")
+	if err != nil {
+		// If config doesn't exist, that's fine
+		return nil
+	}
+	
+	lines := strings.Split(string(output), "\n")
+	memberSections := make(map[string]bool)
+	
+	for _, line := range lines {
+		if strings.Contains(line, "starfail.") && strings.Contains(line, "=member") {
+			// Extract section name from lines like "starfail.cfg0123=member"
+			if parts := strings.Split(line, "="); len(parts) >= 2 {
+				sectionPath := parts[0]
+				if parts := strings.Split(sectionPath, "."); len(parts) >= 2 {
+					memberSections[parts[1]] = true
+				}
+			}
+		}
+	}
+	
+	// Remove each member section
+	for sectionName := range memberSections {
+		if err := l.runner.Run(ctx, "uci", "delete", fmt.Sprintf("starfail.%s", sectionName)); err != nil {
+			// Continue on error - section might not exist
+			continue
+		}
+	}
+	
+	return nil
 }
