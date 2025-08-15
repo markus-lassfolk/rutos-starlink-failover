@@ -88,6 +88,7 @@ All high-priority blockers have been resolved:
 - ✅ **Cellular ping fallback**: Multi-host redundancy with interface-bound ping when ubus unavailable
 - ✅ **UCI Save/Commit**: Complete implementation with validation and error handling
 - ✅ **ubus config.set**: Full UCI write-back with support for main, scoring, starlink, and telemetry sections
+- ✅ **Native gRPC Starlink client**: Eliminated external grpcurl dependency with in-process implementation (MAJOR UPGRADE)
 - ✅ **Retry/backoff framework**: Comprehensive implementation used across all external commands
 - ✅ **Notification integration**: Properly wired into decision engine with context-aware alerting
 
@@ -97,7 +98,7 @@ All high-priority blockers have been resolved:
 
 
 ### 🚫 NOT IMPLEMENTED (Future Enhancements)
-- In-process Starlink client (replace external grpcurl helpers) with enhanced backoff (optimization)
+- ~~In-process Starlink client (replace external grpcurl helpers) with enhanced backoff (optimization)~~ ✅ **COMPLETED - Native gRPC implemented**
 - Full adaptive sampling manager driving dynamic probe cadence based on link state (enhancement)
 - Discovery module split-out with complete mwan3 parsing (architectural refactoring, non-essential)
 - LuCI/Vuci Web UI integration (planned for Phase 2)

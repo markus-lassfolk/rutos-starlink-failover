@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/starlink"
 )
 
 // GPSManager provides unified GPS data from multiple sources with movement detection
@@ -19,8 +21,7 @@ type GPSManager struct {
 	locationClusters  []LocationCluster
 	maxHistorySize    int
 	movementThreshold float64 // meters
-	starlinkIP        string  // Configurable Starlink dish IP
-	starlinkPort      int     // Configurable Starlink dish port
+	starlinkClient    *starlink.Client // Native gRPC client for Starlink
 }
 
 // Position represents a GPS coordinate with metadata
@@ -90,10 +91,12 @@ func NewGPSManager(starlinkIP string, starlinkPort int) *GPSManager {
 		starlinkPort = 9200
 	}
 
+	// Create native gRPC client for Starlink
+	starlinkClient := starlink.NewClient(starlinkIP, starlinkPort)
+
 	return &GPSManager{
 		maxHistorySize: 100, // Keep last 100 movement events
-		starlinkIP:     starlinkIP,
-		starlinkPort:   starlinkPort,
+		starlinkClient: starlinkClient,
 	}
 }
 
@@ -297,49 +300,88 @@ func (g *GPSManager) updatePosition(newPos *Position) {
 	g.lastPosition = newPos
 }
 
-// getStarlinkGPS gets GPS data from Starlink dish using configured IP and port
+// getStarlinkGPS gets GPS data from Starlink dish using native gRPC client with enhanced location API
 func (g *GPSManager) getStarlinkGPS(ctx context.Context) (*Position, error) {
-	// Use grpcurl to get location from Starlink with configured endpoint
-	endpoint := fmt.Sprintf("%s:%d", g.starlinkIP, g.starlinkPort)
-	cmd := exec.CommandContext(ctx, "grpcurl", "-plaintext", "-d",
-		`{"get_location":{}}`,
-		endpoint,
-		"SpaceX.API.Device.Device/Handle")
+	// Try dedicated location API first for the most accurate data
+	if locationData, err := g.starlinkClient.GetLocation(ctx); err == nil && locationData != nil {
+		if pos := g.processLocationData(locationData); pos != nil {
+			return pos, nil
+		}
+	}
 
-	output, err := cmd.Output()
+	// Fallback to diagnostics location data
+	diagnostics, err := g.starlinkClient.GetDiagnostics(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("starlink GPS failed: %w", err)
 	}
 
-	var resp map[string]interface{}
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, fmt.Errorf("failed to parse Starlink GPS: %w", err)
+	if diagnostics.DishGetDiagnostics == nil || diagnostics.DishGetDiagnostics.Location == nil {
+		return nil, fmt.Errorf("no location data in Starlink response")
 	}
 
-	if location, ok := resp["getLocation"].(map[string]interface{}); ok {
-		pos := &Position{
-			Source:    "starlink",
-			Timestamp: time.Now(),
-		}
-
-		if lat, ok := location["lla"].(map[string]interface{})["lat"].(float64); ok {
-			pos.Latitude = lat
-		}
-		if lon, ok := location["lla"].(map[string]interface{})["lon"].(float64); ok {
-			pos.Longitude = lon
-		}
-		if alt, ok := location["lla"].(map[string]interface{})["alt"].(float64); ok {
-			pos.Altitude = alt
-		}
-		if acc, ok := location["sigma"].(float64); ok {
-			pos.Accuracy = acc
-		}
-
-		pos.Valid = pos.Latitude != 0 && pos.Longitude != 0
-		return pos, nil
+	location := diagnostics.DishGetDiagnostics.Location
+	pos := &Position{
+		Source:    "starlink_diagnostics",
+		Timestamp: time.Now(),
+		Valid:     true,
 	}
 
-	return nil, fmt.Errorf("no location data in Starlink response")
+	if location.Latitude != nil {
+		pos.Latitude = *location.Latitude
+	}
+	if location.Longitude != nil {
+		pos.Longitude = *location.Longitude
+	}
+	if location.Altitude != nil {
+		pos.Altitude = *location.Altitude
+	}
+	if location.UncertaintyMeters != nil {
+		pos.Accuracy = *location.UncertaintyMeters
+	}
+
+	// Validate coordinates
+	if pos.Latitude == 0 && pos.Longitude == 0 {
+		return nil, fmt.Errorf("invalid Starlink GPS coordinates")
+	}
+
+	return pos, nil
+}
+
+// processLocationData converts enhanced location data to Position
+func (g *GPSManager) processLocationData(locationData *starlink.LocationData) *Position {
+	if locationData == nil {
+		return nil
+	}
+
+	pos := &Position{
+		Source:    "starlink_location",
+		Timestamp: time.Now(),
+		Valid:     true,
+	}
+
+	// Use LLA (Latitude, Longitude, Altitude) coordinates
+	if locationData.LLA != nil {
+		if locationData.LLA.Lat != nil {
+			pos.Latitude = *locationData.LLA.Lat
+		}
+		if locationData.LLA.Lon != nil {
+			pos.Longitude = *locationData.LLA.Lon
+		}
+		if locationData.LLA.Alt != nil {
+			pos.Altitude = *locationData.LLA.Alt
+		}
+	}
+
+	// Validate coordinates
+	if pos.Latitude == 0 && pos.Longitude == 0 {
+		return nil
+	}
+
+	// Enhanced location data doesn't provide uncertainty directly,
+	// but dedicated location API typically has better accuracy
+	pos.Accuracy = 5.0 // Assume 5m accuracy for dedicated location API
+
+	return pos
 }
 
 // getRUTOSGPS gets GPS data from RUTOS system

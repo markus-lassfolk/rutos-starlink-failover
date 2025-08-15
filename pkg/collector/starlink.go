@@ -1,4 +1,4 @@
-// Package collector implements Starlink-specific metric collection
+// Package collector implements Starlink-specific metric collection using native gRPC
 package collector
 
 import (
@@ -14,14 +14,16 @@ import (
 	"time"
 
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/retry"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/starlink"
 )
 
-// StarlinkCollector collects metrics from Starlink dish via JSON API and gRPC
+// StarlinkCollector collects metrics from Starlink dish via native gRPC and JSON API fallback
 type StarlinkCollector struct {
-	dishIP     string
-	dishPort   int
-	httpClient *http.Client
-	runner     *retry.Runner // command runner with retry logic
+	dishIP      string
+	dishPort    int
+	httpClient  *http.Client
+	grpcClient  *starlink.Client
+	runner      *retry.Runner // command runner with retry logic for fallback
 }
 
 // isValidIP validates IP address format and prevents command injection
@@ -35,7 +37,7 @@ func isValidIP(ip string) bool {
 	return matched
 }
 
-// NewStarlinkCollector creates a new Starlink metrics collector
+// NewStarlinkCollector creates a new Starlink metrics collector with native gRPC
 func NewStarlinkCollector(dishIP string, dishPort int) *StarlinkCollector {
 	if dishIP == "" {
 		dishIP = "192.168.100.1" // Default Starlink dish IP
@@ -50,27 +52,68 @@ func NewStarlinkCollector(dishIP string, dishPort int) *StarlinkCollector {
 		dishIP = "192.168.100.1" // Fallback to safe default
 	}
 
-	// Validate port range
-	if dishPort < 1 || dishPort > 65535 {
-		dishPort = 9200 // Fallback to safe default
+	// Create HTTP client for JSON API fallback
+	httpClient := &http.Client{
+		Timeout: 10 * time.Second,
 	}
 
-	// Configure retry for external commands
+	// Create native gRPC client
+	grpcClient := starlink.NewClient(dishIP, dishPort)
+
+	// Create retry runner for fallback commands
 	retryConfig := retry.Config{
 		MaxAttempts:   3,
-		InitialDelay:  100 * time.Millisecond,
+		InitialDelay:  500 * time.Millisecond,
 		MaxDelay:      2 * time.Second,
 		BackoffFactor: 2.0,
 	}
+	retryRunner := retry.NewRunner(retryConfig)
 
 	return &StarlinkCollector{
-		dishIP:   dishIP,
-		dishPort: dishPort,
-		httpClient: &http.Client{
-			Timeout: 5 * time.Second,
-		},
-		runner: retry.NewRunner(retryConfig),
+		dishIP:     dishIP,
+		dishPort:   dishPort,
+		httpClient: httpClient,
+		grpcClient: grpcClient,
+		runner:     retryRunner,
 	}
+}
+
+// EnhancedStarlinkData represents comprehensive Starlink metrics with native gRPC
+type EnhancedStarlinkData struct {
+	// Connectivity metrics
+	PopPingMs      *float64 `json:"pop_ping_ms,omitempty"`
+	SNR            *float64 `json:"snr,omitempty"`
+	ObstructionPct *float64 `json:"obstruction_pct,omitempty"`
+	UptimeS        *uint64  `json:"uptime_s,omitempty"`
+	State          *string  `json:"state,omitempty"`
+
+	// Hardware diagnostics
+	ThermalThrottle   *bool   `json:"thermal_throttle,omitempty"`
+	ThermalShutdown   *bool   `json:"thermal_shutdown,omitempty"`
+	RoamingAlert      *bool   `json:"roaming_alert,omitempty"`
+	HardwareSelfTest  *string `json:"hardware_self_test,omitempty"`
+
+	// Bandwidth restrictions
+	DlBandwidthRestricted *string `json:"dl_bandwidth_restricted,omitempty"`
+	UlBandwidthRestricted *string `json:"ul_bandwidth_restricted,omitempty"`
+
+	// GPS/Location data
+	Latitude       *float64 `json:"latitude,omitempty"`
+	Longitude      *float64 `json:"longitude,omitempty"`
+	Altitude       *float64 `json:"altitude,omitempty"`
+	GPSUncertainty *float64 `json:"gps_uncertainty,omitempty"`
+
+	// Enhanced API data
+	HistoricalData    map[string]interface{} `json:"historical_data,omitempty"`
+	DeviceInfo        map[string]interface{} `json:"device_info,omitempty"`
+	EnhancedLocation  map[string]interface{} `json:"enhanced_location,omitempty"`
+}
+
+// isStarlinkReachable checks if Starlink dish is accessible via native gRPC
+func (s *StarlinkCollector) isStarlinkReachable(ctx context.Context) bool {
+	// Try a quick status check
+	_, err := s.grpcClient.GetStatus(ctx)
+	return err == nil
 }
 
 // Class returns the interface class this collector handles
@@ -80,30 +123,12 @@ func (s *StarlinkCollector) Class() string {
 
 // SupportsInterface checks if this collector can handle the given interface
 func (s *StarlinkCollector) SupportsInterface(interfaceName string) bool {
-	// Check if interface routes through Starlink by testing dish connectivity
-	return s.isStarlinkReachable()
+	// Starlink collector supports interfaces that contain "starlink" or "sat"
+	name := strings.ToLower(interfaceName)
+	return strings.Contains(name, "starlink") || strings.Contains(name, "sat") || strings.Contains(name, "wwan")
 }
 
-// isStarlinkReachable tests if Starlink dish is accessible
-func (s *StarlinkCollector) isStarlinkReachable() bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://%s/support/debug", s.dishIP), nil)
-	if err != nil {
-		return false
-	}
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-
-	return resp.StatusCode == 200
-}
-
-// Collect gathers enhanced metrics for the given member
+// Collect gathers enhanced metrics for the given member using native gRPC
 func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics, error) {
 	startTime := time.Now()
 	metrics := Metrics{
@@ -120,6 +145,7 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 	metrics.Extra = map[string]interface{}{
 		"api_response_time_ms": apiResponseTime,
 		"api_accessible":       starlinkData != nil,
+		"collection_method":    "native_grpc",
 	}
 
 	if err != nil {
@@ -140,8 +166,6 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 		return metrics, nil
 	}
 
-	metrics.Extra["collection_method"] = "full"
-
 	// Parse and set enhanced metrics
 	if starlinkData != nil {
 		// Basic connectivity metrics
@@ -150,40 +174,36 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 			metrics.LatencyMs = &latency
 		}
 
-		if starlinkData.PacketLossPct != nil {
-			loss := *starlinkData.PacketLossPct
-			metrics.LossPct = &loss
-		}
-
-		// Signal quality
 		if starlinkData.SNR != nil {
-			metrics.SNR = starlinkData.SNR
+			snr := *starlinkData.SNR
+			metrics.SNR = &snr
 		}
 
 		if starlinkData.ObstructionPct != nil {
-			metrics.ObstructionPct = starlinkData.ObstructionPct
+			obstruction := *starlinkData.ObstructionPct * 100 // Convert to percentage
+			metrics.ObstructionPct = &obstruction
 		}
 
-		// Enhanced metrics in Extra field
-		if metrics.Extra == nil {
-			metrics.Extra = make(map[string]interface{})
+		// Enhanced metrics in Extra
+		if starlinkData.UptimeS != nil {
+			metrics.Extra["uptime_s"] = *starlinkData.UptimeS
+		}
+		if starlinkData.State != nil {
+			metrics.Extra["state"] = *starlinkData.State
 		}
 
-		// Hardware health
-		if starlinkData.HardwareSelfTest != nil {
-			metrics.Extra["hardware_self_test"] = *starlinkData.HardwareSelfTest
-		}
+		// Hardware diagnostics
 		if starlinkData.ThermalThrottle != nil {
 			metrics.Extra["thermal_throttle"] = *starlinkData.ThermalThrottle
 		}
 		if starlinkData.ThermalShutdown != nil {
 			metrics.Extra["thermal_shutdown"] = *starlinkData.ThermalShutdown
 		}
-		if starlinkData.UptimeS != nil {
-			metrics.Extra["uptime_seconds"] = *starlinkData.UptimeS
+		if starlinkData.RoamingAlert != nil {
+			metrics.Extra["roaming_alert"] = *starlinkData.RoamingAlert
 		}
-		if starlinkData.BootCount != nil {
-			metrics.Extra["boot_count"] = *starlinkData.BootCount
+		if starlinkData.HardwareSelfTest != nil {
+			metrics.Extra["hardware_self_test"] = *starlinkData.HardwareSelfTest
 		}
 
 		// Bandwidth restrictions
@@ -194,240 +214,145 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 			metrics.Extra["ul_bandwidth_restricted"] = *starlinkData.UlBandwidthRestricted
 		}
 
-		// Signal quality indicators
-		if starlinkData.IsSnrAboveNoise != nil {
-			metrics.Extra["is_snr_above_noise"] = *starlinkData.IsSnrAboveNoise
-		}
-		if starlinkData.IsSnrPersistentLow != nil {
-			metrics.Extra["is_snr_persistent_low"] = *starlinkData.IsSnrPersistentLow
-		}
-
-		// GPS data
-		if starlinkData.Latitude != nil && starlinkData.Longitude != nil {
+		// GPS/Location data
+		if starlinkData.Latitude != nil {
 			metrics.Extra["latitude"] = *starlinkData.Latitude
+		}
+		if starlinkData.Longitude != nil {
 			metrics.Extra["longitude"] = *starlinkData.Longitude
 		}
 		if starlinkData.Altitude != nil {
 			metrics.Extra["altitude"] = *starlinkData.Altitude
 		}
-		if starlinkData.GPSValid != nil {
-			metrics.Extra["gps_valid"] = *starlinkData.GPSValid
-		}
-		if starlinkData.GPSSatellites != nil {
-			metrics.Extra["gps_satellites"] = *starlinkData.GPSSatellites
-		}
 		if starlinkData.GPSUncertainty != nil {
-			metrics.Extra["gps_uncertainty_m"] = *starlinkData.GPSUncertainty
+			metrics.Extra["gps_uncertainty"] = *starlinkData.GPSUncertainty
 		}
 
-		// Alerts
-		if starlinkData.RoamingAlert != nil {
-			metrics.Extra["roaming_alert"] = *starlinkData.RoamingAlert
+		// Enhanced API data
+		if starlinkData.HistoricalData != nil {
+			for key, value := range starlinkData.HistoricalData {
+				metrics.Extra["history_"+key] = value
+			}
 		}
-		if starlinkData.SoftwareUpdate != nil {
-			metrics.Extra["software_update_pending"] = *starlinkData.SoftwareUpdate
+		if starlinkData.DeviceInfo != nil {
+			for key, value := range starlinkData.DeviceInfo {
+				metrics.Extra["device_"+key] = value
+			}
+		}
+		if starlinkData.EnhancedLocation != nil {
+			for key, value := range starlinkData.EnhancedLocation {
+				metrics.Extra["location_"+key] = value
+			}
 		}
 	}
 
 	return metrics, nil
 }
 
-// EnhancedStarlinkData represents comprehensive Starlink dish telemetry
-type EnhancedStarlinkData struct {
-	// Basic connectivity
-	PopPingMs      *float64 `json:"pop_ping_ms"`
-	PacketLossPct  *float64 `json:"packet_loss_pct"`
-	SNR            *float64 `json:"snr"`
-	ObstructionPct *float64 `json:"obstruction_pct"`
-
-	// Hardware diagnostics
-	HardwareSelfTest *string `json:"hardware_self_test"`
-	ThermalThrottle  *bool   `json:"thermal_throttle"`
-	ThermalShutdown  *bool   `json:"thermal_shutdown"`
-	UptimeS          *int64  `json:"uptime_s"`
-	BootCount        *int    `json:"boot_count"`
-
-	// Signal quality indicators
-	IsSnrAboveNoise    *bool `json:"is_snr_above_noise_floor"`
-	IsSnrPersistentLow *bool `json:"is_snr_persistently_low"`
-
-	// Bandwidth and performance
-	DlBandwidthRestricted *string `json:"dl_bandwidth_restricted_reason"`
-	UlBandwidthRestricted *string `json:"ul_bandwidth_restricted_reason"`
-
-	// GPS and location
-	Latitude       *float64 `json:"latitude"`
-	Longitude      *float64 `json:"longitude"`
-	Altitude       *float64 `json:"altitude"`
-	GPSValid       *bool    `json:"gps_valid"`
-	GPSSatellites  *int     `json:"gps_satellites"`
-	GPSUncertainty *float64 `json:"gps_uncertainty_m"`
-
-	// Alerts and status
-	RoamingAlert   *bool `json:"roaming_alert"`
-	SoftwareUpdate *bool `json:"software_update_pending"`
-
-	// Legacy fields for compatibility
-	Outages *int    `json:"outages"`
-	State   *string `json:"state"`
-}
-
-// getEnhancedStarlinkData fetches comprehensive telemetry using multiple APIs
+// getEnhancedStarlinkData fetches comprehensive data using native gRPC with JSON fallback
 func (s *StarlinkCollector) getEnhancedStarlinkData(ctx context.Context) (*EnhancedStarlinkData, error) {
-	// Try gRPC API first for comprehensive data
-	if grpcData, err := s.getGRPCData(ctx); err == nil {
-		return grpcData, nil
+	// Try native gRPC first
+	if data, err := s.getNativeGRPCData(ctx); err == nil {
+		return data, nil
 	}
 
 	// Fallback to JSON API
 	return s.getJSONData(ctx)
 }
 
-// getGRPCData fetches data using grpcurl command with retry logic
-func (s *StarlinkCollector) getGRPCData(ctx context.Context) (*EnhancedStarlinkData, error) {
-	// Try get_diagnostics for comprehensive data with retry
-	args := []string{
-		"-plaintext", "-d",
-		`{"get_diagnostics":{}}`,
-		fmt.Sprintf("%s:%d", s.dishIP, s.dishPort),
-		"SpaceX.API.Device.Device/Handle",
-	}
-
-	output, err := s.runner.Output(ctx, "grpcurl", args...)
-	if err != nil {
-		return nil, fmt.Errorf("grpcurl get_diagnostics failed: %w", err)
-	}
-
-	// Parse gRPC response
-	var grpcResp map[string]interface{}
-	if err := json.Unmarshal(output, &grpcResp); err != nil {
-		return nil, fmt.Errorf("failed to parse gRPC response: %w", err)
-	}
-
-	return s.parseGRPCDiagnostics(grpcResp)
-}
-
-// parseGRPCDiagnostics extracts enhanced metrics from gRPC diagnostics response
-func (s *StarlinkCollector) parseGRPCDiagnostics(resp map[string]interface{}) (*EnhancedStarlinkData, error) {
+// getNativeGRPCData fetches data using native gRPC client with expanded API coverage
+func (s *StarlinkCollector) getNativeGRPCData(ctx context.Context) (*EnhancedStarlinkData, error) {
 	data := &EnhancedStarlinkData{}
 
-	// Navigate through nested JSON structure
-	if diagnostics, ok := resp["dishGetDiagnostics"].(map[string]interface{}); ok {
-		// Hardware diagnostics
-		if alerts, ok := diagnostics["alerts"].(map[string]interface{}); ok {
-			if val, exists := alerts["thermalThrottle"].(bool); exists {
-				data.ThermalThrottle = &val
+	// Get basic status
+	status, err := s.grpcClient.GetStatus(ctx)
+	if err == nil && status.DishGetStatus != nil {
+		if status.DishGetStatus.PopPingLatencyMs != nil {
+			data.PopPingMs = status.DishGetStatus.PopPingLatencyMs
+		}
+		if status.DishGetStatus.SNR != nil {
+			data.SNR = status.DishGetStatus.SNR
+		}
+		if status.DishGetStatus.ObstructionStats != nil && status.DishGetStatus.ObstructionStats.FractionObstructed != nil {
+			data.ObstructionPct = status.DishGetStatus.ObstructionStats.FractionObstructed
+		}
+		if status.DishGetStatus.UptimeS != nil {
+			data.UptimeS = status.DishGetStatus.UptimeS
+		}
+		if status.DishGetStatus.State != nil {
+			data.State = status.DishGetStatus.State
+		}
+	}
+
+	// Get detailed diagnostics
+	diagnostics, err := s.grpcClient.GetDiagnostics(ctx)
+	if err == nil && diagnostics.DishGetDiagnostics != nil {
+		diag := diagnostics.DishGetDiagnostics
+
+		// Hardware alerts
+		if diag.Alerts != nil {
+			if diag.Alerts.ThermalThrottle != nil {
+				data.ThermalThrottle = diag.Alerts.ThermalThrottle
 			}
-			if val, exists := alerts["thermalShutdown"].(bool); exists {
-				data.ThermalShutdown = &val
+			if diag.Alerts.ThermalShutdown != nil {
+				data.ThermalShutdown = diag.Alerts.ThermalShutdown
 			}
-			if val, exists := alerts["roaming"].(bool); exists {
-				data.RoamingAlert = &val
+			if diag.Alerts.Roaming != nil {
+				data.RoamingAlert = diag.Alerts.Roaming
 			}
 		}
 
 		// Hardware self-test
-		if val, exists := diagnostics["hardwareSelfTest"].(string); exists {
-			data.HardwareSelfTest = &val
+		if diag.HardwareSelfTest != nil {
+			data.HardwareSelfTest = diag.HardwareSelfTest
 		}
 
 		// Bandwidth restrictions
-		if val, exists := diagnostics["dlBandwidthRestrictedReason"].(string); exists {
-			data.DlBandwidthRestricted = &val
+		if diag.DlBandwidthRestricted != nil {
+			data.DlBandwidthRestricted = diag.DlBandwidthRestricted
 		}
-		if val, exists := diagnostics["ulBandwidthRestrictedReason"].(string); exists {
-			data.UlBandwidthRestricted = &val
+		if diag.UlBandwidthRestricted != nil {
+			data.UlBandwidthRestricted = diag.UlBandwidthRestricted
 		}
 
-		// Location data
-		if location, ok := diagnostics["location"].(map[string]interface{}); ok {
-			if val, exists := location["latitude"].(float64); exists {
-				data.Latitude = &val
+		// GPS/Location data
+		if diag.Location != nil {
+			if diag.Location.Latitude != nil {
+				data.Latitude = diag.Location.Latitude
 			}
-			if val, exists := location["longitude"].(float64); exists {
-				data.Longitude = &val
+			if diag.Location.Longitude != nil {
+				data.Longitude = diag.Location.Longitude
 			}
-			if val, exists := location["altitude"].(float64); exists {
-				data.Altitude = &val
+			if diag.Location.Altitude != nil {
+				data.Altitude = diag.Location.Altitude
 			}
-			if val, exists := location["uncertaintyMeters"].(float64); exists {
-				data.GPSUncertainty = &val
+			if diag.Location.UncertaintyMeters != nil {
+				data.GPSUncertainty = diag.Location.UncertaintyMeters
 			}
 		}
 	}
 
-	// Get status data for connectivity metrics
-	statusData, _ := s.getGRPCStatus(context.Background())
-	if statusData != nil {
-		data.PopPingMs = statusData.PopPingMs
-		data.SNR = statusData.SNR
-		data.ObstructionPct = statusData.ObstructionPct
-		data.UptimeS = statusData.UptimeS
+	// Get historical performance data for trend analysis
+	if history, err := s.grpcClient.GetHistory(ctx); err == nil && history != nil {
+		data.HistoricalData = s.processHistoricalData(history)
 	}
 
-	return data, nil
-}
-
-// getGRPCStatus gets basic status metrics with retry logic
-func (s *StarlinkCollector) getGRPCStatus(ctx context.Context) (*EnhancedStarlinkData, error) {
-	args := []string{
-		"-plaintext", "-d",
-		`{"get_status":{}}`,
-		fmt.Sprintf("%s:%d", s.dishIP, s.dishPort),
-		"SpaceX.API.Device.Device/Handle",
+	// Get device information for enhanced context
+	if deviceInfo, err := s.grpcClient.GetDeviceInfo(ctx); err == nil && deviceInfo != nil {
+		data.DeviceInfo = s.processDeviceInfo(deviceInfo)
 	}
 
-	output, err := s.runner.Output(ctx, "grpcurl", args...)
-	if err != nil {
-		return nil, err
-	}
-
-	var grpcResp map[string]interface{}
-	if err := json.Unmarshal(output, &grpcResp); err != nil {
-		return nil, err
-	}
-
-	data := &EnhancedStarlinkData{}
-
-	if status, ok := grpcResp["dishGetStatus"].(map[string]interface{}); ok {
-		// Extract connectivity metrics
-		if val, exists := status["popPingLatencyMs"].(float64); exists {
-			data.PopPingMs = &val
-		}
-		if val, exists := status["snr"].(float64); exists {
-			data.SNR = &val
-		}
-		if val, exists := status["obstructionStats"].(map[string]interface{}); exists {
-			if obstruction, ok := val["fractionObstructed"].(float64); ok {
-				obstructionPct := obstruction * 100
-				data.ObstructionPct = &obstructionPct
-			}
-		}
-		if val, exists := status["uptimeS"].(float64); exists {
-			uptime := int64(val)
-			data.UptimeS = &uptime
-		}
-
-		// Ready states for signal quality
-		if readyStates, ok := status["readyStates"].(map[string]interface{}); ok {
-			if val, exists := readyStates["snrAboveNoiseFloor"].(bool); exists {
-				data.IsSnrAboveNoise = &val
-			}
-			if val, exists := readyStates["snrPersistentlyLow"].(bool); exists {
-				// Invert the logic - we want "is persistently low"
-				inverted := !val
-				data.IsSnrPersistentLow = &inverted
-			}
-		}
+	// Get enhanced location data using dedicated endpoint
+	if locationData, err := s.grpcClient.GetLocation(ctx); err == nil && locationData != nil {
+		data.EnhancedLocation = s.processLocationData(locationData)
 	}
 
 	return data, nil
 }
 
-// getJSONData fetches data using legacy JSON API
+// getJSONData fetches data using fallback JSON API
 func (s *StarlinkCollector) getJSONData(ctx context.Context) (*EnhancedStarlinkData, error) {
 	url := fmt.Sprintf("http://%s/support/debug", s.dishIP)
-
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -435,12 +360,12 @@ func (s *StarlinkCollector) getJSONData(ctx context.Context) (*EnhancedStarlinkD
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data: %w", err)
+		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
+		return nil, fmt.Errorf("HTTP error: %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -448,100 +373,241 @@ func (s *StarlinkCollector) getJSONData(ctx context.Context) (*EnhancedStarlinkD
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	// Parse JSON response (simplified for legacy API)
-	var jsonResp map[string]interface{}
-	if err := json.Unmarshal(body, &jsonResp); err != nil {
+	// Parse JSON response
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(body, &jsonData); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	data := &EnhancedStarlinkData{}
-
-	// Extract basic metrics from JSON API
-	if val, exists := jsonResp["pop_ping_latency_ms"].(float64); exists {
-		data.PopPingMs = &val
-	}
-	if val, exists := jsonResp["snr"].(float64); exists {
-		data.SNR = &val
-	}
-
-	return data, nil
+	return s.parseJSONResponse(jsonData), nil
 }
 
-// extractMetrics extracts relevant metrics from raw Starlink JSON
-func (s *StarlinkCollector) extractMetrics(raw map[string]interface{}, data *EnhancedStarlinkData) {
-	// This is a simplified extraction - the actual Starlink API has a complex nested structure
-	// In production, we'd need to navigate the proper JSON paths
+// parseJSONResponse extracts metrics from JSON API response
+func (s *StarlinkCollector) parseJSONResponse(data map[string]interface{}) *EnhancedStarlinkData {
+	result := &EnhancedStarlinkData{}
 
-	// Try to extract common metrics
-	if val, ok := raw["obstruction_pct"]; ok {
-		if f, ok := val.(float64); ok {
-			data.ObstructionPct = &f
-		}
+	// Basic connectivity - JSON API has limited data
+	if val, ok := data["pop_ping_latency_ms"].(float64); ok {
+		result.PopPingMs = &val
+	}
+	if val, ok := data["snr"].(float64); ok {
+		result.SNR = &val
+	}
+	if val, ok := data["obstruction_percent"].(float64); ok {
+		pct := val / 100.0 // Convert percentage to fraction
+		result.ObstructionPct = &pct
 	}
 
-	if val, ok := raw["snr"]; ok {
-		if f, ok := val.(float64); ok {
-			data.SNR = &f
-		}
-	}
-
-	if val, ok := raw["pop_ping_latency_ms"]; ok {
-		if f, ok := val.(float64); ok {
-			data.PopPingMs = &f
-		}
-	}
-
-	if val, ok := raw["outage_count"]; ok {
-		if i, ok := val.(float64); ok {
-			outages := int(i)
-			data.Outages = &outages
-		}
-	}
-
-	if val, ok := raw["uptime"]; ok {
-		if i, ok := val.(float64); ok {
-			uptime := int64(i)
-			data.UptimeS = &uptime
-		}
-	}
-
-	if val, ok := raw["state"]; ok {
-		if s, ok := val.(string); ok {
-			data.State = &s
-		}
-	}
+	return result
 }
 
-// getPingFallbackMetrics provides basic connectivity metrics when API fails
+// getPingFallbackMetrics provides basic connectivity check via ping
 func (s *StarlinkCollector) getPingFallbackMetrics(ctx context.Context) Metrics {
 	metrics := Metrics{
 		Timestamp:     time.Now(),
-		InterfaceName: "starlink",
+		InterfaceName: "starlink_ping_fallback",
 		Class:         "starlink",
 	}
 
-	// Simple ping test to dish IP to check basic connectivity
-	output, err := s.runner.Output(ctx, "ping", "-c", "1", "-W", "2000", s.dishIP)
-	if err == nil {
-		// Parse ping output for latency (very basic parsing)
-		if strings.Contains(string(output), "time=") {
-			// Extract time= value (platform-dependent parsing)
-			lines := strings.Split(string(output), "\n")
-			for _, line := range lines {
-				if strings.Contains(line, "time=") {
-					// Basic regex-free parsing for time=XX.X format
-					parts := strings.Split(line, "time=")
-					if len(parts) > 1 {
-						timeStr := strings.Split(parts[1], " ")[0]
-						if latency, err := strconv.ParseFloat(timeStr, 64); err == nil {
-							metrics.LatencyMs = &latency
-							break
-						}
-					}
+	// Simple ping check
+	if output, err := s.runner.Output(ctx, "ping", "-c", "1", "-W", "2", s.dishIP); err == nil {
+		// Parse ping output for latency
+		outputStr := string(output)
+		if strings.Contains(outputStr, "time=") {
+			// Extract latency from ping output
+			parts := strings.Split(outputStr, "time=")
+			if len(parts) > 1 {
+				timeStr := strings.Split(parts[1], " ")[0]
+				timeStr = strings.TrimSuffix(timeStr, "ms")
+				if latency, err := strconv.ParseFloat(timeStr, 64); err == nil {
+					metrics.LatencyMs = &latency
 				}
 			}
 		}
 	}
 
 	return metrics
+}
+
+// processHistoricalData extracts useful metrics from historical performance data
+func (s *StarlinkCollector) processHistoricalData(history *starlink.DishHistory) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	if history == nil {
+		return result
+	}
+
+	// Calculate averages and trends from historical arrays
+	if len(history.PopPingLatencyMs) > 0 {
+		result["avg_ping_latency_ms"] = calculateAverage(history.PopPingLatencyMs)
+		result["ping_trend"] = calculateTrend(history.PopPingLatencyMs)
+		result["ping_samples"] = len(history.PopPingLatencyMs)
+	}
+
+	if len(history.PopPingDropRate) > 0 {
+		result["avg_drop_rate"] = calculateAverage(history.PopPingDropRate)
+		result["drop_rate_trend"] = calculateTrend(history.PopPingDropRate)
+	}
+
+	if len(history.SNR) > 0 {
+		result["avg_snr"] = calculateAverage(history.SNR)
+		result["snr_trend"] = calculateTrend(history.SNR)
+	}
+
+	if len(history.DownlinkThroughputBps) > 0 {
+		result["avg_dl_throughput_bps"] = calculateAverage(history.DownlinkThroughputBps)
+		result["dl_throughput_trend"] = calculateTrend(history.DownlinkThroughputBps)
+	}
+
+	if len(history.UplinkThroughputBps) > 0 {
+		result["avg_ul_throughput_bps"] = calculateAverage(history.UplinkThroughputBps)
+		result["ul_throughput_trend"] = calculateTrend(history.UplinkThroughputBps)
+	}
+
+	// Obstruction and scheduling stats
+	if len(history.Obstructed) > 0 {
+		obstructedCount := 0
+		for _, obstructed := range history.Obstructed {
+			if obstructed {
+				obstructedCount++
+			}
+		}
+		result["obstruction_rate"] = float64(obstructedCount) / float64(len(history.Obstructed))
+	}
+
+	if len(history.Scheduled) > 0 {
+		scheduledCount := 0
+		for _, scheduled := range history.Scheduled {
+			if scheduled {
+				scheduledCount++
+			}
+		}
+		result["schedule_rate"] = float64(scheduledCount) / float64(len(history.Scheduled))
+	}
+
+	if history.Current != nil {
+		result["current_sample"] = *history.Current
+	}
+
+	return result
+}
+
+// processDeviceInfo extracts device information for context
+func (s *StarlinkCollector) processDeviceInfo(deviceInfo *starlink.DeviceInfo) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	if deviceInfo == nil {
+		return result
+	}
+
+	if deviceInfo.ID != nil {
+		result["id"] = *deviceInfo.ID
+	}
+	if deviceInfo.HardwareVersion != nil {
+		result["hardware_version"] = *deviceInfo.HardwareVersion
+	}
+	if deviceInfo.SoftwareVersion != nil {
+		result["software_version"] = *deviceInfo.SoftwareVersion
+	}
+	if deviceInfo.CountryCode != nil {
+		result["country_code"] = *deviceInfo.CountryCode
+	}
+	if deviceInfo.UtcOffsetS != nil {
+		result["utc_offset_s"] = *deviceInfo.UtcOffsetS
+	}
+	if deviceInfo.SoftwarePartNumber != nil {
+		result["software_part_number"] = *deviceInfo.SoftwarePartNumber
+	}
+	if deviceInfo.GenerationNumber != nil {
+		result["generation_number"] = *deviceInfo.GenerationNumber
+	}
+	if deviceInfo.DishCohoused != nil {
+		result["dish_cohoused"] = *deviceInfo.DishCohoused
+	}
+	if deviceInfo.UtcnsOffsetNs != nil {
+		result["utcns_offset_ns"] = *deviceInfo.UtcnsOffsetNs
+	}
+
+	return result
+}
+
+// processLocationData extracts enhanced location information
+func (s *StarlinkCollector) processLocationData(locationData *starlink.LocationData) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	if locationData == nil {
+		return result
+	}
+
+	if locationData.Source != nil {
+		result["source"] = *locationData.Source
+	}
+
+	if locationData.LLA != nil {
+		lla := make(map[string]interface{})
+		if locationData.LLA.Lat != nil {
+			lla["lat"] = *locationData.LLA.Lat
+		}
+		if locationData.LLA.Lon != nil {
+			lla["lon"] = *locationData.LLA.Lon
+		}
+		if locationData.LLA.Alt != nil {
+			lla["alt"] = *locationData.LLA.Alt
+		}
+		if len(lla) > 0 {
+			result["lla"] = lla
+		}
+	}
+
+	if locationData.ECEF != nil {
+		ecef := make(map[string]interface{})
+		if locationData.ECEF.X != nil {
+			ecef["x"] = *locationData.ECEF.X
+		}
+		if locationData.ECEF.Y != nil {
+			ecef["y"] = *locationData.ECEF.Y
+		}
+		if locationData.ECEF.Z != nil {
+			ecef["z"] = *locationData.ECEF.Z
+		}
+		if len(ecef) > 0 {
+			result["ecef"] = ecef
+		}
+	}
+
+	return result
+}
+
+// calculateAverage computes the mean of a float64 slice
+func calculateAverage(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	sum := 0.0
+	for _, v := range values {
+		sum += v
+	}
+	return sum / float64(len(values))
+}
+
+// calculateTrend returns simple trend indicator: positive, negative, or stable
+func calculateTrend(values []float64) string {
+	if len(values) < 2 {
+		return "stable"
+	}
+
+	// Compare first half vs second half
+	mid := len(values) / 2
+	firstHalf := calculateAverage(values[:mid])
+	secondHalf := calculateAverage(values[mid:])
+
+	diff := secondHalf - firstHalf
+	threshold := firstHalf * 0.1 // 10% threshold
+
+	if diff > threshold {
+		return "improving"
+	} else if diff < -threshold {
+		return "degrading"
+	}
+	return "stable"
 }
