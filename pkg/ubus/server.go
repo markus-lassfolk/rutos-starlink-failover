@@ -1183,7 +1183,7 @@ func (s *Server) Action(cmd string) (interface{}, error) {
 			s.logger.Error("Manual failover failed", "error", err, "target", bestMember.Name)
 		} else {
 			response.Success = true
-			response.Message = fmt.Sprintf("Failover completed successfully")
+			response.Message = "Failover completed successfully"
 			response.Data["from"] = ""
 			if currentMember != nil {
 				response.Data["from"] = currentMember.Name

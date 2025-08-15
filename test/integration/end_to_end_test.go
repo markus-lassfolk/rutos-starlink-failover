@@ -246,9 +246,9 @@ func testCollectorFactory(t *testing.T, factory *collector.CollectorFactory) {
 func testSecurityAuditor(t *testing.T, auditor *security.Auditor) {
 	// Test file integrity check (using public method)
 	// Note: CheckFileIntegrity is private, so we'll test indirectly
-	results := auditor.GetAuditResults()
-	if results == nil {
-		t.Error("GetAuditResults should not return nil")
+	events := auditor.GetSecurityEvents()
+	if events == nil {
+		t.Error("GetSecurityEvents should not return nil")
 	}
 
 	// Test access control

@@ -333,7 +333,8 @@ func (esm *EnhancedStarlinkMonitor) uint32ToFloat32(u uint32) float32 {
 // getSpeedTestData gets current speed test results
 func (esm *EnhancedStarlinkMonitor) getSpeedTestData(ctx context.Context) (map[string]float64, error) {
 	// This would trigger a speed test and return results
-	// For now, return mock data
+	// ⚠️ WARNING: Returning MOCK DATA - real speed test not implemented yet!
+	fmt.Printf("⚠️  WARNING: Speed test returning MOCK DATA (not real speed test results!)\n")
 	return map[string]float64{
 		"download_mbps": 150.0,
 		"upload_mbps":   20.0,
@@ -344,7 +345,8 @@ func (esm *EnhancedStarlinkMonitor) getSpeedTestData(ctx context.Context) (map[s
 // getDataUsage gets current data usage information
 func (esm *EnhancedStarlinkMonitor) getDataUsage(ctx context.Context) (map[string]float64, error) {
 	// This would get data usage from Starlink API
-	// For now, return mock data
+	// ⚠️ WARNING: Returning MOCK DATA - real data usage API not implemented yet!
+	fmt.Printf("⚠️  WARNING: Data usage returning MOCK DATA (not real usage statistics!)\n")
 	return map[string]float64{
 		"monthly_usage_gb":  450.0,
 		"daily_usage_gb":    15.0,

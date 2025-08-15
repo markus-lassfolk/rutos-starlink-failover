@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 	"unsafe"
@@ -17,8 +18,25 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	// Import grpcurl library for proper gRPC request handling
+	"github.com/fullstorydev/grpcurl"
+	"github.com/jhump/protoreflect/grpcreflect"
 )
+
+// MockDataError indicates that mock data was returned instead of real API data
+type MockDataError struct {
+	Message string
+}
+
+func (e *MockDataError) Error() string {
+	return e.Message
+}
 
 // StarlinkCollector collects metrics from Starlink dish
 type StarlinkCollector struct {
@@ -221,15 +239,55 @@ func (sc *StarlinkCollector) Collect(ctx context.Context, member *pkg.Member) (*
 	// Collect Starlink-specific metrics
 	starlinkMetrics, err := sc.collectStarlinkMetrics(ctx)
 	if err != nil {
-		// Log error but don't fail - continue with common metrics
-		fmt.Printf("Warning: Failed to collect Starlink metrics: %v\n", err)
-	} else {
-		// Merge Starlink metrics
-		if starlinkMetrics.ObstructionPct != nil {
-			metrics.ObstructionPct = starlinkMetrics.ObstructionPct
+		// Check if it's a mock data error
+		if mockErr, ok := err.(*MockDataError); ok {
+			// Mock data was returned - merge the metrics but add a warning indicator
+			fmt.Printf("⚠️  WARNING: Using MOCK Starlink data - %v\n", mockErr.Message)
+			if starlinkMetrics != nil {
+				// Merge mock Starlink metrics but mark them as mock data
+				if starlinkMetrics.ObstructionPct != nil {
+					metrics.ObstructionPct = starlinkMetrics.ObstructionPct
+				}
+				if starlinkMetrics.Outages != nil {
+					metrics.Outages = starlinkMetrics.Outages
+				}
+				// Add all other available mock metrics
+				if starlinkMetrics.LatencyMS > 0 {
+					metrics.LatencyMS = starlinkMetrics.LatencyMS
+				}
+				if starlinkMetrics.LossPercent >= 0 {
+					metrics.LossPercent = starlinkMetrics.LossPercent
+				}
+				if starlinkMetrics.SNR != nil {
+					metrics.SNR = starlinkMetrics.SNR
+				}
+				// Mock data is already indicated by the warning message above
+			}
+		} else {
+			// Real error - log but don't fail
+			fmt.Printf("Warning: Failed to collect Starlink metrics: %v\n", err)
 		}
-		if starlinkMetrics.Outages != nil {
-			metrics.Outages = starlinkMetrics.Outages
+	} else {
+		// Real data collected successfully
+		if starlinkMetrics != nil {
+			// Merge real Starlink metrics
+			if starlinkMetrics.ObstructionPct != nil {
+				metrics.ObstructionPct = starlinkMetrics.ObstructionPct
+			}
+			if starlinkMetrics.Outages != nil {
+				metrics.Outages = starlinkMetrics.Outages
+			}
+			// Add all other available real metrics
+			if starlinkMetrics.LatencyMS > 0 {
+				metrics.LatencyMS = starlinkMetrics.LatencyMS
+			}
+			if starlinkMetrics.LossPercent >= 0 {
+				metrics.LossPercent = starlinkMetrics.LossPercent
+			}
+			if starlinkMetrics.SNR != nil {
+				metrics.SNR = starlinkMetrics.SNR
+			}
+			// Real data collected successfully (no special indicator needed)
 		}
 	}
 
@@ -241,6 +299,12 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 	// Try gRPC first, fallback to HTTP if needed
 	apiResp, err := sc.getStarlinkAPIData(ctx)
 	if err != nil {
+		// Check if it's a mock data error
+		if mockErr, ok := err.(*MockDataError); ok {
+			// Extract metrics from mock data but return the error to indicate it's not real data
+			metrics := sc.extractMetricsFromAPIResponse(apiResp)
+			return metrics, mockErr
+		}
 		return nil, fmt.Errorf("failed to get Starlink API data: %w", err)
 	}
 
@@ -356,7 +420,114 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 		metrics.GPSSource = &gpsSource
 	}
 
-	return metrics, nil
+	return sc.extractMetricsFromAPIResponse(apiResp), nil
+}
+
+// extractMetricsFromAPIResponse extracts metrics from a Starlink API response
+func (sc *StarlinkCollector) extractMetricsFromAPIResponse(apiResp *StarlinkAPIResponse) *pkg.Metrics {
+	// Extract comprehensive metrics from unified API response
+	metrics := &pkg.Metrics{
+		Timestamp: time.Now(),
+	}
+
+	// Basic obstruction data (enhanced with quality validation)
+	obstructionPct := apiResp.Status.ObstructionStats.FractionObstructed * 100
+	metrics.ObstructionPct = &obstructionPct
+
+	// Enhanced obstruction data
+	obstructionTime := apiResp.Status.ObstructionStats.TimeObstructed
+	metrics.ObstructionTimePct = &obstructionTime
+
+	validS := int64(apiResp.Status.ObstructionStats.ValidS)
+	metrics.ObstructionValidS = &validS
+
+	avgProlonged := apiResp.Status.ObstructionStats.AvgProlongedObstructionIntervalS
+	metrics.ObstructionAvgProlonged = &avgProlonged
+
+	patchesValid := apiResp.Status.ObstructionStats.PatchesValid
+	metrics.ObstructionPatchesValid = &patchesValid
+
+	// Enhanced outage tracking
+	outages := apiResp.Status.Outage.OutageCount
+	if apiResp.Status.Outage.LastOutageS > 0 && apiResp.Status.Outage.LastOutageS < 300 { // Recent outage (5 minutes)
+		outages++
+	}
+	metrics.Outages = &outages
+
+	// Network performance metrics
+	if apiResp.Status.PopPingLatencyMs > 0 {
+		metrics.LatencyMS = apiResp.Status.PopPingLatencyMs
+	}
+
+	if apiResp.Status.PopPingDropRate >= 0 {
+		lossPercent := apiResp.Status.PopPingDropRate * 100
+		metrics.LossPercent = lossPercent
+	}
+
+	// SNR data for signal quality assessment
+	if apiResp.Status.SNR > 0 {
+		snr := int(apiResp.Status.SNR)
+		metrics.SNR = &snr
+	} else if apiResp.Status.SnrDb > 0 {
+		snr := int(apiResp.Status.SnrDb)
+		metrics.SNR = &snr
+	}
+
+	// System uptime and boot count
+	if apiResp.Status.DeviceState.UptimeS > 0 {
+		uptime := int64(apiResp.Status.DeviceState.UptimeS)
+		metrics.UptimeS = &uptime
+	}
+
+	// Boot count from device info
+	if apiResp.Status.DeviceInfo.BootCount > 0 {
+		metrics.BootCount = &apiResp.Status.DeviceInfo.BootCount
+	}
+
+	// Thermal monitoring
+	if apiResp.Status.Thermal.ThermalThrottle {
+		metrics.ThermalThrottle = &apiResp.Status.Thermal.ThermalThrottle
+	}
+	if apiResp.Status.Thermal.ThermalShutdown {
+		metrics.ThermalShutdown = &apiResp.Status.Thermal.ThermalShutdown
+	}
+
+	// Software update state
+	if apiResp.Status.SoftwareUpdate.State != "" {
+		metrics.SoftwareUpdateState = &apiResp.Status.SoftwareUpdate.State
+	}
+	if apiResp.Status.SoftwareUpdate.RebootReady {
+		metrics.SwupdateRebootReady = &apiResp.Status.SoftwareUpdate.RebootReady
+	}
+
+	// Reboot scheduling (using system reboot info)
+	if apiResp.Status.System.ScheduledReboot && apiResp.Status.System.RebootTimeS > 0 {
+		rebootTime := time.Unix(apiResp.Status.System.RebootTimeS, 0).Format(time.RFC3339)
+		metrics.RebootScheduledUTC = &rebootTime
+	}
+
+	// Roaming alert
+	metrics.RoamingAlert = &apiResp.Status.RoamingAlert
+
+	// GPS data collection
+	if apiResp.Status.GPS.GPSValid {
+		metrics.GPSValid = &apiResp.Status.GPS.GPSValid
+		metrics.GPSLatitude = &apiResp.Status.GPS.Latitude
+		metrics.GPSLongitude = &apiResp.Status.GPS.Longitude
+		metrics.GPSAltitude = &apiResp.Status.GPS.Altitude
+
+		// Convert int32 to int for satellites
+		satellites := int(apiResp.Status.GPS.GPSSats)
+		metrics.GPSSatellites = &satellites
+
+		metrics.GPSAccuracy = &apiResp.Status.GPS.Accuracy
+		metrics.GPSUncertaintyMeters = &apiResp.Status.GPS.Uncertainty
+
+		gpsSource := "starlink"
+		metrics.GPSSource = &gpsSource
+	}
+
+	return metrics
 }
 
 // getStarlinkAPIData attempts to get comprehensive Starlink API data using multiple methods
@@ -393,14 +564,26 @@ func (sc *StarlinkCollector) getStarlinkAPIData(ctx context.Context) (*StarlinkA
 	}
 
 	// Final fallback: return mock data for testing/development
-	fmt.Printf("Warning: All Starlink API methods failed, using mock data\n")
-	return sc.getMockStarlinkData(), nil
+	fmt.Printf("❌ FAILED: All Starlink API methods failed - returning MOCK DATA (not real Starlink metrics!)\n")
+	return sc.getMockStarlinkData(), &MockDataError{
+		Message: "All Starlink API methods failed - using mock data fallback",
+	}
 }
 
 // tryStarlinkGRPC attempts to call the Starlink gRPC API with native Go gRPC client
 func (sc *StarlinkCollector) tryStarlinkGRPC(ctx context.Context) (*StarlinkAPIResponse, error) {
-	// Use the new native gRPC implementation (no external dependencies)
-	return sc.callStarlinkGRPCNative(ctx)
+	// Try grpcurl library approach first (proper native gRPC)
+	response, err := sc.callStarlinkWithGrpcurlLibrary(ctx)
+	if err != nil {
+		fmt.Printf("Debug: grpcurl library failed, trying legacy native gRPC: %v\n", err)
+		// Fallback to our old native implementation
+		response, err = sc.callStarlinkGRPCNative(ctx)
+		if err != nil {
+			fmt.Printf("Debug: Legacy native gRPC failed, trying WSL grpcurl fallback: %v\n", err)
+			return sc.callStarlinkWithWSLGrpcurl(ctx)
+		}
+	}
+	return response, nil
 }
 
 // callStarlinkNativeGRPC uses native Go gRPC to call the Starlink API
@@ -459,16 +642,11 @@ func (sc *StarlinkCollector) callStarlinkDirectMethods(ctx context.Context, conn
 	for _, method := range serviceMethods {
 		fmt.Printf("Debug: Trying direct gRPC call to %s\n", method)
 
-		// Create a basic Starlink request message
-		// The Starlink Handle method expects a Request message with specific fields
-		request, err := sc.createStarlinkRequest()
-		if err != nil {
-			fmt.Printf("Debug: Failed to create request: %v\n", err)
-			continue
-		}
+		// Create a basic protobuf request as raw bytes
+		request := []byte{0x0A, 0x00} // Field 1 (get_status), length 0 (empty message)
 
 		var response []byte
-		err = conn.Invoke(ctx, "/"+method, request, &response)
+		err := conn.Invoke(ctx, "/"+method, request, &response)
 		if err != nil {
 			fmt.Printf("Debug: Method %s failed: %v\n", method, err)
 			continue
@@ -581,8 +759,14 @@ func (sc *StarlinkCollector) callStarlinkReflectionGRPC(ctx context.Context, ref
 
 					fmt.Printf("Debug: Found Handle method with input: %s, output: %s\n", inputType, outputType)
 
-					// For now, try with empty message (common pattern)
-					return sc.invokeStarlinkMethod(ctx, conn, serviceName, "Handle", []byte{})
+					// Try dynamic protobuf message, fallback to simple approach
+					if response, err := sc.invokeStarlinkMethodDynamic(ctx, conn, serviceName, "Handle", &fileDesc, inputType, outputType); err == nil {
+						return response, nil
+					}
+
+					// Fallback to simple message creation
+					fmt.Printf("Debug: Dynamic message failed, trying simple approach\n")
+					return sc.invokeStarlinkMethodSimple(ctx, conn, serviceName, "Handle")
 				}
 			}
 		}
@@ -602,6 +786,181 @@ func (sc *StarlinkCollector) invokeStarlinkMethod(ctx context.Context, conn *grp
 	}
 
 	return sc.parseGRPCResponse(response)
+}
+
+// invokeStarlinkMethodDynamic invokes a gRPC method using dynamic protobuf messages
+func (sc *StarlinkCollector) invokeStarlinkMethodDynamic(ctx context.Context, conn *grpc.ClientConn, serviceName, methodName string, fileDesc *descriptorpb.FileDescriptorProto, inputType, outputType string) (*StarlinkAPIResponse, error) {
+	fullMethod := fmt.Sprintf("/%s/%s", serviceName, methodName)
+
+	// Create a file descriptor from the proto descriptor
+	fileDescriptor, err := protodesc.NewFile(fileDesc, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file descriptor: %w", err)
+	}
+
+	// Find the input message descriptor
+	inputMsgName := protoreflect.FullName(strings.TrimPrefix(inputType, "."))
+	inputMsgDesc := fileDescriptor.Messages().ByName(protoreflect.Name(strings.Split(string(inputMsgName), ".")[len(strings.Split(string(inputMsgName), "."))-1]))
+
+	if inputMsgDesc == nil {
+		// Try to find it in the full registry
+		services := fileDescriptor.Services()
+		for i := 0; i < services.Len(); i++ {
+			service := services.Get(i)
+			methods := service.Methods()
+			for j := 0; j < methods.Len(); j++ {
+				method := methods.Get(j)
+				if string(method.Name()) == methodName {
+					inputMsgDesc = method.Input()
+					break
+				}
+			}
+			if inputMsgDesc != nil {
+				break
+			}
+		}
+	}
+
+	if inputMsgDesc == nil {
+		return nil, fmt.Errorf("input message descriptor not found for type: %s", inputType)
+	}
+
+	// Create a dynamic message for the request
+	request := dynamicpb.NewMessage(inputMsgDesc)
+
+	// For Starlink, we want to set the get_status field (field 1) to an empty message
+	// First, find the get_status field
+	fields := inputMsgDesc.Fields()
+	var getStatusField protoreflect.FieldDescriptor
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
+		if field.Number() == 1 || string(field.Name()) == "get_status" {
+			getStatusField = field
+			break
+		}
+	}
+
+	if getStatusField != nil && getStatusField.Kind() == protoreflect.MessageKind {
+		// Create an empty message for the get_status field
+		getStatusMsgDesc := getStatusField.Message()
+		getStatusMsg := dynamicpb.NewMessage(getStatusMsgDesc)
+		request.Set(getStatusField, protoreflect.ValueOfMessage(getStatusMsg))
+		fmt.Printf("Debug: Set get_status field in request\n")
+	} else {
+		fmt.Printf("Debug: get_status field not found or not a message type\n")
+	}
+
+	// Make the gRPC call
+	var response []byte
+	err = conn.Invoke(ctx, fullMethod, request, &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to invoke %s: %w", fullMethod, err)
+	}
+
+	fmt.Printf("Debug: Successfully called %s with dynamic message, got %d bytes response\n", fullMethod, len(response))
+	return sc.parseGRPCResponse(response)
+}
+
+// SimpleStarlinkRequest represents a simple Starlink API request
+type SimpleStarlinkRequest struct {
+	GetStatus *SimpleGetStatusRequest `protobuf:"bytes,1,opt,name=get_status,json=getStatus,proto3" json:"get_status,omitempty"`
+}
+
+// SimpleGetStatusRequest represents a simple get_status request
+type SimpleGetStatusRequest struct{}
+
+// Implement proto.Message interface for SimpleStarlinkRequest
+func (x *SimpleStarlinkRequest) Reset() {
+	*x = SimpleStarlinkRequest{}
+}
+
+func (x *SimpleStarlinkRequest) String() string {
+	return "SimpleStarlinkRequest{}"
+}
+
+func (*SimpleStarlinkRequest) ProtoMessage() {}
+
+func (x *SimpleStarlinkRequest) ProtoReflect() protoreflect.Message {
+	return nil // Minimal implementation
+}
+
+// Implement proto.Message interface for SimpleGetStatusRequest
+func (x *SimpleGetStatusRequest) Reset() {
+	*x = SimpleGetStatusRequest{}
+}
+
+func (x *SimpleGetStatusRequest) String() string {
+	return "SimpleGetStatusRequest{}"
+}
+
+func (*SimpleGetStatusRequest) ProtoMessage() {}
+
+func (x *SimpleGetStatusRequest) ProtoReflect() protoreflect.Message {
+	return nil // Minimal implementation
+}
+
+// invokeStarlinkMethodSimple creates a structpb-based message for Starlink API calls
+func (sc *StarlinkCollector) invokeStarlinkMethodSimple(ctx context.Context, conn *grpc.ClientConn, serviceName, methodName string) (*StarlinkAPIResponse, error) {
+	fullMethod := fmt.Sprintf("/%s/%s", serviceName, methodName)
+
+	// Create proper Starlink API requests based on grpcurl source code analysis
+	// Key insight from Rust starlink-rs: requests must be wrapped in Request message!
+	// The structure is: Request { request: Some(request::Request::GetStatus(GetStatusRequest {})) }
+	requestPatterns := []map[string]interface{}{
+		{
+			"request": map[string]interface{}{
+				"get_status": map[string]interface{}{},
+			},
+		},
+		{
+			"request": map[string]interface{}{
+				"get_history": map[string]interface{}{},
+			},
+		},
+		{
+			"request": map[string]interface{}{
+				"get_device_info": map[string]interface{}{},
+			},
+		},
+		{
+			"request": map[string]interface{}{
+				"get_location": map[string]interface{}{},
+			},
+		},
+		{
+			"request": map[string]interface{}{
+				"get_diagnostics": map[string]interface{}{},
+			},
+		},
+		// Fallback patterns (old format)
+		{"get_status": map[string]interface{}{}},    // Direct format fallback
+		{"dishGetStatus": map[string]interface{}{}}, // Response field name fallback
+	}
+
+	// Try each request pattern
+	for i, requestData := range requestPatterns {
+		fmt.Printf("Debug: Trying request pattern %d: %+v\n", i+1, requestData)
+
+		request, err := structpb.NewStruct(requestData)
+		if err != nil {
+			fmt.Printf("Debug: Failed to create struct request %d: %v\n", i+1, err)
+			continue
+		}
+
+		var response []byte
+		err = conn.Invoke(ctx, fullMethod, request, &response)
+		if err != nil {
+			fmt.Printf("Debug: Request pattern %d failed: %v\n", i+1, err)
+			continue
+		}
+
+		fmt.Printf("Debug: ✅ Request pattern %d got response, got %d bytes\n", i+1, len(response))
+		if apiResponse, err := sc.parseGRPCResponse(response); err == nil {
+			return apiResponse, nil
+		}
+	}
+
+	return nil, fmt.Errorf("all request patterns failed for %s", fullMethod)
 }
 
 // getGRPCServices gets the list of available gRPC services using reflection
@@ -1080,13 +1439,44 @@ func (sc *StarlinkCollector) tryAlternativeGRPCMethods(ctx context.Context) (*St
 
 // convertGRPCResponseToAPI converts grpcurl JSON response to our API structure
 func (sc *StarlinkCollector) convertGRPCResponseToAPI(grpcResp map[string]interface{}) (*StarlinkAPIResponse, error) {
-	// This is a complex conversion function that maps the protobuf response
-	// to our API structure. For now, we'll implement basic field mapping.
+	// Updated to handle the actual Starlink API response structure from grpcurl
+	// The real response has "dishGetStatus" as the top-level field
 
 	response := &StarlinkAPIResponse{}
 
+	// Handle different response types based on API documentation
+	var status map[string]interface{}
+
+	// Try different response structures based on API documentation
+	if dishGetStatus, exists := grpcResp["dishGetStatus"].(map[string]interface{}); exists {
+		status = dishGetStatus
+		fmt.Printf("Debug: Found dishGetStatus response (get_status method)\n")
+	} else if dishGetHistory, exists := grpcResp["dishGetHistory"].(map[string]interface{}); exists {
+		// Handle historical data - convert to status-like structure for now
+		status = dishGetHistory
+		fmt.Printf("Debug: Found dishGetHistory response (get_history method)\n")
+	} else if deviceInfo, exists := grpcResp["deviceInfo"].(map[string]interface{}); exists {
+		// Handle device info response
+		status = map[string]interface{}{"deviceInfo": deviceInfo}
+		fmt.Printf("Debug: Found deviceInfo response (get_device_info method)\n")
+	} else if getLocation, exists := grpcResp["getLocation"].(map[string]interface{}); exists {
+		// Handle location response
+		status = getLocation
+		fmt.Printf("Debug: Found getLocation response (get_location method)\n")
+	} else if dishGetDiagnostics, exists := grpcResp["dishGetDiagnostics"].(map[string]interface{}); exists {
+		// Handle diagnostics response
+		status = dishGetDiagnostics
+		fmt.Printf("Debug: Found dishGetDiagnostics response (get_diagnostics method)\n")
+	} else if statusDirect, exists := grpcResp["status"].(map[string]interface{}); exists {
+		// Fallback for other response formats
+		status = statusDirect
+		fmt.Printf("Debug: Found direct status in response\n")
+	} else {
+		return nil, fmt.Errorf("no recognized response data found in response")
+	}
+
 	// Try to extract status information
-	if status, ok := grpcResp["status"].(map[string]interface{}); ok {
+	if status != nil {
 		// Extract device info
 		if deviceInfo, ok := status["deviceInfo"].(map[string]interface{}); ok {
 			if id, ok := deviceInfo["id"].(string); ok {
@@ -1122,9 +1512,216 @@ func (sc *StarlinkCollector) convertGRPCResponseToAPI(grpcResp map[string]interf
 		if snr, ok := status["snr"].(float64); ok {
 			response.Status.SNR = snr
 		}
+
+		// Extract device state (uptime)
+		if deviceState, ok := status["deviceState"].(map[string]interface{}); ok {
+			if uptimeStr, ok := deviceState["uptimeS"].(string); ok {
+				if uptimeS, err := strconv.ParseUint(uptimeStr, 10, 64); err == nil {
+					response.Status.DeviceState.UptimeS = uptimeS
+				}
+			}
+		}
+
+		// Extract GPS stats
+		if gpsStats, ok := status["gpsStats"].(map[string]interface{}); ok {
+			if gpsValid, ok := gpsStats["gpsValid"].(bool); ok {
+				response.Status.GPS.GPSValid = gpsValid
+			}
+			if gpsSats, ok := gpsStats["gpsSats"].(float64); ok {
+				response.Status.GPS.GPSSats = int32(gpsSats)
+			}
+		}
+
+		// Extract obstruction stats details
+		if obstructionStats, ok := status["obstructionStats"].(map[string]interface{}); ok {
+			if validS, ok := obstructionStats["validS"].(float64); ok {
+				response.Status.ObstructionStats.ValidS = int(validS)
+			}
+			if patchesValid, ok := obstructionStats["patchesValid"].(float64); ok {
+				response.Status.ObstructionStats.PatchesValid = int(patchesValid)
+			}
+		}
+
+		// Extract throughput data
+		if downlink, ok := status["downlinkThroughputBps"].(float64); ok {
+			response.Status.DownlinkThroughputBps = downlink
+		}
+		if uplink, ok := status["uplinkThroughputBps"].(float64); ok {
+			response.Status.UplinkThroughputBps = uplink
+		}
+
+		// Extract signal quality
+		if isSnrAbove, ok := status["isSnrAboveNoiseFloor"].(bool); ok {
+			response.Status.IsSnrAboveNoiseFloor = isSnrAbove
+		}
+
+		// Extract software update state
+		if swUpdateState, ok := status["softwareUpdateState"].(string); ok {
+			response.Status.SoftwareUpdate.State = swUpdateState
+		}
 	}
 
-	fmt.Printf("Debug: Converted gRPC response to API structure\n")
+	fmt.Printf("Debug: Successfully converted real Starlink API response to internal structure\n")
+	return response, nil
+}
+
+// callStarlinkWithGrpcurlLibrary uses the grpcurl library (same as grpcurl CLI)
+func (sc *StarlinkCollector) callStarlinkWithGrpcurlLibrary(ctx context.Context) (*StarlinkAPIResponse, error) {
+	fmt.Printf("Debug: Using grpcurl library approach (native Go gRPC)\n")
+
+	// Create gRPC connection
+	endpoint := fmt.Sprintf("%s:%d", sc.apiHost, sc.apiPort)
+	conn, err := grpc.DialContext(ctx, endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTimeout(sc.timeout))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to gRPC server: %w", err)
+	}
+	defer conn.Close()
+
+	// Create reflection client to get service descriptors (same as grpcurl)
+	refClient := grpcreflect.NewClient(ctx, grpc_reflection_v1alpha.NewServerReflectionClient(conn))
+	defer refClient.Reset()
+
+	fmt.Printf("Debug: Created reflection client\n")
+
+	// Create a descriptor source from the reflection client
+	descSource := grpcurl.DescriptorSourceFromServer(ctx, refClient)
+
+	// Create request parser and formatter (same as grpcurl)
+	requestData := `{"get_status": {}}`
+	requestReader := strings.NewReader(requestData)
+
+	options := grpcurl.FormatOptions{
+		EmitJSONDefaultFields: false,
+		IncludeTextSeparator:  false,
+		AllowUnknownFields:    false,
+	}
+
+	rf, formatter, err := grpcurl.RequestParserAndFormatter(grpcurl.FormatJSON, descSource, requestReader, options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request parser: %w", err)
+	}
+
+	fmt.Printf("Debug: Created request parser and formatter\n")
+
+	// Create a simple response handler that captures output
+	var outputBuffer bytes.Buffer
+	handler := &grpcurl.DefaultEventHandler{
+		Out:            &outputBuffer,
+		Formatter:      formatter,
+		VerbosityLevel: 0,
+	}
+
+	// Invoke RPC using grpcurl library (same as CLI)
+	methodName := "SpaceX.API.Device.Device/Handle"
+	err = grpcurl.InvokeRPC(ctx, descSource, conn, methodName, nil, handler, rf.Next)
+	if err != nil {
+		return nil, fmt.Errorf("grpcurl InvokeRPC failed: %w", err)
+	}
+
+	// Get the response data from the output buffer
+	responseData := outputBuffer.Bytes()
+	if len(responseData) == 0 {
+		return nil, fmt.Errorf("no response data received")
+	}
+
+	fmt.Printf("Debug: grpcurl library succeeded, got %d bytes response\n", len(responseData))
+
+	// Parse the JSON response
+	var grpcResponse map[string]interface{}
+	if err := json.Unmarshal(responseData, &grpcResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse gRPC JSON response: %w", err)
+	}
+
+	// Convert to our API structure
+	return sc.convertGRPCResponseToAPI(grpcResponse)
+}
+
+// callStarlinkWithWSLGrpcurl uses WSL grpcurl as a fallback (known to work)
+func (sc *StarlinkCollector) callStarlinkWithWSLGrpcurl(ctx context.Context) (*StarlinkAPIResponse, error) {
+	fmt.Printf("Debug: Using WSL grpcurl fallback method\n")
+
+	// Create the WSL grpcurl command that we know works
+	endpoint := fmt.Sprintf("%s:%d", sc.apiHost, sc.apiPort)
+	cmd := exec.CommandContext(ctx, "wsl", "/home/markusla/grpcurl",
+		"-plaintext",
+		"-d", `{"get_status":{}}`,
+		endpoint,
+		"SpaceX.API.Device.Device/Handle")
+
+	// Execute the command
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("WSL grpcurl command failed: %w", err)
+	}
+
+	fmt.Printf("Debug: WSL grpcurl returned %d bytes\n", len(output))
+
+	// Parse the JSON response
+	var grpcResponse map[string]interface{}
+	if err := json.Unmarshal(output, &grpcResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse WSL grpcurl JSON response: %w", err)
+	}
+
+	// Convert to our API structure
+	return sc.convertGRPCResponseToAPI(grpcResponse)
+}
+
+// TestStarlinkMethod tests a specific Starlink API method using grpcurl library
+func (sc *StarlinkCollector) TestStarlinkMethod(ctx context.Context, method string) (string, error) {
+	fmt.Printf("Debug: Testing Starlink API method: %s\n", method)
+
+	// Create gRPC connection
+	endpoint := fmt.Sprintf("%s:%d", sc.apiHost, sc.apiPort)
+	conn, err := grpc.DialContext(ctx, endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTimeout(sc.timeout))
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to gRPC server: %w", err)
+	}
+	defer conn.Close()
+
+	// Create reflection client
+	refClient := grpcreflect.NewClient(ctx, grpc_reflection_v1alpha.NewServerReflectionClient(conn))
+	defer refClient.Reset()
+
+	// Create descriptor source
+	descSource := grpcurl.DescriptorSourceFromServer(ctx, refClient)
+
+	// Create request data for the specific method
+	requestData := fmt.Sprintf(`{"%s": {}}`, method)
+	requestReader := strings.NewReader(requestData)
+
+	options := grpcurl.FormatOptions{
+		EmitJSONDefaultFields: true, // Include default fields for better inspection
+		IncludeTextSeparator:  false,
+		AllowUnknownFields:    false,
+	}
+
+	rf, formatter, err := grpcurl.RequestParserAndFormatter(grpcurl.FormatJSON, descSource, requestReader, options)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request parser: %w", err)
+	}
+
+	// Create response handler
+	var outputBuffer bytes.Buffer
+	handler := &grpcurl.DefaultEventHandler{
+		Out:            &outputBuffer,
+		Formatter:      formatter,
+		VerbosityLevel: 0,
+	}
+
+	// Invoke RPC
+	methodName := "SpaceX.API.Device.Device/Handle"
+	err = grpcurl.InvokeRPC(ctx, descSource, conn, methodName, nil, handler, rf.Next)
+	if err != nil {
+		return "", fmt.Errorf("grpcurl InvokeRPC failed for %s: %w", method, err)
+	}
+
+	response := outputBuffer.String()
+	fmt.Printf("Debug: %s method returned %d bytes\n", method, len(response))
+
 	return response, nil
 }
 

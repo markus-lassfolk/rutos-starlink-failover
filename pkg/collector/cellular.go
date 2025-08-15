@@ -632,7 +632,7 @@ func (cc *CellularCollector) collectBasicSignalInfo(member *pkg.Member, info *Ce
 	// Try to read signal strength from various possible locations
 	signalPaths := []string{
 		fmt.Sprintf("/sys/class/net/%s/signal", member.Iface),
-		fmt.Sprintf("/proc/net/wireless"),
+		"/proc/net/wireless",
 	}
 
 	for _, path := range signalPaths {

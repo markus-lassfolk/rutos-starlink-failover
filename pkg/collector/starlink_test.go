@@ -87,6 +87,17 @@ func TestStarlinkCollector_Collect(t *testing.T) {
 				if metrics.LossPercent < 0 || metrics.LossPercent > 100 {
 					t.Error("Expected loss percentage between 0-100")
 				}
+
+				// Check if Starlink-specific metrics are present (indicates real vs mock data)
+				if metrics.ObstructionPct != nil {
+					if *metrics.ObstructionPct > 0 {
+						t.Logf("ℹ️  Starlink metrics collected (obstruction: %.2f%%)", *metrics.ObstructionPct)
+					} else {
+						t.Logf("ℹ️  Starlink metrics collected (no obstruction)")
+					}
+				} else {
+					t.Logf("ℹ️  Only common metrics collected (no Starlink-specific data)")
+				}
 			}
 		})
 	}

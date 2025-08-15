@@ -6,7 +6,7 @@ import (
 
 	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/telem"
-	"github.com/starfail/starfail/pkg/testing"
+	testutil "github.com/starfail/starfail/pkg/testing"
 )
 
 // MockController for testing
@@ -140,7 +140,7 @@ func (m *MockDecisionEngine) GetMemberState(memberName string) (*pkg.MemberState
 }
 
 func TestServer_NewServer(t *testing.T) {
-	tf := testing.NewTestFramework(t)
+	tf := testutil.NewTestFramework(t)
 	controller := tf.MockController()
 	store := tf.MockTelemetryStore()
 	decision := tf.MockDecisionEngine()
@@ -158,7 +158,7 @@ func TestServer_NewServer(t *testing.T) {
 }
 
 func TestServer_GetStatus(t *testing.T) {
-	tf := testing.NewTestFramework(t)
+	tf := testutil.NewTestFramework(t)
 	controller := tf.MockController()
 	store := tf.MockTelemetryStore()
 	decision := tf.MockDecisionEngine()
@@ -187,7 +187,7 @@ func TestServer_GetStatus(t *testing.T) {
 }
 
 func TestServer_GetInfo(t *testing.T) {
-	tf := testing.NewTestFramework(t)
+	tf := testutil.NewTestFramework(t)
 	controller := tf.MockController()
 	store := tf.MockTelemetryStore()
 	decision := tf.MockDecisionEngine()
@@ -228,7 +228,7 @@ func TestServer_GetInfo(t *testing.T) {
 }
 
 func TestServer_GetConfig(t *testing.T) {
-	tf := testing.NewTestFramework(t)
+	tf := testutil.NewTestFramework(t)
 	controller := tf.MockController()
 	store := tf.MockTelemetryStore()
 	decision := tf.MockDecisionEngine()
@@ -263,7 +263,7 @@ func TestServer_GetConfig(t *testing.T) {
 }
 
 func TestServer_GetMetrics(t *testing.T) {
-	tf := testing.NewTestFramework(t)
+	tf := testutil.NewTestFramework(t)
 	controller := tf.MockController()
 	store := tf.MockTelemetryStore()
 	decision := tf.MockDecisionEngine()
@@ -296,7 +296,7 @@ func TestServer_GetMetrics(t *testing.T) {
 }
 
 func TestServer_GetTelemetry(t *testing.T) {
-	tf := testing.NewTestFramework(t)
+	tf := testutil.NewTestFramework(t)
 	controller := tf.MockController()
 	store := tf.MockTelemetryStore()
 	decision := tf.MockDecisionEngine()
