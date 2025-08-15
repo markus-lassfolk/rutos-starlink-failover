@@ -651,7 +651,7 @@ func (e *Engine) shouldPredictiveSwitch(target *pkg.Member) bool {
 			"confidence", prediction.Confidence,
 			"method", prediction.Method,
 		)
-		
+
 		e.lastPredictive = now
 		return true
 	}
@@ -662,7 +662,7 @@ func (e *Engine) shouldPredictiveSwitch(target *pkg.Member) bool {
 			"current", e.current.Name,
 			"target", target.Name,
 		)
-		
+
 		e.lastPredictive = now
 		return true
 	}
@@ -673,7 +673,7 @@ func (e *Engine) shouldPredictiveSwitch(target *pkg.Member) bool {
 			"current", e.current.Name,
 			"target", target.Name,
 		)
-		
+
 		e.lastPredictive = now
 		return true
 	}
@@ -727,12 +727,12 @@ func (e *Engine) checkStarlinkPredictiveTriggers(samples []*telem.Sample) bool {
 		if len(samples) >= 3 {
 			prev1 := samples[len(samples)-2]
 			prev2 := samples[len(samples)-3]
-			
+
 			if prev1.Metrics.ObstructionPct != nil && prev2.Metrics.ObstructionPct != nil {
 				current := *metrics.ObstructionPct
 				prev1Val := *prev1.Metrics.ObstructionPct
 				prev2Val := *prev2.Metrics.ObstructionPct
-				
+
 				// Check for acceleration in obstruction
 				if current > prev1Val && prev1Val > prev2Val {
 					acceleration := (current - prev1Val) - (prev1Val - prev2Val)
@@ -796,12 +796,12 @@ func (e *Engine) checkCellularPredictiveTriggers(samples []*telem.Sample) bool {
 	if len(samples) >= 3 && metrics.RSRP != nil {
 		prev1 := samples[len(samples)-2]
 		prev2 := samples[len(samples)-3]
-		
+
 		if prev1.Metrics.RSRP != nil && prev2.Metrics.RSRP != nil {
 			current := float64(*metrics.RSRP)
 			prev1Val := float64(*prev1.Metrics.RSRP)
 			prev2Val := float64(*prev2.Metrics.RSRP)
-			
+
 			// Check for rapid degradation (RSRP getting more negative)
 			if current < prev1Val-5 && prev1Val < prev2Val-5 {
 				e.logger.Info("Cellular rapid signal degradation detected",
@@ -896,7 +896,7 @@ func (e *Engine) updateTrendAnalysis(memberName string, samples []*telem.Sample)
 	}
 
 	now := time.Now()
-	
+
 	// Get or create trend analysis
 	trend, exists := e.trendAnalysis[memberName]
 	if !exists {
@@ -934,7 +934,7 @@ func (e *Engine) updateTrendAnalysis(memberName string, samples []*telem.Sample)
 		// Get scores for recent samples
 		scoreValues := make([]float64, 0, len(recentSamples))
 		timestamps := make([]time.Time, 0, len(recentSamples))
-		
+
 		for _, sample := range recentSamples {
 			// Calculate instant score for each sample
 			member := e.members[memberName]
@@ -986,7 +986,7 @@ func (e *Engine) calculateTrendFromValues(timestamps []time.Time, values []float
 	}
 
 	n := float64(len(values))
-	
+
 	// Convert timestamps to seconds since first timestamp
 	baseTime := timestamps[0]
 	x := make([]float64, len(timestamps))
@@ -1012,7 +1012,7 @@ func (e *Engine) calculateTrendFromValues(timestamps []time.Time, values []float
 	if denominator == 0 {
 		return 0.0
 	}
-	
+
 	slope := (n*sumXY - sumX*sumY) / denominator
 
 	// Convert to per-minute trend
@@ -1300,8 +1300,6 @@ func (e *Engine) updateModel(model *PredictiveModel, samples []*telem.Sample) {
 	// Calculate confidence
 	model.Confidence = e.calculateConfidence(dataPoints)
 }
-
-
 
 // detectPatterns detects patterns in member behavior
 func (e *Engine) detectPatterns() {
@@ -1598,8 +1596,6 @@ func (e *Engine) calculateVariance(dataPoints []DataPoint) float64 {
 
 	return variance
 }
-
-
 
 // PatternDetector methods
 

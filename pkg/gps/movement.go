@@ -48,16 +48,16 @@ type MovementEvent struct {
 
 // MovementStatus represents current movement status
 type MovementStatus struct {
-	IsMoving              bool              `json:"is_moving"`
-	IsStationary          bool              `json:"is_stationary"`
-	CurrentLocation       *pkg.GPSData      `json:"current_location"`
-	LastKnownLocation     *pkg.GPSData      `json:"last_known_location"`
-	DistanceFromLast      float64           `json:"distance_from_last"`
-	CurrentVelocity       float64           `json:"current_velocity"`
-	CurrentAcceleration   float64           `json:"current_acceleration"`
-	StationaryDuration    float64           `json:"stationary_duration"`
-	RecentMovementHistory []*MovementEvent  `json:"recent_movement_history"`
-	MovementSummary       *MovementSummary  `json:"movement_summary"`
+	IsMoving              bool             `json:"is_moving"`
+	IsStationary          bool             `json:"is_stationary"`
+	CurrentLocation       *pkg.GPSData     `json:"current_location"`
+	LastKnownLocation     *pkg.GPSData     `json:"last_known_location"`
+	DistanceFromLast      float64          `json:"distance_from_last"`
+	CurrentVelocity       float64          `json:"current_velocity"`
+	CurrentAcceleration   float64          `json:"current_acceleration"`
+	StationaryDuration    float64          `json:"stationary_duration"`
+	RecentMovementHistory []*MovementEvent `json:"recent_movement_history"`
+	MovementSummary       *MovementSummary `json:"movement_summary"`
 }
 
 // MovementSummary provides summary statistics about movement
@@ -92,15 +92,15 @@ func NewMovementDetector(config *MovementConfig, logger *logx.Logger) *MovementD
 func DefaultMovementConfig() *MovementConfig {
 	return &MovementConfig{
 		Enabled:                    true,
-		MovementThresholdM:         500.0,  // 500 meters triggers obstruction map reset
-		StationaryThresholdM:       50.0,   // 50 meters considered stationary
-		MovementTimeWindowS:        300,    // 5 minutes analysis window
-		MinMovementDurationS:       60,     // 1 minute minimum movement duration
-		StationaryTimeoutS:         600,    // 10 minutes to confirm stationary
-		ObstructionMapResetEnabled: true,   // Enable obstruction map reset
-		MovementHistorySize:        100,    // Keep last 100 movement events
-		VelocityCalculationEnabled: true,   // Enable velocity calculation
-		AccelerationThresholdMPS2:  2.0,    // 2 m/s² acceleration alert threshold
+		MovementThresholdM:         500.0, // 500 meters triggers obstruction map reset
+		StationaryThresholdM:       50.0,  // 50 meters considered stationary
+		MovementTimeWindowS:        300,   // 5 minutes analysis window
+		MinMovementDurationS:       60,    // 1 minute minimum movement duration
+		StationaryTimeoutS:         600,   // 10 minutes to confirm stationary
+		ObstructionMapResetEnabled: true,  // Enable obstruction map reset
+		MovementHistorySize:        100,   // Keep last 100 movement events
+		VelocityCalculationEnabled: true,  // Enable velocity calculation
+		AccelerationThresholdMPS2:  2.0,   // 2 m/s² acceleration alert threshold
 	}
 }
 
@@ -178,7 +178,7 @@ func (md *MovementDetector) calculateDistance(from, to *pkg.GPSData) float64 {
 
 	a := math.Sin(deltaLatRad/2)*math.Sin(deltaLatRad/2) +
 		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
-		math.Sin(deltaLonRad/2)*math.Sin(deltaLonRad/2)
+			math.Sin(deltaLonRad/2)*math.Sin(deltaLonRad/2)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
 	return earthRadiusM * c
@@ -230,10 +230,10 @@ func (md *MovementDetector) processMovementLogic(event *MovementEvent) {
 			map[bool]string{true: "stationary", false: "moving"}[wasStationary],
 			map[bool]string{true: "stationary", false: "moving"}[md.isStationary],
 			"movement_state_changed", map[string]interface{}{
-				"distance":         event.Distance,
-				"velocity":         event.Velocity,
-				"movement_type":    event.MovementType,
-				"threshold_m":      md.config.MovementThresholdM,
+				"distance":      event.Distance,
+				"velocity":      event.Velocity,
+				"movement_type": event.MovementType,
+				"threshold_m":   md.config.MovementThresholdM,
 			})
 	}
 
@@ -241,24 +241,24 @@ func (md *MovementDetector) processMovementLogic(event *MovementEvent) {
 	if md.config.ObstructionMapResetEnabled && event.Distance >= md.config.MovementThresholdM {
 		event.ActionTriggered = "obstruction_map_reset"
 		md.logger.LogVerbose("movement_action_triggered", map[string]interface{}{
-			"action":           "obstruction_map_reset",
-			"distance":         event.Distance,
-			"threshold":        md.config.MovementThresholdM,
-			"from_lat":         event.FromLocation.Latitude,
-			"from_lon":         event.FromLocation.Longitude,
-			"to_lat":           event.ToLocation.Latitude,
-			"to_lon":           event.ToLocation.Longitude,
+			"action":    "obstruction_map_reset",
+			"distance":  event.Distance,
+			"threshold": md.config.MovementThresholdM,
+			"from_lat":  event.FromLocation.Latitude,
+			"from_lon":  event.FromLocation.Longitude,
+			"to_lat":    event.ToLocation.Latitude,
+			"to_lon":    event.ToLocation.Longitude,
 		})
 	}
 
 	// Check for high acceleration alerts
-	if md.config.VelocityCalculationEnabled && 
-	   math.Abs(event.Acceleration) > md.config.AccelerationThresholdMPS2 {
+	if md.config.VelocityCalculationEnabled &&
+		math.Abs(event.Acceleration) > md.config.AccelerationThresholdMPS2 {
 		md.logger.LogVerbose("high_acceleration_detected", map[string]interface{}{
-			"acceleration":     event.Acceleration,
-			"threshold":        md.config.AccelerationThresholdMPS2,
-			"velocity":         event.Velocity,
-			"movement_type":    event.MovementType,
+			"acceleration":  event.Acceleration,
+			"threshold":     md.config.AccelerationThresholdMPS2,
+			"velocity":      event.Velocity,
+			"movement_type": event.MovementType,
 		})
 	}
 }
@@ -276,12 +276,12 @@ func (md *MovementDetector) addMovementEvent(event *MovementEvent) {
 // GetMovementStatus returns the current movement status
 func (md *MovementDetector) GetMovementStatus() *MovementStatus {
 	status := &MovementStatus{
-		IsMoving:            !md.isStationary,
-		IsStationary:        md.isStationary,
-		CurrentLocation:     md.lastKnownLocation,
-		LastKnownLocation:   md.lastKnownLocation,
-		StationaryDuration:  time.Since(md.stationaryTime).Seconds(),
-		MovementSummary:     md.calculateMovementSummary(),
+		IsMoving:           !md.isStationary,
+		IsStationary:       md.isStationary,
+		CurrentLocation:    md.lastKnownLocation,
+		LastKnownLocation:  md.lastKnownLocation,
+		StationaryDuration: time.Since(md.stationaryTime).Seconds(),
+		MovementSummary:    md.calculateMovementSummary(),
 	}
 
 	// Get recent movement history (last 10 events)
@@ -319,11 +319,11 @@ func (md *MovementDetector) calculateMovementSummary() *MovementSummary {
 	for _, event := range md.movementHistory {
 		totalDistance += event.Distance
 		totalVelocity += event.Velocity
-		
+
 		if event.Velocity > maxVelocity {
 			maxVelocity = event.Velocity
 		}
-		
+
 		if math.Abs(event.Acceleration) > maxAcceleration {
 			maxAcceleration = math.Abs(event.Acceleration)
 		}
@@ -364,15 +364,15 @@ func (md *MovementDetector) ShouldResetObstructionMap() bool {
 
 	// Check if we have recent significant movement
 	cutoff := time.Now().Add(-time.Duration(md.config.MovementTimeWindowS) * time.Second)
-	
+
 	for i := len(md.movementHistory) - 1; i >= 0; i-- {
 		event := md.movementHistory[i]
 		if event.Timestamp.Before(cutoff) {
 			break
 		}
 
-		if event.Distance >= md.config.MovementThresholdM && 
-		   event.ActionTriggered == "obstruction_map_reset" {
+		if event.Distance >= md.config.MovementThresholdM &&
+			event.ActionTriggered == "obstruction_map_reset" {
 			return true
 		}
 	}
@@ -423,12 +423,12 @@ func (md *MovementDetector) GetMovementTrend() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"trend":                trend,
-		"avg_velocity":         avgVelocity,
-		"avg_acceleration":     avgAcceleration,
-		"moving_events":        movingCount,
-		"stationary_events":    stationaryCount,
-		"recent_event_count":   len(recentEvents),
+		"trend":              trend,
+		"avg_velocity":       avgVelocity,
+		"avg_acceleration":   avgAcceleration,
+		"moving_events":      movingCount,
+		"stationary_events":  stationaryCount,
+		"recent_event_count": len(recentEvents),
 	}
 }
 

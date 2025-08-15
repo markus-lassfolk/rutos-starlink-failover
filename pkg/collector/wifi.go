@@ -85,7 +85,7 @@ func (wc *WiFiCollector) Collect(ctx context.Context, member *pkg.Member) (*pkg.
 		metrics.NoiseLevel = wifiInfo.NoiseLevel
 		metrics.SNR = wifiInfo.SNR
 		metrics.Bitrate = wifiInfo.Bitrate
-		
+
 		// Add extended WiFi metrics to the metrics structure
 		if wifiInfo.Quality != nil {
 			metrics.Quality = wifiInfo.Quality
@@ -631,7 +631,7 @@ func (wc *WiFiCollector) isInBridgeMode(iface string) bool {
 func (wc *WiFiCollector) AnalyzeSignalTrend(recentMetrics []*pkg.Metrics) map[string]interface{} {
 	if len(recentMetrics) < 3 {
 		return map[string]interface{}{
-			"trend": "insufficient_data",
+			"trend":      "insufficient_data",
 			"confidence": 0.0,
 		}
 	}
@@ -646,7 +646,7 @@ func (wc *WiFiCollector) AnalyzeSignalTrend(recentMetrics []*pkg.Metrics) map[st
 
 	if len(signalValues) < 3 {
 		return map[string]interface{}{
-			"trend": "no_signal_data",
+			"trend":      "no_signal_data",
 			"confidence": 0.0,
 		}
 	}
@@ -681,7 +681,7 @@ func (wc *WiFiCollector) AnalyzeSignalTrend(recentMetrics []*pkg.Metrics) map[st
 	// Calculate signal quality assessment
 	avgSignal := sumY / n
 	quality := "unknown"
-	
+
 	if avgSignal > -50 {
 		quality = "excellent"
 	} else if avgSignal > -60 {
@@ -695,12 +695,12 @@ func (wc *WiFiCollector) AnalyzeSignalTrend(recentMetrics []*pkg.Metrics) map[st
 	}
 
 	return map[string]interface{}{
-		"trend":           trend,
-		"confidence":      confidence,
-		"slope":           slope,
-		"average_signal":  avgSignal,
-		"signal_quality":  quality,
-		"sample_count":    len(signalValues),
+		"trend":          trend,
+		"confidence":     confidence,
+		"slope":          slope,
+		"average_signal": avgSignal,
+		"signal_quality": quality,
+		"sample_count":   len(signalValues),
 	}
 }
 
@@ -714,27 +714,27 @@ func (wc *WiFiCollector) GetAdvancedWiFiMetrics(ctx context.Context, member *pkg
 
 	// Get detailed info
 	detailedInfo, _ := wc.GetWiFiInfo(ctx, member)
-	
+
 	// Analyze signal trends
 	trendAnalysis := wc.AnalyzeSignalTrend(recentMetrics)
-	
+
 	// Detect tethering mode
 	isTetheringMode, _ := wc.DetectTetheringMode(ctx, member)
-	
+
 	// Calculate comprehensive quality score
 	signalQuality := wc.GetSignalQuality(info.SignalStrength, info.NoiseLevel, info.SNR)
 	bitrateQuality := wc.GetBitrateQuality(info.Bitrate)
-	
+
 	overallQuality := (signalQuality*0.6 + bitrateQuality*0.4)
 
 	result := map[string]interface{}{
-		"basic_info":       detailedInfo,
-		"trend_analysis":   trendAnalysis,
-		"tethering_mode":   isTetheringMode,
-		"signal_quality":   signalQuality,
-		"bitrate_quality":  bitrateQuality,
-		"overall_quality":  overallQuality,
-		"timestamp":        time.Now().Format(time.RFC3339),
+		"basic_info":      detailedInfo,
+		"trend_analysis":  trendAnalysis,
+		"tethering_mode":  isTetheringMode,
+		"signal_quality":  signalQuality,
+		"bitrate_quality": bitrateQuality,
+		"overall_quality": overallQuality,
+		"timestamp":       time.Now().Format(time.RFC3339),
 	}
 
 	return result, nil

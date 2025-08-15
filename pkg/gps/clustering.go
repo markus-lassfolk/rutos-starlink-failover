@@ -149,8 +149,8 @@ func (lcm *LocationClusterManager) findOrCreateCluster(sample *PerformanceSample
 	lcm.clusters = append(lcm.clusters, newCluster)
 
 	lcm.logger.LogStateChange("location_clustering", "no_cluster", "new_cluster", "cluster_created", map[string]interface{}{
-		"center_lat":   newCluster.CenterLatitude,
-		"center_lon":   newCluster.CenterLongitude,
+		"center_lat":     newCluster.CenterLatitude,
+		"center_lon":     newCluster.CenterLongitude,
 		"total_clusters": len(lcm.clusters),
 	})
 
@@ -197,8 +197,8 @@ func (lcm *LocationClusterManager) evaluateClusterHealth(cluster *pkg.LocationCl
 	}
 
 	// Calculate performance score (0-100)
-	latencyScore := math.Max(0, 100-cluster.AvgLatency/10)    // 10ms = 1 point penalty
-	lossScore := math.Max(0, 100-cluster.AvgLoss*10)         // 1% loss = 10 points penalty
+	latencyScore := math.Max(0, 100-cluster.AvgLatency/10)        // 10ms = 1 point penalty
+	lossScore := math.Max(0, 100-cluster.AvgLoss*10)              // 1% loss = 10 points penalty
 	obstructionScore := math.Max(0, 100-cluster.AvgObstruction*5) // 1% obstruction = 5 points penalty
 
 	performanceScore := (latencyScore + lossScore + obstructionScore) / 3
@@ -207,18 +207,18 @@ func (lcm *LocationClusterManager) evaluateClusterHealth(cluster *pkg.LocationCl
 	cluster.Problematic = performanceScore < lcm.config.ProblematicThreshold
 
 	if cluster.Problematic != wasProblematic {
-		lcm.logger.LogStateChange("location_clustering", 
+		lcm.logger.LogStateChange("location_clustering",
 			map[bool]string{true: "problematic", false: "healthy"}[wasProblematic],
 			map[bool]string{true: "problematic", false: "healthy"}[cluster.Problematic],
 			"cluster_health_changed", map[string]interface{}{
-			"center_lat":        cluster.CenterLatitude,
-			"center_lon":        cluster.CenterLongitude,
-			"performance_score": performanceScore,
-			"avg_latency":       cluster.AvgLatency,
-			"avg_loss":          cluster.AvgLoss,
-			"avg_obstruction":   cluster.AvgObstruction,
-			"sample_count":      cluster.SampleCount,
-		})
+				"center_lat":        cluster.CenterLatitude,
+				"center_lon":        cluster.CenterLongitude,
+				"performance_score": performanceScore,
+				"avg_latency":       cluster.AvgLatency,
+				"avg_loss":          cluster.AvgLoss,
+				"avg_obstruction":   cluster.AvgObstruction,
+				"sample_count":      cluster.SampleCount,
+			})
 	}
 }
 
@@ -302,7 +302,7 @@ func (lcm *LocationClusterManager) GetLocationBasedThresholds(location *pkg.GPSD
 
 	// Adjust thresholds based on cluster performance
 	adjustedThresholds := make(map[string]float64)
-	
+
 	if closestCluster.Problematic {
 		// Relax thresholds for problematic areas
 		adjustedThresholds["latency_threshold"] = defaults["latency_threshold"] * 1.5
@@ -316,11 +316,11 @@ func (lcm *LocationClusterManager) GetLocationBasedThresholds(location *pkg.GPSD
 	}
 
 	lcm.logger.LogVerbose("location_based_thresholds", map[string]interface{}{
-		"location_lat":           location.Latitude,
-		"location_lon":           location.Longitude,
-		"cluster_problematic":    closestCluster.Problematic,
-		"cluster_sample_count":   closestCluster.SampleCount,
-		"adjusted_thresholds":    adjustedThresholds,
+		"location_lat":         location.Latitude,
+		"location_lon":         location.Longitude,
+		"cluster_problematic":  closestCluster.Problematic,
+		"cluster_sample_count": closestCluster.SampleCount,
+		"adjusted_thresholds":  adjustedThresholds,
 	})
 
 	return adjustedThresholds
@@ -341,7 +341,7 @@ func (lcm *LocationClusterManager) performMaintenance() {
 	if len(activeClusters) != len(lcm.clusters) {
 		removed := len(lcm.clusters) - len(activeClusters)
 		lcm.clusters = activeClusters
-		
+
 		lcm.logger.LogVerbose("cluster_maintenance", map[string]interface{}{
 			"expired_clusters_removed": removed,
 			"active_clusters":          len(activeClusters),
@@ -367,14 +367,14 @@ func (lcm *LocationClusterManager) mergeNearbyClusters() {
 			if distance <= lcm.config.ClusterMergeDistance {
 				// Merge cluster2 into cluster1
 				lcm.mergeClusters(cluster1, cluster2)
-				
+
 				// Remove cluster2
 				lcm.clusters = append(lcm.clusters[:j], lcm.clusters[j+1:]...)
 				j-- // Adjust index after removal
-				
+
 				lcm.logger.LogVerbose("clusters_merged", map[string]interface{}{
-					"distance":         distance,
-					"merge_distance":   lcm.config.ClusterMergeDistance,
+					"distance":           distance,
+					"merge_distance":     lcm.config.ClusterMergeDistance,
 					"remaining_clusters": len(lcm.clusters),
 				})
 			}
@@ -440,7 +440,7 @@ func (lcm *LocationClusterManager) calculateDistance(lat1, lon1, lat2, lon2 floa
 
 	a := math.Sin(deltaLatRad/2)*math.Sin(deltaLatRad/2) +
 		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
-		math.Sin(deltaLonRad/2)*math.Sin(deltaLonRad/2)
+			math.Sin(deltaLonRad/2)*math.Sin(deltaLonRad/2)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
 	return earthRadiusM * c

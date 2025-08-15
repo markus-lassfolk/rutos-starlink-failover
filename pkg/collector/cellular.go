@@ -23,47 +23,47 @@ type CellularCollector struct {
 // CellularInfo represents comprehensive cellular connection information
 type CellularInfo struct {
 	// Signal metrics
-	RSRP        *int    `json:"rsrp,omitempty"`
-	RSRQ        *int    `json:"rsrq,omitempty"`
-	SINR        *int    `json:"sinr,omitempty"`
-	RSSI        *int    `json:"rssi,omitempty"`
-	
+	RSRP *int `json:"rsrp,omitempty"`
+	RSRQ *int `json:"rsrq,omitempty"`
+	SINR *int `json:"sinr,omitempty"`
+	RSSI *int `json:"rssi,omitempty"`
+
 	// Network information
 	NetworkType *string `json:"network_type,omitempty"`
 	Roaming     *bool   `json:"roaming,omitempty"`
 	Operator    *string `json:"operator,omitempty"`
 	Band        *string `json:"band,omitempty"`
 	CellID      *string `json:"cell_id,omitempty"`
-	
+
 	// Multi-SIM support
-	SimSlot     *int    `json:"sim_slot,omitempty"`
-	SimCount    *int    `json:"sim_count,omitempty"`
-	ActiveSim   *int    `json:"active_sim,omitempty"`
-	SimStatus   *string `json:"sim_status,omitempty"`
-	
+	SimSlot   *int    `json:"sim_slot,omitempty"`
+	SimCount  *int    `json:"sim_count,omitempty"`
+	ActiveSim *int    `json:"active_sim,omitempty"`
+	SimStatus *string `json:"sim_status,omitempty"`
+
 	// Connection details
-	ModemType   *string `json:"modem_type,omitempty"`  // qmi, mbim, ncm, ppp
-	IPAddress   *string `json:"ip_address,omitempty"`
-	Gateway     *string `json:"gateway,omitempty"`
-	DNS         []string `json:"dns,omitempty"`
-	
+	ModemType *string  `json:"modem_type,omitempty"` // qmi, mbim, ncm, ppp
+	IPAddress *string  `json:"ip_address,omitempty"`
+	Gateway   *string  `json:"gateway,omitempty"`
+	DNS       []string `json:"dns,omitempty"`
+
 	// Quality metrics
-	SignalQuality *float64 `json:"signal_quality,omitempty"` // 0-100 score
-	ConnectionState *string `json:"connection_state,omitempty"` // connected, connecting, disconnected
-	
+	SignalQuality   *float64 `json:"signal_quality,omitempty"`   // 0-100 score
+	ConnectionState *string  `json:"connection_state,omitempty"` // connected, connecting, disconnected
+
 	// Roaming details
 	HomeOperator *string `json:"home_operator,omitempty"`
-	RoamingType *string `json:"roaming_type,omitempty"` // national, international
-	
+	RoamingType  *string `json:"roaming_type,omitempty"` // national, international
+
 	// Advanced metrics
-	TAC         *string `json:"tac,omitempty"`    // Tracking Area Code
-	EARFCN      *int    `json:"earfcn,omitempty"` // E-UTRA Absolute Radio Frequency Channel Number
-	PCI         *int    `json:"pci,omitempty"`    // Physical Cell ID
-	
+	TAC    *string `json:"tac,omitempty"`    // Tracking Area Code
+	EARFCN *int    `json:"earfcn,omitempty"` // E-UTRA Absolute Radio Frequency Channel Number
+	PCI    *int    `json:"pci,omitempty"`    // Physical Cell ID
+
 	// Data usage (if available)
-	TxBytes     *uint64 `json:"tx_bytes,omitempty"`
-	RxBytes     *uint64 `json:"rx_bytes,omitempty"`
-	
+	TxBytes *uint64 `json:"tx_bytes,omitempty"`
+	RxBytes *uint64 `json:"rx_bytes,omitempty"`
+
 	// Temperature and power
 	Temperature *float64 `json:"temperature,omitempty"`
 	PowerLevel  *int     `json:"power_level,omitempty"`
@@ -131,12 +131,12 @@ func (cc *CellularCollector) collectCellularInfo(ctx context.Context, member *pk
 
 	// Try different ubus providers based on RutOS/OpenWrt variants
 	providers := []string{
-		"mobiled",     // RutOS primary
-		"gsm",         // Alternative RutOS
-		"modem",       // OpenWrt
+		"mobiled",           // RutOS primary
+		"gsm",               // Alternative RutOS
+		"modem",             // OpenWrt
 		"network.interface", // Network interface status
-		"qmi",         // QMI modem
-		"mbim",        // MBIM modem
+		"qmi",               // QMI modem
+		"mbim",              // MBIM modem
 	}
 
 	var lastError error
@@ -194,7 +194,7 @@ func (cc *CellularCollector) queryUbusProvider(ctx context.Context, provider, if
 func (cc *CellularCollector) parseCellularData(data map[string]interface{}, info *CellularInfo, provider string) error {
 	// Set modem type based on provider
 	info.ModemType = &provider
-	
+
 	// Parse based on provider type
 	switch provider {
 	case "mobiled":
@@ -216,15 +216,15 @@ func (cc *CellularCollector) parseMobiledData(data map[string]interface{}, info 
 	if rsrp, ok := cc.extractNumber(data, []string{"rsrp", "signal_rsrp", "rsrp_dbm"}); ok {
 		info.RSRP = &rsrp
 	}
-	
+
 	if rsrq, ok := cc.extractNumber(data, []string{"rsrq", "signal_rsrq", "rsrq_db"}); ok {
 		info.RSRQ = &rsrq
 	}
-	
+
 	if sinr, ok := cc.extractNumber(data, []string{"sinr", "signal_sinr", "sinr_db"}); ok {
 		info.SINR = &sinr
 	}
-	
+
 	if rssi, ok := cc.extractNumber(data, []string{"rssi", "signal_rssi"}); ok {
 		info.RSSI = &rssi
 	}
@@ -233,15 +233,15 @@ func (cc *CellularCollector) parseMobiledData(data map[string]interface{}, info 
 	if networkType, ok := cc.extractString(data, []string{"network_type", "rat", "access_technology"}); ok {
 		info.NetworkType = &networkType
 	}
-	
+
 	if operator, ok := cc.extractString(data, []string{"operator", "operator_name", "plmn"}); ok {
 		info.Operator = &operator
 	}
-	
+
 	if band, ok := cc.extractString(data, []string{"band", "frequency_band"}); ok {
 		info.Band = &band
 	}
-	
+
 	if cellID, ok := cc.extractString(data, []string{"cell_id", "cid", "cellid"}); ok {
 		info.CellID = &cellID
 	}
@@ -250,11 +250,11 @@ func (cc *CellularCollector) parseMobiledData(data map[string]interface{}, info 
 	if simSlot, ok := cc.extractNumber(data, []string{"sim_slot", "active_sim"}); ok {
 		info.ActiveSim = &simSlot
 	}
-	
+
 	if simCount, ok := cc.extractNumber(data, []string{"sim_count", "available_sims"}); ok {
 		info.SimCount = &simCount
 	}
-	
+
 	if simStatus, ok := cc.extractString(data, []string{"sim_status", "sim_state"}); ok {
 		info.SimStatus = &simStatus
 	}
@@ -263,7 +263,7 @@ func (cc *CellularCollector) parseMobiledData(data map[string]interface{}, info 
 	if roaming, ok := cc.extractBool(data, []string{"roaming", "is_roaming"}); ok {
 		info.Roaming = &roaming
 	}
-	
+
 	if homeOperator, ok := cc.extractString(data, []string{"home_operator", "home_plmn"}); ok {
 		info.HomeOperator = &homeOperator
 	}
@@ -277,11 +277,11 @@ func (cc *CellularCollector) parseMobiledData(data map[string]interface{}, info 
 	if tac, ok := cc.extractString(data, []string{"tac", "tracking_area_code"}); ok {
 		info.TAC = &tac
 	}
-	
+
 	if earfcn, ok := cc.extractNumber(data, []string{"earfcn", "frequency"}); ok {
 		info.EARFCN = &earfcn
 	}
-	
+
 	if pci, ok := cc.extractNumber(data, []string{"pci", "physical_cell_id"}); ok {
 		info.PCI = &pci
 	}
@@ -313,11 +313,11 @@ func (cc *CellularCollector) parseGenericData(data map[string]interface{}, info 
 	if rsrp, ok := cc.extractNumber(data, []string{"rsrp"}); ok {
 		info.RSRP = &rsrp
 	}
-	
+
 	if rsrq, ok := cc.extractNumber(data, []string{"rsrq"}); ok {
 		info.RSRQ = &rsrq
 	}
-	
+
 	if sinr, ok := cc.extractNumber(data, []string{"sinr"}); ok {
 		info.SINR = &sinr
 	}
@@ -326,19 +326,19 @@ func (cc *CellularCollector) parseGenericData(data map[string]interface{}, info 
 	if networkType, ok := cc.extractString(data, []string{"network_type"}); ok {
 		info.NetworkType = &networkType
 	}
-	
+
 	if roaming, ok := cc.extractBool(data, []string{"roaming"}); ok {
 		info.Roaming = &roaming
 	}
-	
+
 	if operator, ok := cc.extractString(data, []string{"operator"}); ok {
 		info.Operator = &operator
 	}
-	
+
 	if band, ok := cc.extractString(data, []string{"band"}); ok {
 		info.Band = &band
 	}
-	
+
 	if cellID, ok := cc.extractString(data, []string{"cell_id"}); ok {
 		info.CellID = &cellID
 	}
@@ -396,17 +396,17 @@ func (cc *CellularCollector) collectModemSpecificInfo(ctx context.Context, membe
 	if err := cc.tryATCommands(ctx, member, info); err == nil {
 		return nil
 	}
-	
+
 	// Try QMI commands
 	if err := cc.tryQMICommands(ctx, member, info); err == nil {
 		return nil
 	}
-	
+
 	// Try MBIM commands
 	if err := cc.tryMBIMCommands(ctx, member, info); err == nil {
 		return nil
 	}
-	
+
 	return fmt.Errorf("no modem-specific methods succeeded")
 }
 
@@ -425,7 +425,7 @@ func (cc *CellularCollector) tryQMICommands(ctx context.Context, member *pkg.Mem
 	if err != nil {
 		return fmt.Errorf("qmicli failed: %w", err)
 	}
-	
+
 	// Parse QMI output
 	return cc.parseQMIOutput(string(output), info)
 }
@@ -438,7 +438,7 @@ func (cc *CellularCollector) tryMBIMCommands(ctx context.Context, member *pkg.Me
 	if err != nil {
 		return fmt.Errorf("mbimcli failed: %w", err)
 	}
-	
+
 	// Parse MBIM output
 	return cc.parseMBIMOutput(string(output), info)
 }
@@ -448,7 +448,7 @@ func (cc *CellularCollector) parseQMIOutput(output string, info *CellularInfo) e
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		if strings.Contains(line, "RSRP:") {
 			if rsrp := cc.extractNumberFromLine(line, "RSRP:"); rsrp != nil {
 				info.RSRP = rsrp
@@ -465,10 +465,10 @@ func (cc *CellularCollector) parseQMIOutput(output string, info *CellularInfo) e
 			}
 		}
 	}
-	
+
 	modemType := "qmi"
 	info.ModemType = &modemType
-	
+
 	return nil
 }
 
@@ -477,7 +477,7 @@ func (cc *CellularCollector) parseMBIMOutput(output string, info *CellularInfo) 
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		if strings.Contains(line, "RSRP:") {
 			if rsrp := cc.extractNumberFromLine(line, "RSRP:"); rsrp != nil {
 				info.RSRP = rsrp
@@ -494,10 +494,10 @@ func (cc *CellularCollector) parseMBIMOutput(output string, info *CellularInfo) 
 			}
 		}
 	}
-	
+
 	modemType := "mbim"
 	info.ModemType = &modemType
-	
+
 	return nil
 }
 
@@ -521,7 +521,7 @@ func (cc *CellularCollector) enhanceCellularInfo(ctx context.Context, member *pk
 	if quality := cc.GetSignalQuality(info.RSRP, info.RSRQ, info.SINR); quality > 0 {
 		info.SignalQuality = &quality
 	}
-	
+
 	// Detect roaming type if roaming is detected
 	if info.Roaming != nil && *info.Roaming {
 		roamingType := cc.detectRoamingType(info.Operator, info.HomeOperator)
@@ -529,10 +529,10 @@ func (cc *CellularCollector) enhanceCellularInfo(ctx context.Context, member *pk
 			info.RoamingType = &roamingType
 		}
 	}
-	
+
 	// Get network interface information
 	cc.getNetworkInterfaceInfo(member.Iface, info)
-	
+
 	// Get data usage if available
 	cc.getDataUsage(member.Iface, info)
 }
@@ -542,7 +542,7 @@ func (cc *CellularCollector) detectRoamingType(currentOperator, homeOperator *st
 	if currentOperator == nil || homeOperator == nil {
 		return "unknown"
 	}
-	
+
 	// Simple heuristic: if operators are different, assume international
 	// In a real implementation, this would use MCC/MNC codes
 	if *currentOperator != *homeOperator {
@@ -559,7 +559,7 @@ func (cc *CellularCollector) getNetworkInterfaceInfo(iface string, info *Cellula
 	if err != nil {
 		return
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -572,14 +572,14 @@ func (cc *CellularCollector) getNetworkInterfaceInfo(iface string, info *Cellula
 			}
 		}
 	}
-	
+
 	// Try to get gateway
 	cmd = exec.Command("ip", "route", "show", "dev", iface)
 	output, err = cmd.Output()
 	if err != nil {
 		return
 	}
-	
+
 	lines = strings.Split(string(output), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "default") {
@@ -603,7 +603,7 @@ func (cc *CellularCollector) getDataUsage(iface string, info *CellularInfo) {
 			info.TxBytes = &val
 		}
 	}
-	
+
 	if data, err := cc.readFile(fmt.Sprintf("/sys/class/net/%s/statistics/rx_bytes", iface)); err == nil {
 		if val, err := strconv.ParseUint(strings.TrimSpace(data), 10, 64); err == nil {
 			info.RxBytes = &val

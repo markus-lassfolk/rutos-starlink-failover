@@ -24,16 +24,16 @@ type GPSCollectorImpl struct {
 
 // GPSConfig represents GPS collector configuration
 type GPSConfig struct {
-	Enabled                bool          `json:"enabled"`
-	SourcePriority        []string      `json:"source_priority"`         // ["rutos", "starlink", "cellular"]
-	MovementThresholdM    float64       `json:"movement_threshold_m"`    // Movement detection threshold in meters
-	AccuracyThresholdM    float64       `json:"accuracy_threshold_m"`    // Minimum accuracy required
-	StalenessThresholdS   int64         `json:"staleness_threshold_s"`   // Maximum age for GPS data
-	CollectionIntervalS   int           `json:"collection_interval_s"`   // Collection interval
-	MovementDetection     bool          `json:"movement_detection"`      // Enable movement detection
-	LocationClustering    bool          `json:"location_clustering"`     // Enable location clustering
-	RetryAttempts         int           `json:"retry_attempts"`          // Number of retry attempts
-	RetryDelayS           int           `json:"retry_delay_s"`           // Delay between retries
+	Enabled             bool     `json:"enabled"`
+	SourcePriority      []string `json:"source_priority"`       // ["rutos", "starlink", "cellular"]
+	MovementThresholdM  float64  `json:"movement_threshold_m"`  // Movement detection threshold in meters
+	AccuracyThresholdM  float64  `json:"accuracy_threshold_m"`  // Minimum accuracy required
+	StalenessThresholdS int64    `json:"staleness_threshold_s"` // Maximum age for GPS data
+	CollectionIntervalS int      `json:"collection_interval_s"` // Collection interval
+	MovementDetection   bool     `json:"movement_detection"`    // Enable movement detection
+	LocationClustering  bool     `json:"location_clustering"`   // Enable location clustering
+	RetryAttempts       int      `json:"retry_attempts"`        // Number of retry attempts
+	RetryDelayS         int      `json:"retry_delay_s"`         // Delay between retries
 }
 
 // GPSSource represents a GPS data source
@@ -71,8 +71,8 @@ func NewGPSCollector(config *GPSConfig, logger *logx.Logger) *GPSCollectorImpl {
 	}
 
 	collector := &GPSCollectorImpl{
-		logger: logger,
-		config: config,
+		logger:  logger,
+		config:  config,
 		sources: []GPSSource{},
 	}
 
@@ -107,16 +107,16 @@ func NewGPSCollector(config *GPSConfig, logger *logx.Logger) *GPSCollectorImpl {
 // DefaultGPSConfig returns default GPS collector configuration
 func DefaultGPSConfig() *GPSConfig {
 	return &GPSConfig{
-		Enabled:               true,
-		SourcePriority:       []string{"rutos", "starlink", "cellular"},
-		MovementThresholdM:   500.0, // 500 meters movement threshold
-		AccuracyThresholdM:   50.0,  // 50 meters accuracy threshold
-		StalenessThresholdS:  300,   // 5 minutes staleness threshold
-		CollectionIntervalS:  60,    // 1 minute collection interval
-		MovementDetection:    true,
-		LocationClustering:   true,
-		RetryAttempts:        3,
-		RetryDelayS:          5,
+		Enabled:             true,
+		SourcePriority:      []string{"rutos", "starlink", "cellular"},
+		MovementThresholdM:  500.0, // 500 meters movement threshold
+		AccuracyThresholdM:  50.0,  // 50 meters accuracy threshold
+		StalenessThresholdS: 300,   // 5 minutes staleness threshold
+		CollectionIntervalS: 60,    // 1 minute collection interval
+		MovementDetection:   true,
+		LocationClustering:  true,
+		RetryAttempts:       3,
+		RetryDelayS:         5,
 	}
 }
 
@@ -127,7 +127,7 @@ func (gc *GPSCollectorImpl) CollectGPS(ctx context.Context) (*pkg.GPSData, error
 	}
 
 	var lastError error
-	
+
 	// Try each source in priority order
 	for _, source := range gc.sources {
 		if !source.IsAvailable(ctx) {
@@ -147,7 +147,7 @@ func (gc *GPSCollectorImpl) CollectGPS(ctx context.Context) (*pkg.GPSData, error
 					"attempt": attempt + 1,
 					"error":   err.Error(),
 				})
-				
+
 				if attempt < gc.config.RetryAttempts-1 {
 					time.Sleep(time.Duration(gc.config.RetryDelayS) * time.Second)
 				}
@@ -169,13 +169,13 @@ func (gc *GPSCollectorImpl) CollectGPS(ctx context.Context) (*pkg.GPSData, error
 				distance := gc.calculateDistance(gc.lastKnown, gpsData)
 				if distance > gc.config.MovementThresholdM {
 					gc.logger.LogStateChange("gps_collector", "stationary", "moving", "movement_detected", map[string]interface{}{
-						"distance_m":     distance,
-						"threshold_m":    gc.config.MovementThresholdM,
-						"from_lat":       gc.lastKnown.Latitude,
-						"from_lon":       gc.lastKnown.Longitude,
-						"to_lat":         gpsData.Latitude,
-						"to_lon":         gpsData.Longitude,
-						"movement_time":  time.Since(gc.lastKnown.Timestamp).Seconds(),
+						"distance_m":    distance,
+						"threshold_m":   gc.config.MovementThresholdM,
+						"from_lat":      gc.lastKnown.Latitude,
+						"from_lon":      gc.lastKnown.Longitude,
+						"to_lat":        gpsData.Latitude,
+						"to_lon":        gpsData.Longitude,
+						"movement_time": time.Since(gc.lastKnown.Timestamp).Seconds(),
 					})
 				}
 			}
@@ -259,7 +259,7 @@ func (gc *GPSCollectorImpl) calculateDistance(from, to *pkg.GPSData) float64 {
 
 	a := math.Sin(deltaLatRad/2)*math.Sin(deltaLatRad/2) +
 		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
-		math.Sin(deltaLonRad/2)*math.Sin(deltaLonRad/2)
+			math.Sin(deltaLonRad/2)*math.Sin(deltaLonRad/2)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
 	return earthRadiusM * c
@@ -297,7 +297,7 @@ func (rs *RutOSGPSSource) IsAvailable(ctx context.Context) bool {
 // CollectGPS collects GPS data from RutOS
 func (rs *RutOSGPSSource) CollectGPS(ctx context.Context) (*pkg.GPSData, error) {
 	// Try multiple RutOS GPS collection methods
-	
+
 	// Method 1: gsmctl GPS info
 	if gpsData, err := rs.collectFromGsmctl(ctx); err == nil {
 		return gpsData, nil
@@ -347,7 +347,7 @@ func (rs *RutOSGPSSource) collectFromUbus(ctx context.Context) (*pkg.GPSData, er
 func (rs *RutOSGPSSource) collectFromGPSDevice(ctx context.Context) (*pkg.GPSData, error) {
 	// Try common GPS device paths
 	devices := []string{"/dev/ttyUSB1", "/dev/ttyUSB2", "/dev/ttyACM0"}
-	
+
 	for _, device := range devices {
 		_ = exec.CommandContext(ctx, "cat", device)
 		// This would need proper NMEA parsing in production
@@ -369,7 +369,7 @@ func (rs *RutOSGPSSource) parseGsmctlOutput(output string) (*pkg.GPSData, error)
 				lat, _ := strconv.ParseFloat(parts[0], 64)
 				lon, _ := strconv.ParseFloat(parts[2], 64)
 				alt, _ := strconv.ParseFloat(parts[6], 64)
-				
+
 				// Convert from DDMM.MMMM to decimal degrees
 				lat = rs.convertToDecimalDegrees(lat)
 				lon = rs.convertToDecimalDegrees(lon)
@@ -449,14 +449,14 @@ func (ss *StarlinkGPSSource) CollectGPS(ctx context.Context) (*pkg.GPSData, erro
 	// This would integrate with the Starlink collector
 	// For now, return mock data
 	return &pkg.GPSData{
-		Latitude:     47.6062,
-		Longitude:    -122.3321,
-		Altitude:     100.0,
-		Accuracy:     3.0,
-		Source:       "starlink",
-		Satellites:   8,
-		Valid:        true,
-		Timestamp:    time.Now(),
+		Latitude:   47.6062,
+		Longitude:  -122.3321,
+		Altitude:   100.0,
+		Accuracy:   3.0,
+		Source:     "starlink",
+		Satellites: 8,
+		Valid:      true,
+		Timestamp:  time.Now(),
 	}, nil
 }
 
@@ -506,14 +506,14 @@ func (cs *CellularGPSSource) parseCellularGPSOutput(output string) (*pkg.GPSData
 					sats, _ := strconv.Atoi(parts[14])
 
 					return &pkg.GPSData{
-						Latitude:  lat,
-						Longitude: lon,
-						Altitude:  alt,
-						Accuracy:  15.0, // Assume 15m accuracy for cellular GPS
-						Source:    "cellular",
+						Latitude:   lat,
+						Longitude:  lon,
+						Altitude:   alt,
+						Accuracy:   15.0, // Assume 15m accuracy for cellular GPS
+						Source:     "cellular",
 						Satellites: sats,
-						Valid:     lat != 0 && lon != 0,
-						Timestamp: time.Now(),
+						Valid:      lat != 0 && lon != 0,
+						Timestamp:  time.Now(),
 					}, nil
 				}
 			}

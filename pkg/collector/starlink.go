@@ -123,22 +123,22 @@ type StarlinkAPIResponse struct {
 
 		// GPS Information
 		GPS struct {
-			Latitude      float64 `json:"latitude"`
-			Longitude     float64 `json:"longitude"`
-			Altitude      float64 `json:"altitude"`
-			GPSValid      bool    `json:"gpsValid"`
-			GPSLocked     bool    `json:"gpsLocked"`
-			GPSSats       int32   `json:"gpsSats"`
-			Accuracy      float64 `json:"accuracy"`
-			Uncertainty   float64 `json:"uncertainty"`
-			NoSatsAfterTTFF int32 `json:"noSatsAfterTtff"`
-			InhibitGPS    bool    `json:"inhibitGps"`
+			Latitude        float64 `json:"latitude"`
+			Longitude       float64 `json:"longitude"`
+			Altitude        float64 `json:"altitude"`
+			GPSValid        bool    `json:"gpsValid"`
+			GPSLocked       bool    `json:"gpsLocked"`
+			GPSSats         int32   `json:"gpsSats"`
+			Accuracy        float64 `json:"accuracy"`
+			Uncertainty     float64 `json:"uncertainty"`
+			NoSatsAfterTTFF int32   `json:"noSatsAfterTtff"`
+			InhibitGPS      bool    `json:"inhibitGps"`
 		} `json:"gps"`
 
 		// Additional Metadata
-		MobilityClass   string `json:"mobilityClass"`
-		ClassOfService  string `json:"classOfService"`
-		RoamingAlert    bool   `json:"roamingAlert"`
+		MobilityClass  string `json:"mobilityClass"`
+		ClassOfService string `json:"classOfService"`
+		RoamingAlert   bool   `json:"roamingAlert"`
 	} `json:"status"`
 }
 
@@ -305,11 +305,11 @@ func (sc *StarlinkCollector) collectStarlinkMetrics(ctx context.Context) (*pkg.M
 		metrics.GPSLatitude = &apiResp.Status.GPS.Latitude
 		metrics.GPSLongitude = &apiResp.Status.GPS.Longitude
 		metrics.GPSAltitude = &apiResp.Status.GPS.Altitude
-		
+
 		// Convert int32 to int for satellites
 		satellites := int(apiResp.Status.GPS.GPSSats)
 		metrics.GPSSatellites = &satellites
-		
+
 		metrics.GPSAccuracy = &apiResp.Status.GPS.Accuracy
 		metrics.GPSUncertaintyMeters = &apiResp.Status.GPS.Uncertainty
 
@@ -392,7 +392,7 @@ func (sc *StarlinkCollector) tryStarlinkHTTPEnhanced(ctx context.Context) (*Star
 func (sc *StarlinkCollector) callStarlinkGRPCWithGRPCurl(ctx context.Context) (*StarlinkAPIResponse, error) {
 	// Use grpcurl to call the Starlink API - this requires grpcurl to be installed
 	// grpcurl -plaintext 192.168.100.1:9200 SpaceX.API.Device.Device/Handle
-	
+
 	// For now, return mock data until grpcurl is available
 	// TODO: Implement actual grpcurl subprocess call
 	return sc.getMockStarlinkData(), nil
@@ -443,7 +443,7 @@ func (sc *StarlinkCollector) getMockStarlinkData() *StarlinkAPIResponse {
 			IsSnrPersistentlyLow  bool    `json:"isSnrPersistentlyLow"`
 			BoresightAzimuthDeg   float64 `json:"boresightAzimuthDeg"`
 			BoresightElevationDeg float64 `json:"boresightElevationDeg"`
-			HardwareSelfTest struct {
+			HardwareSelfTest      struct {
 				Passed       bool     `json:"passed"`
 				TestResults  []string `json:"testResults"`
 				LastTestTime int64    `json:"lastTestTime"`
@@ -488,7 +488,7 @@ func (sc *StarlinkCollector) getMockStarlinkData() *StarlinkAPIResponse {
 				NoSatsAfterTTFF int32   `json:"noSatsAfterTtff"`
 				InhibitGPS      bool    `json:"inhibitGps"`
 			} `json:"gps"`
-			MobilityClass string `json:"mobilityClass"`
+			MobilityClass  string `json:"mobilityClass"`
 			ClassOfService string `json:"classOfService"`
 			RoamingAlert   bool   `json:"roamingAlert"`
 		}{
@@ -534,10 +534,10 @@ func (sc *StarlinkCollector) getMockStarlinkData() *StarlinkAPIResponse {
 				OutageCount    int `json:"outageCount"`
 				OutageDuration int `json:"outageDuration"`
 			}{OutageCount: 0},
-			PopPingLatencyMs: 25.5,
-			PopPingDropRate:  0.001,
-			SNR:              12.8,
-			SnrDb:            12.8,
+			PopPingLatencyMs:     25.5,
+			PopPingDropRate:      0.001,
+			SNR:                  12.8,
+			SnrDb:                12.8,
 			IsSnrAboveNoiseFloor: true,
 			IsSnrPersistentlyLow: false,
 			HardwareSelfTest: struct {
@@ -606,8 +606,6 @@ func (sc *StarlinkCollector) getMockStarlinkData() *StarlinkAPIResponse {
 		},
 	}
 }
-
-
 
 // Validate validates a member for the Starlink collector
 func (sc *StarlinkCollector) Validate(member *pkg.Member) error {
@@ -686,13 +684,13 @@ func (sc *StarlinkCollector) GetStarlinkInfo(ctx context.Context) (map[string]in
 
 	info := map[string]interface{}{
 		// Device Information
-		"device_id":             apiResp.Status.DeviceInfo.ID,
-		"hardware_version":      apiResp.Status.DeviceInfo.HardwareVersion,
-		"software_version":      apiResp.Status.DeviceInfo.SoftwareVersion,
-		"country_code":          apiResp.Status.DeviceInfo.CountryCode,
-		"generation_number":     apiResp.Status.DeviceInfo.GenerationNumber,
-		"boot_count":            apiResp.Status.DeviceInfo.BootCount,
-		"software_part_number":  apiResp.Status.DeviceInfo.SoftwarePartNumber,
+		"device_id":            apiResp.Status.DeviceInfo.ID,
+		"hardware_version":     apiResp.Status.DeviceInfo.HardwareVersion,
+		"software_version":     apiResp.Status.DeviceInfo.SoftwareVersion,
+		"country_code":         apiResp.Status.DeviceInfo.CountryCode,
+		"generation_number":    apiResp.Status.DeviceInfo.GenerationNumber,
+		"boot_count":           apiResp.Status.DeviceInfo.BootCount,
+		"software_part_number": apiResp.Status.DeviceInfo.SoftwarePartNumber,
 
 		// System Status
 		"uptime_s":         apiResp.Status.DeviceState.UptimeS,
@@ -708,26 +706,26 @@ func (sc *StarlinkCollector) GetStarlinkInfo(ctx context.Context) (map[string]in
 		"eth_speed_mbps":          apiResp.Status.EthSpeedMbps,
 
 		// Signal Quality
-		"snr_db":                    apiResp.Status.SNR,
-		"snr_db_alt":                apiResp.Status.SnrDb,
-		"seconds_since_last_snr":    apiResp.Status.SecondsSinceLastSnr,
-		"is_snr_above_noise_floor":  apiResp.Status.IsSnrAboveNoiseFloor,
-		"is_snr_persistently_low":   apiResp.Status.IsSnrPersistentlyLow,
-		"boresight_azimuth_deg":     apiResp.Status.BoresightAzimuthDeg,
-		"boresight_elevation_deg":   apiResp.Status.BoresightElevationDeg,
+		"snr_db":                   apiResp.Status.SNR,
+		"snr_db_alt":               apiResp.Status.SnrDb,
+		"seconds_since_last_snr":   apiResp.Status.SecondsSinceLastSnr,
+		"is_snr_above_noise_floor": apiResp.Status.IsSnrAboveNoiseFloor,
+		"is_snr_persistently_low":  apiResp.Status.IsSnrPersistentlyLow,
+		"boresight_azimuth_deg":    apiResp.Status.BoresightAzimuthDeg,
+		"boresight_elevation_deg":  apiResp.Status.BoresightElevationDeg,
 
 		// Enhanced Obstruction Data
-		"currently_obstructed":                apiResp.Status.ObstructionStats.CurrentlyObstructed,
-		"fraction_obstructed":                 apiResp.Status.ObstructionStats.FractionObstructed,
-		"last_24h_obstructed_s":               apiResp.Status.ObstructionStats.Last24hObstructedS,
-		"obstruction_valid_s":                 apiResp.Status.ObstructionStats.ValidS,
-		"obstruction_time_obstructed":         apiResp.Status.ObstructionStats.TimeObstructed,
-		"obstruction_patches_valid":           apiResp.Status.ObstructionStats.PatchesValid,
+		"currently_obstructed":                 apiResp.Status.ObstructionStats.CurrentlyObstructed,
+		"fraction_obstructed":                  apiResp.Status.ObstructionStats.FractionObstructed,
+		"last_24h_obstructed_s":                apiResp.Status.ObstructionStats.Last24hObstructedS,
+		"obstruction_valid_s":                  apiResp.Status.ObstructionStats.ValidS,
+		"obstruction_time_obstructed":          apiResp.Status.ObstructionStats.TimeObstructed,
+		"obstruction_patches_valid":            apiResp.Status.ObstructionStats.PatchesValid,
 		"obstruction_avg_prolonged_interval_s": apiResp.Status.ObstructionStats.AvgProlongedObstructionIntervalS,
 
 		// Outage Information
-		"last_outage_s":    apiResp.Status.Outage.LastOutageS,
-		"outage_count":     apiResp.Status.Outage.OutageCount,
+		"last_outage_s":   apiResp.Status.Outage.LastOutageS,
+		"outage_count":    apiResp.Status.Outage.OutageCount,
 		"outage_duration": apiResp.Status.Outage.OutageDuration,
 
 		// Hardware Health
@@ -736,8 +734,8 @@ func (sc *StarlinkCollector) GetStarlinkInfo(ctx context.Context) (map[string]in
 		"hardware_last_test":    apiResp.Status.HardwareSelfTest.LastTestTime,
 
 		// Thermal Monitoring
-		"temperature":       apiResp.Status.Thermal.Temperature,
-		"thermal_throttle":  apiResp.Status.Thermal.ThermalThrottle,
+		"temperature":      apiResp.Status.Thermal.Temperature,
+		"thermal_throttle": apiResp.Status.Thermal.ThermalThrottle,
 		"thermal_shutdown": apiResp.Status.Thermal.ThermalShutdown,
 
 		// Power Status
@@ -746,31 +744,31 @@ func (sc *StarlinkCollector) GetStarlinkInfo(ctx context.Context) (map[string]in
 		"power_state": apiResp.Status.Power.PowerState,
 
 		// Bandwidth Restrictions
-		"bandwidth_restricted":      apiResp.Status.BandwidthRestrictions.Restricted,
+		"bandwidth_restricted":       apiResp.Status.BandwidthRestrictions.Restricted,
 		"bandwidth_restriction_type": apiResp.Status.BandwidthRestrictions.RestrictionType,
-		"max_download_mbps":         apiResp.Status.BandwidthRestrictions.MaxDownloadMbps,
-		"max_upload_mbps":           apiResp.Status.BandwidthRestrictions.MaxUploadMbps,
+		"max_download_mbps":          apiResp.Status.BandwidthRestrictions.MaxDownloadMbps,
+		"max_upload_mbps":            apiResp.Status.BandwidthRestrictions.MaxUploadMbps,
 
 		// Software Update
-		"software_update_state":   apiResp.Status.SoftwareUpdate.State,
-		"swupdate_reboot_ready":   apiResp.Status.SoftwareUpdate.RebootReady,
+		"software_update_state": apiResp.Status.SoftwareUpdate.State,
+		"swupdate_reboot_ready": apiResp.Status.SoftwareUpdate.RebootReady,
 
 		// GPS Data
-		"gps_latitude":          apiResp.Status.GPS.Latitude,
-		"gps_longitude":         apiResp.Status.GPS.Longitude,
-		"gps_altitude":          apiResp.Status.GPS.Altitude,
-		"gps_valid":             apiResp.Status.GPS.GPSValid,
-		"gps_locked":            apiResp.Status.GPS.GPSLocked,
-		"gps_satellites":        apiResp.Status.GPS.GPSSats,
-		"gps_accuracy":          apiResp.Status.GPS.Accuracy,
-		"gps_uncertainty":       apiResp.Status.GPS.Uncertainty,
+		"gps_latitude":           apiResp.Status.GPS.Latitude,
+		"gps_longitude":          apiResp.Status.GPS.Longitude,
+		"gps_altitude":           apiResp.Status.GPS.Altitude,
+		"gps_valid":              apiResp.Status.GPS.GPSValid,
+		"gps_locked":             apiResp.Status.GPS.GPSLocked,
+		"gps_satellites":         apiResp.Status.GPS.GPSSats,
+		"gps_accuracy":           apiResp.Status.GPS.Accuracy,
+		"gps_uncertainty":        apiResp.Status.GPS.Uncertainty,
 		"gps_no_sats_after_ttff": apiResp.Status.GPS.NoSatsAfterTTFF,
-		"gps_inhibit":           apiResp.Status.GPS.InhibitGPS,
+		"gps_inhibit":            apiResp.Status.GPS.InhibitGPS,
 
 		// Classification
-		"mobility_class":    apiResp.Status.MobilityClass,
-		"class_of_service":  apiResp.Status.ClassOfService,
-		"roaming_alert":     apiResp.Status.RoamingAlert,
+		"mobility_class":   apiResp.Status.MobilityClass,
+		"class_of_service": apiResp.Status.ClassOfService,
+		"roaming_alert":    apiResp.Status.RoamingAlert,
 	}
 
 	return info, nil

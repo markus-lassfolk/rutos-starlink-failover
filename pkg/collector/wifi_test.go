@@ -157,7 +157,6 @@ func TestWiFiCollector_ParseWiFiData(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			info := &WiFiInfo{}
 			err := collector.parseWiFiData(tt.data, info)
-
 			if err != nil {
 				t.Errorf("parseWiFiData() error = %v", err)
 				return

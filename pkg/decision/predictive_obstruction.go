@@ -11,39 +11,39 @@ import (
 
 // PredictiveObstructionManager handles predictive obstruction detection and management
 type PredictiveObstructionManager struct {
-	logger           *logx.Logger
-	config           *PredictiveObstructionConfig
+	logger             *logx.Logger
+	config             *PredictiveObstructionConfig
 	obstructionHistory []*ObstructionSample
-	snrHistory       []*SNRSample
-	lastPrediction   *ObstructionPrediction
+	snrHistory         []*SNRSample
+	lastPrediction     *ObstructionPrediction
 }
 
 // PredictiveObstructionConfig represents predictive obstruction configuration
 type PredictiveObstructionConfig struct {
-	Enabled                      bool    `json:"enabled"`
-	HistoryWindowMinutes         int     `json:"history_window_minutes"`         // History window for analysis
-	MinSamplesForPrediction      int     `json:"min_samples_for_prediction"`     // Minimum samples needed
+	Enabled                          bool    `json:"enabled"`
+	HistoryWindowMinutes             int     `json:"history_window_minutes"`             // History window for analysis
+	MinSamplesForPrediction          int     `json:"min_samples_for_prediction"`         // Minimum samples needed
 	ObstructionAccelerationThreshold float64 `json:"obstruction_acceleration_threshold"` // Acceleration threshold
-	SNRTrendThreshold            float64 `json:"snr_trend_threshold"`            // SNR decline threshold
-	PredictionConfidenceThreshold float64 `json:"prediction_confidence_threshold"` // Minimum confidence for action
-	ProactiveFailoverEnabled     bool    `json:"proactive_failover_enabled"`     // Enable proactive failover
-	FalsePositiveReduction       bool    `json:"false_positive_reduction"`       // Enable false positive reduction
-	DataQualityValidation        bool    `json:"data_quality_validation"`        // Enable data quality checks
-	EnvironmentalLearning        bool    `json:"environmental_learning"`         // Enable environmental pattern learning
-	MovementTriggeredReset       bool    `json:"movement_triggered_reset"`       // Reset on movement
-	PredictionUpdateIntervalS    int     `json:"prediction_update_interval_s"`   // How often to update predictions
+	SNRTrendThreshold                float64 `json:"snr_trend_threshold"`                // SNR decline threshold
+	PredictionConfidenceThreshold    float64 `json:"prediction_confidence_threshold"`    // Minimum confidence for action
+	ProactiveFailoverEnabled         bool    `json:"proactive_failover_enabled"`         // Enable proactive failover
+	FalsePositiveReduction           bool    `json:"false_positive_reduction"`           // Enable false positive reduction
+	DataQualityValidation            bool    `json:"data_quality_validation"`            // Enable data quality checks
+	EnvironmentalLearning            bool    `json:"environmental_learning"`             // Enable environmental pattern learning
+	MovementTriggeredReset           bool    `json:"movement_triggered_reset"`           // Reset on movement
+	PredictionUpdateIntervalS        int     `json:"prediction_update_interval_s"`       // How often to update predictions
 }
 
 // ObstructionSample represents an obstruction measurement sample
 type ObstructionSample struct {
-	Timestamp            time.Time `json:"timestamp"`
-	FractionObstructed   float64   `json:"fraction_obstructed"`
-	TimeObstructed       float64   `json:"time_obstructed"`
-	ValidDurationS       int64     `json:"valid_duration_s"`
-	PatchesValid         int       `json:"patches_valid"`
-	CurrentlyObstructed  bool      `json:"currently_obstructed"`
-	DataQuality          string    `json:"data_quality"`          // good|poor|insufficient
-	ProlongedIntervalS   float64   `json:"prolonged_interval_s"`
+	Timestamp           time.Time `json:"timestamp"`
+	FractionObstructed  float64   `json:"fraction_obstructed"`
+	TimeObstructed      float64   `json:"time_obstructed"`
+	ValidDurationS      int64     `json:"valid_duration_s"`
+	PatchesValid        int       `json:"patches_valid"`
+	CurrentlyObstructed bool      `json:"currently_obstructed"`
+	DataQuality         string    `json:"data_quality"` // good|poor|insufficient
+	ProlongedIntervalS  float64   `json:"prolonged_interval_s"`
 }
 
 // SNRSample represents a signal-to-noise ratio sample
@@ -87,18 +87,18 @@ func NewPredictiveObstructionManager(config *PredictiveObstructionConfig, logger
 // DefaultPredictiveObstructionConfig returns default predictive obstruction configuration
 func DefaultPredictiveObstructionConfig() *PredictiveObstructionConfig {
 	return &PredictiveObstructionConfig{
-		Enabled:                           true,
-		HistoryWindowMinutes:              30,   // 30 minutes of history
-		MinSamplesForPrediction:           10,   // At least 10 samples
-		ObstructionAccelerationThreshold:  0.5,  // 0.5% per minute acceleration
-		SNRTrendThreshold:                 -1.0, // 1 dB per minute decline
-		PredictionConfidenceThreshold:     0.7,  // 70% confidence threshold
-		ProactiveFailoverEnabled:          true,
-		FalsePositiveReduction:            true,
-		DataQualityValidation:             true,
-		EnvironmentalLearning:             true,
-		MovementTriggeredReset:            true,
-		PredictionUpdateIntervalS:         60, // Update every minute
+		Enabled:                          true,
+		HistoryWindowMinutes:             30,   // 30 minutes of history
+		MinSamplesForPrediction:          10,   // At least 10 samples
+		ObstructionAccelerationThreshold: 0.5,  // 0.5% per minute acceleration
+		SNRTrendThreshold:                -1.0, // 1 dB per minute decline
+		PredictionConfidenceThreshold:    0.7,  // 70% confidence threshold
+		ProactiveFailoverEnabled:         true,
+		FalsePositiveReduction:           true,
+		DataQualityValidation:            true,
+		EnvironmentalLearning:            true,
+		MovementTriggeredReset:           true,
+		PredictionUpdateIntervalS:        60, // Update every minute
 	}
 }
 
@@ -121,12 +121,12 @@ func (pom *PredictiveObstructionManager) AddObstructionSample(sample *Obstructio
 
 	// Log sample addition
 	pom.logger.LogDataFlow("predictive_obstruction", "sample_added", "obstruction", 1, map[string]interface{}{
-		"fraction_obstructed":   sample.FractionObstructed,
-		"time_obstructed":       sample.TimeObstructed,
-		"currently_obstructed":  sample.CurrentlyObstructed,
-		"data_quality":          sample.DataQuality,
-		"prolonged_interval_s":  sample.ProlongedIntervalS,
-		"patches_valid":         sample.PatchesValid,
+		"fraction_obstructed":  sample.FractionObstructed,
+		"time_obstructed":      sample.TimeObstructed,
+		"currently_obstructed": sample.CurrentlyObstructed,
+		"data_quality":         sample.DataQuality,
+		"prolonged_interval_s": sample.ProlongedIntervalS,
+		"patches_valid":        sample.PatchesValid,
 	})
 
 	return nil
@@ -162,7 +162,7 @@ func (pom *PredictiveObstructionManager) AnalyzePredictiveObstruction() (*Obstru
 	}
 
 	if len(pom.obstructionHistory) < pom.config.MinSamplesForPrediction {
-		return nil, fmt.Errorf("insufficient samples for prediction: %d < %d", 
+		return nil, fmt.Errorf("insufficient samples for prediction: %d < %d",
 			len(pom.obstructionHistory), pom.config.MinSamplesForPrediction)
 	}
 
@@ -200,16 +200,16 @@ func (pom *PredictiveObstructionManager) AnalyzePredictiveObstruction() (*Obstru
 
 	// Log prediction
 	pom.logger.LogVerbose("obstruction_prediction_generated", map[string]interface{}{
-		"predicted_issue":           prediction.PredictedIssue,
-		"time_to_issue_seconds":     prediction.TimeToIssue,
-		"confidence":                prediction.Confidence,
-		"obstruction_slope":         prediction.ObstructionSlope,
-		"obstruction_acceleration":  prediction.ObstructionAcceleration,
-		"snr_trend":                 prediction.SNRTrend,
-		"trigger_reasons":           prediction.TriggerReasons,
-		"recommended_action":        prediction.RecommendedAction,
-		"false_positive_risk":       prediction.FalsePositiveRisk,
-		"data_quality_score":        prediction.DataQualityScore,
+		"predicted_issue":          prediction.PredictedIssue,
+		"time_to_issue_seconds":    prediction.TimeToIssue,
+		"confidence":               prediction.Confidence,
+		"obstruction_slope":        prediction.ObstructionSlope,
+		"obstruction_acceleration": prediction.ObstructionAcceleration,
+		"snr_trend":                prediction.SNRTrend,
+		"trigger_reasons":          prediction.TriggerReasons,
+		"recommended_action":       prediction.RecommendedAction,
+		"false_positive_risk":      prediction.FalsePositiveRisk,
+		"data_quality_score":       prediction.DataQualityScore,
 	})
 
 	return prediction, nil
@@ -278,28 +278,28 @@ func (pom *PredictiveObstructionManager) validateObstructionSample(sample *Obstr
 // maintainHistoryWindow maintains the obstruction history window
 func (pom *PredictiveObstructionManager) maintainHistoryWindow() {
 	cutoff := time.Now().Add(-time.Duration(pom.config.HistoryWindowMinutes) * time.Minute)
-	
+
 	var validSamples []*ObstructionSample
 	for _, sample := range pom.obstructionHistory {
 		if sample.Timestamp.After(cutoff) {
 			validSamples = append(validSamples, sample)
 		}
 	}
-	
+
 	pom.obstructionHistory = validSamples
 }
 
 // maintainSNRHistoryWindow maintains the SNR history window
 func (pom *PredictiveObstructionManager) maintainSNRHistoryWindow() {
 	cutoff := time.Now().Add(-time.Duration(pom.config.HistoryWindowMinutes) * time.Minute)
-	
+
 	var validSamples []*SNRSample
 	for _, sample := range pom.snrHistory {
 		if sample.Timestamp.After(cutoff) {
 			validSamples = append(validSamples, sample)
 		}
 	}
-	
+
 	pom.snrHistory = validSamples
 }
 
@@ -323,7 +323,7 @@ func (pom *PredictiveObstructionManager) calculateObstructionTrends() (slope, ac
 	for i, sample := range samples {
 		x := float64(i)
 		y := sample.FractionObstructed * 100 // Convert to percentage
-		
+
 		sumX += x
 		sumY += y
 		sumXY += x * y
@@ -336,15 +336,15 @@ func (pom *PredictiveObstructionManager) calculateObstructionTrends() (slope, ac
 	// Calculate acceleration (change in slope over time)
 	if len(samples) >= 6 { // Need at least 6 points for acceleration
 		mid := len(samples) / 2
-		
+
 		// Calculate slope for first half
 		firstHalf := samples[:mid]
 		firstSlope := pom.calculateSlopeForSamples(firstHalf)
-		
+
 		// Calculate slope for second half
 		secondHalf := samples[mid:]
 		secondSlope := pom.calculateSlopeForSamples(secondHalf)
-		
+
 		// Acceleration is change in slope over time
 		timeSpan := samples[len(samples)-1].Timestamp.Sub(samples[0].Timestamp).Minutes()
 		if timeSpan > 0 {
@@ -367,7 +367,7 @@ func (pom *PredictiveObstructionManager) calculateSlopeForSamples(samples []*Obs
 	for i, sample := range samples {
 		x := float64(i)
 		y := sample.FractionObstructed * 100
-		
+
 		sumX += x
 		sumY += y
 		sumXY += x * y
@@ -397,7 +397,7 @@ func (pom *PredictiveObstructionManager) calculateSNRTrend() float64 {
 	for i, sample := range samples {
 		x := float64(i)
 		y := sample.SNR
-		
+
 		sumX += x
 		sumY += y
 		sumXY += x * y
@@ -413,7 +413,7 @@ func (pom *PredictiveObstructionManager) analyzeObstructionAcceleration(predicti
 		if prediction.ObstructionAcceleration > 0 {
 			prediction.PredictedIssue = "rapid_obstruction_increase"
 			prediction.TriggerReasons = append(prediction.TriggerReasons, "obstruction_acceleration_detected")
-			
+
 			// Estimate time to critical obstruction (>50%)
 			currentObstruction := pom.getCurrentObstructionLevel()
 			if prediction.ObstructionSlope > 0 {
@@ -422,7 +422,7 @@ func (pom *PredictiveObstructionManager) analyzeObstructionAcceleration(predicti
 					prediction.TimeToIssue = int(timeToFiftyPercent * 60) // Convert minutes to seconds
 				}
 			}
-			
+
 			prediction.RecommendedAction = "proactive_failover"
 		}
 	}
@@ -433,7 +433,7 @@ func (pom *PredictiveObstructionManager) analyzeSNRDegradation(prediction *Obstr
 	if prediction.SNRTrend < pom.config.SNRTrendThreshold {
 		prediction.PredictedIssue = "snr_critical_decline"
 		prediction.TriggerReasons = append(prediction.TriggerReasons, "snr_degradation_trend")
-		
+
 		// Check for persistently low SNR in recent samples
 		recentLowSNRCount := 0
 		for i := len(pom.snrHistory) - 1; i >= 0 && i >= len(pom.snrHistory)-5; i-- {
@@ -441,7 +441,7 @@ func (pom *PredictiveObstructionManager) analyzeSNRDegradation(prediction *Obstr
 				recentLowSNRCount++
 			}
 		}
-		
+
 		if recentLowSNRCount >= 3 {
 			prediction.PredictedIssue = "imminent_signal_loss"
 			prediction.TimeToIssue = 120 // 2 minutes
@@ -459,17 +459,17 @@ func (pom *PredictiveObstructionManager) analyzeDataQuality(prediction *Obstruct
 
 	goodSamples := 0
 	totalSamples := len(pom.obstructionHistory)
-	
+
 	for _, sample := range pom.obstructionHistory {
 		if sample.DataQuality == "good" {
 			goodSamples++
 		}
 	}
-	
+
 	if totalSamples > 0 {
 		prediction.DataQualityScore = float64(goodSamples) / float64(totalSamples)
 	}
-	
+
 	// Adjust confidence based on data quality
 	if prediction.DataQualityScore < 0.5 {
 		prediction.TriggerReasons = append(prediction.TriggerReasons, "poor_data_quality")
@@ -484,7 +484,7 @@ func (pom *PredictiveObstructionManager) analyzeFalsePositiveRisk(prediction *Ob
 	}
 
 	riskFactors := 0.0
-	
+
 	// Check for rapid changes that might be temporary
 	if len(pom.obstructionHistory) >= 3 {
 		recent := pom.obstructionHistory[len(pom.obstructionHistory)-3:]
@@ -493,18 +493,18 @@ func (pom *PredictiveObstructionManager) analyzeFalsePositiveRisk(prediction *Ob
 			riskFactors += 0.3
 		}
 	}
-	
+
 	// Check time-of-day patterns (morning/evening obstructions are often temporary)
 	hour := time.Now().Hour()
 	if hour >= 6 && hour <= 9 || hour >= 17 && hour <= 20 {
 		riskFactors += 0.2
 	}
-	
+
 	// Check for very short duration predictions
 	if prediction.TimeToIssue > 0 && prediction.TimeToIssue < 60 {
 		riskFactors += 0.2
 	}
-	
+
 	prediction.FalsePositiveRisk = math.Min(riskFactors, 1.0)
 }
 
@@ -512,13 +512,13 @@ func (pom *PredictiveObstructionManager) analyzeFalsePositiveRisk(prediction *Ob
 func (pom *PredictiveObstructionManager) applyEnvironmentalPatterns(prediction *ObstructionPrediction) {
 	// This is a simplified version - in production, this would use ML models
 	// trained on historical data to recognize environmental patterns
-	
+
 	// Check for weather-related patterns (simplified)
 	hour := time.Now().Hour()
 	if hour >= 6 && hour <= 8 { // Morning sun angle
 		prediction.TriggerReasons = append(prediction.TriggerReasons, "morning_sun_pattern")
 	}
-	
+
 	// Check for seasonal patterns (simplified)
 	month := time.Now().Month()
 	if month >= 11 || month <= 2 { // Winter months
@@ -530,27 +530,27 @@ func (pom *PredictiveObstructionManager) applyEnvironmentalPatterns(prediction *
 func (pom *PredictiveObstructionManager) calculateOverallPrediction(prediction *ObstructionPrediction) {
 	// Base confidence on number of trigger reasons
 	baseConfidence := float64(len(prediction.TriggerReasons)) * 0.2
-	
+
 	// Adjust for data quality
 	confidence := baseConfidence * prediction.DataQualityScore
-	
+
 	// Reduce confidence for high false positive risk
 	confidence = confidence * (1.0 - prediction.FalsePositiveRisk)
-	
+
 	// Boost confidence for multiple concurrent indicators
 	if prediction.ObstructionAcceleration > pom.config.ObstructionAccelerationThreshold &&
-	   prediction.SNRTrend < pom.config.SNRTrendThreshold {
+		prediction.SNRTrend < pom.config.SNRTrendThreshold {
 		confidence += 0.3
 	}
-	
+
 	prediction.Confidence = math.Min(confidence, 1.0)
-	
+
 	// Set final recommendation based on confidence and issue severity
 	if prediction.Confidence >= pom.config.PredictionConfidenceThreshold {
 		if prediction.PredictedIssue == "imminent_signal_loss" {
 			prediction.RecommendedAction = "immediate_failover"
 		} else if prediction.PredictedIssue == "rapid_obstruction_increase" ||
-				  prediction.PredictedIssue == "snr_critical_decline" {
+			prediction.PredictedIssue == "snr_critical_decline" {
 			prediction.RecommendedAction = "proactive_failover"
 		}
 	}
@@ -561,7 +561,7 @@ func (pom *PredictiveObstructionManager) getCurrentObstructionLevel() float64 {
 	if len(pom.obstructionHistory) == 0 {
 		return 0
 	}
-	
+
 	// Get most recent sample
 	latest := pom.obstructionHistory[len(pom.obstructionHistory)-1]
 	return latest.FractionObstructed * 100
@@ -572,45 +572,45 @@ func (pom *PredictiveObstructionManager) calculateVariance(samples []*Obstructio
 	if len(samples) < 2 {
 		return 0
 	}
-	
+
 	// Calculate mean
 	var sum float64
 	for _, sample := range samples {
 		sum += sample.FractionObstructed
 	}
 	mean := sum / float64(len(samples))
-	
+
 	// Calculate variance
 	var variance float64
 	for _, sample := range samples {
 		diff := sample.FractionObstructed - mean
 		variance += diff * diff
 	}
-	
+
 	return variance / float64(len(samples))
 }
 
 // GetPredictionStatus returns the current prediction status
 func (pom *PredictiveObstructionManager) GetPredictionStatus() map[string]interface{} {
 	status := map[string]interface{}{
-		"enabled":                 pom.config.Enabled,
-		"obstruction_samples":     len(pom.obstructionHistory),
-		"snr_samples":             len(pom.snrHistory),
-		"min_samples_required":    pom.config.MinSamplesForPrediction,
-		"ready_for_prediction":    len(pom.obstructionHistory) >= pom.config.MinSamplesForPrediction,
+		"enabled":              pom.config.Enabled,
+		"obstruction_samples":  len(pom.obstructionHistory),
+		"snr_samples":          len(pom.snrHistory),
+		"min_samples_required": pom.config.MinSamplesForPrediction,
+		"ready_for_prediction": len(pom.obstructionHistory) >= pom.config.MinSamplesForPrediction,
 	}
-	
+
 	if pom.lastPrediction != nil {
 		status["last_prediction"] = map[string]interface{}{
-			"timestamp":               pom.lastPrediction.Timestamp,
-			"predicted_issue":         pom.lastPrediction.PredictedIssue,
-			"confidence":              pom.lastPrediction.Confidence,
-			"time_to_issue_seconds":   pom.lastPrediction.TimeToIssue,
-			"recommended_action":      pom.lastPrediction.RecommendedAction,
-			"false_positive_risk":     pom.lastPrediction.FalsePositiveRisk,
+			"timestamp":             pom.lastPrediction.Timestamp,
+			"predicted_issue":       pom.lastPrediction.PredictedIssue,
+			"confidence":            pom.lastPrediction.Confidence,
+			"time_to_issue_seconds": pom.lastPrediction.TimeToIssue,
+			"recommended_action":    pom.lastPrediction.RecommendedAction,
+			"false_positive_risk":   pom.lastPrediction.FalsePositiveRisk,
 		}
 	}
-	
+
 	return status
 }
 
@@ -619,7 +619,7 @@ func (pom *PredictiveObstructionManager) ResetOnMovement() {
 	if pom.config.MovementTriggeredReset {
 		pom.obstructionHistory = make([]*ObstructionSample, 0)
 		pom.lastPrediction = nil
-		
+
 		pom.logger.LogStateChange("predictive_obstruction", "active", "reset", "movement_detected", map[string]interface{}{
 			"reason": "movement_triggered_reset",
 		})

@@ -38,10 +38,10 @@ type RingBuffer struct {
 
 // Sample represents a telemetry sample with metadata
 type Sample struct {
-	Member    string      `json:"member"`
-	Timestamp time.Time   `json:"timestamp"`
+	Member    string       `json:"member"`
+	Timestamp time.Time    `json:"timestamp"`
 	Metrics   *pkg.Metrics `json:"metrics"`
-	Score     *pkg.Score  `json:"score,omitempty"`
+	Score     *pkg.Score   `json:"score,omitempty"`
 }
 
 // NewStore creates a new telemetry store
@@ -242,7 +242,6 @@ func (s *Store) downsample() {
 }
 
 // metricsToMap converts metrics to a map for storage
-
 
 // NewRingBuffer creates a new ring buffer
 func NewRingBuffer(capacity int) *RingBuffer {

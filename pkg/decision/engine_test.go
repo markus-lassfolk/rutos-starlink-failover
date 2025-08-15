@@ -1,7 +1,6 @@
 package decision
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -13,10 +12,10 @@ import (
 
 // MockController implements pkg.Controller for testing
 type MockController struct {
-	SwitchCalled    bool
-	LastSwitchFrom  *pkg.Member
-	LastSwitchTo    *pkg.Member
-	SwitchError     error
+	SwitchCalled   bool
+	LastSwitchFrom *pkg.Member
+	LastSwitchTo   *pkg.Member
+	SwitchError    error
 }
 
 func (mc *MockController) Switch(from, to *pkg.Member) error {
@@ -42,17 +41,17 @@ func (mc *MockController) UpdateRouteMetrics(to *pkg.Member) error {
 func TestEngine_PredictiveFailover(t *testing.T) {
 	// Create test configuration
 	config := &uci.Config{
-		Predictive:         true,
-		SwitchMargin:       10,
-		CooldownS:          5,
-		FailMinDurationS:   10,
+		Predictive:          true,
+		SwitchMargin:        10,
+		CooldownS:           5,
+		FailMinDurationS:    10,
 		RestoreMinDurationS: 20,
-		HistoryWindowS:     300,
+		HistoryWindowS:      300,
 	}
 
 	logger := logx.NewLogger("debug", "")
 	telemetry := telem.NewStore(config, logger)
-	
+
 	// Create engine
 	engine := NewEngine(config, logger, telemetry)
 
@@ -62,9 +61,9 @@ func TestEngine_PredictiveFailover(t *testing.T) {
 		Iface: "wan",
 		Class: pkg.ClassStarlink,
 	}
-	
+
 	cellular := &pkg.Member{
-		Name:  "cellular", 
+		Name:  "cellular",
 		Iface: "wwan0",
 		Class: pkg.ClassCellular,
 	}
@@ -297,9 +296,9 @@ func TestEngine_TrendAnalysis(t *testing.T) {
 
 	t.Run("calculate_standard_deviation", func(t *testing.T) {
 		values := []float64{50, 55, 45, 60, 40, 65, 35, 70, 30}
-		
+
 		std := engine.calculateStandardDeviation(values)
-		
+
 		if std <= 0 {
 			t.Errorf("Expected positive standard deviation, got %f", std)
 		}
@@ -330,11 +329,11 @@ func TestPredictiveEngine_Integration(t *testing.T) {
 	t.Run("predictive_engine_data_update", func(t *testing.T) {
 		// Create sample data
 		metrics := &pkg.Metrics{
-			LatencyMS:    100.0,
-			LossPercent:  2.0,
+			LatencyMS:      100.0,
+			LossPercent:    2.0,
 			ObstructionPct: floatPtr(5.0),
 		}
-		
+
 		score := &pkg.Score{
 			Instant: 75.0,
 			EWMA:    78.0,
@@ -344,13 +343,13 @@ func TestPredictiveEngine_Integration(t *testing.T) {
 		// Update predictive engine
 		if engine.predictiveEngine != nil {
 			engine.predictiveEngine.UpdateMemberData(member.Name, metrics, score)
-			
+
 			// Try to get prediction
 			prediction, err := engine.predictiveEngine.PredictFailure(member.Name)
 			if err != nil {
 				t.Logf("⚠️  Prediction not available yet (expected for new member): %v", err)
 			} else {
-				t.Logf("✅ Got prediction: risk=%.2f, confidence=%.2f, method=%s", 
+				t.Logf("✅ Got prediction: risk=%.2f, confidence=%.2f, method=%s",
 					prediction.Risk, prediction.Confidence, prediction.Method)
 			}
 		} else {

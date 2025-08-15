@@ -217,23 +217,23 @@ func TestCellularCollector_ParseMobiledData(t *testing.T) {
 
 	// Mock comprehensive mobiled response
 	mockData := map[string]interface{}{
-		"rsrp":                -95,
-		"rsrq":                -10,
-		"sinr":                15,
-		"rssi":                -70,
-		"network_type":        "LTE",
-		"operator":            "Test Operator",
-		"band":                "B3",
-		"cell_id":             "12345",
-		"sim_slot":            1,
-		"sim_count":           2,
-		"sim_status":          "ready",
-		"roaming":             false,
-		"home_operator":       "Home Operator",
-		"connection_state":    "connected",
-		"tac":                 "ABCD",
-		"earfcn":              1850,
-		"pci":                 256,
+		"rsrp":             -95,
+		"rsrq":             -10,
+		"sinr":             15,
+		"rssi":             -70,
+		"network_type":     "LTE",
+		"operator":         "Test Operator",
+		"band":             "B3",
+		"cell_id":          "12345",
+		"sim_slot":         1,
+		"sim_count":        2,
+		"sim_status":       "ready",
+		"roaming":          false,
+		"home_operator":    "Home Operator",
+		"connection_state": "connected",
+		"tac":              "ABCD",
+		"earfcn":           1850,
+		"pci":              256,
 	}
 
 	info := &CellularInfo{}
@@ -370,18 +370,18 @@ func TestCellularCollector_GetSignalQuality(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			quality := collector.GetSignalQuality(tt.rsrp, tt.rsrq, tt.sinr)
-			
+
 			if tt.expected > 0 {
 				if quality != tt.expected {
 					t.Errorf("Expected quality=%.1f, got %.1f", tt.expected, quality)
 				}
 			} else {
 				if quality < tt.minScore || quality > tt.maxScore {
-					t.Errorf("Expected quality between %.1f and %.1f, got %.1f", 
+					t.Errorf("Expected quality between %.1f and %.1f, got %.1f",
 						tt.minScore, tt.maxScore, quality)
 				}
 			}
-			
+
 			t.Logf("✅ %s: quality=%.1f", tt.name, quality)
 		})
 	}

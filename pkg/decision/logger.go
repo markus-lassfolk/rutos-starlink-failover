@@ -132,15 +132,15 @@ func (dl *DecisionLoggerImpl) LogDecision(decision *pkg.Decision) error {
 
 	// Log structured decision details
 	dl.logger.LogVerbose("decision_logged", map[string]interface{}{
-		"decision_id":   decision.ID,
-		"type":          decision.Type,
-		"from":          decision.From,
-		"to":            decision.To,
-		"reason":        decision.Reason,
-		"trigger":       decision.TriggerReason,
-		"success":       decision.Success,
-		"predictive":    decision.Predictive,
-		"duration_ms":   decision.Duration.Milliseconds(),
+		"decision_id": decision.ID,
+		"type":        decision.Type,
+		"from":        decision.From,
+		"to":          decision.To,
+		"reason":      decision.Reason,
+		"trigger":     decision.TriggerReason,
+		"success":     decision.Success,
+		"predictive":  decision.Predictive,
+		"duration_ms": decision.Duration.Milliseconds(),
 	})
 
 	return nil
@@ -179,7 +179,7 @@ func (dl *DecisionLoggerImpl) GetDecisionStats(since time.Time) (map[string]inte
 
 	decisionsByType := make(map[string]int)
 	decisionsByReason := make(map[string]int)
-	
+
 	var totalDecisions int
 	var successCount int
 	var predictiveDecisions int
@@ -208,26 +208,26 @@ func (dl *DecisionLoggerImpl) GetDecisionStats(since time.Time) (map[string]inte
 	// Calculate derived statistics
 	successRate := 0.0
 	avgDecisionTime := 0.0
-	
+
 	if totalDecisions > 0 {
 		successRate = float64(successCount) / float64(totalDecisions) * 100
 		avgDecisionTime = float64(totalDuration.Milliseconds()) / float64(totalDecisions)
 	}
 
 	return map[string]interface{}{
-		"total_decisions":        totalDecisions,
-		"decisions_by_type":      decisionsByType,
-		"decisions_by_reason":    decisionsByReason,
-		"success_rate":           successRate,
-		"avg_decision_time_ms":   avgDecisionTime,
-		"predictive_decisions":   predictiveDecisions,
+		"total_decisions":      totalDecisions,
+		"decisions_by_type":    decisionsByType,
+		"decisions_by_reason":  decisionsByReason,
+		"success_rate":         successRate,
+		"avg_decision_time_ms": avgDecisionTime,
+		"predictive_decisions": predictiveDecisions,
 	}, nil
 }
 
 // initializeLogFiles initializes log files and directories
 func (dl *DecisionLoggerImpl) initializeLogFiles() error {
 	// Create log directory if it doesn't exist
-	if err := os.MkdirAll(dl.config.LogDirectory, 0755); err != nil {
+	if err := os.MkdirAll(dl.config.LogDirectory, 0o755); err != nil {
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 
@@ -249,11 +249,11 @@ func (dl *DecisionLoggerImpl) initializeLogFiles() error {
 	}
 
 	dl.logger.LogVerbose("decision_logger_initialized", map[string]interface{}{
-		"log_directory":     dl.config.LogDirectory,
-		"csv_enabled":       dl.config.CSVLoggingEnabled,
-		"json_enabled":      dl.config.JSONLoggingEnabled,
-		"history_size":      dl.config.InMemoryHistorySize,
-		"rotation_enabled":  dl.config.LogRotationEnabled,
+		"log_directory":    dl.config.LogDirectory,
+		"csv_enabled":      dl.config.CSVLoggingEnabled,
+		"json_enabled":     dl.config.JSONLoggingEnabled,
+		"history_size":     dl.config.InMemoryHistorySize,
+		"rotation_enabled": dl.config.LogRotationEnabled,
 	})
 
 	return nil
@@ -262,14 +262,14 @@ func (dl *DecisionLoggerImpl) initializeLogFiles() error {
 // initializeCSVLog initializes CSV logging
 func (dl *DecisionLoggerImpl) initializeCSVLog() error {
 	csvPath := filepath.Join(dl.config.LogDirectory, fmt.Sprintf("decisions_%s.csv", dl.currentLogDate))
-	
+
 	// Check if file exists to determine if we need headers
 	fileExists := false
 	if _, err := os.Stat(csvPath); err == nil {
 		fileExists = true
 	}
 
-	file, err := os.OpenFile(csvPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile(csvPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to open CSV file: %w", err)
 	}
@@ -292,8 +292,8 @@ func (dl *DecisionLoggerImpl) initializeCSVLog() error {
 // initializeJSONLog initializes JSON logging
 func (dl *DecisionLoggerImpl) initializeJSONLog() error {
 	jsonPath := filepath.Join(dl.config.LogDirectory, fmt.Sprintf("decisions_%s.jsonl", dl.currentLogDate))
-	
-	file, err := os.OpenFile(jsonPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+
+	file, err := os.OpenFile(jsonPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to open JSON file: %w", err)
 	}
