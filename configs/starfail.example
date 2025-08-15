@@ -69,6 +69,13 @@ config starfail 'main'
     # MQTT telemetry publishing (optional)
     option mqtt_broker ''
     option mqtt_topic 'starfail/status'
+    
+    # Starlink API configuration
+    option starlink_api_host '192.168.100.1'
+    option starlink_api_port '9200'
+    option starlink_timeout_s '10'
+    option starlink_grpc_first '1'
+    option starlink_http_first '0'
 
 # Starlink member configuration
 config member 'starlink_any'

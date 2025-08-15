@@ -23,6 +23,9 @@ type Store struct {
 	// Memory tracking
 	memoryUsage int64
 	lastCleanup time.Time
+
+	// Event callback for real-time publishing
+	eventCallback func(*pkg.Event)
 }
 
 // RingBuffer implements a thread-safe ring buffer with time-based retention
@@ -94,14 +97,29 @@ func (s *Store) AddSample(member string, metrics *pkg.Metrics, score *pkg.Score)
 // AddEvent adds a system event
 func (s *Store) AddEvent(event *pkg.Event) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	callback := s.eventCallback
+	s.mu.Unlock()
 
+	// Add to ring buffer
+	s.mu.Lock()
 	s.events.Add(event)
-
 	// Check memory pressure
 	s.checkMemoryPressure()
+	s.mu.Unlock()
+
+	// Call the callback if set (outside of lock to avoid deadlock)
+	if callback != nil {
+		go callback(event) // Run in goroutine to avoid blocking
+	}
 
 	return nil
+}
+
+// SetEventCallback sets a callback function that will be called when events are added
+func (s *Store) SetEventCallback(callback func(*pkg.Event)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.eventCallback = callback
 }
 
 // GetSamples returns samples for a member within a time window

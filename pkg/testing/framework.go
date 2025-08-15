@@ -54,9 +54,9 @@ func (tf *TestFramework) MockConfig() *uci.Config {
 }
 
 // MockMembers creates test member data
-func (tf *TestFramework) MockMembers() []pkg.Member {
-	return []pkg.Member{
-		{
+func (tf *TestFramework) MockMembers() []*pkg.Member {
+	return []*pkg.Member{
+		&pkg.Member{
 			Name:      "starlink",
 			Iface:     "wan",
 			Class:     pkg.MemberClassStarlink,
@@ -64,7 +64,7 @@ func (tf *TestFramework) MockMembers() []pkg.Member {
 			Weight:    100,
 			CreatedAt: time.Now(),
 		},
-		{
+		&pkg.Member{
 			Name:      "cellular",
 			Iface:     "wwan0",
 			Class:     pkg.MemberClassCellular,
@@ -72,7 +72,7 @@ func (tf *TestFramework) MockMembers() []pkg.Member {
 			Weight:    80,
 			CreatedAt: time.Now(),
 		},
-		{
+		&pkg.Member{
 			Name:      "wifi",
 			Iface:     "wlan0",
 			Class:     pkg.MemberClassWiFi,

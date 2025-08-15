@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/starfail/starfail/pkg"
 	"github.com/starfail/starfail/pkg/collector"
 	"github.com/starfail/starfail/pkg/controller"
 	"github.com/starfail/starfail/pkg/decision"
@@ -164,12 +165,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize collector factory
+	// Initialize collector factory with UCI configuration
 	collectorConfig := map[string]interface{}{
-		"timeout":      10 * time.Second,
-		"targets":      []string{"8.8.8.8", "1.1.1.1", "1.0.0.1"},
-		"ubus_path":    "ubus",
-		"starlink_api": "192.168.100.1",
+		"timeout":              time.Duration(cfg.StarlinkTimeout) * time.Second,
+		"targets":              []string{"8.8.8.8", "1.1.1.1", "1.0.0.1"},
+		"ubus_path":            "ubus",
+		"starlink_api_host":    cfg.StarlinkAPIHost,
+		"starlink_api_port":    cfg.StarlinkAPIPort,
+		"starlink_timeout_s":   cfg.StarlinkTimeout,
+		"starlink_grpc_first":  cfg.StarlinkGRPCFirst,
+		"starlink_http_first":  cfg.StarlinkHTTPFirst,
 	}
 	collectorFactory := collector.NewCollectorFactory(collectorConfig)
 
@@ -266,18 +271,44 @@ func main() {
 }
 
 func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, ctrl *controller.Controller, logger *logx.Logger, telemetry *telem.Store, discoverer *discovery.Discoverer, collectorFactory *collector.CollectorFactory, metricsServer *metrics.Server, healthServer *health.Server, mqttClient *mqtt.Client, profiler *performance.Profiler, auditor *security.Auditor) {
+	// Set up event publishing callback if MQTT is enabled
+	if mqttClient != nil && cfg.MQTT.Enabled {
+		// Create a callback function for real-time event publishing
+		eventPublisher := func(event *pkg.Event) {
+			eventData := map[string]interface{}{
+				"timestamp": event.Timestamp.Unix(),
+				"type":      event.Type,
+				"reason":    event.Reason,
+				"member":    event.Member,
+				"from":      event.From,
+				"to":        event.To,
+				"data":      event.Data,
+			}
+
+			if err := mqttClient.PublishEvent(eventData); err != nil {
+				logger.Warn("Failed to publish real-time event to MQTT", "event_type", event.Type, "error", err)
+			} else {
+				logger.Debug("Published real-time event to MQTT", "event_type", event.Type)
+			}
+		}
+
+		// Add the callback to telemetry store for immediate publishing
+		telemetry.SetEventCallback(eventPublisher)
+	}
 	// Create tickers for different intervals
 	decisionTicker := time.NewTicker(time.Duration(cfg.DecisionIntervalMS) * time.Millisecond)
 	discoveryTicker := time.NewTicker(time.Duration(cfg.DiscoveryIntervalMS) * time.Millisecond)
 	cleanupTicker := time.NewTicker(time.Duration(cfg.CleanupIntervalMS) * time.Millisecond)
 	securityTicker := time.NewTicker(2 * time.Minute)
 	performanceTicker := time.NewTicker(1 * time.Minute)
+	mqttTicker := time.NewTicker(30 * time.Second) // Publish telemetry every 30 seconds
 
 	defer decisionTicker.Stop()
 	defer discoveryTicker.Stop()
 	defer cleanupTicker.Stop()
 	defer securityTicker.Stop()
 	defer performanceTicker.Stop()
+	defer mqttTicker.Stop()
 
 	logger.Info("Starting main loop", map[string]interface{}{
 		"decision_interval_ms":  cfg.DecisionIntervalMS,
@@ -375,6 +406,130 @@ func runMainLoop(ctx context.Context, cfg *uci.Config, engine *decision.Engine, 
 					profiler.ForceGC()
 				}
 			}
+
+		case <-mqttTicker.C:
+			// Publish telemetry data via MQTT
+			if mqttClient != nil && cfg.MQTT.Enabled {
+				publishTelemetryToMQTT(mqttClient, ctrl, telemetry, engine, logger)
+			}
 		}
 	}
+}
+
+// publishTelemetryToMQTT publishes comprehensive telemetry data to MQTT
+func publishTelemetryToMQTT(mqttClient *mqtt.Client, ctrl *controller.Controller, telemetry *telem.Store, engine *decision.Engine, logger *logx.Logger) {
+	// Get current system status
+	members := ctrl.GetMembers()
+	currentMember, _ := ctrl.GetCurrentMember()
+
+	// Create status payload
+	status := map[string]interface{}{
+		"timestamp":      time.Now().Unix(),
+		"current_member": "",
+		"total_members":  len(members),
+		"active_members": 0,
+		"daemon_uptime":  time.Since(time.Now().Add(-24 * time.Hour)).Seconds(), // Approximate
+	}
+
+	if currentMember != nil {
+		status["current_member"] = currentMember.Name
+	}
+
+	// Count active members
+	activeCount := 0
+	for _, member := range members {
+		if member.Eligible {
+			activeCount++
+		}
+	}
+	status["active_members"] = activeCount
+
+	// Publish system status
+	if err := mqttClient.PublishStatus(status); err != nil {
+		logger.Warn("Failed to publish status to MQTT", "error", err)
+	}
+
+	// Publish member list
+	memberData := make([]map[string]interface{}, len(members))
+	for i, member := range members {
+		memberData[i] = map[string]interface{}{
+			"name":      member.Name,
+			"class":     member.Class,
+			"interface": member.Iface,
+			"weight":    member.Weight,
+			"eligible":  member.Eligible,
+			"active":    currentMember != nil && currentMember.Name == member.Name,
+		}
+	}
+
+	if err := mqttClient.PublishMemberList(memberData); err != nil {
+		logger.Warn("Failed to publish member list to MQTT", "error", err)
+	}
+
+	// Publish recent samples for each member
+	for _, member := range members {
+		samples, err := telemetry.GetSamples(member.Name, time.Now().Add(-5*time.Minute))
+		if err != nil || len(samples) == 0 {
+			continue
+		}
+
+		// Get the latest sample
+		latestSample := samples[len(samples)-1]
+		sampleData := map[string]interface{}{
+			"member":     member.Name,
+			"timestamp":  latestSample.Timestamp.Unix(),
+			"latency_ms": latestSample.Metrics.LatencyMS,
+			"loss_pct":   latestSample.Metrics.LossPercent,
+			"score":      latestSample.Score.Final,
+		}
+
+		// Add class-specific metrics
+		if latestSample.Metrics.ObstructionPct != nil {
+			sampleData["obstruction_pct"] = *latestSample.Metrics.ObstructionPct
+		}
+		if latestSample.Metrics.SignalStrength != nil {
+			sampleData["signal_strength"] = *latestSample.Metrics.SignalStrength
+		}
+
+		if err := mqttClient.PublishSample(sampleData); err != nil {
+			logger.Warn("Failed to publish sample to MQTT", "member", member.Name, "error", err)
+		}
+	}
+
+	// Publish recent events
+	events, err := telemetry.GetEvents(time.Now().Add(-10*time.Minute), 10)
+	if err == nil && len(events) > 0 {
+		for _, event := range events {
+			eventData := map[string]interface{}{
+				"timestamp": event.Timestamp.Unix(),
+				"type":      event.Type,
+				"reason":    event.Reason,
+				"member":    event.Member,
+				"from":      event.From,
+				"to":        event.To,
+				"data":      event.Data,
+			}
+
+			if err := mqttClient.PublishEvent(eventData); err != nil {
+				logger.Warn("Failed to publish event to MQTT", "event_type", event.Type, "error", err)
+			}
+		}
+	}
+
+	// Publish health information
+	healthData := map[string]interface{}{
+		"timestamp":       time.Now().Unix(),
+		"telemetry_usage": telemetry.GetMemoryUsage(),
+		"components": map[string]string{
+			"controller":      "healthy",
+			"decision_engine": "healthy",
+			"telemetry_store": "healthy",
+		},
+	}
+
+	if err := mqttClient.PublishHealth(healthData); err != nil {
+		logger.Warn("Failed to publish health to MQTT", "error", err)
+	}
+
+	logger.Debug("Successfully published telemetry to MQTT")
 }

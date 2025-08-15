@@ -259,24 +259,30 @@ func (s *Server) getMemberHealth() []MemberHealth {
 	var memberHealth []MemberHealth
 
 	for _, member := range members {
+		// Determine member state based on eligibility and activity
+		memberState := "inactive"
+		memberStatus := "inactive"
+
+		if member.Eligible {
+			memberState = "eligible"
+			memberStatus = "ready"
+		}
+
+		if activeMember != nil && activeMember.Name == member.Name {
+			memberState = "active"
+			memberStatus = "active"
+		}
+
 		health := MemberHealth{
 			Name:      member.Name,
 			Class:     member.Class,
 			Interface: member.Iface,
-			Status:    "unknown",
-			State:     "unknown", // Placeholder - would need proper state lookup
+			Status:    memberStatus,
+			State:     memberState,
 			Score:     0.0,
-			Active:    false,
+			Active:    activeMember != nil && activeMember.Name == member.Name,
 			LastSeen:  member.CreatedAt,
 			Uptime:    time.Since(member.CreatedAt),
-		}
-
-		// Check if member is active
-		if activeMember != nil && activeMember.Name == member.Name {
-			health.Active = true
-			health.Status = "active"
-		} else {
-			health.Status = "inactive"
 		}
 
 		// Get latest score

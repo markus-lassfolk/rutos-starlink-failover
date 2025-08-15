@@ -804,24 +804,228 @@ func (a *Auditor) checkNetworkSecurity() {
 	}
 }
 
-// detectThreats detects potential threats
+// detectThreats detects potential threats using comprehensive analysis
 func (a *Auditor) detectThreats() {
-	// Check for unusual patterns in security events
-	// Check for potential attacks
-	// Update threat level
+	a.mu.RLock()
+	events := make([]*SecurityEvent, len(a.securityEvents))
+	copy(events, a.securityEvents)
+	a.mu.RUnlock()
 
-	// Simplified threat detection
+	// Time windows for analysis
+	lastHour := time.Now().Add(-time.Hour)
+	last24Hours := time.Now().Add(-24 * time.Hour)
+	lastWeek := time.Now().Add(-7 * 24 * time.Hour)
+
+	// Counters for different threat types
 	recentEvents := 0
-	for _, event := range a.securityEvents {
-		if time.Since(event.Timestamp) < time.Hour {
+	failedLogins := 0
+	suspiciousNetworkActivity := 0
+	fileIntegrityViolations := 0
+	bruteForceAttempts := make(map[string]int)
+	suspiciousIPs := make(map[string]int)
+	portScans := make(map[string][]int)
+
+	// Analyze security events
+	for _, event := range events {
+		if event.Timestamp.After(lastHour) {
 			recentEvents++
+		}
+
+		if event.Timestamp.After(last24Hours) {
+			switch event.Category {
+			case "authentication":
+				if event.Level == "error" || event.Level == "warning" {
+					failedLogins++
+					if event.IPAddress != "" {
+						bruteForceAttempts[event.IPAddress]++
+					}
+				}
+			case "network":
+				if event.Level == "warning" || event.Level == "error" {
+					suspiciousNetworkActivity++
+					if event.IPAddress != "" {
+						suspiciousIPs[event.IPAddress]++
+					}
+
+					// Detect port scanning patterns
+					if port, ok := event.Details["port"].(int); ok {
+						portScans[event.IPAddress] = append(portScans[event.IPAddress], port)
+					}
+				}
+			case "file_integrity":
+				if event.Level == "error" || event.Level == "critical" {
+					fileIntegrityViolations++
+				}
+			}
 		}
 	}
 
-	if recentEvents > 20 {
+	// Detect brute force attacks
+	for ip, attempts := range bruteForceAttempts {
+		if attempts > 10 { // More than 10 failed attempts in 24 hours
+			a.LogSecurityEvent("critical", "threat_detection", "auditor",
+				"Brute force attack detected", map[string]interface{}{
+					"ip_address":      ip,
+					"failed_attempts": attempts,
+					"detection_type":  "brute_force",
+				})
+
+			// Auto-block IP for brute force
+			a.BlockIP(ip, 24*time.Hour)
+		} else if attempts > 5 {
+			a.LogSecurityEvent("warning", "threat_detection", "auditor",
+				"Suspicious login activity detected", map[string]interface{}{
+					"ip_address":      ip,
+					"failed_attempts": attempts,
+					"detection_type":  "suspicious_login",
+				})
+		}
+	}
+
+	// Detect port scanning
+	for ip, ports := range portScans {
+		if len(ports) > 5 { // Scanning more than 5 ports
+			a.LogSecurityEvent("warning", "threat_detection", "auditor",
+				"Port scanning detected", map[string]interface{}{
+					"ip_address":     ip,
+					"scanned_ports":  ports,
+					"port_count":     len(ports),
+					"detection_type": "port_scan",
+				})
+		}
+	}
+
+	// Detect DoS/DDoS patterns
+	if recentEvents > 50 { // More than 50 events in last hour
+		a.LogSecurityEvent("critical", "threat_detection", "auditor",
+			"Potential DoS/DDoS attack detected", map[string]interface{}{
+				"event_count":    recentEvents,
+				"time_window":    "1_hour",
+				"detection_type": "dos_attack",
+			})
+	} else if recentEvents > 20 {
 		a.LogSecurityEvent("warning", "threat_detection", "auditor",
-			"High number of security events detected", map[string]interface{}{
-				"event_count": recentEvents,
+			"High security event rate detected", map[string]interface{}{
+				"event_count":    recentEvents,
+				"time_window":    "1_hour",
+				"detection_type": "high_activity",
+			})
+	}
+
+	// Detect coordinated attacks (multiple suspicious IPs)
+	if len(suspiciousIPs) > 3 {
+		suspiciousIPList := make([]string, 0, len(suspiciousIPs))
+		for ip := range suspiciousIPs {
+			suspiciousIPList = append(suspiciousIPList, ip)
+		}
+
+		a.LogSecurityEvent("critical", "threat_detection", "auditor",
+			"Coordinated attack detected", map[string]interface{}{
+				"suspicious_ips": suspiciousIPList,
+				"ip_count":       len(suspiciousIPs),
+				"detection_type": "coordinated_attack",
+			})
+	}
+
+	// File integrity threat detection
+	if fileIntegrityViolations > 0 {
+		level := "warning"
+		if fileIntegrityViolations > 3 {
+			level = "critical"
+		}
+
+		a.LogSecurityEvent(level, "threat_detection", "auditor",
+			"File integrity violations detected", map[string]interface{}{
+				"violation_count": fileIntegrityViolations,
+				"detection_type":  "file_integrity_threat",
+			})
+	}
+
+	// Detect unusual network patterns
+	if suspiciousNetworkActivity > 10 {
+		a.LogSecurityEvent("warning", "threat_detection", "auditor",
+			"Unusual network activity detected", map[string]interface{}{
+				"activity_count": suspiciousNetworkActivity,
+				"detection_type": "network_anomaly",
+			})
+	}
+
+	// Advanced pattern analysis
+	a.detectAdvancedThreats(events, last24Hours, lastWeek)
+}
+
+// detectAdvancedThreats performs advanced threat pattern analysis
+func (a *Auditor) detectAdvancedThreats(events []*SecurityEvent, last24Hours, lastWeek time.Time) {
+	// Time-based pattern analysis
+	hourlyEventCounts := make(map[int]int)
+	categoryPatterns := make(map[string][]time.Time)
+
+	for _, event := range events {
+		if event.Timestamp.After(last24Hours) {
+			hour := event.Timestamp.Hour()
+			hourlyEventCounts[hour]++
+			categoryPatterns[event.Category] = append(categoryPatterns[event.Category], event.Timestamp)
+		}
+	}
+
+	// Detect unusual time patterns (e.g., activity during off-hours)
+	offHourEvents := hourlyEventCounts[0] + hourlyEventCounts[1] + hourlyEventCounts[2] +
+		hourlyEventCounts[3] + hourlyEventCounts[4] + hourlyEventCounts[5]
+
+	if offHourEvents > 20 { // High activity during 00:00-06:00
+		a.LogSecurityEvent("warning", "threat_detection", "auditor",
+			"Unusual off-hours activity detected", map[string]interface{}{
+				"off_hour_events": offHourEvents,
+				"detection_type":  "temporal_anomaly",
+			})
+	}
+
+	// Detect rapid-fire events (potential automation)
+	for category, timestamps := range categoryPatterns {
+		if len(timestamps) > 10 {
+			// Check for events within very short time windows
+			rapidEvents := 0
+			for i := 1; i < len(timestamps); i++ {
+				if timestamps[i].Sub(timestamps[i-1]) < 5*time.Second {
+					rapidEvents++
+				}
+			}
+
+			if rapidEvents > 5 {
+				a.LogSecurityEvent("warning", "threat_detection", "auditor",
+					"Automated attack pattern detected", map[string]interface{}{
+						"category":       category,
+						"rapid_events":   rapidEvents,
+						"total_events":   len(timestamps),
+						"detection_type": "automation_pattern",
+					})
+			}
+		}
+	}
+
+	// Baseline comparison (compare with previous week)
+	weeklyBaseline := 0
+	for _, event := range events {
+		if event.Timestamp.After(lastWeek) && event.Timestamp.Before(last24Hours) {
+			weeklyBaseline++
+		}
+	}
+
+	currentDayEvents := 0
+	for _, event := range events {
+		if event.Timestamp.After(last24Hours) {
+			currentDayEvents++
+		}
+	}
+
+	// If current day events are significantly higher than baseline
+	if weeklyBaseline > 0 && float64(currentDayEvents) > float64(weeklyBaseline)*2.5 {
+		a.LogSecurityEvent("warning", "threat_detection", "auditor",
+			"Anomalous activity spike detected", map[string]interface{}{
+				"current_events":  currentDayEvents,
+				"baseline_events": weeklyBaseline / 7, // Daily average
+				"spike_ratio":     float64(currentDayEvents) / (float64(weeklyBaseline) / 7),
+				"detection_type":  "activity_spike",
 			})
 	}
 }

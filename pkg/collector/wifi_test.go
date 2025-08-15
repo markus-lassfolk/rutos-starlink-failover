@@ -404,13 +404,6 @@ func TestWiFiCollector_IsWiFiInterface(t *testing.T) {
 }
 
 // Helper functions for testing
-func intPtr(i int) *int {
-	return &i
-}
-
-func strPtr(s string) *string {
-	return &s
-}
 
 func boolPtr(b bool) *bool {
 	return &b

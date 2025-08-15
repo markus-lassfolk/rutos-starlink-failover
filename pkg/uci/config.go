@@ -47,6 +47,13 @@ type Config struct {
 	MLTraining   bool   `json:"ml_training"`
 	MLPrediction bool   `json:"ml_prediction"`
 
+	// Starlink API Configuration
+	StarlinkAPIHost   string `json:"starlink_api_host"`
+	StarlinkAPIPort   int    `json:"starlink_api_port"`
+	StarlinkTimeout   int    `json:"starlink_timeout_s"`
+	StarlinkGRPCFirst bool   `json:"starlink_grpc_first"`
+	StarlinkHTTPFirst bool   `json:"starlink_http_first"`
+
 	// Security Configuration
 	AllowedIPs        []string `json:"allowed_ips"`
 	BlockedIPs        []string `json:"blocked_ips"`
@@ -204,6 +211,13 @@ func (c *Config) setDefaults() {
 	c.MLModelPath = "/tmp/starfail/models"
 	c.MLTraining = false
 	c.MLPrediction = false
+
+	// Starlink API defaults
+	c.StarlinkAPIHost = "192.168.100.1"
+	c.StarlinkAPIPort = 9200
+	c.StarlinkTimeout = 10
+	c.StarlinkGRPCFirst = true
+	c.StarlinkHTTPFirst = false
 
 	// Security defaults
 	c.AllowedIPs = []string{}
@@ -407,6 +421,24 @@ func (c *Config) parseMainOption(option, value string) {
 		c.MQTTBroker = value
 	case "mqtt_topic":
 		c.MQTTTopic = value
+
+	// Starlink API configuration options
+	case "starlink_api_host":
+		if value != "" {
+			c.StarlinkAPIHost = value
+		}
+	case "starlink_api_port":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 && v <= 65535 {
+			c.StarlinkAPIPort = v
+		}
+	case "starlink_timeout_s":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 && v <= 300 {
+			c.StarlinkTimeout = v
+		}
+	case "starlink_grpc_first":
+		c.StarlinkGRPCFirst = value == "1"
+	case "starlink_http_first":
+		c.StarlinkHTTPFirst = value == "1"
 	}
 }
 

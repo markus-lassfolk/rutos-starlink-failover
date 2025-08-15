@@ -302,12 +302,21 @@ func (s *Server) updateMemberMetrics() {
 			// Update score metric
 			s.memberScore.With(labels).Set(score.Final)
 
-			// Extract metrics from map
-			latency, _ := metrics["lat_ms"].(float64)
-			loss, _ := metrics["loss_pct"].(float64)
-			signal, _ := metrics["signal"].(float64)
-			obstruction, _ := metrics["obstruction_pct"].(float64)
-			outages, _ := metrics["outages"].(float64)
+			// Extract metrics from struct
+			latency := metrics.LatencyMS
+			loss := metrics.LossPercent
+			signal := 0.0
+			if metrics.SignalStrength != nil {
+				signal = float64(*metrics.SignalStrength)
+			}
+			obstruction := 0.0
+			if metrics.ObstructionPct != nil {
+				obstruction = *metrics.ObstructionPct
+			}
+			outages := 0.0
+			if metrics.Outages != nil {
+				outages = float64(*metrics.Outages)
+			}
 
 			// Update latency metric
 			s.memberLatency.With(labels).Set(latency)
@@ -329,12 +338,21 @@ func (s *Server) updateMemberMetrics() {
 			s.memberOutages.With(labels).Add(outages)
 		}
 
+		// Determine actual member state
+		memberState := "inactive"
+		if member.Eligible {
+			memberState = "eligible"
+		}
+		if activeMember != nil && activeMember.Name == member.Name {
+			memberState = "active"
+		}
+
 		// Update status metric
 		statusLabels := prometheus.Labels{
 			"member":    member.Name,
 			"class":     member.Class,
 			"interface": member.Iface,
-			"state":     "unknown", // Placeholder - would need proper state lookup
+			"state":     memberState,
 		}
 
 		status := 0.0
@@ -377,9 +395,17 @@ func (s *Server) updateTelemetryMetrics() {
 		s.telemetryEvents.With(prometheus.Labels{"type": eventType}).Set(float64(count))
 	}
 
-	// Update memory usage (simplified - would need actual memory tracking)
-	s.telemetryMemoryUsage.With(prometheus.Labels{"type": "samples"}).Set(0) // Placeholder
-	s.telemetryMemoryUsage.With(prometheus.Labels{"type": "events"}).Set(0)  // Placeholder
+	// Update memory usage with actual telemetry store data
+	totalMemoryUsage := s.store.GetMemoryUsage()
+
+	// Estimate samples vs events memory usage (rough approximation)
+	// Events are typically much smaller than samples
+	samplesMemory := float64(totalMemoryUsage) * 0.8 // 80% for samples
+	eventsMemory := float64(totalMemoryUsage) * 0.2  // 20% for events
+
+	s.telemetryMemoryUsage.With(prometheus.Labels{"type": "samples"}).Set(samplesMemory)
+	s.telemetryMemoryUsage.With(prometheus.Labels{"type": "events"}).Set(eventsMemory)
+	s.telemetryMemoryUsage.With(prometheus.Labels{"type": "total"}).Set(float64(totalMemoryUsage))
 }
 
 // updateDaemonMetrics updates daemon-related metrics

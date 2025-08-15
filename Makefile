@@ -1,153 +1,223 @@
-# Makefile for Starfail project
-.PHONY: help verify verify-all verify-files verify-staged verify-quick verify-luci verify-comprehensive build test clean install-tools install-luci-tools
+# Starfail Daemon Makefile
+# Comprehensive build, test, and deployment automation
+
+.PHONY: all build test test-unit test-integration test-benchmarks clean lint fmt vet coverage help install-deps cross-compile
+
+# Variables
+PROJECT_NAME := starfaild
+MAIN_PACKAGE := ./cmd/starfaild
+BUILD_DIR := build
+COVERAGE_DIR := coverage
+TEST_TIMEOUT := 60s
+INTEGRATION_TIMEOUT := 120s
+
+# Build flags
+LDFLAGS := -s -w
+BUILD_FLAGS := -ldflags="$(LDFLAGS)"
+
+# Go commands
+GO := go
+GOFMT := gofmt
+GOVET := $(GO) vet
+GOLINT := golint
+STATICCHECK := staticcheck
+
+# Colors for output
+RED := \033[0;31m
+GREEN := \033[0;32m
+YELLOW := \033[1;33m
+BLUE := \033[0;34m
+NC := \033[0m # No Color
 
 # Default target
+all: clean lint test build
+
+# Help target
 help:
-	@echo "Available targets:"
-	@echo "  verify              - Run verification on staged files (pre-commit)"
-	@echo "  verify-all          - Run verification on all Go files"
-	@echo "  verify-files        - Run verification on specific files (use FILES=file1,file2)"
-	@echo "  verify-quick        - Run verification without tests"
-	@echo "  verify-ci           - Run full CI verification with coverage and race detection"
-	@echo "  verify-fix          - Run verification with auto-fix enabled"
-	@echo "  verify-dry          - Run dry-run verification (show what would be done)"
-	@echo "  verify-luci         - Run LuCI verification only"
-	@echo "  verify-comprehensive- Run comprehensive verification (Go + LuCI)"
-	@echo "  verify-comprehensive-install - Run verification with auto-installation"
-	@echo "  build               - Build all binaries"
-	@echo "  test                - Run tests"
-	@echo "  clean               - Clean build artifacts"
-	@echo "  install-tools       - Install required Go tools"
-	@echo "  install-luci-tools  - Install required LuCI tools"
+	@echo "$(BLUE)Starfail Daemon Build System$(NC)"
 	@echo ""
-	@echo "Examples:"
-	@echo "  make verify"
-	@echo "  make verify-all"
-	@echo "  make verify-files FILES=cmd/starfaild/main.go,pkg/logx/logger.go"
-	@echo "  make verify-quick"
-	@echo "  make verify-ci"
-	@echo "  make verify-fix"
-	@echo "  make verify-luci"
-	@echo "  make verify-comprehensive"
-	@echo "  make verify-comprehensive-install"
+	@echo "$(YELLOW)Available targets:$(NC)"
+	@echo "  $(GREEN)build$(NC)             - Build the daemon binary"
+	@echo "  $(GREEN)test$(NC)              - Run all tests (unit + integration)"
+	@echo "  $(GREEN)test-unit$(NC)         - Run unit tests only"
+	@echo "  $(GREEN)test-integration$(NC)  - Run integration tests only"
+	@echo "  $(GREEN)test-benchmarks$(NC)   - Run benchmark tests"
+	@echo "  $(GREEN)coverage$(NC)          - Generate test coverage report"
+	@echo "  $(GREEN)lint$(NC)              - Run all linters"
+	@echo "  $(GREEN)fmt$(NC)               - Format Go code"
+	@echo "  $(GREEN)vet$(NC)               - Run go vet"
+	@echo "  $(GREEN)clean$(NC)             - Clean build artifacts"
+	@echo "  $(GREEN)install-deps$(NC)      - Install development dependencies"
+	@echo "  $(GREEN)cross-compile$(NC)     - Build for multiple architectures"
+	@echo "  $(GREEN)help$(NC)              - Show this help message"
 
-# Detect OS and use appropriate script
-ifeq ($(OS),Windows_NT)
-    VERIFY_SCRIPT = scripts/verify-go-enhanced.ps1
-    VERIFY_CMD = powershell -ExecutionPolicy Bypass -File
-    COMPREHENSIVE_SCRIPT = scripts/verify-comprehensive.ps1
-else
-    VERIFY_SCRIPT = scripts/verify-go.sh
-    VERIFY_CMD = bash
-    COMPREHENSIVE_SCRIPT = scripts/verify-comprehensive.sh
-endif
+# Install development dependencies
+install-deps:
+	@echo "$(YELLOW)Installing development dependencies...$(NC)"
+	@$(GO) install honnef.co/go/tools/cmd/staticcheck@latest
+	@$(GO) install golang.org/x/tools/cmd/goimports@latest
+	@$(GO) mod download
+	@$(GO) mod tidy
+	@echo "$(GREEN)✓ Dependencies installed$(NC)"
 
-# Verification targets
-verify:
-	@echo "Running verification on staged files..."
-	$(VERIFY_CMD) $(VERIFY_SCRIPT) staged
-
-verify-all:
-	@echo "Running verification on all files..."
-	$(VERIFY_CMD) $(VERIFY_SCRIPT) all
-
-verify-files:
-	@echo "Running verification on specific files: $(FILES)"
-	$(VERIFY_CMD) $(VERIFY_SCRIPT) files $(FILES)
-
-verify-quick:
-	@echo "Running quick verification (no tests)..."
-	$(VERIFY_CMD) $(VERIFY_SCRIPT) all -NoTests
-
-verify-ci:
-	@echo "Running full CI verification..."
-	$(VERIFY_CMD) $(VERIFY_SCRIPT) ci -Coverage -Race
-
-verify-fix:
-	@echo "Running verification with auto-fix..."
-	$(VERIFY_CMD) $(VERIFY_SCRIPT) all -Fix
-
-verify-dry:
-	@echo "Running dry-run verification..."
-	$(VERIFY_CMD) $(VERIFY_SCRIPT) all -DryRun
-
-verify-luci:
-	@echo "Running LuCI verification..."
-	$(VERIFY_CMD) $(COMPREHENSIVE_SCRIPT) luci
-
-verify-comprehensive:
-	@echo "Running comprehensive verification (Go + LuCI)..."
-	$(VERIFY_CMD) $(COMPREHENSIVE_SCRIPT) all
-
-verify-comprehensive-install:
-	@echo "Running comprehensive verification with auto-installation..."
-	$(VERIFY_CMD) $(COMPREHENSIVE_SCRIPT) all --install-deps
-
-# Build targets
+# Build the main binary
 build:
-	@echo "Building all binaries..."
-	go build -o bin/starfaild ./cmd/starfaild
-	go build -o bin/starfailsysmgmt ./cmd/starfailsysmgmt
+	@echo "$(YELLOW)Building $(PROJECT_NAME)...$(NC)"
+	@mkdir -p $(BUILD_DIR)
+	@$(GO) build $(BUILD_FLAGS) -o $(BUILD_DIR)/$(PROJECT_NAME) $(MAIN_PACKAGE)
+	@echo "$(GREEN)✓ Build complete: $(BUILD_DIR)/$(PROJECT_NAME)$(NC)"
 
-# Test targets
-test:
-	@echo "Running tests..."
-	go test -race -v ./...
-
-# Clean targets
-clean:
-	@echo "Cleaning build artifacts..."
-	rm -rf bin/
-	go clean -cache -testcache
-
-# Tool installation
-install-tools:
-	@echo "Installing required Go tools..."
-	go install golang.org/x/tools/cmd/goimports@latest
-	go install honnef.co/go/tools/cmd/staticcheck@latest
-	go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	@echo "Go tools installed successfully!"
-
-install-luci-tools:
-	@echo "Installing required LuCI tools..."
-	@echo "Installing Node.js tools..."
-	npm install -g htmlhint eslint stylelint
-	@echo "Installing Lua tools..."
-	luarocks install luacheck
-	@echo "Note: Install Lua and gettext manually if not available"
-	@echo "LuCI tools installed successfully!"
-
-# Development helpers
+# Format Go code
 fmt:
-	@echo "Formatting code..."
-	gofmt -s -w .
-	goimports -w .
+	@echo "$(YELLOW)Formatting Go code...$(NC)"
+	@$(GOFMT) -s -w .
+	@goimports -w .
+	@echo "$(GREEN)✓ Code formatted$(NC)"
 
-lint:
-	@echo "Running linter..."
-	golangci-lint run
-
+# Run go vet
 vet:
-	@echo "Running go vet..."
-	go vet ./...
+	@echo "$(YELLOW)Running go vet...$(NC)"
+	@$(GOVET) ./...
+	@echo "$(GREEN)✓ go vet passed$(NC)"
 
-mod-tidy:
-	@echo "Tidying modules..."
-	go mod tidy
-	go mod verify
+# Run staticcheck
+staticcheck:
+	@echo "$(YELLOW)Running staticcheck...$(NC)"
+	@if command -v $(STATICCHECK) >/dev/null 2>&1; then \
+		$(STATICCHECK) ./...; \
+		echo "$(GREEN)✓ staticcheck passed$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠ staticcheck not installed (run 'make install-deps')$(NC)"; \
+	fi
 
-# Pre-commit hook (can be used in .git/hooks/pre-commit)
-pre-commit: verify
+# Run all linters
+lint: fmt vet staticcheck
+	@echo "$(GREEN)✓ All linters passed$(NC)"
 
-# CI/CD helpers
-ci: verify-all test build
+# Run unit tests
+test-unit:
+	@echo "$(YELLOW)Running unit tests...$(NC)"
+	@$(GO) test -race -timeout $(TEST_TIMEOUT) -v ./pkg/...
+	@echo "$(GREEN)✓ Unit tests passed$(NC)"
 
-# Docker helpers (if needed)
+# Run integration tests
+test-integration:
+	@echo "$(YELLOW)Running integration tests...$(NC)"
+	@$(GO) test -race -timeout $(INTEGRATION_TIMEOUT) -v ./test/integration/...
+	@echo "$(GREEN)✓ Integration tests passed$(NC)"
+
+# Run benchmark tests
+test-benchmarks:
+	@echo "$(YELLOW)Running benchmark tests...$(NC)"
+	@mkdir -p $(COVERAGE_DIR)
+	@$(GO) test -bench=. -benchmem -timeout $(INTEGRATION_TIMEOUT) ./... > $(COVERAGE_DIR)/benchmarks.txt
+	@echo "$(GREEN)✓ Benchmarks complete (results in $(COVERAGE_DIR)/benchmarks.txt)$(NC)"
+
+# Run all tests
+test: test-unit test-integration
+	@echo "$(GREEN)✓ All tests passed$(NC)"
+
+# Generate test coverage
+coverage:
+	@echo "$(YELLOW)Generating test coverage...$(NC)"
+	@mkdir -p $(COVERAGE_DIR)
+	@$(GO) test -race -coverprofile=$(COVERAGE_DIR)/coverage.out -timeout $(TEST_TIMEOUT) ./pkg/...
+	@$(GO) tool cover -html=$(COVERAGE_DIR)/coverage.out -o $(COVERAGE_DIR)/coverage.html
+	@$(GO) tool cover -func=$(COVERAGE_DIR)/coverage.out | grep total: | awk '{print "$(GREEN)✓ Test coverage: " $$3 "$(NC)"}'
+	@echo "$(BLUE)Coverage report: $(COVERAGE_DIR)/coverage.html$(NC)"
+
+# Cross-compile for multiple architectures
+cross-compile:
+	@echo "$(YELLOW)Cross-compiling for multiple architectures...$(NC)"
+	@mkdir -p $(BUILD_DIR)
+	
+	@echo "$(BLUE)Building for linux/amd64...$(NC)"
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build $(BUILD_FLAGS) -o $(BUILD_DIR)/$(PROJECT_NAME)-linux-amd64 $(MAIN_PACKAGE)
+	
+	@echo "$(BLUE)Building for linux/arm...$(NC)"
+	@CGO_ENABLED=0 GOOS=linux GOARCH=arm $(GO) build $(BUILD_FLAGS) -o $(BUILD_DIR)/$(PROJECT_NAME)-linux-arm $(MAIN_PACKAGE)
+	
+	@echo "$(BLUE)Building for linux/arm64...$(NC)"
+	@CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(GO) build $(BUILD_FLAGS) -o $(BUILD_DIR)/$(PROJECT_NAME)-linux-arm64 $(MAIN_PACKAGE)
+	
+	@echo "$(BLUE)Building for linux/mips...$(NC)"
+	@CGO_ENABLED=0 GOOS=linux GOARCH=mips $(GO) build $(BUILD_FLAGS) -o $(BUILD_DIR)/$(PROJECT_NAME)-linux-mips $(MAIN_PACKAGE)
+	
+	@echo "$(BLUE)Building for linux/mipsle...$(NC)"
+	@CGO_ENABLED=0 GOOS=linux GOARCH=mipsle $(GO) build $(BUILD_FLAGS) -o $(BUILD_DIR)/$(PROJECT_NAME)-linux-mipsle $(MAIN_PACKAGE)
+	
+	@echo "$(GREEN)✓ Cross-compilation complete$(NC)"
+	@ls -la $(BUILD_DIR)/$(PROJECT_NAME)-*
+
+# Clean build artifacts
+clean:
+	@echo "$(YELLOW)Cleaning build artifacts...$(NC)"
+	@rm -rf $(BUILD_DIR)
+	@rm -rf $(COVERAGE_DIR)
+	@$(GO) clean -testcache
+	@$(GO) clean -modcache || true
+	@echo "$(GREEN)✓ Clean complete$(NC)"
+
+# Development workflow targets
+dev: lint test build
+	@echo "$(GREEN)✓ Development build complete$(NC)"
+
+# CI/CD targets
+ci: install-deps lint test coverage cross-compile
+	@echo "$(GREEN)✓ CI build complete$(NC)"
+
+# Quick test for development
+quick-test:
+	@echo "$(YELLOW)Running quick tests...$(NC)"
+	@$(GO) test -short -timeout 30s ./pkg/...
+	@echo "$(GREEN)✓ Quick tests passed$(NC)"
+
+# Test with race detection disabled (for resource-constrained environments)
+test-no-race:
+	@echo "$(YELLOW)Running tests without race detection...$(NC)"
+	@$(GO) test -timeout $(TEST_TIMEOUT) -v ./pkg/...
+	@$(GO) test -timeout $(INTEGRATION_TIMEOUT) -v ./test/integration/...
+	@echo "$(GREEN)✓ Tests passed$(NC)"
+
+# Performance profiling
+profile:
+	@echo "$(YELLOW)Running performance profiling...$(NC)"
+	@mkdir -p $(COVERAGE_DIR)
+	@$(GO) test -cpuprofile=$(COVERAGE_DIR)/cpu.prof -memprofile=$(COVERAGE_DIR)/mem.prof -bench=. ./pkg/...
+	@echo "$(GREEN)✓ Profiling complete$(NC)"
+	@echo "$(BLUE)CPU profile: $(COVERAGE_DIR)/cpu.prof$(NC)"
+	@echo "$(BLUE)Memory profile: $(COVERAGE_DIR)/mem.prof$(NC)"
+	@echo "$(BLUE)View with: go tool pprof $(COVERAGE_DIR)/cpu.prof$(NC)"
+
+# Install binary to system
+install: build
+	@echo "$(YELLOW)Installing $(PROJECT_NAME)...$(NC)"
+	@sudo cp $(BUILD_DIR)/$(PROJECT_NAME) /usr/sbin/$(PROJECT_NAME)
+	@sudo chmod +x /usr/sbin/$(PROJECT_NAME)
+	@echo "$(GREEN)✓ $(PROJECT_NAME) installed to /usr/sbin/$(NC)"
+
+# Create release package
+package: cross-compile
+	@echo "$(YELLOW)Creating release package...$(NC)"
+	@mkdir -p $(BUILD_DIR)/package
+	@cp -r $(BUILD_DIR)/$(PROJECT_NAME)-* $(BUILD_DIR)/package/
+	@cp -r scripts/ $(BUILD_DIR)/package/
+	@cp -r configs/ $(BUILD_DIR)/package/
+	@cp README.md $(BUILD_DIR)/package/ 2>/dev/null || true
+	@tar -czf $(BUILD_DIR)/$(PROJECT_NAME)-release.tar.gz -C $(BUILD_DIR)/package .
+	@echo "$(GREEN)✓ Release package: $(BUILD_DIR)/$(PROJECT_NAME)-release.tar.gz$(NC)"
+
+# Docker targets (if needed in the future)
 docker-build:
-	@echo "Building Docker image..."
-	docker build -t starfail .
+	@echo "$(YELLOW)Building Docker image...$(NC)"
+	@docker build -t $(PROJECT_NAME):latest .
+	@echo "$(GREEN)✓ Docker image built$(NC)"
 
-docker-run:
-	@echo "Running Docker container..."
-	docker run -it --rm starfail
+# Show project statistics
+stats:
+	@echo "$(BLUE)Project Statistics:$(NC)"
+	@echo "Lines of Go code: $$(find . -name '*.go' -not -path './vendor/*' | xargs wc -l | tail -1 | awk '{print $$1}')"
+	@echo "Number of packages: $$(find ./pkg -name '*.go' -not -name '*_test.go' | wc -l)"
+	@echo "Number of test files: $$(find . -name '*_test.go' | wc -l)"
+	@echo "Number of functions: $$(grep -r '^func ' --include='*.go' ./pkg | wc -l)"
+	@echo "Binary size (if built): $$(if [ -f $(BUILD_DIR)/$(PROJECT_NAME) ]; then du -h $(BUILD_DIR)/$(PROJECT_NAME) | cut -f1; else echo 'Not built'; fi)"

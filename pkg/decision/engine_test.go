@@ -29,6 +29,14 @@ func (mc *MockController) GetMembers() []*pkg.Member {
 	return []*pkg.Member{}
 }
 
+func (mc *MockController) GetCurrentMember() (*pkg.Member, error) {
+	return nil, nil
+}
+
+func (mc *MockController) Validate(member *pkg.Member) error {
+	return nil
+}
+
 func (mc *MockController) UpdateMWAN3Policy(to *pkg.Member) error {
 	return nil
 }
@@ -50,7 +58,10 @@ func TestEngine_PredictiveFailover(t *testing.T) {
 	}
 
 	logger := logx.NewLogger("debug", "")
-	telemetry := telem.NewStore(config, logger)
+	telemetry, err := telem.NewStore(24, 50)
+	if err != nil {
+		t.Fatalf("Failed to create telemetry store: %v", err)
+	}
 
 	// Create engine
 	engine := NewEngine(config, logger, telemetry)
@@ -98,15 +109,15 @@ func TestEngine_PredictiveFailover(t *testing.T) {
 		}
 
 		// Add samples to telemetry
-		for _, sample := range samples {
-			telemetry.AddSample(starlink.Name, sample)
+		for i, sample := range samples {
+			score := &pkg.Score{Final: 80.0 - float64(i*10)} // Decreasing score
+			telemetry.AddSample(starlink.Name, sample.Metrics, score)
 		}
 
 		// Add good cellular sample
-		telemetry.AddSample(cellular.Name, &telem.Sample{
-			Timestamp: now,
-			Metrics:   &pkg.Metrics{RSRP: intPtr(-85), LatencyMS: 40, LossPercent: 0.0},
-		})
+		metrics := &pkg.Metrics{RSRP: intPtr(-85), LatencyMS: 40, LossPercent: 0.0}
+		score := &pkg.Score{Final: 85.0}
+		telemetry.AddSample(cellular.Name, metrics, score)
 
 		// Run engine tick
 		err := engine.Tick(controller)
@@ -132,11 +143,9 @@ func TestEngine_PredictiveFailover(t *testing.T) {
 		engine.SetCurrent(starlink)
 
 		// Add sample with thermal throttling
-		now := time.Now()
-		telemetry.AddSample(starlink.Name, &telem.Sample{
-			Timestamp: now,
-			Metrics:   &pkg.Metrics{ThermalThrottle: boolPtr(true), LatencyMS: 100, LossPercent: 1.0},
-		})
+		metrics := &pkg.Metrics{ThermalThrottle: boolPtr(true), LatencyMS: 100, LossPercent: 1.0}
+		score := &pkg.Score{Final: 50.0}
+		telemetry.AddSample(starlink.Name, metrics, score)
 
 		// Run engine tick
 		err := engine.Tick(controller)
@@ -158,17 +167,14 @@ func TestEngine_PredictiveFailover(t *testing.T) {
 		engine.SetCurrent(cellular)
 
 		// Add sample with roaming
-		now := time.Now()
-		telemetry.AddSample(cellular.Name, &telem.Sample{
-			Timestamp: now,
-			Metrics:   &pkg.Metrics{Roaming: boolPtr(true), RSRP: intPtr(-95), LatencyMS: 80, LossPercent: 0.5},
-		})
+		cellularMetrics := &pkg.Metrics{Roaming: boolPtr(true), RSRP: intPtr(-95), LatencyMS: 80, LossPercent: 0.5}
+		cellularScore := &pkg.Score{Final: 40.0}
+		telemetry.AddSample(cellular.Name, cellularMetrics, cellularScore)
 
 		// Add good starlink sample
-		telemetry.AddSample(starlink.Name, &telem.Sample{
-			Timestamp: now,
-			Metrics:   &pkg.Metrics{ObstructionPct: floatPtr(1.0), LatencyMS: 45, LossPercent: 0.1},
-		})
+		starlinkMetrics := &pkg.Metrics{ObstructionPct: floatPtr(1.0), LatencyMS: 45, LossPercent: 0.1}
+		starlinkScore := &pkg.Score{Final: 80.0}
+		telemetry.AddSample(starlink.Name, starlinkMetrics, starlinkScore)
 
 		// Run engine tick
 		err := engine.Tick(controller)
@@ -194,20 +200,17 @@ func TestEngine_PredictiveFailover(t *testing.T) {
 		engine.SetCurrent(starlink)
 
 		// Add samples showing rapid latency increase
-		now := time.Now()
 		for i := 0; i < 10; i++ {
 			latency := 50.0 + float64(i*20) // Rapid latency increase
-			telemetry.AddSample(starlink.Name, &telem.Sample{
-				Timestamp: now.Add(time.Duration(i-10) * time.Minute),
-				Metrics:   &pkg.Metrics{LatencyMS: latency, LossPercent: 0.1},
-			})
+			metrics := &pkg.Metrics{LatencyMS: latency, LossPercent: 0.1}
+			score := &pkg.Score{Final: 80.0 - float64(i*5)} // Decreasing score
+			telemetry.AddSample(starlink.Name, metrics, score)
 		}
 
 		// Add good cellular sample
-		telemetry.AddSample(cellular.Name, &telem.Sample{
-			Timestamp: now,
-			Metrics:   &pkg.Metrics{RSRP: intPtr(-80), LatencyMS: 40, LossPercent: 0.0},
-		})
+		cellularMetrics := &pkg.Metrics{RSRP: intPtr(-80), LatencyMS: 40, LossPercent: 0.0}
+		cellularScore := &pkg.Score{Final: 85.0}
+		telemetry.AddSample(cellular.Name, cellularMetrics, cellularScore)
 
 		// Run engine tick to update trends
 		err := engine.Tick(controller)
@@ -235,7 +238,10 @@ func TestEngine_TrendAnalysis(t *testing.T) {
 	}
 
 	logger := logx.NewLogger("debug", "")
-	telemetry := telem.NewStore(config, logger)
+	telemetry, err := telem.NewStore(24, 50)
+	if err != nil {
+		t.Fatalf("Failed to create telemetry store: %v", err)
+	}
 	engine := NewEngine(config, logger, telemetry)
 
 	member := &pkg.Member{
@@ -315,7 +321,10 @@ func TestPredictiveEngine_Integration(t *testing.T) {
 	}
 
 	logger := logx.NewLogger("debug", "")
-	telemetry := telem.NewStore(config, logger)
+	telemetry, err := telem.NewStore(24, 50)
+	if err != nil {
+		t.Fatalf("Failed to create telemetry store: %v", err)
+	}
 	engine := NewEngine(config, logger, telemetry)
 
 	member := &pkg.Member{
@@ -369,13 +378,6 @@ func intPtr(i int) *int {
 
 func boolPtr(b bool) *bool {
 	return &b
-}
-
-// AddMember adds a member to the engine (helper for testing)
-func (e *Engine) AddMember(member *pkg.Member) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.members[member.Name] = member
 }
 
 // SetCurrent sets the current member (helper for testing)
