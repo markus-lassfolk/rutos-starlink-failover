@@ -400,14 +400,8 @@ func (sc *StarlinkCollector) getStarlinkAPIData(ctx context.Context) (*StarlinkA
 
 // tryStarlinkGRPC attempts to call the Starlink gRPC API with native Go gRPC client
 func (sc *StarlinkCollector) tryStarlinkGRPC(ctx context.Context) (*StarlinkAPIResponse, error) {
-	// Try native gRPC implementation first
-	if response, err := sc.callStarlinkNativeGRPC(ctx); err == nil {
-		return response, nil
-	}
-
-	// Fallback to grpcurl if native implementation fails
-	fmt.Printf("Info: Native gRPC failed, falling back to grpcurl\n")
-	return sc.callStarlinkGRPCWithGRPCurl(ctx)
+	// Use the new native gRPC implementation (no external dependencies)
+	return sc.callStarlinkGRPCNative(ctx)
 }
 
 // callStarlinkNativeGRPC uses native Go gRPC to call the Starlink API
@@ -430,7 +424,7 @@ func (sc *StarlinkCollector) callStarlinkNativeGRPC(ctx context.Context) (*Starl
 	if err != nil {
 		fmt.Printf("Warning: gRPC reflection failed: %v\n", err)
 		// Try direct method call without reflection
-		return sc.callStarlinkDirectGRPC(ctx, conn)
+		return sc.callStarlinkDirectMethods(ctx, conn)
 	}
 
 	// Look for Starlink device service
@@ -444,7 +438,7 @@ func (sc *StarlinkCollector) callStarlinkNativeGRPC(ctx context.Context) (*Starl
 
 	if deviceService == "" {
 		fmt.Printf("Warning: No device service found, trying direct call\n")
-		return sc.callStarlinkDirectGRPC(ctx, conn)
+		return sc.callStarlinkDirectMethods(ctx, conn)
 	}
 
 	// Get service descriptor and call the Handle method
@@ -452,7 +446,7 @@ func (sc *StarlinkCollector) callStarlinkNativeGRPC(ctx context.Context) (*Starl
 }
 
 // callStarlinkDirectGRPC tries to call the Starlink API without reflection
-func (sc *StarlinkCollector) callStarlinkDirectGRPC(ctx context.Context, conn *grpc.ClientConn) (*StarlinkAPIResponse, error) {
+func (sc *StarlinkCollector) callStarlinkDirectMethods(ctx context.Context, conn *grpc.ClientConn) (*StarlinkAPIResponse, error) {
 	// Create a proper Starlink request message
 	// Based on known Starlink API structure, the Handle method typically takes a Request message
 
@@ -988,68 +982,67 @@ func (sc *StarlinkCollector) tryStarlinkHTTPEnhanced(ctx context.Context) (*Star
 	return nil, fmt.Errorf("no working HTTP endpoint found")
 }
 
-// callStarlinkGRPCWithGRPCurl uses grpcurl to call the Starlink API
-func (sc *StarlinkCollector) callStarlinkGRPCWithGRPCurl(ctx context.Context) (*StarlinkAPIResponse, error) {
-	// Check if grpcurl is available
-	if _, err := exec.LookPath("grpcurl"); err != nil {
-		fmt.Printf("Warning: grpcurl not found, falling back to mock data: %v\n", err)
-		return sc.getMockStarlinkData(), nil
-	}
-
-	// Create the grpcurl command using configured endpoint
+// callStarlinkGRPCNative uses native Go gRPC client to call the Starlink API
+func (sc *StarlinkCollector) callStarlinkGRPCNative(ctx context.Context) (*StarlinkAPIResponse, error) {
+	// Create gRPC connection with timeout
 	endpoint := fmt.Sprintf("%s:%d", sc.apiHost, sc.apiPort)
-	timeoutStr := fmt.Sprintf("%ds", int(sc.timeout.Seconds()))
-
-	cmd := exec.CommandContext(ctx, "grpcurl",
-		"-plaintext",
-		"-timeout", timeoutStr,
-		endpoint,
-		"SpaceX.API.Device.Device/Handle")
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// Execute the command
-	err := cmd.Run()
+	
+	// Set up connection with timeout
+	dialCtx, cancel := context.WithTimeout(ctx, sc.timeout)
+	defer cancel()
+	
+	conn, err := grpc.DialContext(dialCtx, endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+	)
 	if err != nil {
-		fmt.Printf("Warning: grpcurl command failed: %v, stderr: %s, stdout: %s\n",
-			err, stderr.String(), stdout.String())
+		return nil, fmt.Errorf("failed to connect to Starlink gRPC: %w", err)
+	}
+	defer conn.Close()
 
-		// Try alternative gRPC methods
-		if response, fallbackErr := sc.tryAlternativeGRPCMethods(ctx); fallbackErr == nil {
-			return response, nil
+	// Try to get service information via reflection
+	reflectionClient := grpc_reflection_v1alpha.NewServerReflectionClient(conn)
+	
+	// Create request for service list
+	stream, err := reflectionClient.ServerReflectionInfo(ctx)
+	if err != nil {
+		// If reflection fails, try direct method calls
+		return sc.callStarlinkDirectMethods(ctx, conn)
+	}
+	defer stream.CloseSend()
+
+	// Request service list
+	listServicesReq := &grpc_reflection_v1alpha.ServerReflectionRequest{
+		MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_ListServices{
+			ListServices: "",
+		},
+	}
+	
+	if err := stream.Send(listServicesReq); err != nil {
+		return sc.callStarlinkDirectMethods(ctx, conn)
+	}
+
+	resp, err := stream.Recv()
+	if err != nil {
+		return sc.callStarlinkDirectMethods(ctx, conn)
+	}
+
+	// Process service list response
+	if serviceResp := resp.GetListServicesResponse(); serviceResp != nil {
+		for _, service := range serviceResp.Service {
+			if strings.Contains(service.Name, "Device") || strings.Contains(service.Name, "SpaceX") {
+				// Found device service, try to call it using the reflection-based approach
+				reflectionClient := grpc_reflection_v1alpha.NewServerReflectionClient(conn)
+				return sc.callStarlinkReflectionGRPC(ctx, reflectionClient, conn, service.Name)
+			}
 		}
-
-		// Fall back to mock data
-		fmt.Printf("Info: Falling back to mock Starlink data\n")
-		return sc.getMockStarlinkData(), nil
 	}
 
-	// Parse the JSON response
-	output := stdout.String()
-	if strings.TrimSpace(output) == "" {
-		fmt.Printf("Warning: grpcurl returned empty response\n")
-		return sc.getMockStarlinkData(), nil
-	}
-
-	// Try to parse the grpcurl output as JSON
-	var grpcResponse map[string]interface{}
-	if err := json.Unmarshal([]byte(output), &grpcResponse); err != nil {
-		fmt.Printf("Warning: Failed to parse grpcurl JSON response: %v, output: %s\n", err, output)
-		return sc.getMockStarlinkData(), nil
-	}
-
-	// Convert the grpcurl response to our StarlinkAPIResponse structure
-	response, err := sc.convertGRPCResponseToAPI(grpcResponse)
-	if err != nil {
-		fmt.Printf("Warning: Failed to convert grpcurl response: %v\n", err)
-		return sc.getMockStarlinkData(), nil
-	}
-
-	fmt.Printf("Debug: Successfully retrieved Starlink data via grpcurl\n")
-	return response, nil
+	// Fallback to direct method calls
+	return sc.callStarlinkDirectMethods(ctx, conn)
 }
+
+
 
 // tryAlternativeGRPCMethods tries alternative gRPC connection methods
 func (sc *StarlinkCollector) tryAlternativeGRPCMethods(ctx context.Context) (*StarlinkAPIResponse, error) {
