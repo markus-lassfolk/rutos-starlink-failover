@@ -13,7 +13,7 @@ This project includes comprehensive documentation covering all aspects of the RU
 **Contents:**
 
 - Essential CLI commands
-- Basic UCI configuration 
+- Basic UCI configuration
 - Quick installation steps
 - Common troubleshooting commands
 - Performance targets
@@ -74,14 +74,6 @@ This project includes comprehensive documentation covering all aspects of the RU
 - Response schemas and examples
 
 **When to use:** Building integrations, automation scripts, monitoring systems
-
----
-
-## 🎯 Documentation Navigation Guide
-
-### By User Type
-
-#### **End Users (Router Operators)**
 
 ---
 

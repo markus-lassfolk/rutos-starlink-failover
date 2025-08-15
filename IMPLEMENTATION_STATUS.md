@@ -13,11 +13,13 @@ Based on the PROJECT_INSTRUCTION.md gap analysis and code review, this report su
 ### ✅ COMPLETED TASKS
 
 #### 1. **UCI Save/Commit functionality** - `pkg/uci/config.go`
+
 - **Status**: ✅ Already implemented
 - **Details**: The `Save()` method with UCI commit is fully functional
 - **Evidence**: Test `TestSaveConfig` passes successfully
 
 #### 2. **ubus config.set with UCI write-back** - `pkg/ubus/server.go`
+
 - **Status**: ✅ Already implemented 
 - **Details**: Complete implementation supporting:
   - `telemetry.max_ram_mb` live updates
@@ -28,16 +30,19 @@ Based on the PROJECT_INSTRUCTION.md gap analysis and code review, this report su
 - **Evidence**: Enhanced tests in `enhanced_features_test.go` validate functionality
 
 #### 3. **WindowAvg using telemetry history** - `pkg/decision/engine.go`
+
 - **Status**: ✅ Already implemented
 - **Details**: `calculateWindowAverage()` method properly uses telemetry store
 - **Evidence**: Test `TestWindowAverageUsesTelemetry` passes
 
 #### 4. **Duration-based hysteresis** - `pkg/decision/engine.go`
+
 - **Status**: ✅ Already implemented
 - **Details**: `fail_min_duration_s` and `restore_min_duration_s` fully enforced
 - **Evidence**: Test `TestDurationBasedHysteresis` passes with 2.1s runtime
 
 #### 5. **Cellular ping fallback** - `pkg/collector/cellular.go`
+
 - **Status**: ✅ Already implemented
 - **Details**: Complete interface-bound ping fallback with:
   - Multi-host redundancy testing (8.8.8.8, 1.1.1.1, 8.8.4.4)
@@ -46,6 +51,7 @@ Based on the PROJECT_INSTRUCTION.md gap analysis and code review, this report su
 - **Evidence**: Code review shows complete implementation
 
 #### 6. **Retries/backoff for external commands** - `pkg/retry/runner.go`
+
 - **Status**: ✅ Already implemented
 - **Details**: Complete retry framework with exponential backoff used across:
   - All collector implementations
@@ -55,6 +61,7 @@ Based on the PROJECT_INSTRUCTION.md gap analysis and code review, this report su
 - **Evidence**: Tests in `retry_test.go` all pass
 
 #### 7. **Notification system integration** - `pkg/decision/engine.go`
+
 - **Status**: ✅ Already implemented
 - **Details**: Notifications are properly wired and sent on switch events
 - **Evidence**: Code shows `e.notificationMgr.SendNotification()` calls with context
@@ -62,16 +69,19 @@ Based on the PROJECT_INSTRUCTION.md gap analysis and code review, this report su
 ### 🔧 FIXED DURING SESSION
 
 #### 1. **Recovery Manager UCI Integration** - `pkg/recovery/manager.go`
+
 - **Problem**: `writeConfigToUCI()` was a placeholder 
 - **Solution**: Implemented complete UCI configuration restoration
 - **Details**: Added proper UCI loader integration with support for main config fields
 
 #### 2. **Service Management Methods** - `pkg/recovery/manager.go`
+
 - **Problem**: `restartService()` and `checkServiceRunning()` were placeholders
 - **Solution**: Implemented full procd service management
 - **Details**: Added proper `/etc/init.d/` service control with timeout handling
 
 #### 3. **Obstruction Model Updates** - `pkg/obstruction/predictor.go`
+
 - **Problem**: `updateModels()` had TODO comment
 - **Solution**: Implemented predictive model learning system
 - **Details**: Added temporal and spatial model updates based on collected data
@@ -81,14 +91,17 @@ Based on the PROJECT_INSTRUCTION.md gap analysis and code review, this report su
 ### ✅ ALREADY WORKING
 
 #### 1. **mwan3 primary detection parsing** - `pkg/controller/controller.go`
+
 - **Status**: ✅ Robust implementation with JSON and text fallback
 - **Evidence**: Tests `TestMwan3PrimaryDetectionJSON` and `TestMwan3PrimaryDetectionTextFallback` pass
 
 #### 2. **Telemetry RAM caps with downsampling** - `pkg/telem/store.go`
+
 - **Status**: ✅ Memory cap enforcement working
 - **Evidence**: Test `TestRAMCapDownsampling` passes
 
 #### 3. **ubus API hardening** - `pkg/ubus/server.go`
+
 - **Status**: ✅ Input validation and rate limiting implemented
 - **Evidence**: Enhanced tests validate robust error handling
 

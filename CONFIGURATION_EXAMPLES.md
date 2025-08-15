@@ -93,13 +93,16 @@ config member 'cellular_roaming'
 
 ## 🏠 Fixed Residential Installation
 
-### Use Case
-
+### Residential Use Case
 
 - Fixed Starlink installation
 - Fiber/cable backup available
 - Stable environment with predictable patterns
 - Cost-effective operation
+
+### Residential Configuration
+
+```uci
 
 ### Configuration
 
@@ -177,7 +180,7 @@ config member 'cellular_emergency'
 
 ## 🏢 Business/Office Installation
 
-### Use Case
+### Business Use Case
 
 
 - Critical uptime requirements
@@ -185,7 +188,7 @@ config member 'cellular_emergency'
 - Cost management
 - SLA compliance
 
-### Configuration
+### Business Configuration
 
 
 ```uci
@@ -285,7 +288,7 @@ config member 'backup_fiber'
 
 ## 🧪 Development/Testing Environment
 
-### Use Case
+### Development Use Case
 
 
 - Development and testing
@@ -293,7 +296,7 @@ config member 'backup_fiber'
 - Debug monitoring
 - Non-production use
 
-### Configuration
+### Development Configuration
 
 
 ```uci
@@ -381,7 +384,7 @@ config member 'test_wifi'
 
 ## 🛥️ Marine/Remote Installation
 
-### Use Case
+### Marine Use Case
 
 
 - Remote location with limited connectivity
@@ -389,7 +392,7 @@ config member 'test_wifi'
 - Cost-sensitive data usage
 - Reliability over speed
 
-### Configuration
+### Marine Configuration
 
 
 ```uci
