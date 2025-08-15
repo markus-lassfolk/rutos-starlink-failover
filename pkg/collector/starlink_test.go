@@ -405,13 +405,13 @@ func TestStarlinkCollector_NativeGRPCImplementation(t *testing.T) {
 				wantLen:     2, // 0x0a, 0x00
 			},
 			{
-				name:        "get_history request", 
+				name:        "get_history request",
 				requestType: "get_history",
 				wantLen:     2, // 0x12, 0x00
 			},
 			{
 				name:        "get_device_info request",
-				requestType: "get_device_info", 
+				requestType: "get_device_info",
 				wantLen:     2, // 0x1a, 0x00
 			},
 			{
@@ -444,15 +444,15 @@ func TestStarlinkCollector_NativeGRPCImplementation(t *testing.T) {
 				if len(request) >= 2 {
 					fieldNumber := request[0] >> 3
 					wireType := request[0] & 0x07
-					
+
 					if wireType != 2 { // Length-delimited
 						t.Errorf("Expected wire type 2 (length-delimited), got %d", wireType)
 					}
-					
+
 					if request[1] != 0x00 { // Empty message length
 						t.Errorf("Expected empty message length 0, got %d", request[1])
 					}
-					
+
 					// Verify field numbers match expected
 					switch tt.requestType {
 					case "get_status":
@@ -476,12 +476,12 @@ func TestStarlinkCollector_NativeGRPCImplementation(t *testing.T) {
 	t.Run("protobuf parsing helpers", func(t *testing.T) {
 		t.Run("readVarint", func(t *testing.T) {
 			tests := []struct {
-				name     string
-				data     []byte
-				pos      int
-				wantVal  uint64
-				wantPos  int
-				wantErr  bool
+				name    string
+				data    []byte
+				pos     int
+				wantVal uint64
+				wantPos int
+				wantErr bool
 			}{
 				{
 					name:    "single byte varint",
@@ -573,7 +573,7 @@ func TestStarlinkCollector_GRPCIntegration(t *testing.T) {
 			if response == nil {
 				t.Error("Expected non-nil response from successful gRPC call")
 			} else {
-				t.Logf("Received response with SNR: %f, Latency: %f ms", 
+				t.Logf("Received response with SNR: %f, Latency: %f ms",
 					response.Status.SNR, response.Status.PopPingLatencyMs)
 			}
 		}

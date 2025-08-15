@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func main() {
@@ -19,20 +19,20 @@ func main() {
 	defer cancel()
 
 	// Connect to Starlink
-	conn, err := grpc.DialContext(ctx, "192.168.100.1:9200", 
-		grpc.WithInsecure(), 
+	conn, err := grpc.DialContext(ctx, "192.168.100.1:9200",
+		grpc.WithInsecure(),
 		grpc.WithTimeout(10*time.Second))
 	if err != nil {
 		fmt.Printf("❌ Failed to connect: %v\n", err)
 		return
 	}
 	defer conn.Close()
-	
+
 	fmt.Println("✅ Connected to Starlink gRPC API")
 
 	// Test 1: Use reflection to get service definitions
 	fmt.Println("\n🔍 Test 1: Getting service definitions...")
-	
+
 	reflectionClient := grpc_reflection_v1alpha.NewServerReflectionClient(conn)
 	stream, err := reflectionClient.ServerReflectionInfo(ctx)
 	if err != nil {
@@ -67,11 +67,11 @@ func main() {
 
 	// Test 2: Try simple approach with empty message
 	fmt.Println("\n📡 Test 2: Testing with empty protobuf message...")
-	
+
 	// Create an empty protobuf message
 	emptyMsg := &emptypb.Empty{}
 	var response proto.Message
-	
+
 	err = conn.Invoke(ctx, "/SpaceX.API.Device.Device/Handle", emptyMsg, &response)
 	if err != nil {
 		fmt.Printf("❌ Empty message call failed: %v\n", err)
@@ -82,13 +82,13 @@ func main() {
 
 	// Test 3: Try creating a basic request message dynamically
 	fmt.Println("\n🔧 Test 3: Testing with dynamic protobuf message...")
-	
+
 	// This is a more complex approach - we'd need to parse the file descriptors
 	// and create proper request messages. For now, let's try a simpler approach.
-	
+
 	// Test 4: Use our existing collector but with debugging
 	fmt.Println("\n🛠️  Test 4: Testing our collector with detailed debugging...")
-	
+
 	// Let's manually test what our collector does
 	testCollectorApproach(ctx, conn)
 
@@ -98,10 +98,10 @@ func main() {
 
 func testCollectorApproach(ctx context.Context, conn *grpc.ClientConn) {
 	fmt.Println("   🔍 Testing collector's approach...")
-	
+
 	// This simulates what our collector does
 	// Try to call the Handle method with different approaches
-	
+
 	// Approach 1: Try with nil
 	fmt.Println("   📞 Trying with nil request...")
 	var nilResponse interface{}
@@ -111,7 +111,7 @@ func testCollectorApproach(ctx context.Context, conn *grpc.ClientConn) {
 	} else {
 		fmt.Println("   ✅ Nil request succeeded!")
 	}
-	
+
 	// Approach 2: Try with empty proto message
 	fmt.Println("   📞 Trying with empty proto message...")
 	empty := &emptypb.Empty{}
@@ -123,10 +123,10 @@ func testCollectorApproach(ctx context.Context, conn *grpc.ClientConn) {
 		fmt.Println("   ✅ Empty proto succeeded!")
 		fmt.Printf("   Response: %+v\n", emptyResponse)
 	}
-	
+
 	// Approach 3: Try to create a minimal Request message
 	fmt.Println("   📞 Trying with minimal request structure...")
-	
+
 	// We know from reflection that there's a Request message
 	// Let's try to create a basic one
 	fmt.Println("   ⚠️  Need proper protobuf definitions to continue...")

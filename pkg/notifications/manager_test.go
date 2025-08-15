@@ -44,7 +44,7 @@ func newMockLogger() *logx.Logger {
 
 func TestNewManager(t *testing.T) {
 	logger := newMockLogger()
-	
+
 	tests := []struct {
 		name   string
 		config *NotificationConfig
@@ -74,19 +74,19 @@ func TestNewManager(t *testing.T) {
 			want: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewManager(tt.config, logger)
-			
+
 			if manager == nil {
 				t.Fatal("NewManager returned nil")
 			}
-			
+
 			if got := manager.IsEnabled(); got != tt.want {
 				t.Errorf("Manager.IsEnabled() = %v, want %v", got, tt.want)
 			}
-			
+
 			if manager.hostname == "" {
 				t.Error("Manager hostname should not be empty")
 			}
@@ -137,13 +137,13 @@ func TestManager_IsEnabled(t *testing.T) {
 			want: false,
 		},
 	}
-	
+
 	logger := newMockLogger()
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewManager(tt.config, logger)
-			
+
 			if got := manager.IsEnabled(); got != tt.want {
 				t.Errorf("Manager.IsEnabled() = %v, want %v", got, tt.want)
 			}
@@ -157,41 +157,39 @@ func TestManager_SendNotification_Disabled(t *testing.T) {
 	}
 	logger := newMockLogger()
 	manager := NewManager(config, logger)
-	
+
 	event := &NotificationEvent{
 		Type:    NotificationFailover,
 		Title:   "Test",
 		Message: "Test message",
 	}
-	
+
 	err := manager.SendNotification(context.Background(), event)
-	
 	if err != nil {
 		t.Errorf("SendNotification should not return error when disabled: %v", err)
 	}
-	
+
 	// Notification should be skipped when disabled
 	// (We can't easily test the log message with the real logger)
 }
 
 func TestManager_SendNotification_TypeDisabled(t *testing.T) {
 	config := &NotificationConfig{
-		PushoverEnabled:    true,
-		PushoverToken:      "token",
-		PushoverUser:       "user",
-		NotifyOnFailover:   false, // This type is disabled
+		PushoverEnabled:  true,
+		PushoverToken:    "token",
+		PushoverUser:     "user",
+		NotifyOnFailover: false, // This type is disabled
 	}
 	logger := newMockLogger()
 	manager := NewManager(config, logger)
-	
+
 	event := &NotificationEvent{
 		Type:    NotificationFailover,
 		Title:   "Test",
 		Message: "Test message",
 	}
-	
+
 	err := manager.SendNotification(context.Background(), event)
-	
 	if err != nil {
 		t.Errorf("SendNotification should not return error when type disabled: %v", err)
 	}
@@ -208,26 +206,26 @@ func TestManager_RateLimiting(t *testing.T) {
 	}
 	logger := newMockLogger()
 	manager := NewManager(config, logger)
-	
+
 	event := &NotificationEvent{
 		Type:    NotificationFailover,
 		Title:   "Test",
 		Message: "Test message",
 	}
-	
+
 	// First notification should be allowed
 	if !manager.shouldSend(event) {
 		t.Error("First notification should be allowed")
 	}
-	
+
 	// Second notification of same type should be rate limited
 	if manager.shouldSend(event) {
 		t.Error("Second notification should be rate limited")
 	}
-	
+
 	// Wait for cooldown
 	time.Sleep(1100 * time.Millisecond)
-	
+
 	// Should be allowed again after cooldown
 	if !manager.shouldSend(event) {
 		t.Error("Notification should be allowed after cooldown")
@@ -236,36 +234,36 @@ func TestManager_RateLimiting(t *testing.T) {
 
 func TestManager_EmergencyBypassesRateLimit(t *testing.T) {
 	config := &NotificationConfig{
-		PushoverEnabled:      true,
-		PushoverToken:        "token",
-		PushoverUser:         "user",
-		NotifyOnCritical:     true,
-		CooldownPeriod:       10 * time.Second, // Long cooldown
-		EmergencyCooldown:    100 * time.Millisecond,
+		PushoverEnabled:   true,
+		PushoverToken:     "token",
+		PushoverUser:      "user",
+		NotifyOnCritical:  true,
+		CooldownPeriod:    10 * time.Second, // Long cooldown
+		EmergencyCooldown: 100 * time.Millisecond,
 	}
 	logger := newMockLogger()
 	manager := NewManager(config, logger)
-	
+
 	event := &NotificationEvent{
 		Type:     NotificationCriticalError,
 		Title:    "Critical Error",
 		Message:  "System failure",
 		Priority: PriorityEmergency,
 	}
-	
+
 	// First emergency should be allowed
 	if !manager.shouldSend(event) {
 		t.Error("First emergency notification should be allowed")
 	}
-	
+
 	// Second emergency should be rate limited by emergency cooldown
 	if manager.shouldSend(event) {
 		t.Error("Second emergency notification should be rate limited")
 	}
-	
+
 	// Wait for emergency cooldown
 	time.Sleep(150 * time.Millisecond)
-	
+
 	// Should be allowed again after emergency cooldown
 	if !manager.shouldSend(event) {
 		t.Error("Emergency notification should be allowed after emergency cooldown")
@@ -274,39 +272,39 @@ func TestManager_EmergencyBypassesRateLimit(t *testing.T) {
 
 func TestManager_FormatNotification(t *testing.T) {
 	config := &NotificationConfig{
-		PushoverEnabled:   true,
-		IncludeHostname:   true,
-		IncludeTimestamp:  true,
-		PriorityFailover:  1,
+		PushoverEnabled:  true,
+		IncludeHostname:  true,
+		IncludeTimestamp: true,
+		PriorityFailover: 1,
 	}
 	logger := newMockLogger()
 	manager := NewManager(config, logger)
 	manager.hostname = "test-router"
-	
+
 	event := &NotificationEvent{
 		Type:      NotificationFailover,
 		Title:     "Test Title",
 		Message:   "Test Message",
 		Timestamp: time.Now(),
 	}
-	
+
 	manager.formatNotification(event)
-	
+
 	// Check hostname was added
 	if !strings.Contains(event.Title, "test-router") {
 		t.Error("Hostname should be added to title")
 	}
-	
+
 	// Check priority was set
 	if event.Priority != 1 {
 		t.Errorf("Priority should be 1, got %d", event.Priority)
 	}
-	
+
 	// Check sound was set
 	if event.Sound == "" {
 		t.Error("Sound should be set based on priority")
 	}
-	
+
 	// Check timestamp was added
 	if !strings.Contains(event.Message, "Time:") {
 		t.Error("Timestamp should be added to message")
@@ -326,7 +324,7 @@ func TestManager_GetPriorityForType(t *testing.T) {
 	}
 	logger := newMockLogger()
 	manager := NewManager(config, logger)
-	
+
 	tests := []struct {
 		notType NotificationType
 		want    int
@@ -340,7 +338,7 @@ func TestManager_GetPriorityForType(t *testing.T) {
 		{NotificationRecovery, 0},
 		{NotificationStatusUpdate, -1},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(string(tt.notType), func(t *testing.T) {
 			got := manager.getPriorityForType(tt.notType)
@@ -354,7 +352,7 @@ func TestManager_GetPriorityForType(t *testing.T) {
 func TestManager_GetSoundForPriority(t *testing.T) {
 	logger := newMockLogger()
 	manager := NewManager(nil, logger)
-	
+
 	tests := []struct {
 		priority int
 		want     string
@@ -366,7 +364,7 @@ func TestManager_GetSoundForPriority(t *testing.T) {
 		{PriorityLowest, "none"},
 		{99, "pushover"}, // Unknown priority should default to pushover
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(string(rune(tt.priority)), func(t *testing.T) {
 			got := manager.getSoundForPriority(tt.priority)
@@ -384,23 +382,23 @@ func TestManager_SendPushoverNotification_Success(t *testing.T) {
 		if r.Method != "POST" {
 			t.Errorf("Expected POST request, got %s", r.Method)
 		}
-		
+
 		if r.URL.Path != "/1/messages.json" {
 			t.Errorf("Expected path /1/messages.json, got %s", r.URL.Path)
 		}
-		
+
 		// Verify content type
 		if r.Header.Get("Content-Type") != "application/x-www-form-urlencoded" {
-			t.Errorf("Expected Content-Type application/x-www-form-urlencoded, got %s", 
+			t.Errorf("Expected Content-Type application/x-www-form-urlencoded, got %s",
 				r.Header.Get("Content-Type"))
 		}
-		
+
 		// Parse form data
 		if err := r.ParseForm(); err != nil {
 			t.Errorf("Failed to parse form: %v", err)
 			return
 		}
-		
+
 		// Verify required fields
 		if r.FormValue("token") != "test-token" {
 			t.Errorf("Expected token 'test-token', got '%s'", r.FormValue("token"))
@@ -420,14 +418,14 @@ func TestManager_SendPushoverNotification_Success(t *testing.T) {
 		if r.FormValue("sound") != "siren" {
 			t.Errorf("Expected sound 'siren', got '%s'", r.FormValue("sound"))
 		}
-		
+
 		// Return success response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status": 1, "request": "test-request-id"}`))
 	}))
 	defer server.Close()
-	
+
 	config := &NotificationConfig{
 		PushoverEnabled: true,
 		PushoverToken:   "test-token",
@@ -436,10 +434,10 @@ func TestManager_SendPushoverNotification_Success(t *testing.T) {
 	}
 	logger := newMockLogger()
 	manager := NewManager(config, logger)
-	
+
 	// Override the HTTP client to use our test server
 	manager.httpClient = server.Client()
-	
+
 	event := &NotificationEvent{
 		Type:     NotificationFailover,
 		Title:    "Test Title",
@@ -447,7 +445,7 @@ func TestManager_SendPushoverNotification_Success(t *testing.T) {
 		Priority: 1,
 		Sound:    "siren",
 	}
-	
+
 	// Note: This test demonstrates the HTTP server setup
 	// In a real implementation, we'd make the Pushover API URL configurable for testing
 	// For now, we verify the server setup is correct
@@ -465,31 +463,31 @@ func TestManager_GetStats(t *testing.T) {
 	}
 	logger := newMockLogger()
 	manager := NewManager(config, logger)
-	
+
 	// Update some stats
 	manager.stats.TotalSent = 10
 	manager.stats.TotalFailed = 2
 	manager.stats.RateLimited = 5
-	
+
 	stats := manager.GetStats()
-	
+
 	// Verify stats structure
 	if stats["total_sent"] != int64(10) {
 		t.Errorf("Expected total_sent 10, got %v", stats["total_sent"])
 	}
-	
+
 	if stats["total_failed"] != int64(2) {
 		t.Errorf("Expected total_failed 2, got %v", stats["total_failed"])
 	}
-	
+
 	if stats["rate_limited"] != int64(5) {
 		t.Errorf("Expected rate_limited 5, got %v", stats["rate_limited"])
 	}
-	
+
 	if stats["enabled"] != true {
 		t.Errorf("Expected enabled true, got %v", stats["enabled"])
 	}
-	
+
 	// Verify config sub-object
 	configStats, ok := stats["config"].(map[string]interface{})
 	if !ok {
@@ -504,7 +502,7 @@ func TestManager_GetStats(t *testing.T) {
 func TestManager_UpdateConfig(t *testing.T) {
 	logger := newMockLogger()
 	manager := NewManager(nil, logger)
-	
+
 	newConfig := &NotificationConfig{
 		PushoverEnabled:      true,
 		PushoverToken:        "new-token",
@@ -513,22 +511,22 @@ func TestManager_UpdateConfig(t *testing.T) {
 		MaxNotificationsHour: 30,
 		HTTPTimeout:          15 * time.Second,
 	}
-	
+
 	manager.UpdateConfig(newConfig)
-	
+
 	// Verify config was updated
 	if manager.config.PushoverToken != "new-token" {
 		t.Errorf("Expected token 'new-token', got '%s'", manager.config.PushoverToken)
 	}
-	
+
 	if manager.config.CooldownPeriod != 10*time.Minute {
 		t.Errorf("Expected cooldown 10m, got %v", manager.config.CooldownPeriod)
 	}
-	
+
 	if manager.httpClient.Timeout != 15*time.Second {
 		t.Errorf("Expected HTTP timeout 15s, got %v", manager.httpClient.Timeout)
 	}
-	
+
 	// Configuration should be updated
 	// (We can't easily test the log message with the real logger)
 }
@@ -542,12 +540,12 @@ func BenchmarkManager_shouldSend(b *testing.B) {
 	}
 	logger := newMockLogger()
 	manager := NewManager(config, logger)
-	
+
 	event := &NotificationEvent{
 		Type:     NotificationFailover,
 		Priority: PriorityNormal,
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		manager.shouldSend(event)
@@ -561,14 +559,14 @@ func BenchmarkManager_formatNotification(b *testing.B) {
 	}
 	logger := newMockLogger()
 	manager := NewManager(config, logger)
-	
+
 	event := &NotificationEvent{
 		Type:      NotificationFailover,
 		Title:     "Test Notification",
 		Message:   "This is a test message",
 		Timestamp: time.Now(),
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Reset event for each iteration

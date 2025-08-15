@@ -15,24 +15,24 @@ func main() {
 
 	// Test 1: Basic gRPC connection
 	fmt.Println("\n🔌 Test 1: Testing gRPC connection...")
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, "192.168.100.1:9200", 
-		grpc.WithInsecure(), 
+	conn, err := grpc.DialContext(ctx, "192.168.100.1:9200",
+		grpc.WithInsecure(),
 		grpc.WithTimeout(10*time.Second))
 	if err != nil {
 		fmt.Printf("❌ Failed to connect: %v\n", err)
 		return
 	}
 	defer conn.Close()
-	
+
 	fmt.Println("✅ gRPC connection established")
 
 	// Test 2: Test gRPC reflection
 	fmt.Println("\n🔍 Test 2: Testing gRPC reflection...")
-	
+
 	reflectionClient := grpc_reflection_v1alpha.NewServerReflectionClient(conn)
 	stream, err := reflectionClient.ServerReflectionInfo(ctx)
 	if err != nil {
@@ -66,7 +66,7 @@ func main() {
 
 	// Test 3: Get service description for Device service
 	fmt.Println("\n📋 Test 3: Getting Device service description...")
-	
+
 	err = stream.Send(&grpc_reflection_v1alpha.ServerReflectionRequest{
 		MessageRequest: &grpc_reflection_v1alpha.ServerReflectionRequest_FileContainingSymbol{
 			FileContainingSymbol: "SpaceX.API.Device.Device",
@@ -92,27 +92,27 @@ func main() {
 
 	// Test 4: Try raw protobuf call
 	fmt.Println("\n🔧 Test 4: Testing raw protobuf call...")
-	
+
 	// Create a simple protobuf request for get_status
 	// This is field 1 with an empty get_status message
 	request := []byte{
 		0x0A, 0x00, // Field 1 (get_status), length 0
 	}
-	
+
 	var response []byte
 	err = conn.Invoke(ctx, "/SpaceX.API.Device.Device/Handle", request, &response)
 	if err != nil {
 		fmt.Printf("❌ gRPC call failed: %v\n", err)
-		
+
 		// Let's try different approach - using grpc.CallOption
 		fmt.Println("\n🔄 Trying alternative approach...")
-		
+
 		// Try with proper protobuf message structure
 		alternateRequest := []byte{
-			0x0A, 0x02, // Field 1, length 2  
+			0x0A, 0x02, // Field 1, length 2
 			0x08, 0x01, // Nested field 1, value 1
 		}
-		
+
 		err = conn.Invoke(ctx, "/SpaceX.API.Device.Device/Handle", alternateRequest, &response)
 		if err != nil {
 			fmt.Printf("❌ Alternative approach also failed: %v\n", err)

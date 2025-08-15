@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/starfail/starfail/pkg"
-	"github.com/starfail/starfail/pkg/logx"
 	"github.com/starfail/starfail/pkg/telem"
 	"github.com/starfail/starfail/pkg/testing"
 )

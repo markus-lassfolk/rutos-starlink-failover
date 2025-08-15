@@ -24,7 +24,7 @@ func NewEventBuilder(manager *Manager) *EventBuilder {
 func (eb *EventBuilder) FailoverEvent(from, to *pkg.Member, reason string, metrics *pkg.Metrics) *NotificationEvent {
 	var reasonEmoji string
 	var reasonText string
-	
+
 	switch strings.ToLower(reason) {
 	case "predictive":
 		reasonEmoji = "🔮"
@@ -45,19 +45,19 @@ func (eb *EventBuilder) FailoverEvent(from, to *pkg.Member, reason string, metri
 		reasonEmoji = "🔄"
 		reasonText = "Failover triggered"
 	}
-	
+
 	title := fmt.Sprintf("%s Network Failover", reasonEmoji)
-	
+
 	var message strings.Builder
 	message.WriteString(fmt.Sprintf("%s\n\n", reasonText))
-	
+
 	if from != nil {
 		message.WriteString(fmt.Sprintf("From: %s (%s)\n", from.Name, from.Class))
 	}
 	if to != nil {
 		message.WriteString(fmt.Sprintf("To: %s (%s)\n", to.Name, to.Class))
 	}
-	
+
 	if metrics != nil {
 		message.WriteString("\n📊 Current Metrics:\n")
 		if metrics.LatencyMS > 0 {
@@ -94,7 +94,7 @@ func (eb *EventBuilder) FailoverEvent(from, to *pkg.Member, reason string, metri
 			message.WriteString(fmt.Sprintf("%s Obstruction: %.1f%%\n", obstructionIcon, *metrics.ObstructionPct))
 		}
 	}
-	
+
 	return &NotificationEvent{
 		Type:       NotificationFailover,
 		Title:      title,
@@ -112,17 +112,17 @@ func (eb *EventBuilder) FailoverEvent(from, to *pkg.Member, reason string, metri
 // FailbackEvent creates a failback notification event
 func (eb *EventBuilder) FailbackEvent(from, to *pkg.Member, metrics *pkg.Metrics) *NotificationEvent {
 	title := "✅ Network Restored"
-	
+
 	var message strings.Builder
 	message.WriteString("Primary connection restored\n\n")
-	
+
 	if from != nil {
 		message.WriteString(fmt.Sprintf("From: %s (%s)\n", from.Name, from.Class))
 	}
 	if to != nil {
 		message.WriteString(fmt.Sprintf("To: %s (%s)\n", to.Name, to.Class))
 	}
-	
+
 	if metrics != nil && to != nil {
 		message.WriteString("\nRestored Connection Quality:\n")
 		if metrics.LatencyMS > 0 {
@@ -135,7 +135,7 @@ func (eb *EventBuilder) FailbackEvent(from, to *pkg.Member, metrics *pkg.Metrics
 			message.WriteString(fmt.Sprintf("• Obstruction: %.1f%%\n", *metrics.ObstructionPct))
 		}
 	}
-	
+
 	return &NotificationEvent{
 		Type:       NotificationFailback,
 		Title:      title,
@@ -162,18 +162,18 @@ func (eb *EventBuilder) MemberDownEvent(member *pkg.Member, reason string, metri
 	default:
 		emoji = "⚠️"
 	}
-	
+
 	title := fmt.Sprintf("%s %s Connection Down", emoji, strings.Title(member.Class))
-	
+
 	var message strings.Builder
 	message.WriteString(fmt.Sprintf("%s connection has failed\n\n", strings.Title(member.Class)))
 	message.WriteString(fmt.Sprintf("Member: %s\n", member.Name))
 	message.WriteString(fmt.Sprintf("Interface: %s\n", member.Iface))
-	
+
 	if reason != "" {
 		message.WriteString(fmt.Sprintf("Reason: %s\n", reason))
 	}
-	
+
 	if metrics != nil {
 		message.WriteString("\nLast Known Metrics:\n")
 		if metrics.LatencyMS > 0 {
@@ -194,7 +194,7 @@ func (eb *EventBuilder) MemberDownEvent(member *pkg.Member, reason string, metri
 			}
 		}
 	}
-	
+
 	return &NotificationEvent{
 		Type:      NotificationMemberDown,
 		Title:     title,
@@ -223,14 +223,14 @@ func (eb *EventBuilder) MemberUpEvent(member *pkg.Member, metrics *pkg.Metrics) 
 	default:
 		emoji = "✅"
 	}
-	
+
 	title := fmt.Sprintf("%s %s Connection Restored", emoji, strings.Title(member.Class))
-	
+
 	var message strings.Builder
 	message.WriteString(fmt.Sprintf("%s connection is back online\n\n", strings.Title(member.Class)))
 	message.WriteString(fmt.Sprintf("Member: %s\n", member.Name))
 	message.WriteString(fmt.Sprintf("Interface: %s\n", member.Iface))
-	
+
 	if metrics != nil {
 		message.WriteString("\nCurrent Quality:\n")
 		if metrics.LatencyMS > 0 {
@@ -251,7 +251,7 @@ func (eb *EventBuilder) MemberUpEvent(member *pkg.Member, metrics *pkg.Metrics) 
 			}
 		}
 	}
-	
+
 	return &NotificationEvent{
 		Type:      NotificationMemberUp,
 		Title:     title,
@@ -265,13 +265,13 @@ func (eb *EventBuilder) MemberUpEvent(member *pkg.Member, metrics *pkg.Metrics) 
 // PredictiveEvent creates a predictive warning notification event
 func (eb *EventBuilder) PredictiveEvent(member *pkg.Member, prediction string, confidence float64, metrics *pkg.Metrics) *NotificationEvent {
 	title := "🔮 Predictive Warning"
-	
+
 	var message strings.Builder
 	message.WriteString(fmt.Sprintf("Potential issue predicted for %s\n\n", member.Name))
 	message.WriteString(fmt.Sprintf("Prediction: %s\n", prediction))
 	message.WriteString(fmt.Sprintf("Confidence: %.1f%%\n", confidence*100))
 	message.WriteString(fmt.Sprintf("Member: %s (%s)\n", member.Name, member.Class))
-	
+
 	if metrics != nil {
 		message.WriteString("\nCurrent Metrics:\n")
 		if metrics.LatencyMS > 0 {
@@ -284,9 +284,9 @@ func (eb *EventBuilder) PredictiveEvent(member *pkg.Member, prediction string, c
 			message.WriteString(fmt.Sprintf("• Obstruction: %.1f%% (trending up)\n", *metrics.ObstructionPct))
 		}
 	}
-	
+
 	message.WriteString("\nRecommendation: Monitor connection closely")
-	
+
 	return &NotificationEvent{
 		Type:      NotificationPredictive,
 		Title:     title,
@@ -304,20 +304,20 @@ func (eb *EventBuilder) PredictiveEvent(member *pkg.Member, prediction string, c
 // CriticalErrorEvent creates a critical error notification event
 func (eb *EventBuilder) CriticalErrorEvent(component string, error error, details map[string]interface{}) *NotificationEvent {
 	title := "🚨 CRITICAL: System Error"
-	
+
 	var message strings.Builder
 	message.WriteString(fmt.Sprintf("Critical error in %s\n\n", component))
 	message.WriteString(fmt.Sprintf("Error: %s\n", error.Error()))
-	
+
 	if details != nil {
 		message.WriteString("\nDetails:\n")
 		for key, value := range details {
 			message.WriteString(fmt.Sprintf("• %s: %v\n", key, value))
 		}
 	}
-	
+
 	message.WriteString("\nImmediate attention required!")
-	
+
 	return &NotificationEvent{
 		Type:      NotificationCriticalError,
 		Title:     title,
@@ -332,19 +332,19 @@ func (eb *EventBuilder) CriticalErrorEvent(component string, error error, detail
 // RecoveryEvent creates a system recovery notification event
 func (eb *EventBuilder) RecoveryEvent(component string, details map[string]interface{}) *NotificationEvent {
 	title := "✅ System Recovered"
-	
+
 	var message strings.Builder
 	message.WriteString(fmt.Sprintf("%s has recovered\n\n", component))
-	
+
 	if details != nil {
 		message.WriteString("Recovery Details:\n")
 		for key, value := range details {
 			message.WriteString(fmt.Sprintf("• %s: %v\n", key, value))
 		}
 	}
-	
+
 	message.WriteString("\nSystem is operating normally")
-	
+
 	return &NotificationEvent{
 		Type:      NotificationRecovery,
 		Title:     title,
@@ -357,17 +357,17 @@ func (eb *EventBuilder) RecoveryEvent(component string, details map[string]inter
 // StatusUpdateEvent creates a status update notification event
 func (eb *EventBuilder) StatusUpdateEvent(summary string, stats map[string]interface{}) *NotificationEvent {
 	title := "📊 Status Update"
-	
+
 	var message strings.Builder
 	message.WriteString(fmt.Sprintf("%s\n\n", summary))
-	
+
 	if stats != nil {
 		message.WriteString("Current Status:\n")
 		for key, value := range stats {
 			message.WriteString(fmt.Sprintf("• %s: %v\n", key, value))
 		}
 	}
-	
+
 	return &NotificationEvent{
 		Type:      NotificationStatusUpdate,
 		Title:     title,
@@ -381,14 +381,14 @@ func (eb *EventBuilder) StatusUpdateEvent(summary string, stats map[string]inter
 // SummaryEvent creates a periodic summary notification event
 func (eb *EventBuilder) SummaryEvent(period string, stats map[string]interface{}) *NotificationEvent {
 	title := fmt.Sprintf("📈 %s Summary", period)
-	
+
 	var message strings.Builder
 	message.WriteString(fmt.Sprintf("Network activity summary for %s\n\n", strings.ToLower(period)))
-	
+
 	for key, value := range stats {
 		message.WriteString(fmt.Sprintf("• %s: %v\n", key, value))
 	}
-	
+
 	return &NotificationEvent{
 		Type:      NotificationSummary,
 		Title:     title,

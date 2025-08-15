@@ -49,29 +49,29 @@ func main() {
 	}
 
 	fmt.Println("✅ Metrics collected successfully!")
-	
+
 	// Pretty print the metrics
 	metricsJSON, err := json.MarshalIndent(metrics, "", "  ")
 	if err != nil {
 		fmt.Printf("❌ Failed to marshal metrics: %v\n", err)
 		return
 	}
-	
+
 	fmt.Printf("📊 Collected Metrics:\n%s\n", string(metricsJSON))
 
 	// Test 3: Test specific Starlink fields
 	fmt.Println("\n🔍 Test 3: Verifying Starlink-specific data...")
-	
+
 	if metrics.ObstructionPct != nil {
 		fmt.Printf("   🛡️  Obstruction: %.2f%%\n", *metrics.ObstructionPct)
 	} else {
 		fmt.Println("   ⚠️  Obstruction data not available")
 	}
-	
+
 	fmt.Printf("   📶 Latency: %.1f ms\n", metrics.LatencyMS)
 	fmt.Printf("   📉 Loss: %.2f%%\n", metrics.LossPercent)
 	fmt.Printf("   📊 Jitter: %.1f ms\n", metrics.JitterMS)
-	
+
 	// Additional Starlink-specific fields
 	if metrics.GPSValid != nil && *metrics.GPSValid {
 		fmt.Printf("   🛰️  GPS: %.6f, %.6f\n", *metrics.GPSLatitude, *metrics.GPSLongitude)
@@ -81,18 +81,18 @@ func main() {
 	fmt.Println("\n🔄 Test 4: Testing multiple collections...")
 	for i := 0; i < 3; i++ {
 		fmt.Printf("   Collection %d...", i+1)
-		
+
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		metrics, err := collector.Collect(ctx, member)
 		cancel()
-		
+
 		if err != nil {
 			fmt.Printf(" ❌ Error: %v\n", err)
 		} else {
-			fmt.Printf(" ✅ Latency: %.1fms, Loss: %.2f%%\n", 
+			fmt.Printf(" ✅ Latency: %.1fms, Loss: %.2f%%\n",
 				metrics.LatencyMS, metrics.LossPercent)
 		}
-		
+
 		time.Sleep(2 * time.Second)
 	}
 
