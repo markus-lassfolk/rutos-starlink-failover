@@ -9,6 +9,8 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/retry"
@@ -17,6 +19,7 @@ import (
 // StarlinkCollector collects metrics from Starlink dish via JSON API and gRPC
 type StarlinkCollector struct {
 	dishIP     string
+	dishPort   int
 	httpClient *http.Client
 	runner     *retry.Runner // command runner with retry logic
 }
@@ -33,14 +36,23 @@ func isValidIP(ip string) bool {
 }
 
 // NewStarlinkCollector creates a new Starlink metrics collector
-func NewStarlinkCollector(dishIP string) *StarlinkCollector {
+func NewStarlinkCollector(dishIP string, dishPort int) *StarlinkCollector {
 	if dishIP == "" {
 		dishIP = "192.168.100.1" // Default Starlink dish IP
+	}
+
+	if dishPort == 0 {
+		dishPort = 9200 // Default Starlink gRPC port
 	}
 
 	// Validate IP to prevent command injection
 	if !isValidIP(dishIP) {
 		dishIP = "192.168.100.1" // Fallback to safe default
+	}
+
+	// Validate port range
+	if dishPort < 1 || dishPort > 65535 {
+		dishPort = 9200 // Fallback to safe default
 	}
 
 	// Configure retry for external commands
@@ -52,7 +64,8 @@ func NewStarlinkCollector(dishIP string) *StarlinkCollector {
 	}
 
 	return &StarlinkCollector{
-		dishIP: dishIP,
+		dishIP:   dishIP,
+		dishPort: dishPort,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -99,18 +112,35 @@ func (s *StarlinkCollector) Collect(ctx context.Context, member Member) (Metrics
 		Class:         "starlink",
 	}
 
-	// Collect enhanced Starlink diagnostics
+	// Collect enhanced Starlink diagnostics with graceful degradation
 	starlinkData, err := s.getEnhancedStarlinkData(ctx)
-	if err != nil {
-		return metrics, fmt.Errorf("failed to get Starlink data: %w", err)
-	}
 
-	// Set API response time
+	// Set API response time and accessibility status
 	apiResponseTime := time.Since(startTime).Seconds() * 1000
 	metrics.Extra = map[string]interface{}{
 		"api_response_time_ms": apiResponseTime,
 		"api_accessible":       starlinkData != nil,
 	}
+
+	if err != nil {
+		// Log error but continue with partial metrics rather than failing completely
+		metrics.Extra["collection_error"] = err.Error()
+		metrics.Extra["collection_method"] = "degraded"
+
+		// Try to provide basic connectivity check via ping fallback
+		if s.dishIP != "" {
+			pingMetrics := s.getPingFallbackMetrics(ctx)
+			if pingMetrics.LatencyMs != nil {
+				metrics.LatencyMs = pingMetrics.LatencyMs
+				metrics.Extra["fallback_ping_used"] = true
+			}
+		}
+
+		// Return partial metrics instead of complete failure
+		return metrics, nil
+	}
+
+	metrics.Extra["collection_method"] = "full"
 
 	// Parse and set enhanced metrics
 	if starlinkData != nil {
@@ -259,7 +289,7 @@ func (s *StarlinkCollector) getGRPCData(ctx context.Context) (*EnhancedStarlinkD
 	args := []string{
 		"-plaintext", "-d",
 		`{"get_diagnostics":{}}`,
-		fmt.Sprintf("%s:9200", s.dishIP),
+		fmt.Sprintf("%s:%d", s.dishIP, s.dishPort),
 		"SpaceX.API.Device.Device/Handle",
 	}
 
@@ -343,7 +373,7 @@ func (s *StarlinkCollector) getGRPCStatus(ctx context.Context) (*EnhancedStarlin
 	args := []string{
 		"-plaintext", "-d",
 		`{"get_status":{}}`,
-		fmt.Sprintf("%s:9200", s.dishIP),
+		fmt.Sprintf("%s:%d", s.dishIP, s.dishPort),
 		"SpaceX.API.Device.Device/Handle",
 	}
 
@@ -480,4 +510,38 @@ func (s *StarlinkCollector) extractMetrics(raw map[string]interface{}, data *Enh
 			data.State = &s
 		}
 	}
+}
+
+// getPingFallbackMetrics provides basic connectivity metrics when API fails
+func (s *StarlinkCollector) getPingFallbackMetrics(ctx context.Context) Metrics {
+	metrics := Metrics{
+		Timestamp:     time.Now(),
+		InterfaceName: "starlink",
+		Class:         "starlink",
+	}
+
+	// Simple ping test to dish IP to check basic connectivity
+	output, err := s.runner.Output(ctx, "ping", "-c", "1", "-W", "2000", s.dishIP)
+	if err == nil {
+		// Parse ping output for latency (very basic parsing)
+		if strings.Contains(string(output), "time=") {
+			// Extract time= value (platform-dependent parsing)
+			lines := strings.Split(string(output), "\n")
+			for _, line := range lines {
+				if strings.Contains(line, "time=") {
+					// Basic regex-free parsing for time=XX.X format
+					parts := strings.Split(line, "time=")
+					if len(parts) > 1 {
+						timeStr := strings.Split(parts[1], " ")[0]
+						if latency, err := strconv.ParseFloat(timeStr, 64); err == nil {
+							metrics.LatencyMs = &latency
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return metrics
 }

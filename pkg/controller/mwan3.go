@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -419,11 +420,17 @@ func (c *Controller) parseMwan3Config(output string) ([]Member, error) {
 		case "interface":
 			member.Interface = value
 		case "metric":
-			// Parse metric if needed
-			member.Metric = 1 // Default metric
+			if v, err := strconv.Atoi(value); err == nil {
+				member.Metric = v
+			} else {
+				member.Metric = 1 // Default metric if parsing fails
+			}
 		case "weight":
-			// Parse weight if needed
-			member.Weight = 1 // Default weight
+			if v, err := strconv.Atoi(value); err == nil {
+				member.Weight = v
+			} else {
+				member.Weight = 1 // Default weight if parsing fails
+			}
 		case "enabled":
 			member.Enabled = value == "1" || value == "true"
 		}

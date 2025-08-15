@@ -944,4 +944,7 @@ func (o *ObstructionManager) analyzeSeasonalFactors() map[string]float64 {
 
 	return factors
 }
+
+// updateModels updates the internal prediction models based on collected data
+// TODO: Implement model updates based on collected obstruction data
 func (o *ObstructionManager) updateModels() {}

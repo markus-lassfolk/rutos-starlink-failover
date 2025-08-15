@@ -68,13 +68,29 @@
 
 ### STUB/PLACEHOLDER
 
-- None intentionally. Any logging of "would do X" is being eliminated as we wire full implementations. If found, treat as defects per QA rules.
+**Completed Work (as of 2025-08-15):**
+
+- ✅ **Decision engine thresholds**: Eliminated hardcoded values - now configurable from UCI (FailThresholdLoss: 5.0, FailThresholdLatency: 150ms, RestoreThresholdLoss: 1.0, RestoreThresholdLatency: 50ms)
+- ✅ **mwan3 config parsing bug**: Fixed weight/metric parsing in controller - now correctly parses UCI values instead of defaulting to 1
+- ✅ **Cross-platform test compatibility**: Fixed retry tests for Windows - uses platform-appropriate commands (cmd.exe vs. Unix shell)
+- ✅ **WiFi collector logging**: Added proper logger integration and removed TODO placeholder
+- ✅ **Collector registry initialization**: Properly wired in main.go with all collector types
+- ✅ **Context parameter threading**: All evaluation functions now accept context.Context as required
+
+**Remaining Blockers for Production Readiness:**
+
+- **Collectors**: Some collector logic (e.g., Starlink gRPC, Cellular ubus integration) may need error handling refinement for edge cases
+- **Notification manager**: Fully wired but may need additional integration testing with real notification dispatch
+- **ubus config.set**: Only telemetry.max_ram_mb is supported at runtime; full config.set and UCI write-back implementation needed
+
+**Test Status**: All package tests passing on Windows development environment. Core functionality verified through comprehensive test suite.
+
 
 ### 🚫 NOT IMPLEMENTED (Planned)
-- Config write-back (`uci` Save/Commit) and ubus `config.set` apply with diff log
-- In-process Starlink client (replace external helpers) with backoff
-- Full adaptive sampling manager driving probe cadence
-- Discovery module split-out with complete mwan3 parsing (if separated from main)
+- Config write-back (`uci` Save/Commit) and ubus `config.set` apply with diff log (🔄 in progress)
+- In-process Starlink client (replace external helpers) with backoff (planned)
+- Full adaptive sampling manager driving probe cadence (planned)
+- Discovery module split-out with complete mwan3 parsing (if separated from main) (planned)
 
 Note: Development is performed on Windows but targets RutOS/OpenWrt. Cross-build artifacts are provided; runtime validation is on devices.
 

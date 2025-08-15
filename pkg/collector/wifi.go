@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/retry"
 )
 
@@ -16,10 +17,11 @@ import (
 type WiFiCollector struct {
 	pingCollector *PingCollector // Fallback for connectivity metrics
 	runner        *retry.Runner  // For external command reliability
+	logger        *logx.Logger   // For logging WiFi-specific events
 }
 
 // NewWiFiCollector creates a new WiFi metrics collector
-func NewWiFiCollector(pingHosts []string) *WiFiCollector {
+func NewWiFiCollector(pingHosts []string, logger *logx.Logger) *WiFiCollector {
 	// Conservative retry config for WiFi ubus/iwconfig operations
 	retryConfig := retry.Config{
 		MaxAttempts:   3,
@@ -31,6 +33,7 @@ func NewWiFiCollector(pingHosts []string) *WiFiCollector {
 	return &WiFiCollector{
 		pingCollector: NewPingCollector(pingHosts),
 		runner:        retry.NewRunner(retryConfig),
+		logger:        logger,
 	}
 }
 
@@ -66,7 +69,11 @@ func (w *WiFiCollector) Collect(ctx context.Context, member Member) (Metrics, er
 	wifiData, err := w.getWiFiData(ctx, member.InterfaceName)
 	if err != nil {
 		// Log error but continue with ping metrics
-		// TODO: Use logger when available
+		w.logger.WithFields(logx.Fields{
+			"component": "wifi_collector",
+			"interface": member.InterfaceName,
+			"error":     err.Error(),
+		}).Warn("failed to get WiFi iwinfo data, using ping metrics only")
 	}
 
 	// Get connectivity metrics via ping

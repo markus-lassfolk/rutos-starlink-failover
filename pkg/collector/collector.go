@@ -85,9 +85,8 @@ func (r *Registry) Get(class string) (Collector, bool) {
 	return collector, exists
 }
 
-// TODO: Implement specific collectors:
-// - StarlinkCollector (gRPC/JSON API to 192.168.100.1)
-// - CellularCollector (ubus mobiled/gsm providers)
-// - WiFiCollector (ubus iwinfo or /proc/net/wireless)
-// - LANCollector (generic ping-based)
-// - GenericCollector (fallback ping-based)
+// Available collectors:
+// - StarlinkCollector: gRPC/JSON API to dish (192.168.100.1)
+// - CellularCollector: ubus mobiled/gsm providers
+// - WiFiCollector: ubus iwinfo wireless metrics
+// - PingCollector: generic ping-based connectivity (used as LANCollector)

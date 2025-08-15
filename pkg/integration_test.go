@@ -144,7 +144,7 @@ func TestEndToEndFailover(t *testing.T) {
 	engine.UpdateMember(backupMember, backupMetrics)
 
 	// Initial evaluation - should not trigger switch
-	if ev := engine.EvaluateSwitch(); ev != nil {
+	if ev := engine.EvaluateSwitch(ctx); ev != nil {
 		t.Logf("phase 1 evaluation: %+v", ev)
 	}
 
@@ -167,7 +167,7 @@ func TestEndToEndFailover(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 
 	// Should now potentially trigger failover
-	ev := engine.EvaluateSwitch()
+	ev := engine.EvaluateSwitch(ctx)
 	if ev != nil {
 		t.Logf("failover triggered: %s -> %s", ev.From, ev.To)
 

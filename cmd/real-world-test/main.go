@@ -85,7 +85,7 @@ func main() {
 
 	// Test 4: Starlink Collector
 	fmt.Println("\n4. Testing Starlink collector...")
-	starlink := collector.NewStarlinkCollector("")
+	starlink := collector.NewStarlinkCollector("", 0) // Use defaults (192.168.100.1:9200)
 
 	starlinkMember := collector.Member{InterfaceName: "eth1"}
 	starlinkMetrics, err := starlink.Collect(ctx, starlinkMember)

@@ -1,6 +1,7 @@
 package decision
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -69,13 +70,13 @@ func TestScoreJitter(t *testing.T) {
 		jitter   float64
 		expected float64
 	}{
-		{2.0, 100},   // excellent
-		{5.0, 100},   // still excellent
+		{2.0, 100},    // excellent
+		{5.0, 100},    // still excellent
 		{10.0, 93.33}, // good - updated to match current implementation
-		{20.0, 80},   // fair
-		{35.0, 70},   // poor
-		{50.0, 60},   // barely acceptable
-		{100.0, 30},  // very poor
+		{20.0, 80},    // fair
+		{35.0, 70},    // poor
+		{50.0, 60},    // barely acceptable
+		{100.0, 30},   // very poor
 	}
 
 	for _, c := range cases {
@@ -232,6 +233,7 @@ func TestWindowAverageUsesTelemetry(t *testing.T) {
 }
 
 func TestDurationBasedHysteresis(t *testing.T) {
+	ctx := context.Background()
 	store := telem.NewStore(telem.Config{MaxSamplesPerMember: 100, RetentionHours: 1})
 	cfg := Config{
 		SwitchMargin:        10,
@@ -251,13 +253,13 @@ func TestDurationBasedHysteresis(t *testing.T) {
 	eng.currentPrimary = m1.Name
 
 	// First evaluation: margin satisfied (15) but not long enough yet
-	if ev := eng.EvaluateSwitch(); ev != nil {
+	if ev := eng.EvaluateSwitch(ctx); ev != nil {
 		t.Fatalf("expected no switch yet due to duration window, got %+v", ev)
 	}
 
 	// Wait to satisfy duration window
 	time.Sleep(2100 * time.Millisecond)
-	if ev := eng.EvaluateSwitch(); ev == nil {
+	if ev := eng.EvaluateSwitch(ctx); ev == nil {
 		t.Fatalf("expected switch after sustained dominance")
 	} else if ev.To != m2.Name {
 		t.Fatalf("expected switch to %s, got %+v", m2.Name, ev)
@@ -295,7 +297,7 @@ func TestScoreCalculationEdgeCases(t *testing.T) {
 			metrics: collector.Metrics{
 				LatencyMs: floatPtr(0),
 			},
-			minScore: 48,  // Adjusted for class bias with generic=0.5
+			minScore: 48, // Adjusted for class bias with generic=0.5
 			maxScore: 52,
 		},
 		{
@@ -303,7 +305,7 @@ func TestScoreCalculationEdgeCases(t *testing.T) {
 			metrics: collector.Metrics{
 				PacketLossPct: floatPtr(100),
 			},
-			minScore: 30,  // Adjusted for class bias affecting the penalty
+			minScore: 30, // Adjusted for class bias affecting the penalty
 			maxScore: 40,
 		},
 		{
@@ -313,7 +315,7 @@ func TestScoreCalculationEdgeCases(t *testing.T) {
 				PacketLossPct: floatPtr(0),
 				JitterMs:      floatPtr(1),
 			},
-			minScore: 48,  // Adjusted for class bias with generic=0.5
+			minScore: 48, // Adjusted for class bias with generic=0.5
 			maxScore: 52,
 		},
 	}

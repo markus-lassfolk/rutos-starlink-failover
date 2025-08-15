@@ -2,15 +2,25 @@ package retry
 
 import (
 	"context"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
+
+func getTestCommand() (success []string, failure []string) {
+	if runtime.GOOS == "windows" {
+		return []string{"cmd", "/c", "echo", "test"}, []string{"cmd", "/c", "exit", "1"}
+	}
+	return []string{"echo", "test"}, []string{"false"}
+}
 
 func TestRunnerSuccessFirstAttempt(t *testing.T) {
 	runner := NewRunner(DefaultConfig())
 
 	// Should succeed immediately with a simple command
-	err := runner.Run(context.Background(), "echo", "test")
+	success, _ := getTestCommand()
+	err := runner.Run(context.Background(), success[0], success[1:]...)
 	if err != nil {
 		t.Fatalf("expected success, got: %v", err)
 	}
@@ -27,11 +37,12 @@ func TestRunnerRetryOnFailure(t *testing.T) {
 
 	start := time.Now()
 	// This command should fail all attempts
-	err := runner.Run(context.Background(), "false")
+	_, failure := getTestCommand()
+	err := runner.Run(context.Background(), failure[0], failure[1:]...)
 	elapsed := time.Since(start)
 
 	if err == nil {
-		t.Fatal("expected error from false command")
+		t.Fatal("expected error from failure command")
 	}
 
 	// Should have taken at least some time for retries
@@ -44,14 +55,18 @@ func TestRunnerRetryOnFailure(t *testing.T) {
 func TestRunnerOutputSuccess(t *testing.T) {
 	runner := NewRunner(DefaultConfig())
 
-	output, err := runner.Output(context.Background(), "echo", "hello")
+	success, _ := getTestCommand()
+	output, err := runner.Output(context.Background(), success[0], success[1:]...)
 	if err != nil {
 		t.Fatalf("expected success, got: %v", err)
 	}
 
-	expected := "hello\n"
-	if string(output) != expected {
-		t.Errorf("expected %q, got %q", expected, string(output))
+	expected := "test"
+	outputStr := string(output)
+	// Trim whitespace since Windows/Unix might differ in newline format
+	outputStr = strings.TrimSpace(outputStr)
+	if outputStr != expected {
+		t.Errorf("expected %q, got %q", expected, outputStr)
 	}
 }
 

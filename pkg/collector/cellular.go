@@ -85,26 +85,41 @@ func (c *CellularCollector) collectCellularMetrics(ctx context.Context, interfac
 		// Auto-detect provider if not specified
 		detectedProvider, err := c.detectProvider(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to detect cellular provider: %w", err)
+			// Log error but try common providers as fallback
+			metrics.Extra = map[string]interface{}{
+				"provider_detection_error": err.Error(),
+				"collection_method":        "fallback",
+			}
+			provider = "gsm" // Try most common provider as fallback
+		} else {
+			provider = detectedProvider
 		}
-		provider = detectedProvider
 	}
 
-	// Get connection info
+	// Initialize extra field if needed
+	if metrics.Extra == nil {
+		metrics.Extra = make(map[string]interface{})
+	}
+	metrics.Extra["cellular_provider"] = provider
+
+	// Get connection info with error tolerance
 	connInfo, err := c.getConnectionInfo(ctx, provider)
 	if err != nil {
-		return fmt.Errorf("failed to get connection info: %w", err)
+		metrics.Extra["connection_info_error"] = err.Error()
+		// Continue without connection info rather than failing completely
+	} else {
+		c.parseConnectionInfo(connInfo, metrics)
 	}
 
-	// Get signal info for signal strength metrics
+	// Get signal info for signal strength metrics with error tolerance
 	signalInfo, err := c.getSignalInfo(ctx, provider)
 	if err != nil {
-		return fmt.Errorf("failed to get signal info: %w", err)
+		metrics.Extra["signal_info_error"] = err.Error()
+		// Try alternative signal collection methods
+		c.tryAlternativeSignalCollection(ctx, metrics)
+	} else {
+		c.parseSignalInfo(signalInfo, metrics)
 	}
-
-	// Parse and populate metrics
-	c.parseConnectionInfo(connInfo, metrics)
-	c.parseSignalInfo(signalInfo, metrics)
 
 	return nil
 }
@@ -261,7 +276,7 @@ func (c *CellularCollector) pingViaInterface(ctx context.Context, host, interfac
 	// Use interface-specific ping command
 	// On Linux: ping -I interface_name -c 3 -W 5 host
 	args := []string{"-I", interfaceName, "-c", "3", "-W", "5", host}
-	
+
 	output, err := c.runner.Output(ctx, "ping", args...)
 	if err != nil {
 		return nil, fmt.Errorf("ping failed for %s via %s: %w", host, interfaceName, err)
@@ -271,7 +286,7 @@ func (c *CellularCollector) pingViaInterface(ctx context.Context, host, interfac
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &CellularPingResult{
 		AvgLatency: latency,
 		PacketLoss: loss,
@@ -281,9 +296,9 @@ func (c *CellularCollector) pingViaInterface(ctx context.Context, host, interfac
 // parsePingOutput extracts latency and packet loss from ping command output
 func (c *CellularCollector) parsePingOutput(output string) (float64, float64, error) {
 	lines := strings.Split(output, "\n")
-	
+
 	var avgLatency, packetLoss float64
-	
+
 	// Look for packet loss line: "3 packets transmitted, 3 received, 0% packet loss"
 	for _, line := range lines {
 		if strings.Contains(line, "packet loss") {
@@ -298,7 +313,7 @@ func (c *CellularCollector) parsePingOutput(output string) (float64, float64, er
 				}
 			}
 		}
-		
+
 		// Look for average latency line: "round-trip min/avg/max = 10.123/15.456/20.789 ms"
 		if strings.Contains(line, "round-trip") || strings.Contains(line, "min/avg/max") {
 			// Extract the avg value from the format: min/avg/max = X/Y/Z ms
@@ -319,7 +334,7 @@ func (c *CellularCollector) parsePingOutput(output string) (float64, float64, er
 			}
 		}
 	}
-	
+
 	return avgLatency, packetLoss, nil
 }
 
@@ -328,7 +343,7 @@ func (c *CellularCollector) calculateMean(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
-	
+
 	sum := 0.0
 	for _, v := range values {
 		sum += v
@@ -351,4 +366,46 @@ func (c *CellularCollector) calculateJitter(latencies []float64) float64 {
 
 	variance := sumSquares / float64(len(latencies))
 	return math.Sqrt(variance)
+}
+
+// tryAlternativeSignalCollection attempts to collect signal info using alternative methods
+func (c *CellularCollector) tryAlternativeSignalCollection(ctx context.Context, metrics *Metrics) {
+	// Try different ubus providers as fallback
+	alternativeProviders := []string{"lte", "mobile", "cellular", "gsm"}
+
+	for _, provider := range alternativeProviders {
+		if provider == c.provider {
+			continue // Skip the one we already tried
+		}
+
+		if signalInfo, err := c.getSignalInfo(ctx, provider); err == nil {
+			c.parseSignalInfo(signalInfo, metrics)
+			metrics.Extra["signal_collection_provider"] = provider
+			metrics.Extra["signal_collection_method"] = "alternative_provider"
+			return
+		}
+	}
+
+	// If all ubus methods fail, try estimating from interface statistics
+	c.tryInterfaceBasedEstimation(ctx, metrics)
+}
+
+// tryInterfaceBasedEstimation provides basic connectivity estimation from interface stats
+func (c *CellularCollector) tryInterfaceBasedEstimation(ctx context.Context, metrics *Metrics) {
+	// Try to get basic interface statistics as a last resort
+	output, err := c.runner.Output(ctx, "cat", "/proc/net/dev")
+	if err == nil {
+		// Look for cellular interface patterns in /proc/net/dev
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.Contains(line, "wwan") || strings.Contains(line, "lte") ||
+				strings.Contains(line, "cellular") || strings.Contains(line, "gsm") {
+				// Basic interface found - at least we know the interface exists
+				metrics.Extra["signal_collection_method"] = "interface_detection"
+				metrics.Extra["cellular_interface_detected"] = true
+				break
+			}
+		}
+	}
 }

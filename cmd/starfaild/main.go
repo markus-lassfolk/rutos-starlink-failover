@@ -86,9 +86,9 @@ func main() {
 	)
 	// Initialize core components
 	registry := collector.NewRegistry()
-	registry.Register("starlink", collector.NewStarlinkCollector(""))
+	registry.Register("starlink", collector.NewStarlinkCollector(config.Starlink.DishIP, config.Starlink.DishPort))
 	registry.Register("cellular", collector.NewCellularCollector(""))
-	registry.Register("wifi", collector.NewWiFiCollector(nil))
+	registry.Register("wifi", collector.NewWiFiCollector(nil, logger))
 	registry.Register("generic", collector.NewPingCollector(nil))
 
 	storeCfg := telem.Config{
@@ -114,7 +114,7 @@ func main() {
 		auditLogger = nil // Continue without audit logging
 	}
 
-	gpsManager := gps.NewGPSManager()
+	gpsManager := gps.NewGPSManager(config.Starlink.DishIP, config.Starlink.DishPort)
 	obstructionManager := obstruction.NewObstructionManager()
 
 	notificationManager := notification.NewManager(notification.Config{
@@ -146,7 +146,7 @@ func main() {
 	// Start ubus API server if enabled
 	var ubusServer *ubus.Server
 	if config.Main.EnableUbus {
-		ubusServer = ubus.NewServer(ubus.Config{ServiceName: "starfail", Enable: true}, logger, store, ctrl, registry)
+		ubusServer = ubus.NewServer(ubus.Config{ServiceName: "starfail", Enable: true}, logger, store, ctrl, registry, uciLoader)
 		if err := ubusServer.Start(ctx); err != nil {
 			logger.Error("failed to start ubus server", "error", err)
 		} else {
@@ -246,7 +246,7 @@ func main() {
 			}
 
 			// Evaluate decision and act via controller
-			if event := engine.EvaluateSwitch(); event != nil {
+			if event := engine.EvaluateSwitch(ctx); event != nil {
 				target, ok := controllerMembers[event.To]
 				if ok {
 					if err := ctrl.SetPrimary(ctx, target); err != nil {

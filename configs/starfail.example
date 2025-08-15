@@ -34,6 +34,11 @@ config starfail 'main'
 	option mqtt_broker ''
 	option mqtt_topic 'starfail/status'
 
+# Starlink-specific configuration
+config starfail 'starlink'
+	option dish_ip '192.168.100.1'
+	option dish_port '9200'
+
 # Member-specific overrides (optional)
 config member 'starlink_any'
 	option detect 'auto'

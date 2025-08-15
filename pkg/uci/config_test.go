@@ -81,11 +81,11 @@ func TestValidateMainInvalidPollInterval(t *testing.T) {
 
 func TestSaveConfig(t *testing.T) {
 	dir := t.TempDir()
-	
+
 	// Create platform-specific mock for `uci` that logs set commands
 	script := filepath.Join(dir, "uci")
 	logFile := filepath.Join(dir, "uci_commands.log")
-	
+
 	if os.PathSeparator == '\\' { // Windows
 		script += ".cmd"
 		content := "@echo off\r\n" +
@@ -139,14 +139,14 @@ fi
 	if err != nil {
 		t.Fatalf("failed to read log: %v", err)
 	}
-	
+
 	logContent := string(logData)
-	
+
 	// Should contain set commands for main config
 	if !containsString(logContent, "set starfail.main.enable=1") {
 		t.Errorf("missing main enable set command in log: %s", logContent)
 	}
-	
+
 	// Should contain commit command
 	if !containsString(logContent, "commit starfail") {
 		t.Errorf("missing commit command in log: %s", logContent)

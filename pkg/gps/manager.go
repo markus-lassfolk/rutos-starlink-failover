@@ -19,6 +19,8 @@ type GPSManager struct {
 	locationClusters  []LocationCluster
 	maxHistorySize    int
 	movementThreshold float64 // meters
+	starlinkIP        string  // Configurable Starlink dish IP
+	starlinkPort      int     // Configurable Starlink dish port
 }
 
 // Position represents a GPS coordinate with metadata
@@ -78,10 +80,20 @@ type LocationContext struct {
 	RecentMovement         []MovementEvent  `json:"recent_movement"`
 }
 
-// NewGPSManager creates a new GPS manager
-func NewGPSManager() *GPSManager {
+// NewGPSManager creates a new GPS manager with Starlink configuration
+func NewGPSManager(starlinkIP string, starlinkPort int) *GPSManager {
+	// Set defaults if not provided
+	if starlinkIP == "" {
+		starlinkIP = "192.168.100.1"
+	}
+	if starlinkPort == 0 {
+		starlinkPort = 9200
+	}
+
 	return &GPSManager{
 		maxHistorySize: 100, // Keep last 100 movement events
+		starlinkIP:     starlinkIP,
+		starlinkPort:   starlinkPort,
 	}
 }
 
@@ -285,12 +297,13 @@ func (g *GPSManager) updatePosition(newPos *Position) {
 	g.lastPosition = newPos
 }
 
-// getStarlinkGPS gets GPS data from Starlink dish
+// getStarlinkGPS gets GPS data from Starlink dish using configured IP and port
 func (g *GPSManager) getStarlinkGPS(ctx context.Context) (*Position, error) {
-	// Use grpcurl to get location from Starlink
+	// Use grpcurl to get location from Starlink with configured endpoint
+	endpoint := fmt.Sprintf("%s:%d", g.starlinkIP, g.starlinkPort)
 	cmd := exec.CommandContext(ctx, "grpcurl", "-plaintext", "-d",
 		`{"get_location":{}}`,
-		"192.168.100.1:9200",
+		endpoint,
 		"SpaceX.API.Device.Device/Handle")
 
 	output, err := cmd.Output()

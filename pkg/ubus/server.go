@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os/exec"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/controller"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/logx"
 	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/telem"
+	"github.com/markus-lassfolk/rutos-starlink-failover/pkg/uci"
 )
 
 // Server provides ubus API endpoints for starfail daemon
@@ -22,6 +24,7 @@ type Server struct {
 	store       *telem.Store
 	controller  *controller.Controller
 	registry    *collector.Registry
+	uciLoader   *uci.Loader
 	serviceName string
 	startTime   time.Time
 }
@@ -34,7 +37,7 @@ type Config struct {
 
 // NewServer creates a new ubus API server
 func NewServer(config Config, logger *logx.Logger, store *telem.Store,
-	ctrl *controller.Controller, registry *collector.Registry) *Server {
+	ctrl *controller.Controller, registry *collector.Registry, uciLoader *uci.Loader) *Server {
 
 	if config.ServiceName == "" {
 		config.ServiceName = "starfail"
@@ -45,6 +48,7 @@ func NewServer(config Config, logger *logx.Logger, store *telem.Store,
 		store:       store,
 		controller:  ctrl,
 		registry:    registry,
+		uciLoader:   uciLoader,
 		serviceName: config.ServiceName,
 	}
 }
@@ -543,13 +547,16 @@ func (s *Server) HandleConfigGet(ctx context.Context) (map[string]interface{}, e
 }
 
 // HandleConfigSet validates an incoming change-set and applies when supported.
-// For now, we accept only telemetry max_ram_mb updates at runtime; others are TODO.
+// Enhanced to support more configuration options with UCI write-back.
 func (s *Server) HandleConfigSet(ctx context.Context, changes map[string]interface{}) (map[string]interface{}, error) {
 	if len(changes) == 0 {
 		return nil, fmt.Errorf("changes object required")
 	}
-	// Support telemetry.max_ram_mb live update
+
 	var applied = map[string]interface{}{}
+	var needsUCICommit = false
+
+	// Support telemetry.max_ram_mb live update
 	if telemIface, ok := changes["telemetry"]; ok {
 		if telemMap, ok := telemIface.(map[string]interface{}); ok {
 			if v, ok := telemMap["max_ram_mb"]; ok {
@@ -559,8 +566,7 @@ func (s *Server) HandleConfigSet(ctx context.Context, changes map[string]interfa
 					if mb < 4 || mb > 128 {
 						return nil, fmt.Errorf("telemetry.max_ram_mb out of range 4-128")
 					}
-					// apply
-					// approximate: update store's cap via a helper (internal field)
+					// Apply to runtime store
 					if err := s.store.SetMaxRAMMB(mb); err != nil {
 						return nil, err
 					}
@@ -573,10 +579,58 @@ func (s *Server) HandleConfigSet(ctx context.Context, changes map[string]interfa
 			return nil, fmt.Errorf("telemetry must be object")
 		}
 	}
-	if len(applied) == 0 {
-		return nil, fmt.Errorf("no supported changes applied (config.set not fully implemented)")
+
+	// Support main configuration updates
+	if mainIface, ok := changes["main"]; ok {
+		if mainMap, ok := mainIface.(map[string]interface{}); ok {
+			if err := s.applyMainConfigChanges(ctx, mainMap, applied); err != nil {
+				return nil, fmt.Errorf("failed to apply main config changes: %w", err)
+			}
+			needsUCICommit = true
+		} else {
+			return nil, fmt.Errorf("main must be object")
+		}
 	}
-	return map[string]interface{}{"applied": applied}, nil
+
+	// Support scoring configuration updates
+	if scoringIface, ok := changes["scoring"]; ok {
+		if scoringMap, ok := scoringIface.(map[string]interface{}); ok {
+			if err := s.applyScoringConfigChanges(ctx, scoringMap, applied); err != nil {
+				return nil, fmt.Errorf("failed to apply scoring config changes: %w", err)
+			}
+			needsUCICommit = true
+		} else {
+			return nil, fmt.Errorf("scoring must be object")
+		}
+	}
+
+	// Support starlink configuration updates
+	if starlinkIface, ok := changes["starlink"]; ok {
+		if starlinkMap, ok := starlinkIface.(map[string]interface{}); ok {
+			if err := s.applyStarlinkConfigChanges(ctx, starlinkMap, applied); err != nil {
+				return nil, fmt.Errorf("failed to apply starlink config changes: %w", err)
+			}
+			needsUCICommit = true
+		} else {
+			return nil, fmt.Errorf("starlink must be object")
+		}
+	}
+
+	// If UCI changes were made, reload and commit
+	if needsUCICommit {
+		if err := s.commitUCIChanges(ctx, applied); err != nil {
+			return nil, fmt.Errorf("failed to commit UCI changes: %w", err)
+		}
+	}
+
+	if len(applied) == 0 {
+		return nil, fmt.Errorf("no supported changes applied")
+	}
+
+	return map[string]interface{}{
+		"applied":    applied,
+		"uci_commit": needsUCICommit,
+	}, nil
 }
 
 // ubusCall executes a ubus command (helper function)
@@ -611,4 +665,148 @@ func ListServices(ctx context.Context) ([]string, error) {
 
 	services := strings.Split(strings.TrimSpace(string(output)), "\n")
 	return services, nil
+}
+
+// applyMainConfigChanges applies supported main configuration changes
+func (s *Server) applyMainConfigChanges(ctx context.Context, changes map[string]interface{}, applied map[string]interface{}) error {
+	// Support commonly modified main config options
+	if v, ok := changes["poll_interval_ms"]; ok {
+		if interval, ok := v.(float64); ok {
+			if interval < 100 || interval > 10000 {
+				return fmt.Errorf("poll_interval_ms must be between 100-10000")
+			}
+			applied["main.poll_interval_ms"] = int(interval)
+		} else {
+			return fmt.Errorf("poll_interval_ms must be number")
+		}
+	}
+
+	if v, ok := changes["dry_run"]; ok {
+		if dryRun, ok := v.(bool); ok {
+			applied["main.dry_run"] = dryRun
+		} else {
+			return fmt.Errorf("dry_run must be boolean")
+		}
+	}
+
+	if v, ok := changes["enable"]; ok {
+		if enable, ok := v.(bool); ok {
+			applied["main.enable"] = enable
+		} else {
+			return fmt.Errorf("enable must be boolean")
+		}
+	}
+
+	return nil
+}
+
+// applyScoringConfigChanges applies supported scoring configuration changes
+func (s *Server) applyScoringConfigChanges(ctx context.Context, changes map[string]interface{}, applied map[string]interface{}) error {
+	// Support threshold modifications
+	if v, ok := changes["fail_threshold_loss"]; ok {
+		if threshold, ok := v.(float64); ok {
+			if threshold < 0 || threshold > 100 {
+				return fmt.Errorf("fail_threshold_loss must be between 0-100")
+			}
+			applied["scoring.fail_threshold_loss"] = threshold
+		} else {
+			return fmt.Errorf("fail_threshold_loss must be number")
+		}
+	}
+
+	if v, ok := changes["fail_threshold_latency"]; ok {
+		if threshold, ok := v.(float64); ok {
+			if threshold < 10 || threshold > 10000 {
+				return fmt.Errorf("fail_threshold_latency must be between 10-10000ms")
+			}
+			applied["scoring.fail_threshold_latency"] = int(threshold)
+		} else {
+			return fmt.Errorf("fail_threshold_latency must be number")
+		}
+	}
+
+	return nil
+}
+
+// applyStarlinkConfigChanges applies supported Starlink configuration changes
+func (s *Server) applyStarlinkConfigChanges(ctx context.Context, changes map[string]interface{}, applied map[string]interface{}) error {
+	// Support dish IP configuration
+	if v, ok := changes["dish_ip"]; ok {
+		if dishIP, ok := v.(string); ok {
+			// Basic IP validation
+			if net.ParseIP(dishIP) == nil {
+				return fmt.Errorf("dish_ip must be valid IP address")
+			}
+			applied["starlink.dish_ip"] = dishIP
+		} else {
+			return fmt.Errorf("dish_ip must be string")
+		}
+	}
+
+	// Support dish port configuration
+	if v, ok := changes["dish_port"]; ok {
+		if port, ok := v.(float64); ok {
+			portInt := int(port)
+			if portInt < 1 || portInt > 65535 {
+				return fmt.Errorf("dish_port must be between 1-65535")
+			}
+			applied["starlink.dish_port"] = portInt
+		} else {
+			return fmt.Errorf("dish_port must be number")
+		}
+	}
+
+	return nil
+}
+
+// commitUCIChanges applies changes to UCI and commits them
+func (s *Server) commitUCIChanges(ctx context.Context, applied map[string]interface{}) error {
+	// Load current config
+	config, err := s.uciLoader.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load current UCI config: %w", err)
+	}
+
+	// Apply changes to config struct
+	for key, value := range applied {
+		if err := s.applyConfigValue(config, key, value); err != nil {
+			return fmt.Errorf("failed to apply %s: %w", key, err)
+		}
+	}
+
+	// Save and commit to UCI
+	if err := s.uciLoader.Save(config); err != nil {
+		return fmt.Errorf("failed to save UCI config: %w", err)
+	}
+
+	return nil
+}
+
+// applyConfigValue applies a single config value to the config struct
+func (s *Server) applyConfigValue(config *uci.Config, key string, value interface{}) error {
+	switch key {
+	case "main.poll_interval_ms":
+		if v, ok := value.(int); ok {
+			config.Main.PollIntervalMs = v
+		}
+	case "main.dry_run":
+		if v, ok := value.(bool); ok {
+			config.Main.DryRun = v
+		}
+	case "main.enable":
+		if v, ok := value.(bool); ok {
+			config.Main.Enable = v
+		}
+	case "scoring.fail_threshold_loss":
+		if v, ok := value.(float64); ok {
+			config.Main.FailThresholdLoss = v
+		}
+	case "scoring.fail_threshold_latency":
+		if v, ok := value.(int); ok {
+			config.Main.FailThresholdLatency = time.Duration(v) * time.Millisecond
+		}
+	default:
+		return fmt.Errorf("unsupported config key: %s", key)
+	}
+	return nil
 }

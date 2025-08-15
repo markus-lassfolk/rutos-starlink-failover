@@ -17,6 +17,7 @@ import (
 type Config struct {
 	Main          MainConfig         `uci:"starfail.main"`
 	Scoring       ScoringConfig      `uci:"starfail.scoring"`
+	Starlink      StarlinkConfig     `uci:"starfail.starlink"`
 	SysMgmt       SysMgmtConfig      `uci:"starfail.sysmgmt"`
 	Recovery      RecoveryConfig     `uci:"starfail.recovery"`
 	Notifications NotificationConfig `uci:"starfail.notifications"`
@@ -39,6 +40,12 @@ type ScoringConfig struct {
 	JitterBadMs       float64 `uci:"jitter_bad_ms" default:"200"`
 	ObstructionOkPct  float64 `uci:"obstruction_ok_pct" default:"0"`
 	ObstructionBadPct float64 `uci:"obstruction_bad_pct" default:"10"`
+}
+
+// StarlinkConfig represents Starlink-specific configuration
+type StarlinkConfig struct {
+	DishIP   string `uci:"dish_ip" default:"192.168.100.1"`
+	DishPort int    `uci:"dish_port" default:"9200"`
 }
 
 // SysMgmtConfig represents system management configuration
@@ -181,8 +188,7 @@ func (l *Loader) Load() (*Config, error) {
 	// Try to load UCI values
 	err := l.loadFromUCI(config)
 	if err != nil {
-		// Log warning but continue with defaults
-		// TODO: Use logger when available
+		// Log warning but continue with defaults (using fmt.Printf since UCI loader is logger-independent)
 		fmt.Printf("Warning: Failed to load UCI config: %v, using defaults\n", err)
 	}
 
@@ -546,42 +552,42 @@ func (l *Loader) parseBool(value string) bool {
 // Save writes the configuration back to UCI
 func (l *Loader) Save(config *Config) error {
 	ctx := context.Background()
-	
+
 	// Save main config
 	if err := l.saveSection(ctx, "starfail.main", config.Main); err != nil {
 		return fmt.Errorf("failed to save main config: %w", err)
 	}
-	
+
 	// Save scoring config
 	if err := l.saveSection(ctx, "starfail.scoring", config.Scoring); err != nil {
 		return fmt.Errorf("failed to save scoring config: %w", err)
 	}
-	
+
 	// Save sysmgmt config
 	if err := l.saveSection(ctx, "starfail.sysmgmt", config.SysMgmt); err != nil {
 		return fmt.Errorf("failed to save sysmgmt config: %w", err)
 	}
-	
+
 	// Save recovery config
 	if err := l.saveSection(ctx, "starfail.recovery", config.Recovery); err != nil {
 		return fmt.Errorf("failed to save recovery config: %w", err)
 	}
-	
+
 	// Save notification config
 	if err := l.saveSection(ctx, "starfail.notifications", config.Notifications); err != nil {
 		return fmt.Errorf("failed to save notification config: %w", err)
 	}
-	
+
 	// Save sampling config
 	if err := l.saveSection(ctx, "starfail.sampling", config.Sampling); err != nil {
 		return fmt.Errorf("failed to save sampling config: %w", err)
 	}
-	
+
 	// Remove existing member configs first
 	if err := l.removeAllMembers(ctx); err != nil {
 		return fmt.Errorf("failed to remove existing members: %w", err)
 	}
-	
+
 	// Save member configs
 	for i, member := range config.Members {
 		sectionName := fmt.Sprintf("starfail.@member[%d]", i)
@@ -589,12 +595,12 @@ func (l *Loader) Save(config *Config) error {
 			return fmt.Errorf("failed to save member[%d] config: %w", i, err)
 		}
 	}
-	
+
 	// Commit changes
 	if err := l.runner.Run(ctx, "uci", "commit", "starfail"); err != nil {
 		return fmt.Errorf("failed to commit starfail config: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -735,7 +741,7 @@ func (l *Loader) saveSection(ctx context.Context, sectionName string, config int
 	// Use reflection to convert struct fields to UCI commands
 	v := reflect.ValueOf(config)
 	t := reflect.TypeOf(config)
-	
+
 	// Handle pointer types
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
@@ -744,17 +750,17 @@ func (l *Loader) saveSection(ctx context.Context, sectionName string, config int
 		v = v.Elem()
 		t = t.Elem()
 	}
-	
+
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
 		fieldType := t.Field(i)
-		
+
 		// Get UCI tag
 		uciTag := fieldType.Tag.Get("uci")
 		if uciTag == "" || uciTag == "-" {
 			continue
 		}
-		
+
 		// Convert value to string
 		var value string
 		switch field.Kind() {
@@ -787,14 +793,14 @@ func (l *Loader) saveSection(ctx context.Context, sectionName string, config int
 				continue
 			}
 		}
-		
+
 		// Set the UCI value
 		uciPath := fmt.Sprintf("%s.%s=%s", sectionName, uciTag, value)
 		if err := l.runner.Run(ctx, "uci", "set", uciPath); err != nil {
 			return fmt.Errorf("failed to set %s: %w", uciPath, err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -806,10 +812,10 @@ func (l *Loader) removeAllMembers(ctx context.Context) error {
 		// If config doesn't exist, that's fine
 		return nil
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	memberSections := make(map[string]bool)
-	
+
 	for _, line := range lines {
 		if strings.Contains(line, "starfail.") && strings.Contains(line, "=member") {
 			// Extract section name from lines like "starfail.cfg0123=member"
@@ -821,7 +827,7 @@ func (l *Loader) removeAllMembers(ctx context.Context) error {
 			}
 		}
 	}
-	
+
 	// Remove each member section
 	for sectionName := range memberSections {
 		if err := l.runner.Run(ctx, "uci", "delete", fmt.Sprintf("starfail.%s", sectionName)); err != nil {
@@ -829,6 +835,6 @@ func (l *Loader) removeAllMembers(ctx context.Context) error {
 			continue
 		}
 	}
-	
+
 	return nil
 }

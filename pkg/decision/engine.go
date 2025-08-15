@@ -61,12 +61,16 @@ type Config struct {
 	WeightClass   float64 `json:"weight_class"`
 
 	// Thresholds
-	SwitchMargin        float64       `json:"switch_margin"`          // Min score delta to switch
-	MinUptimeS          time.Duration `json:"min_uptime_s"`           // Min uptime before eligible
-	CooldownS           time.Duration `json:"cooldown_s"`             // Cooldown after switch
-	HistoryWindowS      time.Duration `json:"history_window_s"`       // Rolling average window
-	FailMinDurationS    time.Duration `json:"fail_min_duration_s"`    // Sustained dominance before failover
-	RestoreMinDurationS time.Duration `json:"restore_min_duration_s"` // Sustained dominance before failback
+	SwitchMargin            float64       `json:"switch_margin"`             // Min score delta to switch
+	MinUptimeS              time.Duration `json:"min_uptime_s"`              // Min uptime before eligible
+	CooldownS               time.Duration `json:"cooldown_s"`                // Cooldown after switch
+	HistoryWindowS          time.Duration `json:"history_window_s"`          // Rolling average window
+	FailMinDurationS        time.Duration `json:"fail_min_duration_s"`       // Sustained dominance before failover
+	RestoreMinDurationS     time.Duration `json:"restore_min_duration_s"`    // Sustained dominance before failback
+	FailThresholdLoss       float64       `json:"fail_threshold_loss"`       // Failure loss threshold (%)
+	FailThresholdLatency    time.Duration `json:"fail_threshold_latency"`    // Failure latency threshold
+	RestoreThresholdLoss    float64       `json:"restore_threshold_loss"`    // Restore loss threshold (%)
+	RestoreThresholdLatency time.Duration `json:"restore_threshold_latency"` // Restore latency threshold
 
 	// Class preferences (higher = more preferred)
 	ClassWeights map[string]float64 `json:"class_weights"`
@@ -121,7 +125,7 @@ func NewEngine(config Config, logger logx.Logger, store *telem.Store, auditLogge
 	return &Engine{
 		config:             config,
 		members:            make(map[string]*MemberState),
-		eventHistory:       make([]SwitchEvent, 0),
+		eventHistory:       nil,
 		logger:             logger,
 		store:              store,
 		auditLogger:        auditLogger,
@@ -170,26 +174,26 @@ func (e *Engine) GetMemberStates() map[string]MemberState {
 }
 
 // EvaluateSwitch determines if a failover/failback should occur
-func (e *Engine) EvaluateSwitch() *SwitchEvent {
+func (e *Engine) EvaluateSwitch(ctx context.Context) *SwitchEvent {
 	evaluationStart := time.Now()
-	
+
 	// Find the best eligible member
 	bestMember := e.findBestMember()
 	if bestMember == "" {
-		e.logEvaluation("no_eligible_members", "", "", 0, evaluationStart)
+		e.logEvaluation(ctx, "no_eligible_members", "", "", 0, evaluationStart)
 		return nil // No eligible members
 	}
 
 	// Check if we need to switch
 	if bestMember == e.currentPrimary {
-		e.logEvaluation("maintain_current", e.currentPrimary, bestMember, 0, evaluationStart)
+		e.logEvaluation(ctx, "maintain_current", e.currentPrimary, bestMember, 0, evaluationStart)
 		return nil // Already using the best member
 	}
 
 	// Check cooldown
 	cooldownRemaining := e.config.CooldownS - time.Since(e.lastSwitch)
 	if cooldownRemaining > 0 {
-		e.logEvaluation("cooldown_active", e.currentPrimary, bestMember, float64(cooldownRemaining.Seconds()), evaluationStart)
+		e.logEvaluation(ctx, "cooldown_active", e.currentPrimary, bestMember, float64(cooldownRemaining.Seconds()), evaluationStart)
 		return nil // Still in cooldown
 	}
 
@@ -206,7 +210,7 @@ func (e *Engine) EvaluateSwitch() *SwitchEvent {
 
 	// Check if score improvement justifies switch
 	if scoreDelta < e.config.SwitchMargin {
-		e.logEvaluation("insufficient_margin", e.currentPrimary, bestMember, scoreDelta, evaluationStart)
+		e.logEvaluation(ctx, "insufficient_margin", e.currentPrimary, bestMember, scoreDelta, evaluationStart)
 		return nil // Not enough improvement
 	}
 
@@ -225,7 +229,7 @@ func (e *Engine) EvaluateSwitch() *SwitchEvent {
 			if ok {
 				remainingDuration = required - time.Since(since)
 			}
-			e.logEvaluation("insufficient_duration", e.currentPrimary, bestMember, float64(remainingDuration.Seconds()), evaluationStart)
+			e.logEvaluation(ctx, "insufficient_duration", e.currentPrimary, bestMember, float64(remainingDuration.Seconds()), evaluationStart)
 			return nil // Not dominant long enough
 		}
 	}
@@ -255,7 +259,7 @@ func (e *Engine) EvaluateSwitch() *SwitchEvent {
 	}
 
 	// Log comprehensive audit event before executing
-	e.logDecisionEvent(&event, isPredictive, evaluationStart)
+	e.logDecisionEvent(ctx, &event, isPredictive, evaluationStart)
 
 	// Execute switch
 	e.executeSwitch(event)
@@ -506,12 +510,12 @@ func (e *Engine) shouldPreemptiveSwitch(candidate string) bool {
 
 	// Enhanced predictive analysis with multiple signals
 	shouldSwitch := false
-	
+
 	// 1. Score decline trend
 	scoreDecline := current.Score.EWMA - current.Score.Instant
 	if scoreDecline > e.config.PredictThreshold {
 		shouldSwitch = true
-		e.logger.Debug("predictive: score declining", 
+		e.logger.Debug("predictive: score declining",
 			"member", e.currentPrimary,
 			"decline", scoreDecline,
 			"threshold", e.config.PredictThreshold)
@@ -587,7 +591,7 @@ func (e *Engine) shouldPreemptiveSwitch(candidate string) bool {
 				"member", e.currentPrimary,
 				"rsrp", *current.Metrics.RSRP)
 		}
-		
+
 		// Signal quality issues
 		if current.Metrics.RSRQ != nil && *current.Metrics.RSRQ < -15 {
 			shouldSwitch = true
@@ -691,30 +695,30 @@ func (e *Engine) generateDecisionID() string {
 }
 
 // logEvaluation logs an evaluation decision with context
-func (e *Engine) logEvaluation(reason, from, to string, value float64, startTime time.Time) {
+func (e *Engine) logEvaluation(ctx context.Context, reason, from, to string, value float64, startTime time.Time) {
 	if e.auditLogger == nil {
 		return
 	}
 
 	processingTime := time.Since(startTime)
-	
+
 	event := &audit.DecisionEvent{
-		Timestamp:     time.Now(),
-		EventType:     "evaluation",
-		Component:     "decision_engine",
-		TriggerReason: reason,
-		DecisionType:  "maintain",
-		FromInterface: from,
-		ToInterface:   to,
-		ProcessingTime: processingTime,
+		Timestamp:        time.Now(),
+		EventType:        "evaluation",
+		Component:        "decision_engine",
+		TriggerReason:    reason,
+		DecisionType:     "maintain",
+		FromInterface:    from,
+		ToInterface:      to,
+		ProcessingTime:   processingTime,
 		InterfaceMetrics: e.buildInterfaceMetrics(),
 		QualityFactors:   e.buildQualityFactors(),
 		Thresholds: audit.DecisionThresholds{
 			SwitchMargin:            e.config.SwitchMargin,
-			FailThresholdLoss:       5.0,  // TODO: Make configurable
-			FailThresholdLatency:    150.0, // TODO: Make configurable
-			RestoreThresholdLoss:    1.0,   // TODO: Make configurable
-			RestoreThresholdLatency: 50.0,  // TODO: Make configurable
+			FailThresholdLoss:       e.config.FailThresholdLoss,
+			FailThresholdLatency:    float64(e.config.FailThresholdLatency.Milliseconds()),
+			RestoreThresholdLoss:    e.config.RestoreThresholdLoss,
+			RestoreThresholdLatency: float64(e.config.RestoreThresholdLatency.Milliseconds()),
 		},
 		Windows: audit.DecisionWindows{
 			BadDurationS:  int(e.config.FailMinDurationS.Seconds()),
@@ -732,7 +736,7 @@ func (e *Engine) logEvaluation(reason, from, to string, value float64, startTime
 		}
 	case "insufficient_margin":
 		event.Extra = map[string]interface{}{
-			"score_delta": value,
+			"score_delta":     value,
 			"required_margin": e.config.SwitchMargin,
 		}
 	case "insufficient_duration":
@@ -741,17 +745,17 @@ func (e *Engine) logEvaluation(reason, from, to string, value float64, startTime
 		}
 	}
 
-	e.auditLogger.LogDecision(context.TODO(), event)
+	e.auditLogger.LogDecision(ctx, event)
 }
 
 // logDecisionEvent logs a comprehensive decision event
-func (e *Engine) logDecisionEvent(event *SwitchEvent, isPredictive bool, startTime time.Time) {
+func (e *Engine) logDecisionEvent(ctx context.Context, event *SwitchEvent, isPredictive bool, startTime time.Time) {
 	if e.auditLogger == nil {
 		return
 	}
 
 	processingTime := time.Since(startTime)
-	
+
 	auditEvent := &audit.DecisionEvent{
 		Timestamp:        event.Timestamp,
 		EventType:        "action",
@@ -765,10 +769,10 @@ func (e *Engine) logDecisionEvent(event *SwitchEvent, isPredictive bool, startTi
 		QualityFactors:   e.buildQualityFactors(),
 		Thresholds: audit.DecisionThresholds{
 			SwitchMargin:            e.config.SwitchMargin,
-			FailThresholdLoss:       5.0,  // TODO: Make configurable
-			FailThresholdLatency:    150.0, // TODO: Make configurable
-			RestoreThresholdLoss:    1.0,   // TODO: Make configurable
-			RestoreThresholdLatency: 50.0,  // TODO: Make configurable
+			FailThresholdLoss:       e.config.FailThresholdLoss,
+			FailThresholdLatency:    float64(e.config.FailThresholdLatency.Milliseconds()),
+			RestoreThresholdLoss:    e.config.RestoreThresholdLoss,
+			RestoreThresholdLatency: float64(e.config.RestoreThresholdLatency.Milliseconds()),
 		},
 		Windows: audit.DecisionWindows{
 			BadDurationS:  int(e.config.FailMinDurationS.Seconds()),
@@ -777,43 +781,43 @@ func (e *Engine) logDecisionEvent(event *SwitchEvent, isPredictive bool, startTi
 			MinUptimeS:    int(e.config.MinUptimeS.Seconds()),
 		},
 		Extra: map[string]interface{}{
-			"score_delta":    event.ScoreDelta,
-			"is_predictive":  isPredictive,
-			"decision_id":    event.DecisionID,
+			"score_delta":   event.ScoreDelta,
+			"is_predictive": isPredictive,
+			"decision_id":   event.DecisionID,
 		},
 	}
 
-	e.auditLogger.LogDecision(context.TODO(), auditEvent)
+	e.auditLogger.LogDecision(ctx, auditEvent)
 }
 
 // buildInterfaceMetrics creates a map of current interface metrics
 func (e *Engine) buildInterfaceMetrics() map[string]interface{} {
 	metrics := make(map[string]interface{})
-	
+
 	for name, state := range e.members {
 		metrics[name] = map[string]interface{}{
-			"latency_ms":     state.Metrics.LatencyMs,
+			"latency_ms":      state.Metrics.LatencyMs,
 			"packet_loss_pct": state.Metrics.PacketLossPct,
-			"jitter_ms":      state.Metrics.JitterMs,
-			"instant_score":  state.Score.Instant,
-			"ewma_score":     state.Score.EWMA,
-			"window_avg":     state.Score.WindowAvg,
-			"final_score":    state.Score.Final,
-			"eligible":       state.Eligible,
-			"class":          state.Member.Class,
+			"jitter_ms":       state.Metrics.JitterMs,
+			"instant_score":   state.Score.Instant,
+			"ewma_score":      state.Score.EWMA,
+			"window_avg":      state.Score.WindowAvg,
+			"final_score":     state.Score.Final,
+			"eligible":        state.Eligible,
+			"class":           state.Member.Class,
 		}
 	}
-	
+
 	return metrics
 }
 
 // buildQualityFactors creates a map of quality factor breakdowns
 func (e *Engine) buildQualityFactors() map[string]audit.ScoreBreakdown {
 	factors := make(map[string]audit.ScoreBreakdown)
-	
+
 	for name, state := range e.members {
 		components := make(map[string]float64)
-		
+
 		// Calculate individual component scores
 		if state.Metrics.LatencyMs != nil {
 			components["latency"] = e.scoreLatency(*state.Metrics.LatencyMs)
@@ -824,13 +828,13 @@ func (e *Engine) buildQualityFactors() map[string]audit.ScoreBreakdown {
 		if state.Metrics.JitterMs != nil {
 			components["jitter"] = e.scoreJitter(*state.Metrics.JitterMs)
 		}
-		
+
 		// Add class weight
 		classWeight := e.config.ClassWeights[state.Member.Class]
 		if classWeight == 0 {
 			classWeight = 0.5
 		}
-		
+
 		factors[name] = audit.ScoreBreakdown{
 			FinalScore:   state.Score.Final,
 			InstantScore: state.Score.Instant,
@@ -845,7 +849,7 @@ func (e *Engine) buildQualityFactors() map[string]audit.ScoreBreakdown {
 			},
 		}
 	}
-	
+
 	return factors
 }
 
@@ -983,19 +987,19 @@ func (e *Engine) sendSwitchNotification(event SwitchEvent) {
 		priority = notification.PriorityWarning
 		notifType = notification.TypeStatus
 		title = "🔮 Predictive Failover"
-		message = fmt.Sprintf("Preemptively switched from %s to %s due to %s (score improved by %.1f)", 
+		message = fmt.Sprintf("Preemptively switched from %s to %s due to %s (score improved by %.1f)",
 			event.From, event.To, event.Reason, event.ScoreDelta)
 	case "failover":
 		priority = notification.PriorityCritical
 		notifType = notification.TypeFailure
 		title = "⚠️ Failover Activated"
-		message = fmt.Sprintf("Failed over from %s to %s due to %s (score improved by %.1f)", 
+		message = fmt.Sprintf("Failed over from %s to %s due to %s (score improved by %.1f)",
 			event.From, event.To, event.Reason, event.ScoreDelta)
 	case "failback":
 		priority = notification.PriorityInfo
 		notifType = notification.TypeFix
 		title = "✅ Failback Complete"
-		message = fmt.Sprintf("Restored primary connection from %s to %s, %s (score improved by %.1f)", 
+		message = fmt.Sprintf("Restored primary connection from %s to %s, %s (score improved by %.1f)",
 			event.From, event.To, event.Reason, event.ScoreDelta)
 	default:
 		priority = notification.PriorityInfo
@@ -1006,7 +1010,7 @@ func (e *Engine) sendSwitchNotification(event SwitchEvent) {
 
 	// Build rich context
 	notifContext := notification.Context{
-		CurrentStatus: fmt.Sprintf("Primary: %s", e.currentPrimary),
+		CurrentStatus:   fmt.Sprintf("Primary: %s", e.currentPrimary),
 		InterfaceStates: make(map[string]interface{}),
 	}
 
@@ -1017,7 +1021,7 @@ func (e *Engine) sendSwitchNotification(event SwitchEvent) {
 			"eligible": state.Eligible,
 			"class":    state.Member.Class,
 		}
-		
+
 		// Add specific metrics
 		if state.Metrics.LatencyMs != nil {
 			notifContext.InterfaceStates[name].(map[string]interface{})["latency_ms"] = *state.Metrics.LatencyMs
@@ -1062,10 +1066,10 @@ func (e *Engine) sendSwitchNotification(event SwitchEvent) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		
+
 		if err := e.notificationMgr.SendNotification(ctx, notif); err != nil {
-			e.logger.Warn("failed to send switch notification", 
-				"error", err, 
+			e.logger.Warn("failed to send switch notification",
+				"error", err,
 				"event_type", event.Type,
 				"decision_id", event.DecisionID)
 		}
