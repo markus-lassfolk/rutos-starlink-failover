@@ -26,6 +26,7 @@ An experimental Go daemon for intelligent multi-interface failover on OpenWrt/Ru
 │         • In-memory samples    • Event logging                 │
 │         • JSON export          • Live monitoring               │
 └─────────────────────────────────────────────────────────────────┘
+
 ```
 
 ## ✨ Key Features
@@ -42,43 +43,61 @@ An experimental Go daemon for intelligent multi-interface failover on OpenWrt/Ru
 ## � Quick Start
 
 ### Installation (RutOS/RUTX Series)
+
+
 ```bash
+
 # Download pre-built binary for ARMv7 (RUTX50/11/12)
+
 wget -O starfaild https://github.com/markus-lassfolk/rutos-starlink-failover/releases/latest/download/starfaild-rutx50
 chmod +x starfaild && sudo mv starfaild /usr/sbin/
 
 # Install CLI and service files
+
 wget -O /usr/sbin/starfailctl https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/starfailctl.sh
 wget -O /etc/init.d/starfail https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/starfail.init
 chmod +x /usr/sbin/starfailctl /etc/init.d/starfail
 
 # Start the service
+
 /etc/init.d/starfail enable
 /etc/init.d/starfail start
 
 # Verify operation
+
 starfailctl status
+
 ```
 
 ### Basic Usage
+
+
 ```bash
+
 # Check daemon status and current primary interface
+
 starfailctl status
 
 # List all discovered members with scores
+
 starfailctl members
 
 # View detailed metrics for an interface
+
 starfailctl metrics wan_starlink
 
 # Manual failover to specific interface
+
 starfailctl failover wan_cell
 
 # View recent system events
+
 starfailctl events
 
 # Service management
+
 /etc/init.d/starfail {start|stop|restart|reload|status}
+
 ```
 
 ## 🔧 Manual Operation & Debugging
@@ -88,36 +107,51 @@ The starfail daemon can be run manually for testing, debugging, and real-time mo
 ### Running the Daemon Manually
 
 #### Basic Manual Execution
+
+
 ```bash
+
 # Run with default configuration
+
 starfaild --config /etc/config/starfail
 
 # Run with custom configuration file
+
 starfaild --config /tmp/test-starfail.conf
+
 ```
 
 #### Real-Time Monitoring Mode
+
+
 ```bash
+
 # Full monitoring with live console output
+
 starfaild --monitor --verbose --trace
 
 # Clean monitoring without colors (for log files)
+
 starfaild --monitor --no-color --verbose
 
 # JSON structured output for analysis
+
 starfaild --monitor --json --verbose
-```
 
 #### Debug and Development
+
 ```bash
 # Debug configuration issues
 starfaild --monitor --debug --config ./configs/starfail.example
 
 # Trace all API calls and decision logic
+
 starfaild --monitor --trace --verbose
 
 # Test configuration without making changes
+
 starfaild --monitor --trace --config /tmp/test-config --log-level trace
+
 ```
 
 ### Command-Line Options
@@ -140,7 +174,7 @@ starfaild --monitor --trace --config /tmp/test-config --log-level trace
 
 When running with `--monitor`, you'll see real-time output like this:
 
-```
+```text
 [15:04:05.123] INFO  Starting starfail daemon version=v2.0.0 config=/etc/config/starfail
 [15:04:05.234] DEBUG Loading UCI configuration members=3 interfaces_detected=2  
 [15:04:05.345] TRACE Starlink API request endpoint=192.168.100.1/SpaceX/get_status
@@ -150,6 +184,7 @@ When running with `--monitor`, you'll see real-time output like this:
 [15:04:05.789] DEBUG Decision engine processing members=2 scores=[85.2, 72.1]
 [15:04:05.890] WARN  Interface score below threshold interface=starlink score=65.2 threshold=70
 [15:04:05.991] INFO  Failover triggered from=starlink to=cellular reason=low_score
+
 ```
 
 ### Log Levels Explained
@@ -163,76 +198,122 @@ When running with `--monitor`, you'll see real-time output like this:
 ### Common Debug Scenarios
 
 #### Testing Configuration Changes
+
+
 ```bash
+
 # Test new configuration without affecting running daemon
+
 cp /etc/config/starfail /tmp/test-config
+
 # Edit /tmp/test-config
+
 starfaild --monitor --config /tmp/test-config --trace
+
 ```
 
 #### Troubleshooting API Issues
+
+
 ```bash
+
 # See all Starlink API calls and responses
+
 starfaild --monitor --trace | grep -i starlink
 
 # Monitor cellular connectivity issues
+
 starfaild --monitor --trace | grep -i cellular
+
 ```
 
 #### Analyzing Failover Decisions
+
+
 ```bash
+
 # Watch decision engine scoring in real-time
+
 starfaild --monitor --debug | grep -E "(score|decision|failover)"
 
 # Export decisions to file for analysis
+
 starfaild --monitor --json --verbose > /var/log/starfail-debug.json
+
 ```
 
 #### Performance Monitoring
+
+
 ```bash
+
 # Monitor resource usage and timing
+
 starfaild --monitor --trace | grep -E "(timing|memory|cpu)"
 
 # Check polling intervals and response times
+
 starfaild --monitor --debug | grep -E "(poll|interval|latency)"
+
 ```
 
 ### Integration with System Tools
 
 #### Using with systemctl (systemd systems)
+
+
 ```bash
+
 # Stop service daemon
+
 systemctl stop starfail
 
 # Run manually for debugging
+
 starfaild --monitor --debug --config /etc/config/starfail
 
 # Restart service when done
+
 systemctl start starfail
+
 ```
 
 #### Using with procd (OpenWrt/RutOS)
+
+
 ```bash
+
 # Stop service daemon
+
 /etc/init.d/starfail stop
 
 # Run manually for debugging
+
 starfaild --monitor --debug --config /etc/config/starfail
 
 # Restart service when done
+
 /etc/init.d/starfail start
+
 ```
 
 #### Log File Analysis
+
+
 ```bash
+
 # Capture structured logs for analysis
+
 starfaild --json --verbose --log-file /var/log/starfail-debug.json
 
 # Parse logs with jq
+
 cat /var/log/starfail-debug.json | jq '.fields | select(.score != null)'
 
 # Monitor failover events
+
 tail -f /var/log/starfail-debug.json | jq 'select(.message | contains("failover"))'
+
 ```
 
 ### Safety Notes
@@ -240,14 +321,19 @@ tail -f /var/log/starfail-debug.json | jq 'select(.message | contains("failover"
 ⚠️ **Important**: When running the daemon manually, ensure the system service is stopped to prevent conflicts:
 
 ```bash
+
 # Always stop the service first
+
 /etc/init.d/starfail stop
 
 # Run your manual testing
+
 starfaild --monitor --debug
 
 # Remember to restart the service
+
 /etc/init.d/starfail start
+
 ```
 
 💡 **Tip**: Use `screen` or `tmux` for long-running manual sessions:
@@ -255,8 +341,12 @@ starfaild --monitor --debug
 ```bash
 screen -S starfail-debug
 starfaild --monitor --trace --config /etc/config/starfail
+
 # Ctrl+A, D to detach
+
 # screen -r starfail-debug to reattach
+
+
 ```
 
 > **📍 Victron GPS Integration Moved!**  
@@ -295,16 +385,19 @@ intelligent failover systems for Starlink connections on RUTOS routers.
 ### 🎯 Quick Navigation
 
 **For New Users:**
+
 1. Start with [Quick Reference](QUICK_REFERENCE.md) for essential commands
 2. Read [Configuration Examples](CONFIGURATION_EXAMPLES.md) for your deployment type
 3. Use [Features Guide](FEATURES_AND_CONFIGURATION.md) for detailed configuration
 
 **For Developers:**
+
 1. Review [API Reference](API_REFERENCE.md) for integration details
 2. Check [Features Guide](FEATURES_AND_CONFIGURATION.md) for technical architecture
 3. See [Configuration Examples](CONFIGURATION_EXAMPLES.md) for testing setups
 
 **For System Administrators:**
+
 1. Read [Features Guide](FEATURES_AND_CONFIGURATION.md) for complete system understanding
 2. Use [Configuration Examples](CONFIGURATION_EXAMPLES.md) for production deployments
 3. Reference [API Reference](API_REFERENCE.md) for monitoring and automation
@@ -324,16 +417,22 @@ intelligent failover systems for Starlink connections on RUTOS routers.
 ### Option 1: Automated Installation (Recommended)
 
 ```bash
+
 # Download and run the installer
+
 curl -fL https://raw.githubusercontent.com/markus-lassfolk/rutos-starlink-failover/main/scripts/install-rutos.sh | sh
 
 # Configure the system
+
 nano /root/starlink-monitor/config/config.sh
 
 # Validate configuration
+
 /root/starlink-monitor/scripts/validate-config.sh
 
 # Configure mwan3 (see documentation)
+
+
 ```
 
 ### Option 2: Manual Installation
@@ -394,20 +493,25 @@ nano /root/starlink-monitor/config/config.sh
 For standard setups, edit `/root/starlink-monitor/config/config.sh`:
 
 ```bash
+
 # Network settings
+
 STARLINK_IP="192.168.100.1"
 STARLINK_PORT="9200"
 MWAN_IFACE="wan"
 MWAN_MEMBER="member1"
 
 # Pushover notifications
+
 PUSHOVER_TOKEN="your_pushover_token"
 PUSHOVER_USER="your_pushover_user_key"
 
 # Failover thresholds
+
 PACKET_LOSS_THRESHOLD=5       # 5%
 OBSTRUCTION_THRESHOLD=3       # 3%
 LATENCY_THRESHOLD=150         # 150ms
+
 ```
 
 ### 1.1 Advanced Configuration (RUTX50 Production)
@@ -415,13 +519,17 @@ LATENCY_THRESHOLD=150         # 150ms
 For RUTX50 routers with dual SIM and GPS, use the advanced template:
 
 ```bash
+
 # Use advanced configuration template
+
 cp config/config.advanced.template.sh config/config.sh
 nano config/config.sh
 
 # Run UCI optimizer for your existing setup
+
 scripts/uci-optimizer.sh analyze           # Analyze current config
 scripts/uci-optimizer.sh optimize          # Apply optimizations
+
 ```
 
 **Advanced features include:**
@@ -437,12 +545,15 @@ scripts/uci-optimizer.sh optimize          # Apply optimizations
 ### 2. mwan3 Configuration
 
 ```bash
+
 # Set interface priorities
+
 uci set mwan3.member1.metric='1'     # Starlink (highest priority)
 uci set mwan3.member3.metric='2'     # Primary SIM
 uci set mwan3.member4.metric='4'     # Backup SIM
 
 # Configure health checks
+
 uci set mwan3.wan.track_ip='1.0.0.1' '8.8.8.8'
 uci set mwan3.wan.reliability='1'
 uci set mwan3.wan.timeout='1'
@@ -451,20 +562,25 @@ uci set mwan3.wan.down='2'
 uci set mwan3.wan.up='3'
 
 # Commit changes
+
 uci commit mwan3
 mwan3 restart
+
 ```
 
 ### 3. Static Route for Starlink
 
 ```bash
+
 # Add static route to Starlink management interface
+
 uci add network route
 uci set network.@route[-1].interface='wan'
 uci set network.@route[-1].target='192.168.100.1'
 uci set network.@route[-1].netmask='255.255.255.255'
 uci commit network
 /etc/init.d/network reload
+
 ```
 
 ## 🚨 Starlink API Change Response
@@ -509,34 +625,47 @@ The enhanced monitoring system includes:
 ### View System Status
 
 ```bash
+
 # Check monitor status
+
 logread | grep StarlinkMonitor
 
 # View health status
+
 cat /tmp/run/starlink_monitor.health
 
 # Check recent notifications
+
 tail -f /var/log/notifications.log
+
 ```
 
 ### Test Notifications
 
 ```bash
+
 # Test notification system
+
 /etc/hotplug.d/iface/99-pushover_notify test
 
 # Test Starlink API
+
 grpcurl -plaintext -d '{"get_status":{}}' 192.168.100.1:9200 SpaceX.API.Device.Device/Handle
+
 ```
 
 ### Performance Analysis
 
 ```bash
+
 # View performance data
+
 cat /root/starlink_performance_log.csv
 
 # Generate API documentation
+
 /root/starlink-monitor/scripts/generate_api_docs.sh
+
 ```
 
 ## 🔒 Security Considerations
@@ -568,6 +697,7 @@ cat /root/starlink_performance_log.csv
     ├── starlink_monitor.sh     # Main monitoring script
     ├── 99-pushover_notify      # Notification system
     └── AzureLogging/           # Azure integration
+
 ```
 
 ### Key Scripts

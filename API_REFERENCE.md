@@ -20,11 +20,14 @@ The starfail daemon provides a comprehensive ubus API for monitoring and control
 Get overall daemon status and current primary interface.
 
 **Usage:**
+
 ```bash
 ubus call starfail status
+
 ```
 
 **Response Schema:**
+
 ```json
 {
   "daemon": {
@@ -52,9 +55,11 @@ ubus call starfail status
     "dry_run": "boolean"          // Dry run mode status
   }
 }
+
 ```
 
 **Example Response:**
+
 ```json
 {
   "daemon": {
@@ -82,6 +87,7 @@ ubus call starfail status
     "dry_run": false
   }
 }
+
 ```
 
 #### `members` - Interface Discovery
@@ -89,11 +95,14 @@ ubus call starfail status
 List all discovered interfaces with current scores and states.
 
 **Usage:**
+
 ```bash
 ubus call starfail members
+
 ```
 
 **Response Schema:**
+
 ```json
 {
   "members": [
@@ -130,11 +139,13 @@ ubus call starfail members
     "interfaces_configured": "number" // Successfully configured interfaces
   }
 }
+
 ```
 
 **Class-Specific Data:**
 
 **Starlink (`interface_specific`):**
+
 ```json
 {
   "snr": "number",                  // Signal-to-noise ratio
@@ -145,9 +156,11 @@ ubus call starfail members
   "uplink_throughput_bps": "number",   // Current uplink throughput
   "outages_detected": "number"      // Number of outages detected
 }
+
 ```
 
 **Cellular (`interface_specific`):**
+
 ```json
 {
   "technology": "string",           // Technology (4G, 5G, etc.)
@@ -158,6 +171,7 @@ ubus call starfail members
   "band": "string",                // Current frequency band
   "roaming": "boolean"             // Currently roaming
 }
+
 ```
 
 #### `metrics` - Detailed Metrics
@@ -165,15 +179,19 @@ ubus call starfail members
 Get detailed metrics and history for a specific interface.
 
 **Usage:**
+
 ```bash
 ubus call starfail metrics '{"member": "interface_name", "limit": 100}'
+
 ```
 
 **Parameters:**
+
 - `member` (string, required): Interface name
 - `limit` (number, optional): Maximum number of historical samples (default: 50)
 
 **Response Schema:**
+
 ```json
 {
   "member": "string",               // Interface name
@@ -213,6 +231,7 @@ ubus call starfail metrics '{"member": "interface_name", "limit": 100}'
     "uptime_pct": "number"         // Uptime percentage
   }
 }
+
 ```
 
 #### `events` - Decision History
@@ -220,14 +239,18 @@ ubus call starfail metrics '{"member": "interface_name", "limit": 100}'
 Get recent decision events and failover history.
 
 **Usage:**
+
 ```bash
 ubus call starfail events '{"limit": 50}'
+
 ```
 
 **Parameters:**
+
 - `limit` (number, optional): Maximum number of events (default: 20)
 
 **Response Schema:**
+
 ```json
 {
   "events": [
@@ -254,6 +277,7 @@ ubus call starfail events '{"limit": 50}'
     "last_24h_switches": "number"   // Switches in last 24 hours
   }
 }
+
 ```
 
 #### `action` - Manual Actions
@@ -261,12 +285,15 @@ ubus call starfail events '{"limit": 50}'
 Execute manual actions like failover, restore, or member discovery.
 
 **Usage:**
+
 ```bash
 ubus call starfail action '{"action": "failover"}'
 ubus call starfail action '{"action": "switch", "member": "cellular_sim1", "force": true}'
+
 ```
 
 **Parameters:**
+
 - `action` (string, required): Action to perform
 - `member` (string, optional): Target member for switch actions
 - `force` (boolean, optional): Force action even if checks fail
@@ -283,6 +310,7 @@ ubus call starfail action '{"action": "switch", "member": "cellular_sim1", "forc
 | `test` | Test notification system | `message`, `priority` |
 
 **Response Schema:**
+
 ```json
 {
   "action": "string",               // Action performed
@@ -293,6 +321,7 @@ ubus call starfail action '{"action": "switch", "member": "cellular_sim1", "forc
   "execution_time_ms": "number",   // Action execution time
   "decision_id": "string"          // Decision ID (for switch actions)
 }
+
 ```
 
 #### `config.get` - Configuration Retrieval
@@ -300,8 +329,10 @@ ubus call starfail action '{"action": "switch", "member": "cellular_sim1", "forc
 Get current configuration in JSON format.
 
 **Usage:**
+
 ```bash
 ubus call starfail config.get
+
 ```
 
 **Response:** Complete UCI configuration as JSON object with all sections and values.
@@ -311,18 +342,22 @@ ubus call starfail config.get
 Update configuration values dynamically.
 
 **Usage:**
+
 ```bash
 ubus call starfail config.set '{
   "main.log_level": "debug",
   "main.switch_margin": "15",
   "notifications.pushover_enabled": "1"
 }'
+
 ```
 
 **Parameters:**
+
 - Object with key-value pairs where keys use dot notation (section.option)
 
 **Response Schema:**
+
 ```json
 {
   "successful": "boolean",          // Whether update succeeded
@@ -338,6 +373,7 @@ ubus call starfail config.set '{
   "reload_required": "boolean",     // Whether daemon restart needed
   "message": "string"              // Result message
 }
+
 ```
 
 ### Extended Methods
@@ -347,12 +383,15 @@ ubus call starfail config.set '{
 Export telemetry data in JSON format.
 
 **Usage:**
+
 ```bash
 ubus call starfail export
 ubus call starfail export '{"member": "starlink_any", "hours": 6}'
+
 ```
 
 **Parameters:**
+
 - `member` (string, optional): Specific member to export
 - `hours` (number, optional): Number of hours to export (default: all)
 - `format` (string, optional): Export format (json|csv) (default: json)
@@ -362,11 +401,14 @@ ubus call starfail export '{"member": "starlink_any", "hours": 6}'
 Send test notification to verify notification system.
 
 **Usage:**
+
 ```bash
 ubus call starfail notify '{"message": "Test notification", "priority": "info"}'
+
 ```
 
 **Parameters:**
+
 - `message` (string, required): Notification message
 - `priority` (string, optional): Priority level (info|warning|critical|emergency)
 
@@ -380,6 +422,7 @@ ubus call starfail notify '{"message": "Test notification", "priority": "info"}'
 starfailctl status                    # Show daemon status
 starfailctl version                   # Show version information
 starfailctl health                    # Check system health
+
 ```
 
 #### Interface Management
@@ -389,6 +432,7 @@ starfailctl members                   # List all interfaces
 starfailctl metrics <member>          # Show metrics for interface
 starfailctl history <member> [seconds] # Show historical data
 starfailctl recheck                   # Re-discover interfaces
+
 ```
 
 #### Manual Control
@@ -399,6 +443,7 @@ starfailctl restore                   # Restore to primary
 starfailctl switch <member>           # Switch to specific interface
 starfailctl enable <member>           # Enable interface
 starfailctl disable <member>          # Disable interface
+
 ```
 
 #### Monitoring & Debugging
@@ -408,6 +453,7 @@ starfailctl events [limit]            # Show recent events
 starfailctl logs [lines]              # Show recent log entries
 starfailctl setlog <level>            # Set log level
 starfailctl monitor                   # Real-time monitoring mode
+
 ```
 
 #### Configuration
@@ -417,6 +463,7 @@ starfailctl config get                # Show current configuration
 starfailctl config set <key>=<value>  # Update configuration
 starfailctl config reload             # Reload configuration
 starfailctl config backup             # Backup configuration
+
 ```
 
 #### Testing & Diagnostics
@@ -426,6 +473,7 @@ starfailctl test notifications        # Test notification system
 starfailctl test ping <member>        # Test connectivity to member
 starfailctl test starlink             # Test Starlink API connectivity
 starfailctl diagnose                  # Run diagnostic checks
+
 ```
 
 ### Direct Daemon Options
@@ -434,6 +482,7 @@ starfailctl diagnose                  # Run diagnostic checks
 
 ```bash
 starfaild [options]
+
 ```
 
 | Flag | Description | Default |
@@ -471,6 +520,7 @@ starfaild [options]
 **Description:** System health status
 
 **Response:**
+
 ```json
 {
   "status": "healthy|degraded|unhealthy",
@@ -491,6 +541,7 @@ starfaild [options]
     "active_members": "number"
   }
 }
+
 ```
 
 ### Metrics Endpoint (Prometheus Format)
@@ -500,30 +551,45 @@ starfaild [options]
 **Description:** Prometheus-compatible metrics
 
 **Sample Metrics:**
+
 ```text
+
 # HELP starfail_member_score Current member score (0-100)
+
 # TYPE starfail_member_score gauge
+
 starfail_member_score{member="starlink_any",class="starlink"} 86.4
 
 # HELP starfail_member_latency_ms Current member latency in milliseconds
+
 # TYPE starfail_member_latency_ms gauge
+
 starfail_member_latency_ms{member="starlink_any"} 45.2
 
 # HELP starfail_switch_total Total number of switches
+
 # TYPE starfail_switch_total counter
+
 starfail_switch_total{from="starlink",to="cellular"} 3
 
 # HELP starfail_uptime_seconds Daemon uptime in seconds
+
 # TYPE starfail_uptime_seconds gauge
+
 starfail_uptime_seconds 3600
 
 # HELP starfail_memory_bytes Current memory usage in bytes
+
 # TYPE starfail_memory_bytes gauge
+
 starfail_memory_bytes 12582912
 
 # HELP starfail_decision_duration_seconds Time spent on last decision
+
 # TYPE starfail_decision_duration_seconds gauge
+
 starfail_decision_duration_seconds 0.0012
+
 ```
 
 ## Error Codes

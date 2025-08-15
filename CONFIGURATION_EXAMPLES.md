@@ -5,12 +5,16 @@ This document provides real-world configuration examples for different deploymen
 ## 🚗 Mobile/Vehicle Deployment
 
 ### Use Case
+
+
 - Vehicle with Starlink dish
 - Cellular backup (multiple SIMs)
 - Frequent movement with obstructions
 - Data cost consciousness
 
 ### Configuration
+
+
 ```uci
 config starfail 'main'
     option enable '1'
@@ -60,6 +64,7 @@ config starfail 'starlink'
     option dish_port '9200'
 
 # Member priorities for mobile
+
 config member 'starlink_dish'
     option detect 'auto'
     option class 'starlink'
@@ -83,17 +88,22 @@ config member 'cellular_roaming'
     option metered '1'
     option min_uptime_s '20'
     option cooldown_s '20'
+
 ```
 
 ## 🏠 Fixed Residential Installation
 
 ### Use Case
+
+
 - Fixed Starlink installation
 - Fiber/cable backup available
 - Stable environment with predictable patterns
 - Cost-effective operation
 
 ### Configuration
+
+
 ```uci
 config starfail 'main'
     option enable '1'
@@ -140,6 +150,7 @@ config starfail 'starlink'
     option dish_port '9200'
 
 # Member configuration for residential
+
 config member 'starlink_dish'
     option detect 'auto'
     option class 'starlink'
@@ -161,17 +172,22 @@ config member 'cellular_emergency'
     option metered '1'
     option min_uptime_s '30'             # Slow to activate
     option cooldown_s '60'               # Long cooldown
+
 ```
 
 ## 🏢 Business/Office Installation
 
 ### Use Case
+
+
 - Critical uptime requirements
 - Multiple backup options
 - Cost management
 - SLA compliance
 
 ### Configuration
+
+
 ```uci
 config starfail 'main'
     option enable '1'
@@ -235,6 +251,7 @@ config starfail 'scoring'
     option jitter_bad_ms '50'            # Strict jitter limit
 
 # Business member priorities
+
 config member 'starlink_primary'
     option detect 'auto'
     option class 'starlink'
@@ -263,17 +280,22 @@ config member 'backup_fiber'
     option weight '65'                   # Secondary backup
     option min_uptime_s '15'
     option cooldown_s '15'
+
 ```
 
 ## 🧪 Development/Testing Environment
 
 ### Use Case
+
+
 - Development and testing
 - Frequent configuration changes
 - Debug monitoring
 - Non-production use
 
 ### Configuration
+
+
 ```uci
 config starfail 'main'
     option enable '1'
@@ -332,6 +354,7 @@ config starfail 'scoring'
     option loss_bad_pct '15'
 
 # Test members with fast switching
+
 config member 'test_starlink'
     option detect 'auto'
     option class 'starlink'
@@ -353,17 +376,22 @@ config member 'test_wifi'
     option weight '70'
     option min_uptime_s '5'
     option cooldown_s '5'
+
 ```
 
 ## 🛥️ Marine/Remote Installation
 
 ### Use Case
+
+
 - Remote location with limited connectivity
 - High latency tolerance
 - Cost-sensitive data usage
 - Reliability over speed
 
 ### Configuration
+
+
 ```uci
 config starfail 'main'
     option enable '1'
@@ -424,6 +452,7 @@ config starfail 'sampling'
     option adaptation_factor '0.05'      # Slow adaptation
 
 # Marine member configuration
+
 config member 'starlink_marine'
     option detect 'auto'
     option class 'starlink'
@@ -445,6 +474,7 @@ config member 'wifi_marina'
     option weight '80'                   # Good when available
     option min_uptime_s '30'
     option cooldown_s '60'
+
 ```
 
 ## 🎯 Configuration Guidelines

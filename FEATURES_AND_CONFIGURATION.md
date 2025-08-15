@@ -23,6 +23,7 @@
 │    • In-memory samples     • Event logging                     │
 │    • JSON export           • Live monitoring                   │
 └─────────────────────────────────────────────────────────────────┘
+
 ```
 
 ### Package Structure
@@ -77,6 +78,7 @@ config starfail 'main'
     option health_listener '1'                # Enable health check endpoint (1|0)
     option log_level 'info'                   # Log level (trace|debug|info|warn|error)
     option log_file ''                        # Log file path (empty = stdout)
+
 ```
 
 #### **Fail/Restore Thresholds**
@@ -91,6 +93,7 @@ config starfail 'main'
     option restore_threshold_loss '1'         # Packet loss % for recovery
     option restore_threshold_latency '800'    # Latency ms for recovery
     option restore_min_duration_s '30'        # Minimum recovery duration before restore
+
 ```
 
 #### **Optional Features**
@@ -103,6 +106,7 @@ config starfail 'main'
     # Telemetry Publishing
     option mqtt_broker ''                      # MQTT broker URL
     option mqtt_topic 'starfail/status'       # MQTT topic prefix
+
 ```
 
 ---
@@ -126,6 +130,7 @@ config starfail 'scoring'
     option jitter_bad_ms '200'                # Bad jitter threshold
     option obstruction_ok_pct '0'             # Good obstruction threshold
     option obstruction_bad_pct '10'           # Bad obstruction threshold
+
 ```
 
 ---
@@ -136,6 +141,7 @@ config starfail 'scoring'
 config starfail 'starlink'
     option dish_ip '192.168.100.1'           # Starlink dish IP address
     option dish_port '9200'                  # Starlink gRPC API port
+
 ```
 
 ---
@@ -168,6 +174,7 @@ config starfail 'notifications'
     option email_smtp_server ''              # SMTP server
     option email_from ''                     # From address
     option email_to ''                       # To address
+
 ```
 
 ---
@@ -182,6 +189,7 @@ config starfail 'recovery'
     option auto_backup_on_change '1'         # Auto-backup on config change (1|0)
     option backup_interval_hours '24'        # Backup interval
     option compress_backups '1'              # Compress backups (1|0)
+
 ```
 
 ---
@@ -197,6 +205,7 @@ config starfail 'sampling'
     option performance_threshold '70.0'      # Score threshold for fast sampling
     option data_cap_aware '1'                # Reduce sampling on metered (1|0)
     option adaptation_factor '0.1'           # Rate of adaptation
+
 ```
 
 ---
@@ -211,6 +220,7 @@ config starfail 'sysmgmt'
     option service_check_interval '300'      # Service health check interval
     option time_drift_threshold '30'         # Time drift alert threshold
     option interface_flap_threshold '5'      # Interface flap detection
+
 ```
 
 ---
@@ -218,7 +228,9 @@ config starfail 'sysmgmt'
 ### Per-Member Configuration Overrides
 
 ```uci
+
 # Starlink Configuration
+
 config member 'starlink_any'
     option detect 'auto'                      # Detection mode (auto|disable|force)
     option class 'starlink'                   # Interface class
@@ -228,6 +240,7 @@ config member 'starlink_any'
     option metered '0'                        # Is metered connection (1|0)
 
 # Cellular Configuration
+
 config member 'cellular_any'
     option detect 'auto'
     option class 'cellular'
@@ -238,6 +251,7 @@ config member 'cellular_any'
     option cooldown_s '20'
 
 # WiFi Configuration
+
 config member 'wifi_any'
     option detect 'auto'
     option class 'wifi'
@@ -245,11 +259,13 @@ config member 'wifi_any'
     option metered '0'
 
 # LAN Configuration
+
 config member 'lan_any'
     option detect 'auto'
     option class 'lan'
     option weight '40'
     option metered '0'
+
 ```
 
 ---
@@ -268,6 +284,8 @@ config member 'lan_any'
 | **LAN/Ethernet** | Ping probing | Latency, loss, jitter | Generic interface support |
 
 #### **Automatic Discovery**
+
+
 - **Interface scanning**: Automatically detects available interfaces
 - **Class identification**: Determines interface type and capabilities
 - **Configuration inheritance**: Applies defaults with per-member overrides
@@ -291,11 +309,13 @@ config member 'lan_any'
          │            Final Blended Score                  │
          │    30% × Instant + 50% × EWMA + 20% × Window   │
          └─────────────────────────────────────────────────┘
+
 ```
 
 #### **Scoring Components**
 
 **Instant Score Calculation:**
+
 ```go
 instant_score = base_weight 
     - latency_penalty 
@@ -304,9 +324,11 @@ instant_score = base_weight
     - obstruction_penalty 
     + signal_bonus 
     + reliability_bonus
+
 ```
 
 **Penalty Examples:**
+
 - **Latency**: 0 penalty for <50ms, linear increase to max at >1500ms
 - **Loss**: 0 penalty for 0%, exponential increase beyond 1%
 - **Jitter**: 0 penalty for <5ms, sharp increase beyond 200ms
@@ -315,12 +337,16 @@ instant_score = base_weight
 ### 3. **Hysteresis & Predictive Logic**
 
 #### **Hysteresis Prevention**
+
+
 - **Duration-based windows**: Must maintain state for minimum duration
 - **Switch margin**: Requires minimum score difference (default 10 points)
 - **Cooldown periods**: Prevents rapid switching between interfaces
 - **Member uptime**: Ensures interface stability before eligibility
 
 #### **Predictive Switching**
+
+
 - **Trend analysis**: Detects rising loss/latency slopes
 - **Jitter spikes**: Identifies connection quality degradation
 - **Starlink obstruction**: Predicts outages from obstruction data
@@ -329,6 +355,8 @@ instant_score = base_weight
 ### 4. **Comprehensive Decision Audit Trail**
 
 #### **Decision Context Tracking**
+
+
 ```json
 {
   "decision_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -352,6 +380,7 @@ instant_score = base_weight
   "decision_duration_ms": 1.2,
   "switch_executed": true
 }
+
 ```
 
 ---
@@ -361,10 +390,14 @@ instant_score = base_weight
 ### **Core API Endpoints**
 
 #### **1. System Status**
+
+
 ```bash
 ubus call starfail status
+
 ```
 **Returns:**
+
 ```json
 {
   "daemon": {
@@ -382,13 +415,18 @@ ubus call starfail status
     "goroutines": 15
   }
 }
+
 ```
 
 #### **2. Member Discovery & Scores**
+
+
 ```bash
 ubus call starfail members
+
 ```
 **Returns:**
+
 ```json
 {
   "members": [
@@ -422,13 +460,18 @@ ubus call starfail members
     }
   ]
 }
+
 ```
 
 #### **3. Detailed Metrics**
+
+
 ```bash
 ubus call starfail metrics '{"member": "starlink_any", "limit": 100}'
+
 ```
 **Returns:**
+
 ```json
 {
   "member": "starlink_any",
@@ -456,13 +499,18 @@ ubus call starfail metrics '{"member": "starlink_any", "limit": 100}'
     "availability": 0.995
   }
 }
+
 ```
 
 #### **4. Event History**
+
+
 ```bash
 ubus call starfail events '{"limit": 50}'
+
 ```
 **Returns:**
+
 ```json
 {
   "events": [
@@ -484,34 +532,49 @@ ubus call starfail events '{"limit": 50}'
     }
   ]
 }
+
 ```
 
 #### **5. Manual Actions**
+
+
 ```bash
+
 # Force failover to best backup
+
 ubus call starfail action '{"action": "failover"}'
 
 # Force specific member
+
 ubus call starfail action '{"action": "switch", "member": "cellular_sim1", "force": true}'
 
 # Restore to primary
+
 ubus call starfail action '{"action": "restore"}'
 
 # Trigger member discovery
+
 ubus call starfail action '{"action": "recheck"}'
+
 ```
 
 #### **6. Configuration Management**
+
+
 ```bash
+
 # Get current configuration
+
 ubus call starfail config.get
 
 # Update configuration
+
 ubus call starfail config.set '{
   "main.log_level": "debug",
   "main.switch_margin": "15",
   "notifications.pushover_enabled": "1"
 }'
+
 ```
 
 ---
@@ -521,39 +584,53 @@ ubus call starfail config.set '{
 ### **starfailctl - Main CLI Tool**
 
 #### **System Status & Monitoring**
+
+
 ```bash
 starfailctl status                    # Show daemon status and current member
 starfailctl members                   # List all discovered members with scores
 starfailctl metrics wan_starlink      # Show detailed metrics for a member
 starfailctl history wan_cell 300      # Show 5-minute history for cellular
 starfailctl events 50                 # Show last 50 decision events
+
 ```
 
 #### **Manual Control**
+
+
 ```bash
 starfailctl failover                  # Manually trigger failover to best backup
 starfailctl restore                   # Manually restore to primary member
 starfailctl recheck                   # Force member discovery and recheck
+
 ```
 
 #### **Configuration & Debugging**
+
+
 ```bash
 starfailctl setlog debug              # Set log level to debug
 starfailctl config get                # Show current configuration
 starfailctl config set main.log_level=info  # Update configuration
+
 ```
 
 ### **Direct Daemon Options**
 
 ```bash
+
 # Start with specific configuration
+
 starfaild --config /etc/config/starfail --log-level debug
 
 # Monitor mode with real-time output
+
 starfaild --monitor --verbose
 
 # Test mode without making changes
+
 starfaild --dry-run --log-level trace
+
 ```
 
 #### **Command-Line Options**
@@ -579,6 +656,8 @@ starfaild --dry-run --log-level trace
 ### **Structured Logging**
 
 #### **Log Levels & Content**
+
+
 - **TRACE**: Detailed function entry/exit, raw data
 - **DEBUG**: Decision logic, score calculations, state changes
 - **INFO**: Failover events, member discovery, configuration changes
@@ -586,6 +665,8 @@ starfaild --dry-run --log-level trace
 - **ERROR**: Configuration errors, system failures, critical issues
 
 #### **JSON Log Format**
+
+
 ```json
 {
   "timestamp": "2025-01-15T10:35:15.123Z",
@@ -601,11 +682,14 @@ starfaild --dry-run --log-level trace
     "duration_ms": 1.2
   }
 }
+
 ```
 
 ### **Health Monitoring Endpoints**
 
 #### **Health Check (Default: 127.0.0.1:9101/health)**
+
+
 ```json
 {
   "status": "healthy",
@@ -618,31 +702,43 @@ starfaild --dry-run --log-level trace
     "memory_usage": "ok"
   }
 }
+
 ```
 
 #### **Metrics Endpoint (Optional: 127.0.0.1:9101/metrics)**
+
+
 ```text
 starfail_member_score{member="starlink_any"} 86.4
 starfail_member_latency_ms{member="starlink_any"} 45.2
 starfail_switch_total{from="starlink",to="cellular"} 3
 starfail_uptime_seconds 3600
+
 ```
 
 ### **Telemetry Storage**
 
 #### **In-Memory Ring Buffers**
+
+
 - **Configurable retention**: Default 24 hours, 1000 samples per member
 - **Automatic downsampling**: When memory limits exceeded
 - **Event storage**: Last 500 decisions with full context
 - **Memory caps**: Enforced with graceful degradation
 
 #### **Data Export**
+
+
 ```bash
+
 # Export all telemetry as JSON
+
 ubus call starfail export
 
 # Export specific member history
+
 ubus call starfail export '{"member": "starlink_any", "hours": 6}'
+
 ```
 
 ---
@@ -652,6 +748,7 @@ ubus call starfail export '{"member": "starlink_any", "hours": 6}'
 ### **Smart Notification Features**
 
 #### **Priority-Based Rate Limiting**
+
 | **Priority** | **Cooldown** | **Use Cases** |
 |--------------|--------------|---------------|
 | **Emergency** | 0 seconds | Complete connectivity loss |
@@ -660,6 +757,8 @@ ubus call starfail export '{"member": "starlink_any", "hours": 6}'
 | **Info** | 6 hours | Routine status updates |
 
 #### **Context-Aware Notifications**
+
+
 - **Rich details**: Interface metrics, decision context, location data
 - **Acknowledgment tracking**: Reduces duplicate alerts
 - **Channel failover**: Falls back to system logs if primary fails
@@ -668,13 +767,17 @@ ubus call starfail export '{"member": "starlink_any", "hours": 6}'
 ### **Supported Notification Channels**
 
 #### **1. Pushover Integration**
+
+
 ```uci
 option pushover_enabled '1'
 option pushover_token 'your_app_token'
 option pushover_user 'your_user_key'
+
 ```
 
 **Features:**
+
 - **Priority mapping**: Automatic priority assignment based on event type
 - **Rich notifications**: Device info, metrics, decision context
 - **Acknowledgment support**: Reduces notification spam
@@ -686,6 +789,7 @@ option pushover_user 'your_user_key'
 option mqtt_enabled '1'
 option mqtt_broker 'mqtt://broker:1883'
 option mqtt_topic 'starfail/alerts'
+
 ```
 
 **Topics:**
@@ -699,9 +803,11 @@ option mqtt_topic 'starfail/alerts'
 ```uci
 option webhook_enabled '1'
 option webhook_url 'https://your-webhook.com/starfail'
+
 ```
 
 **Payload Example:**
+
 ```json
 {
   "event": "switch",
@@ -711,14 +817,18 @@ option webhook_url 'https://your-webhook.com/starfail'
   "reason": "primary_degradation",
   "metrics": { /* detailed metrics */ }
 }
+
 ```
 
 #### **4. Email Notifications** (Optional)
+
+
 ```uci
 option email_enabled '1'
 option email_smtp_server 'smtp.gmail.com:587'
 option email_from 'router@example.com'
 option email_to 'admin@example.com'
+
 ```
 
 ---
@@ -728,19 +838,30 @@ option email_to 'admin@example.com'
 ### **mwan3 Integration**
 
 #### **Policy Management**
+
+
 - **Non-destructive**: Works with existing mwan3 configurations
 - **Policy updates**: Changes member priorities without full reload
 - **Verification**: Validates changes before and after execution
 - **Rollback**: Automatic rollback on failures
 
 #### **Member Synchronization**
+
+
 ```bash
+
 # starfail automatically discovers and maps mwan3 members
+
 # Maps network interfaces to mwan3 member names
+
 # Respects existing mwan3 configuration
+
+
 ```
 
 ### **netifd Fallback**
+
+
 - **Route metrics**: Direct route table manipulation when mwan3 unavailable
 - **Interface monitoring**: Integration with netifd interface events
 - **Graceful degradation**: Continues operation without mwan3
@@ -748,18 +869,27 @@ option email_to 'admin@example.com'
 ### **procd Service Integration**
 
 #### **Service Definition** (`/etc/init.d/starfail`)
+
+
 ```bash
+
 # Automatic respawn on crashes
+
 procd_set_param respawn 3600 5 3
 
 # Configuration file watching
+
 procd_set_param file /etc/config/starfail
 
 # Interface change triggers
+
 procd_add_interface_trigger "interface" "*" /etc/init.d/starfail reload
+
 ```
 
 #### **Signal Handling**
+
+
 - **SIGHUP**: Reload configuration without restart
 - **SIGTERM/SIGINT**: Graceful shutdown with cleanup
 - **SIGUSR1**: Dump internal state to logs
@@ -771,18 +901,24 @@ procd_add_interface_trigger "interface" "*" /etc/init.d/starfail reload
 ### **Resource Usage**
 
 #### **Memory Management**
+
+
 - **Static allocation**: Minimal garbage collection pressure
 - **Ring buffers**: Fixed-size circular buffers for metrics
 - **Memory caps**: Configurable limits with automatic downsampling
 - **Target usage**: <25MB RSS in steady state
 
 #### **CPU Efficiency**
+
+
 - **Tick-based loop**: Configurable intervals (default 1.5s)
 - **Non-blocking collectors**: Parallel metric collection
 - **Efficient algorithms**: O(1) scoring, O(log n) decision tree
 - **Target usage**: <5% CPU on idle, <15% during failover
 
 #### **Network Usage**
+
+
 - **Conservative probing**: Minimal bandwidth usage
 - **Data cap awareness**: Reduced probing on metered connections
 - **Efficient APIs**: Single requests for multiple metrics
@@ -791,12 +927,16 @@ procd_add_interface_trigger "interface" "*" /etc/init.d/starfail reload
 ### **Timing Characteristics**
 
 #### **Response Times**
+
+
 - **Decision calculation**: <1 second typical
 - **Failover execution**: <5 seconds end-to-end
 - **Member discovery**: <10 seconds initial scan
 - **Configuration reload**: <2 seconds without restart
 
 #### **Reliability Targets**
+
+
 - **Uptime**: >99.9% availability
 - **Failover success**: >99.5% successful switches
 - **False positives**: <0.1% incorrect decisions
@@ -807,12 +947,16 @@ procd_add_interface_trigger "interface" "*" /etc/init.d/starfail reload
 ## 🛡️ Security & Privacy
 
 ### **Security Model**
+
+
 - **Root privileges**: Required for network control (standard OpenWrt pattern)
 - **Local access**: API endpoints bound to localhost only
 - **No external dependencies**: Self-contained binary reduces attack surface
 - **Credential handling**: UCI-only storage, never logged
 
 ### **Privacy Protection**
+
+
 - **Local processing**: All decisions made on-device
 - **Optional telemetry**: MQTT/webhook publishing is opt-in
 - **No cloud dependencies**: Fully functional without internet
@@ -823,6 +967,8 @@ procd_add_interface_trigger "interface" "*" /etc/init.d/starfail reload
 ## 📚 Advanced Configuration Examples
 
 ### **Mobile/Vehicle Deployment**
+
+
 ```uci
 config starfail 'main'
     option enable '1'
@@ -843,9 +989,12 @@ config member 'starlink_dish'
 config member 'cellular_primary'
     option weight '75'                    # Good backup option
     option metered '1'                    # Mark as metered
+
 ```
 
 ### **Fixed Installation**
+
+
 ```uci
 config starfail 'main'
     option enable '1'
@@ -865,9 +1014,12 @@ config member 'starlink_dish'
 config member 'fiber_backup'
     option weight '85'                    # High-quality backup
     option class 'lan'                    # Treat as LAN connection
+
 ```
 
 ### **Development/Testing Configuration**
+
+
 ```uci
 config starfail 'main'
     option enable '1'
@@ -880,6 +1032,7 @@ config starfail 'notifications'
     option enable '1'
     option pushover_enabled '1'           # Test notifications
     option rate_limit_minutes '1'         # Allow frequent test alerts
+
 ```
 
 ---
@@ -889,85 +1042,125 @@ config starfail 'notifications'
 ### **Common Issues & Solutions**
 
 #### **1. Daemon Won't Start**
+
+
 ```bash
+
 # Check configuration syntax
+
 uci show starfail
 
 # Verify binary permissions
+
 ls -la /usr/sbin/starfaild
 
 # Check init script
+
 /etc/init.d/starfail status
 
 # Manual start with debug
+
 starfaild --config /etc/config/starfail --debug
+
 ```
 
 #### **2. No Interfaces Detected**
+
+
 ```bash
+
 # Check network configuration
+
 ip link show
 
 # Verify mwan3 status
+
 mwan3 status
 
 # Force member discovery
+
 starfailctl recheck
 
 # Check detection logs
+
 logread | grep starfail | grep detect
+
 ```
 
 #### **3. Scores Always Zero**
+
+
 ```bash
+
 # Check collector status
+
 starfailctl members
 
 # Verify ping connectivity
+
 ping -c 3 8.8.8.8
 
 # Check Starlink API
+
 curl http://192.168.100.1:9200/JSONData
 
 # Review scoring configuration
+
 uci show starfail.scoring
+
 ```
 
 #### **4. Notifications Not Working**
+
+
 ```bash
+
 # Test notification system
+
 ubus call starfail notify '{"message":"Test","priority":"info"}'
 
 # Check Pushover credentials
+
 uci show starfail.notifications
 
 # Verify rate limiting
+
 grep "rate limited" /var/log/messages
+
 ```
 
 ### **Debug Commands**
 
 ```bash
+
 # Full system status
+
 starfailctl status
 
 # Detailed member information
+
 starfailctl members
 
 # Recent decision events
+
 starfailctl events 20
 
 # Configuration dump
+
 ubus call starfail config.get
 
 # Enable debug logging
+
 starfailctl setlog debug
 
 # Force failover test
+
 starfailctl failover
 
 # Check service health
+
 curl http://127.0.0.1:9101/health
+
 ```
 
 ---
@@ -977,24 +1170,32 @@ curl http://127.0.0.1:9101/health
 ### **Pre-Deployment Checklist**
 
 #### **1. Network Infrastructure**
+
+
 - ✅ Verify all interfaces are configured in mwan3
 - ✅ Test basic connectivity on each interface
 - ✅ Configure appropriate ping targets
 - ✅ Set reasonable mwan3 tracking parameters
 
 #### **2. starfail Configuration**
+
+
 - ✅ Create `/etc/config/starfail` with appropriate settings
 - ✅ Tune scoring weights for your environment
 - ✅ Set realistic thresholds for fail/restore
 - ✅ Configure notification channels
 
 #### **3. Testing & Validation**
+
+
 - ✅ Run in dry-run mode initially
 - ✅ Test manual failover operations
 - ✅ Verify notification delivery
 - ✅ Monitor resource usage
 
 #### **4. Production Deployment**
+
+
 - ✅ Start with conservative settings
 - ✅ Monitor logs during initial operation
 - ✅ Gradually tune parameters based on observed behavior
@@ -1003,23 +1204,33 @@ curl http://127.0.0.1:9101/health
 ### **Monitoring & Maintenance**
 
 #### **Regular Checks**
+
+
 ```bash
+
 # Weekly health check
+
 starfailctl status
 curl http://127.0.0.1:9101/health
 
 # Monthly configuration backup
+
 cp /etc/config/starfail /etc/starfail/backup/starfail.$(date +%Y%m%d)
 
 # Review decision history
+
 starfailctl events 100 | grep switch
 
 # Check resource usage
+
 ps aux | grep starfail
 cat /proc/$(pgrep starfaild)/status | grep VmRSS
+
 ```
 
 #### **Performance Tuning**
+
+
 - **Monitor switch frequency**: Adjust `switch_margin` if too frequent
 - **Optimize polling intervals**: Balance responsiveness vs. resource usage
 - **Tune scoring weights**: Based on observed interface behavior
