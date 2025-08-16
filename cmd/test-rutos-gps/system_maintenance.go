@@ -11,13 +11,13 @@ import (
 
 // SystemMaintenanceConfig holds configuration for system maintenance
 type SystemMaintenanceConfig struct {
-	MaintenanceInterval    time.Duration `uci:"starfail.maintenance.interval" default:"1800s"`        // 30 minutes
-	GPSHealthCheckEnabled  bool          `uci:"starfail.maintenance.gps_health_enabled" default:"true"`
-	NetworkHealthEnabled   bool          `uci:"starfail.maintenance.network_health_enabled" default:"true"`
-	StorageHealthEnabled   bool          `uci:"starfail.maintenance.storage_health_enabled" default:"true"`
-	LogRotationEnabled     bool          `uci:"starfail.maintenance.log_rotation_enabled" default:"true"`
-	ReportPath             string        `uci:"starfail.maintenance.report_path" default:"/tmp/starfail_maintenance.json"`
-	AlertOnCritical        bool          `uci:"starfail.maintenance.alert_on_critical" default:"true"`
+	MaintenanceInterval   time.Duration `uci:"starfail.maintenance.interval" default:"1800s"` // 30 minutes
+	GPSHealthCheckEnabled bool          `uci:"starfail.maintenance.gps_health_enabled" default:"true"`
+	NetworkHealthEnabled  bool          `uci:"starfail.maintenance.network_health_enabled" default:"true"`
+	StorageHealthEnabled  bool          `uci:"starfail.maintenance.storage_health_enabled" default:"true"`
+	LogRotationEnabled    bool          `uci:"starfail.maintenance.log_rotation_enabled" default:"true"`
+	ReportPath            string        `uci:"starfail.maintenance.report_path" default:"/tmp/starfail_maintenance.json"`
+	AlertOnCritical       bool          `uci:"starfail.maintenance.alert_on_critical" default:"true"`
 }
 
 // SystemMaintenanceReport holds the results of a maintenance cycle
@@ -35,12 +35,12 @@ type SystemMaintenanceReport struct {
 
 // NetworkHealth represents network connectivity health
 type NetworkHealth struct {
-	StarlinkConnected bool    `json:"starlink_connected"`
-	CellularConnected bool    `json:"cellular_connected"`
-	InternetReachable bool    `json:"internet_reachable"`
-	DNSWorking        bool    `json:"dns_working"`
-	LatencyMs         float64 `json:"latency_ms"`
-	PacketLoss        float64 `json:"packet_loss"`
+	StarlinkConnected bool     `json:"starlink_connected"`
+	CellularConnected bool     `json:"cellular_connected"`
+	InternetReachable bool     `json:"internet_reachable"`
+	DNSWorking        bool     `json:"dns_working"`
+	LatencyMs         float64  `json:"latency_ms"`
+	PacketLoss        float64  `json:"packet_loss"`
 	Issues            []string `json:"issues"`
 }
 
@@ -69,9 +69,9 @@ type SystemHealth struct {
 
 // SystemMaintenanceManager manages system maintenance tasks
 type SystemMaintenanceManager struct {
-	config         *SystemMaintenanceConfig
-	gpsMonitor     *GPSHealthMonitor
-	sshClient      *ssh.Client
+	config          *SystemMaintenanceConfig
+	gpsMonitor      *GPSHealthMonitor
+	sshClient       *ssh.Client
 	lastMaintenance time.Time
 }
 
@@ -364,7 +364,7 @@ func (smm *SystemMaintenanceManager) saveMaintenanceReport(report *SystemMainten
 		return fmt.Errorf("failed to marshal report: %v", err)
 	}
 
-	return os.WriteFile(smm.config.ReportPath, data, 0644)
+	return os.WriteFile(smm.config.ReportPath, data, 0o644)
 }
 
 // displayMaintenanceSummary displays a summary of the maintenance cycle
@@ -405,7 +405,7 @@ func (smm *SystemMaintenanceManager) displayMaintenanceSummary(report *SystemMai
 		if !report.GPSHealth.Healthy {
 			gpsIcon = "❌"
 		}
-		fmt.Printf("  GPS: %s (%d resets, %d consecutive failures)\n", 
+		fmt.Printf("  GPS: %s (%d resets, %d consecutive failures)\n",
 			gpsIcon, report.GPSHealth.TotalResets, report.GPSHealth.ConsecutiveFailures)
 	}
 
@@ -414,7 +414,7 @@ func (smm *SystemMaintenanceManager) displayMaintenanceSummary(report *SystemMai
 		if len(report.NetworkHealth.Issues) > 0 {
 			netIcon = "⚠️"
 		}
-		fmt.Printf("  Network: %s (Starlink: %s, Cellular: %s, Internet: %s)\n", 
+		fmt.Printf("  Network: %s (Starlink: %s, Cellular: %s, Internet: %s)\n",
 			netIcon,
 			map[bool]string{true: "✓", false: "✗"}[report.NetworkHealth.StarlinkConnected],
 			map[bool]string{true: "✓", false: "✗"}[report.NetworkHealth.CellularConnected],
@@ -426,7 +426,7 @@ func (smm *SystemMaintenanceManager) displayMaintenanceSummary(report *SystemMai
 		if len(report.StorageHealth.Issues) > 0 {
 			storageIcon = "⚠️"
 		}
-		fmt.Printf("  Storage: %s (Root: %.1f%%, Logs: %.1fMB)\n", 
+		fmt.Printf("  Storage: %s (Root: %.1f%%, Logs: %.1fMB)\n",
 			storageIcon, report.StorageHealth.RootFSUsage, report.StorageHealth.LogSizesMB)
 	}
 
@@ -435,7 +435,7 @@ func (smm *SystemMaintenanceManager) displayMaintenanceSummary(report *SystemMai
 		if len(report.SystemHealth.Issues) > 0 {
 			sysIcon = "⚠️"
 		}
-		fmt.Printf("  System: %s (Load: %.1f, Memory: %.1f%%, Temp: %.1f°C)\n", 
+		fmt.Printf("  System: %s (Load: %.1f, Memory: %.1f%%, Temp: %.1f°C)\n",
 			sysIcon, report.SystemHealth.LoadAverage, report.SystemHealth.MemoryUsage, report.SystemHealth.CPUTemperature)
 	}
 }
@@ -452,8 +452,8 @@ func testSystemMaintenance() {
 		NetworkHealthEnabled:  true,
 		StorageHealthEnabled:  true,
 		LogRotationEnabled:    true,
-		ReportPath:           "/tmp/starfail_maintenance.json",
-		AlertOnCritical:      true,
+		ReportPath:            "/tmp/starfail_maintenance.json",
+		AlertOnCritical:       true,
 	}
 
 	// Create SSH client

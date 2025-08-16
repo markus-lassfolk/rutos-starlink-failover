@@ -11,33 +11,33 @@ import (
 
 // GPSHealthStatus represents the health status of the GPS system
 type GPSHealthStatus struct {
-	Healthy              bool      `json:"healthy"`
-	LastSuccessfulFix    time.Time `json:"last_successful_fix"`
-	ConsecutiveFailures  int       `json:"consecutive_failures"`
-	TotalResets          int       `json:"total_resets"`
-	LastResetTime        time.Time `json:"last_reset_time"`
-	LastResetReason      string    `json:"last_reset_reason"`
-	CurrentAccuracy      float64   `json:"current_accuracy"`
-	CurrentSatellites    int       `json:"current_satellites"`
-	CurrentHDOP          float64   `json:"current_hdop"`
-	CurrentFixType       int       `json:"current_fix_type"`
-	GPSSessionActive     bool      `json:"gps_session_active"`
-	GPSDaemonRunning     bool      `json:"gpsd_daemon_running"`
-	LastHealthCheck      time.Time `json:"last_health_check"`
-	HealthCheckInterval  time.Duration `json:"health_check_interval"`
-	Issues               []string  `json:"issues"`
+	Healthy             bool          `json:"healthy"`
+	LastSuccessfulFix   time.Time     `json:"last_successful_fix"`
+	ConsecutiveFailures int           `json:"consecutive_failures"`
+	TotalResets         int           `json:"total_resets"`
+	LastResetTime       time.Time     `json:"last_reset_time"`
+	LastResetReason     string        `json:"last_reset_reason"`
+	CurrentAccuracy     float64       `json:"current_accuracy"`
+	CurrentSatellites   int           `json:"current_satellites"`
+	CurrentHDOP         float64       `json:"current_hdop"`
+	CurrentFixType      int           `json:"current_fix_type"`
+	GPSSessionActive    bool          `json:"gps_session_active"`
+	GPSDaemonRunning    bool          `json:"gpsd_daemon_running"`
+	LastHealthCheck     time.Time     `json:"last_health_check"`
+	HealthCheckInterval time.Duration `json:"health_check_interval"`
+	Issues              []string      `json:"issues"`
 }
 
 // GPSHealthConfig holds configuration for GPS health monitoring
 type GPSHealthConfig struct {
-	HealthCheckInterval    time.Duration `uci:"starfail.gps.health_check_interval" default:"300s"`     // 5 minutes
-	MaxConsecutiveFailures int           `uci:"starfail.gps.max_consecutive_failures" default:"3"`    // 3 failures before reset
-	MinAccuracy            float64       `uci:"starfail.gps.min_accuracy" default:"10.0"`             // 10m minimum accuracy
-	MinSatellites          int           `uci:"starfail.gps.min_satellites" default:"4"`              // 4 satellites minimum
-	MaxHDOP                float64       `uci:"starfail.gps.max_hdop" default:"5.0"`                  // HDOP threshold
-	ResetCooldown          time.Duration `uci:"starfail.gps.reset_cooldown" default:"600s"`           // 10 minutes between resets
-	EnableAutoReset        bool          `uci:"starfail.gps.enable_auto_reset" default:"true"`        // Enable automatic GPS reset
-	NotifyOnReset          bool          `uci:"starfail.gps.notify_on_reset" default:"true"`          // Send notifications on reset
+	HealthCheckInterval    time.Duration `uci:"starfail.gps.health_check_interval" default:"300s"` // 5 minutes
+	MaxConsecutiveFailures int           `uci:"starfail.gps.max_consecutive_failures" default:"3"` // 3 failures before reset
+	MinAccuracy            float64       `uci:"starfail.gps.min_accuracy" default:"10.0"`          // 10m minimum accuracy
+	MinSatellites          int           `uci:"starfail.gps.min_satellites" default:"4"`           // 4 satellites minimum
+	MaxHDOP                float64       `uci:"starfail.gps.max_hdop" default:"5.0"`               // HDOP threshold
+	ResetCooldown          time.Duration `uci:"starfail.gps.reset_cooldown" default:"600s"`        // 10 minutes between resets
+	EnableAutoReset        bool          `uci:"starfail.gps.enable_auto_reset" default:"true"`     // Enable automatic GPS reset
+	NotifyOnReset          bool          `uci:"starfail.gps.notify_on_reset" default:"true"`       // Send notifications on reset
 }
 
 // GPSHealthMonitor manages GPS health monitoring and recovery
@@ -119,7 +119,7 @@ func (ghm *GPSHealthMonitor) CheckGPSHealth() (*GPSHealthStatus, error) {
 // checkGPSSession verifies that GPS session is active
 func (ghm *GPSHealthMonitor) checkGPSSession() (bool, error) {
 	fmt.Println("  📡 Checking GPS session status...")
-	
+
 	// Check GPS status via AT command
 	output, err := executeCommand(ghm.sshClient, "gsmctl -A 'AT+QGPS?'")
 	if err != nil {
@@ -141,7 +141,7 @@ func (ghm *GPSHealthMonitor) checkGPSSession() (bool, error) {
 // checkGPSDaemon verifies that gpsd daemon is running
 func (ghm *GPSHealthMonitor) checkGPSDaemon() (bool, error) {
 	fmt.Println("  🔧 Checking GPSD daemon status...")
-	
+
 	output, err := executeCommand(ghm.sshClient, "ps | grep gpsd | grep -v grep")
 	if err != nil {
 		return false, fmt.Errorf("failed to check gpsd process: %v", err)
@@ -159,7 +159,7 @@ func (ghm *GPSHealthMonitor) checkGPSDaemon() (bool, error) {
 // checkGPSDataQuality verifies GPS data quality meets thresholds
 func (ghm *GPSHealthMonitor) checkGPSDataQuality() (bool, error) {
 	fmt.Println("  📊 Checking GPS data quality...")
-	
+
 	// Get GPS data from AT command
 	gpsData, err := ghm.getGPSData()
 	if err != nil {
@@ -181,19 +181,19 @@ func (ghm *GPSHealthMonitor) checkGPSDataQuality() (bool, error) {
 
 	// Check accuracy (if available from gpsctl)
 	if gpsData.Accuracy > ghm.config.MinAccuracy {
-		issues = append(issues, fmt.Sprintf("Poor accuracy: %.1fm (threshold: %.1fm)", 
+		issues = append(issues, fmt.Sprintf("Poor accuracy: %.1fm (threshold: %.1fm)",
 			gpsData.Accuracy, ghm.config.MinAccuracy))
 	}
 
 	// Check satellite count
 	if gpsData.Satellites < ghm.config.MinSatellites {
-		issues = append(issues, fmt.Sprintf("Low satellite count: %d (minimum: %d)", 
+		issues = append(issues, fmt.Sprintf("Low satellite count: %d (minimum: %d)",
 			gpsData.Satellites, ghm.config.MinSatellites))
 	}
 
 	// Check HDOP
 	if gpsData.HDOP > ghm.config.MaxHDOP {
-		issues = append(issues, fmt.Sprintf("Poor HDOP: %.1f (maximum: %.1f)", 
+		issues = append(issues, fmt.Sprintf("Poor HDOP: %.1f (maximum: %.1f)",
 			gpsData.HDOP, ghm.config.MaxHDOP))
 	}
 
@@ -208,7 +208,7 @@ func (ghm *GPSHealthMonitor) checkGPSDataQuality() (bool, error) {
 		return false, nil
 	}
 
-	fmt.Printf("    ✅ GPS data quality good: %d sats, %.1fm accuracy, %.1f HDOP\n", 
+	fmt.Printf("    ✅ GPS data quality good: %d sats, %.1fm accuracy, %.1f HDOP\n",
 		gpsData.Satellites, gpsData.Accuracy, gpsData.HDOP)
 	return true, nil
 }
@@ -296,7 +296,7 @@ func (ghm *GPSHealthMonitor) determineResetReason() string {
 // ResetGPS performs GPS reset with multiple strategies
 func (ghm *GPSHealthMonitor) ResetGPS(reason string) error {
 	fmt.Printf("🔄 Initiating GPS reset (reason: %s)...\n", reason)
-	
+
 	ghm.status.LastResetTime = time.Now()
 	ghm.status.LastResetReason = reason
 	ghm.status.TotalResets++
@@ -431,29 +431,29 @@ func (ghm *GPSHealthMonitor) verifyGPSWorking() error {
 func (ghm *GPSHealthMonitor) displayHealthStatus() {
 	fmt.Println("\n📊 GPS Health Status Summary:")
 	fmt.Println("=============================")
-	
+
 	healthIcon := "✅"
 	if !ghm.status.Healthy {
 		healthIcon = "❌"
 	}
-	
+
 	fmt.Printf("Overall Health: %s %s\n", healthIcon, map[bool]string{true: "HEALTHY", false: "UNHEALTHY"}[ghm.status.Healthy])
 	fmt.Printf("Last Successful Fix: %s\n", ghm.status.LastSuccessfulFix.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Consecutive Failures: %d\n", ghm.status.ConsecutiveFailures)
 	fmt.Printf("Total Resets: %d\n", ghm.status.TotalResets)
-	
+
 	if !ghm.status.LastResetTime.IsZero() {
 		fmt.Printf("Last Reset: %s (%s)\n", ghm.status.LastResetTime.Format("2006-01-02 15:04:05"), ghm.status.LastResetReason)
 	}
-	
+
 	fmt.Printf("GPS Session Active: %s\n", map[bool]string{true: "✅ Yes", false: "❌ No"}[ghm.status.GPSSessionActive])
 	fmt.Printf("GPSD Daemon Running: %s\n", map[bool]string{true: "✅ Yes", false: "❌ No"}[ghm.status.GPSDaemonRunning])
-	
+
 	if ghm.status.CurrentSatellites > 0 {
-		fmt.Printf("Current GPS Data: %d sats, %.1fm accuracy, %.1f HDOP, fix type %d\n", 
+		fmt.Printf("Current GPS Data: %d sats, %.1fm accuracy, %.1f HDOP, fix type %d\n",
 			ghm.status.CurrentSatellites, ghm.status.CurrentAccuracy, ghm.status.CurrentHDOP, ghm.status.CurrentFixType)
 	}
-	
+
 	if len(ghm.status.Issues) > 0 {
 		fmt.Println("Issues:")
 		for _, issue := range ghm.status.Issues {

@@ -11,20 +11,20 @@ import (
 
 // EnhancedGPSResult represents a comprehensive GPS test result with all corrections
 type EnhancedGPSResult struct {
-	Source           string
-	Latitude         string
-	Longitude        string
-	Accuracy         string
-	FixType          int
-	Altitude         string
-	Speed            string
-	Satellites       string
-	HDOP             string
-	CurrentTime      string // yyyyMMdd HHmmss format
-	ResponseTime     string
-	UniqueData       map[string]interface{}
-	Valid            bool
-	Notes            string
+	Source       string
+	Latitude     string
+	Longitude    string
+	Accuracy     string
+	FixType      int
+	Altitude     string
+	Speed        string
+	Satellites   string
+	HDOP         string
+	CurrentTime  string // yyyyMMdd HHmmss format
+	ResponseTime string
+	UniqueData   map[string]interface{}
+	Valid        bool
+	Notes        string
 }
 
 // runEnhancedComprehensiveGPSTableTest runs all GPS sources with proper data interpretation
@@ -82,10 +82,10 @@ func testCombinedGPSSource() EnhancedGPSResult {
 
 	// Get high-precision coordinates from gpsctl
 	lat, lon, alt, err1 := getGPSCtlData(client)
-	
+
 	// Get detailed GPS info from AT command
 	gpsDetails, err2 := getDetailedGPSInfo(client)
-	
+
 	// Get all gpsctl data
 	gpsctlData, err3 := getAllGPSCtlData(client)
 
@@ -118,7 +118,7 @@ func testCombinedGPSSource() EnhancedGPSResult {
 		satellites = gpsDetails.Satellites
 		hdop = gpsDetails.HDOP
 		fixType = gpsDetails.FixType // Use fix_type_raw = 3 as you requested
-		
+
 		// Format GPS time as yyyyMMdd HHmmss
 		currentTime = formatGPSTime(gpsDetails.Time, gpsDetails.Date)
 	}
@@ -157,11 +157,11 @@ func testCombinedGPSSource() EnhancedGPSResult {
 			"accuracy_source":         "Direct measurement from gpsctl -u",
 			"satellite_source":        "AT command (most comprehensive)",
 			"constellation_breakdown": getConstellationBreakdown(satellites),
-			"hdop_quality":           getHDOPQuality(hdop),
-			"fix_type_meaning":       getFixTypeMeaning(fixType),
-			"course":                 fmt.Sprintf("%.1f°", course),
-			"gpsctl_satellites":      fmt.Sprintf("%d", gpsctlData.Satellites),
-			"at_satellites":          fmt.Sprintf("%d", satellites),
+			"hdop_quality":            getHDOPQuality(hdop),
+			"fix_type_meaning":        getFixTypeMeaning(fixType),
+			"course":                  fmt.Sprintf("%.1f°", course),
+			"gpsctl_satellites":       fmt.Sprintf("%d", gpsctlData.Satellites),
+			"at_satellites":           fmt.Sprintf("%d", satellites),
 		},
 		Valid: lat != 0 && lon != 0 && fixType > 0,
 		Notes: "Best of both: gpsctl precision + AT comprehensive data",
@@ -171,35 +171,35 @@ func testCombinedGPSSource() EnhancedGPSResult {
 // getAllGPSCtlData gets all available data from gpsctl
 func getAllGPSCtlData(client *ssh.Client) (*GPSCtlData, error) {
 	data := &GPSCtlData{}
-	
+
 	// Get accuracy
 	if accuracyStr, err := executeCommand(client, "gpsctl -u"); err == nil {
 		if acc, parseErr := strconv.ParseFloat(strings.TrimSpace(accuracyStr), 64); parseErr == nil {
 			data.Accuracy = acc
 		}
 	}
-	
+
 	// Get satellite count
 	if satStr, err := executeCommand(client, "gpsctl -p"); err == nil {
 		if sats, parseErr := strconv.Atoi(strings.TrimSpace(satStr)); parseErr == nil {
 			data.Satellites = sats
 		}
 	}
-	
+
 	// Get speed
 	if speedStr, err := executeCommand(client, "gpsctl -v"); err == nil {
 		if speed, parseErr := strconv.ParseFloat(strings.TrimSpace(speedStr), 64); parseErr == nil {
 			data.Speed = speed
 		}
 	}
-	
+
 	// Get course
 	if courseStr, err := executeCommand(client, "gpsctl -g"); err == nil {
 		if course, parseErr := strconv.ParseFloat(strings.TrimSpace(courseStr), 64); parseErr == nil {
 			data.Course = course
 		}
 	}
-	
+
 	return data, nil
 }
 
@@ -251,9 +251,9 @@ func testGPSATCommandOnly() EnhancedGPSResult {
 		CurrentTime:  formatGPSTime(gpsDetails.Time, gpsDetails.Date),
 		ResponseTime: fmt.Sprintf("%dms", responseTime.Milliseconds()),
 		UniqueData: map[string]interface{}{
-			"coordinate_precision": "5 decimals (~1.1m N/S, ~0.56m E/W)",
+			"coordinate_precision":    "5 decimals (~1.1m N/S, ~0.56m E/W)",
 			"constellation_breakdown": getConstellationBreakdown(gpsDetails.Satellites),
-			"hdop_quality": getHDOPQuality(gpsDetails.HDOP),
+			"hdop_quality":            getHDOPQuality(gpsDetails.HDOP),
 		},
 		Valid: gpsDetails.Latitude != 0 && gpsDetails.Longitude != 0,
 		Notes: "AT+QGPSLOC=2 raw output",
@@ -307,7 +307,7 @@ func testGPSCtlOnly() EnhancedGPSResult {
 		ResponseTime: fmt.Sprintf("%dms", responseTime.Milliseconds()),
 		UniqueData: map[string]interface{}{
 			"coordinate_precision": "6 decimals (±0.1m resolution)",
-			"accuracy_source": "Direct measurement",
+			"accuracy_source":      "Direct measurement",
 		},
 		Valid: lat != 0 && lon != 0,
 		Notes: "gpsctl commands only",
@@ -322,7 +322,7 @@ func testEnhancedStarlinkSource() EnhancedGPSResult {
 		Latitude:     "59.48005181",
 		Longitude:    "18.27987656",
 		Accuracy:     "5.0 m", // Using uncertainty_meters as you suggested
-		FixType:      3, // 3D Fix
+		FixType:      3,       // 3D Fix
 		Altitude:     "21.5 m",
 		Speed:        "0.0 m/s", // Using actual speed data (not vertical_speed_mps)
 		Satellites:   "14",
@@ -330,9 +330,9 @@ func testEnhancedStarlinkSource() EnhancedGPSResult {
 		CurrentTime:  formatStarlinkTime(1439384762.58), // From gps_time_s
 		ResponseTime: "0ms",
 		UniqueData: map[string]interface{}{
-			"accuracy_source":     "uncertainty_meters (not sigmaM)",
-			"speed_source":        "horizontal speed (not vertical_speed_mps)",
-			"vertical_speed_mps":  "0.0",
+			"accuracy_source":    "uncertainty_meters (not sigmaM)",
+			"speed_source":       "horizontal speed (not vertical_speed_mps)",
+			"vertical_speed_mps": "0.0",
 			"gps_source":         "GNC_NO_ACCEL",
 			"location_enabled":   "true",
 			"apis_used":          "get_location + get_status + get_diagnostics",
@@ -356,7 +356,7 @@ func testEnhancedGoogleSource() EnhancedGPSResult {
 	defer client.Close()
 
 	startTime := time.Now()
-	
+
 	// Get cellular intelligence for context
 	cellIntel, err := collectCellularLocationIntelligence(client)
 	if err != nil {
@@ -375,7 +375,7 @@ func testEnhancedGoogleSource() EnhancedGPSResult {
 		Latitude:     "59.47982600",
 		Longitude:    "18.27992100",
 		Accuracy:     "45.0 m",
-		FixType:      1, // 2D Fix (no altitude from cellular/WiFi)
+		FixType:      1,       // 2D Fix (no altitude from cellular/WiFi)
 		Altitude:     "6.0 m", // From elevation API
 		Speed:        "N/A",
 		Satellites:   "N/A",
@@ -383,13 +383,13 @@ func testEnhancedGoogleSource() EnhancedGPSResult {
 		CurrentTime:  currentTime, // System time
 		ResponseTime: fmt.Sprintf("%dms", responseTime.Milliseconds()),
 		UniqueData: map[string]interface{}{
-			"timestamp_source":   "system_time (Google API doesn't provide GPS time)",
-			"cell_towers_used":   fmt.Sprintf("%d", len(cellIntel.NeighborCells)+1),
-			"wifi_aps_used":      "8",
-			"serving_cell_id":    cellIntel.ServingCell.CellID,
-			"mcc_mnc":           fmt.Sprintf("%s-%s", cellIntel.ServingCell.MCC, cellIntel.ServingCell.MNC),
-			"carrier":           cellIntel.NetworkInfo.Operator,
-			"radio_type":        "5G-NSA",
+			"timestamp_source": "system_time (Google API doesn't provide GPS time)",
+			"cell_towers_used": fmt.Sprintf("%d", len(cellIntel.NeighborCells)+1),
+			"wifi_aps_used":    "8",
+			"serving_cell_id":  cellIntel.ServingCell.CellID,
+			"mcc_mnc":          fmt.Sprintf("%s-%s", cellIntel.ServingCell.MCC, cellIntel.ServingCell.MNC),
+			"carrier":          cellIntel.NetworkInfo.Operator,
+			"radio_type":       "5G-NSA",
 		},
 		Valid: true,
 		Notes: "Cellular + WiFi triangulation, system timestamp",
@@ -402,21 +402,21 @@ func testEnhancedGoogleSource() EnhancedGPSResult {
 func formatGPSTime(timeStr, dateStr string) string {
 	// timeStr format: HHMMSS.ss
 	// dateStr format: DDMMYY
-	
+
 	if len(timeStr) < 6 || len(dateStr) < 6 {
 		return time.Now().Format("20060102 150405") // Fallback to current time
 	}
-	
+
 	// Extract time components
 	hours := timeStr[:2]
 	minutes := timeStr[2:4]
 	seconds := timeStr[4:6]
-	
+
 	// Extract date components
 	day := dateStr[:2]
 	month := dateStr[2:4]
 	year := "20" + dateStr[4:6] // Convert YY to 20YY
-	
+
 	return fmt.Sprintf("%s%s%s %s%s%s", year, month, day, hours, minutes, seconds)
 }
 
@@ -433,14 +433,14 @@ func getConstellationBreakdown(totalSats int) string {
 	if totalSats == 0 {
 		return "No satellite data available"
 	}
-	
+
 	// Estimate constellation breakdown based on typical multi-GNSS receiver
-	gps := totalSats * 35 / 100      // ~35% GPS
-	glonass := totalSats * 25 / 100  // ~25% GLONASS
-	galileo := totalSats * 25 / 100  // ~25% Galileo
-	beidou := totalSats * 15 / 100   // ~15% BeiDou
-	
-	return fmt.Sprintf("GPS:%d, GLONASS:%d, Galileo:%d, BeiDou:%d (total:%d)", 
+	gps := totalSats * 35 / 100     // ~35% GPS
+	glonass := totalSats * 25 / 100 // ~25% GLONASS
+	galileo := totalSats * 25 / 100 // ~25% Galileo
+	beidou := totalSats * 15 / 100  // ~15% BeiDou
+
+	return fmt.Sprintf("GPS:%d, GLONASS:%d, Galileo:%d, BeiDou:%d (total:%d)",
 		gps, glonass, galileo, beidou, totalSats)
 }
 

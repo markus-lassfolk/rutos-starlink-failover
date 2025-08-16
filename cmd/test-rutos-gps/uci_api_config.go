@@ -5,33 +5,33 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	
+
 	"golang.org/x/crypto/ssh"
 )
 
 // APIServerConfig holds the API server configuration from UCI
 type APIServerConfig struct {
-	Enabled         bool   `json:"enabled"`          // Enable/disable API server
-	Port            int    `json:"port"`             // Port to listen on
-	BindAddress     string `json:"bind_address"`     // Address to bind to (default: "0.0.0.0")
-	EnableCORS      bool   `json:"enable_cors"`      // Enable CORS headers
-	RequestTimeout  int    `json:"request_timeout"`  // Request timeout in seconds
-	MaxConnections  int    `json:"max_connections"`  // Maximum concurrent connections
-	LogRequests     bool   `json:"log_requests"`     // Log API requests
-	HealthCheckPath string `json:"health_check"`     // Health check endpoint path
+	Enabled         bool   `json:"enabled"`         // Enable/disable API server
+	Port            int    `json:"port"`            // Port to listen on
+	BindAddress     string `json:"bind_address"`    // Address to bind to (default: "0.0.0.0")
+	EnableCORS      bool   `json:"enable_cors"`     // Enable CORS headers
+	RequestTimeout  int    `json:"request_timeout"` // Request timeout in seconds
+	MaxConnections  int    `json:"max_connections"` // Maximum concurrent connections
+	LogRequests     bool   `json:"log_requests"`    // Log API requests
+	HealthCheckPath string `json:"health_check"`    // Health check endpoint path
 }
 
 // DefaultAPIServerConfig returns the default API server configuration
 func DefaultAPIServerConfig() APIServerConfig {
 	return APIServerConfig{
-		Enabled:         false,                // Disabled by default
-		Port:            8080,                 // Default port
-		BindAddress:     "0.0.0.0",           // Bind to all interfaces
-		EnableCORS:      true,                // Enable CORS for web interfaces
-		RequestTimeout:  30,                  // 30 second timeout
-		MaxConnections:  100,                 // 100 concurrent connections
-		LogRequests:     true,                // Log requests by default
-		HealthCheckPath: "/api/health",       // Default health check path
+		Enabled:         false,         // Disabled by default
+		Port:            8080,          // Default port
+		BindAddress:     "0.0.0.0",     // Bind to all interfaces
+		EnableCORS:      true,          // Enable CORS for web interfaces
+		RequestTimeout:  30,            // 30 second timeout
+		MaxConnections:  100,           // 100 concurrent connections
+		LogRequests:     true,          // Log requests by default
+		HealthCheckPath: "/api/health", // Default health check path
 	}
 }
 
@@ -52,55 +52,55 @@ func NewUCIAPIConfigManager(sshClient *ssh.Client) *UCIAPIConfigManager {
 // LoadConfig loads API server configuration from UCI
 func (ucm *UCIAPIConfigManager) LoadConfig() error {
 	fmt.Println("📋 Loading API server configuration from UCI...")
-	
+
 	// Load configuration values from UCI
 	enabled, err := ucm.getUCIBool("starfail.api.enabled", false)
 	if err != nil {
 		fmt.Printf("⚠️  Failed to read api.enabled, using default: %v\n", err)
 	}
 	ucm.config.Enabled = enabled
-	
+
 	port, err := ucm.getUCIInt("starfail.api.port", 8080)
 	if err != nil {
 		fmt.Printf("⚠️  Failed to read api.port, using default: %v\n", err)
 	}
 	ucm.config.Port = port
-	
+
 	bindAddr, err := ucm.getUCIString("starfail.api.bind_address", "0.0.0.0")
 	if err != nil {
 		fmt.Printf("⚠️  Failed to read api.bind_address, using default: %v\n", err)
 	}
 	ucm.config.BindAddress = bindAddr
-	
+
 	enableCORS, err := ucm.getUCIBool("starfail.api.enable_cors", true)
 	if err != nil {
 		fmt.Printf("⚠️  Failed to read api.enable_cors, using default: %v\n", err)
 	}
 	ucm.config.EnableCORS = enableCORS
-	
+
 	timeout, err := ucm.getUCIInt("starfail.api.request_timeout", 30)
 	if err != nil {
 		fmt.Printf("⚠️  Failed to read api.request_timeout, using default: %v\n", err)
 	}
 	ucm.config.RequestTimeout = timeout
-	
+
 	maxConn, err := ucm.getUCIInt("starfail.api.max_connections", 100)
 	if err != nil {
 		fmt.Printf("⚠️  Failed to read api.max_connections, using default: %v\n", err)
 	}
 	ucm.config.MaxConnections = maxConn
-	
+
 	logReq, err := ucm.getUCIBool("starfail.api.log_requests", true)
 	if err != nil {
 		fmt.Printf("⚠️  Failed to read api.log_requests, using default: %v\n", err)
 	}
 	ucm.config.LogRequests = logReq
-	
+
 	// Validate configuration
 	if err := ucm.validateConfig(); err != nil {
 		return fmt.Errorf("invalid API configuration: %v", err)
 	}
-	
+
 	fmt.Printf("✅ API server configuration loaded:\n")
 	fmt.Printf("   • Enabled: %v\n", ucm.config.Enabled)
 	fmt.Printf("   • Port: %d\n", ucm.config.Port)
@@ -109,19 +109,19 @@ func (ucm *UCIAPIConfigManager) LoadConfig() error {
 	fmt.Printf("   • Timeout: %ds\n", ucm.config.RequestTimeout)
 	fmt.Printf("   • Max Connections: %d\n", ucm.config.MaxConnections)
 	fmt.Printf("   • Log Requests: %v\n", ucm.config.LogRequests)
-	
+
 	return nil
 }
 
 // SaveConfig saves API server configuration to UCI
 func (ucm *UCIAPIConfigManager) SaveConfig() error {
 	fmt.Println("💾 Saving API server configuration to UCI...")
-	
+
 	// Create UCI section if it doesn't exist
 	if err := ucm.ensureUCISection(); err != nil {
 		return fmt.Errorf("failed to create UCI section: %v", err)
 	}
-	
+
 	// Save all configuration values
 	configs := map[string]string{
 		"starfail.api.enabled":         fmt.Sprintf("%v", ucm.config.Enabled),
@@ -132,18 +132,18 @@ func (ucm *UCIAPIConfigManager) SaveConfig() error {
 		"starfail.api.max_connections": fmt.Sprintf("%d", ucm.config.MaxConnections),
 		"starfail.api.log_requests":    fmt.Sprintf("%v", ucm.config.LogRequests),
 	}
-	
+
 	for key, value := range configs {
 		if err := ucm.setUCIValue(key, value); err != nil {
 			return fmt.Errorf("failed to set %s: %v", key, err)
 		}
 	}
-	
+
 	// Commit changes
 	if err := ucm.commitUCI(); err != nil {
 		return fmt.Errorf("failed to commit UCI changes: %v", err)
 	}
-	
+
 	fmt.Println("✅ API server configuration saved to UCI")
 	return nil
 }
@@ -173,33 +173,33 @@ func (ucm *UCIAPIConfigManager) validateConfigStruct(config APIServerConfig) err
 	if config.Port < 1 || config.Port > 65535 {
 		return fmt.Errorf("port must be between 1 and 65535, got %d", config.Port)
 	}
-	
+
 	// Validate bind address
 	if config.BindAddress != "" {
 		if ip := net.ParseIP(config.BindAddress); ip == nil && config.BindAddress != "0.0.0.0" {
 			return fmt.Errorf("invalid bind address: %s", config.BindAddress)
 		}
 	}
-	
+
 	// Validate timeout
 	if config.RequestTimeout < 1 || config.RequestTimeout > 300 {
 		return fmt.Errorf("request timeout must be between 1 and 300 seconds, got %d", config.RequestTimeout)
 	}
-	
+
 	// Validate max connections
 	if config.MaxConnections < 1 || config.MaxConnections > 10000 {
 		return fmt.Errorf("max connections must be between 1 and 10000, got %d", config.MaxConnections)
 	}
-	
+
 	return nil
 }
 
 // CheckPortAvailability checks if the configured port is available
 func (ucm *UCIAPIConfigManager) CheckPortAvailability() error {
 	address := fmt.Sprintf("%s:%d", ucm.config.BindAddress, ucm.config.Port)
-	
+
 	fmt.Printf("🔍 Checking port availability: %s\n", address)
-	
+
 	// Try to bind to the port temporarily
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
@@ -211,10 +211,10 @@ func (ucm *UCIAPIConfigManager) CheckPortAvailability() error {
 		}
 		return fmt.Errorf("failed to check port availability: %v", err)
 	}
-	
+
 	// Close the listener immediately
 	listener.Close()
-	
+
 	fmt.Printf("✅ Port %d is available on %s\n", ucm.config.Port, ucm.config.BindAddress)
 	return nil
 }
@@ -223,15 +223,15 @@ func (ucm *UCIAPIConfigManager) CheckPortAvailability() error {
 func (ucm *UCIAPIConfigManager) FindAvailablePort() (int, error) {
 	startPort := ucm.config.Port
 	maxAttempts := 100
-	
+
 	fmt.Printf("🔍 Finding available port starting from %d...\n", startPort)
-	
+
 	for i := 0; i < maxAttempts; i++ {
 		port := startPort + i
 		if port > 65535 {
 			break
 		}
-		
+
 		address := fmt.Sprintf("%s:%d", ucm.config.BindAddress, port)
 		listener, err := net.Listen("tcp", address)
 		if err == nil {
@@ -240,7 +240,7 @@ func (ucm *UCIAPIConfigManager) FindAvailablePort() (int, error) {
 			return port, nil
 		}
 	}
-	
+
 	return 0, fmt.Errorf("no available ports found in range %d-%d", startPort, startPort+maxAttempts-1)
 }
 
@@ -259,12 +259,12 @@ func (ucm *UCIAPIConfigManager) getUCIInt(key string, defaultValue int) (int, er
 	if err != nil {
 		return defaultValue, err
 	}
-	
+
 	intValue, err := strconv.Atoi(value)
 	if err != nil {
 		return defaultValue, fmt.Errorf("invalid integer value for %s: %s", key, value)
 	}
-	
+
 	return intValue, nil
 }
 
@@ -273,7 +273,7 @@ func (ucm *UCIAPIConfigManager) getUCIBool(key string, defaultValue bool) (bool,
 	if err != nil {
 		return defaultValue, err
 	}
-	
+
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "true", "1", "yes", "on", "enabled":
 		return true, nil
@@ -297,7 +297,7 @@ func (ucm *UCIAPIConfigManager) ensureUCISection() error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if api section exists
 	cmd = "uci show starfail.api 2>/dev/null || uci set starfail.api=api"
 	_, err = executeCommand(ucm.sshClient, cmd)
@@ -314,7 +314,7 @@ func (ucm *UCIAPIConfigManager) commitUCI() error {
 func testUCIAPIConfig() {
 	fmt.Println("⚙️  UCI API Configuration Test")
 	fmt.Println("=============================")
-	
+
 	// Create SSH connection
 	sshClient, err := createSSHClient()
 	if err != nil {
@@ -322,34 +322,34 @@ func testUCIAPIConfig() {
 		return
 	}
 	defer sshClient.Close()
-	
+
 	// Create UCI config manager
 	configManager := NewUCIAPIConfigManager(sshClient)
-	
+
 	fmt.Println("\n📋 Testing configuration loading...")
 	if err := configManager.LoadConfig(); err != nil {
 		fmt.Printf("❌ Failed to load config: %v\n", err)
 		return
 	}
-	
+
 	config := configManager.GetConfig()
-	
+
 	fmt.Println("\n🔍 Testing port availability...")
 	if err := configManager.CheckPortAvailability(); err != nil {
 		fmt.Printf("⚠️  Port check failed: %v\n", err)
-		
+
 		// Try to find an available port
 		if availablePort, err := configManager.FindAvailablePort(); err == nil {
 			fmt.Printf("💡 Suggested available port: %d\n", availablePort)
 		}
 	}
-	
+
 	fmt.Println("\n💾 Testing configuration save...")
 	if err := configManager.SaveConfig(); err != nil {
 		fmt.Printf("❌ Failed to save config: %v\n", err)
 		return
 	}
-	
+
 	fmt.Println("\n📊 Current API Configuration:")
 	fmt.Printf("   • Enabled: %v\n", config.Enabled)
 	fmt.Printf("   • Port: %d\n", config.Port)
@@ -358,7 +358,7 @@ func testUCIAPIConfig() {
 	fmt.Printf("   • Request Timeout: %ds\n", config.RequestTimeout)
 	fmt.Printf("   • Max Connections: %d\n", config.MaxConnections)
 	fmt.Printf("   • Log Requests: %v\n", config.LogRequests)
-	
+
 	fmt.Println("\n📝 UCI Commands to Configure API Server:")
 	fmt.Println("========================================")
 	fmt.Println("# Enable API server:")
@@ -378,6 +378,6 @@ func testUCIAPIConfig() {
 	fmt.Println("")
 	fmt.Println("# Commit changes:")
 	fmt.Println("uci commit starfail")
-	
+
 	fmt.Println("\n✅ UCI API Configuration Test Complete!")
 }

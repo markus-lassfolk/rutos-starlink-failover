@@ -68,17 +68,17 @@ func (s *StarfailAPIServer) Start() error {
 		fmt.Printf("⚠️  Failed to load UCI config, using defaults: %v\n", err)
 	}
 	s.config = s.configManager.GetConfig()
-	
+
 	// Check if API server is enabled
 	if !s.config.Enabled {
 		fmt.Println("ℹ️  API server is disabled in UCI configuration")
 		return nil
 	}
-	
+
 	// Check port availability
 	if err := s.configManager.CheckPortAvailability(); err != nil {
 		fmt.Printf("❌ Port availability check failed: %v\n", err)
-		
+
 		// Try to find an available port
 		if availablePort, portErr := s.configManager.FindAvailablePort(); portErr == nil {
 			fmt.Printf("💡 Using available port %d instead of %d\n", availablePort, s.config.Port)
@@ -87,26 +87,26 @@ func (s *StarfailAPIServer) Start() error {
 			return fmt.Errorf("no available ports found: %v", portErr)
 		}
 	}
-	
+
 	mux := http.NewServeMux()
-	
+
 	// Main endpoint - returns best GPS source (drop-in replacement for RUTOS)
 	mux.HandleFunc("/api/gps/position/status", s.handleBestGPS)
-	
+
 	// Individual source endpoints
 	mux.HandleFunc("/api/gps/rutos", s.handleRutosGPS)
 	mux.HandleFunc("/api/gps/starlink", s.handleStarlinkGPS)
 	mux.HandleFunc("/api/gps/google", s.handleGoogleGPS)
-	
+
 	// Health check endpoint (configurable path)
 	mux.HandleFunc(s.config.HealthCheckPath, s.handleHealth)
-	
+
 	// Status endpoint showing all sources
 	mux.HandleFunc("/api/gps/all", s.handleAllSources)
-	
+
 	// Configuration endpoint
 	mux.HandleFunc("/api/config", s.handleConfig)
-	
+
 	addr := fmt.Sprintf("%s:%d", s.config.BindAddress, s.config.Port)
 	fmt.Printf("🌐 Starfail GPS API Server starting on %s\n", addr)
 	fmt.Printf("📍 Main endpoint: http://%s/api/gps/position/status\n", addr)
@@ -117,7 +117,7 @@ func (s *StarfailAPIServer) Start() error {
 	fmt.Printf("   • All:      http://%s/api/gps/all\n", addr)
 	fmt.Printf("   • Health:   http://%s%s\n", addr, s.config.HealthCheckPath)
 	fmt.Printf("   • Config:   http://%s/api/config\n", addr)
-	
+
 	// Create server with timeouts
 	server := &http.Server{
 		Addr:         addr,
@@ -126,7 +126,7 @@ func (s *StarfailAPIServer) Start() error {
 		WriteTimeout: time.Duration(s.config.RequestTimeout) * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-	
+
 	return server.ListenAndServe()
 }
 
@@ -243,28 +243,28 @@ func (s *StarfailAPIServer) handleConfig(w http.ResponseWriter, r *http.Request)
 	s.logRequest(r, "/api/config")
 	w.Header().Set("Content-Type", "application/json")
 	s.setCORSHeaders(w)
-	
+
 	switch r.Method {
 	case "GET":
 		// Return current configuration
 		config := map[string]interface{}{
 			"api_server": s.config,
 			"endpoints": map[string]string{
-				"best_gps":  "/api/gps/position/status",
-				"rutos":     "/api/gps/rutos",
-				"starlink":  "/api/gps/starlink",
-				"google":    "/api/gps/google",
-				"all":       "/api/gps/all",
-				"health":    s.config.HealthCheckPath,
-				"config":    "/api/config",
+				"best_gps": "/api/gps/position/status",
+				"rutos":    "/api/gps/rutos",
+				"starlink": "/api/gps/starlink",
+				"google":   "/api/gps/google",
+				"all":      "/api/gps/all",
+				"health":   s.config.HealthCheckPath,
+				"config":   "/api/config",
 			},
 		}
 		json.NewEncoder(w).Encode(config)
-		
+
 	case "POST":
 		// Update configuration (future enhancement)
 		http.Error(w, "Configuration updates not implemented", http.StatusNotImplemented)
-		
+
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
