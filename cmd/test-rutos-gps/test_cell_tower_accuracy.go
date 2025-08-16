@@ -579,7 +579,7 @@ func saveTestResults(test *CellTowerAccuracyTest) {
 		return
 	}
 
-	if err := os.WriteFile(filename, data, 0644); err != nil {
+	if err := os.WriteFile(filename, data, 0o644); err != nil {
 		fmt.Printf("❌ Failed to save test results: %v\n", err)
 		return
 	}

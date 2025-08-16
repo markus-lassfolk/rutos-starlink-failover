@@ -20,7 +20,6 @@ func getGPSCoordinates(client *ssh.Client) {
 	// Try to get GPGGA and GPRMC sentences which contain coordinates
 	cmd := "timeout 30 cat /dev/ttyUSB1 | grep -E '\\$(GP|GN)(GGA|RMC)' | head -10"
 	output, err := executeCommand(client, cmd)
-
 	if err != nil {
 		fmt.Printf("❌ Failed to read GPS coordinates: %v\n", err)
 		return

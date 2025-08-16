@@ -17,7 +17,7 @@ import (
 type AdaptiveLocationCache struct {
 	// Configuration (UCI-configurable)
 	config *AdaptiveCacheConfig
-	
+
 	// State tracking
 	currentState     *LocationState
 	fixBuffer        []*LocationFix
@@ -26,10 +26,10 @@ type AdaptiveLocationCache struct {
 	lastTriggerTime  time.Time
 	stationaryStart  time.Time
 	movementDetected bool
-	
+
 	// Statistics
 	stats *AdaptiveCacheStats
-	
+
 	// Thread safety
 	mu sync.RWMutex
 }
@@ -37,42 +37,42 @@ type AdaptiveLocationCache struct {
 // AdaptiveCacheConfig holds all UCI-configurable parameters
 type AdaptiveCacheConfig struct {
 	// Trigger thresholds
-	CellTopN                int     `uci:"cell_top_n" default:"8"`                    // Top N cells to track
-	CellChangeThreshold     float64 `uci:"cell_change_threshold" default:"0.35"`     // 35% change threshold
-	CellTopStrongChanged    int     `uci:"cell_top_strong_changed" default:"2"`      // Top 2 strongest changed
-	
-	WiFiTopK                int     `uci:"wifi_top_k" default:"10"`                  // Top K BSSIDs to track
-	WiFiChangeThreshold     float64 `uci:"wifi_change_threshold" default:"0.40"`     // 40% change threshold
-	WiFiTopStrongChanged    int     `uci:"wifi_top_strong_changed" default:"3"`      // Top 3 strongest changed
-	
+	CellTopN             int     `uci:"cell_top_n" default:"8"`               // Top N cells to track
+	CellChangeThreshold  float64 `uci:"cell_change_threshold" default:"0.35"` // 35% change threshold
+	CellTopStrongChanged int     `uci:"cell_top_strong_changed" default:"2"`  // Top 2 strongest changed
+
+	WiFiTopK             int     `uci:"wifi_top_k" default:"10"`              // Top K BSSIDs to track
+	WiFiChangeThreshold  float64 `uci:"wifi_change_threshold" default:"0.40"` // 40% change threshold
+	WiFiTopStrongChanged int     `uci:"wifi_top_strong_changed" default:"3"`  // Top 3 strongest changed
+
 	// Timing controls
-	DebounceTime           time.Duration `uci:"debounce_time" default:"10s"`          // Change persistence required
-	MinIntervalMoving      time.Duration `uci:"min_interval_moving" default:"5m"`    // Hard floor when moving
-	SoftTTL                time.Duration `uci:"soft_ttl" default:"15m"`              // Refresh if no change
-	HardTTL                time.Duration `uci:"hard_ttl" default:"60m"`              // Force refresh max age
-	StationaryBackoffTime  time.Duration `uci:"stationary_backoff_time" default:"2h"` // When to start backoff
-	
+	DebounceTime          time.Duration `uci:"debounce_time" default:"10s"`          // Change persistence required
+	MinIntervalMoving     time.Duration `uci:"min_interval_moving" default:"5m"`     // Hard floor when moving
+	SoftTTL               time.Duration `uci:"soft_ttl" default:"15m"`               // Refresh if no change
+	HardTTL               time.Duration `uci:"hard_ttl" default:"60m"`               // Force refresh max age
+	StationaryBackoffTime time.Duration `uci:"stationary_backoff_time" default:"2h"` // When to start backoff
+
 	// Adaptive intervals when stationary
-	StationaryIntervals    []time.Duration `uci:"stationary_intervals"` // [10m, 20m, 40m, 60m]
-	
+	StationaryIntervals []time.Duration `uci:"stationary_intervals"` // [10m, 20m, 40m, 60m]
+
 	// Quality gating
-	AccuracyImprovement    float64 `uci:"accuracy_improvement" default:"0.8"`       // Accept if 80% of old accuracy
-	MinMovementDistance    float64 `uci:"min_movement_distance" default:"300"`     // Minimum movement in meters
-	MovementAccuracyFactor float64 `uci:"movement_accuracy_factor" default:"1.5"`  // Movement = 1.5 × accuracy
+	AccuracyImprovement     float64 `uci:"accuracy_improvement" default:"0.8"`      // Accept if 80% of old accuracy
+	MinMovementDistance     float64 `uci:"min_movement_distance" default:"300"`     // Minimum movement in meters
+	MovementAccuracyFactor  float64 `uci:"movement_accuracy_factor" default:"1.5"`  // Movement = 1.5 × accuracy
 	AccuracyRegressionLimit float64 `uci:"accuracy_regression_limit" default:"1.2"` // Allow 20% accuracy loss on movement
-	ChiSquareThreshold     float64 `uci:"chi_square_threshold" default:"5.99"`     // 95% confidence in 2D
-	
+	ChiSquareThreshold      float64 `uci:"chi_square_threshold" default:"5.99"`     // 95% confidence in 2D
+
 	// Budget management
-	MonthlyQuota           int     `uci:"monthly_quota" default:"10000"`            // 10k free requests
-	DailyQuotaPercent      float64 `uci:"daily_quota_percent" default:"0.5"`       // 50% by midday
-	QuotaExceededInterval  time.Duration `uci:"quota_exceeded_interval" default:"15m"` // Fallback interval
-	
+	MonthlyQuota          int           `uci:"monthly_quota" default:"10000"`         // 10k free requests
+	DailyQuotaPercent     float64       `uci:"daily_quota_percent" default:"0.5"`     // 50% by midday
+	QuotaExceededInterval time.Duration `uci:"quota_exceeded_interval" default:"15m"` // Fallback interval
+
 	// Smoothing
-	BufferSize             int     `uci:"buffer_size" default:"10"`                 // Rolling buffer size
-	SmoothingWindowMoving  int     `uci:"smoothing_window_moving" default:"5"`     // Fixes to smooth when moving
-	SmoothingWindowParked  int     `uci:"smoothing_window_parked" default:"10"`    // Fixes to smooth when parked
-	EMAAlphaMin            float64 `uci:"ema_alpha_min" default:"0.2"`             // Minimum EMA alpha
-	EMAAlphaMax            float64 `uci:"ema_alpha_max" default:"0.5"`             // Maximum EMA alpha
+	BufferSize            int     `uci:"buffer_size" default:"10"`             // Rolling buffer size
+	SmoothingWindowMoving int     `uci:"smoothing_window_moving" default:"5"`  // Fixes to smooth when moving
+	SmoothingWindowParked int     `uci:"smoothing_window_parked" default:"10"` // Fixes to smooth when parked
+	EMAAlphaMin           float64 `uci:"ema_alpha_min" default:"0.2"`          // Minimum EMA alpha
+	EMAAlphaMax           float64 `uci:"ema_alpha_max" default:"0.5"`          // Maximum EMA alpha
 }
 
 // LocationState represents the current filtered location state
@@ -101,16 +101,16 @@ type LocationFix struct {
 
 // AdaptiveCacheStats tracks performance and behavior
 type AdaptiveCacheStats struct {
-	TotalQueries        int64     `json:"total_queries"`
-	CacheHits           int64     `json:"cache_hits"`
-	MovementTriggers    int64     `json:"movement_triggers"`
-	CellChangeTriggers  int64     `json:"cell_change_triggers"`
-	WiFiChangeTriggers  int64     `json:"wifi_change_triggers"`
-	QualityRejections   int64     `json:"quality_rejections"`
-	AcceptedFixes       int64     `json:"accepted_fixes"`
-	StationaryPeriods   int64     `json:"stationary_periods"`
-	APICallsToday       int64     `json:"api_calls_today"`
-	LastResetDate       time.Time `json:"last_reset_date"`
+	TotalQueries       int64     `json:"total_queries"`
+	CacheHits          int64     `json:"cache_hits"`
+	MovementTriggers   int64     `json:"movement_triggers"`
+	CellChangeTriggers int64     `json:"cell_change_triggers"`
+	WiFiChangeTriggers int64     `json:"wifi_change_triggers"`
+	QualityRejections  int64     `json:"quality_rejections"`
+	AcceptedFixes      int64     `json:"accepted_fixes"`
+	StationaryPeriods  int64     `json:"stationary_periods"`
+	APICallsToday      int64     `json:"api_calls_today"`
+	LastResetDate      time.Time `json:"last_reset_date"`
 }
 
 // EnvironmentSignature represents cellular and WiFi environment
@@ -129,31 +129,31 @@ func NewAdaptiveLocationCache() *AdaptiveLocationCache {
 		WiFiTopK:                10,
 		WiFiChangeThreshold:     0.40,
 		WiFiTopStrongChanged:    3,
-		DebounceTime:           10 * time.Second,
-		MinIntervalMoving:      5 * time.Minute,
-		SoftTTL:                15 * time.Minute,
-		HardTTL:                60 * time.Minute,
-		StationaryBackoffTime:  2 * time.Hour,
-		StationaryIntervals:    []time.Duration{10 * time.Minute, 20 * time.Minute, 40 * time.Minute, 60 * time.Minute},
-		AccuracyImprovement:    0.8,
-		MinMovementDistance:    300.0,
-		MovementAccuracyFactor: 1.5,
+		DebounceTime:            10 * time.Second,
+		MinIntervalMoving:       5 * time.Minute,
+		SoftTTL:                 15 * time.Minute,
+		HardTTL:                 60 * time.Minute,
+		StationaryBackoffTime:   2 * time.Hour,
+		StationaryIntervals:     []time.Duration{10 * time.Minute, 20 * time.Minute, 40 * time.Minute, 60 * time.Minute},
+		AccuracyImprovement:     0.8,
+		MinMovementDistance:     300.0,
+		MovementAccuracyFactor:  1.5,
 		AccuracyRegressionLimit: 1.2,
-		ChiSquareThreshold:     5.99,
-		MonthlyQuota:           10000,
-		DailyQuotaPercent:      0.5,
-		QuotaExceededInterval:  15 * time.Minute,
-		BufferSize:             10,
-		SmoothingWindowMoving:  5,
-		SmoothingWindowParked:  10,
-		EMAAlphaMin:            0.2,
-		EMAAlphaMax:            0.5,
+		ChiSquareThreshold:      5.99,
+		MonthlyQuota:            10000,
+		DailyQuotaPercent:       0.5,
+		QuotaExceededInterval:   15 * time.Minute,
+		BufferSize:              10,
+		SmoothingWindowMoving:   5,
+		SmoothingWindowParked:   10,
+		EMAAlphaMin:             0.2,
+		EMAAlphaMax:             0.5,
 	}
 
 	return &AdaptiveLocationCache{
-		config:       config,
-		fixBuffer:    make([]*LocationFix, 0, config.BufferSize),
-		stats:        &AdaptiveCacheStats{LastResetDate: time.Now()},
+		config:          config,
+		fixBuffer:       make([]*LocationFix, 0, config.BufferSize),
+		stats:           &AdaptiveCacheStats{LastResetDate: time.Now()},
 		stationaryStart: time.Now(),
 	}
 }
@@ -164,7 +164,7 @@ func (alc *AdaptiveLocationCache) ShouldQuery(client *ssh.Client) (bool, string)
 	defer alc.mu.Unlock()
 
 	now := time.Now()
-	
+
 	// Reset daily stats if needed
 	if !isSameDay(alc.stats.LastResetDate, now) {
 		alc.stats.APICallsToday = 0
@@ -233,7 +233,7 @@ func (alc *AdaptiveLocationCache) getMinInterval() time.Duration {
 	// Adaptive intervals when stationary
 	stationaryDuration := time.Since(alc.stationaryStart)
 	intervals := alc.config.StationaryIntervals
-	
+
 	switch {
 	case stationaryDuration < 30*time.Minute:
 		return intervals[0] // 10 minutes
@@ -261,13 +261,13 @@ func (alc *AdaptiveLocationCache) getSoftTTL() time.Duration {
 func (alc *AdaptiveLocationCache) isQuotaExceeded() bool {
 	dailyLimit := float64(alc.config.MonthlyQuota) / 30.0 // Approximate daily limit
 	currentHour := time.Now().Hour()
-	
+
 	// Check if we're exceeding 50% of daily quota by midday (12:00)
 	if currentHour >= 12 {
 		midDayLimit := dailyLimit * alc.config.DailyQuotaPercent
 		return float64(alc.stats.APICallsToday) > midDayLimit
 	}
-	
+
 	return false
 }
 
@@ -287,7 +287,7 @@ func (alc *AdaptiveLocationCache) getEnvironmentSignatures(client *ssh.Client) (
 
 	// Create cellular signature (top N cells by signal strength)
 	cellSig := alc.createCellularSignature(cellIntel)
-	
+
 	// Create WiFi signature (top K BSSIDs by signal strength)
 	wifiSig := alc.createWiFiSignature(wifiScan.AccessPoints)
 
@@ -302,7 +302,7 @@ func (alc *AdaptiveLocationCache) createCellularSignature(intel *CellularLocatio
 	}
 
 	var cells []cellInfo
-	
+
 	// Add serving cell
 	if intel.ServingCell.CellID != "" {
 		cells = append(cells, cellInfo{
@@ -390,7 +390,7 @@ func (alc *AdaptiveLocationCache) detectSignificantChanges(cellSig, wifiSig stri
 		alc.stats.CellChangeTriggers++
 	}
 
-	// Check WiFi changes  
+	// Check WiFi changes
 	if alc.lastWiFiSig != "" && alc.lastWiFiSig != wifiSig {
 		reasons = append(reasons, "WiFi environment changed")
 		alc.stats.WiFiChangeTriggers++
@@ -431,12 +431,12 @@ func (alc *AdaptiveLocationCache) ProcessLocationFix(newFix *LocationFix) *Locat
 
 	// Update environment signatures
 	// (This would be called after getting the fix)
-	
+
 	// Detect stationary vs moving state
 	alc.updateMovementState()
 
 	fmt.Printf("    ✅ Location fix accepted and smoothed\n")
-	fmt.Printf("    📍 Smoothed: %.6f°, %.6f° (±%.0fm)\n", 
+	fmt.Printf("    📍 Smoothed: %.6f°, %.6f° (±%.0fm)\n",
 		smoothedState.Latitude, smoothedState.Longitude, smoothedState.Accuracy)
 
 	return smoothedState
@@ -455,14 +455,14 @@ func (alc *AdaptiveLocationCache) applyQualityGates(newFix *LocationFix) (bool, 
 	newFix.Distance = distance
 
 	// Gate 1: Big move gate - accept immediately if clearly moved
-	bigMoveThreshold := math.Max(alc.config.MinMovementDistance, 
-		alc.config.MovementAccuracyFactor * alc.currentState.Accuracy)
+	bigMoveThreshold := math.Max(alc.config.MinMovementDistance,
+		alc.config.MovementAccuracyFactor*alc.currentState.Accuracy)
 	if distance >= bigMoveThreshold {
 		return true, fmt.Sprintf("big move detected (%.0fm > %.0fm)", distance, bigMoveThreshold)
 	}
 
 	// Gate 2: Accuracy improvement gate
-	if newFix.Accuracy <= alc.config.AccuracyImprovement * alc.currentState.Accuracy {
+	if newFix.Accuracy <= alc.config.AccuracyImprovement*alc.currentState.Accuracy {
 		return true, fmt.Sprintf("accuracy improved (%.0fm vs %.0fm)", newFix.Accuracy, alc.currentState.Accuracy)
 	}
 
@@ -471,27 +471,27 @@ func (alc *AdaptiveLocationCache) applyQualityGates(newFix *LocationFix) (bool, 
 	if sigma > 0 {
 		chiSquare := math.Pow(distance/sigma, 2)
 		newFix.ChiSquare = chiSquare
-		
+
 		if chiSquare <= alc.config.ChiSquareThreshold {
 			return true, fmt.Sprintf("statistically consistent (χ²=%.2f ≤ %.2f)", chiSquare, alc.config.ChiSquareThreshold)
 		}
-		
+
 		return false, fmt.Sprintf("statistical outlier (χ²=%.2f > %.2f)", chiSquare, alc.config.ChiSquareThreshold)
 	}
 
 	// Gate 4: Movement with acceptable accuracy regression
-	if alc.movementDetected && newFix.Accuracy <= alc.currentState.Accuracy * alc.config.AccuracyRegressionLimit {
+	if alc.movementDetected && newFix.Accuracy <= alc.currentState.Accuracy*alc.config.AccuracyRegressionLimit {
 		return true, fmt.Sprintf("movement with acceptable accuracy regression")
 	}
 
-	return false, fmt.Sprintf("no acceptance criteria met (dist=%.0fm, acc=%.0fm vs %.0fm)", 
+	return false, fmt.Sprintf("no acceptance criteria met (dist=%.0fm, acc=%.0fm vs %.0fm)",
 		distance, newFix.Accuracy, alc.currentState.Accuracy)
 }
 
 // addToBuffer adds a fix to the rolling buffer
 func (alc *AdaptiveLocationCache) addToBuffer(fix *LocationFix) {
 	alc.fixBuffer = append(alc.fixBuffer, fix)
-	
+
 	// Keep buffer size limited
 	if len(alc.fixBuffer) > alc.config.BufferSize {
 		alc.fixBuffer = alc.fixBuffer[1:]
@@ -527,7 +527,7 @@ func (alc *AdaptiveLocationCache) applySmoothingFilter() *LocationState {
 
 	// Apply accuracy-weighted averaging
 	var weightedLat, weightedLon, totalWeight float64
-	
+
 	for _, fix := range recentFixes {
 		if fix.Accuracy > 0 {
 			weight := 1.0 / (fix.Accuracy * fix.Accuracy) // Weight = 1/variance
@@ -571,7 +571,7 @@ func (alc *AdaptiveLocationCache) updateMovementState() {
 	// Check recent movement
 	recentFixes := alc.fixBuffer[len(alc.fixBuffer)-3:]
 	totalDistance := 0.0
-	
+
 	for i := 1; i < len(recentFixes); i++ {
 		if recentFixes[i].Accepted && recentFixes[i-1].Accepted {
 			distance := calculateHaversineDistance(
@@ -624,41 +624,41 @@ func (alc *AdaptiveLocationCache) calculateConfidence(fixes []*LocationFix) floa
 		latSum += fix.Latitude
 		lonSum += fix.Longitude
 	}
-	
+
 	avgLat := latSum / float64(len(fixes))
 	avgLon := lonSum / float64(len(fixes))
-	
+
 	var variance float64
 	for _, fix := range fixes {
 		distance := calculateHaversineDistance(avgLat, avgLon, fix.Latitude, fix.Longitude)
 		variance += distance * distance
 	}
 	variance /= float64(len(fixes))
-	
+
 	// Convert variance to confidence (lower variance = higher confidence)
 	stdDev := math.Sqrt(variance)
-	confidence := math.Max(0.1, math.Min(1.0, 1.0 - stdDev/1000.0))
-	
+	confidence := math.Max(0.1, math.Min(1.0, 1.0-stdDev/1000.0))
+
 	return confidence
 }
 
 // Helper functions
 func calculateHaversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
 	const earthRadiusM = 6371000 // Earth's radius in meters
-	
+
 	lat1Rad := lat1 * math.Pi / 180
 	lon1Rad := lon1 * math.Pi / 180
 	lat2Rad := lat2 * math.Pi / 180
 	lon2Rad := lon2 * math.Pi / 180
-	
+
 	deltaLat := lat2Rad - lat1Rad
 	deltaLon := lon2Rad - lon1Rad
-	
+
 	a := math.Sin(deltaLat/2)*math.Sin(deltaLat/2) +
 		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
-		math.Sin(deltaLon/2)*math.Sin(deltaLon/2)
+			math.Sin(deltaLon/2)*math.Sin(deltaLon/2)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-	
+
 	return earthRadiusM * c
 }
 
@@ -672,11 +672,11 @@ func isSameDay(t1, t2 time.Time) bool {
 func (alc *AdaptiveLocationCache) GetCurrentLocation() *LocationState {
 	alc.mu.RLock()
 	defer alc.mu.RUnlock()
-	
+
 	if alc.currentState == nil {
 		return nil
 	}
-	
+
 	// Return a copy to avoid race conditions
 	state := *alc.currentState
 	return &state
@@ -689,14 +689,14 @@ func (alc *AdaptiveLocationCache) PrintAdaptiveStats() {
 
 	fmt.Println("\n📊 Adaptive Location Cache Statistics:")
 	fmt.Println("======================================")
-	
+
 	if alc.currentState != nil {
-		fmt.Printf("📍 Current Location: %.6f°, %.6f° (±%.0fm)\n", 
+		fmt.Printf("📍 Current Location: %.6f°, %.6f° (±%.0fm)\n",
 			alc.currentState.Latitude, alc.currentState.Longitude, alc.currentState.Accuracy)
-		fmt.Printf("🏠 State: %s (confidence: %.1f%%)\n", 
+		fmt.Printf("🏠 State: %s (confidence: %.1f%%)\n",
 			map[bool]string{true: "Stationary", false: "Moving"}[alc.currentState.IsStationary],
 			alc.currentState.Confidence*100)
-		
+
 		if alc.currentState.IsStationary {
 			stationaryDuration := time.Since(alc.stationaryStart)
 			fmt.Printf("⏱️  Stationary for: %.1f minutes\n", stationaryDuration.Minutes())
@@ -706,22 +706,22 @@ func (alc *AdaptiveLocationCache) PrintAdaptiveStats() {
 
 	fmt.Printf("📊 Performance:\n")
 	fmt.Printf("  🔍 Total Queries: %d\n", alc.stats.TotalQueries)
-	fmt.Printf("  💾 Cache Hits: %d (%.1f%%)\n", alc.stats.CacheHits, 
+	fmt.Printf("  💾 Cache Hits: %d (%.1f%%)\n", alc.stats.CacheHits,
 		float64(alc.stats.CacheHits)/float64(alc.stats.TotalQueries)*100)
 	fmt.Printf("  ✅ Accepted Fixes: %d\n", alc.stats.AcceptedFixes)
 	fmt.Printf("  ❌ Quality Rejections: %d\n", alc.stats.QualityRejections)
-	
+
 	fmt.Printf("🚶 Movement Detection:\n")
 	fmt.Printf("  📱 Cell Changes: %d\n", alc.stats.CellChangeTriggers)
 	fmt.Printf("  📶 WiFi Changes: %d\n", alc.stats.WiFiChangeTriggers)
 	fmt.Printf("  🏠 Stationary Periods: %d\n", alc.stats.StationaryPeriods)
-	
+
 	fmt.Printf("💰 API Usage:\n")
 	fmt.Printf("  📅 Today: %d calls\n", alc.stats.APICallsToday)
 	dailyLimit := float64(alc.config.MonthlyQuota) / 30.0
 	fmt.Printf("  📊 Daily Limit: %.0f calls\n", dailyLimit)
 	fmt.Printf("  📈 Usage: %.1f%%\n", float64(alc.stats.APICallsToday)/dailyLimit*100)
-	
+
 	fmt.Printf("⚙️  Current Config:\n")
 	fmt.Printf("  📱 Cell Threshold: %.0f%% (top %d)\n", alc.config.CellChangeThreshold*100, alc.config.CellTopN)
 	fmt.Printf("  📶 WiFi Threshold: %.0f%% (top %d)\n", alc.config.WiFiChangeThreshold*100, alc.config.WiFiTopK)
@@ -773,12 +773,12 @@ func testAdaptiveLocationCache() {
 			cache.stats.CacheHits++
 			fmt.Printf("💾 Cache decision: %s\n", reason)
 			if current := cache.GetCurrentLocation(); current != nil {
-				fmt.Printf("📍 Using cached: %.6f°, %.6f° (±%.0fm)\n", 
+				fmt.Printf("📍 Using cached: %.6f°, %.6f° (±%.0fm)\n",
 					current.Latitude, current.Longitude, current.Accuracy)
 			}
 		} else {
 			fmt.Printf("🔍 Query decision: %s\n", reason)
-			
+
 			// Perform WiFi scan and API call
 			scanResult, err := performEnhancedUbusWiFiScan(client)
 			if err != nil {
@@ -817,9 +817,9 @@ func testAdaptiveLocationCache() {
 
 			// Process the fix through quality gating and smoothing
 			smoothedState := cache.ProcessLocationFix(fix)
-			
+
 			if smoothedState != nil {
-				fmt.Printf("📍 Final location: %.6f°, %.6f° (±%.0fm)\n", 
+				fmt.Printf("📍 Final location: %.6f°, %.6f° (±%.0fm)\n",
 					smoothedState.Latitude, smoothedState.Longitude, smoothedState.Accuracy)
 			}
 		}

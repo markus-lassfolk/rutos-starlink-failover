@@ -55,7 +55,7 @@ func displayUsageStrategy() {
 	fmt.Printf("  🔢 Total Available: %d requests/day\n", strategy.DailyRequestLimit)
 	fmt.Printf("  🚨 Emergency Reserve: %d requests\n", strategy.EmergencyRequestsReserved)
 	maxLocationRequests := int(24 * time.Hour / strategy.LocationRequestInterval) // 288 requests/day at 5min intervals
-	fmt.Printf("  📍 Location Requests: %d requests max (every %v)\n", 
+	fmt.Printf("  📍 Location Requests: %d requests max (every %v)\n",
 		maxLocationRequests, strategy.LocationRequestInterval)
 	fmt.Printf("  📤 Contributions: ~100 requests (periodic)\n")
 
@@ -74,7 +74,7 @@ func displayUsageStrategy() {
 	fmt.Println("  ❌ NOT continuously or on every GPS reading")
 
 	fmt.Println("\n⏰ RECOMMENDED SCHEDULE:")
-	fmt.Printf("  📍 Location Requests: Every %v when GPS fails (max %d/day)\n", 
+	fmt.Printf("  📍 Location Requests: Every %v when GPS fails (max %d/day)\n",
 		strategy.LocationRequestInterval, maxLocationRequests)
 	fmt.Printf("  📤 Data Contribution: %v\n", strategy.ContributionInterval)
 	fmt.Printf("  🔄 Usage Reset: Daily at midnight UTC\n")

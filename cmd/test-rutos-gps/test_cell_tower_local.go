@@ -17,7 +17,7 @@ func runLocalCellTowerTest() error {
 	fmt.Println("=" + strings.Repeat("=", 45))
 	fmt.Println("📡 Using hardcoded cell tower data from your RutOS device")
 	fmt.Println()
-	
+
 	// Hardcoded GPS reference (your super accurate Quectel GPS data)
 	gpsReference := &GPSCoordinate{
 		Latitude:  59.48007000,
@@ -25,38 +25,38 @@ func runLocalCellTowerTest() error {
 		Accuracy:  0.4,
 		Source:    "quectel_multi_gnss_reference",
 	}
-	
+
 	// Hardcoded cellular data from your RutOS device
 	cellularData := createHardcodedCellularData()
-	
-	fmt.Printf("📍 GPS Reference: %.8f°, %.8f° (±%.1fm)\n", 
+
+	fmt.Printf("📍 GPS Reference: %.8f°, %.8f° (±%.1fm)\n",
 		gpsReference.Latitude, gpsReference.Longitude, gpsReference.Accuracy)
-	fmt.Printf("📡 Cell Tower: %s (Telia Sweden, MCC:%s, MNC:%s)\n", 
+	fmt.Printf("📡 Cell Tower: %s (Telia Sweden, MCC:%s, MNC:%s)\n",
 		cellularData.ServingCell.CellID, cellularData.ServingCell.MCC, cellularData.ServingCell.MNC)
-	fmt.Printf("📊 Signal: RSSI %d, RSRP %d, RSRQ %d\n", 
+	fmt.Printf("📊 Signal: RSSI %d, RSRP %d, RSRQ %d\n",
 		cellularData.SignalQuality.RSSI, cellularData.SignalQuality.RSRP, cellularData.SignalQuality.RSRQ)
-	
+
 	// Test Mozilla Location Service
 	fmt.Println("\n🦊 Testing Mozilla Location Service...")
 	fmt.Println("-" + strings.Repeat("-", 35))
-	
+
 	mozillaResult := testMozillaLocationLocal(cellularData)
-	
-	// Test OpenCellID Service  
+
+	// Test OpenCellID Service
 	fmt.Println("\n🗼 Testing OpenCellID Service...")
 	fmt.Println("-" + strings.Repeat("-", 30))
-	
+
 	openCellIDResult := testOpenCellIDLocal(cellularData)
-	
+
 	// Compare results
 	fmt.Println("\n📊 COMPARISON RESULTS")
 	fmt.Println("=" + strings.Repeat("=", 25))
-	
+
 	compareLocalResults(gpsReference, mozillaResult, openCellIDResult)
-	
+
 	// Save results
 	saveLocalTestResults(gpsReference, cellularData, mozillaResult, openCellIDResult)
-	
+
 	return nil
 }
 
@@ -64,20 +64,20 @@ func runLocalCellTowerTest() error {
 func createHardcodedCellularData() *CellularLocationIntelligence {
 	return &CellularLocationIntelligence{
 		ServingCell: ServingCellInfo{
-			CellID:   "25939743",  // Your actual cell ID (hex 18BCF1F converted to decimal)
-			TAC:      "23",        // Tracking Area Code
-			PCID:     443,         // Physical Cell ID
-			EARFCN:   1300,        // Frequency
-			Band:     "B3",        // LTE Band 3
-			MCC:      "240",       // Sweden
-			MNC:      "01",        // Telia
+			CellID:   "25939743", // Your actual cell ID (hex 18BCF1F converted to decimal)
+			TAC:      "23",       // Tracking Area Code
+			PCID:     443,        // Physical Cell ID
+			EARFCN:   1300,       // Frequency
+			Band:     "B3",       // LTE Band 3
+			MCC:      "240",      // Sweden
+			MNC:      "01",       // Telia
 			Operator: "Telia",
 		},
 		SignalQuality: SignalQuality{
-			RSSI: -53,  // Excellent signal
-			RSRP: -84,  // Reference Signal Received Power
-			RSRQ: -8,   // Reference Signal Received Quality
-			SINR: 17,   // Signal-to-Interference-plus-Noise Ratio
+			RSSI: -53, // Excellent signal
+			RSRP: -84, // Reference Signal Received Power
+			RSRQ: -8,  // Reference Signal Received Quality
+			SINR: 17,  // Signal-to-Interference-plus-Noise Ratio
 		},
 		NetworkInfo: NetworkInfo{
 			Operator:   "Telia",
@@ -109,9 +109,9 @@ func createHardcodedCellularData() *CellularLocationIntelligence {
 func testMozillaLocationLocal(cellData *CellularLocationIntelligence) *CellTowerLocationResult {
 	start := time.Now()
 	result := &CellTowerLocationResult{}
-	
+
 	fmt.Println("  📡 Sending request to Mozilla Location Service...")
-	
+
 	location, err := getMozillaLocationLocal(cellData)
 	if err != nil {
 		result.Success = false
@@ -121,9 +121,9 @@ func testMozillaLocationLocal(cellData *CellularLocationIntelligence) *CellTower
 		result.CellTowerLocation = location
 		result.Success = location.Valid
 		if location.Valid {
-			fmt.Printf("  ✅ Mozilla SUCCESS: %.6f°, %.6f° (±%.0fm) in %.1fms\n", 
+			fmt.Printf("  ✅ Mozilla SUCCESS: %.6f°, %.6f° (±%.0fm) in %.1fms\n",
 				location.Latitude, location.Longitude, location.Accuracy, location.ResponseTime)
-			
+
 			// Create Google Maps link
 			mapsLink := fmt.Sprintf("https://www.google.com/maps?q=%.6f,%.6f", location.Latitude, location.Longitude)
 			fmt.Printf("  🗺️  Mozilla Maps: %s\n", mapsLink)
@@ -131,7 +131,7 @@ func testMozillaLocationLocal(cellData *CellularLocationIntelligence) *CellTower
 			fmt.Printf("  ❌ Mozilla returned invalid location\n")
 		}
 	}
-	
+
 	result.TestDuration = time.Since(start)
 	return result
 }
@@ -140,9 +140,9 @@ func testMozillaLocationLocal(cellData *CellularLocationIntelligence) *CellTower
 func testOpenCellIDLocal(cellData *CellularLocationIntelligence) *CellTowerLocationResult {
 	start := time.Now()
 	result := &CellTowerLocationResult{}
-	
+
 	fmt.Println("  📡 Sending request to OpenCellID...")
-	
+
 	location, err := getOpenCellIDLocationLocal(cellData)
 	if err != nil {
 		result.Success = false
@@ -152,9 +152,9 @@ func testOpenCellIDLocal(cellData *CellularLocationIntelligence) *CellTowerLocat
 		result.CellTowerLocation = location
 		result.Success = location.Valid
 		if location.Valid {
-			fmt.Printf("  ✅ OpenCellID SUCCESS: %.6f°, %.6f° (±%.0fm) in %.1fms\n", 
+			fmt.Printf("  ✅ OpenCellID SUCCESS: %.6f°, %.6f° (±%.0fm) in %.1fms\n",
 				location.Latitude, location.Longitude, location.Accuracy, location.ResponseTime)
-			
+
 			// Create Google Maps link
 			mapsLink := fmt.Sprintf("https://www.google.com/maps?q=%.6f,%.6f", location.Latitude, location.Longitude)
 			fmt.Printf("  🗺️  OpenCellID Maps: %s\n", mapsLink)
@@ -162,7 +162,7 @@ func testOpenCellIDLocal(cellData *CellularLocationIntelligence) *CellTowerLocat
 			fmt.Printf("  ❌ OpenCellID returned invalid location\n")
 		}
 	}
-	
+
 	result.TestDuration = time.Since(start)
 	return result
 }
@@ -175,7 +175,7 @@ func getMozillaLocationLocal(cellData *CellularLocationIntelligence) (*CellTower
 		Method:      "multi_cell_triangulation",
 		CollectedAt: time.Now(),
 	}
-	
+
 	// Prepare request with serving cell + neighbors
 	request := MozillaLocationRequest{
 		CellTowers: []MozillaCellTower{{
@@ -187,7 +187,7 @@ func getMozillaLocationLocal(cellData *CellularLocationIntelligence) (*CellTower
 			SignalStrength:    cellData.SignalQuality.RSSI,
 		}},
 	}
-	
+
 	// Add neighbor cells for better triangulation
 	for _, neighbor := range cellData.NeighborCells {
 		request.CellTowers = append(request.CellTowers, MozillaCellTower{
@@ -199,9 +199,9 @@ func getMozillaLocationLocal(cellData *CellularLocationIntelligence) (*CellTower
 			SignalStrength:    neighbor.RSSI,
 		})
 	}
-	
+
 	fmt.Printf("    📊 Using %d cell towers for triangulation\n", len(request.CellTowers))
-	
+
 	// Make API request
 	jsonData, _ := json.Marshal(request)
 	resp, err := http.Post(
@@ -214,31 +214,31 @@ func getMozillaLocationLocal(cellData *CellularLocationIntelligence) (*CellTower
 		return location, err
 	}
 	defer resp.Body.Close()
-	
+
 	location.ResponseTime = float64(time.Since(start).Nanoseconds()) / 1e6
-	
+
 	// Parse response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		location.Error = fmt.Sprintf("Failed to read response: %v", err)
 		return location, err
 	}
-	
+
 	fmt.Printf("    📡 Response: %s\n", string(body))
-	
+
 	var response MozillaLocationResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		location.Error = fmt.Sprintf("Failed to parse response: %v", err)
 		return location, err
 	}
-	
+
 	// Extract location data
 	location.Latitude = response.Location.Lat
 	location.Longitude = response.Location.Lng
 	location.Accuracy = response.Accuracy
 	location.Valid = location.Latitude != 0 && location.Longitude != 0
 	location.Confidence = 0.8 // High confidence with multiple cells
-	
+
 	return location, nil
 }
 
@@ -250,14 +250,14 @@ func getOpenCellIDLocationLocal(cellData *CellularLocationIntelligence) (*CellTo
 		Method:      "database_lookup",
 		CollectedAt: time.Now(),
 	}
-	
+
 	// Load API token
 	apiKey, err := loadOpenCellIDTokenLocal()
 	if err != nil {
 		location.Error = fmt.Sprintf("Failed to load API key: %v", err)
 		return location, err
 	}
-	
+
 	// Prepare request
 	request := OpenCellIDRequest{
 		Token: apiKey,
@@ -272,9 +272,9 @@ func getOpenCellIDLocationLocal(cellData *CellularLocationIntelligence) (*CellTo
 			CID: 25939743,
 		}},
 	}
-	
+
 	fmt.Printf("    📊 Looking up Cell ID: %d (MCC:240, MNC:1, LAC:23)\n", 25939743)
-	
+
 	// Make API request
 	jsonData, _ := json.Marshal(request)
 	resp, err := http.Post(
@@ -287,90 +287,90 @@ func getOpenCellIDLocationLocal(cellData *CellularLocationIntelligence) (*CellTo
 		return location, err
 	}
 	defer resp.Body.Close()
-	
+
 	location.ResponseTime = float64(time.Since(start).Nanoseconds()) / 1e6
-	
+
 	// Parse response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		location.Error = fmt.Sprintf("Failed to read response: %v", err)
 		return location, err
 	}
-	
+
 	fmt.Printf("    📡 Response: %s\n", string(body))
-	
+
 	var response OpenCellIDResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		location.Error = fmt.Sprintf("Failed to parse response: %v", err)
 		return location, err
 	}
-	
+
 	if response.Status != "ok" {
 		location.Error = fmt.Sprintf("API error: %s", response.Message)
 		return location, fmt.Errorf("API error: %s", response.Message)
 	}
-	
+
 	// Extract location data
 	location.Latitude = response.Lat
 	location.Longitude = response.Lon
 	location.Accuracy = response.Accuracy
 	location.Valid = location.Latitude != 0 && location.Longitude != 0
 	location.Confidence = 0.85 // High confidence for OpenCellID
-	
+
 	return location, nil
 }
 
 // loadOpenCellIDTokenLocal loads the API token from file
 func loadOpenCellIDTokenLocal() (string, error) {
 	tokenFile := `C:\Users\markusla\OneDrive\IT\RUTOS Keys\OpenCELLID.txt`
-	
+
 	data, err := os.ReadFile(tokenFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to read token file: %v", err)
 	}
-	
+
 	token := strings.TrimSpace(string(data))
 	if token == "" {
 		return "", fmt.Errorf("token file is empty")
 	}
-	
+
 	return token, nil
 }
 
 // compareLocalResults compares the results from both services
 func compareLocalResults(gpsRef *GPSCoordinate, mozilla, openCellID *CellTowerLocationResult) {
-	fmt.Printf("\n📍 GPS Reference: %.8f°, %.8f° (±%.1fm)\n", 
+	fmt.Printf("\n📍 GPS Reference: %.8f°, %.8f° (±%.1fm)\n",
 		gpsRef.Latitude, gpsRef.Longitude, gpsRef.Accuracy)
-	
+
 	var mozillaDistance, openCellIDDistance float64 = -1, -1
-	
+
 	if mozilla.Success {
-		mozillaDistance = calculateDistance(gpsRef.Latitude, gpsRef.Longitude, 
+		mozillaDistance = calculateDistance(gpsRef.Latitude, gpsRef.Longitude,
 			mozilla.Latitude, mozilla.Longitude)
-		fmt.Printf("🦊 Mozilla: %.6f°, %.6f° → %.0fm from GPS\n", 
+		fmt.Printf("🦊 Mozilla: %.6f°, %.6f° → %.0fm from GPS\n",
 			mozilla.Latitude, mozilla.Longitude, mozillaDistance)
 	} else {
 		fmt.Printf("🦊 Mozilla: FAILED - %s\n", mozilla.ErrorDetails)
 	}
-	
+
 	if openCellID.Success {
-		openCellIDDistance = calculateDistance(gpsRef.Latitude, gpsRef.Longitude, 
+		openCellIDDistance = calculateDistance(gpsRef.Latitude, gpsRef.Longitude,
 			openCellID.Latitude, openCellID.Longitude)
-		fmt.Printf("🗼 OpenCellID: %.6f°, %.6f° → %.0fm from GPS\n", 
+		fmt.Printf("🗼 OpenCellID: %.6f°, %.6f° → %.0fm from GPS\n",
 			openCellID.Latitude, openCellID.Longitude, openCellIDDistance)
 	} else {
 		fmt.Printf("🗼 OpenCellID: FAILED - %s\n", openCellID.ErrorDetails)
 	}
-	
+
 	// Determine winner
 	fmt.Println("\n🏆 WINNER:")
 	if mozillaDistance >= 0 && openCellIDDistance >= 0 {
 		if mozillaDistance < openCellIDDistance {
-			fmt.Printf("   🦊 Mozilla Location Service (%.0fm more accurate)\n", 
-				openCellIDDistance - mozillaDistance)
+			fmt.Printf("   🦊 Mozilla Location Service (%.0fm more accurate)\n",
+				openCellIDDistance-mozillaDistance)
 		} else if openCellIDDistance < mozillaDistance {
-			fmt.Printf("   🗼 OpenCellID (%.0fm more accurate)\n", 
-				mozillaDistance - openCellIDDistance)
+			fmt.Printf("   🗼 OpenCellID (%.0fm more accurate)\n",
+				mozillaDistance-openCellIDDistance)
 		} else {
 			fmt.Printf("   🤝 TIE - Both services equally accurate\n")
 		}
@@ -381,7 +381,7 @@ func compareLocalResults(gpsRef *GPSCoordinate, mozilla, openCellID *CellTowerLo
 	} else {
 		fmt.Printf("   ❌ Neither service worked\n")
 	}
-	
+
 	// Recommendation
 	fmt.Println("\n💡 RECOMMENDATION:")
 	if mozillaDistance >= 0 && openCellIDDistance >= 0 {
@@ -395,7 +395,7 @@ func compareLocalResults(gpsRef *GPSCoordinate, mozilla, openCellID *CellTowerLo
 	} else {
 		fmt.Printf("   ❌ Cell tower location services not reliable for your area\n")
 	}
-	
+
 	// Google Maps comparison link
 	if mozillaDistance >= 0 && openCellIDDistance >= 0 {
 		fmt.Printf("\n🗺️  Compare all locations on map:\n")
@@ -406,31 +406,31 @@ func compareLocalResults(gpsRef *GPSCoordinate, mozilla, openCellID *CellTowerLo
 }
 
 // saveLocalTestResults saves the test results to a JSON file
-func saveLocalTestResults(gpsRef *GPSCoordinate, cellData *CellularLocationIntelligence, 
-	mozilla, openCellID *CellTowerLocationResult) {
-	
+func saveLocalTestResults(gpsRef *GPSCoordinate, cellData *CellularLocationIntelligence,
+	mozilla, openCellID *CellTowerLocationResult,
+) {
 	results := map[string]interface{}{
-		"test_type":      "local_cell_tower_accuracy",
-		"timestamp":      time.Now().Format(time.RFC3339),
-		"gps_reference":  gpsRef,
-		"cellular_data":  cellData,
-		"mozilla_result": mozilla,
+		"test_type":         "local_cell_tower_accuracy",
+		"timestamp":         time.Now().Format(time.RFC3339),
+		"gps_reference":     gpsRef,
+		"cellular_data":     cellData,
+		"mozilla_result":    mozilla,
 		"opencellid_result": openCellID,
 	}
-	
-	filename := fmt.Sprintf("local_cell_tower_test_%s.json", 
+
+	filename := fmt.Sprintf("local_cell_tower_test_%s.json",
 		time.Now().Format("2006-01-02_15-04-05"))
-	
+
 	data, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
 		fmt.Printf("❌ Failed to marshal results: %v\n", err)
 		return
 	}
-	
-	if err := os.WriteFile(filename, data, 0644); err != nil {
+
+	if err := os.WriteFile(filename, data, 0o644); err != nil {
 		fmt.Printf("❌ Failed to save results: %v\n", err)
 		return
 	}
-	
+
 	fmt.Printf("\n💾 Results saved to: %s\n", filename)
 }

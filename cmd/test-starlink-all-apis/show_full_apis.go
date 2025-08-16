@@ -48,7 +48,7 @@ func main() {
 		fmt.Printf("\n🔍 STARLINK %s API - FULL OUTPUT:\n", strings.ToUpper(method.name))
 		fmt.Printf("Description: %s\n", method.description)
 		fmt.Println(strings.Repeat("=", 60))
-		
+
 		response, err := collector.TestStarlinkMethod(ctx, method.name)
 		if err != nil {
 			fmt.Printf("❌ %s failed: %v\n", method.name, err)

@@ -8,90 +8,90 @@ import (
 // UCIAdaptiveConfig represents UCI configuration for adaptive location caching
 type UCIAdaptiveConfig struct {
 	// Trigger thresholds
-	CellTopN                int     `uci:"starfail.location.cell_top_n"`
-	CellChangeThreshold     float64 `uci:"starfail.location.cell_change_threshold"`
-	CellTopStrongChanged    int     `uci:"starfail.location.cell_top_strong_changed"`
-	
-	WiFiTopK                int     `uci:"starfail.location.wifi_top_k"`
-	WiFiChangeThreshold     float64 `uci:"starfail.location.wifi_change_threshold"`
-	WiFiTopStrongChanged    int     `uci:"starfail.location.wifi_top_strong_changed"`
-	
+	CellTopN             int     `uci:"starfail.location.cell_top_n"`
+	CellChangeThreshold  float64 `uci:"starfail.location.cell_change_threshold"`
+	CellTopStrongChanged int     `uci:"starfail.location.cell_top_strong_changed"`
+
+	WiFiTopK             int     `uci:"starfail.location.wifi_top_k"`
+	WiFiChangeThreshold  float64 `uci:"starfail.location.wifi_change_threshold"`
+	WiFiTopStrongChanged int     `uci:"starfail.location.wifi_top_strong_changed"`
+
 	// Timing controls (in seconds for UCI)
-	DebounceTime           int `uci:"starfail.location.debounce_time"`
-	MinIntervalMoving      int `uci:"starfail.location.min_interval_moving"`
-	SoftTTL                int `uci:"starfail.location.soft_ttl"`
-	HardTTL                int `uci:"starfail.location.hard_ttl"`
-	StationaryBackoffTime  int `uci:"starfail.location.stationary_backoff_time"`
-	
+	DebounceTime          int `uci:"starfail.location.debounce_time"`
+	MinIntervalMoving     int `uci:"starfail.location.min_interval_moving"`
+	SoftTTL               int `uci:"starfail.location.soft_ttl"`
+	HardTTL               int `uci:"starfail.location.hard_ttl"`
+	StationaryBackoffTime int `uci:"starfail.location.stationary_backoff_time"`
+
 	// Stationary intervals (in seconds)
-	StationaryInterval1    int `uci:"starfail.location.stationary_interval_1"`
-	StationaryInterval2    int `uci:"starfail.location.stationary_interval_2"`
-	StationaryInterval3    int `uci:"starfail.location.stationary_interval_3"`
-	StationaryInterval4    int `uci:"starfail.location.stationary_interval_4"`
-	
+	StationaryInterval1 int `uci:"starfail.location.stationary_interval_1"`
+	StationaryInterval2 int `uci:"starfail.location.stationary_interval_2"`
+	StationaryInterval3 int `uci:"starfail.location.stationary_interval_3"`
+	StationaryInterval4 int `uci:"starfail.location.stationary_interval_4"`
+
 	// Quality gating
-	AccuracyImprovement    float64 `uci:"starfail.location.accuracy_improvement"`
-	MinMovementDistance    float64 `uci:"starfail.location.min_movement_distance"`
-	MovementAccuracyFactor float64 `uci:"starfail.location.movement_accuracy_factor"`
+	AccuracyImprovement     float64 `uci:"starfail.location.accuracy_improvement"`
+	MinMovementDistance     float64 `uci:"starfail.location.min_movement_distance"`
+	MovementAccuracyFactor  float64 `uci:"starfail.location.movement_accuracy_factor"`
 	AccuracyRegressionLimit float64 `uci:"starfail.location.accuracy_regression_limit"`
-	ChiSquareThreshold     float64 `uci:"starfail.location.chi_square_threshold"`
-	
+	ChiSquareThreshold      float64 `uci:"starfail.location.chi_square_threshold"`
+
 	// Budget management
-	MonthlyQuota           int     `uci:"starfail.location.monthly_quota"`
-	DailyQuotaPercent      float64 `uci:"starfail.location.daily_quota_percent"`
-	QuotaExceededInterval  int     `uci:"starfail.location.quota_exceeded_interval"`
-	
+	MonthlyQuota          int     `uci:"starfail.location.monthly_quota"`
+	DailyQuotaPercent     float64 `uci:"starfail.location.daily_quota_percent"`
+	QuotaExceededInterval int     `uci:"starfail.location.quota_exceeded_interval"`
+
 	// Smoothing
-	BufferSize             int     `uci:"starfail.location.buffer_size"`
-	SmoothingWindowMoving  int     `uci:"starfail.location.smoothing_window_moving"`
-	SmoothingWindowParked  int     `uci:"starfail.location.smoothing_window_parked"`
-	EMAAlphaMin            float64 `uci:"starfail.location.ema_alpha_min"`
-	EMAAlphaMax            float64 `uci:"starfail.location.ema_alpha_max"`
+	BufferSize            int     `uci:"starfail.location.buffer_size"`
+	SmoothingWindowMoving int     `uci:"starfail.location.smoothing_window_moving"`
+	SmoothingWindowParked int     `uci:"starfail.location.smoothing_window_parked"`
+	EMAAlphaMin           float64 `uci:"starfail.location.ema_alpha_min"`
+	EMAAlphaMax           float64 `uci:"starfail.location.ema_alpha_max"`
 }
 
 // GetDefaultAdaptiveConfig returns default configuration values
 func GetDefaultAdaptiveConfig() *UCIAdaptiveConfig {
 	return &UCIAdaptiveConfig{
 		// Trigger thresholds
-		CellTopN:                8,
-		CellChangeThreshold:     0.35,  // 35%
-		CellTopStrongChanged:    2,
-		
-		WiFiTopK:                10,
-		WiFiChangeThreshold:     0.40,  // 40%
-		WiFiTopStrongChanged:    3,
-		
+		CellTopN:             8,
+		CellChangeThreshold:  0.35, // 35%
+		CellTopStrongChanged: 2,
+
+		WiFiTopK:             10,
+		WiFiChangeThreshold:  0.40, // 40%
+		WiFiTopStrongChanged: 3,
+
 		// Timing controls (seconds)
-		DebounceTime:           10,     // 10 seconds
-		MinIntervalMoving:      300,    // 5 minutes
-		SoftTTL:                900,    // 15 minutes
-		HardTTL:                3600,   // 60 minutes
-		StationaryBackoffTime:  7200,   // 2 hours
-		
+		DebounceTime:          10,   // 10 seconds
+		MinIntervalMoving:     300,  // 5 minutes
+		SoftTTL:               900,  // 15 minutes
+		HardTTL:               3600, // 60 minutes
+		StationaryBackoffTime: 7200, // 2 hours
+
 		// Stationary intervals (seconds)
-		StationaryInterval1:    600,    // 10 minutes
-		StationaryInterval2:    1200,   // 20 minutes
-		StationaryInterval3:    2400,   // 40 minutes
-		StationaryInterval4:    3600,   // 60 minutes
-		
+		StationaryInterval1: 600,  // 10 minutes
+		StationaryInterval2: 1200, // 20 minutes
+		StationaryInterval3: 2400, // 40 minutes
+		StationaryInterval4: 3600, // 60 minutes
+
 		// Quality gating
-		AccuracyImprovement:    0.8,    // Accept if 80% of old accuracy
-		MinMovementDistance:    300.0,  // 300 meters
-		MovementAccuracyFactor: 1.5,    // 1.5x accuracy for movement detection
+		AccuracyImprovement:     0.8,   // Accept if 80% of old accuracy
+		MinMovementDistance:     300.0, // 300 meters
+		MovementAccuracyFactor:  1.5,   // 1.5x accuracy for movement detection
 		AccuracyRegressionLimit: 1.2,   // Allow 20% accuracy loss on movement
-		ChiSquareThreshold:     5.99,   // 95% confidence in 2D
-		
+		ChiSquareThreshold:      5.99,  // 95% confidence in 2D
+
 		// Budget management
-		MonthlyQuota:           10000,  // 10k free requests
-		DailyQuotaPercent:      0.5,    // 50% by midday
-		QuotaExceededInterval:  900,    // 15 minutes
-		
+		MonthlyQuota:          10000, // 10k free requests
+		DailyQuotaPercent:     0.5,   // 50% by midday
+		QuotaExceededInterval: 900,   // 15 minutes
+
 		// Smoothing
-		BufferSize:             10,
-		SmoothingWindowMoving:  5,
-		SmoothingWindowParked:  10,
-		EMAAlphaMin:            0.2,
-		EMAAlphaMax:            0.5,
+		BufferSize:            10,
+		SmoothingWindowMoving: 5,
+		SmoothingWindowParked: 10,
+		EMAAlphaMin:           0.2,
+		EMAAlphaMax:           0.5,
 	}
 }
 
@@ -99,21 +99,21 @@ func GetDefaultAdaptiveConfig() *UCIAdaptiveConfig {
 func (uci *UCIAdaptiveConfig) ToAdaptiveCacheConfig() *AdaptiveCacheConfig {
 	return &AdaptiveCacheConfig{
 		// Trigger thresholds
-		CellTopN:                uci.CellTopN,
-		CellChangeThreshold:     uci.CellChangeThreshold,
-		CellTopStrongChanged:    uci.CellTopStrongChanged,
-		
-		WiFiTopK:                uci.WiFiTopK,
-		WiFiChangeThreshold:     uci.WiFiChangeThreshold,
-		WiFiTopStrongChanged:    uci.WiFiTopStrongChanged,
-		
+		CellTopN:             uci.CellTopN,
+		CellChangeThreshold:  uci.CellChangeThreshold,
+		CellTopStrongChanged: uci.CellTopStrongChanged,
+
+		WiFiTopK:             uci.WiFiTopK,
+		WiFiChangeThreshold:  uci.WiFiChangeThreshold,
+		WiFiTopStrongChanged: uci.WiFiTopStrongChanged,
+
 		// Timing controls
-		DebounceTime:           time.Duration(uci.DebounceTime) * time.Second,
-		MinIntervalMoving:      time.Duration(uci.MinIntervalMoving) * time.Second,
-		SoftTTL:                time.Duration(uci.SoftTTL) * time.Second,
-		HardTTL:                time.Duration(uci.HardTTL) * time.Second,
-		StationaryBackoffTime:  time.Duration(uci.StationaryBackoffTime) * time.Second,
-		
+		DebounceTime:          time.Duration(uci.DebounceTime) * time.Second,
+		MinIntervalMoving:     time.Duration(uci.MinIntervalMoving) * time.Second,
+		SoftTTL:               time.Duration(uci.SoftTTL) * time.Second,
+		HardTTL:               time.Duration(uci.HardTTL) * time.Second,
+		StationaryBackoffTime: time.Duration(uci.StationaryBackoffTime) * time.Second,
+
 		// Stationary intervals
 		StationaryIntervals: []time.Duration{
 			time.Duration(uci.StationaryInterval1) * time.Second,
@@ -121,25 +121,25 @@ func (uci *UCIAdaptiveConfig) ToAdaptiveCacheConfig() *AdaptiveCacheConfig {
 			time.Duration(uci.StationaryInterval3) * time.Second,
 			time.Duration(uci.StationaryInterval4) * time.Second,
 		},
-		
+
 		// Quality gating
-		AccuracyImprovement:    uci.AccuracyImprovement,
-		MinMovementDistance:    uci.MinMovementDistance,
-		MovementAccuracyFactor: uci.MovementAccuracyFactor,
+		AccuracyImprovement:     uci.AccuracyImprovement,
+		MinMovementDistance:     uci.MinMovementDistance,
+		MovementAccuracyFactor:  uci.MovementAccuracyFactor,
 		AccuracyRegressionLimit: uci.AccuracyRegressionLimit,
-		ChiSquareThreshold:     uci.ChiSquareThreshold,
-		
+		ChiSquareThreshold:      uci.ChiSquareThreshold,
+
 		// Budget management
-		MonthlyQuota:           uci.MonthlyQuota,
-		DailyQuotaPercent:      uci.DailyQuotaPercent,
-		QuotaExceededInterval:  time.Duration(uci.QuotaExceededInterval) * time.Second,
-		
+		MonthlyQuota:          uci.MonthlyQuota,
+		DailyQuotaPercent:     uci.DailyQuotaPercent,
+		QuotaExceededInterval: time.Duration(uci.QuotaExceededInterval) * time.Second,
+
 		// Smoothing
-		BufferSize:             uci.BufferSize,
-		SmoothingWindowMoving:  uci.SmoothingWindowMoving,
-		SmoothingWindowParked:  uci.SmoothingWindowParked,
-		EMAAlphaMin:            uci.EMAAlphaMin,
-		EMAAlphaMax:            uci.EMAAlphaMax,
+		BufferSize:            uci.BufferSize,
+		SmoothingWindowMoving: uci.SmoothingWindowMoving,
+		SmoothingWindowParked: uci.SmoothingWindowParked,
+		EMAAlphaMin:           uci.EMAAlphaMin,
+		EMAAlphaMax:           uci.EMAAlphaMax,
 	}
 }
 
@@ -147,51 +147,51 @@ func (uci *UCIAdaptiveConfig) ToAdaptiveCacheConfig() *AdaptiveCacheConfig {
 func (uci *UCIAdaptiveConfig) GenerateUCICommands() []string {
 	commands := []string{
 		"uci set starfail.location=location",
-		
+
 		// Trigger thresholds
 		fmt.Sprintf("uci set starfail.location.cell_top_n='%d'", uci.CellTopN),
 		fmt.Sprintf("uci set starfail.location.cell_change_threshold='%.2f'", uci.CellChangeThreshold),
 		fmt.Sprintf("uci set starfail.location.cell_top_strong_changed='%d'", uci.CellTopStrongChanged),
-		
+
 		fmt.Sprintf("uci set starfail.location.wifi_top_k='%d'", uci.WiFiTopK),
 		fmt.Sprintf("uci set starfail.location.wifi_change_threshold='%.2f'", uci.WiFiChangeThreshold),
 		fmt.Sprintf("uci set starfail.location.wifi_top_strong_changed='%d'", uci.WiFiTopStrongChanged),
-		
+
 		// Timing controls
 		fmt.Sprintf("uci set starfail.location.debounce_time='%d'", uci.DebounceTime),
 		fmt.Sprintf("uci set starfail.location.min_interval_moving='%d'", uci.MinIntervalMoving),
 		fmt.Sprintf("uci set starfail.location.soft_ttl='%d'", uci.SoftTTL),
 		fmt.Sprintf("uci set starfail.location.hard_ttl='%d'", uci.HardTTL),
 		fmt.Sprintf("uci set starfail.location.stationary_backoff_time='%d'", uci.StationaryBackoffTime),
-		
+
 		// Stationary intervals
 		fmt.Sprintf("uci set starfail.location.stationary_interval_1='%d'", uci.StationaryInterval1),
 		fmt.Sprintf("uci set starfail.location.stationary_interval_2='%d'", uci.StationaryInterval2),
 		fmt.Sprintf("uci set starfail.location.stationary_interval_3='%d'", uci.StationaryInterval3),
 		fmt.Sprintf("uci set starfail.location.stationary_interval_4='%d'", uci.StationaryInterval4),
-		
+
 		// Quality gating
 		fmt.Sprintf("uci set starfail.location.accuracy_improvement='%.2f'", uci.AccuracyImprovement),
 		fmt.Sprintf("uci set starfail.location.min_movement_distance='%.0f'", uci.MinMovementDistance),
 		fmt.Sprintf("uci set starfail.location.movement_accuracy_factor='%.1f'", uci.MovementAccuracyFactor),
 		fmt.Sprintf("uci set starfail.location.accuracy_regression_limit='%.1f'", uci.AccuracyRegressionLimit),
 		fmt.Sprintf("uci set starfail.location.chi_square_threshold='%.2f'", uci.ChiSquareThreshold),
-		
+
 		// Budget management
 		fmt.Sprintf("uci set starfail.location.monthly_quota='%d'", uci.MonthlyQuota),
 		fmt.Sprintf("uci set starfail.location.daily_quota_percent='%.2f'", uci.DailyQuotaPercent),
 		fmt.Sprintf("uci set starfail.location.quota_exceeded_interval='%d'", uci.QuotaExceededInterval),
-		
+
 		// Smoothing
 		fmt.Sprintf("uci set starfail.location.buffer_size='%d'", uci.BufferSize),
 		fmt.Sprintf("uci set starfail.location.smoothing_window_moving='%d'", uci.SmoothingWindowMoving),
 		fmt.Sprintf("uci set starfail.location.smoothing_window_parked='%d'", uci.SmoothingWindowParked),
 		fmt.Sprintf("uci set starfail.location.ema_alpha_min='%.1f'", uci.EMAAlphaMin),
 		fmt.Sprintf("uci set starfail.location.ema_alpha_max='%.1f'", uci.EMAAlphaMax),
-		
+
 		"uci commit starfail",
 	}
-	
+
 	return commands
 }
 
@@ -213,7 +213,7 @@ func testAdaptiveUCIConfig() {
 
 	fmt.Println("📋 Default Configuration Values:")
 	fmt.Println("================================")
-	
+
 	fmt.Printf("🔍 Trigger Thresholds:\n")
 	fmt.Printf("  📱 Cell Top N: %d cells\n", config.CellTopN)
 	fmt.Printf("  📱 Cell Change Threshold: %.0f%%\n", config.CellChangeThreshold*100)
@@ -257,7 +257,7 @@ func testAdaptiveUCIConfig() {
 	fmt.Println("\n📝 Generated UCI Commands:")
 	fmt.Println("==========================")
 	commands := config.GenerateUCICommands()
-	
+
 	for i, cmd := range commands {
 		if i < 5 || i >= len(commands)-2 {
 			fmt.Printf("  %s\n", cmd)

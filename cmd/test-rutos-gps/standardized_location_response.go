@@ -11,33 +11,33 @@ import (
 // StandardizedLocationResponse provides a unified interface for all location sources
 type StandardizedLocationResponse struct {
 	// Core Location Data (always available)
-	Latitude  float64 `json:"latitude"`  // Decimal degrees
-	Longitude float64 `json:"longitude"` // Decimal degrees
-	Accuracy  float64 `json:"accuracy"`  // Accuracy radius in meters
+	Latitude  float64   `json:"latitude"`  // Decimal degrees
+	Longitude float64   `json:"longitude"` // Decimal degrees
+	Accuracy  float64   `json:"accuracy"`  // Accuracy radius in meters
 	Timestamp time.Time `json:"timestamp"` // When location was determined
-	
+
 	// Extended GPS Data (available from GPS sources, simulated for others)
 	Altitude   *float64 `json:"altitude,omitempty"`   // Meters above sea level (nil if unavailable)
 	Speed      *float64 `json:"speed,omitempty"`      // Speed in km/h (nil if unavailable)
 	Course     *float64 `json:"course,omitempty"`     // Bearing in degrees (nil if unavailable)
 	Satellites *int     `json:"satellites,omitempty"` // Number of satellites (nil if not GPS)
-	
+
 	// Quality Indicators
-	FixType    string  `json:"fix_type"`    // "gps", "cellular", "wifi", "combined"
-	FixQuality string  `json:"fix_quality"` // "excellent", "good", "fair", "poor"
+	FixType    string   `json:"fix_type"`       // "gps", "cellular", "wifi", "combined"
+	FixQuality string   `json:"fix_quality"`    // "excellent", "good", "fair", "poor"
 	HDOP       *float64 `json:"hdop,omitempty"` // Horizontal Dilution of Precision (GPS only)
-	
+
 	// Source Information
 	Source       string        `json:"source"`        // Detailed source description
 	Method       string        `json:"method"`        // "gps", "google_api", "fallback"
 	FromCache    bool          `json:"from_cache"`    // Whether from cache
 	ResponseTime time.Duration `json:"response_time"` // Time to get location
-	
+
 	// API-specific data (for Google API responses)
-	APICallMade   bool    `json:"api_call_made"`   // Whether API was called
-	APICost       float64 `json:"api_cost"`        // Cost of API call
-	DataSources   []string `json:"data_sources"`   // ["wifi", "cellular", "ip"]
-	
+	APICallMade bool     `json:"api_call_made"` // Whether API was called
+	APICost     float64  `json:"api_cost"`      // Cost of API call
+	DataSources []string `json:"data_sources"`  // ["wifi", "cellular", "ip"]
+
 	// Reliability indicators
 	Valid      bool    `json:"valid"`      // Whether location is considered valid
 	Confidence float64 `json:"confidence"` // Confidence score 0.0-1.0
@@ -108,7 +108,7 @@ func CreateStandardizedLocationFromGPS(gpsData *QuectelGPSData) *StandardizedLoc
 	if accuracy < 2.0 {
 		accuracy = 2.0
 	}
-	
+
 	// Determine fix quality based on accuracy and satellites
 	quality := "poor"
 	if accuracy <= 5.0 && gpsData.Satellites >= 8 {
@@ -118,36 +118,36 @@ func CreateStandardizedLocationFromGPS(gpsData *QuectelGPSData) *StandardizedLoc
 	} else if accuracy <= 20.0 && gpsData.Satellites >= 4 {
 		quality = "fair"
 	}
-	
+
 	return &StandardizedLocationResponse{
 		// Core data
 		Latitude:  gpsData.Latitude,
 		Longitude: gpsData.Longitude,
 		Accuracy:  accuracy,
 		Timestamp: time.Now(),
-		
+
 		// Extended GPS data (all available)
 		Altitude:   &gpsData.Altitude,
 		Speed:      &gpsData.SpeedKmh,
 		Course:     &gpsData.Course,
 		Satellites: &gpsData.Satellites,
-		
+
 		// Quality indicators
 		FixType:    "gps",
 		FixQuality: quality,
 		HDOP:       &gpsData.HDOP,
-		
+
 		// Source information
 		Source:       fmt.Sprintf("Quectel GNSS (%d satellites, HDOP %.1f)", gpsData.Satellites, gpsData.HDOP),
 		Method:       "gps",
 		FromCache:    false,
 		ResponseTime: 0,
-		
+
 		// API data (not applicable)
 		APICallMade: false,
 		APICost:     0.0,
 		DataSources: []string{"gnss"},
-		
+
 		// Reliability
 		Valid:      gpsData.Latitude != 0 && gpsData.Longitude != 0,
 		Confidence: calculateGPSConfidence(gpsData),
@@ -164,7 +164,7 @@ func CreateStandardizedLocationFromGoogle(resp *maps.GeolocationResult, wifiCoun
 	if cellCount > 0 {
 		dataSources = append(dataSources, "cellular")
 	}
-	
+
 	// Determine fix type and quality
 	fixType := "wifi"
 	if cellCount > 0 && wifiCount > 0 {
@@ -172,7 +172,7 @@ func CreateStandardizedLocationFromGoogle(resp *maps.GeolocationResult, wifiCoun
 	} else if cellCount > 0 {
 		fixType = "cellular"
 	}
-	
+
 	quality := "poor"
 	if resp.Accuracy <= 50.0 {
 		quality = "excellent"
@@ -181,7 +181,7 @@ func CreateStandardizedLocationFromGoogle(resp *maps.GeolocationResult, wifiCoun
 	} else if resp.Accuracy <= 500.0 {
 		quality = "fair"
 	}
-	
+
 	// Simulate missing GPS data (set to nil since Google API doesn't provide these)
 	return &StandardizedLocationResponse{
 		// Core data (from Google API)
@@ -189,29 +189,29 @@ func CreateStandardizedLocationFromGoogle(resp *maps.GeolocationResult, wifiCoun
 		Longitude: resp.Location.Lng,
 		Accuracy:  resp.Accuracy,
 		Timestamp: time.Now(),
-		
+
 		// Extended GPS data (not available from Google API)
 		Altitude:   nil, // Google API doesn't provide altitude
 		Speed:      nil, // Google API doesn't provide speed
 		Course:     nil, // Google API doesn't provide course
 		Satellites: nil, // Google API doesn't use satellites
-		
+
 		// Quality indicators
 		FixType:    fixType,
 		FixQuality: quality,
 		HDOP:       nil, // Not applicable for Google API
-		
+
 		// Source information
 		Source:       fmt.Sprintf("Google API (%d WiFi + %d Cell)", wifiCount, cellCount),
 		Method:       "google_api",
 		FromCache:    false,
 		ResponseTime: 0,
-		
+
 		// API data
 		APICallMade: true,
 		APICost:     cost,
 		DataSources: dataSources,
-		
+
 		// Reliability
 		Valid:      resp.Location.Lat != 0 && resp.Location.Lng != 0,
 		Confidence: calculateGoogleConfidence(resp.Accuracy, wifiCount, cellCount),
@@ -223,11 +223,11 @@ func CreateStandardizedLocationFromCache(cached *StandardizedLocationResponse) *
 	// Create a copy with updated cache status
 	response := *cached
 	response.FromCache = true
-	response.ResponseTime = 0 // Instant from cache
+	response.ResponseTime = 0       // Instant from cache
 	response.Timestamp = time.Now() // Update access time
-	response.APICallMade = false // No new API call
-	response.APICost = 0.0 // No cost for cache
-	
+	response.APICallMade = false    // No new API call
+	response.APICost = 0.0          // No cost for cache
+
 	return &response
 }
 
@@ -237,14 +237,14 @@ func (slr *StandardizedLocationResponse) SimulateMissingGPSFields() {
 	if slr.Method == "gps" {
 		return
 	}
-	
+
 	// Simulate altitude based on location (very rough estimation)
 	if slr.Altitude == nil {
 		// Default sea level for most locations
 		estimatedAltitude := 50.0 // 50 meters above sea level as default
 		slr.Altitude = &estimatedAltitude
 	}
-	
+
 	// Speed and course remain nil (cannot be estimated from single location)
 	// Satellites remain nil (not applicable for non-GPS sources)
 	// HDOP remains nil (not applicable for non-GPS sources)
@@ -253,7 +253,7 @@ func (slr *StandardizedLocationResponse) SimulateMissingGPSFields() {
 // GetMissingFields returns a list of fields that are nil/unavailable
 func (slr *StandardizedLocationResponse) GetMissingFields() []string {
 	var missing []string
-	
+
 	if slr.Altitude == nil {
 		missing = append(missing, "altitude")
 	}
@@ -269,7 +269,7 @@ func (slr *StandardizedLocationResponse) GetMissingFields() []string {
 	if slr.HDOP == nil {
 		missing = append(missing, "hdop")
 	}
-	
+
 	return missing
 }
 
@@ -289,7 +289,7 @@ func (slr *StandardizedLocationResponse) IsEquivalentToGPS() bool {
 // Helper functions for confidence calculation
 func calculateGPSConfidence(gpsData *QuectelGPSData) float64 {
 	confidence := 0.5 // Base confidence
-	
+
 	// Boost confidence based on satellite count
 	if gpsData.Satellites >= 8 {
 		confidence += 0.3
@@ -298,25 +298,25 @@ func calculateGPSConfidence(gpsData *QuectelGPSData) float64 {
 	} else if gpsData.Satellites >= 4 {
 		confidence += 0.1
 	}
-	
+
 	// Boost confidence based on HDOP (lower is better)
 	if gpsData.HDOP <= 1.0 {
 		confidence += 0.2
 	} else if gpsData.HDOP <= 2.0 {
 		confidence += 0.1
 	}
-	
+
 	// Cap at 1.0
 	if confidence > 1.0 {
 		confidence = 1.0
 	}
-	
+
 	return confidence
 }
 
 func calculateGoogleConfidence(accuracy float64, wifiCount, cellCount int) float64 {
 	confidence := 0.3 // Base confidence
-	
+
 	// Boost confidence based on accuracy
 	if accuracy <= 50.0 {
 		confidence += 0.4
@@ -325,23 +325,23 @@ func calculateGoogleConfidence(accuracy float64, wifiCount, cellCount int) float
 	} else if accuracy <= 500.0 {
 		confidence += 0.2
 	}
-	
+
 	// Boost confidence based on data sources
 	if wifiCount >= 5 {
 		confidence += 0.2
 	} else if wifiCount >= 3 {
 		confidence += 0.1
 	}
-	
+
 	if cellCount >= 3 {
 		confidence += 0.1
 	}
-	
+
 	// Cap at 1.0
 	if confidence > 1.0 {
 		confidence = 1.0
 	}
-	
+
 	return confidence
 }
 
@@ -349,13 +349,13 @@ func calculateGoogleConfidence(accuracy float64, wifiCount, cellCount int) float
 func PrintLocationComparison() {
 	fmt.Println("📊 Location Source Comparison")
 	fmt.Println("=============================")
-	
+
 	capabilities := GetSourceCapabilities()
-	
+
 	fmt.Printf("%-15s %-10s %-8s %-8s %-8s %-12s %-6s %-15s\n",
 		"Source", "Altitude", "Speed", "Course", "Sats", "HDOP", "Acc", "Typical Range")
 	fmt.Println(strings.Repeat("-", 90))
-	
+
 	for source, caps := range capabilities {
 		fmt.Printf("%-15s %-10s %-8s %-8s %-8s %-12s %-6s %-15s\n",
 			source,
@@ -367,7 +367,7 @@ func PrintLocationComparison() {
 			fmt.Sprintf("%.0f-%.0fm", caps.MaxAccuracy, caps.MinAccuracy),
 			caps.TypicalAccuracy)
 	}
-	
+
 	fmt.Println("\n🎯 Field Availability Summary:")
 	fmt.Println("  ✅ Always Available: Latitude, Longitude, Accuracy, Timestamp")
 	fmt.Println("  📍 GPS Only: Altitude, Speed, Course, Satellites, HDOP")
@@ -386,12 +386,12 @@ func boolToYesNo(b bool) string {
 func testStandardizedLocationResponse() {
 	fmt.Println("📊 Standardized Location Response Test")
 	fmt.Println("======================================")
-	
+
 	// Print comparison table
 	PrintLocationComparison()
-	
+
 	fmt.Println("\n🧪 Testing Response Creation:")
-	
+
 	// Example 1: GPS Response
 	gpsData := &QuectelGPSData{
 		Latitude:   59.480070,
@@ -402,31 +402,31 @@ func testStandardizedLocationResponse() {
 		Satellites: 12,
 		HDOP:       0.8,
 	}
-	
+
 	gpsResponse := CreateStandardizedLocationFromGPS(gpsData)
 	fmt.Println("\n📍 GPS Response:")
 	printLocationResponse(gpsResponse)
-	
+
 	// Example 2: Google API Response (simulated)
 	googleResp := &maps.GeolocationResult{
 		Location: maps.LatLng{Lat: 59.479826, Lng: 18.279921},
 		Accuracy: 45.0,
 	}
-	
+
 	googleResponse := CreateStandardizedLocationFromGoogle(googleResp, 8, 3, 0.005)
 	fmt.Println("\n🌐 Google API Response:")
 	printLocationResponse(googleResponse)
-	
+
 	// Example 3: Cached Response
 	cachedResponse := CreateStandardizedLocationFromCache(googleResponse)
 	fmt.Println("\n💾 Cached Response:")
 	printLocationResponse(cachedResponse)
-	
+
 	// Example 4: Simulated fields
 	googleResponse.SimulateMissingGPSFields()
 	fmt.Println("\n🎭 Google API with Simulated Fields:")
 	printLocationResponse(googleResponse)
-	
+
 	fmt.Println("\n🎯 Key Benefits:")
 	fmt.Println("  ✅ Unified interface for all location sources")
 	fmt.Println("  ✅ Clear indication of available vs missing fields")
@@ -439,30 +439,30 @@ func printLocationResponse(resp *StandardizedLocationResponse) {
 	fmt.Printf("  📍 Location: %.6f°, %.6f° (±%.0fm)\n", resp.Latitude, resp.Longitude, resp.Accuracy)
 	fmt.Printf("  📡 Source: %s (%s)\n", resp.Source, resp.Method)
 	fmt.Printf("  ⭐ Quality: %s (confidence: %.1f%%)\n", resp.FixQuality, resp.Confidence*100)
-	
+
 	if resp.Altitude != nil {
 		fmt.Printf("  🏔️  Altitude: %.1fm\n", *resp.Altitude)
 	} else {
 		fmt.Printf("  🏔️  Altitude: N/A\n")
 	}
-	
+
 	if resp.Satellites != nil {
 		fmt.Printf("  🛰️  Satellites: %d\n", *resp.Satellites)
 	} else {
 		fmt.Printf("  🛰️  Satellites: N/A\n")
 	}
-	
+
 	if resp.Speed != nil && *resp.Speed > 0 {
 		fmt.Printf("  🚗 Speed: %.1f km/h\n", *resp.Speed)
 	}
-	
+
 	fmt.Printf("  💾 Cached: %t\n", resp.FromCache)
 	fmt.Printf("  💰 API Cost: $%.3f\n", resp.APICost)
-	
+
 	missing := resp.GetMissingFields()
 	if len(missing) > 0 {
 		fmt.Printf("  ❌ Missing: %v\n", missing)
 	}
-	
+
 	fmt.Printf("  🎯 GPS Equivalent: %t\n", resp.IsEquivalentToGPS())
 }

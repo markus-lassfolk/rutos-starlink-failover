@@ -458,18 +458,18 @@ func (ss *StarlinkGPSSource) CollectGPS(ctx context.Context) (*pkg.GPSData, erro
 		"api_port": ss.apiPort,
 		"timeout":  10 * time.Second,
 	}
-	
+
 	starlinkCollector, err := collector.NewStarlinkCollector(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Starlink collector: %w", err)
 	}
-	
+
 	// Call the get_location method
 	locationResponse, err := starlinkCollector.TestStarlinkMethod(ctx, "get_location")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get location from Starlink: %w", err)
 	}
-	
+
 	// Parse the JSON response
 	return ss.parseLocationResponse(locationResponse)
 }
@@ -571,13 +571,13 @@ func (ss *StarlinkGPSSource) parseLocationResponse(jsonResponse string) (*pkg.GP
 	}
 
 	gpsData := &pkg.GPSData{
-		Latitude:  lat,
-		Longitude: lon,
-		Altitude:  alt,
-		Accuracy:  sigmaM,
-		Source:    "starlink",
-		Valid:     lat != 0 && lon != 0,
-		Timestamp: time.Now(),
+		Latitude:   lat,
+		Longitude:  lon,
+		Altitude:   alt,
+		Accuracy:   sigmaM,
+		Source:     "starlink",
+		Valid:      lat != 0 && lon != 0,
+		Timestamp:  time.Now(),
 		Satellites: 0, // Starlink doesn't provide satellite count in location response
 	}
 
