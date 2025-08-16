@@ -66,7 +66,7 @@ func (c *Client) Connect(ctx context.Context) error {
 		"/var/run/ubus/ubus.sock", // RUTOS path
 		"/var/run/ubus.sock",      // Standard OpenWrt path
 	}
-	
+
 	var conn net.Conn
 	var err error
 	for _, path := range socketPaths {

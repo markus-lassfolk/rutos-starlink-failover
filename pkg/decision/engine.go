@@ -128,10 +128,10 @@ func NewEngine(config *uci.Config, logger *logx.Logger, telemetry *telem.Store) 
 		MLEnabled:           true,
 		MLModelPath:         "/tmp/starfail/ml_models.json",
 	}
-	
+
 	// Ensure ML model directory exists
 	if predictiveConfig.MLEnabled {
-		if err := os.MkdirAll("/tmp/starfail", 0755); err != nil {
+		if err := os.MkdirAll("/tmp/starfail", 0o755); err != nil {
 			logger.Warn("Failed to create ML model directory, disabling ML features", "error", err)
 			predictiveConfig.MLEnabled = false
 		}
