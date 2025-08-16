@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/starfail/starfail/pkg"
+	"github.com/starfail/starfail/pkg/collector"
 	"github.com/starfail/starfail/pkg/logx"
 	"google.golang.org/grpc"
 )
@@ -444,20 +445,33 @@ func (ss *StarlinkGPSSource) GetPriority() int {
 // IsAvailable checks if Starlink GPS is available
 func (ss *StarlinkGPSSource) IsAvailable(ctx context.Context) bool {
 	// Simple connectivity test to Starlink API
-	cmd := exec.CommandContext(ctx, "ping", "-c", "1", "-W", "2", ss.apiHost)
+	// Use Windows ping syntax (-n for count, -w for timeout in ms)
+	cmd := exec.CommandContext(ctx, "ping", "-n", "1", "-w", "2000", ss.apiHost)
 	return cmd.Run() == nil
 }
 
 // CollectGPS collects GPS data from Starlink API
 func (ss *StarlinkGPSSource) CollectGPS(ctx context.Context) (*pkg.GPSData, error) {
-	// Try to get GPS data from Starlink API via gRPC
-	gpsData, err := ss.getStarlinkGPSData(ctx)
-	if err != nil {
-		ss.logger.Warn("Failed to get Starlink GPS data", "error", err)
-		return nil, err
+	// Use the existing Starlink collector to get location data
+	config := map[string]interface{}{
+		"api_host": ss.apiHost,
+		"api_port": ss.apiPort,
+		"timeout":  10 * time.Second,
 	}
-
-	return gpsData, nil
+	
+	starlinkCollector, err := collector.NewStarlinkCollector(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Starlink collector: %w", err)
+	}
+	
+	// Call the get_location method
+	locationResponse, err := starlinkCollector.TestStarlinkMethod(ctx, "get_location")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get location from Starlink: %w", err)
+	}
+	
+	// Parse the JSON response
+	return ss.parseLocationResponse(locationResponse)
 }
 
 // getStarlinkGPSData gets GPS coordinates from Starlink gRPC API
@@ -492,8 +506,8 @@ func (ss *StarlinkGPSSource) callStarlinkLocationMethod(ctx context.Context, con
 		return nil, fmt.Errorf("gRPC call failed: %w", err)
 	}
 
-	// Parse the protobuf response
-	return ss.parseLocationResponse(response)
+	// Parse the JSON response
+	return ss.parseLocationResponse(string(response))
 }
 
 // createLocationRequest creates a protobuf request for location data
@@ -509,90 +523,62 @@ func (ss *StarlinkGPSSource) createLocationRequest() []byte {
 	return request
 }
 
-// parseLocationResponse parses GPS data from Starlink protobuf response
-func (ss *StarlinkGPSSource) parseLocationResponse(data []byte) (*pkg.GPSData, error) {
-	gpsData := &pkg.GPSData{
-		Source:    "starlink",
-		Timestamp: time.Now(),
-		Valid:     false,
+// parseLocationResponse parses GPS data from Starlink JSON response
+func (ss *StarlinkGPSSource) parseLocationResponse(jsonResponse string) (*pkg.GPSData, error) {
+	// Parse the JSON response
+	var response map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonResponse), &response); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
 	}
 
-	// Parse protobuf wire format
-	offset := 0
-	for offset < len(data) {
-		// Read field tag
-		tag, tagLen, err := ss.readVarint(data, offset)
-		if err != nil {
-			break
-		}
-		offset += tagLen
+	// Extract the getLocation data
+	getLocation, ok := response["getLocation"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("getLocation field not found in response")
+	}
 
-		fieldNum := tag >> 3
-		wireType := tag & 0x7
+	// Extract the lla (latitude, longitude, altitude) data
+	lla, ok := getLocation["lla"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("lla field not found in getLocation")
+	}
 
-		switch wireType {
-		case 0: // Varint
-			value, valueLen, err := ss.readVarint(data, offset)
-			if err != nil {
-				return nil, err
-			}
-			offset += valueLen
+	// Extract coordinates
+	lat, ok := lla["lat"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("latitude not found or invalid")
+	}
 
-			// Map known GPS fields
-			switch fieldNum {
-			case 1: // satellites
-				gpsData.Satellites = int(value)
-			}
+	lon, ok := lla["lon"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("longitude not found or invalid")
+	}
 
-		case 1: // 64-bit
-			if offset+8 > len(data) {
-				return nil, fmt.Errorf("insufficient data for 64-bit field")
-			}
-			value := ss.readUint64(data[offset:])
-			offset += 8
+	alt, ok := lla["alt"].(float64)
+	if !ok {
+		alt = 0 // Default altitude if not available
+	}
 
-			// Map GPS coordinate fields (as fixed64)
-			switch fieldNum {
-			case 2: // latitude (as fixed64 scaled)
-				gpsData.Latitude = float64(int64(value)) / 1e7
-				gpsData.Valid = true
-			case 3: // longitude (as fixed64 scaled)
-				gpsData.Longitude = float64(int64(value)) / 1e7
-				gpsData.Valid = true
-			}
+	// Extract additional GPS info
+	source, _ := getLocation["source"].(string)
+	if source == "" {
+		source = "GNC_FUSED" // Default Starlink GPS source
+	}
 
-		case 2: // Length-delimited
-			length, lengthLen, err := ss.readVarint(data, offset)
-			if err != nil {
-				return nil, err
-			}
-			offset += lengthLen
+	sigmaM, _ := getLocation["sigmaM"].(float64)
+	if sigmaM == 0 {
+		sigmaM = 5.0 // Default accuracy if not provided
+	}
 
-			if offset+int(length) > len(data) {
-				return nil, fmt.Errorf("insufficient data for length-delimited field")
-			}
-
-			// Skip the data for now
-			offset += int(length)
-
-		case 5: // 32-bit
-			if offset+4 > len(data) {
-				return nil, fmt.Errorf("insufficient data for 32-bit field")
-			}
-			value := ss.readUint32(data[offset:])
-			offset += 4
-
-			// Map GPS fields
-			switch fieldNum {
-			case 4: // altitude (as float32)
-				gpsData.Altitude = float64(math.Float32frombits(value))
-			case 5: // accuracy (as float32)
-				gpsData.Accuracy = float64(math.Float32frombits(value))
-			}
-
-		default:
-			return nil, fmt.Errorf("unknown wire type: %d", wireType)
-		}
+	gpsData := &pkg.GPSData{
+		Latitude:  lat,
+		Longitude: lon,
+		Altitude:  alt,
+		Accuracy:  sigmaM,
+		Source:    "starlink",
+		Valid:     lat != 0 && lon != 0,
+		Timestamp: time.Now(),
+		Satellites: 0, // Starlink doesn't provide satellite count in location response
 	}
 
 	return gpsData, nil
