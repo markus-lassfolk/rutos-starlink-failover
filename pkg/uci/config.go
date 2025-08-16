@@ -142,7 +142,7 @@ const (
 	DefaultMaxRAMMB                = 16
 	DefaultDataCapMode             = "balanced"
 	DefaultSwitchMargin            = 10
-	DefaultMinUptimeS              = 20
+	DefaultMinUptimeS              = 5
 	DefaultCooldownS               = 20
 	DefaultLogLevel                = "info"
 	DefaultFailThresholdLoss       = 5

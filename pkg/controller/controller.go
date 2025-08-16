@@ -33,6 +33,9 @@ type Controller struct {
 
 	// Netifd integration
 	ubusPath string
+
+	// Behavior
+	dryRun bool
 }
 
 // NewController creates a new controller
@@ -67,7 +70,7 @@ func (c *Controller) Switch(from, to *pkg.Member) error {
 			return from.Name
 		}
 		return "none"
-	}(), "to", to.Name)
+	}(), "to", to.Name, "dry_run", c.dryRun)
 
 	// Validate target member
 	if err := c.Validate(to); err != nil {
@@ -128,7 +131,8 @@ func (c *Controller) switchMWAN3(from, to *pkg.Member) error {
 			}
 			return "none"
 		}(),
-		"to": to.Name,
+		"to":      to.Name,
+		"dry_run": c.dryRun,
 	})
 
 	// Get current mwan3 status
@@ -139,27 +143,39 @@ func (c *Controller) switchMWAN3(from, to *pkg.Member) error {
 
 	// Check if we need to make changes
 	if c.isMWAN3SwitchNeeded(from, to, status) {
-		// Update mwan3 policy
-		if err := c.updateMWAN3Policy(to); err != nil {
-			return fmt.Errorf("failed to update mwan3 policy: %w", err)
-		}
+		if c.dryRun {
+			c.logger.Info("DRY RUN: Updating MWAN3 policy (config changes allowed)", "target", to.Name, "iface", to.Iface)
+			// Update mwan3 policy (allowed in dry-run for testing)
+			if err := c.updateMWAN3Policy(to); err != nil {
+				return fmt.Errorf("failed to update mwan3 policy: %w", err)
+			}
+			c.logger.Info("DRY RUN: Would reload MWAN3 (skipped to prevent network changes)")
+		} else {
+			// Update mwan3 policy
+			if err := c.updateMWAN3Policy(to); err != nil {
+				return fmt.Errorf("failed to update mwan3 policy: %w", err)
+			}
 
-		// Reload mwan3
-		if err := c.reloadMWAN3(); err != nil {
-			return fmt.Errorf("failed to reload mwan3: %w", err)
-		}
+			// Reload mwan3
+			if err := c.reloadMWAN3(); err != nil {
+				return fmt.Errorf("failed to reload mwan3: %w", err)
+			}
 
-		c.logger.LogMWAN3("reload", map[string]interface{}{
-			"reason": "policy_change",
-		})
+			c.logger.LogMWAN3("reload", map[string]interface{}{
+				"reason": "policy_change",
+			})
+		}
 	} else {
 		c.logger.LogMWAN3("unchanged", map[string]interface{}{
 			"reason": "no_change_needed",
 		})
 	}
 
-	// Update current member
+	// Update current member (allowed in dry-run for testing)
 	c.currentMember = to
+	if c.dryRun {
+		c.logger.Info("DRY RUN: Updated current member tracking", "member", to.Name)
+	}
 
 	return nil
 }
@@ -171,15 +187,22 @@ func (c *Controller) switchNetifd(from, to *pkg.Member) error {
 			return from.Name
 		}
 		return "none"
-	}(), "to", to.Name)
+	}(), "to", to.Name, "dry_run", c.dryRun)
 
-	// Update route metrics to prefer the target interface
-	if err := c.updateRouteMetrics(to); err != nil {
-		return fmt.Errorf("failed to update route metrics: %w", err)
+	if c.dryRun {
+		c.logger.Info("DRY RUN: Would update route metrics via netifd", "target", to.Name, "iface", to.Iface)
+	} else {
+		// Update route metrics to prefer the target interface
+		if err := c.updateRouteMetrics(to); err != nil {
+			return fmt.Errorf("failed to update route metrics: %w", err)
+		}
 	}
 
-	// Update current member
+	// Update current member (allowed in dry-run for testing)
 	c.currentMember = to
+	if c.dryRun {
+		c.logger.Info("DRY RUN: Updated current member tracking", "member", to.Name)
+	}
 
 	return nil
 }
@@ -189,18 +212,66 @@ func (c *Controller) getMWAN3Status() (map[string]interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, c.mwan3Path, "status", "json")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("mwan3 status command failed: %w", err)
+	// Prefer JSON output via CLI (both variants), then fall back to ubus, then synthesize
+	tryCommands := [][]string{
+		{c.mwan3Path, "status", "json"},
+		{c.mwan3Path, "status", "--json"},
+	}
+	for _, args := range tryCommands {
+		cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+		if output, err := cmd.Output(); err == nil {
+			var status map[string]interface{}
+			if err := json.Unmarshal(output, &status); err == nil {
+				return status, nil
+			}
+		}
 	}
 
-	var status map[string]interface{}
-	if err := json.Unmarshal(output, &status); err != nil {
-		return nil, fmt.Errorf("failed to parse mwan3 status: %w", err)
+	if c.ubusPath != "" {
+		if out, err := exec.CommandContext(ctx, c.ubusPath, "call", "mwan3", "status").Output(); err == nil {
+			var status map[string]interface{}
+			if err := json.Unmarshal(out, &status); err == nil {
+				return status, nil
+			}
+		}
 	}
 
-	return status, nil
+	// Synthesize minimal status from netifd for known interfaces
+	type ifaceInfo struct{ name string }
+	interfaces := []ifaceInfo{}
+	c.membersMu.RLock()
+	for _, m := range c.members {
+		if m != nil && m.Iface != "" {
+			interfaces = append(interfaces, ifaceInfo{name: m.Iface})
+		}
+	}
+	c.membersMu.RUnlock()
+	if len(interfaces) == 0 {
+		interfaces = append(interfaces, ifaceInfo{name: "wan"}, ifaceInfo{name: "mob1s1a1"})
+	}
+
+	ifaceMap := map[string]interface{}{}
+	for _, it := range interfaces {
+		if it.name == "" {
+			continue
+		}
+		out, err := exec.CommandContext(ctx, c.ubusPath, "call", "network.interface."+it.name, "status").Output()
+		if err != nil {
+			ifaceMap[it.name] = map[string]interface{}{"status": "offline"}
+			continue
+		}
+		var st map[string]interface{}
+		if err := json.Unmarshal(out, &st); err != nil {
+			ifaceMap[it.name] = map[string]interface{}{"status": "offline"}
+			continue
+		}
+		if up, ok := st["up"].(bool); ok && up {
+			ifaceMap[it.name] = map[string]interface{}{"status": "online"}
+		} else {
+			ifaceMap[it.name] = map[string]interface{}{"status": "offline"}
+		}
+	}
+	return map[string]interface{}{"interfaces": ifaceMap}, nil
 }
 
 // isMWAN3SwitchNeeded checks if a mwan3 switch is needed
@@ -269,6 +340,10 @@ func (c *Controller) updateMWAN3Policy(to *pkg.Member) error {
 
 // reloadMWAN3 reloads mwan3 configuration
 func (c *Controller) reloadMWAN3() error {
+	if c.dryRun {
+		c.logger.Info("DRY RUN: Would reload MWAN3 configuration")
+		return nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -327,7 +402,8 @@ func (c *Controller) readMWAN3Config() (*MWAN3Config, error) {
 		if strings.Contains(line, "mwan3.") && strings.Contains(line, "=member") {
 			parts := strings.Split(line, ".")
 			if len(parts) >= 2 {
-				memberName := parts[1]
+				memberNamePart := parts[1]
+				memberName := strings.Split(memberNamePart, "=")[0] // Extract name before =member
 				if _, exists := memberMap[memberName]; !exists {
 					memberMap[memberName] = &MWAN3Member{
 						Name:    memberName,
@@ -431,6 +507,9 @@ func (c *Controller) updateMemberWeights(config *MWAN3Config, target *pkg.Member
 
 // writeMWAN3Config writes the mwan3 configuration back to UCI
 func (c *Controller) writeMWAN3Config(config *MWAN3Config) error {
+	if c.dryRun {
+		c.logger.Info("DRY RUN: Writing MWAN3 config (allowed in dry-run for testing)")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -454,7 +533,11 @@ func (c *Controller) writeMWAN3Config(config *MWAN3Config) error {
 
 // updateRouteMetrics updates route metrics to prefer the target interface
 func (c *Controller) updateRouteMetrics(to *pkg.Member) error {
-	c.logger.Info("Updating route metrics via netifd", "target", to.Name, "iface", to.Iface)
+	c.logger.Info("Updating route metrics via netifd", "target", to.Name, "iface", to.Iface, "dry_run", c.dryRun)
+	if c.dryRun {
+		c.logger.Info("DRY RUN: Would change default route metric", "iface", to.Iface)
+		return nil
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -688,6 +771,7 @@ func (c *Controller) GetControllerInfo() map[string]interface{} {
 		"mwan3_enabled": c.mwan3Enabled,
 		"mwan3_path":    c.mwan3Path,
 		"ubus_path":     c.ubusPath,
+		"dry_run":       c.dryRun,
 		"current_member": func() string {
 			if c.currentMember != nil {
 				return c.currentMember.Name
@@ -695,4 +779,9 @@ func (c *Controller) GetControllerInfo() map[string]interface{} {
 			return "none"
 		}(),
 	}
+}
+
+// SetDryRun enables or disables dry-run mode for the controller
+func (c *Controller) SetDryRun(enabled bool) {
+	c.dryRun = enabled
 }

@@ -369,14 +369,22 @@ func (d *Discoverer) createMember(iface, class string) (*pkg.Member, error) {
 
 // ValidateMember checks if a discovered member is valid and usable
 func (d *Discoverer) ValidateMember(member pkg.Member) error {
-	// Check if interface exists
-	if !d.interfaceExists(member.Iface) {
-		return fmt.Errorf("interface %s does not exist", member.Iface)
-	}
+	// For MWAN3 members, check if the UCI interface exists instead of physical interface
+	if d.isUCIInterface(member.Iface) {
+		if !d.uciInterfaceExists(member.Iface) {
+			return fmt.Errorf("UCI interface %s does not exist", member.Iface)
+		}
+		// Skip physical interface checks for UCI interfaces
+	} else {
+		// Check if physical interface exists
+		if !d.interfaceExists(member.Iface) {
+			return fmt.Errorf("interface %s does not exist", member.Iface)
+		}
 
-	// Check if interface is up
-	if !d.isInterfaceActive(member.Iface) {
-		return fmt.Errorf("interface %s is not active", member.Iface)
+		// Check if interface is up
+		if !d.isInterfaceActive(member.Iface) {
+			return fmt.Errorf("interface %s is not active", member.Iface)
+		}
 	}
 
 	// Class-specific validation
@@ -397,6 +405,28 @@ func (d *Discoverer) ValidateMember(member pkg.Member) error {
 // interfaceExists checks if a network interface exists
 func (d *Discoverer) interfaceExists(iface string) bool {
 	_, err := os.Stat(fmt.Sprintf("/sys/class/net/%s", iface))
+	return err == nil
+}
+
+// isUCIInterface checks if an interface name is a UCI logical interface
+func (d *Discoverer) isUCIInterface(iface string) bool {
+	// Common UCI interface names
+	uciInterfaces := []string{"wan", "wan6", "lan", "wwan", "mob1s1a1", "mob1s2a1"}
+	for _, uci := range uciInterfaces {
+		if iface == uci {
+			return true
+		}
+	}
+	return false
+}
+
+// uciInterfaceExists checks if a UCI interface exists in configuration
+func (d *Discoverer) uciInterfaceExists(iface string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "uci", "get", fmt.Sprintf("network.%s", iface))
+	err := cmd.Run()
 	return err == nil
 }
 
@@ -458,7 +488,9 @@ func (d *Discoverer) discoverFromMWAN3() ([]*pkg.Member, error) {
 		if strings.Contains(line, "mwan3.") && strings.Contains(line, "=member") {
 			parts := strings.Split(line, ".")
 			if len(parts) >= 2 {
-				memberName := parts[1]
+				// Extract member name before the =member part
+				memberNamePart := parts[1]
+				memberName := strings.Split(memberNamePart, "=")[0]
 				if _, exists := members[memberName]; !exists {
 					members[memberName] = &pkg.Member{
 						Name:      memberName,
@@ -469,6 +501,7 @@ func (d *Discoverer) discoverFromMWAN3() ([]*pkg.Member, error) {
 						Detect:    "auto",
 						Config:    make(map[string]string),
 					}
+					d.logger.Debug("Created member from MWAN3", "name", memberName, "line", line)
 				}
 			}
 		}
@@ -480,6 +513,9 @@ func (d *Discoverer) discoverFromMWAN3() ([]*pkg.Member, error) {
 				memberName := strings.Split(strings.Split(line, ".")[1], ".interface")[0]
 				if member, exists := members[memberName]; exists {
 					member.Iface = strings.Trim(parts[1], "'\"")
+					d.logger.Debug("Assigned interface to member", "member", memberName, "interface", member.Iface, "line", line)
+				} else {
+					d.logger.Debug("Interface line found but no member", "memberName", memberName, "line", line)
 				}
 			}
 		}

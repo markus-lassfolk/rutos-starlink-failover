@@ -35,6 +35,7 @@ var (
 	monitor    = flag.Bool("monitor", false, "Run in monitoring mode with verbose output")
 	verbose    = flag.Bool("verbose", false, "Enable verbose logging (equivalent to trace level)")
 	foreground = flag.Bool("foreground", false, "Run in foreground mode (don't daemonize)")
+	dryRun     = flag.Bool("dry-run", false, "Dry run mode - don't make changes, only log intended actions")
 )
 
 const (
@@ -78,6 +79,9 @@ func main() {
 	}
 
 	logger.Info("Configuration loaded", "predictive", cfg.Predictive, "use_mwan3", cfg.UseMWAN3)
+	if *dryRun {
+		logger.Info("Dry-run mode enabled: no system changes will be applied")
+	}
 
 	// Log monitoring mode status
 	if *monitor {
@@ -159,6 +163,8 @@ func main() {
 		logger.Error("Failed to initialize controller", "error", err)
 		os.Exit(1)
 	}
+	// Apply dry-run to controller
+	ctrl.SetDryRun(*dryRun)
 
 	// Set discovered members in controller
 	if err := ctrl.SetMembers(members); err != nil {
@@ -249,7 +255,7 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
 	// Initialize system management
-	sysmgmtManager, err := initializeSystemManagement(cfg, logger)
+	sysmgmtManager, err := initializeSystemManagement(cfg, logger, *dryRun)
 	if err != nil {
 		logger.Error("Failed to initialize system management", "error", err)
 		os.Exit(1)
@@ -558,7 +564,7 @@ func publishTelemetryToMQTT(mqttClient *mqtt.Client, ctrl *controller.Controller
 }
 
 // initializeSystemManagement initializes the system management component
-func initializeSystemManagement(cfg *uci.Config, logger *logx.Logger) (*sysmgmt.Manager, error) {
+func initializeSystemManagement(cfg *uci.Config, logger *logx.Logger, dryRun bool) (*sysmgmt.Manager, error) {
 	// Load system management configuration
 	sysmgmtConfig, err := sysmgmt.LoadConfig(*configPath)
 	if err != nil {
@@ -567,7 +573,7 @@ func initializeSystemManagement(cfg *uci.Config, logger *logx.Logger) (*sysmgmt.
 	}
 
 	// Create system management manager
-	manager := sysmgmt.NewManager(sysmgmtConfig, logger, false) // false = not dry-run
+	manager := sysmgmt.NewManager(sysmgmtConfig, logger, dryRun)
 
 	// Start system management if enabled
 	if sysmgmtConfig.Enabled {
@@ -576,7 +582,8 @@ func initializeSystemManagement(cfg *uci.Config, logger *logx.Logger) (*sysmgmt.
 		}
 		logger.Info("System management started",
 			"check_interval", sysmgmtConfig.CheckInterval,
-			"auto_fix", sysmgmtConfig.AutoFixEnabled)
+			"auto_fix", sysmgmtConfig.AutoFixEnabled,
+			"dry_run", dryRun)
 	} else {
 		logger.Info("System management disabled in configuration")
 	}

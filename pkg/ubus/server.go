@@ -52,8 +52,10 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// Register methods
 	if err := s.registerMethods(); err != nil {
+		s.logger.Warn("Failed to register ubus methods via socket, continuing without ubus", "error", err)
 		s.client.Disconnect()
-		return fmt.Errorf("failed to register methods: %w", err)
+		// Don't return error - continue without ubus functionality
+		return nil
 	}
 
 	// Start listening for messages

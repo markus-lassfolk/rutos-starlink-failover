@@ -61,8 +61,23 @@ func (c *Client) Connect(ctx context.Context) error {
 		return nil
 	}
 
-	// Try to connect to ubus socket
-	conn, err := net.Dial("unix", "/var/run/ubus.sock")
+	// Try to connect to ubus socket - check multiple possible paths
+	socketPaths := []string{
+		"/var/run/ubus/ubus.sock", // RUTOS path
+		"/var/run/ubus.sock",      // Standard OpenWrt path
+	}
+	
+	var conn net.Conn
+	var err error
+	for _, path := range socketPaths {
+		conn, err = net.Dial("unix", path)
+		if err == nil {
+			if c.logger != nil {
+				c.logger.Debug("Connected to ubus socket", "path", path)
+			}
+			break
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("failed to connect to ubus socket: %w", err)
 	}
