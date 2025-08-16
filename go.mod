@@ -13,6 +13,7 @@ require (
 	golang.org/x/crypto v0.40.0
 	google.golang.org/grpc v1.61.0
 	google.golang.org/protobuf v1.36.6
+	googlemaps.github.io/maps v1.7.0
 )
 
 require (
@@ -39,5 +40,4 @@ require (
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 	gonum.org/v1/gonum v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231106174013-bbf56f31fb17 // indirect
-	googlemaps.github.io/maps v1.7.0 // indirect
 )

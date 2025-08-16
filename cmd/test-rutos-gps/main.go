@@ -12,52 +12,65 @@ import (
 )
 
 var (
-	verbose              = flag.Bool("verbose", false, "Enable verbose logging")
-	host                 = flag.String("host", "192.168.80.1", "RutOS host address")
-	port                 = flag.String("port", "22", "SSH port")
-	user                 = flag.String("user", "root", "SSH username")
-	keyFile              = flag.String("key", "C:\\Users\\markusla\\OneDrive\\IT\\RUTOS Keys\\rusos_private_key_openssh", "SSH private key file")
-	timeout              = flag.Duration("timeout", 30*time.Second, "Command timeout")
-	testAll              = flag.Bool("all", true, "Test all GPS methods")
-	testGsmctl           = flag.Bool("gsmctl", false, "Test only gsmctl method")
-	testUbus             = flag.Bool("ubus", false, "Test only ubus method")
-	testDevice           = flag.Bool("device", false, "Test only device method")
-	analyze              = flag.Bool("analyze", false, "Perform comprehensive RutOS GPS analysis")
-	testGpsctl           = flag.Bool("test-gpsctl", false, "Test gpsctl command approach")
-	enhanced             = flag.Bool("enhanced", false, "Test enhanced GPS data collection with all gpsctl options")
-	testGsmGps           = flag.Bool("test-gsm-gps", false, "Test GSM GPS functionality comprehensively")
-	testQuectel          = flag.Bool("test-quectel", false, "Test Quectel GSM GPS specifically")
-	compareAll           = flag.Bool("compare-all", false, "Compare all three GPS sources")
-	testCellular         = flag.Bool("test-cellular", false, "Test cellular network location services")
-	testCellTower        = flag.Bool("test-celltower", false, "Test cell tower location databases")
-	testCellAccuracy     = flag.Bool("test-cell-accuracy", false, "Comprehensive cell tower location accuracy test")
-	testCellLocal        = flag.Bool("test-cell-local", false, "Test cell tower location services locally with hardcoded data")
-	debugCellAPIs        = flag.Bool("debug-cell-apis", false, "Debug cell tower APIs with detailed logging")
-	testPracticalCell    = flag.Bool("test-practical-cell", false, "Test practical cell tower location using nearby cells")
-	testContribute       = flag.Bool("test-contribute", false, "Test contributing data to OpenCellID database")
-	showStrategy         = flag.Bool("show-strategy", false, "Show OpenCellID usage strategy and limits")
-	testSmartCell        = flag.Bool("test-smart-cell", false, "Test intelligent cell location caching with environment-based triggers")
-	testUCIConfig        = flag.Bool("test-uci-config", false, "Test UCI configuration management for cell location services")
-	testEnhancedCell     = flag.Bool("test-enhanced-cell", false, "Test enhanced OpenCellID with multiple cells and detailed information")
-	testUnwiredLabs      = flag.Bool("test-unwiredlabs", false, "Test UnwiredLabs LocationAPI with cell towers and WiFi access points")
-	testUnwiredUCI       = flag.Bool("test-unwired-uci", false, "Test UCI configuration management for UnwiredLabs LocationAPI")
-	testGoogleGeo        = flag.Bool("test-google-geo", false, "Test Google Geolocation API with cell towers and WiFi access points")
-	testGoogleUCI        = flag.Bool("test-google-uci", false, "Test UCI configuration management for Google Geolocation API")
-	debugNeighbors       = flag.Bool("debug-neighbors", false, "Debug neighbor cell parsing to see raw AT command data")
-	debug5G              = flag.Bool("debug-5g", false, "Debug 5G cell data and AT commands to ensure proper 5G support")
-	enhanced5G           = flag.Bool("enhanced-5g", false, "Enhanced 5G network analysis with comprehensive NR cell detection")
-	testBSSIDOnly        = flag.Bool("test-bssid-only", false, "Test BSSID-only location using WiFi access points (no cellular data)")
-	testBSSIDHardcoded   = flag.Bool("test-bssid-hardcoded", false, "Test BSSID location with hardcoded WiFi access points for API verification")
-	testCombined         = flag.Bool("test-combined", false, "Test combined cellular + BSSID location for maximum accuracy")
-	testEnhancedWiFi     = flag.Bool("test-enhanced-wifi", false, "Test enhanced ubus WiFi scanning with rich data (quality, SNR, channel width)")
-	testLocationMgr      = flag.Bool("test-location-manager", false, "Test the intelligent location manager with hierarchy and caching")
-	testIntelligentCache = flag.Bool("test-intelligent-cache", false, "Test intelligent location cache with cell-change invalidation")
-	testAdaptiveCache    = flag.Bool("test-adaptive-cache", false, "Test adaptive location cache with movement detection and quality gating")
-	testProductionMgr    = flag.Bool("test-production-manager", false, "Test production location manager with non-blocking operations and error fallback")
-	testLocationSources  = flag.Bool("test-location-sources", false, "Show comprehensive comparison of all location sources including all Starlink APIs")
-	testStarlinkMultiAPI = flag.Bool("test-starlink-multi-api", false, "Test comprehensive Starlink GPS collection from all three APIs")
-	testEnhancedLocation = flag.Bool("test-enhanced-location", false, "Test enhanced standardized location response with fix types, source details, and altitude compensation")
-	testImprovedLocation = flag.Bool("test-improved-location", false, "Test improved standardized location with integer fix types, m/s speed, altitude verification, and full precision coordinates")
+	verbose                   = flag.Bool("verbose", false, "Enable verbose logging")
+	host                      = flag.String("host", "192.168.80.1", "RutOS host address")
+	port                      = flag.String("port", "22", "SSH port")
+	user                      = flag.String("user", "root", "SSH username")
+	keyFile                   = flag.String("key", "C:\\Users\\markusla\\OneDrive\\IT\\RUTOS Keys\\rusos_private_key_openssh", "SSH private key file")
+	timeout                   = flag.Duration("timeout", 30*time.Second, "Command timeout")
+	testAll                   = flag.Bool("all", true, "Test all GPS methods")
+	testGsmctl                = flag.Bool("gsmctl", false, "Test only gsmctl method")
+	testUbus                  = flag.Bool("ubus", false, "Test only ubus method")
+	testDevice                = flag.Bool("device", false, "Test only device method")
+	analyze                   = flag.Bool("analyze", false, "Perform comprehensive RutOS GPS analysis")
+	testGpsctl                = flag.Bool("test-gpsctl", false, "Test gpsctl command approach")
+	enhanced                  = flag.Bool("enhanced", false, "Test enhanced GPS data collection with all gpsctl options")
+	testGsmGps                = flag.Bool("test-gsm-gps", false, "Test GSM GPS functionality comprehensively")
+	testQuectel               = flag.Bool("test-quectel", false, "Test Quectel GSM GPS specifically")
+	compareAll                = flag.Bool("compare-all", false, "Compare all three GPS sources")
+	testCellular              = flag.Bool("test-cellular", false, "Test cellular network location services")
+	testCellTower             = flag.Bool("test-celltower", false, "Test cell tower location databases")
+	testCellAccuracy          = flag.Bool("test-cell-accuracy", false, "Comprehensive cell tower location accuracy test")
+	testCellLocal             = flag.Bool("test-cell-local", false, "Test cell tower location services locally with hardcoded data")
+	debugCellAPIs             = flag.Bool("debug-cell-apis", false, "Debug cell tower APIs with detailed logging")
+	testPracticalCell         = flag.Bool("test-practical-cell", false, "Test practical cell tower location using nearby cells")
+	testContribute            = flag.Bool("test-contribute", false, "Test contributing data to OpenCellID database")
+	showStrategy              = flag.Bool("show-strategy", false, "Show OpenCellID usage strategy and limits")
+	testSmartCell             = flag.Bool("test-smart-cell", false, "Test intelligent cell location caching with environment-based triggers")
+	testUCIConfig             = flag.Bool("test-uci-config", false, "Test UCI configuration management for cell location services")
+	testEnhancedCell          = flag.Bool("test-enhanced-cell", false, "Test enhanced OpenCellID with multiple cells and detailed information")
+	testUnwiredLabs           = flag.Bool("test-unwiredlabs", false, "Test UnwiredLabs LocationAPI with cell towers and WiFi access points")
+	testUnwiredUCI            = flag.Bool("test-unwired-uci", false, "Test UCI configuration management for UnwiredLabs LocationAPI")
+	testGoogleGeo             = flag.Bool("test-google-geo", false, "Test Google Geolocation API with cell towers and WiFi access points")
+	testGoogleUCI             = flag.Bool("test-google-uci", false, "Test UCI configuration management for Google Geolocation API")
+	debugNeighbors            = flag.Bool("debug-neighbors", false, "Debug neighbor cell parsing to see raw AT command data")
+	debug5G                   = flag.Bool("debug-5g", false, "Debug 5G cell data and AT commands to ensure proper 5G support")
+	enhanced5G                = flag.Bool("enhanced-5g", false, "Enhanced 5G network analysis with comprehensive NR cell detection")
+	testBSSIDOnly             = flag.Bool("test-bssid-only", false, "Test BSSID-only location using WiFi access points (no cellular data)")
+	testBSSIDHardcoded        = flag.Bool("test-bssid-hardcoded", false, "Test BSSID location with hardcoded WiFi access points for API verification")
+	testCombined              = flag.Bool("test-combined", false, "Test combined cellular + BSSID location for maximum accuracy")
+	testEnhancedWiFi          = flag.Bool("test-enhanced-wifi", false, "Test enhanced ubus WiFi scanning with rich data (quality, SNR, channel width)")
+	testLocationMgr           = flag.Bool("test-location-manager", false, "Test the intelligent location manager with hierarchy and caching")
+	testIntelligentCache      = flag.Bool("test-intelligent-cache", false, "Test intelligent location cache with cell-change invalidation")
+	testAdaptiveCache         = flag.Bool("test-adaptive-cache", false, "Test adaptive location cache with movement detection and quality gating")
+	testProductionMgr         = flag.Bool("test-production-manager", false, "Test production location manager with non-blocking operations and error fallback")
+	testLocationSources       = flag.Bool("test-location-sources", false, "Show comprehensive comparison of all location sources including all Starlink APIs")
+	testStarlinkMultiAPI      = flag.Bool("test-starlink-multi-api", false, "Test comprehensive Starlink GPS collection from all three APIs")
+	testEnhancedLocation      = flag.Bool("test-enhanced-location", false, "Test enhanced standardized location response with fix types, source details, and altitude compensation")
+	testImprovedLocation      = flag.Bool("test-improved-location", false, "Test improved standardized location with integer fix types, m/s speed, altitude verification, and full precision coordinates")
+	testGPSTable              = flag.Bool("test-gps-table", false, "Run comprehensive GPS table test showing all sources with unique data in table format")
+	testEnhancedGPSTable      = flag.Bool("test-enhanced-gps-table", false, "Run enhanced comprehensive GPS table test with all corrections and proper data interpretation")
+	testGPSHealthMonitorFlag  = flag.Bool("test-gps-health", false, "Test GPS health monitoring and reset functionality")
+	testSystemMaintenanceFlag = flag.Bool("test-maintenance", false, "Test system maintenance with GPS health monitoring integration")
+	testGPSMapsComparisonFlag = flag.Bool("test-gps-maps", false, "Generate Google Maps links with accuracy circles for GPS source comparison")
+	testGPSParsingDebugFlag   = flag.Bool("debug-gps-parsing", false, "Debug GPS parsing issues")
+	testUnifiedGPSTableFlag   = flag.Bool("test-unified-gps", false, "Test unified GPS table with combined RUTOS GPS data and unique data rows")
+	testStandardizedTableFlag = flag.Bool("test-standardized-table", false, "Test standardized output table with corrected formats (m/s speed, decimal accuracy, integer fix type)")
+	testStarlinkTimeDebugFlag = flag.Bool("debug-starlink-time", false, "Debug Starlink time/date discrepancy issue")
+	testAPIServerFlag         = flag.Bool("start-api-server", false, "Start Starfail GPS API Server (RUTOS-compatible)")
+	testAPIResponseFlag       = flag.Bool("test-api-response", false, "Test RUTOS-compatible API response format")
+	testAPIEndpointsFlag      = flag.Bool("test-api-endpoints", false, "Test all API endpoints without starting server")
+	testUCIAPIConfigFlag      = flag.Bool("test-uci-api-config", false, "Test UCI API configuration management")
 )
 
 type GPSTestResult struct {
@@ -367,6 +380,84 @@ func main() {
 	// If improved location test mode
 	if *testImprovedLocation {
 		testImprovedStandardizedLocation()
+		return
+	}
+
+	// If GPS table test mode
+	if *testGPSTable {
+		testComprehensiveGPSTable()
+		return
+	}
+
+	// If enhanced GPS table test mode
+	if *testEnhancedGPSTable {
+		testEnhancedComprehensiveGPSTable()
+		return
+	}
+
+	// If GPS health monitor test mode
+	if *testGPSHealthMonitorFlag {
+		testGPSHealthMonitor()
+		return
+	}
+
+	// If system maintenance test mode
+	if *testSystemMaintenanceFlag {
+		testSystemMaintenance()
+		return
+	}
+
+	// If GPS maps comparison test mode
+	if *testGPSMapsComparisonFlag {
+		testGPSMapsComparison()
+		return
+	}
+
+	// If GPS parsing debug test mode
+	if *testGPSParsingDebugFlag {
+		testGPSParsingDebug()
+		return
+	}
+
+	// If unified GPS table test mode
+	if *testUnifiedGPSTableFlag {
+		testUnifiedGPSTable()
+		return
+	}
+
+	// If standardized table test mode
+	if *testStandardizedTableFlag {
+		testStandardizedOutputTable()
+		return
+	}
+
+	// If Starlink time debug test mode
+	if *testStarlinkTimeDebugFlag {
+		testStarlinkTimeDebug()
+		return
+	}
+
+	// If API server mode
+	if *testAPIServerFlag {
+		testStarfailAPIServer()
+		return
+	}
+
+	// If API response test mode
+	if *testAPIResponseFlag {
+		testAPIResponse()
+		return
+	}
+
+	// If API endpoints test mode
+	if *testAPIEndpointsFlag {
+		testAPIEndpoints()
+		return
+	}
+
+	// If UCI API config test mode
+	if *testUCIAPIConfigFlag {
+		testUCIAPIConfig()
 		return
 	}
 

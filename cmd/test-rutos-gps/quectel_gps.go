@@ -80,8 +80,9 @@ func parseQGPSLOC(response string) *QuectelGPSData {
 	// Parse: +QGPSLOC: time,lat,lon,hdop,altitude,fix,cog,spkm,spkn,date,nsat
 	// Example: +QGPSLOC: 001047.00,59.48007,18.27985,0.4,9.5,3,,0.0,0.0,160825,39
 
-	// Remove the "+QGPSLOC: " prefix
+	// Remove the "+QGPSLOC: " prefix and clean up whitespace/control characters
 	dataStr := strings.TrimPrefix(qgpslocLine, "+QGPSLOC: ")
+	dataStr = strings.TrimSpace(dataStr) // Remove \r\n and other whitespace
 	parts := strings.Split(dataStr, ",")
 
 	if len(parts) < 11 {
@@ -127,7 +128,7 @@ func parseQGPSLOC(response string) *QuectelGPSData {
 
 	gpsData.Date = parts[9]
 
-	if sats, err := strconv.Atoi(parts[10]); err == nil {
+	if sats, err := strconv.Atoi(strings.TrimSpace(parts[10])); err == nil {
 		gpsData.Satellites = sats
 	}
 
